@@ -1,0 +1,1050 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  activeLayoutBreakpoint,
+  createLayoutRenderModel,
+  DEFAULT_LAYOUT_BREAKPOINTS,
+  generateLayoutCss,
+  hiddenLayoutBreakpoints,
+  layoutNodeClass,
+  normalizeLayoutDocument,
+  resolveLayoutBreakpoints,
+  resolveLayoutDocument,
+  validateLayoutDocument,
+  type BlockSlotDefinition,
+  type LayoutDocument,
+  type Responsive,
+  type SlotValidationContext,
+  type WidthLength,
+} from '../layout';
+
+const ENTRY_A = '123e4567-e89b-42d3-a456-426614174000';
+const ENTRY_B = '223e4567-e89b-42d3-a456-426614174000';
+
+function validLayout(): LayoutDocument {
+  return {
+    version: 1,
+    root: {
+      id: 'Root',
+      type: 'flex',
+      children: [
+        {
+          id: 'Grid',
+          type: 'grid',
+          children: [
+            { id: 'BlockA', type: 'block', entryId: ENTRY_A },
+            { id: 'BlockB', type: 'block', entryId: ENTRY_B },
+            { id: 'BlockARepeat', type: 'block', entryId: ENTRY_A },
+          ],
+          layout: {
+            columns: { normal: 2, mobile: 1 },
+            rows: { normal: 'auto', tablet: 2 },
+            columnGap: { normal: '16.0000px', mobile: '1rem' },
+            rowGap: { normal: '0.0000px' },
+          },
+        },
+      ],
+      style: {
+        padding: {
+          normal: { top: '2rem', right: '16px', bottom: '2rem', left: '16px' },
+          tablet: { right: '12px' },
+          mobile: { top: '1rem', left: '12px' },
+        },
+        visible: { normal: true, tablet: false, mobile: true },
+      },
+      layout: { direction: { normal: 'row', mobile: 'column' }, gap: { normal: '16px' } },
+    },
+  };
+}
+
+describe('responsive layout contract', () => {
+  it('normalizes canonical lengths without mutation and preserves repeated leaf order', () => {
+    const input = validLayout();
+    const snapshot = structuredClone(input);
+    const result = normalizeLayoutDocument(input, new Set([ENTRY_A, ENTRY_B]));
+    expect(input).toEqual(snapshot);
+    expect(result.blockEntryIds).toEqual([ENTRY_A, ENTRY_B, ENTRY_A]);
+    const grid = result.document.root.children[0];
+    expect(grid?.type).toBe('grid');
+    if (grid?.type === 'grid') {
+      expect(grid.layout.columnGap?.normal).toBe('16px');
+      expect(grid.layout.rowGap?.normal).toBe('0px');
+    }
+    expect(JSON.parse(JSON.stringify(result.document))).toEqual(result.document);
+  });
+
+  /**
+   * A node the platform locked because it came from a theme's page seed — a cart
+   * page's cart block (`pageSeeds[].blocks[].required`). It is an authoring rule
+   * and the theme renders it like any other block, but it is **stored on the
+   * node**, and an unknown key fails the whole document: before `locked` was
+   * admitted, every seeded cart, wishlist and search page rendered as
+   * `data-eldra-invalid-layout` instead of as a page.
+   */
+  it('admits a locked block node and renders it like any other', () => {
+    const document = validLayout();
+    // The fixture's one grid, and the first block in it, reached as plain JSON:
+    // `locked` is a key the exported types do not carry (it is stored on the
+    // node and never normalized onto one), which is the whole point here.
+    const root = document.root as unknown as { children: Array<Record<string, unknown>> };
+    const grid = root.children[0] as { children: Array<Record<string, unknown>> };
+    const block = grid.children[0]!;
+    block.locked = true;
+
+    expect(validateLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]))).toBeNull();
+    const result = normalizeLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]));
+    expect(result.blockEntryIds).toEqual([ENTRY_A, ENTRY_B, ENTRY_A]);
+    // Nothing downstream of the validator takes part in it: the normalized node
+    // is the same three keys an unlocked one is, so no renderer can branch on a
+    // rule that belongs to the editor.
+    const normalizedGrid = result.document.root.children[0];
+    expect(normalizedGrid?.type).toBe('grid');
+    if (normalizedGrid?.type === 'grid') {
+      expect(normalizedGrid.children[0]).toEqual({ id: 'BlockA', type: 'block', entryId: ENTRY_A });
+    }
+
+    block.locked = 'yes';
+    expect(validateLayoutDocument(document, new Set([ENTRY_A, ENTRY_B]))).toEqual({
+      path: '/root/children/0/children/0/locked',
+      code: 'INVALID_TYPE',
+    });
+  });
+
+  it('resolves scalar and per-side spacing inheritance independently', () => {
+    const tablet = resolveLayoutDocument(validLayout(), 'tablet');
+    expect(tablet.root.type).toBe('flex');
+    if (tablet.root.type === 'flex') expect(tablet.root.layout.direction).toBe('row');
+    expect(tablet.root.style.padding).toEqual({
+      top: '2rem',
+      right: '12px',
+      bottom: '2rem',
+      left: '16px',
+    });
+    expect(tablet.root.style.visible).toBe(false);
+
+    const mobile = resolveLayoutDocument(validLayout(), 'mobile');
+    expect(mobile.root.type).toBe('flex');
+    if (mobile.root.type === 'flex') expect(mobile.root.layout.direction).toBe('column');
+    expect(mobile.root.style.padding).toEqual({
+      top: '1rem',
+      right: '12px',
+      bottom: '2rem',
+      left: '12px',
+    });
+    expect(mobile.root.style.visible).toBe(true);
+  });
+
+  it('returns stable closed issues and escaped JSON pointers', () => {
+    const cases: Array<[unknown, string, string]> = [
+      [null, '', 'INVALID_TYPE'],
+      [{ root: validLayout().root }, '/version', 'REQUIRED'],
+      [{ ...validLayout(), 'a/b~c': true }, '/a~1b~0c', 'UNKNOWN_KEY'],
+      [{ ...validLayout(), version: 4 }, '/version', 'INVALID_VALUE'],
+    ];
+    for (const [value, path, code] of cases) {
+      expect(validateLayoutDocument(value)).toEqual({ path, code });
+    }
+  });
+
+  it.each([
+    ['-1px', 'INVALID_VALUE'],
+    ['01px', 'INVALID_VALUE'],
+    ['1.00000rem', 'INVALID_VALUE'],
+    ['4096.0001px', 'INVALID_VALUE'],
+    ['256.0001rem', 'INVALID_VALUE'],
+    ['100.0001%', 'INVALID_VALUE'],
+    ['calc(1px + 1rem)', 'INVALID_VALUE'],
+    ['var(--gap)', 'INVALID_VALUE'],
+    ['1px;display:none', 'INVALID_VALUE'],
+  ])('rejects unsafe or out-of-contract length %s', (length, code) => {
+    const layout = validLayout() as unknown as Record<string, unknown>;
+    const root = layout.root as Record<string, unknown>;
+    root.style = { padding: { normal: { top: length } } };
+    expect(validateLayoutDocument(layout)).toEqual({
+      path: '/root/style/padding/normal/top',
+      code,
+    });
+  });
+
+  it('distinguishes integer bounds, duplicate ids, malformed UUIDs, and missing blocks', () => {
+    const bound = validLayout();
+    const grid = bound.root.children[0]!;
+    if (grid.type !== 'grid') throw new Error('fixture');
+    grid.layout.columns.normal = 25;
+    expect(validateLayoutDocument(bound)).toEqual({
+      path: '/root/children/0/layout/columns/normal',
+      code: 'LIMIT_EXCEEDED',
+    });
+
+    const duplicate = validLayout();
+    duplicate.root.children.push({ id: 'Grid', type: 'block', entryId: ENTRY_A });
+    expect(validateLayoutDocument(duplicate)).toEqual({
+      path: '/root/children/1/id',
+      code: 'DUPLICATE_ID',
+    });
+
+    const malformed = validLayout();
+    const first = (
+      malformed.root.children[0] as Extract<
+        LayoutDocument['root']['children'][number],
+        { type: 'grid' }
+      >
+    ).children[0]!;
+    if (first.type !== 'block') throw new Error('fixture');
+    first.entryId = ENTRY_A.toUpperCase();
+    expect(validateLayoutDocument(malformed)?.code).toBe('INVALID_VALUE');
+    expect(validateLayoutDocument(validLayout(), new Set())).toEqual({
+      path: '/root/children/0/children/0/entryId',
+      code: 'BLOCK_NOT_FOUND',
+    });
+  });
+
+  it('rejects cycles, depth 13, and node 501 at deterministic paths', () => {
+    const cyclic = validLayout() as unknown as Record<string, unknown>;
+    cyclic.root = cyclic;
+    expect(validateLayoutDocument(cyclic)).toEqual({ path: '/root', code: 'INVALID_VALUE' });
+
+    const deep = validLayout();
+    let container = deep.root;
+    for (let depth = 2; depth <= 13; depth += 1) {
+      const next: LayoutDocument['root'] = {
+        id: `Node${depth}`,
+        type: 'flex',
+        children: [],
+        layout: { direction: { normal: 'column' } },
+      };
+      container.children = [next];
+      container = next;
+    }
+    expect(validateLayoutDocument(deep)).toEqual({
+      path: `/root${'/children/0'.repeat(12)}`,
+      code: 'LIMIT_EXCEEDED',
+    });
+
+    const wide = validLayout();
+    wide.root.children = Array.from({ length: 500 }, (_, index) => ({
+      id: `Block${index}`,
+      type: 'block' as const,
+      entryId: ENTRY_A,
+    }));
+    expect(validateLayoutDocument(wide)).toEqual({
+      path: '/root/children/499',
+      code: 'LIMIT_EXCEEDED',
+    });
+  });
+
+  it('rejects unsafe array properties and canonical documents over 262144 UTF-8 bytes', () => {
+    const property = validLayout();
+    Object.defineProperty(property.root.children, 'constructor', {
+      value: 'unsafe',
+      enumerable: true,
+      configurable: true,
+    });
+    expect(validateLayoutDocument(property)).toEqual({
+      path: '/root/children/constructor',
+      code: 'UNKNOWN_KEY',
+    });
+
+    const oversized = validLayout();
+    const spacing = {
+      normal: {
+        top: '4096.0000px',
+        right: '4096.0000px',
+        bottom: '4096.0000px',
+        left: '4096.0000px',
+      },
+      tablet: {
+        top: '4096.0000px',
+        right: '4096.0000px',
+        bottom: '4096.0000px',
+        left: '4096.0000px',
+      },
+      mobile: {
+        top: '4096.0000px',
+        right: '4096.0000px',
+        bottom: '4096.0000px',
+        left: '4096.0000px',
+      },
+    } as const;
+    oversized.root.children = Array.from({ length: 499 }, (_, index) => ({
+      id: `N${String(index).padStart(94, '0')}`,
+      type: 'block' as const,
+      entryId: ENTRY_A,
+      style: {
+        margin: spacing,
+        padding: spacing,
+        width: {
+          normal: '4096.0000px' as const,
+          tablet: '256.0000rem' as const,
+          mobile: '100.0000%' as const,
+        },
+        minWidth: {
+          normal: '4096.0000px' as const,
+          tablet: '256.0000rem' as const,
+          mobile: '100.0000%' as const,
+        },
+        maxWidth: {
+          normal: '4096.0000px' as const,
+          tablet: '256.0000rem' as const,
+          mobile: '100.0000%' as const,
+        },
+        minHeight: {
+          normal: '4096.0000px' as const,
+          tablet: '256.0000rem' as const,
+          mobile: '100.0000%' as const,
+        },
+        alignSelf: {
+          normal: 'stretch' as const,
+          tablet: 'center' as const,
+          mobile: 'auto' as const,
+        },
+        visible: { normal: true, tablet: false, mobile: true },
+      },
+    }));
+    expect(validateLayoutDocument(oversized)).toEqual({ path: '', code: 'LIMIT_EXCEEDED' });
+  });
+
+  it('uses the full standard SHA-256 digest and keeps identity stable across reorder', () => {
+    expect(layoutNodeClass('abc')).toBe(
+      'eldra-layout-ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+    );
+    const before = createLayoutRenderModel(validLayout());
+    const reordered = validLayout();
+    const grid = reordered.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.children.reverse();
+    const after = createLayoutRenderModel(reordered);
+    expect(after.root.children[0]?.className).toBe(before.root.children[0]?.className);
+  });
+
+  it('inherits container presets and lets explicit layout declarations win per breakpoint', () => {
+    const layout = validLayout();
+    layout.root.style = {
+      container: { normal: 'content', tablet: 'narrow', mobile: 'full' },
+      width: { normal: '80%', mobile: '100%' },
+      maxWidth: { normal: '60rem' },
+      margin: { normal: { left: '1rem' }, mobile: { right: '2rem' } },
+      padding: { normal: { left: '3rem' } },
+    };
+    const ids = new Set(['narrow', 'content', 'wide', 'full']);
+    const css = generateLayoutCss(layout, undefined, ids);
+    expect(css).toContain('max-width:60rem;');
+    expect(css).toContain('margin-left:1rem;');
+    expect(css).toContain('padding-left:3rem;');
+    expect(css).toContain('var(--eldra-container-narrow-gutter-tablet)');
+    expect(css).toContain('var(--eldra-container-full-gutter-mobile)');
+    expect(resolveLayoutDocument(layout, 'mobile', undefined, ids).root.style.container).toBe(
+      'full'
+    );
+    expect(validateLayoutDocument(layout, undefined, new Set(['content']))).toEqual({
+      path: '/root/style/container/tablet',
+      code: 'INVALID_VALUE',
+    });
+  });
+
+  it('emits only enumerated declarations in scoped rules for all fixed ranges', () => {
+    const css = generateLayoutCss(validLayout());
+    expect(css).toContain('@media (min-width:1024px)');
+    expect(css).toContain('@media (min-width:768px) and (max-width:1023px)');
+    expect(css).toContain('@media (max-width:767px)');
+    expect(css).toContain('grid-template-columns:repeat(2,minmax(0,1fr));');
+    expect(css).toContain('grid-template-columns:repeat(1,minmax(0,1fr));');
+    expect(css).toContain('padding-right:12px;');
+    expect(css).toContain('display:none;');
+    // `>*` is the child combinator of the block-root containment rule (see
+    // `containerTypeDeclarations`); nothing else may put an angle bracket in
+    // the output.
+    expect(css.replaceAll('>*{', '{')).not.toMatch(/calc|var\(|url\(|<|>|javascript|position:/);
+  });
+});
+
+describe('width keywords (fill / fit-content)', () => {
+  /** Every `.class{…}` rule body in a given `@media` section of `css`
+   * (`cssForDocument`'s output: at most three concatenated `@media` blocks,
+   * normal/tablet/mobile in that order, each wrapping a flat run of
+   * `.class{prop:val;…}` rules with no nested braces). */
+  function mediaSections(css: string): string[] {
+    return css
+      .split('@media ')
+      .filter((part) => part.length > 0)
+      .map((part) => {
+        const open = part.indexOf('{');
+        return part.slice(open + 1, -1);
+      });
+  }
+
+  function ruleBody(section: string, className: string): string {
+    return new RegExp(`\\.${className}\\{([^}]*)\\}`).exec(section)?.[1] ?? '';
+  }
+
+  it('accepts fill and fit-content on width at every breakpoint', () => {
+    const layout = validLayout();
+    layout.root.style = {
+      ...layout.root.style,
+      width: { normal: 'fill', tablet: 'fit-content', mobile: 'fill' },
+    };
+    expect(validateLayoutDocument(layout)).toBeNull();
+  });
+
+  it('rejects fill and fit-content on minWidth, maxWidth, and minHeight', () => {
+    for (const key of ['minWidth', 'maxWidth', 'minHeight'] as const) {
+      for (const keyword of ['fill', 'fit-content'] as const) {
+        const layout = validLayout();
+        layout.root.style = { ...layout.root.style, [key]: { normal: keyword } };
+        expect(validateLayoutDocument(layout)).toEqual({
+          path: `/root/style/${key}/normal`,
+          code: 'INVALID_VALUE',
+        });
+      }
+    }
+  });
+
+  it('rejects anything else on width that is not a length, auto, fill, or fit-content', () => {
+    const layout = validLayout();
+    // deliberately invalid at runtime — asserting the validator's own rejection, not the type system's.
+    layout.root.style = {
+      ...layout.root.style,
+      width: { normal: 'filled' as unknown as WidthLength },
+    };
+    expect(validateLayoutDocument(layout)).toEqual({
+      path: '/root/style/width/normal',
+      code: 'INVALID_VALUE',
+    });
+  });
+
+  it('a plain length/auto width still emits width:<value> unchanged, regardless of parent context', () => {
+    // validLayout's root already carries width:80%/100% coverage via the
+    // "inherits container presets" test above; this asserts the literal
+    // property text itself, under a flex-row parent (Grid, child of the
+    // row-direction root) — the one context that now behaves differently
+    // for the two new keywords — to prove a length is unaffected by that.
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: '42rem' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    expect(ruleBody(normalSection!, layoutNodeClass(grid.id))).toContain('width:42rem;');
+  });
+
+  it('fill under a flex-row parent: flex:1 1 0%;min-width:0, and no width property at all', () => {
+    // root's direction is {normal:'row', mobile:'column'}; tablet falls back
+    // to normal ('row'), so both sections exercise the flex-row branch.
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: 'fill' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection, tabletSection] = mediaSections(css);
+    const className = layoutNodeClass(grid.id);
+    for (const section of [normalSection!, tabletSection!]) {
+      const rule = ruleBody(section, className);
+      expect(rule).toContain('flex:1 1 0%;');
+      expect(rule).toContain('min-width:0;');
+      expect(rule.replace('min-width:0;', '')).not.toContain('width:');
+    }
+  });
+
+  it('fill under a flex-column parent: width:100%, no flex shorthand', () => {
+    // root's direction at mobile is 'column' — same node (Grid) as the
+    // flex-row test above, different breakpoint, per the resolved-per-
+    // breakpoint parent direction.
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: 'fill' } };
+    const css = generateLayoutCss(layout);
+    const [, , mobileSection] = mediaSections(css);
+    const rule = ruleBody(mobileSection!, layoutNodeClass(grid.id));
+    expect(rule).toContain('width:100%;');
+    expect(rule).not.toContain('flex:');
+    expect(rule).not.toContain('justify-self');
+  });
+
+  it('fill with no flex parent at all (the document root): width:100%', () => {
+    const layout = validLayout();
+    layout.root.style = { ...layout.root.style, width: { normal: 'fill' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    const rule = ruleBody(normalSection!, layoutNodeClass(layout.root.id));
+    expect(rule).toContain('width:100%;');
+    expect(rule).not.toContain('justify-self');
+  });
+
+  it('fill under a grid parent: justify-self:stretch;width:100%', () => {
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    const blockA = grid.children[0];
+    if (blockA?.type !== 'block') throw new Error('fixture');
+    blockA.style = { width: { normal: 'fill' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    const rule = ruleBody(normalSection!, layoutNodeClass(blockA.id));
+    expect(rule).toContain('justify-self:stretch;');
+    expect(rule).toContain('width:100%;');
+    expect(rule).not.toContain('flex:');
+  });
+
+  it('fit-content under a flex-row parent: flex:0 0 auto;width:fit-content', () => {
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: 'fit-content' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection, tabletSection] = mediaSections(css);
+    const className = layoutNodeClass(grid.id);
+    for (const section of [normalSection!, tabletSection!]) {
+      const rule = ruleBody(section, className);
+      expect(rule).toContain('flex:0 0 auto;');
+      expect(rule).toContain('width:fit-content;');
+    }
+  });
+
+  it('fit-content under a flex-column parent: width:fit-content, no flex shorthand', () => {
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: 'fit-content' } };
+    const css = generateLayoutCss(layout);
+    const [, , mobileSection] = mediaSections(css);
+    const rule = ruleBody(mobileSection!, layoutNodeClass(grid.id));
+    expect(rule).toContain('width:fit-content;');
+    expect(rule).not.toContain('flex:');
+    expect(rule).not.toContain('justify-self');
+  });
+
+  it('fit-content with no flex parent at all (the document root): width:fit-content', () => {
+    const layout = validLayout();
+    layout.root.style = { ...layout.root.style, width: { normal: 'fit-content' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    const rule = ruleBody(normalSection!, layoutNodeClass(layout.root.id));
+    expect(rule).toContain('width:fit-content;');
+    expect(rule).not.toContain('justify-self');
+  });
+
+  it('fit-content under a grid parent: justify-self:start;width:fit-content', () => {
+    // A container child, not a block — a block under a grid parent now
+    // aliases fit-content to fill (see the block-specific describe below),
+    // so this exercises the container branch that must stay unchanged.
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    const nested: LayoutDocument['root'] = {
+      id: 'NestedFlex',
+      type: 'flex',
+      children: [],
+      layout: { direction: { normal: 'row' } },
+      style: { width: { normal: 'fit-content' } },
+    };
+    grid.children.push(nested);
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    const rule = ruleBody(normalSection!, layoutNodeClass(nested.id));
+    expect(rule).toContain('justify-self:start;');
+    expect(rule).toContain('width:fit-content;');
+  });
+
+  it('an explicit minWidth on the same node still wins over the implicit min-width:0 a flex-row fill sets', () => {
+    const layout = validLayout();
+    const grid = layout.root.children[0];
+    if (grid?.type !== 'grid') throw new Error('fixture');
+    grid.style = { width: { normal: 'fill' }, minWidth: { normal: '10rem' } };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    const rule = ruleBody(normalSection!, layoutNodeClass(grid.id));
+    expect(rule).toContain('min-width:10rem;');
+    expect(rule).not.toContain('min-width:0;');
+  });
+
+  it('a slot child is never treated as a flex/grid item of the outer block\'s own parent — it gets the same "no flex parent" width treatment as the document root', () => {
+    const hostEntry = '123e4567-e89b-42d3-a456-426614174000';
+    const childEntry = '223e4567-e89b-42d3-a456-426614174000';
+    const apiHost = 'hero-block';
+    const apiChild = 'text-block';
+    const slotContext: SlotValidationContext = {
+      slotCatalog: {
+        [apiHost]: [{ id: 'body', label: 'Body', maxItems: 5 } satisfies BlockSlotDefinition],
+      },
+      entryApiId: (entryId) =>
+        entryId === hostEntry ? apiHost : entryId === childEntry ? apiChild : undefined,
+    };
+    const doc = {
+      version: 3 as const,
+      root: {
+        id: 'Root',
+        type: 'flex' as const,
+        // A flex ROW parent — the context that would give the child
+        // flex:1 1 0%/min-width:0 if it (wrongly) inherited it through the
+        // Host block it is nested inside.
+        layout: { direction: { normal: 'row' as const } },
+        children: [
+          {
+            id: 'Host',
+            type: 'block' as const,
+            entryId: hostEntry,
+            slots: {
+              body: [
+                {
+                  id: 'Child',
+                  type: 'block' as const,
+                  entryId: childEntry,
+                  style: { width: { normal: 'fill' as const } },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    const model = createLayoutRenderModel(doc, undefined, undefined, slotContext);
+    const [normalSection] = mediaSections(model.css);
+    const rule = ruleBody(normalSection!, layoutNodeClass('Child'));
+    expect(rule).toContain('width:100%;');
+    expect(rule).not.toContain('flex:');
+  });
+
+  // Container queries versus intrinsic sizing. A block's own `@container`
+  // root applies inline-size containment, under which it has no intrinsic
+  // inline size — so a block whose width is measured from its content
+  // (`fit-content`, an unset/`auto` width as a flex-row item, or anything but
+  // a fixed length inside such a node) would collapse to 0px. The generator
+  // therefore turns containment off on that block's root (`.<node>>*`) and
+  // makes every determinately sized container node — the root included — a
+  // query container for it to resolve against. See `intrinsicInlineSize` and
+  // `containerTypeDeclarations` in layout.ts.
+
+  function childRuleBody(section: string, className: string): string {
+    return new RegExp(`\\.${className}>\\*\\{([^}]*)\\}`).exec(section)?.[1] ?? '';
+  }
+
+  const rowOfBlocks = (): LayoutDocument => ({
+    version: 1,
+    root: {
+      id: 'Row',
+      type: 'flex',
+      layout: { direction: { normal: 'row', mobile: 'column' } },
+      children: [
+        { id: 'Unset', type: 'block', entryId: ENTRY_A },
+        { id: 'Fit', type: 'block', entryId: ENTRY_B, style: { width: { normal: 'fit-content' } } },
+        { id: 'Fill', type: 'block', entryId: ENTRY_A, style: { width: { normal: 'fill' } } },
+        { id: 'Fixed', type: 'block', entryId: ENTRY_B, style: { width: { normal: '20rem' } } },
+      ],
+    },
+  });
+
+  it('a block keeps a real fit-content width and loses containment on its root, so it can measure its content', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection] = mediaSections(css);
+    const fit = layoutNodeClass('Fit');
+    expect(ruleBody(normalSection!, fit)).toBe('flex:0 0 auto;width:fit-content;');
+    expect(childRuleBody(normalSection!, fit)).toBe('container-type:normal;');
+  });
+
+  it('a block with no width as a flex-row item is intrinsically sized too: no width rule, containment off', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection, , mobileSection] = mediaSections(css);
+    const unset = layoutNodeClass('Unset');
+    expect(ruleBody(normalSection!, unset)).toBe('');
+    expect(childRuleBody(normalSection!, unset)).toBe('container-type:normal;');
+    // In the mobile column the same block stretches, so it is determinate
+    // again and stays its own query container.
+    expect(childRuleBody(mobileSection!, unset)).toBe('');
+  });
+
+  it('a fill or fixed-length block is determinate: sized by its parent, its own root stays the query container', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    const [normalSection] = mediaSections(css);
+    expect(ruleBody(normalSection!, layoutNodeClass('Fill'))).toBe('flex:1 1 0%;min-width:0;');
+    expect(childRuleBody(normalSection!, layoutNodeClass('Fill'))).toBe('');
+    expect(ruleBody(normalSection!, layoutNodeClass('Fixed'))).toBe('width:20rem;');
+    expect(childRuleBody(normalSection!, layoutNodeClass('Fixed'))).toBe('');
+  });
+
+  it('the document root, and every other determinately sized container node, is a query container', () => {
+    const css = generateLayoutCss(rowOfBlocks());
+    for (const section of mediaSections(css)) {
+      expect(ruleBody(section, layoutNodeClass('Row'))).toContain('container-type:inline-size;');
+    }
+    // A block node never gets `container-type` on its wrapper: a determinate
+    // block's own root is its query container, an intrinsic one's ancestor is.
+    for (const id of ['Unset', 'Fit', 'Fill', 'Fixed']) {
+      expect(ruleBody(mediaSections(css)[0]!, layoutNodeClass(id))).not.toContain('container-type');
+    }
+  });
+
+  it('an intrinsically sized container node is not a query container, and everything inside it but a fixed length is intrinsic too', () => {
+    const layout: LayoutDocument = {
+      version: 1,
+      root: {
+        id: 'Col',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          {
+            id: 'FitGrid',
+            type: 'grid',
+            layout: { columns: { normal: 2 } },
+            style: { width: { normal: 'fit-content' } },
+            children: [
+              { id: 'InUnset', type: 'block', entryId: ENTRY_A },
+              {
+                id: 'InPercent',
+                type: 'block',
+                entryId: ENTRY_B,
+                style: { width: { normal: '50%' } },
+              },
+              {
+                id: 'InFill',
+                type: 'block',
+                entryId: ENTRY_A,
+                style: { width: { normal: 'fill' } },
+              },
+              {
+                id: 'InFixed',
+                type: 'block',
+                entryId: ENTRY_B,
+                style: { width: { normal: '10rem' } },
+              },
+            ],
+          },
+          {
+            id: 'Grid',
+            type: 'grid',
+            layout: { columns: { normal: 2 } },
+            children: [{ id: 'Cell', type: 'block', entryId: ENTRY_A }],
+          },
+        ],
+      },
+    };
+    const css = generateLayoutCss(layout);
+    const [normalSection] = mediaSections(css);
+    expect(ruleBody(normalSection!, layoutNodeClass('Col'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(ruleBody(normalSection!, layoutNodeClass('FitGrid'))).toContain('width:fit-content;');
+    expect(ruleBody(normalSection!, layoutNodeClass('FitGrid'))).not.toContain('container-type');
+    for (const id of ['InUnset', 'InPercent', 'InFill']) {
+      expect(childRuleBody(normalSection!, layoutNodeClass(id))).toBe('container-type:normal;');
+    }
+    expect(childRuleBody(normalSection!, layoutNodeClass('InFixed'))).toBe('');
+    // A stretched grid item of a determinate grid is determinate.
+    expect(ruleBody(normalSection!, layoutNodeClass('Grid'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(childRuleBody(normalSection!, layoutNodeClass('Cell'))).toBe('');
+  });
+
+  it('a slot child of an intrinsically sized host block is intrinsic through the host, not through a flex/grid parent', () => {
+    const hostEntry = '123e4567-e89b-42d3-a456-426614174000';
+    const childEntry = '223e4567-e89b-42d3-a456-426614174000';
+    const apiHost = 'hero-block';
+    const apiChild = 'text-block';
+    const slotContext: SlotValidationContext = {
+      slotCatalog: {
+        [apiHost]: [{ id: 'body', label: 'Body', maxItems: 5 } satisfies BlockSlotDefinition],
+      },
+      entryApiId: (entryId) =>
+        entryId === hostEntry ? apiHost : entryId === childEntry ? apiChild : undefined,
+    };
+    const doc = (hostWidth: 'fit-content' | 'fill') => ({
+      version: 3 as const,
+      root: {
+        id: 'Root',
+        type: 'flex' as const,
+        layout: { direction: { normal: 'row' as const } },
+        children: [
+          {
+            id: 'Host',
+            type: 'block' as const,
+            entryId: hostEntry,
+            style: { width: { normal: hostWidth } },
+            slots: { body: [{ id: 'Child', type: 'block' as const, entryId: childEntry }] },
+          },
+        ],
+      },
+    });
+    const intrinsic = createLayoutRenderModel(
+      doc('fit-content'),
+      undefined,
+      undefined,
+      slotContext
+    );
+    const [intrinsicSection] = mediaSections(intrinsic.css);
+    expect(childRuleBody(intrinsicSection!, layoutNodeClass('Host'))).toBe(
+      'container-type:normal;'
+    );
+    expect(childRuleBody(intrinsicSection!, layoutNodeClass('Child'))).toBe(
+      'container-type:normal;'
+    );
+    const determinate = createLayoutRenderModel(doc('fill'), undefined, undefined, slotContext);
+    const [determinateSection] = mediaSections(determinate.css);
+    expect(childRuleBody(determinateSection!, layoutNodeClass('Host'))).toBe('');
+    expect(childRuleBody(determinateSection!, layoutNodeClass('Child'))).toBe('');
+  });
+
+  it('templateLayout route templates get the same treatment: a template-block with no width as a flex-row item measures its content', async () => {
+    const { createTemplateLayoutRenderModel } = await import('../templateLayout');
+    const model = createTemplateLayoutRenderModel(
+      {
+        version: 1,
+        root: {
+          id: 'root',
+          type: 'flex',
+          layout: { direction: { normal: 'row' } },
+          children: [{ id: 'hero-placement', type: 'template-block', apiId: 'hero' }],
+        },
+      },
+      {
+        entry: { id: 'entry-1', data: { title: 'Hello' } },
+        blockCatalog: { hero: { apiId: 'hero', fields: [] } },
+      }
+    );
+    const [normalSection] = mediaSections(model.css);
+    expect(ruleBody(normalSection!, layoutNodeClass('root'))).toContain(
+      'container-type:inline-size;'
+    );
+    expect(ruleBody(normalSection!, layoutNodeClass('hero-placement'))).toBe('');
+    expect(childRuleBody(normalSection!, layoutNodeClass('hero-placement'))).toBe(
+      'container-type:normal;'
+    );
+  });
+});
+
+describe('LayoutBreakpoints (breakpoints negotiation)', () => {
+  it('generateLayoutCss/createLayoutRenderModel use a theme-configured breakpoints pair', () => {
+    const breakpoints = { tablet: 600, normal: 900 };
+    const css = generateLayoutCss(validLayout(), undefined, undefined, breakpoints);
+    expect(css).toContain('@media (min-width:900px)');
+    expect(css).toContain('@media (min-width:600px) and (max-width:899px)');
+    expect(css).toContain('@media (max-width:599px)');
+    expect(css).not.toContain('1024px');
+    expect(css).not.toContain('768px');
+
+    const model = createLayoutRenderModel(
+      validLayout(),
+      undefined,
+      undefined,
+      undefined,
+      breakpoints
+    );
+    expect(model.css).toBe(css);
+  });
+
+  it('defaults to 768/1024 — byte-identical to the hardcoded output — when breakpoints is omitted', () => {
+    const withDefaultsExplicit = generateLayoutCss(
+      validLayout(),
+      undefined,
+      undefined,
+      DEFAULT_LAYOUT_BREAKPOINTS
+    );
+    const withNoneGiven = generateLayoutCss(validLayout());
+    expect(withNoneGiven).toBe(withDefaultsExplicit);
+    expect(withNoneGiven).toContain('@media (min-width:1024px)');
+    expect(withNoneGiven).toContain('@media (min-width:768px) and (max-width:1023px)');
+    expect(withNoneGiven).toContain('@media (max-width:767px)');
+  });
+
+  describe('resolveLayoutBreakpoints', () => {
+    it('resolves undefined/null to the defaults, silently', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      expect(resolveLayoutBreakpoints(undefined)).toEqual(DEFAULT_LAYOUT_BREAKPOINTS);
+      expect(resolveLayoutBreakpoints(null)).toEqual(DEFAULT_LAYOUT_BREAKPOINTS);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it('accepts a valid custom pair unchanged', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      expect(resolveLayoutBreakpoints({ tablet: 480, normal: 1280 })).toEqual({
+        tablet: 480,
+        normal: 1280,
+      });
+      // Bounds are inclusive at both ends.
+      expect(resolveLayoutBreakpoints({ tablet: 320, normal: 4096 })).toEqual({
+        tablet: 320,
+        normal: 4096,
+      });
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it.each([
+      ['tablet below the 320 floor', { tablet: 319, normal: 1024 }],
+      ['normal above the 4096 ceiling', { tablet: 768, normal: 4097 }],
+      ['tablet not less than normal', { tablet: 1024, normal: 1024 }],
+      ['tablet greater than normal', { tablet: 1200, normal: 1024 }],
+      ['a non-integer', { tablet: 768.5, normal: 1024 }],
+      ['a non-finite value', { tablet: 768, normal: Number.POSITIVE_INFINITY }],
+    ])('falls back to the defaults with a console warning on nonsense: %s', (_label, nonsense) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      expect(resolveLayoutBreakpoints(nonsense)).toEqual(DEFAULT_LAYOUT_BREAKPOINTS);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]![0]).toContain('invalid layout breakpoints');
+      warn.mockRestore();
+    });
+  });
+});
+
+describe('breakpoint visibility', () => {
+  const NORMAL_QUERY = '(min-width:1024px)';
+  const TABLET_QUERY = '(min-width:768px) and (max-width:1023px)';
+  const MOBILE_QUERY = '(max-width:767px)';
+  const BLOCK_CLASS = layoutNodeClass('BlockA');
+
+  function mediaBlock(css: string, query: string): string {
+    // Nothing nests a second `@media`, so splitting on the at-rule yields one
+    // whole breakpoint block per segment.
+    const found = css
+      .split('@media ')
+      .filter(Boolean)
+      .find((part) => part.startsWith(`${query}{`));
+    if (found === undefined) throw new Error(`no @media ${query} block in ${css}`);
+    return found;
+  }
+
+  function visibilityLayout(visible: Responsive<boolean>): LayoutDocument {
+    return {
+      version: 1,
+      root: {
+        id: 'Root',
+        type: 'flex',
+        children: [{ id: 'BlockA', type: 'block', entryId: ENTRY_A, style: { visible } }],
+        layout: { direction: { normal: 'row' } },
+      },
+    };
+  }
+
+  it('gates display:none on the overlay edit marker and dims the node in its place', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: true, mobile: false }));
+    const mobile = mediaBlock(css, MOBILE_QUERY);
+    expect(mobile).toContain(`.${BLOCK_CLASS}:not([data-eldra-edit-mode]){display:none;}`);
+    expect(mobile).toContain(
+      `.${BLOCK_CLASS}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *){opacity:0.35;}`
+    );
+
+    for (const query of [NORMAL_QUERY, TABLET_QUERY]) {
+      const block = mediaBlock(css, query);
+      expect(block).not.toContain('display:none');
+      expect(block).not.toContain('data-eldra-edit-mode');
+    }
+  });
+
+  it('dims a hidden subtree exactly once, however often its class is nested', () => {
+    // jsdom ignores `@media`, so the breakpoint block is unwrapped and applied
+    // directly — the selectors inside it are what this proves, and jsdom does
+    // evaluate the complex `:not()` they use.
+    const layout: LayoutDocument = {
+      version: 1,
+      root: {
+        id: 'Root',
+        type: 'flex',
+        layout: { direction: { normal: 'row' } },
+        children: [
+          {
+            id: 'Outer',
+            type: 'flex',
+            layout: { direction: { normal: 'row' } },
+            style: { visible: { normal: false } },
+            children: [
+              {
+                id: 'BlockA',
+                type: 'block',
+                entryId: ENTRY_A,
+                style: { visible: { normal: false } },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const normal = mediaBlock(generateLayoutCss(layout, new Set([ENTRY_A])), NORMAL_QUERY);
+    document.head.innerHTML = `<style>${normal.slice(normal.indexOf('{') + 1, -1)}</style>`;
+    // Two shapes at once: a hidden node inside a hidden node, and the same
+    // node's class on two nested elements — which is what a framework binding
+    // emits for a slot child (wrapper plus block div).
+    document.body.innerHTML =
+      `<div class="${layoutNodeClass('Outer')}" data-eldra-edit-mode>` +
+      `<div class="${BLOCK_CLASS}" data-eldra-edit-mode>` +
+      `<div class="${BLOCK_CLASS}" data-eldra-edit-mode></div>` +
+      `</div></div>`;
+    const [outer, wrapper, inner] = [...document.querySelectorAll('div')];
+    expect(getComputedStyle(outer!).opacity).toBe('0.35');
+    expect(getComputedStyle(wrapper!).opacity).toBe('1');
+    expect(getComputedStyle(inner!).opacity).toBe('1');
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+  });
+
+  it('hides at every breakpoint a falsy normal inherits down to', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: false }));
+    for (const query of [NORMAL_QUERY, TABLET_QUERY, MOBILE_QUERY]) {
+      expect(mediaBlock(css, query)).toContain(
+        `.${BLOCK_CLASS}:not([data-eldra-edit-mode]){display:none;}`
+      );
+    }
+  });
+
+  it('never emits the hidden rules for a node that stays visible', () => {
+    const css = generateLayoutCss(visibilityLayout({ normal: true }));
+    expect(css).not.toContain('display:none');
+    expect(css).not.toContain('data-eldra-edit-mode');
+  });
+
+  it('resolves a viewport width to the breakpoint whose @media block is in force', () => {
+    expect(activeLayoutBreakpoint(1024)).toBe('normal');
+    expect(activeLayoutBreakpoint(1023)).toBe('tablet');
+    expect(activeLayoutBreakpoint(768)).toBe('tablet');
+    expect(activeLayoutBreakpoint(767)).toBe('mobile');
+    expect(activeLayoutBreakpoint(0)).toBe('mobile');
+    // A theme with its own breakpoints moves the two edges with it.
+    const custom = { tablet: 500, normal: 900 };
+    expect(activeLayoutBreakpoint(900, custom)).toBe('normal');
+    expect(activeLayoutBreakpoint(899, custom)).toBe('tablet');
+    expect(activeLayoutBreakpoint(499, custom)).toBe('mobile');
+  });
+
+  it('reports the breakpoints a style hides at, with the grammar inheritance', () => {
+    expect(hiddenLayoutBreakpoints(undefined)).toEqual([]);
+    expect(hiddenLayoutBreakpoints({})).toEqual([]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: true } })).toEqual([]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: true, tablet: false } })).toEqual([
+      'tablet',
+      'mobile',
+    ]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: false, tablet: true } })).toEqual([
+      'normal',
+    ]);
+    expect(hiddenLayoutBreakpoints({ visible: { normal: false } })).toEqual([
+      'normal',
+      'tablet',
+      'mobile',
+    ]);
+  });
+
+  it('is the only visibility key the grammar has — `hidden` is unknown', () => {
+    const layout = visibilityLayout({ normal: true }) as unknown as {
+      root: { children: Array<{ style: Record<string, unknown> }> };
+    };
+    layout.root.children[0]!.style = { hidden: { normal: true } };
+    expect(validateLayoutDocument(layout, new Set([ENTRY_A]))).toEqual({
+      path: '/root/children/0/style/hidden',
+      code: 'UNKNOWN_KEY',
+    });
+  });
+
+  it('refuses a non-boolean and a breakpoint map with no normal', () => {
+    expect(
+      validateLayoutDocument(
+        visibilityLayout({ normal: 'false' } as unknown as Responsive<boolean>),
+        new Set([ENTRY_A])
+      )
+    ).toEqual({ path: '/root/children/0/style/visible/normal', code: 'INVALID_TYPE' });
+    expect(
+      validateLayoutDocument(
+        visibilityLayout({ tablet: false } as unknown as Responsive<boolean>),
+        new Set([ENTRY_A])
+      )
+    ).toEqual({ path: '/root/children/0/style/visible/normal', code: 'REQUIRED' });
+  });
+});

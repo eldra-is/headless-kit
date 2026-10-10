@@ -1,0 +1,161 @@
+// @vitest-environment jsdom
+//
+// `blocks/article/Block.vue` imports `EldraRichText` from `@eldrajs/theme-vue`;
+// its single index entry also re-exports `EldraBlockZone`/`EldraLayout`,
+// which import `virtual:eldra/blocks`/`virtual:eldra/manifest`/
+// `virtual:eldra/breakpoints` at the top level, normally supplied only by
+// the Nuxt build's vite plugin. `vitest.config.ts` aliases all three to
+// mocks under `test/mocks/`, so the package — and therefore this block —
+// resolves for real here.
+import { mount } from '@vue/test-utils';
+import { reactive } from 'vue';
+import { createI18n } from 'vue-i18n';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
+import { registerBlockFields } from '@eldrajs/theme-core';
+import blockManifest from '../blocks/article/block.json';
+import Article from '../blocks/article/Block.vue';
+import enUS from '../i18n/en-US.json';
+import isIS from '../i18n/is-IS.json';
+
+// The block calls `useI18n()` (its byline sentence, its rich-text table caption fallback, its
+// editor-only hints), so every mount needs `vue-i18n` installed — see `test/support/mountBlock.ts`'s
+// own doc comment. This spec builds its own narrow `global`/context by hand rather than
+// `mountOptions()`'s fuller one, so it installs the same catalogue directly.
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en-US',
+  fallbackLocale: 'en-US',
+  messages: { 'en-US': enUS, 'is-IS': isIS },
+});
+
+const body = {
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'Plain, ' },
+        { type: 'text', text: 'bold', marks: [{ type: 'bold' }] },
+        { type: 'text', text: ' copy.' },
+      ],
+    },
+  ],
+};
+
+/**
+ * The block's own `block.json`, exactly as `virtual:eldra/block-fields` would
+ * project it at build time — so `body`'s `localized: true` is the manifest's,
+ * not the test's invention.
+ */
+function registerArticleFields(): void {
+  registerBlockFields({
+    article: blockManifest.fields.map((field) => ({
+      fieldId: field.fieldId,
+      type: field.type,
+      ...(field.localized === true ? { localized: true } : {}),
+      ...(field.metadata === undefined ? {} : { metadata: field.metadata }),
+    })),
+  });
+}
+
+/** A preview bridge attached with an active content locale. */
+function previewContext(locale: string | null): unknown {
+  return {
+    client: {},
+    designTokens: reactive({ colors: {}, containers: {} }),
+    preview: Object.assign(createEldraPreviewState(), { active: true, locale }),
+  };
+}
+
+function mountArticle(context?: unknown, doc: unknown = body) {
+  return mount(Article, {
+    props: {
+      entry: {
+        id: 'article-1',
+        data: { title: 'Announcing our new platform', body: doc },
+      },
+    },
+    global: {
+      plugins: [i18n],
+      ...(context === undefined ? {} : { provide: { [ELDRA_KEY as symbol]: context } }),
+    },
+  });
+}
+
+afterEach(() => {
+  registerBlockFields({});
+});
+
+describe('article body renders through EldraRichText', () => {
+  it('renders the doc as real markup and marks the read-mode root', () => {
+    const wrapper = mountArticle();
+
+    const root = wrapper.get('[data-eldra-rich-text]');
+    expect(root.attributes('data-eldra-field')).toBe('body');
+    expect(root.attributes('data-eldra-entry')).toBe('article-1');
+
+    const paragraph = wrapper.get('p');
+    expect(paragraph.text()).toBe('Plain, bold copy.');
+    expect(wrapper.get('strong').text()).toBe('bold');
+  });
+
+  it("stamps the body's node elements with their document positions", () => {
+    // §18 v3: the operator edits this render natively, so every node element
+    // carries the ProseMirror position the theme reports selections and text
+    // ops in. Mark elements are not nodes and carry nothing.
+    const wrapper = mountArticle();
+
+    const paragraph = wrapper.get('p');
+    expect(paragraph.attributes('data-eldra-node')).toBe('paragraph');
+    expect(paragraph.attributes('data-eldra-pos')).toBe('0');
+    expect(wrapper.get('strong').attributes('data-eldra-pos')).toBeUndefined();
+  });
+
+  it('marks the root with the active content locale for the localized body field', () => {
+    registerArticleFields();
+    const wrapper = mountArticle(previewContext('is-IS'));
+
+    expect(wrapper.get('[data-eldra-rich-text]').attributes('data-eldra-locale')).toBe('is-IS');
+  });
+
+  it('stays locale-less in static output, where no preview context is provided', () => {
+    registerArticleFields();
+    const wrapper = mountArticle();
+
+    expect(wrapper.get('[data-eldra-rich-text]').attributes('data-eldra-locale')).toBeUndefined();
+  });
+});
+
+/**
+ * A rich-text field cannot declare its own heading outline: `metadata.toolbar`'s `heading` control
+ * is one level-agnostic id, so an editor can insert any level anywhere. The page owns the outline,
+ * so each block passes `EldraRichText`'s `minHeadingLevel` floor for the place its document sits in
+ * (`clampHeadingLevel` in `@eldrajs/theme-core` does the clamping). Group A5 added that prop and
+ * exactly one of the nine call sites used it, which meant an `h1` in an article body still produced
+ * a second `<h1>` on the article page — the very invariant `test/pages/article.spec.ts` asserts,
+ * passing only because the fixture happens to use levels 2/2/2/3.
+ */
+describe('heading floors', () => {
+  const OUTLINE_DOC = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Inserted h1' }] },
+      { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Already h3' }] },
+    ],
+  };
+
+  it("floors the article body at h2, so an inserted h1 can never rival the article's title", () => {
+    const wrapper = mountArticle(undefined, OUTLINE_DOC);
+
+    // The block's own `h1` is the article title; the body's own headings start below it.
+    expect(wrapper.findAll('h1')).toHaveLength(1);
+    expect(wrapper.get('h1').text()).toBe('Announcing our new platform');
+
+    const body = wrapper.get('[data-eldra-rich-text]');
+    expect(body.get('h2').text()).toBe('Inserted h1');
+    // A floor, never an offset: a level already at or below the floor is untouched.
+    expect(body.get('h3').text()).toBe('Already h3');
+    expect(body.findAll('h4')).toHaveLength(0);
+  });
+});

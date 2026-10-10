@@ -33,6 +33,28 @@ export interface EldraHttpRequest {
 
 export type EldraHttpClient = <T = unknown>(request: EldraHttpRequest) => Promise<T>;
 
+/**
+ * How hard the client tries again when the gateway says "not now" — a `429`
+ * from its rate limit, a `503` while it restarts, or a dropped connection.
+ * Only idempotent requests are ever repeated; see `retry.ts` for the rules.
+ * Ignored when a consumer supplies its own `httpClient`: the retry belongs to
+ * the transport, and a replaced transport is the consumer's own.
+ */
+export interface EldraRetryOptions {
+  /**
+   * Total attempts per request, the first included. Default 5. `0` or `1`
+   * disables retrying: one request, no waiting.
+   */
+  attempts?: number;
+  /** First backoff window, doubling per attempt. Default 250 ms. */
+  baseDelayMs?: number;
+  /**
+   * Ceiling on the computed backoff. Default 5000 ms. A `Retry-After` the
+   * gateway sends is honoured beyond it (up to a minute).
+   */
+  maxDelayMs?: number;
+}
+
 export interface EldraClientOptions {
   apiBaseUrl?: RuntimeValue<string>;
   orgId?: RuntimeValue<string>;
@@ -42,11 +64,8 @@ export interface EldraClientOptions {
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;
   fetch?: typeof fetch;
-  /**
-   * Origin of the hosted checkout app, used by `checkout.handoffUrl`. Defaults to
-   * `https://checkout.eldra.app` when the API base URL is the default.
-   */
-  checkoutUrl?: RuntimeValue<string>;
+  /** See `EldraRetryOptions`; defaults documented there. */
+  retry?: EldraRetryOptions;
 }
 
 export interface EldraPaginationOptions {
@@ -151,11 +170,55 @@ export interface EldraOrganizationFeature {
   enabled: boolean;
 }
 
+/**
+ * The store's commerce settings, as `GET /organization/v1/{orgId}` publishes them under
+ * `commerce` (the gateway's `dto_OrganizationCommerce`). **Absent on a store that has not
+ * configured commerce**, which is why `features.getCommerce()` answers `null` rather than a
+ * default: a storefront that cannot know what it sells in has to say so, not guess a currency.
+ *
+ * Written by hand for the same reason `EldraOrganizationDetails` below it is: the organisation
+ * read backs every `features.*` method, so its shape has to resolve without the Vite plugin's
+ * generated `contract.ts` augmentation.
+ */
+export interface EldraOrganizationCommerce {
+  /** ISO 4217 code every catalog price is quoted in, e.g. `ISK`. */
+  currency: string;
+  /** Prices already contain VAT; a storefront shows them as they are. */
+  taxInclusivePricing: boolean;
+  /** Fraction, e.g. `0.24` — applies to shipping and to products without their own rate. */
+  defaultTaxRate: number;
+}
+
+/**
+ * The organisation's configured **content** locales, as the public organisation read publishes
+ * them: which locale a document's untagged content belongs to, and every locale its fields may
+ * carry a value for.
+ *
+ * Hand-written for the same reason `EldraOrganizationCommerce` above it is — the organisation read
+ * backs every `features.*` method and has to resolve without the Vite plugin's generated
+ * `contract.ts`.
+ *
+ * `supported` is default-first and always contains `default`. An organisation that has configured
+ * none publishes no `locales` at all, which `features.getLocales()` reports as `null`: a consumer
+ * can then behave exactly as it did before locales existed (one unprefixed site, the gateway's own
+ * default locale on every read) rather than inventing a tag nobody chose.
+ */
+export interface EldraOrganizationLocales {
+  /** The locale served unprefixed, e.g. `en-US`. */
+  default: string;
+  /** Every configured locale, `default` first, e.g. `["en-US", "is-IS"]`. */
+  supported: string[];
+}
+
 export interface EldraOrganizationDetails {
   id: string;
   name: string;
   description?: string;
   features?: EldraOrganizationFeature[];
+  /** See `EldraOrganizationCommerce`: absent, or `null`, until the store configures commerce. */
+  commerce?: EldraOrganizationCommerce | null;
+  /** See `EldraOrganizationLocales`: absent, or `null`, until the organisation configures any. */
+  locales?: EldraOrganizationLocales | null;
   paymentProviders?: unknown;
   createdAt?: string;
   updatedAt?: string;
@@ -261,6 +324,30 @@ export interface EldraFeatureClient {
     options?: EldraOrganizationOptions,
     context?: EldraRequestContext
   ): Promise<EldraFeatureCapabilities>;
+  /**
+   * What the store sells in: the organisation's own `commerce` settings, or `null` when it
+   * publishes none. Reads the same organisation document the other `features` methods read, so a
+   * caller that already has one can take `commerce` off it instead of calling this.
+   */
+  getCommerce(
+    options?: EldraOrganizationOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraOrganizationCommerce | null>;
+  /**
+   * Which content locales the organisation publishes: `{ default, supported }`, or `null` when it
+   * has configured none. Reads the same organisation document the other `features` methods read,
+   * so a caller that already has one can take `locales` off it instead of calling this.
+   *
+   * The answer is validated rather than passed through: a record without a non-empty string
+   * `default`, or whose `supported` is not an array of non-empty strings, is reported as `null` —
+   * the same answer as "none configured". A consumer uses this to decide which locale lives at
+   * which URL, and half an answer there would route real visitors to paths no content exists at.
+   * `default` is always first in `supported`, and duplicates are collapsed.
+   */
+  getLocales(
+    options?: EldraOrganizationOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraOrganizationLocales | null>;
 }
 
 export interface EldraClient {
@@ -270,6 +357,7 @@ export interface EldraClient {
   features: EldraFeatureClient;
   cart: EldraCartClient;
   orders: EldraOrdersClient;
+  platform: EldraPlatformClient;
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
 }
@@ -319,11 +407,37 @@ export type EldraStockAvailability = EldraContractResponse<
 >;
 export type EldraStockAvailabilityItem = Item<Prop<EldraStockAvailability, 'items'>>;
 
-export interface EldraCheckoutHandoffOptions {
+export interface EldraCheckoutUrlOptions {
   cartId: string;
   locale?: string;
-  checkoutUrl?: string;
+  /** Overrides the client's own `orgId` — a storefront serving several organisations. */
   orgId?: string;
+}
+
+/**
+ * Mirrors `GET /platform/v1/config` on the web gateway: the public, organisation-independent read
+ * (it takes no `X-Org-Id`, and the SDK sends none, so it answers the same thing whatever the
+ * browser's origin;
+ * `Cache-Control: public, max-age=300`) that tells a storefront where the platform hosts checkout.
+ * Written by hand because the generated contract does not carry the path yet; it becomes
+ * `EldraContractResponse<'/platform/v1/config', 'get'>` once the contract is regenerated.
+ */
+export interface EldraPlatformConfig {
+  /** Origin of the platform-hosted checkout app; `null` when the platform publishes none. */
+  checkoutUrl: string | null;
+}
+
+/**
+ * The only per-call option the platform reads take. There is no request context to pass: the route
+ * carries no organisation, no preview token and no auth, and the answer is shared by every caller of
+ * one client — so headers or an `orgId` per call could not mean anything.
+ */
+export interface EldraPlatformReadOptions {
+  /**
+   * Abandons **this** caller's wait. The read is shared, so it is not cancelled: aborting rejects
+   * the promise you are holding and leaves the request to whoever else is waiting on it.
+   */
+  signal?: AbortSignal;
 }
 
 export interface EldraCartClient {
@@ -363,8 +477,23 @@ export interface EldraOrdersClient {
 }
 
 export interface EldraCheckoutClient {
-  /** Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`. */
-  handoffUrl(options: EldraCheckoutHandoffOptions): string;
+  /**
+   * Where a storefront sends the customer: `{checkoutUrl}/checkout/{orgId}/{cartId}`, with the
+   * locale as `lang`. The base URL is the platform's — read from `platform.config()`, cached per
+   * client — so this is async, and it rejects when the platform published no checkout URL, when the
+   * read failed (with that failure as the error's `cause`), and when what the platform published is
+   * not an absolute `http(s)` URL. Each refusal says which it was.
+   */
+  url(options: EldraCheckoutUrlOptions, readOptions?: EldraPlatformReadOptions): Promise<string>;
+}
+
+export interface EldraPlatformClient {
+  /**
+   * The platform's public configuration. Read once per client instance: concurrent callers share
+   * the one in-flight request — cancellable by none of them, see `EldraPlatformReadOptions` — and a
+   * read that failed is retried by the next call.
+   */
+  config(readOptions?: EldraPlatformReadOptions): Promise<EldraPlatformConfig>;
 }
 
 export interface EldraInventoryClient {

@@ -1,0 +1,14 @@
+{
+  "collection": {
+    "_type": "collection",
+    "id": "2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a02",
+    "slug": "the-winter-edit"
+  },
+  "image": {
+    "assetId": "demo-collection-1",
+    "url": "/demo/collection-1.svg",
+    "altText": "Folded winter knitwear in oat, charcoal and moss",
+    "width": 1600,
+    "height": 1067
+  }
+}

@@ -1,0 +1,2057 @@
+/* Tailwind v4 theme for @eldrajs/ui. Every value is a --eldra-* variable from tokens.css, so a
+   consumer restyles by setting variables. Consumers with Tailwind import this file after
+   `@import 'tailwindcss'`; consumers without Tailwind use style.css.
+
+   Two kinds of value cannot be a variable and are written out here, nowhere else:
+   - container-query breakpoints, because a `@container (width < ...)` condition may not contain
+     `var()` — Tailwind inlines the `--container-*` value into the condition at build time;
+   - the spinner's own animation timings, which the spec fixes at 700ms (spin) and 1.2s (pulse). */
+@import './tokens.css';
+@source './';
+
+@theme {
+  --color-*: initial;
+  --color-background: var(--eldra-color-background);
+  --color-surface: var(--eldra-color-surface);
+  --color-surface-strong: var(--eldra-color-surface-strong);
+  --color-border: var(--eldra-color-border);
+  --color-border-strong: var(--eldra-color-border-strong);
+  --color-text: var(--eldra-color-text);
+  --color-muted: var(--eldra-color-muted);
+  --color-primary: var(--eldra-color-primary);
+  --color-primary-contrast: var(--eldra-color-primary-contrast);
+  --color-accent: var(--eldra-color-accent);
+  --color-accent-contrast: var(--eldra-color-accent-contrast);
+  --color-success: var(--eldra-color-success);
+  --color-warning: var(--eldra-color-warning);
+  --color-danger: var(--eldra-color-danger);
+  --color-focus: var(--eldra-color-focus);
+  --color-focus-inner: var(--eldra-color-focus-inner);
+  --color-overlay: var(--eldra-color-overlay);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-heading: var(--eldra-font-heading);
+  --font-body: var(--eldra-font-body);
+  --font-mono: var(--eldra-font-mono);
+
+  --spacing-*: initial;
+  --spacing: 0.25rem;
+  --spacing-1: var(--eldra-space-1);
+  --spacing-2: var(--eldra-space-2);
+  --spacing-3: var(--eldra-space-3);
+  --spacing-4: var(--eldra-space-4);
+  --spacing-5: var(--eldra-space-5);
+  --spacing-6: var(--eldra-space-6);
+  --spacing-8: var(--eldra-space-8);
+  --spacing-12: var(--eldra-space-12);
+  --spacing-16: var(--eldra-space-16);
+
+  --radius-*: initial;
+  --radius-sm: var(--eldra-radius-sm);
+  --radius-md: var(--eldra-radius-md);
+  --radius-lg: var(--eldra-radius-lg);
+  --radius-xl: var(--eldra-radius-xl);
+  --radius-full: var(--eldra-radius-full);
+
+  --shadow-*: initial;
+  --shadow-sm: var(--eldra-shadow-sm);
+  --shadow-md: var(--eldra-shadow-md);
+  --shadow-float: var(--eldra-shadow-float);
+
+  --ease-out: var(--eldra-ease-out);
+  --ease-in: var(--eldra-ease-in);
+
+  /* Container-query conditions cannot reference a custom property — `@container (width >=
+     var(--x))` is invalid CSS — so Tailwind requires a literal length in the `--container-*` theme
+     namespace before it emits `@narrow:`/`@content:`/`@wide:` variants at all. Shipping these three
+     as `var(--eldra-container-*)` (the tokens.css indirection every other value in this file uses)
+     compiled all three variants to nothing — no build error, no warning, just an absent rule — so
+     `Container`'s own `@content:px-[var(--eldra-gutter-desktop)]` desktop gutter, and every
+     starter block's own `@content:` layout, never engaged (bug, fixed 2026-09-27: see the README's
+     Deviations entry). The three literals below are `eldra-starter-spec/tokens.json`'s
+     `layout.container-{narrow,content,wide}` values, copied by hand — `scripts/build-tokens.mjs`
+     only ever emits a `var()`-holding `--eldra-*` custom property into `tokens.css`, never a
+     literal into this file, so it cannot generate this block for us —
+     `src/__tests__/containerQueryLiterals.spec.ts` asserts the two stay equal, catching the drift a
+     future token change could otherwise introduce silently.
+
+     This does not cost consumers runtime overridability of the three *widths*:
+     `--eldra-container-{narrow,content,wide}` in `tokens.css` are untouched, and `Container.vue`
+     reads them through its own `eldra-container-{narrow,content,wide}` utilities (declared further
+     down this file) rather than through Tailwind's auto-generated `max-w-narrow`/`-content`/
+     `-wide`. Those three still compile from the `--container-*` keys below — fine for an ad-hoc
+     `max-w-content` in a story or a consumer's own markup — but now to the *literal* number rather
+     than a `var()`, which would silently defeat `Container`'s own "a consumer restyles this by
+     setting a variable" contract were its width prop to keep reading them. */
+  --container-narrow: 40rem;
+  --container-content: 64rem;
+  --container-wide: 80rem;
+
+  /* In Tailwind v4 the `--container-*` namespace is the container-query breakpoint scale as well
+     as the width scale, so the three layout widths above already name the spec's `desktop`
+     (64rem, `--container-content`) and `wide` (80rem, `--container-wide`) breakpoints. The
+     mobile/tablet edge at 48rem has no layout width of its own, so it is named here: `@max-tablet`
+     is the spec's "narrower than 48rem", the breakpoint the spec's own "primary buttons grow to
+     `target-touch` below 48rem" rule would measure. `Button` no longer grows at any container
+     width (operator override, recorded under Deviations in the README), so nothing in this
+     package uses `@max-tablet` today — it stays declared for a future component that needs the
+     same edge. Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container
+     scale — the theme never resets `--container-*`. */
+  --container-tablet: 48rem;
+
+  /* The two-column form layout's own edge (spec "Form layout" -> Sizes): "the form's container
+     >= 36rem", "measured on the containing block, so it works in narrow page-builder columns".
+     Like `--container-tablet` above it is a breakpoint with no layout width behind it, so it is
+     named here rather than borrowing whichever stock container key happens to be 36rem:
+     `@two-col:grid-cols-2` turns the pairs on, `@max-two-col:` is the spec's "narrow container
+     (< 36rem)" state, where the actions stack full width with the primary first. */
+  --container-two-col: 36rem;
+}
+
+/* `Container`'s own max-width utilities (spec "Container and section" → Sizes). `--eldra-
+   container-{narrow,content,wide}` (tokens.css, generated from `layout.container-*`) stay
+   `var()`-driven, unlike the `--container-*` breakpoint scale above whose values had to become
+   literals for the container-query engine — `max-width` accepts a `var()` just fine, so a consumer
+   still restyles a block's width by setting one of these three at runtime. `Container.vue` reads
+   these named utilities for its own width cap rather than Tailwind's auto-generated `max-w-narrow`/
+   `-content`/`-wide` (now literal numbers, from the `--container-*` keys above), which would
+   otherwise defeat that contract for the one place it actually matters. Each shares the stock
+   `max-w` merge group in `cx.ts`, alongside those three literal utilities, so a consumer's
+   `classes.root` override or `Container`'s own `full` (`max-w-none`) still replaces it outright. */
+@utility eldra-container-narrow {
+  max-width: var(--eldra-container-narrow);
+}
+@utility eldra-container-content {
+  max-width: var(--eldra-container-content);
+}
+@utility eldra-container-wide {
+  max-width: var(--eldra-container-wide);
+}
+
+/* Type styles: one utility per spec style, e.g. `text-body-sm`. */
+@utility text-display {
+  font: var(--eldra-text-display-weight) var(--eldra-text-display-size) /
+    var(--eldra-text-display-line) var(--eldra-text-display-family);
+  letter-spacing: var(--eldra-text-display-tracking);
+}
+@utility text-h1 {
+  font: var(--eldra-text-h1-weight) var(--eldra-text-h1-size) / var(--eldra-text-h1-line)
+    var(--eldra-text-h1-family);
+  letter-spacing: var(--eldra-text-h1-tracking);
+}
+@utility text-h2 {
+  font: var(--eldra-text-h2-weight) var(--eldra-text-h2-size) / var(--eldra-text-h2-line)
+    var(--eldra-text-h2-family);
+  letter-spacing: var(--eldra-text-h2-tracking);
+}
+@utility text-h3 {
+  font: var(--eldra-text-h3-weight) var(--eldra-text-h3-size) / var(--eldra-text-h3-line)
+    var(--eldra-text-h3-family);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+@utility text-h4 {
+  font: var(--eldra-text-h4-weight) var(--eldra-text-h4-size) / var(--eldra-text-h4-line)
+    var(--eldra-text-h4-family);
+  letter-spacing: var(--eldra-text-h4-tracking);
+}
+@utility text-body-lg {
+  font: var(--eldra-text-body-lg-weight) var(--eldra-text-body-lg-size) /
+    var(--eldra-text-body-lg-line) var(--eldra-text-body-lg-family);
+  letter-spacing: var(--eldra-text-body-lg-tracking);
+}
+@utility text-body {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) / var(--eldra-text-body-line)
+    var(--eldra-text-body-family);
+  letter-spacing: var(--eldra-text-body-tracking);
+}
+@utility text-body-sm {
+  font: var(--eldra-text-body-sm-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-text-body-sm-line) var(--eldra-text-body-sm-family);
+  letter-spacing: var(--eldra-text-body-sm-tracking);
+}
+@utility text-caption {
+  font: var(--eldra-text-caption-weight) var(--eldra-text-caption-size) /
+    var(--eldra-text-caption-line) var(--eldra-text-caption-family);
+  letter-spacing: var(--eldra-text-caption-tracking);
+}
+@utility text-overline {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-text-overline-line) var(--eldra-text-overline-family);
+  letter-spacing: var(--eldra-text-overline-tracking);
+  text-transform: uppercase;
+}
+@utility text-label {
+  font: var(--eldra-text-label-weight) var(--eldra-text-label-size) / var(--eldra-text-label-line)
+    var(--eldra-text-label-family);
+  letter-spacing: var(--eldra-text-label-tracking);
+}
+@utility text-code {
+  font: var(--eldra-text-code-weight) var(--eldra-text-code-size) / var(--eldra-text-code-line)
+    var(--eldra-text-code-family);
+  letter-spacing: var(--eldra-text-code-tracking);
+}
+
+/* Badge type (spec "Badge" → Sizes): "0.8125rem, weight 600, line-height 1, letter-spacing
+   0.01em, no wrapping." The size and tracking already read the caption token exactly; the weight
+   reads the label token's 600 (the caption token's own weight is 400, which the badge does not
+   want); only the 1 line ratio has no token of its own, so — like `text-button-md`'s 1.2 — it is
+   a per-component variable with that literal default. */
+@utility text-badge {
+  font: var(--eldra-text-label-weight) var(--eldra-text-caption-size) /
+    var(--eldra-badge-line-height, 1) var(--eldra-font-body);
+  letter-spacing: var(--eldra-text-caption-tracking);
+}
+
+/* The stock status line's own text (spec "Badge" → Sizes, "Status line text" row): "0.875rem,
+   weight 600." Both numbers already read tokens (`text-label-weight` is 600, `text-body-sm-size`
+   is 0.875rem); the spec gives no line ratio for this row, so — the same shape as
+   `text-card-title`'s 1.4 — it is a per-component variable with a literal default. Unlike the
+   badge text above, the status line is a short sentence rather than a tag, so it is allowed to
+   wrap on a narrow card rather than forcing `whitespace-nowrap`. */
+@utility text-stock-status {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-stock-status-line, 1.4) var(--eldra-font-body);
+}
+
+/* The Logo item wordmark fallback (spec "Logo item" → Sizes, "Wordmark" row): "heading family,
+   1.25rem, weight 700, line-height 1.15, letter-spacing −0.01em." No shared type-scale token gives
+   that exact combination, but three of its four dimensions individually match ones that do:
+   `h1`/`h2`'s weight (700), `h2`'s line-height (1.15), `h3`'s tracking (−0.01em) — reused directly
+   rather than duplicated. Only the 1.25rem size has no token of its own, so — the same shape as
+   `Button`'s `--eldra-button-font-size-lg` — it is a per-component variable with that literal
+   default. */
+@utility text-logo-wordmark {
+  font: var(--eldra-text-h2-weight) var(--eldra-logo-wordmark-size, 1.25rem) /
+    var(--eldra-text-h2-line) var(--eldra-text-h2-family);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* --- Price -------------------------------------------------------------------------------- */
+
+/* Price's root size (spec "Price" → Sizes): only `sm` and `lg` set an explicit font-size, on the
+   root rather than on `current` directly, because `compareAt`/`from` below need to read the same
+   size to compute their own 0.9em. `md`'s current price "inherits parent (1rem by default)" and
+   gets no utility of its own, so a `<Price size="md">` sitting inside a product-card title or a
+   cart line naturally matches whatever text surrounds it, exactly as the spec's own wording asks. */
+@utility text-price-sm {
+  font-size: var(--eldra-price-current-sm-size, 0.9375rem);
+}
+@utility text-price-lg {
+  font-size: var(--eldra-price-current-lg-size, 1.5rem);
+}
+
+/* The current price (spec "Price" → Sizes): weight 600, tabular numerals, at the size the root
+   above sets or inherits. */
+@utility text-price-current {
+  font-family: var(--eldra-font-body);
+  font-weight: var(--eldra-text-label-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The compare-at and "From" text (spec "Price" → Sizes, "Compare-at / From (0.9em)" column): 90%
+   of whatever size the root sets, weight 400. `0.9em` is the spec's own explicit multiplier, not a
+   rem magnitude with a token to reach for, so it is written literally — and it reproduces the
+   table's 0.84rem/0.9rem/1.35rem rows exactly (0.9 × 0.9375rem/1rem/1.5rem) from the one root size
+   rather than three more per-size variables. `tabular-nums` is harmless on "From" (no digits) and
+   required on the compare-at, which shares this utility (spec "Price" → Acceptance criteria:
+   "Numerals are tabular so prices align in lists"). */
+@utility text-price-secondary {
+  font-family: var(--eldra-font-body);
+  font-size: 0.9em;
+  font-weight: var(--eldra-text-body-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The unit-price line (spec "Price" → Sizes, Unit column): "0.8125rem" at every size — the one
+   part of Price whose size does not scale with the root. Reuses the caption token's size exactly,
+   the same reuse `text-badge` makes. */
+@utility text-price-unit {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  font-weight: var(--eldra-text-body-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Rating --------------------------------------------------------------------------------- */
+
+/* A half star's filled overlay (spec "Rating" → Anatomy, part 1: "half-filled"; the API contract: "half
+   star via a clipped overlay"). Stacked absolutely over the same star's full outline icon
+   (`RatingStars.vue`), clipped to its own left half so the outline shows through the unfilled
+   half rather than leaving blank space. `50%`/`0` are the shape's own geometry, not a design
+   token — there is no "half" scale to register this against — so, like `eldra-variant-pill-
+   selected-line`'s inset line, it is a named utility purely so the one-off `clip-path` value has a
+   single documented home instead of an arbitrary bracket value repeated at the call site. */
+@utility eldra-rating-half {
+  clip-path: inset(0 50% 0 0);
+}
+
+/* Button type (spec "Button" → Sizes): weight 600 on a 1.2 line at every size, with the size's
+   own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
+   type styles and has no token, so it is a per-component variable with that default. */
+@utility text-button-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+@utility text-button-md {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+@utility text-button-lg {
+  font: var(--eldra-text-label-weight) var(--eldra-button-font-size-lg, 1.0625rem) /
+    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+}
+
+/* Compact-control type (spec "Actions and forms" → Compact controls, and "Input" → Sizes): the
+   text of a text input, textarea or select trigger, at body weight on the spec's fixed 1.5rem
+   line — not the body token's 1.6 ratio, which is a prose line and would make a 2.5rem box too
+   tall for its own text. sm and lg reuse the body-sm and body token sizes; md's 0.9375rem sits
+   between two type styles and has no token, so — like the button's lg size above — it is a
+   per-component variable with that default. `text-control-mobile` is the spec's viewport
+   exception: "Below a 48rem viewport the text of inputs … is 1rem, so iOS never zooms into a
+   focused field", applied as `max-md:text-control-mobile` (Tailwind's `md` *viewport* breakpoint
+   is 48rem, which is the edge the spec measures for this rule — a viewport query, not the block
+   `@max-tablet` container query the spec's own button touch-target growth would have measured). */
+@utility text-control-sm {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control-lg {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-control-mobile {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size-mobile, 1rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
+/* A field's character counter (spec "Textarea" → Sizes, Counter row): "0.8125rem, line-height
+   1.5, tabular numerals, never wraps." The size reuses the caption token; the 1.5 ratio has no
+   token of its own (unlike the controls above, whose 1.5rem line is fixed, this one is the
+   button's kind of bare ratio), so — like `text-button-lg`'s font size — it is a per-component
+   variable with that literal default. Deliberately no `font-weight` here: the spec's over-limit
+   state needs `font-semibold` layered on top, and a shorthand `font` property here would fight a
+   separate `font-weight` utility for the same declaration depending on generation order, so the
+   component pairs this with the stock `font-normal`/`font-semibold` utilities instead. */
+@utility text-counter {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-counter-line-height, 1.5);
+}
+
+/* A field's help and error text (spec "Field wrapper" -> Sizes): both are 0.8125rem on a 1.45
+   line, and they differ only in weight and colour (help 400 `muted`, error 500 `danger`) — so
+   they share one type utility. The size reuses the caption token; the 1.45 ratio has no token of
+   its own, so — exactly like `text-counter` above — it is a per-component variable with that
+   literal default. Deliberately no `font-weight` here for the same reason `text-counter` has
+   none: the component pairs it with the stock `font-normal`/`font-medium` utilities, which are
+   unambiguously ordered against each other, rather than layering a `font-weight` utility over a
+   shorthand `font` declaration. */
+@utility text-field-note {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-field-note-line-height, 1.45);
+}
+
+/* A radio Card's title and meta (spec "Radio group" → Sizes, "Card title / hint / meta" row):
+   "1rem 600 (line-height 1.4)" for the title, and the same run again for the meta ("1rem 600
+   tabular, no wrap"), which pairs this with the stock `tabular-nums`/`whitespace-nowrap`
+   utilities rather than a second near-identical type utility. The weight and size both already
+   read a token (`text-label-weight` is 600, `text-body-size` is 1rem); only the 1.4 ratio has
+   none of its own, so — like `text-counter`'s 1.5 above — it is a per-component variable with
+   that literal default. The card's hint reuses `text-body-sm` `muted`, exactly as `Checkbox`'s
+   hint does. */
+@utility text-card-title {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-radio-card-title-line, 1.4) var(--eldra-font-body);
+}
+
+/* Accordion's label (spec "Accordion" → Sizes, "Label" row): "1.0625rem / 1.4, weight 600" —
+   between `text-body` (1rem) and `text-h4` (1.125rem), no token of its own, so — the same shape as
+   `text-card-title` just above — it is its own utility reusing `--eldra-text-label-weight` (600)
+   and the body family, with the 1.4 line ratio as a per-component variable carrying that literal
+   default. */
+@utility text-accordion-title {
+  font: var(--eldra-text-label-weight) 1.0625rem / var(--eldra-accordion-title-line, 1.4)
+    var(--eldra-font-body);
+}
+
+/* The Quantity stepper's value (spec "Quantity stepper" → Sizes): "0.9375rem, 600, tabular" at
+   `md`, "0.875rem" at `sm` (weight and line stay the same size only). The size matches
+   `text-control`/`text-control-sm` exactly, but the weight does not — `text-control`'s shorthand
+   bakes in `--eldra-text-body-weight` (400), and layering a `font-semibold` utility after a
+   shorthand `font` property is order-dependent (see `text-counter`'s own comment above) — so this
+   is its own utility rather than `text-control` plus an override, reusing `--eldra-text-label-
+   weight` (600) as `text-card-title` does for the same reason. */
+@utility text-stepper-value {
+  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+@utility text-stepper-value-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
+/* `FilterGroup`'s trigger label (spec "Filter panel" → Sizes, "Trigger" row): "0.9375rem weight
+   600, left-aligned" — the same size and line as `text-control`, but that utility's shorthand
+   bakes in `--eldra-text-body-weight` (400) the same way `text-stepper-value`'s comment above
+   explains, so a trailing `font-semibold` is order-dependent rather than reliable. Its own
+   utility, reusing `--eldra-text-label-weight` (600), the same shape as `text-stepper-value`. */
+@utility text-filter-trigger {
+  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
+/* `EmptyState`'s title (spec "Empty and error states" → Sizes, "Title" row): "heading family,
+   1.25rem, line-height 1.3, weight 600" — between `text-h4` (1.125rem) and `text-h3` (1.5rem), so
+   it is its own utility rather than either. The weight is a literal spec number with no token of
+   its own (like `text-card-title`'s 600 above); the size and the 1.3 line ratio are both
+   per-component variables with that literal default, the same shape as `text-counter`'s 1.5 — see
+   the README's Customisation table for `--eldra-empty-state-title-size`. */
+@utility text-empty-state-title {
+  font: var(--eldra-text-label-weight) var(--eldra-empty-state-title-size, 1.25rem) /
+    var(--eldra-empty-state-title-line, 1.3) var(--eldra-font-heading);
+}
+
+/* `ContentCard`'s title (spec "Content card" → Sizes, "Title" row): "heading family, 1.25rem,
+   line-height 1.3, weight 600, letter-spacing −0.01em" — the same size/line/weight/family
+   combination as `text-empty-state-title` just above, but with a tracking value that one has none
+   of, so it is its own utility rather than that one plus an arbitrary `tracking-*` alongside it.
+   The weight and tracking both already read tokens (`text-label-weight` is 600, `text-h3-tracking`
+   is −0.01em, reused directly the same way `text-logo-wordmark` reuses three `h2`/`h3` tokens at
+   once); the size and the 1.3 line ratio are both per-component variables with that literal
+   default — the same shape as `text-empty-state-title`'s own — see the README's Customisation
+   table for `--eldra-content-card-title-size`. */
+@utility text-content-card-title {
+  font: var(--eldra-text-label-weight) var(--eldra-content-card-title-size, 1.25rem) /
+    var(--eldra-content-card-title-line, 1.3) var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* `ContentCard`'s excerpt and `FeatureCard`'s body (spec "Content card" → Sizes, "Excerpt" row:
+   "0.9375rem, clamp 3 lines"; "Feature card" → Sizes, "Body" row: "0.9375rem, `muted`") — the same
+   numeric size in both specs, reused as one utility across the two components rather than two
+   near-identical ones, the same "share when the numbers actually match" reuse `text-badge`/
+   `text-stock-status` make across their own components. Neither spec gives a line ratio for this
+   size, so — like `text-counter`'s 1.5 — it is a per-component variable with a literal default; a
+   readable paragraph ratio rather than a control's fixed line box, since both are prose. */
+@utility text-content-card-excerpt {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-content-card-excerpt-size, 0.9375rem);
+  line-height: var(--eldra-content-card-excerpt-line, 1.5);
+  font-weight: var(--eldra-text-body-weight);
+}
+
+/* Control heights and targets. */
+@utility control-h {
+  height: var(--eldra-control-height);
+}
+@utility control-h-sm {
+  height: var(--eldra-control-height-sm);
+}
+@utility control-h-lg {
+  height: var(--eldra-control-height-lg);
+}
+@utility target-min {
+  min-height: var(--eldra-target-min);
+  min-width: var(--eldra-target-min);
+}
+@utility target-touch {
+  min-height: var(--eldra-target-touch);
+}
+
+/* Motion. */
+@utility duration-fast {
+  transition-duration: var(--eldra-duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--eldra-duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--eldra-duration-slow);
+}
+
+/* Accordion (spec "Accordion" → Behaviour & motion): "Chevron rotation: `duration-base` (200ms)
+   `ease-out`." self-conditioned on the ancestor `<details>`'s own native `[open]` attribute, so no
+   JS state is needed for it at all — `AccordionItem.vue` never touches this class beyond putting
+   it on the chevron `<svg>`. The reduced-motion override is baked into the utility itself, the
+   same shape as `eldra-focus`'s own `@media` block, rather than a `motion-reduce:` variant at the
+   call site: this is one bundled rule, not a component assembling stock `transition-*`/`duration-
+   *` pieces the way `Switch`'s track/thumb do. */
+@utility eldra-accordion-chevron {
+  transition: rotate var(--eldra-duration-base) var(--eldra-ease-out);
+  details[open] & {
+    rotate: 180deg;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* Accordion's panel (spec "Accordion" → Behaviour & motion): "Panel: fades in over `duration-base`
+   `ease-out` when opened." Deliberately an opacity fade only, not a height animation: the panel
+   `<div>` is a plain child of `<details>`, and its `display: none` while closed comes entirely
+   from the browser's own default rendering rule for `<details>` content
+   (`details:not([open]) > *:not(summary) { display: none; }`, the HTML spec's own UA style) —
+   nothing here touches or replaces that. `@starting-style` plus `transition-behavior: allow-
+   discrete` is the standard mechanism for animating *into* a value on an element whose `display`
+   toggles between `none` and its default (Chrome 117+, Safari 17.4+, Firefox 129+); everywhere
+   else the panel simply pops open, exactly like `<details>` always has, which is a fine
+   progressive-enhancement fallback and never a broken one.
+
+   A grid-rows height animation was the first design considered here and was rejected: making it
+   work at all requires overriding the panel's own `display` so it never actually leaves the
+   layout while "closed" (only collapsed to a zero-height row) — and the spec's own acceptance
+   criteria requires "Find-in-page finds text in closed panels and opens the item", which is a
+   `<details>`-specific browser feature keyed to the element's default closed-content hiding.
+   Overriding `display` to keep the row always rendered is exactly what would defeat that feature
+   in whichever engine implements it that way. This utility never sets `display` at all — only
+   `opacity` and `display`'s own place in the transition list — so the native hide/reveal (and
+   whatever a browser does with it for find-in-page) is completely untouched.
+
+   Operator override, 2026-09-26 ("the accordion should have some expand transition"):
+   `AccordionItem.vue` now also plays a *height* animation on the same panel element, through the
+   Web Animations API (`heightTransition.ts`) rather than CSS — it animates a measured pixel height
+   (`0` ↔ `scrollHeight`), never touches `display`, and needs no grid wrapper, so the find-in-page
+   argument above never applies to it. This utility is unchanged and keeps doing exactly what it
+   always did (the opacity fade); the two run side by side. See the README's Deviations entry for
+   the fuller account, including the exclusive-group sibling that still closes with no animation of
+   its own. */
+@utility eldra-accordion-panel {
+  transition:
+    opacity var(--eldra-duration-base) var(--eldra-ease-out),
+    display var(--eldra-duration-base) allow-discrete;
+  @starting-style {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* The Button spinner (spec "Button" → Behaviour & motion): it turns once every 700ms, linear,
+   without end; with reduced motion it pulses at 60-100% opacity over 1.2s instead of spinning.
+   These two timings are the spec's own and are the only durations in the package that do not read
+   `--eldra-duration-*` — the reduced-motion rule in tokens.css zeroes those, which would stop the
+   pulse as well. */
+@keyframes eldra-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes eldra-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-spin {
+  animation: eldra-spin 700ms linear infinite;
+}
+@utility animate-eldra-pulse {
+  animation: eldra-pulse 1.2s var(--eldra-ease-out) infinite;
+}
+
+/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion): "Shimmer sweeps left to right over
+   1.4s, ease-out, infinitely… Reduced motion: shimmer removed; shapes are static." Shared
+   infrastructure rather than a `Price`-only rule: `Price`'s own loading state below is the first
+   consumer, and the `Skeleton` primitive (a later task) reuses this same utility for every shape.
+   The shape itself is a `surface-strong` fill (spec "Skeleton" → States, "Shape" row); the shimmer
+   is a `background`-coloured band at 60% strength (States, "Shimmer" row) that sweeps across it.
+   It is layered on with a `::after` that slides across rather than an animated
+   `background-position` on the shape's own fill, so the base fill and the moving highlight are
+   independent — reduced motion removes the highlight element outright (`display: none`) instead of
+   merely freezing it mid-sweep, which is what "shapes are static" asks for rather than an instant
+   jump to one frame of the animation. */
+@keyframes eldra-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@utility eldra-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-surface-strong);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--eldra-color-background), transparent 40%),
+      transparent
+    );
+    animation: eldra-shimmer 1.4s var(--eldra-ease-out) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      display: none;
+    }
+  }
+}
+
+/* A value that is still on screen while a fresher one is being fetched (`Price`, `StockBadge` and,
+   through them, `ProductCard`, with `revalidating` set): the value keeps its place and its text and
+   is drawn at `--eldra-revalidating-opacity`, with the spinner beside it left at full strength. Not
+   a literal `opacity-75`: the amount of the dim is a token a store restyles, like every other value
+   in this package. The default is the deepest dim at which every colour these values are drawn in
+   still clears 3:1 on every ground this package ships — deep enough to read as unsettled rather
+   than as settled text, and below 4.5:1 for everything but `text` while the read lasts (see
+   `eldra-starter-spec/tokens.json` for the numbers and for which way to move it). Registered in
+   `src/utils/cx.ts`'s `opacity` merge group, so a consumer's own `classes.current: 'opacity-100'`
+   replaces it rather than landing beside it.
+
+   The dim is only half of the treatment: the *change* is eased too. A changed amount, or a changed
+   stock line, fades in over `--eldra-duration-base` — played in JavaScript on the value's own inner
+   span (`src/utils/valueFade.ts`), not in CSS and not through a `<Transition>`, so the text itself
+   is never a frame behind the props. The fade is on that inner span rather than on the value part
+   for the same reason the dim is on the part: both are `opacity`, and one element cannot animate a
+   property another rule is holding at the token's value. */
+@utility eldra-revalidating {
+  opacity: var(--eldra-revalidating-opacity);
+}
+
+/* Layers. */
+@utility z-sticky {
+  z-index: var(--eldra-z-sticky);
+}
+/* A non-modal popup's layer (spec "Select" -> Sizes, Popover row): "Stacks above page content and
+   the sticky header (z-index 30; the sticky header is 20)." 30 sits between two tokens and has
+   none of its own, so — like `eldra-link-radius`'s 2px — it is a per-component variable with that
+   literal default here, and no literal reaches a component class. */
+@utility z-popover {
+  z-index: var(--eldra-z-popover, 30);
+}
+@utility z-drawer {
+  z-index: var(--eldra-z-drawer);
+}
+@utility z-dialog {
+  z-index: var(--eldra-z-dialog);
+}
+@utility z-toast {
+  z-index: var(--eldra-z-toast);
+}
+
+/* The one focus ring (spec 1 "Focus ring"): 2px focus-inner infill hugging the element, 2px focus
+   ring outside it, arriving over duration-base. `eldra-focus` shows on :focus-visible; text fields
+   add `eldra-focus-always` so it shows on any focus. `eldra-focus-inset` draws both inside.
+
+   THE RING FADES IN AT FULL SIZE; IT DOES NOT GROW. The spec describes the ring "growing from 0 to
+   2px over duration-base", and that is what this first shipped — an `outline-width` and a
+   `box-shadow` spread animating 0 -> 2px. It looks broken. A browser paints both at whole device
+   pixels, so a 2px growth has two or three distinct frames however long the transition runs, and a
+   200ms stagger of three steps reads as a dropped-frame stutter rather than motion. Drawn at full
+   size and faded from alpha 0 to 1 the same 200ms is continuous, and the end state — the thing the
+   contrast requirements are about — is identical. Recorded under Deviations in the README.
+
+   The fade is driven by `--eldra-focus-alpha`, registered with `@property` above so it is a
+   `<number>` the engine can interpolate (an unregistered custom property is a token string and
+   jumps). Both ring colours are `color-mix(... calc(var(--eldra-focus-alpha) * 100%), transparent)`,
+   so one animated number fades both, and the frame-by-frame work is a colour change on a shadow
+   that never moves. Where `@property` is unsupported the alpha still switches 0 -> 1, so the ring
+   simply appears at full size — the same thing reduced motion asks for, never a missing ring.
+
+   The ring's geometry is one `box-shadow` pair rather than a shadow plus an `outline`: two spreads
+   off the same box stay locked together, and the shadow is what fades. `outline` stays at width 0
+   and is reinstated only under forced colours, where a UA drops `box-shadow` entirely — that rule
+   is static, because the system Highlight colour is not ours to fade.
+
+   Each mix reads `color-mix(in srgb, transparent, <colour> calc(...))` — transparent FIRST — on
+   purpose. Tailwind compiles every `color-mix()` with a plain fallback for engines that lack it,
+   and that fallback is the mix's first colour. Written the other way round the fallback is the
+   ring's colour at full strength, which paints a permanent black ring around every control in
+   those engines. This way the fallback is the resting state, and the `@supports not` block on each
+   focus selector draws the whole ring at once instead — the old behaviour minus the animation,
+   never a missing indicator.
+
+   `eldra-focus` and `eldra-focus-inset` OWN the transition list of the element they sit on, and a
+   component must not add a `transition-*`/`duration-*` utility beside them. `transition` is one
+   shorthand property: a `transition-[background-color] duration-fast` utility on the same element
+   is a later rule in the same layer, so it replaced the ring's entry outright and the ring arrived
+   instantly — silently, because the ring was still drawn. So the ring declares every property a
+   control in this package animates, each at the spec's duration for it: `duration-fast` for the
+   colour and press changes, `duration-base` for the ring's own alpha. Reduced motion is handled
+   here too, so components do not carry `motion-reduce:transition-none` either (it stays harmless
+   where a consumer adds it). `src/__tests__/focus-transition.spec.ts` fails a component that
+   breaks the rule. */
+@property --eldra-focus-alpha {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@utility eldra-focus {
+  /* Width 0 in every colour mode but forced colours, where the ring below is dropped by the UA. */
+  outline: 0 solid transparent;
+  outline-offset: var(--eldra-focus-offset);
+  --eldra-focus-alpha: 0;
+  box-shadow:
+    0 0 0 var(--eldra-focus-offset)
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
+      );
+  transition:
+    color var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    scale var(--eldra-duration-fast) var(--eldra-ease-out),
+    opacity var(--eldra-duration-fast) var(--eldra-ease-out),
+    --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+  &:focus-visible {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus-visible {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+@utility eldra-focus-always {
+  &:focus {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+/* The ring while a popup is open (operator request, 2026-09-25). A `Select` or `MultiSelect`
+   trigger opened with the *pointer* is focused but not `:focus-visible`, so the ring did not show —
+   and the control then had an open popover attached to a trigger with no visible indication that it
+   was the thing the keyboard was about to act on. The `SearchBar` has never had this problem: its
+   trigger is a text field, which carries `eldra-focus-always` and shows the ring on any focus.
+
+   A *modifier* of the same shape as `eldra-focus-always` and `eldra-focus-proxy` — it carries no
+   ring of its own, it only turns on the one `eldra-focus` already put on the element, keyed to the
+   state the element itself publishes in `aria-expanded`. So it never needs a second class to be
+   kept in sync, and closing the popup fades the ring back out over the transition `eldra-focus`
+   already owns rather than snapping it off. It carries no base, so it must never share a merge
+   group with `eldra-focus` (see `src/utils/cx.ts`): a modifier never shares a group with the thing
+   it modifies.
+
+   The forced-colours rule is repeated here for the same reason `eldra-focus-proxy` repeats it: the
+   one in `eldra-focus` is keyed to that element's own `:focus-visible`, which an open pointer-
+   opened trigger is not. */
+@utility eldra-focus-open {
+  &[aria-expanded='true'] {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &[aria-expanded='true'] {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+/* Proxy focus (spec 1 "Focus ring" → Proxy focus): "When the focusable element is visually hidden
+   (the radio inside a size pill, the stretched link of a card), draw the ring on the visible shape
+   (the pill, the whole card), not on the hidden element."
+
+   Exactly the shape of `eldra-focus-always` above, and a *modifier* in the same way: it carries no
+   ring of its own, it only adds the rule that turns on the one `eldra-focus` already put on this
+   element. The difference is whose focus turns it on — a descendant's, not the element's own. So a
+   Checkbox writes `eldra-focus eldra-focus-proxy` on its drawn box and puts the `sr-only`
+   `<input>` inside it; the transition, the reduced-motion handling and the ring itself all still
+   live in `eldra-focus`, which is why the two must never share a merge group in `src/utils/cx.ts`.
+   The forced-colours rule is repeated here because the one in `eldra-focus` is keyed to that
+   element's own `:focus-visible`, which never happens on a box that is not focusable. */
+@utility eldra-focus-proxy {
+  &:has(:focus-visible) {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:has(:focus-visible) {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+
+/* The Link focus ring's corner radius (spec "Link" → Sizes): "2px for every variant." No radius
+   token is this small — radius-sm is 0.375rem, for badges and chips — so, like the button's
+   lg font size above, it is a per-component variable with a literal default and no token behind
+   it; a consumer restyles it with `--eldra-link-radius` on any ancestor. `box-shadow` and modern
+   `outline` both already follow an element's own `border-radius`, so this is enough to round both
+   rings the focus ring foundation draws. */
+@utility eldra-link-radius {
+  border-radius: var(--eldra-link-radius, 2px);
+}
+
+/* The inset ring's "any focus" modifier, the exact counterpart of `eldra-focus-always` above and a
+   modifier in the same way: it carries no ring of its own. A select's search field is a text field,
+   and the focus-ring foundation's rule for those — "Text fields (Input, Textarea, Search bar, a
+   select's search field) show it on *any* focus, pointer included, because a caret alone is easy to
+   miss" — applies whether the ring is drawn outside the element or, as here, just inside it. */
+@utility eldra-focus-inset-always {
+  &:focus {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+          var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+
+@utility eldra-focus-inset {
+  outline: 0 solid transparent;
+  outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));
+  --eldra-focus-alpha: 0;
+  box-shadow:
+    inset 0 0 0 var(--eldra-focus-offset)
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
+      );
+  transition:
+    color var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    translate var(--eldra-duration-fast) var(--eldra-ease-out),
+    scale var(--eldra-duration-fast) var(--eldra-ease-out),
+    opacity var(--eldra-duration-fast) var(--eldra-ease-out),
+    --eldra-focus-alpha var(--eldra-duration-base) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+  &:focus-visible {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      box-shadow:
+        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+          var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:focus-visible {
+      outline-width: var(--eldra-focus-width);
+      outline-color: Highlight;
+    }
+  }
+}
+
+/* A field's own boundary (spec "Actions and forms" -> Compact controls: "1px `border-strong`
+   boundary"). The width is a variable rather than Tailwind's `border`, because the invalid inset
+   line below is inset by exactly this much and drawn exactly this thick: with `border` hard-wired
+   to 1px, setting `--eldra-field-border-width` moved the line without moving the border it sits
+   inside, and the two came apart. One variable now drives both. The literal default lives here,
+   not in a component class — the same shape as `eldra-link-radius` above. `border-style` comes
+   from Tailwind's preflight (`*, ::before, ::after { border: 0 solid }`), which both the
+   `tailwind.css` and the `style.css` route carry, so a width alone is a solid border and
+   `border-dashed` still wins where a component asks for one. */
+@utility eldra-field-border {
+  border-width: var(--eldra-field-border-width, 1px);
+}
+
+/* The Checkbox box (spec "Checkbox" → Sizes: "Border | 1.5px", and → States, Error row: "**2px**
+   `danger`"). Neither number is a token — they are this component's own — so each is a variable
+   with a literal default here, the same shape as `eldra-link-radius` and `eldra-field-border`
+   above, and neither literal reaches a component class. They are two utilities rather than one
+   because the error state changes the width as well as the colour, and both sit in the `border-w`
+   merge group, so the error width replaces the ordinary one instead of landing beside it. */
+@utility eldra-checkbox-border {
+  border-width: var(--eldra-checkbox-border-width, 1.5px);
+}
+@utility eldra-checkbox-border-invalid {
+  border-width: var(--eldra-checkbox-border-width-invalid, 2px);
+}
+
+/* `EditorPlaceholder`'s own boundary (spec "Empty and error states" → Sizes, "Editor hint" row:
+   "1.5px dashed border, `radius-lg`") — not a token, and a different number from the panel's own
+   `EmptyState` boundary (a stock `border` at 1px, spec's "Panel border and radius" row), so it
+   gets a variable of its own rather than reusing `eldra-checkbox-border`, the same shape as that
+   utility. `border-style: dashed` is a separate stock `border-dashed` utility on the component,
+   same as `EmptyState`'s panel. */
+@utility eldra-editor-placeholder-border {
+  border-width: var(--eldra-editor-placeholder-border-width, 1.5px);
+}
+
+/* The error boundary of a field (spec "Input" → States, Error row): "2px `danger` (1px border +
+   1px inset line). On focus the inset line sits inside the `focus-inner` infill."
+
+   Two things make that impossible to draw on the `<input>` itself. `eldra-focus` owns the
+   element's `box-shadow` (the focus infill) and its `outline` (the ring), and a second rule for
+   either would replace the ring rather than add to it; and an `<input>` is a replaced element, so
+   it has no `::after` to lend. So the inset line is drawn by the field's own wrapper — the one
+   element that shares the input's box exactly — as a pseudo-element inset by the input's border
+   width. Keeping the border at 1px in every state is the point: a 2px border would move the value
+   by 1px the moment the field went invalid. `pointer-events: none` keeps the clear button
+   clickable through it, and because the line is *inside* the box while the focus infill is
+   outside it, the two never overlap — which is what the spec's focus sentence asks for. */
+@utility eldra-field-invalid {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-field-border-width, 1px);
+    border: var(--eldra-field-border-width, 1px) solid var(--eldra-color-danger);
+    /* The radius is lifted into a custom property of its own rather than written inline in the
+       `calc()`. It substitutes to exactly the same token chain — the computed value is unchanged,
+       and `source-scan.spec.ts` asserts both halves of it in the compiled stylesheet — but the
+       `calc()` a bundler's PostCSS pass then has to parse holds one level of `var()` fallback
+       instead of three. Two-deep nesting (`var(--a, var(--b, var(--c)))`) inside a `calc()` is
+       what postcss-calc's grammar chokes on, and it printed a "Parse error … got unexpected
+       RPAREN" warning on every consumer build (seen in the starter's). It is only a warning — the
+       declaration is passed through untouched — but a package cannot ship noise into every
+       consumer's build log, and a real parse error in that pass would look exactly the same. */
+    --eldra-field-invalid-radius: var(
+      --eldra-field-radius,
+      var(--eldra-input-radius, var(--eldra-radius-md))
+    );
+    border-radius: calc(var(--eldra-field-invalid-radius) - var(--eldra-field-border-width, 1px));
+    pointer-events: none;
+  }
+  @media (forced-colors: active) {
+    &::after {
+      border-color: CanvasText;
+    }
+  }
+}
+
+/* The radio group Card's own boundary (spec "Radio group" → Sizes, Card row: "1px border"). The
+   radio circle inside a card reuses `eldra-checkbox-border`/`-invalid` unchanged — the spec gives
+   it the exact same numbers as the Checkbox box (1.5px / 2px) — but the card itself is a
+   different element with its own 1px number, so it gets its own variable rather than sharing one
+   that happens to have a different default. */
+@utility eldra-radio-card-border {
+  border-width: var(--eldra-radio-card-border-width, 1px);
+}
+
+/* The selected Card's boundary (spec "Radio group" → States, Selected row: "2px `primary` (1px
+   border + 1px inset line)"). The same technique as `eldra-field-invalid` above, and for the same
+   reason: keeping the real border at 1px in every state and adding a second 1px inset line only
+   when selected is what stops the card growing — and its neighbours shifting — the moment it is
+   chosen. The line's colour defaults to `primary`; the invalid-and-selected state (Decision: an
+   invalid `Checkbox` that is also checked keeps its fill and swaps only the border colour) sets
+   `--eldra-radio-card-selected-color` to `danger` instead, so one utility serves both cases rather
+   than two nearly-identical ones. */
+@utility eldra-radio-card-selected {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-radio-card-border-width, 1px);
+    border: var(--eldra-radio-card-border-width, 1px) solid
+      var(--eldra-radio-card-selected-color, var(--eldra-color-primary));
+    border-radius: calc(
+      var(--eldra-radio-card-radius, var(--eldra-radius-md)) -
+        var(--eldra-radio-card-border-width, 1px)
+    );
+    pointer-events: none;
+  }
+}
+
+/* The Switch track's own boundary (spec "Switch" → Sizes: "1.5px border", both sizes). A
+   per-component variable with a literal default, the same shape as `eldra-checkbox-border`. */
+@utility eldra-switch-track-border {
+  border-width: var(--eldra-switch-track-border-width, 1.5px);
+}
+
+/* The Switch thumb's rest position (spec "Switch" → Sizes: "1rem, 0.1875rem from the track's
+   start edge"). 0.1875rem is not a `--spacing` multiple (0.75 of a step), so it is a
+   per-component variable rather than a spacing utility; logical so it reads correctly in an RTL
+   document. The "on" position is the thumb's own `translate-x-*`, a `--spacing` multiple, added on
+   top of this rest position. */
+@utility eldra-switch-thumb-offset {
+  inset-inline-start: var(--eldra-switch-thumb-offset, 0.1875rem);
+}
+
+/* The Switch label (spec "Switch" → Sizes: "Label | 1rem" at md; the sm row's "0.875rem / 1.5"
+   reuses `text-body-sm` unchanged since the two numbers match a token exactly). 1rem already reads
+   the body token's size; only the line-height has no token of its own (the spec gives it once, in
+   the "with description" paragraph: "line-height 1.4"), so — like `text-card-title`'s 1.4 before
+   it — it is a per-component variable with that literal default. */
+@utility text-switch-label {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
+    var(--eldra-switch-label-line, 1.4) var(--eldra-font-body);
+}
+
+/* The Switch description (spec "Switch" → Sizes: "the description is 0.875rem `muted`", and the
+   same paragraph's "line-height 1.4"). 0.875rem already reads the body-sm token's size; the line
+   ratio is this component's own, exactly like `text-switch-label` above. */
+@utility text-switch-description {
+  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-switch-description-line, 1.4) var(--eldra-font-body);
+}
+
+/* --- Select ---------------------------------------------------------------------------------- */
+
+/* A group heading inside a select panel (spec "Select" -> Sizes, Group heading row): "0.75rem,
+   600, uppercase, 0.06em tracking, `muted`". Every number but the tracking is the overline token's
+   already; the spec's 0.06em is half the overline token's 0.12em, so it is this component's own
+   and gets a variable with that literal default, exactly like `text-card-title`'s 1.4 line. */
+@utility text-select-group {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-text-overline-line) var(--eldra-font-body);
+  letter-spacing: var(--eldra-select-group-tracking, 0.06em);
+  text-transform: uppercase;
+}
+
+/* An option row's own text (spec "Select" -> Sizes, Option row): "0.9375rem text on a 1.35 line".
+   The size is the control font size the trigger already uses (`--eldra-control-font-size`), so a
+   row and the trigger above it read at one size; only the 1.35 line is this component's own. It is
+   deliberately not `text-control`, whose fixed 1.5rem line is the height of a 2.5rem field box and
+   would push a two-line option (label + hint) past the spec's row. */
+@utility text-select-option {
+  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
+    var(--eldra-select-option-line, 1.35) var(--eldra-font-body);
+}
+
+/* The "+N" pill on a Multi-select trigger (spec "Multi-select" -> Sizes: "0.75rem 600 tabular").
+   The overline token carries both numbers, but `text-overline` itself is uppercase — which "+2"
+   must not be — so the pill takes the token pair without the transform, on the pill's own 1.25rem
+   height as its line box. `font-variant-numeric` comes after the `font` shorthand, which resets
+   it. */
+@utility text-select-pill {
+  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
+    var(--eldra-select-pill-line, 1.25rem) var(--eldra-font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The popover's own box (spec "Select" -> Sizes, Popover row): "Min width = trigger, grows to fit
+   its content up to min(22rem, 90vw). Max height 20rem: the list scrolls while the search field
+   stays put." Two utilities rather than one, because they belong to Tailwind's `max-h` and `max-w`
+   merge groups respectively — so a consumer's `classes.panel: 'max-h-64'` replaces the height
+   without also dropping the width clamp. */
+@utility eldra-select-panel-height {
+  max-height: var(--eldra-select-panel-max-height, 20rem);
+}
+@utility eldra-select-panel-width {
+  max-width: min(var(--eldra-select-panel-max-width, 22rem), 90vw);
+}
+
+/* The matched run of a filtered option (spec "Select" -> States, "Option filtered match"):
+   "matched characters weight 700, 2px underline at 0.15em offset". None of the three is a token —
+   the type styles stop at 600 and no underline offset exists anywhere else — so all three are
+   per-component variables with the spec's literals as defaults. */
+@utility eldra-select-match {
+  font-weight: var(--eldra-select-match-weight, 700);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--eldra-select-match-underline, 2px);
+  text-underline-offset: var(--eldra-select-match-underline-offset, 0.15em);
+}
+
+/* An option's colour swatch (spec "Select" -> Sizes, Option row): "Swatch 1rem with a 1px inner
+   edge of `text` at 30%", which the Accessibility notes explain — "Swatch edges carry a 1px inner
+   edge so pale colours stay visible". An inner edge rather than a border, so the swatch stays
+   exactly 1rem whatever colour a store's product data carries. */
+@utility eldra-select-swatch {
+  box-shadow: inset 0 0 0 var(--eldra-select-swatch-edge, 1px)
+    color-mix(in oklab, var(--eldra-color-text), transparent 70%);
+}
+
+/* A Multi-select option's checkbox (spec "Multi-select" -> Sizes, "Checkbox in option"): "1rem
+   square, 1.5px `border-strong`, 0.25rem radius". The radius is its own variable rather than
+   `--eldra-checkbox-radius`: the box is 1rem where a `Checkbox`'s is 1.125rem or 1.5rem, and
+   `radius-sm` (0.375rem) on a 1rem square reads as a pill rather than a checkbox. The border
+   width is shared with `Checkbox` through `eldra-checkbox-border`. */
+@utility eldra-select-check-radius {
+  border-radius: var(--eldra-select-check-radius, 0.25rem);
+}
+
+/* The active and selected option rows under forced colours (spec "Select" -> States: the active row
+   is "`surface-strong`" fill and the selected row is "weight 600 + check"). Forced-colours mode
+   replaces every fill with the system canvas and flattens most weight differences, so each of the
+   two states needs a real boundary there or the list reads as one undifferentiated block. Both are
+   drawn as insets, so a row never changes size when it becomes active or selected.
+
+   `Highlight` for the active row is the system's own "this is where you are" colour, the same one
+   the focus ring borrows; the selected row takes a thinner `CanvasText` line, which reads as a
+   property of the row rather than as the cursor. `eldra-select-option-active` is declared *after*
+   `-selected` on purpose: the two write the same `outline`, and on a row that is both, the one
+   worth seeing is where the keyboard is — selection is still carried by the check mark beside it.
+   Nothing here applies outside forced colours, so the two utilities never fight the fill and weight
+   that carry the same states everywhere else. */
+@utility eldra-select-option-selected {
+  @media (forced-colors: active) {
+    outline: var(--eldra-select-selected-outline, 1px) solid CanvasText;
+    outline-offset: calc(-1 * var(--eldra-select-selected-outline, 1px));
+  }
+}
+@utility eldra-select-option-active {
+  @media (forced-colors: active) {
+    outline: var(--eldra-select-active-outline, 2px) solid Highlight;
+    outline-offset: calc(-1 * var(--eldra-select-active-outline, 2px));
+  }
+}
+
+/* The entrance of EVERY popover in this package — `Select`'s panel, `MultiSelect`'s and the
+   `SearchBar`'s results panel — is this one animation: opacity 0 -> 1 and a uniform scale 0.98 -> 1
+   over `duration-base` with `ease-out`, growing from the corner the panel is anchored by. Closing
+   is instant.
+
+   The spec ("Select" -> Behaviour & motion, Opening) writes it as a fade plus a 0.25rem slide plus
+   a *vertical* scale, and that is what shipped first. Operator decision, 2026-09-25: drop the slide
+   and scale both axes. The slide is what made the panel read as a separate object arriving from
+   somewhere rather than as the control opening out, and a `scaleY`-only entrance stretches the type
+   inside the panel while it plays. Recorded under Deviations in the README. The `SearchBar`'s panel
+   had no entrance at all before that decision; it now plays the same one.
+
+   The origin is a custom property the panel sets inline from the placement it resolved to
+   (`usePopover`'s `panelStyle`): `top left` below the control, `bottom left` above it, so the panel
+   grows out of the edge it is attached to. One keyframe set with that property rather than two sets
+   with two names: a panel that flips swaps its origin the frame after it mounts — floating-ui
+   measures asynchronously — and a new `animation-name` would restart the animation from zero, so
+   the popover visibly faded in twice. A custom property is read by the running animation instead,
+   so the entrance plays exactly once whichever way it ends up pointing.
+
+   Reduced motion needs nothing here: `--eldra-duration-base` is 0ms under
+   `prefers-reduced-motion: reduce` (tokens.css), so the panel simply appears in its end state — the
+   same mechanism every transition in this package uses. `transform: scale()` rather than the
+   independent `scale` property, because the panel's `transform` is otherwise untouched and the
+   shorthand is the more widely animatable of the two. */
+@keyframes eldra-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-eldra-popover-in {
+  animation: eldra-popover-in var(--eldra-duration-base) var(--eldra-ease-out);
+  transform-origin: var(--eldra-popover-origin, top left);
+}
+
+/* --- Tooltip ---------------------------------------------------------------------------------- */
+
+/* Spec "Tooltip" -> Sizes: "0.8125rem / 1.4, weight 500, one line (no wrap)". The size and line
+   are `text-caption`'s exactly (0.8125rem / 1.4) -- reused rather than duplicated, the same shape
+   as `text-variant-legend` reusing `text-body-sm`'s. The weight is left to the stock
+   `font-medium` utility, also `text-variant-legend`'s own reasoning: a `font` shorthand here would
+   bake a weight in ahead of it in source order, and `tailwind-merge`'s `font-size` group (this
+   utility's own, via `cx.ts`) does not touch `font-weight` anyway. */
+@utility text-tooltip {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-text-caption-line);
+}
+
+/* The arrow (spec "Tooltip" -> Sizes, Arrow row): "0.3125rem, centred (start / end: 1.25rem from
+   the aligned edge)" -- a rotated square, half on each side of the boundary between the bubble and
+   the trigger, so it reads as a triangle pointing at whichever one is behind it. `0.3125rem` has no
+   shared token (nothing else in the package needs a fifth-of-a-rem), so it is a per-component
+   variable with that literal default, the same shape as `--eldra-avatar-initials-size-*`; see the
+   README's Customisation table. The horizontal alignment (`left-5`/`right-5`/centred) and the
+   vertical offset (which edge, since the bubble can flip) are `Tooltip.vue`'s own reactive classes
+   and inline style -- this utility only draws the shape. */
+@utility eldra-tooltip-arrow {
+  position: absolute;
+  width: var(--eldra-tooltip-arrow-size, 0.3125rem);
+  height: var(--eldra-tooltip-arrow-size, 0.3125rem);
+  background-color: var(--eldra-color-text);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* --- Search bar ------------------------------------------------------------------------------- */
+
+/* A result row's meta (spec "Search bar" -> Sizes, "Title / sub / meta" row): "0.875rem 600
+   tabular" — a price. Both numbers already read tokens (`text-label-weight` is 600,
+   `text-body-sm-size` is 0.875rem); only the 1.35 line of the row's text stack is this component's
+   own, and it is shared with the row's title, which reuses `text-select-option` (the same
+   0.9375rem on the same 1.35 line the spec gives both components). `font-variant-numeric` comes
+   after the `font` shorthand, which resets it. */
+@utility text-search-meta {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
+    var(--eldra-search-text-line, 1.35) var(--eldra-font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The no-results title (spec -> Sizes, "No-results message" row): "Title 1rem 600". The size and
+   the weight are tokens; the 1.4 line has none of its own, so it is a per-component variable with
+   that literal default, exactly like `text-card-title`'s. Its own utility rather than a stock
+   weight layered over `text-body`, because layering `font-semibold` after a shorthand `font`
+   property that already bakes in a weight is order-dependent (see `text-counter`'s comment). */
+@utility text-search-title {
+  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
+    var(--eldra-search-empty-line, 1.4) var(--eldra-font-body);
+}
+
+/* The `/` keyboard-key chip (spec -> Sizes, "Keyboard hint" row): "monospace, 0.75rem". The size
+   is the overline token's, the family the mono token's, and the 1rem line box is the chip's own
+   height rather than a ratio. */
+@utility text-search-kbd {
+  font: var(--eldra-text-body-weight) var(--eldra-text-overline-size) /
+    var(--eldra-search-kbd-line, 1rem) var(--eldra-font-mono);
+}
+
+/* The results panel's own box (spec -> Sizes, Panel row): "Max height min(32rem, 70vh), scrolls
+   inside". Tailwind's `max-h` group, so a consumer's `classes.panel: 'max-h-64'` replaces it
+   outright. The panel's *width* is the field's (`useFloating`'s `matchWidth`), so there is no
+   width clamp to go with it, unlike the select popover's pair. */
+@utility eldra-search-panel-height {
+  max-height: min(var(--eldra-search-panel-max-height, 32rem), 70vh);
+}
+
+/* --- Variant picker --------------------------------------------------------------------------- */
+
+/* The legend's own text (spec "Variant picker" → Sizes, Legend row): "0.875rem; name 600, value
+   400 muted". Deliberately no weight in the shorthand, for the same reason `text-counter` and
+   `text-field-note` have none: the name run and the value run need two different weights of the
+   *same* size, and layering a `font-weight` utility after a shorthand `font` property that already
+   bakes one in is order-dependent (see `text-counter`'s own comment above this component's
+   utilities in the earlier "Sizes" section). So the component pairs this with the stock
+   `font-semibold`/`font-normal` utilities instead, exactly as those two already do. The size reuses
+   the body-sm token; the line ratio has no token of its own, so it is a per-component variable with
+   a literal default, the same shape as `text-card-title`'s 1.4. */
+@utility text-variant-legend {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-variant-legend-line, 1.4);
+}
+
+/* A pill option's own text (spec "Variant picker" → Sizes, Pill row): "0.9375rem, 500 (600
+   selected)". Same reasoning as `text-variant-legend` above — one size, two weights depending on
+   selection — so no weight in the shorthand; the component pairs this with `font-medium`/
+   `font-semibold`. The size and line reuse the same control-font variables `text-control` already
+   reads, so a pill's text sits at the same size as an Input's. */
+@utility text-variant-pill {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+}
+
+/* A pill's own boundary (spec "Variant picker" → States): "1px" in every row but one. The width is
+   a variable rather than Tailwind's `border`, the same shape as `eldra-field-border` and
+   `eldra-checkbox-border` above: the "sold out + selected" row's own 2px line (below) is inset by
+   exactly this much. */
+@utility eldra-variant-pill-border {
+  border-width: var(--eldra-variant-pill-border-width, 1px);
+}
+
+/* The sold-out-and-selected pill's boundary (spec "Variant picker" → States, "Sold out + selected"
+   row): "**2px** solid `text`" — the only pill row whose border is thicker than the other four.
+   The same technique as `eldra-radio-card-selected` and `eldra-field-invalid`: the real border
+   stays `eldra-variant-pill-border`'s 1px in every state, so a pill never resizes (and its row
+   neighbours never reflow) the moment it becomes both sold out and selected, and a second 1px
+   inset line does the rest. */
+@utility eldra-variant-pill-selected-line {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--eldra-variant-pill-border-width, 1px);
+    border: var(--eldra-variant-pill-border-width, 1px) solid
+      var(--eldra-variant-pill-selected-color, var(--eldra-color-text));
+    border-radius: calc(
+      var(--eldra-variant-pill-radius, var(--eldra-radius-md)) -
+        var(--eldra-variant-pill-border-width, 1px)
+    );
+    pointer-events: none;
+  }
+}
+
+/* A sold-out pill's diagonal line (spec "Variant picker" → Anatomy: "sold out: dashed border +
+   diagonal line"; → States, Sold out row: "a 1px diagonal `border-strong` line (bottom-left to
+   top-right)"). Drawn in `VariantPicker.vue` as an inline `<svg viewBox="0 0 100 100"
+   preserveAspectRatio="none">` stretched over the pill, with `vector-effect="non-scaling-stroke"`
+   on its `<line>` — the SVG spec's own way to keep a stroke a constant screen-pixel width no
+   matter how non-uniformly its coordinate system is scaled. A `background: linear-gradient`
+   diagonal was tried first and rejected: its stripe is measured along the gradient line, whose
+   length shrinks as a box gets wider relative to its height, so the same "1px" stop distance
+   inflates into a visibly thick band on a long pill (`LongLabels` story) while staying correct on
+   a short one — exactly what a pill's variable, label-dependent width guarantees will happen.
+   Nothing in `tailwind.css` needs to know the pill's own colour class here: the `<svg>` reads
+   `currentColor` (`text-border-strong`, set alongside it in the component), so it never needs a
+   custom utility of its own; only the `<line>`'s literal `stroke-width="1"` (the spec's own
+   number) lives outside a class, the same way `Checkbox`'s tick mark carries its own literal
+   `stroke-width` and path. Real borders stay real borders in forced-colours mode (spec "Actions
+   and forms" → Forced colours): the line sits *beside* the pill's own real
+   `eldra-variant-pill-border`, which is what stays visible there; the two together are how the
+   spec tells "sold out" from "selected" without colour alone (1.4.1). */
+
+/* The swatch's own ring (spec "Variant picker" → Sizes, Swatch row): "a 2px ring (transparent at
+   rest), then a 3px gap, then the colour disc". The ring is drawn as a real `border` on the
+   outer 2.75rem shape — the same element the proxy focus ring sits on — kept at this one constant
+   width in every state (spec: "transparent at rest"; hover and selected only ever recolour it, in
+   `VariantPicker.vue`), so the swatch never resizes when it gains a ring. The 3px gap between the
+   ring and the disc is the shape's own padding (`p-0.75`, `--spacing` × 0.75 = 0.1875rem = 3px —
+   the same dynamic-spacing technique `RadioGroup`'s `mt-0.75` and `gap-x-2.5` already use), which
+   is also what lets the inner disc fill the remaining space with a plain `size-full` rather than a
+   second literal measurement. */
+@utility eldra-variant-swatch-ring {
+  border-width: var(--eldra-variant-swatch-ring-width, 2px);
+}
+
+/* The colour disc's own edge (spec "Variant picker" → Sizes, Swatch row: "the colour disc with a
+   1px inner `border-strong` edge"; → Accessibility: "The disc edge uses `border-strong`, so pale
+   swatches (Ecru, Chalk) keep a 3:1 boundary (1.4.11)"). A real `border`, not `eldra-select-
+   swatch`'s inset `box-shadow` (that one is this package's *other* swatch, the 1rem one inside a
+   `Select` option row) — forced-colours mode can drop a decorative shadow, and the spec's own
+   "Forced colours: borders stay as real borders" rule is written for exactly this boundary, the
+   one WCAG 1.4.11 is about. Box-sizing keeps the disc's outer size unchanged by its own border, so
+   it still fills the ring's padded interior exactly via `size-full`. */
+@utility eldra-variant-swatch-edge {
+  border-width: var(--eldra-variant-swatch-edge-width, 1px);
+}
+
+/* The live "No image" placeholder's hatching (spec "Image" → Sizes, "Placeholder hatching" row:
+   "1px diagonal lines (135°) every 0.75rem in `border` at 70% strength over `surface`"). A
+   `repeating-linear-gradient` rather than an SVG or a `background-image` data URI: it is one flat
+   colour repeated, which a gradient expresses exactly and without shipping a raster/vector asset
+   for a one-pixel line. "70% strength" is `border` mixed with 30% transparency, the same
+   `color-mix(in oklab, …, transparent <n>%)` shape `eldra-skeleton`'s shimmer above already uses
+   for its own "at 60% strength" fill. The repeat distance is a variable with the spec's own
+   0.75rem as its default rather than a literal in the gradient stops, so a consumer who wants a
+   finer or coarser hatch does not have to redeclare the whole gradient. */
+@utility eldra-image-placeholder-hatch {
+  --eldra-image-hatch-gap: 0.75rem;
+  background-color: var(--color-surface);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--eldra-color-border), transparent 30%) 0,
+    color-mix(in oklab, var(--eldra-color-border), transparent 30%) 1px,
+    transparent 1px,
+    transparent var(--eldra-image-hatch-gap)
+  );
+}
+
+/* A sold-out swatch's diagonal line (spec "Variant picker" → States, Sold out row: "2px diagonal
+   line in `text` with a 1.5px `background` halo, from 4px inside the top to 4px inside the bottom,
+   rotated 45°") is drawn in `VariantPicker.vue` as an inline `<svg>`, not a class-only utility —
+   the same reasoning as the pill's line above, and for an even sharper reason here: a first
+   version drew it with `background-color` (the line) plus a `box-shadow` (the halo), and *both*
+   properties are exactly the ones forced-colours mode empties out — the line vanished completely
+   under `forced-colors: active`, the one mode this indicator exists to survive (spec "Actions and
+   forms" → Forced colours; WCAG 1.4.1). An SVG `<line stroke="currentColor">` does not have that
+   problem: forced-colours remaps a stroke the same way it remaps a real border. Two stacked
+   `<line>`s (a wider one in `background`, first, then the spec's own 2px in `text`) draw the halo
+   and the line together, at the endpoints the spec's "4px inside the top … rotated 45°" geometry
+   actually produces — worked out once in that component's own comment rather than re-derived by a
+   consumer reading a CSS transform. */
+
+/* --- Avatar ---------------------------------------------------------------------------------- */
+
+/* Avatar initials/"+N" type (spec "Avatar" → Sizes: the Initials column is "38% of diameter" —
+   0.76rem/0.95rem/1.33rem/2.28rem at sm/md/lg/xl, none of which matches a token in tokens.json —
+   plus "Initials weight 600, letter-spacing 0.02em" from the paragraph under the table). Weight
+   reuses `--eldra-text-label-weight` (600, the same token every other 600-weight utility in this
+   file reads); the size and the 0.02em tracking have no token of their own, so — like
+   `text-button-lg`'s 1.0625rem — each is a per-component CSS variable with the spec's own number
+   as its literal default. One line (`/ 1`): initials are a single short run, never a wrapped
+   paragraph, so there is no ratio to name. `AvatarGroup`'s "+N" counter reuses the same size at
+   `sm` (`Avatar.vue`'s own comment) rather than a fifth type style, since the spec's States table
+   gives it the identical treatment ("Initials / '+N' … `text`"). */
+@utility text-avatar-initials-sm {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-sm, 0.76rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-md {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-md, 0.95rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-lg {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-lg, 1.33rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+@utility text-avatar-initials-xl {
+  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-xl, 2.28rem) / 1
+    var(--eldra-font-body);
+  letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
+}
+
+/* The user-icon fallback's size (spec "Avatar" → Sizes, closing paragraph: "Icon: 1.5rem in lg
+   (scale proportionally)"). Only `lg` is given a literal number; the other three are that same
+   icon-to-diameter ratio (1.5 / 3.5, the `lg` diameter) applied to their own diameter (2rem,
+   2.5rem, 6rem) and rounded to three decimal places — precise enough for a stroke this thin, and
+   consistent with how every other one-off number in this file is a per-component variable with a
+   literal default rather than a class-level arbitrary value. Registered in the `size` class group
+   in `src/utils/cx.ts` (the same group `size-*` itself belongs to), so `classes.icon: 'size-6'`
+   replaces one of these instead of landing beside it. */
+@utility eldra-avatar-icon-sm {
+  width: var(--eldra-avatar-icon-size-sm, 0.857rem);
+  height: var(--eldra-avatar-icon-size-sm, 0.857rem);
+}
+@utility eldra-avatar-icon-md {
+  width: var(--eldra-avatar-icon-size-md, 1.071rem);
+  height: var(--eldra-avatar-icon-size-md, 1.071rem);
+}
+@utility eldra-avatar-icon-lg {
+  width: var(--eldra-avatar-icon-size-lg, 1.5rem);
+  height: var(--eldra-avatar-icon-size-lg, 1.5rem);
+}
+@utility eldra-avatar-icon-xl {
+  width: var(--eldra-avatar-icon-size-xl, 2.571rem);
+  height: var(--eldra-avatar-icon-size-xl, 2.571rem);
+}
+
+/* --- Container and section -------------------------------------------------------------------- */
+
+/* Spec "Container and section" → Do/Don't: "Do alternate none and surface between neighbouring
+   blocks instead of adding divider lines" and the acceptance criterion this rule is actually for —
+   two adjacent same-background `Section`s read as one continuous band, not as two spacing bands
+   stacked with a visible seam. `Section.vue` marks its own ground on every background (including
+   `none`) with `data-section-bg`, and a second `Section` immediately after one with the same value
+   drops its own top padding (`Section` splits its spacing into separate `pt-*`/`pb-*` utilities
+   instead of the `py-*` shorthand for exactly this: only the top half is ever touched, so the
+   bottom edge — what the *next* sibling's own top-drop reads against — never moves).
+
+   This is plain CSS, not `@utility`, and deliberately outside every `@layer`: Tailwind's utilities
+   compile into `@layer utilities` (`@import 'tailwindcss'` declares the layer order), and a rule
+   with no layer at all always wins the cascade over every layered rule regardless of selector
+   specificity or source order (CSS Cascade Layers) — which is what lets `Section`'s own `spacing`
+   stay an ordinary, always-overridable `pt-*`/`pb-*` utility while this one rule still beats it
+   whenever two matching grounds are adjacent. `src/__tests__/sectionAdjacentBackground.spec.ts`
+   compiles this file and asserts the built rule wins. Five explicit pairs, not a single generic
+   attribute selector, because CSS has no "same value as the previous sibling" selector — only an
+   exact value can be matched on each side. */
+[data-section-bg='none'] + [data-section-bg='none'],
+[data-section-bg='surface'] + [data-section-bg='surface'],
+[data-section-bg='surface-strong'] + [data-section-bg='surface-strong'],
+[data-section-bg='primary'] + [data-section-bg='primary'],
+[data-section-bg='accent'] + [data-section-bg='accent'] {
+  padding-top: 0;
+}
+
+/* --- Dialog ---------------------------------------------------------------------------------- */
+
+/* The title (spec "Dialog" → Sizes): "heading font, 1.25rem / 1.3, weight 600, letter-spacing
+   -0.01em." Weight and tracking already read `h3`'s own tokens exactly (600, -0.01em — the same
+   reuse `text-logo-wordmark` makes for its own weight/tracking); only the 1.25rem size and 1.3 line
+   sit between two type styles with no token of their own, so, like `Button`'s `lg` size, they are
+   per-component variables with the spec's literals as defaults. */
+@utility text-dialog-title {
+  font: var(--eldra-text-h3-weight) var(--eldra-dialog-title-size, 1.25rem) /
+    var(--eldra-dialog-title-line, 1.3) var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* The panel's own box (spec "Dialog" → Sizes): "Width min(32rem, 100vw − 2rem) (sm: min(24rem,
+   100vw − 2rem))" and "Max height 100vh − 4rem; content beyond that scrolls inside the dialog." The
+   width pair keep the viewport clamp inside the utility itself, unlike `eldra-select-panel-width`'s
+   `min()` — a Dialog's own width is a fixed spec number a consumer can override with
+   `--eldra-dialog-width(-sm)`, and the clamp must still apply to whatever that override is, not
+   only to the default. Each is in Tailwind's own `w`/`max-h` group (`src/utils/cx.ts`), so a
+   consumer's `classes.panel: 'w-full'` replaces the clamp instead of landing beside it. */
+@utility eldra-dialog-width {
+  width: min(var(--eldra-dialog-width, 32rem), calc(100vw - 2rem));
+}
+@utility eldra-dialog-width-sm {
+  width: min(var(--eldra-dialog-width-sm, 24rem), calc(100vw - 2rem));
+}
+@utility eldra-dialog-max-height {
+  max-height: var(--eldra-dialog-max-height, calc(100vh - 4rem));
+}
+
+/* The dialog's own entrance (spec "Dialog" → Behaviour & motion): "Enter: opacity 0 -> 1, 0.5rem
+   rise and scale 0.98 -> 1, duration-slow (250ms) ease-out. Exit: instant." The house pattern is
+   `eldra-popover-in` above — fade plus scale over a token duration, nothing to do for reduced
+   motion because the duration token itself zeroes — but Dialog's own reduced-motion row is not
+   "nothing moves, so the token collapsing to 0ms already reads as done": the spec asks for "a plain
+   fade over duration-base (200ms), linear," a real, *visible* fade, the same exception
+   `animate-eldra-pulse` makes for the Button spinner and for the same reason — reading
+   `--eldra-duration-base` here would zero it too and the dialog would just snap into view with no
+   fade at all. So the reduced-motion state is a second keyframe set with its own literal, always-on
+   200ms, applied through `motion-reduce:` (`Dialog.vue`: `animate-eldra-dialog-in
+   motion-reduce:animate-eldra-dialog-in-reduced`) rather than through the zeroing token — exactly
+   the two-utility shape `animate-eldra-spin`/`animate-eldra-pulse` already uses, registered in the
+   same `animate` merge group in `src/utils/cx.ts`. Exit needs no utility at all: the spec's own
+   "instant by default" is simply not animating the close. */
+@keyframes eldra-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes eldra-dialog-in-reduced {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-dialog-in {
+  animation: eldra-dialog-in var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+@utility animate-eldra-dialog-in-reduced {
+  animation: eldra-dialog-in-reduced 200ms linear;
+}
+/* --- Tabs ---------------------------------------------------------------------------------- */
+
+/* Spec "Tabs" → Anatomy, point 1: "scrolls horizontally when the tabs overflow (never wraps),
+   scrollbar hidden." Tailwind has no stock utility for hiding a scrollbar — `overflow-x-auto`
+   alone still shows the browser's own bar — so this is one small utility rather than an arbitrary
+   value repeated at the call site. Registered in `src/utils/cx.ts` under its own class group (see
+   `custom-utility-coverage.spec.ts`), the same shape as `target-min`/`target-touch` above: no stock
+   Tailwind group covers "show/hide a scrollbar" either. */
+@utility eldra-scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* --- Drawer ----------------------------------------------------------------------------------- */
+
+/* The title (spec "Drawer" → Sizes): "heading font, 1.25rem / 1.3, weight 600, letter-spacing
+   -0.01em" — the exact same numbers as `text-dialog-title` above, but its own variable pair
+   rather than a shared one: a consumer restyling one component's title should not have to think
+   about whether the other one moves with it. */
+@utility text-drawer-title {
+  font: var(--eldra-text-h3-weight) var(--eldra-drawer-title-size, 1.25rem) /
+    var(--eldra-drawer-title-line, 1.3) var(--eldra-font-heading);
+  letter-spacing: var(--eldra-text-h3-tracking);
+}
+
+/* The panel's own width (spec "Drawer" → Properties, `width` row: "Maximum width; always capped
+   at 100% of the viewport") plus the full-screen mobile variant (spec "Drawer" → Mobile: "On any
+   viewport narrower than the drawer's width, the drawer is full width and full height"; Global
+   Constraints: the full-screen variants of Drawer, Lightbox and Search modal are one of only two
+   rules in the whole spec measured on the **viewport**, not a container — operator decision,
+   2026-09-25). `--eldra-drawer-width` is a literal per-component variable (the spec's own 28rem
+   default sits between two tokens and has none of its own, the same shape as `--eldra-dialog-
+   width`), set from the `width` prop on the panel's own inline style; the viewport cap lives
+   inside the utility itself so it still applies to whatever a consumer sets that variable to, not
+   only to the default. The `48rem` edge below is a plain `@media` query — Tailwind's own `md`
+   *viewport* breakpoint, the same one `max-md:text-control-mobile` above measures — never a
+   `@container` query: this is one of the two rules in the whole design spec that measures the
+   viewport on purpose, not the enclosing block. */
+@utility eldra-drawer-width {
+  width: min(var(--eldra-drawer-width, 28rem), 100vw);
+  @media (width < 48rem) {
+    width: 100vw;
+  }
+}
+
+/* The drawer's own entrance (spec "Drawer" → Behaviour & motion): "Enter: slides in from its edge
+   (translateX(100%) -> 0 for right, -100% -> 0 for left), duration-slow (250ms) ease-out. Exit:
+   instant." Applied to the `<dialog>` root itself (`Drawer.vue`: `animate-eldra-drawer-in-{side}
+   motion-reduce:animate-eldra-dialog-in-reduced`), the same placement `Dialog`'s own
+   `animate-eldra-dialog-in` uses — the root is a full-viewport transparent flex box that only
+   docks its (opaque) panel child to one edge, so translating the root by a full 100% of its own
+   (viewport) width slides the panel fully off-screen and back regardless of the panel's own
+   width, while the `::backdrop` (a sibling box, not a descendant) is untouched by the transform
+   and simply stays put. Reduced motion reuses `Dialog`'s own `eldra-dialog-in-reduced` keyframe
+   rather than a third one of its own: the spec's "plain fade over duration-base (200ms), linear"
+   is the identical opacity-only fade Dialog's reduced-motion state already draws, so a second
+   keyframe with the same two declarations would only be a second name for the same rule. Exit
+   needs no utility at all, matching "instant by default" the same way Dialog's own exit does. */
+@keyframes eldra-drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes eldra-drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@utility animate-eldra-drawer-in-right {
+  animation: eldra-drawer-in-right var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+@utility animate-eldra-drawer-in-left {
+  animation: eldra-drawer-in-left var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+
+/* --- Search modal ------------------------------------------------------------------------------ */
+
+/* The field's own type (spec "Search modal" → Sizes, Field row): "1.0625rem text" (desktop and
+   tablet); mobile reuses `text-control-mobile`'s existing 1rem (`Input`'s own "the field text is
+   1rem below 48rem, so iOS never zooms into a focused field" rule applies here too), composed
+   alongside this one the same way `Input`'s own `FIELD_TEXT.md` pairs `text-control` with
+   `max-md:text-control-mobile` — two whole utilities, not one bundling a media query, because the
+   mobile number already has a name. 1.0625rem sits between two type-scale steps with no token of
+   its own, so, like `text-button-lg`'s identical number, it is a per-component variable with the
+   spec's literal as its default. */
+@utility text-search-modal-field {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-field-size, 1.0625rem) /
+    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+}
+
+/* The foot's own text (spec "Search modal" → Sizes, Foot row): "0.75rem `muted` text on `surface`".
+   Plain body weight and family — unlike `text-overline` (also 0.75rem), this is sentence-case hint
+   copy, not an uppercase, tracked label — so it is its own utility rather than that one plus an
+   override. */
+@utility text-search-modal-foot {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-foot-size, 0.75rem) /
+    var(--eldra-search-modal-foot-line, 1.4) var(--eldra-font-body);
+}
+
+/* The foot's key caps (spec, same row): "monospace 0.6875rem, min-width 1.25rem" — smaller than
+   `text-search-kbd` (the Search bar's own inline `/` chip, 0.75rem), for a denser row of three
+   hints. */
+@utility text-search-modal-kbd {
+  font: var(--eldra-text-body-weight) var(--eldra-search-modal-kbd-size, 0.6875rem) / 1rem
+    var(--eldra-font-mono);
+}
+
+/* The dialog's own box (spec "Search modal" → Sizes, Dialog row): "min(40rem, 100vw − 2rem) wide;
+   max-height min(40rem, 100vh − 6rem); top margin 8vh, centred horizontally … radius-lg, 1px
+   border, shadow-md" on desktop and tablet (viewport ≥ 48rem); "Full screen: 100% × 100%, no
+   margin, radius or border" below it. One utility per CSS property — the same shape as `eldra-
+   dialog-width`/`-max-height` — each bundling its own `@media (width < 48rem)` override, the exact
+   technique `eldra-drawer-width` above already documents and this file's own
+   `search-modal.spec.ts` compiles and asserts directly, rather than a class-level arbitrary value:
+   a consumer overriding `classes.root` then replaces the desktop clamp *and* its full-screen
+   exception together, never just one half of the rule. The radius/border/shadow removal below
+   48rem is plain `max-md:` utilities in `SearchModal.vue` instead — three independent, already-
+   token-driven stock groups (`rounded`, `border-w`, `shadow`) that do not need a fourth bundled
+   name of their own the way the three interdependent geometry numbers here do. */
+@utility eldra-search-modal-width {
+  width: min(var(--eldra-search-modal-width, 40rem), calc(100vw - 2rem));
+  @media (width < 48rem) {
+    width: 100vw;
+  }
+}
+@utility eldra-search-modal-max-height {
+  max-height: min(var(--eldra-search-modal-max-height, 40rem), calc(100vh - 6rem));
+  @media (width < 48rem) {
+    max-height: 100vh;
+  }
+}
+@utility eldra-search-modal-position {
+  margin: 8vh auto auto;
+  @media (width < 48rem) {
+    margin: 0;
+  }
+}
+
+/* --- Toast ------------------------------------------------------------------------------------ */
+
+/* The region's own width (spec "Toast" -> Sizes, "Region" row): "min(24rem, 100vw - 2rem) wide ...
+   1rem from the right and bottom edges." Same shape as `eldra-dialog-width`: the viewport clamp
+   lives inside the utility itself, so a consumer's `--eldra-toast-width` override still gets
+   capped on a narrow screen. In Tailwind's own `w` group (`src/utils/cx.ts`), so `classes.root:
+   'w-full'` replaces the clamp instead of landing beside it. */
+@utility eldra-toast-width {
+  width: min(var(--eldra-toast-width, 24rem), calc(100vw - 2rem));
+}
+
+/* The title (spec "Toast" -> Sizes, "Title" row): "0.9375rem, weight 600." The weight already
+   reads the label token (600, the same reuse `text-stock-status` makes for its own weight); the
+   size sits between two type-scale steps with none of its own — the same shape as `text-price-sm`'s
+   0.9375rem and `text-dialog-title`'s 1.25rem — so it is a per-component variable with that literal
+   default. No line-height is given, so, like `text-stock-status`'s 1.4, it gets one too. */
+@utility text-toast-title {
+  font: var(--eldra-text-label-weight) var(--eldra-toast-title-size, 0.9375rem) /
+    var(--eldra-toast-title-line, 1.4) var(--eldra-font-body);
+}
+
+/* The toast's own entrance (spec "Toast" -> Behaviour & motion): "Enter: fade in with a 0.5rem
+   rise, duration-base (200ms) ease-out." Unlike `Dialog`, the spec's reduced-motion row here only
+   asks that toasts "appear and disappear without movement" — not, as `Dialog`'s own row demands, a
+   still-visible fade at a literal duration — so the ordinary zeroing `--eldra-duration-base`
+   already satisfies it (an instant appearance has no movement to speak of) and this needs no
+   second `-reduced` keyframe. Exit is not animated (no CSS at all): the spec asks for a 150ms fade
+   out on removal, but animating a `v-for` departure needs Vue's `<TransitionGroup>`, which nothing
+   else in this package uses and which is difficult to drive reliably under `vi.useFakeTimers()`;
+   `Toaster` removes a dismissed toast from the DOM immediately, the same "instant by default"
+   call `Dialog`'s own exit makes (see its Deviations entry) for the equivalent trade-off. */
+@keyframes eldra-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-eldra-toast-in {
+  animation: eldra-toast-in var(--eldra-duration-base) var(--eldra-ease-out);
+}
+/* --- Carousel -------------------------------------------------------------------------------- */
+
+/* A slide's own width (spec "Carousel" → Sizes, "Slide width" row): "default 80% of the track;
+   product rows `(100% − 3 × 1rem) / 4` from 64rem block width, 3 per view from 48rem, ~80% below
+   48rem (peek); single-slide galleries 100%" — one formula, `(100% - (perView - 1) * gap) /
+   perView`, covers every row of that table: `perView: 1` gives 100%, `perView: 4` with a 1rem gap
+   gives the product-row formula verbatim, and the default `perView: 1.25` gives "~80%" (literally
+   80% minus a fifth of the gap, which is what the spec's own "~" already concedes).
+   `--eldra-carousel-per-view` is set per container-query breakpoint by `eldra-carousel-track`
+   below, from the three inline custom properties `carouselPerViewStyle` (`useCarousel.ts`) binds
+   on the track — this utility only ever reads the one resolved variable, so `Carousel.vue` and
+   `Lightbox` share one definition. The gap defaults to
+   `--eldra-space-4` (1rem), the same token `gap-4` on the track itself resolves to, so the two
+   numbers in the formula can never drift apart even if a consumer overrides one. */
+@utility eldra-carousel-slide {
+  flex: none;
+  scroll-snap-align: start;
+  width: calc(
+    (100% - (var(--eldra-carousel-per-view, 1) - 1) *
+        var(--eldra-carousel-gap, var(--eldra-space-4))) /
+      var(--eldra-carousel-per-view, 1)
+  );
+}
+
+/* The track's own per-view switch: picks one of the three inline custom properties
+   `carouselPerViewStyle` (`useCarousel.ts`) binds on the track into the single
+   `--eldra-carousel-per-view` its slides read above.
+
+   The values arrive as an inline style rather than as Tailwind arbitrary-property classes on
+   purpose (bug, fixed 2026-09-27 — see `carouselPerViewStyle`'s own comment, the README's
+   Deviations entry and the CHANGELOG): a class name built by interpolating a number is never in
+   the text Tailwind scans, so a consumer's build emitted no rule for it and every carousel
+   rendered one full-width slide. Keeping the *breakpoints* here, in static CSS, is the other half
+   of that fix: nothing about this rule depends on what a component happened to render.
+
+   48rem and 64rem are written out, not `var(--container-tablet)`/`var(--container-content)`,
+   for the reason this file's own header states: a `@container` condition may not contain `var()`.
+   They are the same two edges Tailwind's own `@tablet:`/`@content:` variants compile to, and
+   `src/__tests__/containerQueryBreakpoints.spec.ts` is what keeps the pair in step.
+
+   The `var()` fallback chains repeat, in CSS, the narrowest-first resolution
+   `carouselPerViewStyle` already does in JavaScript (which always writes all three): they are what
+   makes a consumer setting only `--eldra-carousel-per-view-base` by hand behave the same way. */
+@utility eldra-carousel-track {
+  --eldra-carousel-per-view: var(--eldra-carousel-per-view-base, 1);
+  @container (width >= 48rem) {
+    --eldra-carousel-per-view: var(
+      --eldra-carousel-per-view-md,
+      var(--eldra-carousel-per-view-base, 1)
+    );
+  }
+  @container (width >= 64rem) {
+    --eldra-carousel-per-view: var(
+      --eldra-carousel-per-view-lg,
+      var(--eldra-carousel-per-view-md, var(--eldra-carousel-per-view-base, 1))
+    );
+  }
+}
+
+/* A dot's own visual (spec "Carousel" → Sizes, Dot row: "1.5rem square target; visible dot 0.5rem
+   circle with a 1.5px ring; current: 1.25rem × 0.5rem pill; no gap between dot targets"). The
+   1.5rem target itself is a plain `size-6` button in `Carousel.vue`; this utility is only the
+   dot's *visible* inner shape, switched by the button's own `aria-current` — a shape change as
+   well as a colour change (spec → States: "shape change, not colour alone", 1.4.1), so the
+   component computes no separate "current" class. The ring's width has no stock Tailwind border
+   step (1.5px sits between `border-1`'s 1px and `border-2`'s 2px), so — like `eldra-field-border`'s
+   own width — it is a per-component variable with that literal default. Motion: width and colour
+   change over `duration-fast` `ease-out` (spec → Behaviour & motion), nothing under reduced
+   motion — a shape/colour swap has no "motion" to remove, only a transition to skip. */
+@utility eldra-carousel-dot {
+  display: block;
+  width: var(--eldra-carousel-dot-size, 0.5rem);
+  height: var(--eldra-carousel-dot-size, 0.5rem);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  box-shadow: inset 0 0 0 var(--eldra-carousel-dot-ring, 1.5px) var(--color-border-strong);
+  transition:
+    width var(--eldra-duration-fast) var(--eldra-ease-out),
+    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
+    box-shadow var(--eldra-duration-fast) var(--eldra-ease-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+  [aria-current='true'] > & {
+    width: 1.25rem;
+    background-color: var(--color-text);
+    box-shadow: inset 0 0 0 var(--eldra-carousel-dot-ring, 1.5px) var(--color-text);
+  }
+  @media (forced-colors: active) {
+    box-shadow: none;
+    border: var(--eldra-carousel-dot-ring, 1.5px) solid CanvasText;
+    [aria-current='true'] > & {
+      background-color: CanvasText;
+    }
+  }
+}
+
+/* --- Lightbox ----------------------------------------------------------------------------- */
+
+/* The viewer's own entrance (spec "Lightbox" → Behaviour & motion: "Enter: fade in over
+   duration-slow (250ms) ease-out. Moving between images scrolls smoothly." / "Reduced motion: the
+   viewer fades in over duration-base (200ms) with no movement, and image changes are instant.").
+   Unlike `Dialog`'s own entrance, there is no rise or scale here — the spec gives the Lightbox a
+   plain fade, full stop, so this needs its own (simpler) keyframe rather than reusing
+   `eldra-dialog-in`. The reduced-motion state, though, is the exact "plain opacity fade over
+   duration-base (200ms), linear" `eldra-dialog-in-reduced` already draws for `Dialog` and `Drawer`
+   — reused rather than given a third identical keyframe, the same call `Drawer`'s own comment on
+   that utility makes. */
+@keyframes eldra-lightbox-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility animate-eldra-lightbox-in {
+  animation: eldra-lightbox-in var(--eldra-duration-slow) var(--eldra-ease-out);
+}
+
+/* --- Range slider ----------------------------------------------------------------------------- */
+
+/* The gutter that keeps a thumb — its focus ring and its pointer target included — inside the
+   control (spec "Range slider" → Anatomy): a thumb is centred on its value, so the one at `min`
+   hangs half its own width past the start of the track, and **two** things hang further still. Its
+   ring reaches `--eldra-focus-offset` + `--eldra-focus-width` past the circle; its 2.5.8 target
+   (the `::after` box below) is centred on the circle too, so it reaches half the target from the
+   thumb's centre — 22px of it below the tablet width, where that target is `--eldra-target-touch`.
+
+   The gutter is therefore the **larger** of the two reaches, per side. With only the ring's
+   allowance, the maximum thumb at `max` pushed its target 8px past the end of the document at a
+   320px viewport: a horizontal scrollbar on a phone with nothing to pan to, against WCAG 1.4.10
+   and the spec section's own 320px acceptance line (`__tests__/rangeSliderRing.browser.spec.ts`
+   measures `scrollWidth` against `clientWidth` there, which is the condition the criterion states).
+   Clipping the control is not the alternative: that would cut the focus ring, which is the other
+   thing this reservation exists to protect.
+
+   Sized from the variables themselves, never from the numbers they happen to hold today: a
+   consumer enlarging the thumb or the targets moves the gutter with them, and so does a raised ring
+   token — a `Carousel` sets `--eldra-focus-offset: 4px` for its slides and a plain custom property
+   inherits into everything inside it (the same lesson as `Tabs`' own list reservation).
+
+   `48rem` is written out for the reason this file's header states, and it is the same edge the
+   target itself switches on below, so the two can never disagree about which target is in force. */
+@utility eldra-range-gutter {
+  padding-inline: max(
+    calc(
+      var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+        var(--eldra-focus-width)
+    ),
+    calc(var(--eldra-target-min) / 2)
+  );
+  @container (width < 48rem) {
+    padding-inline: max(
+      calc(
+        var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+          var(--eldra-focus-width)
+      ),
+      calc(var(--eldra-target-touch) / 2)
+    );
+  }
+}
+
+/* The gutter a filter panel's price range uses instead (spec "Filter panel" → Sizes, Histogram
+   and Range rows: "inset 0.625rem on each side"): the thumb's own radius plus the focus ring's
+   reach — never the target half, which is what pushed the track to two thirds of a 15rem sidebar.
+   The ring reach stays so a focused end thumb is not clipped by a scrolling drawer body, which
+   makes the inset 0.875rem rather than the spec's 0.625rem; the README's Deviations entry says so. */
+@utility eldra-range-gutter-thumb {
+  padding-inline: calc(
+    var(--eldra-range-thumb-size, 1.25rem) / 2 + var(--eldra-focus-offset) +
+      var(--eldra-focus-width)
+  );
+}
+
+/* The rail: the band a pointer press lands in (spec "Range slider" → Sizes, Rail row: "`target-
+   touch` (2.75rem) below the tablet breakpoint, `target-min` (1.5rem) from it"). The touch size is
+   on the *band*, not on the thumb alone, so there is a 44px-tall target across the whole control
+   rather than two 44px circles that overlap — and therefore fight — when the range is narrow.
+
+   `48rem` is written out rather than `var(--container-tablet)` for the reason this file's header
+   states: a `@container` condition may not contain `var()`. It is the same edge Tailwind's own
+   `@max-tablet:` variant compiles to, measured against the component's own root (`RangeSlider.vue`
+   is a `@container`), which is the spec's own breakpoint rule — the width of the block the control
+   sits in, not the viewport. */
+@utility eldra-range-rail {
+  min-height: var(--eldra-target-min);
+  @container (width < 48rem) {
+    min-height: var(--eldra-target-touch);
+  }
+}
+
+/* The track and the filled range share one height (spec → Anatomy items 3 and 4: "0.375rem tall,
+   `radius-full`"). A literal per-component variable, like `--eldra-carousel-dot-size`: the spec's
+   0.375rem is a bar thickness, which no shared token carries. */
+@utility eldra-range-track {
+  height: var(--eldra-range-track-height, 0.375rem);
+}
+
+/* A thumb (spec → Anatomy item 5: "1.25rem, `background` fill, 1.5px `border-strong` edge,
+   `shadow-sm`", and → States for the hover and dragging halo). Three things live here rather than
+   in the component's classes, because each of them is a literal the spec gives and a variable a
+   consumer should be able to move: the circle's size, its 1.5px edge (no stock Tailwind border step
+   sits between 1px and 2px — the same call `eldra-carousel-dot`'s ring makes), and the halo.
+
+   `::before` is the halo, drawn outside the circle and faded in on hover and while dragging — an
+   outline or a box-shadow would collide with `eldra-focus`, which owns this element's `outline`
+   *and* its `box-shadow`. `::after` is the pointer target, centred on the thumb at `target-min`
+   and growing to `target-touch` below the tablet breakpoint, so the thumb itself satisfies 2.5.8
+   at every width (the rail above is the band that satisfies it across the whole control). Neither
+   pseudo-element paints anything the thumb's own shape does not already say, so both are invisible
+   to assistive technology by construction. */
+@utility eldra-range-thumb {
+  width: var(--eldra-range-thumb-size, 1.25rem);
+  height: var(--eldra-range-thumb-size, 1.25rem);
+  border-width: var(--eldra-range-thumb-border-width, 1.5px);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * var(--eldra-range-thumb-halo, 0.25rem));
+    border-radius: var(--radius-full);
+    background-color: color-mix(in oklab, var(--color-text), transparent 92%);
+    opacity: 0;
+    transition: opacity var(--eldra-duration-fast) var(--eldra-ease-out);
+  }
+  &:hover::before {
+    opacity: 1;
+  }
+  &[data-dragging='true']::before {
+    opacity: 1;
+    background-color: color-mix(in oklab, var(--color-text), transparent 86%);
+  }
+  &[aria-disabled='true']::before {
+    display: none;
+  }
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--eldra-target-min);
+    height: var(--eldra-target-min);
+    translate: -50% -50%;
+  }
+  @container (width < 48rem) {
+    &::after {
+      width: var(--eldra-target-touch);
+      height: var(--eldra-target-touch);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      transition: none;
+    }
+  }
+}
+
+/* --- Filter panel ----------------------------------------------------------------------------- */
+
+/* A size-system sub-heading (spec "Filter panel" → Sizes, Size-system sub-heading row: "0.75rem
+   weight 600, uppercase, 0.06em letter spacing, `muted`"). It is nearly `text-overline` — same
+   size, same weight, same transform — and differs only in tracking: the overline token's 0.12em is
+   a label over a section, and the same spacing inside a 15rem sidebar pushes "SOCKS (EU)" onto two
+   lines. So the size, line and weight read the existing tokens and the tracking is a
+   per-component variable with the spec's own 0.06em as its default. */
+@utility text-filter-subheading {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-overline-line);
+  font-weight: var(--eldra-text-label-weight);
+  letter-spacing: var(--eldra-filter-subheading-tracking, 0.06em);
+  text-transform: uppercase;
+}
+
+/* A swatch tile's count (spec → Sizes, Swatch tile row: "count 0.75rem"). The one 0.75rem number
+   in the panel, and the overline token is the only type style at that size — but an overline is
+   uppercase with 0.12em of tracking, which on a column of tabular digits reads as a gap between
+   them. So it borrows that token's size, the caption's line ratio and the body weight, and adds
+   neither transform nor tracking of its own. */
+@utility text-filter-tile-count {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-caption-line);
+  font-weight: var(--eldra-text-body-weight);
+}
+
+/* A colour swatch's own edge (spec → Sizes, Swatch row: "Swatch 1.5rem circle with a 1px inner
+   edge of `text` at 22%"). A real `border`, not a `box-shadow`, for the reason
+   `eldra-variant-swatch-edge` records: forced-colours mode drops a decorative shadow and keeps a
+   real border, and this boundary is the one WCAG 1.4.11 is about — a pale swatch has no other edge.
+
+   The width and the colour are bundled in one utility because they are one decision: the colour is
+   not a token role (it is `text` at a fraction) and nothing else in the package draws it, so a
+   consumer moves it through `--eldra-filter-swatch-edge-width` or replaces the whole rule through
+   `classes.swatch`. Deliberately not `border-strong`, which `VariantPicker`'s own disc uses: a
+   filter panel draws these at 1.5rem in a dense column where the stronger line reads as a second
+   ring beside the selected one. */
+@utility eldra-filter-swatch-edge {
+  border-width: var(--eldra-filter-swatch-edge-width, 1px);
+  border-color: color-mix(in oklab, var(--color-text), transparent 78%);
+}
+
+/* The ring a selected swatch gains (spec → Sizes, Selected swatch ring: "A 2px `background` gap,
+   then a 1.5px `text` ring around the swatch"). The gap is the shape's own padding and the ring is
+   a real border on it, kept at this one constant width in **every** state — transparent at rest —
+   so the swatch never resizes when it is picked and the column never shifts under the pointer. The
+   same shape `eldra-variant-swatch-ring` has, at this panel's own 1.5px rather than that
+   component's 2px. */
+@utility eldra-filter-swatch-ring {
+  border-width: var(--eldra-filter-swatch-ring-width, 1.5px);
+}
+
+/* One histogram bar (spec → Sizes, Histogram row: "Bar min height 2px, top corners 1px"). The
+   minimum height is what keeps an empty bucket visible as an empty bucket rather than as nothing
+   at all, which is the difference between "no products here" and "no data"; the 1px top corners
+   are the only rounding, because the bars sit on the histogram's own baseline. Two literals with
+   no token between them — a bar is thinner than any radius or spacing step the scale carries — so
+   each is a per-component variable with the spec's number as its default. */
+@utility eldra-filter-histogram-bar {
+  min-height: var(--eldra-filter-histogram-bar-min, 2px);
+  border-start-start-radius: var(--eldra-filter-histogram-bar-radius, 1px);
+  border-start-end-radius: var(--eldra-filter-histogram-bar-radius, 1px);
+}

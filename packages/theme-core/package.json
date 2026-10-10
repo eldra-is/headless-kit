@@ -1,0 +1,98 @@
+{
+  "name": "@eldrajs/theme-core",
+  "version": "0.0.0",
+  "description": "Framework-free core of the Eldra theme SDK: the Studio preview bridge, stega encoding, the overlay runtime, layout CSS, rich-text positions, design tokens and image framing.",
+  "keywords": [
+    "cms",
+    "eldra",
+    "headless",
+    "page-builder",
+    "preview",
+    "theme"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/theme-core#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/theme-core"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./bridge": {
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js"
+    },
+    "./stega": {
+      "types": "./dist/stega.d.ts",
+      "import": "./dist/stega.js"
+    },
+    "./overlay": {
+      "types": "./dist/overlay.d.ts",
+      "import": "./dist/overlay.js"
+    },
+    "./preview-router": {
+      "types": "./dist/preview-router.d.ts",
+      "import": "./dist/preview-router.js"
+    },
+    "./layout": {
+      "types": "./dist/layout.d.ts",
+      "import": "./dist/layout.js"
+    },
+    "./dynamic-route": {
+      "types": "./dist/dynamic-route.d.ts",
+      "import": "./dist/dynamic-route.js"
+    },
+    "./links": {
+      "types": "./dist/links.d.ts",
+      "import": "./dist/links.js"
+    },
+    "./template-layout": {
+      "types": "./dist/template-layout.d.ts",
+      "import": "./dist/template-layout.js"
+    },
+    "./reusable": {
+      "types": "./dist/reusable.d.ts",
+      "import": "./dist/reusable.js"
+    },
+    "./design-tokens": {
+      "types": "./dist/design-tokens.d.ts",
+      "import": "./dist/design-tokens.js"
+    },
+    "./image-framing": {
+      "types": "./dist/image-framing.d.ts",
+      "import": "./dist/image-framing.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n.d.ts",
+      "import": "./dist/i18n.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,1313 @@
+import { nextTick, reactive, ref, watch, type Ref } from 'vue';
+import { createCartStore, type CartOps, type CartSnapshot } from './cart';
+import { createHistoryStore, createWishlistStore } from './history';
+import { roundMoney } from './money';
+import { optionDisplayType } from './options';
+import {
+  deriveFacets,
+  filterItems,
+  type ProductFacetAttributes,
+  type ProductFacetTerm,
+} from './facets';
+import {
+  buildCategoryIndex,
+  categoryTrailFor,
+  isInSubtree,
+  placeCategory,
+  type CategoryRow,
+} from './categories';
+import type {
+  StorefrontAck,
+  StorefrontCartLine,
+  StorefrontCartTotals,
+  StorefrontCatalog,
+  StorefrontCollectionInfo,
+  StorefrontCollectionSelector,
+  StorefrontCommerce,
+  StorefrontForms,
+  StorefrontMedia,
+  StorefrontOrder,
+  StorefrontOrderStatus,
+  StorefrontOrders,
+  StorefrontProduct,
+  StorefrontProductListItem,
+  StorefrontResult,
+  StorefrontRoute,
+  StorefrontSearch,
+  StorefrontSearchResponse,
+  StorefrontSource,
+  VolatileKey,
+  VolatileSnapshot,
+} from './types';
+
+/**
+ * Northwind Goods — the fictional store every commerce block demos against (plan §"Global
+ * Constraints": Portland, Oregon studio, USD, free shipping over $80, 30-day returns, 10 %
+ * newsletter code). This is the data `test/support/mountBlock.ts` and `.storybook/eldra.ts` inject
+ * for every block/story/preview, and what `test/storefront/demo.spec.ts` checks against the
+ * catalogue named in `eldra-starter-spec/02-blocks.md` (lines 3140–3142, 3270–3272, 3373–3375,
+ * 3581–3583, 3692–3694, 3806–3811).
+ *
+ * Money is major units throughout — see `types.ts`.
+ */
+
+const FREE_SHIPPING_THRESHOLD = 80; // $80.00
+const FLAT_SHIPPING = 6; // $6.00, below the free-shipping threshold
+
+function demoImage(index: number, alt: string): StorefrontMedia {
+  // Only `product-1`..`product-6` exist in `public/demo/` today (scripts/demo-images.mjs) — a
+  // commerce block that needs more can extend that manifest. Money doesn't come into it, this
+  // just cycles through what already exists.
+  const name = `product-${((index - 1) % 6) + 1}`;
+  return { src: `/demo/${name}.svg`, alt };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------------------------
+
+/** The `category` facet's own values — the fixture's **leaves** (`DEMO_CATEGORIES`). */
+type DemoCategory = 'knitwear' | 'ceramics' | 'kitchen';
+
+interface DemoProductDef {
+  handle: string;
+  title: string;
+  amount: number;
+  compareAt?: number;
+  stock: 'in' | 'low' | 'out' | 'preorder';
+  available: boolean;
+  /**
+   * The fixture's **variant** id for this product's first buyable variant. The product's own id is
+   * its `handle` (`buildListItem` below): the two are different ids in the demo exactly as they are
+   * in a real catalogue, so every path that has to send the pair — a cart add, above all — is
+   * exercised here rather than passing by accident because one id stood in for both.
+   */
+  variantId: string;
+  rating?: { value: number; count: number } | null;
+  colours?: Array<{ name: string; swatch: string }>;
+  /**
+   * Which `category` facet value this product sits under, and which `size` values it is made in
+   * (apparel only). Neither is part of `StorefrontProductListItem` — a product *card* never shows
+   * them — but `collectionProducts` needs them to answer a filtered request, which is what a real
+   * backend does from the same underlying product data. `PRODUCT_ATTRIBUTES` below is the lookup.
+   */
+  category: DemoCategory;
+  sizes?: string[];
+}
+
+const PRODUCT_DEFS: DemoProductDef[] = [
+  {
+    handle: 'merino-crew-sweater',
+    category: 'knitwear',
+    sizes: ['xs', 's', 'm', 'l', 'xl'],
+    title: 'Merino crew sweater',
+    amount: 96,
+    compareAt: 128,
+    stock: 'in',
+    available: true,
+    variantId: 'merino-crew-sweater::oat::m',
+    rating: { value: 4.5, count: 126 },
+    colours: [
+      { name: 'Oat', swatch: '#d8cbb0' },
+      { name: 'Charcoal', swatch: '#3a3a3a' },
+      { name: 'Clay', swatch: '#b5651d' },
+      { name: 'Moss', swatch: '#6b7a4f' },
+    ],
+  },
+  {
+    handle: 'fisherman-rib-cardigan',
+    category: 'knitwear',
+    sizes: ['xs', 's', 'm', 'l', 'xl'],
+    title: 'Fisherman rib cardigan',
+    amount: 164,
+    stock: 'in',
+    available: true,
+    variantId: 'fisherman-rib-cardigan::natural::m',
+  },
+  {
+    handle: 'lambswool-throw-blanket',
+    category: 'knitwear',
+    title: 'Lambswool throw blanket',
+    amount: 148,
+    stock: 'in',
+    available: true,
+    variantId: 'lambswool-throw-blanket::default',
+  },
+  {
+    handle: 'ribbed-lambswool-beanie',
+    category: 'knitwear',
+    sizes: ['s', 'm', 'l'],
+    title: 'Ribbed lambswool beanie',
+    amount: 38,
+    stock: 'in',
+    available: true,
+    variantId: 'ribbed-lambswool-beanie::default',
+  },
+  {
+    handle: 'linen-tea-towels-pair',
+    category: 'kitchen',
+    title: 'Linen tea towels, pair',
+    amount: 24,
+    stock: 'out',
+    available: false,
+    variantId: 'linen-tea-towels-pair::natural',
+  },
+  {
+    handle: 'speckled-latte-mug',
+    category: 'ceramics',
+    title: 'Speckled latte mug',
+    amount: 28,
+    stock: 'in',
+    available: true,
+    variantId: 'speckled-latte-mug::clay',
+    colours: [{ name: 'Clay', swatch: '#b5651d' }],
+  },
+  {
+    handle: 'stoneware-dinner-plates-set-of-4',
+    category: 'ceramics',
+    title: 'Stoneware dinner plates, set of 4',
+    amount: 72,
+    stock: 'in',
+    available: true,
+    variantId: 'stoneware-dinner-plates-set-of-4::default',
+  },
+  {
+    handle: 'walnut-serving-board',
+    category: 'kitchen',
+    title: 'Walnut serving board',
+    amount: 58,
+    stock: 'in',
+    available: true,
+    variantId: 'walnut-serving-board::large',
+  },
+  {
+    handle: 'hand-thrown-serving-bowl',
+    category: 'ceramics',
+    title: 'Hand-thrown serving bowl',
+    amount: 64,
+    stock: 'in',
+    available: true,
+    variantId: 'hand-thrown-serving-bowl::default',
+  },
+  {
+    handle: 'glazed-milk-jug',
+    category: 'ceramics',
+    title: 'Glazed milk jug',
+    amount: 34,
+    stock: 'in',
+    available: true,
+    variantId: 'glazed-milk-jug::default',
+  },
+  {
+    handle: 'linen-napkins-set-of-4',
+    category: 'kitchen',
+    title: 'Linen napkins, set of 4',
+    amount: 40,
+    stock: 'in',
+    available: true,
+    variantId: 'linen-napkins-set-of-4::natural',
+  },
+  {
+    handle: 'stonewashed-linen-throw',
+    category: 'knitwear',
+    title: 'Stonewashed linen throw',
+    amount: 118,
+    stock: 'in',
+    available: true,
+    variantId: 'stonewashed-linen-throw::default',
+  },
+];
+
+/**
+ * The filterable/sortable attributes of one product, keyed by the *item* handle — including the
+ * suffixed clones `buildCollectionItems` makes (`merino-crew-sweater-2`), whose handles cannot be
+ * mapped back to a def by string surgery (`stoneware-dinner-plates-set-of-4` already ends in a
+ * number). Populated as items are built, which is why every item is created through
+ * `buildListItem`/`buildCollectionItems` and never by hand.
+ */
+/**
+ * **The fixture's category tree**, in the shape `GET /catalog/v1/categories` answers: one row per
+ * category, a tree by `parentId`.
+ *
+ * Two levels and one shallow branch on purpose, because that is the shape a real store has and the
+ * shape both features need to be exercised at all: `Homeware` holds `Ceramics` and `Kitchen`, while
+ * `Knitwear` is a root with nothing under it. So a product page's trail is two crumbs for a mug
+ * (`Homeware / Ceramics`) and one for a sweater (`Knitwear`), and the collection grid's category
+ * group draws one parent row with two indented children beside one plain row — with `Homeware`
+ * itself counting nothing directly, which is exactly the parent a flat facet never names.
+ *
+ * The root is titled **Homeware** rather than "Home", which it was until the category page existed:
+ * its own page's breadcrumb starts at the site's `Home` crumb, and a trail reading "Home › Home ›
+ * Ceramics" is a fixture that teaches the wrong thing. The slug is untouched, so every path and
+ * every `?category=` value in the fixtures is the same.
+ *
+ * Ids are the slugs here. The demo keeps product ids and variant ids deliberately distinct (see
+ * `DemoProductDef.variantId`) because a *request* sends both and they must not pass by accident; a
+ * category id is only ever looked up against this list, so a readable id is worth more than a fake
+ * uuid — and every lookup that matters (`categoryTrailFor`, `ancestorsOf`) keys on ids either way.
+ */
+const DEMO_CATEGORIES: readonly CategoryRow[] = [
+  { id: 'home', slug: 'home', title: 'Homeware', parentId: null },
+  { id: 'knitwear', slug: 'knitwear', title: 'Knitwear', parentId: null },
+  { id: 'ceramics', slug: 'ceramics', title: 'Ceramics', parentId: 'home' },
+  { id: 'kitchen', slug: 'kitchen', title: 'Kitchen', parentId: 'home' },
+];
+
+/** The tree indexed both ways, for the trail and for placing the facet's own terms. */
+const CATEGORY_INDEX = buildCategoryIndex(DEMO_CATEGORIES);
+
+/** What a `category` facet value is called where a shopper reads it. */
+const CATEGORY_TITLES: Record<DemoCategory, string> = {
+  knitwear: 'Knitwear',
+  ceramics: 'Ceramics',
+  kitchen: 'Kitchen',
+};
+
+const NO_ATTRIBUTES: ProductFacetAttributes = { options: {} };
+const PRODUCT_ATTRIBUTES = new Map<string, ProductFacetAttributes>();
+
+/**
+ * The attributes in `app/storefront/facets.ts`'s own shape — the same one `createGatewayStorefront`
+ * builds from a product list row — so the demo and the live site filter *and* count by exactly the
+ * same rules. Labels and swatches ride along with the values, which is what lets `deriveFacets`
+ * answer a facet a shopper can read ("Oat", "M") rather than a raw key.
+ *
+ * `collections` is deliberately absent here and filled in by `attributesFor` instead: which
+ * collections hold a product is a fact about the fixture's collections, which are declared below
+ * this line.
+ */
+function registerAttributes(handle: string, def: DemoProductDef): void {
+  PRODUCT_ATTRIBUTES.set(handle, {
+    // The `id` is what a parent clause is resolved through — `matchesClause` walks a product's own
+    // category up the tree — and what `categoryTermsOf` places the facet's own terms by.
+    category: { id: def.category, slug: def.category, title: CATEGORY_TITLES[def.category] },
+    options: {
+      size: (def.sizes ?? []).map((size) => ({ value: size, label: size.toUpperCase() })),
+      colour: (def.colours ?? []).map((colour) => ({
+        value: colour.name.toLowerCase(),
+        label: colour.name,
+        swatch: colour.swatch,
+      })),
+    },
+  });
+}
+
+function buildListItem(def: DemoProductDef, index: number): StorefrontProductListItem {
+  registerAttributes(def.handle, def);
+  return {
+    handle: def.handle,
+    title: def.title,
+    url: `/products/${def.handle}`,
+    featuredImage: demoImage(index + 1, def.title),
+    price: { amount: def.amount, compareAt: def.compareAt ?? null },
+    rating: def.rating ?? null,
+    colours: def.colours,
+    stock: def.stock,
+    available: def.available,
+    productId: def.handle,
+  };
+}
+
+/** The Northwind catalogue — exactly the twelve products the block specs name. */
+export const PRODUCTS: StorefrontProductListItem[] = PRODUCT_DEFS.map(buildListItem);
+
+/**
+ * One option as the fixture declares it: the merchant's facts — the key, the label, the display kind
+ * and the values — with `type` derived from the kind *and the values* by the same function the
+ * gateway source uses (`optionDisplayType`). Going through it rather than writing `'swatches'` is
+ * what keeps Storybook honest: the demo's swatches are there for the reason the live site's are, and
+ * a fixture that declared `kind: 'color'` and forgot the colours would draw pills here exactly as it
+ * would on a real store.
+ */
+function demoOption(
+  option: Omit<StorefrontProduct['options'][number], 'type'>
+): StorefrontProduct['options'][number] {
+  return { ...option, type: optionDisplayType(option.kind, option.values) };
+}
+
+/**
+ * The fixture's own option set, and the one place in the demo that declares a display kind. Colour is
+ * `color` with a colour on every value, so it draws swatches; size is `none` — a plain list of
+ * values, and what every option looked like before the field existed.
+ */
+const MERINO_OPTIONS: StorefrontProduct['options'] = [
+  demoOption({
+    name: 'colour',
+    label: 'Colour',
+    kind: 'color',
+    values: [
+      { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
+      { value: 'charcoal', label: 'Charcoal', swatch: '#3a3a3a', available: true },
+      { value: 'clay', label: 'Clay', swatch: '#b5651d', available: true },
+      { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: false },
+    ],
+  }),
+  demoOption({
+    name: 'size',
+    label: 'Size',
+    kind: 'none',
+    values: [
+      { value: 'xs', label: 'XS', available: true },
+      { value: 's', label: 'S', available: true },
+      { value: 'm', label: 'M', available: true },
+      { value: 'l', label: 'L', available: true },
+      { value: 'xl', label: 'XL', available: false },
+    ],
+  }),
+];
+
+function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct {
+  const listItem = buildListItem(def, index);
+  const isMerino = def.handle === 'merino-crew-sweater';
+  return {
+    ...listItem,
+    variantId: def.variantId,
+    images: [demoImage(index + 1, def.title), demoImage(index + 7, `${def.title}, alternate view`)],
+    options: isMerino ? MERINO_OPTIONS : [],
+    // Walked up the fixture's own tree from the product's category, exactly as
+    // `createGatewayStorefront` walks the store's: `Home / Ceramics` for a mug, `Knitwear` for a
+    // sweater, and each level a link into the catalogue filtered by it. Hand-written levels used to
+    // stand here, pointing at `/collections/knitwear/sweaters` — a route this theme has never served.
+    categoryTrail: categoryTrailFor(CATEGORY_INDEX, def.category),
+    description: isMerino
+      ? 'A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk.'
+      : `${def.title}, from Northwind Goods' Portland studio.`,
+    inventory: def.available ? 42 : 0,
+    shipsBy: def.available ? 'Tue 29 Sep – Thu 1 Oct' : null,
+  };
+}
+
+const PRODUCTS_FULL: Record<string, StorefrontProduct> = Object.fromEntries(
+  PRODUCT_DEFS.map((def, index) => [def.handle, buildFullProduct(def, index)])
+);
+
+/** Every fixture product a volatile refresh could be asked about, by the id a card carries. */
+const PRODUCTS_BY_ID = new Map(PRODUCTS.map((product) => [product.productId, product]));
+
+/**
+ * The demo half of `catalog.volatileByIds`. The fixture never changes, so this always answers with
+ * exactly the values the page already has — which is the point: it proves the refresh path end to
+ * end (ids out, snapshots back, `applyVolatileSnapshots` keeping every object at its identity)
+ * without a story or a spec ever seeing a price move under it.
+ *
+ * An id the catalogue does not know is simply absent from the answer, the same way the gateway's
+ * own `id:in:` read answers, and no `inventory` is reported — the products list carries none.
+ */
+function demoVolatileSnapshots(ids: readonly string[]): VolatileSnapshot[] {
+  const snapshots: VolatileSnapshot[] = [];
+  for (const id of ids) {
+    const product = PRODUCTS_BY_ID.get(id);
+    if (!product) continue;
+    snapshots.push({
+      id: product.productId,
+      price: product.price,
+      available: product.available,
+      stock: product.stock,
+    });
+  }
+  return snapshots;
+}
+
+/** "You may also like" (`product-carousel`'s `related` variant default content). */
+const RELATED_HANDLES = [
+  'fisherman-rib-cardigan',
+  'ribbed-lambswool-beanie',
+  'lambswool-throw-blanket',
+  'merino-crew-sweater',
+  'speckled-latte-mug',
+  'hand-thrown-serving-bowl',
+  'walnut-serving-board',
+];
+const RELATED_ITEMS = RELATED_HANDLES.map((handle) =>
+  PRODUCTS.find((product) => product.handle === handle)!
+);
+
+/** `product-carousel`'s `recently-viewed` variant default content. */
+const DEFAULT_RECENTLY_VIEWED = [
+  'speckled-latte-mug',
+  'stoneware-dinner-plates-set-of-4',
+  'linen-tea-towels-pair',
+  'glazed-milk-jug',
+  'ribbed-lambswool-beanie',
+  'hand-thrown-serving-bowl',
+];
+
+// ---------------------------------------------------------------------------------------------
+// Collections
+// ---------------------------------------------------------------------------------------------
+
+/** A curated subset of `PRODUCTS`, not a slice by position — see the `best-sellers` entry below. */
+const BEST_SELLER_HANDLES = [
+  'merino-crew-sweater',
+  'speckled-latte-mug',
+  'walnut-serving-board',
+  'hand-thrown-serving-bowl',
+  'stoneware-dinner-plates-set-of-4',
+  'ribbed-lambswool-beanie',
+];
+const BEST_SELLER_ITEMS: StorefrontProductListItem[] = BEST_SELLER_HANDLES.map((handle) =>
+  PRODUCTS.find((product) => product.handle === handle)!
+);
+
+const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
+  'winter-knitwear': {
+    handle: 'winter-knitwear',
+    title: 'Winter knitwear',
+    description:
+      'Heavy-gauge knits for the coldest months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
+    image: demoImage(1, 'Winter knitwear'),
+    productCount: 48,
+  },
+  'the-winter-edit': {
+    handle: 'the-winter-edit',
+    title: 'The winter edit',
+    description:
+      'Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
+    image: demoImage(2, 'The winter edit'),
+    productCount: 48,
+  },
+  /**
+   * `search`'s own `noResultsCollection` mock value (`blocks/search/mock.json`) — "Customers love
+   * these" on the no-results page (spec `02-blocks.md` "Search results page" → Default content:
+   * "Merino crew sweater, Speckled latte mug"), those two first so a `.slice(0, 4)` still leads
+   * with them.
+   */
+  'best-sellers': {
+    handle: 'best-sellers',
+    title: 'Best sellers',
+    description: 'The Northwind pieces shoppers reach for again and again.',
+    image: demoImage(6, 'Best sellers'),
+    productCount: BEST_SELLER_HANDLES.length,
+  },
+};
+
+/**
+ * The demo's catalog collection ids — what a CMS `reference` field stores when an
+ * author picks a collection in Studio, and all a page builder draft overlay or a
+ * depth-0 read hands a block. Keyed by id so `collectionProducts({ id })`
+ * resolves to the handle the rest of this fixture is keyed by, which is exactly
+ * what the real gateway does (`gateway.ts`'s `resolveCollectionSlug`). An id
+ * nobody here knows resolves to nothing, like any other unknown collection.
+ */
+const COLLECTION_HANDLES_BY_ID: Record<string, string> = {
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a01': 'winter-knitwear',
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a02': 'the-winter-edit',
+  '2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a03': 'best-sellers',
+};
+
+/** The id the demo fixture knows a collection by — the value a `reference` field
+ *  carries for it, so a story or a test can seed one without repeating a uuid. */
+export function demoCollectionId(handle: string): string | null {
+  const found = Object.entries(COLLECTION_HANDLES_BY_ID).find(([, slug]) => slug === handle);
+  return found?.[0] ?? null;
+}
+
+/** Collections whose items are a curated list rather than `buildCollectionItems`'s generic cycle
+ *  through `PRODUCTS` by position — currently only `best-sellers`. */
+const COLLECTION_ITEMS: Record<string, StorefrontProductListItem[]> = {
+  'best-sellers': BEST_SELLER_ITEMS,
+};
+
+/**
+ * **The whole catalogue**, as `catalog.products` answers it: every fixture product, padded with the
+ * same suffixed clones a collection is padded with, so the `/products` page has a realistic number of
+ * rows to page and count over rather than the fixture's twelve.
+ */
+const CATALOGUE_ITEMS: StorefrontProductListItem[] = buildCollectionItems(48);
+
+function buildCollectionItems(total: number): StorefrontProductListItem[] {
+  return Array.from({ length: total }, (_, i) => {
+    const base = PRODUCTS[i % PRODUCTS.length]!;
+    const cycle = Math.floor(i / PRODUCTS.length);
+    if (cycle === 0) return base;
+    const suffix = `-${cycle + 1}`;
+    const handle = `${base.handle}${suffix}`;
+    // A clone is the same product in the shopper's eyes, so it filters and sorts identically.
+    registerAttributes(handle, PRODUCT_DEFS[i % PRODUCTS.length]!);
+    return {
+      ...base,
+      handle,
+      url: `${base.url}${suffix}`,
+      productId: `${base.productId}${suffix}`,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Filtering and sorting a collection — what a real backend does for `collectionProducts`
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * How the demo answers a facet request: `app/storefront/facets.ts` is the pass itself — shared
+ * with `createGatewayStorefront`, so the demo and the real site filter by exactly the same rules —
+ * and this supplies the per-product attributes a product *card* does not carry (`category`,
+ * `sizes`, `colours`). Without an answer here the shopper's filter changed the URL, the chips and
+ * the active-filter row while the grid and the count stayed exactly as they were, which is worse
+ * than not offering filters at all.
+ */
+/**
+ * The products a **category page** lists: the catalogue narrowed to one category's whole subtree,
+ * which is what the platform's `categoryId` parameter matches. `CATALOGUE_ITEMS` for no path at all
+ * (every other page), and `null` for a path no category occupies — the fixture's own version of
+ * "no such page".
+ */
+function categoryScopeOf(
+  categoryPath: string | undefined
+): StorefrontProductListItem[] | readonly StorefrontProductListItem[] | null {
+  if (categoryPath === undefined || categoryPath === '') return CATALOGUE_ITEMS;
+  const scopeId = CATEGORY_INDEX.idByPath.get(categoryPath);
+  if (scopeId === undefined) return null;
+  return CATALOGUE_ITEMS.filter((item) => {
+    const id = attributesFor(item).category?.id;
+    return id !== undefined && isInSubtree(CATEGORY_INDEX, id, scopeId);
+  });
+}
+
+function attributesFor(item: StorefrontProductListItem): ProductFacetAttributes {
+  return {
+    ...(PRODUCT_ATTRIBUTES.get(item.handle) ?? NO_ATTRIBUTES),
+    collections: collectionsOf(item),
+  };
+}
+
+/**
+ * Which of the fixture's collections hold a product — the `collection` filter group's own data,
+ * and the one attribute a real backend answers from a join table rather than from the product.
+ *
+ * Declared as a rule rather than a list so a clone (`merino-crew-sweater-2`) belongs wherever the
+ * product it copies does: the winter edit is the demo's catch-all, `winter-knitwear` is its
+ * knitwear, and `best-sellers` is the curated list `BEST_SELLER_HANDLES` names.
+ */
+function collectionsOf(item: StorefrontProductListItem): ProductFacetTerm[] {
+  const handles = ['the-winter-edit'];
+  if (PRODUCT_ATTRIBUTES.get(item.handle)?.category?.slug === 'knitwear') {
+    handles.push('winter-knitwear');
+  }
+  if (BEST_SELLER_HANDLES.includes(baseHandleOf(item))) handles.push('best-sellers');
+  return handles.map((handle) => ({
+    slug: handle,
+    title: COLLECTIONS[handle]?.title ?? handle,
+    id: demoCollectionId(handle) ?? handle,
+  }));
+}
+
+/**
+ * The `sortOptions` values `collection-grid` offers. `featured` is the fixture's own curated order,
+ * `newest` its reverse (the list is written oldest-first), and `best-selling` follows
+ * `BEST_SELLER_HANDLES` with everything it does not name keeping its relative order behind them —
+ * the demo has no per-product sales figures, and inventing some would be a fake statistic.
+ *
+ * Returns a new array; `Array.prototype.sort` is stable in every supported runtime, so equal keys
+ * keep the collection's own order.
+ */
+function sortCollectionItems(
+  items: readonly StorefrontProductListItem[],
+  sort: string | undefined
+): StorefrontProductListItem[] {
+  const list = [...items];
+  if (sort === undefined || sort === '' || sort === 'featured') return list;
+  if (sort === 'newest') return list.reverse();
+  if (sort === 'price-asc') return list.sort((a, b) => a.price.amount - b.price.amount);
+  if (sort === 'price-desc') return list.sort((a, b) => b.price.amount - a.price.amount);
+  if (sort === 'best-selling') {
+    const rank = (item: StorefrontProductListItem): number => {
+      const index = BEST_SELLER_HANDLES.indexOf(baseHandleOf(item));
+      return index === -1 ? BEST_SELLER_HANDLES.length : index;
+    };
+    return list.sort((a, b) => rank(a) - rank(b));
+  }
+  return list;
+}
+
+/** A collection clone (`merino-crew-sweater-2`) ranks as the product it is a copy of. */
+function baseHandleOf(item: StorefrontProductListItem): string {
+  return PRODUCTS.some((product) => product.handle === item.handle)
+    ? item.handle
+    : item.handle.replace(/-\d+$/, '');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Order NW-10482 (`order-status`'s default content, spec lines ~3806–3835)
+// ---------------------------------------------------------------------------------------------
+
+const ORDER_LINES: StorefrontCartLine[] = [
+  {
+    id: 'nw-10482-1',
+    productId: 'fell-crew-sweater',
+    variantId: 'fell-crew-sweater::oatmeal::m',
+    title: 'Fell crew sweater',
+    url: '/products/fell-crew-sweater',
+    variantLabel: 'Oatmeal / M',
+    quantity: 1,
+    unitPrice: 148,
+    lineTotal: 148,
+    image: demoImage(1, 'Fell crew sweater'),
+    max: null,
+  },
+  {
+    id: 'nw-10482-2',
+    productId: 'everyday-mug',
+    variantId: 'everyday-mug::fjord::350ml',
+    title: 'Everyday mug',
+    url: '/products/everyday-mug',
+    variantLabel: 'Fjord / 350 ml',
+    quantity: 2,
+    unitPrice: 32,
+    lineTotal: 64,
+    image: demoImage(2, 'Everyday mug'),
+    max: null,
+  },
+  {
+    id: 'nw-10482-3',
+    productId: 'linen-tea-towels-set-of-2',
+    variantId: 'linen-tea-towels-set-of-2::sage',
+    title: 'Linen tea towels, set of 2',
+    url: '/products/linen-tea-towels-set-of-2',
+    variantLabel: 'Sage',
+    quantity: 1,
+    unitPrice: 32,
+    lineTotal: 32,
+    image: demoImage(3, 'Linen tea towels, set of 2'),
+    max: null,
+  },
+];
+
+const ORDER_TOTALS: StorefrontCartTotals = {
+  subtotal: 244,
+  discount: null,
+  shipping: 0,
+  tax: 19.52,
+  total: 263.52,
+};
+
+const ORDER_SHIPPING_ADDRESS = [
+  'Maren Holt',
+  '214 Linden Street, Apt 3B',
+  'Portland, OR 97209',
+  'United States',
+];
+
+const ORDER_PAYMENT = { brand: 'Visa', last4: '4242' };
+const ORDER_TRACKING_NUMBER = '1Z 999 AA1 01 2345 6784';
+const ORDER_TRACKING_URL = 'https://www.ups.com/track?tracknum=1Z999AA10123456784';
+const ORDER_CARRIER = 'UPS Standard';
+
+function buildOrderSteps(status: StorefrontOrderStatus): StorefrontOrder['steps'] {
+  switch (status) {
+    case 'processing':
+      return [
+        { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
+        { key: 'packed', label: 'Packed', date: null, state: 'current' },
+        { key: 'shipped', label: 'Shipped', date: null, state: 'upcoming' },
+        { key: 'delivered', label: 'Delivered', date: null, state: 'upcoming' },
+      ];
+    case 'delivered':
+      return [
+        { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
+        { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
+        { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'done' },
+        { key: 'delivered', label: 'Delivered', date: '2026-09-24', state: 'done' },
+      ];
+    case 'delayed':
+      return [
+        { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
+        { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
+        { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'done' },
+        { key: 'delivered', label: 'Delivered', date: '2026-09-30', state: 'warning' },
+      ];
+    case 'cancelled':
+      return [
+        { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
+        { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'warning' },
+        { key: 'shipped', label: 'Shipped', date: null, state: 'upcoming' },
+        { key: 'delivered', label: 'Delivered', date: null, state: 'upcoming' },
+      ];
+    case 'shipped':
+    default:
+      return [
+        { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
+        { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
+        { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'current' },
+        { key: 'delivered', label: 'Delivered', date: '2026-09-26', state: 'upcoming' },
+      ];
+  }
+}
+
+/**
+ * Exported so `order-status` can fall back to the same sample order the demo
+ * storefront itself serves (`createDemoStorefront().orders.current`, `status` defaulting to
+ * `'shipped'`) for its own "freshly inserted in the editor, no order token yet" case (spec →
+ * States, "no empty layout") — without constructing a whole second `StorefrontSource` just to
+ * reach one order.
+ */
+export function buildOrder(status: StorefrontOrderStatus = 'shipped'): StorefrontOrder {
+  const base: StorefrontOrder = {
+    number: 'NW-10482',
+    placedAt: '2026-09-18',
+    itemCount: ORDER_LINES.reduce((sum, line) => sum + line.quantity, 0),
+    status,
+    steps: buildOrderSteps(status),
+    lines: ORDER_LINES,
+    totals: ORDER_TOTALS,
+    shippingAddress: ORDER_SHIPPING_ADDRESS,
+    payment: ORDER_PAYMENT,
+  };
+  if (status === 'processing') return base;
+  if (status === 'cancelled') {
+    return {
+      ...base,
+      cancelNote:
+        'Cancelled at your request on 19 September. A refund of $263.52 is on its way to Visa ending 4242 and should appear within 5 business days.',
+    };
+  }
+  const withTracking: StorefrontOrder = {
+    ...base,
+    carrier: ORDER_CARRIER,
+    trackingNumber: ORDER_TRACKING_NUMBER,
+    trackingUrl: ORDER_TRACKING_URL,
+  };
+  if (status === 'delayed') {
+    return {
+      ...withTracking,
+      eta: 'Monday 30 September',
+      delayNote:
+        'Storms in the North Sea have held up our carrier. New estimate: Monday 30 September. Sorry for the wait.',
+    };
+  }
+  if (status === 'delivered') return withTracking;
+  return { ...withTracking, eta: 'Thursday 26 September' };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Search — case-insensitive match on title, category and journal titles/deks; an empty query has
+// nothing to search for, and a near miss gets a "did you mean" suggestion (spec `02-blocks.md`
+// "Search results page" → Default content, the "linen" query and the "linnen napkns" no-results
+// example).
+// ---------------------------------------------------------------------------------------------
+
+const JOURNAL_ARTICLES: StorefrontSearchResponse['articles'] = [
+  {
+    title: 'How to wash and store linen',
+    href: '/journal/how-to-wash-and-store-linen',
+    category: 'Care guide',
+    readingTime: '4 min read',
+    image: demoImage(1, 'How to wash and store linen'),
+  },
+  {
+    title: 'Linen vs. cotton for the kitchen',
+    href: '/journal/linen-vs-cotton-for-the-kitchen',
+    category: 'Journal',
+    readingTime: '6 min read',
+    image: demoImage(2, 'Linen vs. cotton for the kitchen'),
+  },
+  {
+    title: 'A visit to the Kortrijk flax mill',
+    href: '/journal/a-visit-to-the-kortrijk-flax-mill',
+    category: 'Journal',
+    readingTime: '8 min read',
+    image: demoImage(3, 'A visit to the Kortrijk flax mill'),
+  },
+];
+
+const JOURNAL_PAGES: StorefrontSearchResponse['pages'] = [
+  {
+    title: 'Care guide: linen & wool',
+    href: '/pages/care',
+    path: 'northwindgoods.com/pages/care',
+    snippet: 'How to wash, dry and store our linen and wool pieces.',
+  },
+  {
+    title: 'Materials',
+    href: '/pages/materials',
+    path: 'northwindgoods.com/pages/materials',
+    snippet: 'Where our linen, wool and stoneware come from.',
+  },
+];
+
+/**
+ * Search-friendly aliases for `PRODUCT_DEFS`, in the same order — shorter than some titles
+ * ("Linen napkins, set of 4" → "linen napkins") so a "did you mean" suggestion reads the way a
+ * shopper would type it, not the full merchandising title.
+ */
+const SEARCH_TERMS: string[] = [
+  'merino crew sweater',
+  'fisherman rib cardigan',
+  'lambswool throw blanket',
+  'ribbed lambswool beanie',
+  'linen tea towels',
+  'speckled latte mug',
+  'stoneware dinner plates',
+  'walnut serving board',
+  'hand-thrown serving bowl',
+  'glazed milk jug',
+  'linen napkins',
+  'stonewashed linen throw',
+];
+
+function normalise(text: string): string {
+  return text.trim().toLowerCase();
+}
+
+function includesQuery(haystack: string, query: string): boolean {
+  return normalise(haystack).includes(query);
+}
+
+/** Plain Levenshtein edit distance — short search terms only, never a document. */
+function editDistance(a: string, b: string): number {
+  const rows: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i += 1) rows[i]![0] = i;
+  for (let j = 0; j <= b.length; j += 1) rows[0]![j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i]![j] = Math.min(
+        rows[i - 1]![j]! + 1,
+        rows[i]![j - 1]! + 1,
+        rows[i - 1]![j - 1]! + cost
+      );
+    }
+  }
+  return rows[a.length]![b.length]!;
+}
+
+/**
+ * The closest `SEARCH_TERMS` entry within a quarter of its own length (at least 2 edits of
+ * slack) — a real "did you mean" for a near miss ("linnen napkns" → "linen napkins"), not a guess
+ * for a query that shares nothing with the catalogue.
+ */
+function suggestionFor(query: string): string | null {
+  let best: { term: string; distance: number } | null = null;
+  for (const term of SEARCH_TERMS) {
+    const distance = editDistance(query, term);
+    if (best === null || distance < best.distance) best = { term, distance };
+  }
+  if (best === null || best.distance === 0) return null;
+  return best.distance <= Math.max(2, Math.ceil(best.term.length / 4)) ? best.term : null;
+}
+
+function buildSearchResponse(query: string): StorefrontSearchResponse {
+  const q = normalise(query);
+  if (q === '') {
+    return { query, total: 0, products: [], articles: [], pages: [], suggestion: null };
+  }
+  const products = PRODUCTS.filter((product) => includesQuery(product.title, q));
+  const articles = JOURNAL_ARTICLES.filter(
+    (article) => includesQuery(article.title, q) || includesQuery(article.category, q)
+  );
+  const pages = JOURNAL_PAGES.filter(
+    (page) => includesQuery(page.title, q) || includesQuery(page.snippet, q)
+  );
+  const total = products.length + articles.length + pages.length;
+  return {
+    query,
+    total,
+    products,
+    articles,
+    pages,
+    suggestion: total === 0 ? suggestionFor(q) : null,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Demo cart — a small, generic in-memory engine (not the spec's exact cart-block fixture, which
+// is that block's own mock/preview content; this is the "server" every block's own story adds
+// items to).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The cart the `cart` block's own stories and specs render (spec `02-blocks.md` "Cart" →
+ * "Default content": Merino crew sweater · Oat / M · $96.00, Speckled latte mug · Clay · $28.00
+ * each × 2, Walnut serving board · Large, 45 cm · $58.00 — $210.00, over the $80 free-shipping
+ * threshold). Seeded through `createDemoStorefront({ cartLines })`: the demo cart is empty by
+ * default, the same as a real shopper's first visit, so nothing else changes by this existing.
+ */
+export const DEMO_CART_LINES: StorefrontCartLine[] = [
+  {
+    id: 'demo-cart-1',
+    productId: 'merino-crew-sweater',
+    variantId: 'merino-crew-sweater::oat::m',
+    title: 'Merino crew sweater',
+    url: '/products/merino-crew-sweater',
+    variantLabel: 'Oat / M',
+    quantity: 1,
+    unitPrice: 96,
+    lineTotal: 96,
+    image: demoImage(1, 'Merino crew sweater'),
+    max: null,
+  },
+  {
+    id: 'demo-cart-2',
+    productId: 'speckled-latte-mug',
+    variantId: 'speckled-latte-mug::clay',
+    title: 'Speckled latte mug',
+    url: '/products/speckled-latte-mug',
+    variantLabel: 'Clay',
+    quantity: 2,
+    unitPrice: 28,
+    lineTotal: 56,
+    image: demoImage(6, 'Speckled latte mug'),
+    max: null,
+  },
+  {
+    id: 'demo-cart-3',
+    productId: 'walnut-serving-board',
+    variantId: 'walnut-serving-board::large',
+    title: 'Walnut serving board',
+    url: '/products/walnut-serving-board',
+    variantLabel: 'Large, 45 cm',
+    quantity: 1,
+    unitPrice: 58,
+    lineTotal: 58,
+    image: demoImage(8, 'Walnut serving board'),
+    max: null,
+  },
+];
+
+function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
+  let lines: StorefrontCartLine[] = seedLines.map((line) => ({ ...line }));
+  let discount: { code: string; amount: number } | null = null;
+  let nextLineId = lines.length + 1;
+  const checkoutUrl = ref<string | null>(null);
+
+  function computeTotals(): StorefrontCartTotals {
+    const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
+    const shipping =
+      subtotal === 0 ? null : subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING;
+    const discountAmount = discount?.amount ?? 0;
+    const total = roundMoney(Math.max(0, subtotal - discountAmount + (shipping ?? 0)));
+    return { subtotal, discount, shipping, tax: null, total };
+  }
+
+  function snapshot(): CartSnapshot {
+    checkoutUrl.value = lines.length > 0 ? '/checkout/demo-cart' : null;
+    return { lines: [...lines], totals: computeTotals() };
+  }
+
+  return {
+    async init() {
+      return snapshot();
+    },
+    async add({ productId, variantId, quantity }) {
+      const product = PRODUCTS.find((p) => p.productId === productId);
+      const existing = lines.find((line) => line.variantId === variantId);
+      if (existing) {
+        existing.quantity += quantity;
+        existing.lineTotal = roundMoney(existing.unitPrice * existing.quantity);
+      } else {
+        const unitPrice = product?.price.amount ?? 0;
+        lines = [
+          ...lines,
+          {
+            id: `line-${nextLineId++}`,
+            productId,
+            variantId,
+            title: product?.title ?? 'Product',
+            url: product?.url ?? '#',
+            variantLabel: product?.colours?.[0]?.name ?? '',
+            quantity,
+            unitPrice,
+            lineTotal: roundMoney(unitPrice * quantity),
+            image: product?.featuredImage ?? null,
+            max: null,
+          },
+        ];
+      }
+      return snapshot();
+    },
+    async setQuantity(lineId, quantity) {
+      lines = lines.map((line) =>
+        line.id === lineId
+          ? { ...line, quantity, lineTotal: roundMoney(line.unitPrice * quantity) }
+          : line
+      );
+      return snapshot();
+    },
+    async remove(lineId) {
+      lines = lines.filter((line) => line.id !== lineId);
+      return snapshot();
+    },
+    async applyDiscount(code) {
+      if (code !== 'WINTER15') return { ack: { ok: false, reason: 'invalid' } };
+      const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+      discount = { code, amount: roundMoney(subtotal * 0.1) };
+      return { ack: { ok: true }, snapshot: snapshot() };
+    },
+    async removeDiscount() {
+      discount = null;
+      return snapshot();
+    },
+    checkoutUrl,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// StorefrontResult helper — resolves on the next tick, so every consumer sees a real (if brief)
+// `pending` transition instead of already-resolved data, matching the gateway's own async shape.
+// ---------------------------------------------------------------------------------------------
+
+/** The handle behind a selector: a slug as given, an id through the fixture's own
+ *  id map — the demo's stand-in for the gateway's by-id lookup. */
+function demoCollectionHandle(selector: StorefrontCollectionSelector | null): string | null {
+  if (selector === null) return null;
+  if ('slug' in selector) return selector.slug || null;
+  return COLLECTION_HANDLES_BY_ID[selector.id] ?? null;
+}
+
+function createDemoResult<T>(
+  sources: Ref<unknown>[],
+  resolve: () => T | null
+): StorefrontResult<T> {
+  const data = ref<T | null>(null) as Ref<T | null>;
+  const pending = ref(true);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+  // The fixture is synchronous and never goes stale, so nothing here ever revalidates — the field
+  // exists because `StorefrontResult` has it, and a block must read the same shape from either
+  // source.
+  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+
+  async function load(): Promise<void> {
+    // Server rendering gets one pass and no second chance: whatever the first render produced is
+    // the prerendered HTML, so a read that answers "later" bakes the skeleton into the page — the
+    // very defect this theme's gateway storefront was made prerender-aware to close
+    // (`app/storefront/prerender.ts`). The fixture is synchronous, so off a browser it answers
+    // inside the render rather than on the next tick. Nothing hydrates a demo-rendered page (the
+    // demo backs Storybook and the tests; a real site reads the gateway), so the browser keeps the
+    // asynchronous shape below, which is what lets a block spec observe a real pending transition.
+    if (typeof window === 'undefined') {
+      loading.value = true;
+      error.value = null;
+      data.value = resolve();
+      pending.value = false;
+      loading.value = false;
+      return;
+    }
+    // The fixture answers on the next tick rather than instantly, so a block sees the same
+    // `loading` → settled sequence it sees from a real read; `pending` still only means "nothing
+    // to show yet", so a reload over existing fixture data never raises it.
+    loading.value = true;
+    // Same three flags as the gateway's (`types.ts`): `pending` is the skeleton state — a read in
+    // flight with nothing to show — so a reload over fixture data never raises it, and an answer
+    // of "nothing" clears it rather than leaving the block loading forever.
+    pending.value = data.value === null;
+    error.value = null;
+    await nextTick();
+    data.value = resolve();
+    pending.value = false;
+    loading.value = false;
+  }
+
+  watch(sources, load, { immediate: true, deep: true });
+
+  return { data, pending, loading, error, revalidating, refresh: load };
+}
+
+// ---------------------------------------------------------------------------------------------
+// createDemoStorefront
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What the Northwind fixture sells in. Every amount in this file is a US dollar price and the demo
+ * order quotes 8% sales tax on top of its subtotal (`ORDER_TOTALS`: 19.52 on 244), so the demo
+ * store's own settings say exactly that. A spec or story that wants another currency — or a store
+ * that publishes none — passes `createDemoStorefront({ commerce })`.
+ */
+export const DEMO_COMMERCE: StorefrontCommerce = {
+  currency: 'USD',
+  taxInclusivePricing: false,
+  defaultTaxRate: 0.08,
+};
+
+export interface DemoStorefrontOptions {
+  orderStatus?: StorefrontOrderStatus;
+  /** What the demo store sells in; `DEMO_COMMERCE` by default, `null` for a store that publishes
+   *  no currency at all. */
+  commerce?: StorefrontCommerce | null;
+  recentlyViewed?: string[];
+  query?: string;
+  collectionHandle?: string;
+  productHandle?: string;
+  failForms?: boolean;
+  /** Seeds the cart with these lines, e.g. `DEMO_CART_LINES` — the demo cart is empty otherwise. */
+  cartLines?: StorefrontCartLine[];
+  /** Seeds `route.sort` — restores `collection-grid`'s sort choice the way a shared URL would. */
+  sort?: string;
+  /** Seeds `route.columns`. */
+  columns?: string;
+  /** Seeds `route.filters` — restores `collection-grid`'s filter selection and price range. */
+  filters?: Record<string, string[]>;
+  /**
+   * Seeds the **category page**'s route context: a category's canonical path (`home/ceramics`), the
+   * ancestors' slugs root first then its own. Absent — the default — is a route that is not a
+   * category page at all, so `collection-grid` in `category` scope, `collection-header`'s category
+   * mode and `breadcrumbs`' `fromCategory` each draw nothing, exactly as they do on a product page.
+   */
+  categoryPath?: string;
+}
+
+/** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
+ * needs to demonstrate its states. */
+export function createDemoStorefront(options: DemoStorefrontOptions = {}): StorefrontSource {
+  const order = buildOrder(options.orderStatus ?? 'shipped');
+
+  const categoryPath = options.categoryPath ?? null;
+  const route: StorefrontRoute = reactive({
+    productHandle: options.productHandle ?? 'merino-crew-sweater',
+    collectionHandle: options.collectionHandle ?? 'winter-knitwear',
+    categorySlug: categoryPath === null ? null : (categoryPath.split('/').at(-1) ?? null) || null,
+    categoryPath,
+    orderToken: 'demo-order-token',
+    query: options.query ?? null,
+    page: 1,
+    sort: options.sort ?? null,
+    columns: options.columns ?? null,
+    filters: options.filters ?? {},
+    setQuery(patch: Record<string, string | string[] | null>) {
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === 'q') {
+          const first = Array.isArray(value) ? (value[0] ?? null) : value;
+          route.query = first || null;
+        } else if (key === 'page') {
+          const first = Array.isArray(value) ? value[0] : value;
+          const page = Number(first);
+          route.page = Number.isFinite(page) && page > 0 ? page : 1;
+        } else if (key === 'sort') {
+          const first = Array.isArray(value) ? (value[0] ?? null) : value;
+          route.sort = first || null;
+        } else if (key === 'columns') {
+          const first = Array.isArray(value) ? (value[0] ?? null) : value;
+          route.columns = first || null;
+        } else {
+          // Every other key is a `collection-grid` filter or its price range — kept generically
+          // (see `types.ts`'s own doc comment on `StorefrontRoute.filters`) rather than named here.
+          const next = { ...route.filters };
+          if (value === null) delete next[key];
+          else next[key] = Array.isArray(value) ? value : [value];
+          route.filters = next;
+        }
+      }
+    },
+  });
+
+  async function ack(): Promise<StorefrontAck> {
+    await nextTick();
+    return options.failForms ? { ok: false, reason: 'failed' } : { ok: true };
+  }
+
+  const catalog: StorefrontCatalog = {
+    product: (handle) =>
+      createDemoResult([handle], () =>
+        handle.value ? (PRODUCTS_FULL[handle.value] ?? null) : null
+      ),
+    collection: (handle) =>
+      createDemoResult([handle], () => (handle.value ? (COLLECTIONS[handle.value] ?? null) : null)),
+    /** The category page's own read, over the fixture's tree — the same `placeCategory` walk the
+     *  gateway source runs, so a Storybook story and a spec see exactly what the live site does. */
+    category: (path) =>
+      createDemoResult([path], () =>
+        path.value ? placeCategory(CATEGORY_INDEX, path.value) : null
+      ),
+    /**
+     * Honours `sort` and `filters`, not just `page`/`pageSize`. It used to destructure only the
+     * paging pair, so in the scaffolded site and the collection sample page — both demo-backed —
+     * choosing a filter or a sort updated the URL, the chips and the active-filter row while the
+     * grid and the `total` never moved, and the drawer's "Show N products" button always quoted the
+     * unfiltered count. `total` is now the size of the *filtered* set, which is what the grid's
+     * count line and its paging both read.
+     */
+    collectionProducts: (collection, opts) =>
+      createDemoResult([collection, opts], () => {
+        const handle = demoCollectionHandle(collection.value);
+        if (handle === null) return null;
+        const info = COLLECTIONS[handle];
+        if (!info) return null;
+        const all = COLLECTION_ITEMS[handle] ?? buildCollectionItems(info.productCount);
+        const { page, pageSize, sort, filters } = opts.value;
+        // The tree goes in, so a shopper ticking a **parent** category gets the products in its
+        // children — what the platform's own `categoryId` filter does, and what the nested category
+        // group the panel draws from these same facets promises.
+        const matching = filterItems(all, filters, attributesFor, CATEGORY_INDEX);
+        const ordered = sortCollectionItems(matching, sort);
+        const start = (page - 1) * pageSize;
+        return {
+          items: ordered.slice(start, start + pageSize),
+          total: ordered.length,
+          // The same derivation `createGatewayStorefront` runs, over the whole collection rather
+          // than over one fetched page: the vocabulary is every value the collection holds, and
+          // each family's counts leave that family's own filter out (`deriveFacets`), so ticking
+          // one colour narrows the sizes and leaves the other colours countable.
+          facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
+        };
+      }),
+    /**
+     * The whole catalogue, under exactly the same rules as one collection's products — the read behind
+     * the `/products` page. The one difference is the scope, and therefore the one group a collection
+     * scope cannot narrow by: nothing is `unfilterable` here, so ticking a collection really does
+     * intersect (`filterItems` reads each product's own collections from `attributesFor`).
+     *
+     * The scope is every product the fixture has, clones included (`buildCollectionItems` is how the
+     * demo gets past twelve), so the counts and the paging read like a real store's rather than like a
+     * one-page list.
+     */
+    products: (opts) =>
+      createDemoResult([opts], () => {
+        const { page, pageSize, sort, filters, categoryPath } = opts.value;
+        // **A category page narrows the scope itself**, before a single filter is applied — the
+        // platform's `categoryId` matches a whole subtree, so this is the fixture's own version of
+        // that. A path no category occupies is `null` (the grid's empty state), never the unscoped
+        // catalogue, which is the same answer an unknown collection handle gets.
+        const scope = categoryScopeOf(categoryPath);
+        if (scope === null) return null;
+        const matching = filterItems(scope, filters, attributesFor, CATEGORY_INDEX);
+        const ordered = sortCollectionItems(matching, sort);
+        const start = (page - 1) * pageSize;
+        return {
+          items: ordered.slice(start, start + pageSize),
+          total: ordered.length,
+          // Counted over the **scope**, not the whole catalogue: on a category page the `category`
+          // group lists that category's children with the counts they have inside it.
+          facets: deriveFacets(scope, { filters, attributesFor, categories: CATEGORY_INDEX }),
+        };
+      }),
+    related: (handle, limit) =>
+      createDemoResult([handle], () => (handle.value ? RELATED_ITEMS.slice(0, limit) : [])),
+    byHandles: (handles) =>
+      createDemoResult([handles], () =>
+        handles.value
+          .map((handle) => PRODUCTS.find((product) => product.handle === handle))
+          .filter((product): product is StorefrontProductListItem => Boolean(product))
+      ),
+    volatileByIds: (ids) => Promise.resolve(demoVolatileSnapshots(ids)),
+    notifyBackInStock: () => ack(),
+  };
+
+  const search: StorefrontSearch = {
+    run: (query) => createDemoResult([query], () => buildSearchResponse(query.value)),
+  };
+
+  const orders: StorefrontOrders = {
+    current: (token) => createDemoResult([token], () => (token.value ? order : null)),
+  };
+
+  const forms: StorefrontForms = {
+    subscribe: () => ack(),
+    sendMessage: () => ack(),
+  };
+
+  return {
+    ready: ref(true),
+    commerce: options.commerce === undefined ? DEMO_COMMERCE : options.commerce,
+    route,
+    catalog,
+    cart: createCartStore(createDemoCartOps(options.cartLines ?? [])),
+    search,
+    orders,
+    forms,
+    wishlist: createWishlistStore(),
+    history: createHistoryStore({
+      initialRecentlyViewed: options.recentlyViewed ?? DEFAULT_RECENTLY_VIEWED,
+    }),
+  };
+}

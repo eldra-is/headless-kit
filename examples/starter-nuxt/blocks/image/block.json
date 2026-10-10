@@ -1,0 +1,67 @@
+{
+  "apiId": "image",
+  "name": "Image",
+  "description": "A single framed photo with an optional caption and link, at a chosen aspect ratio and page width.",
+  "icon": "photo",
+  "category": "content",
+  "version": 2,
+  "fields": [
+    {
+      "fieldId": "image",
+      "name": "Image",
+      "type": "media",
+      "helpText": "Alt text is required unless Decorative is on. Honours the focal point and zoom.",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "decorative",
+      "name": "Decorative",
+      "type": "bool",
+      "default": false,
+      "helpText": "Renders the image with alt=\"\" for a photo that carries no meaning of its own."
+    },
+    {
+      "fieldId": "aspect",
+      "name": "Aspect ratio",
+      "type": "select",
+      "helpText": "3x2 is the default. auto keeps the image's own ratio uncropped.",
+      "validators": { "required": true },
+      "metadata": { "options": ["auto", "1x1", "4x3", "3x2", "16x9", "3x4"] }
+    },
+    {
+      "fieldId": "width",
+      "name": "Width",
+      "type": "select",
+      "helpText": "content is the default.",
+      "validators": { "required": true },
+      "metadata": { "options": ["narrow", "content", "wide", "full"] }
+    },
+    {
+      "fieldId": "caption",
+      "name": "Caption",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "maxLength": 160 }
+    },
+    {
+      "fieldId": "captionAlign",
+      "name": "Caption alignment",
+      "type": "select",
+      "helpText": "start is the default.",
+      "metadata": { "options": ["start", "center"] }
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Not shown on the page — the link's accessible name is the image's own alt text, so write that alt text as a destination."
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link",
+      "type": "string"
+    }
+  ]
+}

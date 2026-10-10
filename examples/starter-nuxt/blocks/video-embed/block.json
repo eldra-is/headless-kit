@@ -1,0 +1,94 @@
+{
+  "apiId": "video-embed",
+  "name": "Video embed",
+  "description": "A 16:9 video behind a poster and a real play button. The provider's player loads only when the visitor activates play, never on page load. Comes with a caption, a transcript link and a privacy note.",
+  "icon": "player-play",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "contained is the default.",
+      "metadata": { "options": ["contained", "split"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as the h2. Empty falls back to a visually hidden h2 using the video title."
+    },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true
+    },
+    {
+      "fieldId": "videoUrl",
+      "name": "Video URL",
+      "type": "string",
+      "helpText": "YouTube (loaded from youtube-nocookie.com), Vimeo, or an MP4 from the media library.",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "videoTitle",
+      "name": "Video title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Used in the play button's name and as the player title.",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "duration",
+      "name": "Duration",
+      "type": "string",
+      "helpText": "For example \"2:14\". Shown in the chip and spoken aloud in the play button's name."
+    },
+    {
+      "fieldId": "poster",
+      "name": "Poster",
+      "type": "media",
+      "helpText": "16:9, honours the focal point. Falls back to a plain fill when empty.",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "caption",
+      "name": "Caption",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence."
+    },
+    {
+      "fieldId": "transcriptLabel",
+      "name": "Transcript link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Hidden together with the link when either is empty."
+    },
+    {
+      "fieldId": "transcriptHref",
+      "name": "Transcript link",
+      "type": "string",
+      "helpText": "A page or PDF. Strongly recommended when the video has speech."
+    },
+    {
+      "fieldId": "privacyNote",
+      "name": "Privacy note",
+      "type": "string",
+      "localized": true,
+      "helpText": "Name the actual provider. Defaults to \"Loads from YouTube when you press play\" when unset."
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": { "options": ["none", "surface", "surface-strong", "primary"] }
+    }
+  ]
+}

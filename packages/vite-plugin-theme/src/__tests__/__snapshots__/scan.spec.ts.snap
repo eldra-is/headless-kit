@@ -1,0 +1,127 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scanTheme > builds the frozen manifest shape for a valid theme 1`] = `
+{
+  "blocks": [
+    {
+      "apiId": "footer",
+      "category": "general",
+      "fields": [
+        {
+          "fieldId": "copyright",
+          "isTitle": true,
+          "name": "Copyright",
+          "type": "string",
+        },
+      ],
+      "mock": {
+        "copyright": "© Acme",
+      },
+      "name": "Footer",
+      "previewImage": null,
+      "version": 1,
+    },
+    {
+      "apiId": "hero",
+      "category": "marketing",
+      "description": "Top-of-page hero banner",
+      "fields": [
+        {
+          "fieldId": "heading",
+          "isTitle": true,
+          "localized": true,
+          "name": "Heading",
+          "type": "string",
+          "validators": {
+            "maxLength": 120,
+            "required": true,
+          },
+        },
+        {
+          "fieldId": "subheading",
+          "localized": true,
+          "name": "Subheading",
+          "type": "text",
+        },
+      ],
+      "icon": "layout-dashboard",
+      "mock": {
+        "heading": "Build faster",
+        "subheading": "Everything your site needs.",
+      },
+      "name": "Hero",
+      "previewImage": null,
+      "version": 1,
+    },
+  ],
+  "customPages": [],
+  "manifestVersion": 1,
+  "routes": [
+    {
+      "kind": "page",
+      "pattern": "/:path(.*)*",
+    },
+  ],
+  "theme": {
+    "framework": "nuxt",
+    "name": "marketing-theme",
+    "sdk": {
+      "core": "0.0.0",
+      "vitePlugin": "0.0.0",
+    },
+    "version": "1.2.0",
+  },
+  "tokens": {
+    "colors": {
+      "primary": {
+        "allowSiteOverride": true,
+        "group": "Brand",
+        "label": "Primary",
+        "value": "#4f46e5",
+      },
+    },
+    "containers": {
+      "content": {
+        "allowSiteOverride": true,
+        "gutter": {
+          "mobile": "1rem",
+          "normal": "2rem",
+          "tablet": "1.5rem",
+        },
+        "label": "Content",
+        "maxWidth": "64rem",
+      },
+      "full": {
+        "allowSiteOverride": true,
+        "gutter": {
+          "mobile": "1rem",
+          "normal": "2rem",
+          "tablet": "1.5rem",
+        },
+        "label": "Full",
+        "maxWidth": "none",
+      },
+      "narrow": {
+        "allowSiteOverride": true,
+        "gutter": {
+          "mobile": "1rem",
+          "normal": "2rem",
+          "tablet": "1.5rem",
+        },
+        "label": "Narrow",
+        "maxWidth": "40rem",
+      },
+      "wide": {
+        "allowSiteOverride": true,
+        "gutter": {
+          "mobile": "1rem",
+          "normal": "2rem",
+          "tablet": "1.5rem",
+        },
+        "label": "Wide",
+        "maxWidth": "80rem",
+      },
+    },
+  },
+}
+`;

@@ -1,0 +1,174 @@
+{
+  "apiId": "contact",
+  "name": "Contact and map",
+  "description": "The shop's address, opening hours, phone and email beside a short enquiry form, with a map that always offers an \"Open in maps\" link outside any embed.",
+  "icon": "map-pin",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "split is the default.",
+      "metadata": { "options": ["split", "details-only", "form-only"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "hideHeading",
+      "name": "Hide heading",
+      "type": "bool",
+      "default": false,
+      "helpText": "form-only only: keeps the heading in the outline but hides it visually."
+    },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "Who answers and how fast."
+    },
+    {
+      "fieldId": "address",
+      "name": "Address",
+      "type": "text",
+      "localized": true,
+      "helpText": "Multi-line."
+    },
+    {
+      "fieldId": "hours",
+      "name": "Opening hours",
+      "type": "list",
+      "helpText": "One row per day or range, e.g. \"Mon to Fri\" / \"9:00 to 17:30\".",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Hours row",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "days",
+                "name": "Days",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "time",
+                "name": "Time",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "phone",
+      "name": "Phone",
+      "type": "string",
+      "helpText": "Rendered as a tel: link."
+    },
+    {
+      "fieldId": "email",
+      "name": "Email",
+      "type": "string",
+      "helpText": "Rendered as a mailto: link."
+    },
+    {
+      "fieldId": "mapLinkLabel",
+      "name": "Map link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Open in maps\"."
+    },
+    {
+      "fieldId": "mapLinkHref",
+      "name": "Map link",
+      "type": "string",
+      "helpText": "Google, Apple or OpenStreetMap URL."
+    },
+    {
+      "fieldId": "mapEmbed",
+      "name": "Map embed",
+      "type": "string",
+      "helpText": "An embed URL, not HTML."
+    },
+    {
+      "fieldId": "mapImage",
+      "name": "Map image",
+      "type": "media",
+      "helpText": "A static map image used instead of the embed. Preferred: lighter, and sets no third-party cookies.",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "mapNote",
+      "name": "Map note",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Free parking on Tannery Lane\"."
+    },
+    {
+      "fieldId": "formTitle",
+      "name": "Form title",
+      "type": "string",
+      "localized": true,
+      "helpText": "\"Send us a message\" is the default."
+    },
+    {
+      "fieldId": "topics",
+      "name": "Topics",
+      "type": "list",
+      "helpText": "Options for the Topic field. The field is hidden when this list is empty.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Topic",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "showOrderNumber",
+      "name": "Show order number field",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "fieldId": "recipient",
+      "name": "Recipient",
+      "type": "string",
+      "helpText": "Where submissions go. Not shown.",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "successText",
+      "name": "Success text",
+      "type": "text",
+      "localized": true,
+      "helpText": "Shown after a successful submit. {email} is replaced with the sender's own address."
+    }
+  ]
+}

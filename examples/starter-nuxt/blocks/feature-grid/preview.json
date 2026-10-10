@@ -1,0 +1,45 @@
+{
+  "columns": "3",
+  "mediaType": "image",
+  "items": [
+    {
+      "image": {
+        "assetId": "demo-feature-1",
+        "url": "/demo/feature-1.svg",
+        "altText": "Merino wool being spun at the mill",
+        "width": 800,
+        "height": 600
+      },
+      "title": "Merino from Yorkshire",
+      "text": "Mulesing-free wool, spun and dyed within 40 miles of the farm.",
+      "linkLabel": "About our wool",
+      "href": "/pages/wool"
+    },
+    {
+      "image": {
+        "assetId": "demo-feature-2",
+        "url": "/demo/feature-2.svg",
+        "altText": "Oregon clay on the wheel",
+        "width": 800,
+        "height": 600
+      },
+      "title": "Clay from Oregon",
+      "text": "Thrown and fired in our Portland studio, lead-free glazes only.",
+      "linkLabel": "About our clay",
+      "href": "/pages/clay"
+    },
+    {
+      "image": {
+        "assetId": "demo-feature-3",
+        "url": "/demo/feature-3.svg",
+        "altText": "Oak offcuts on a bench",
+        "width": 800,
+        "height": 600
+      },
+      "title": "Oak from Vermont",
+      "text": "Offcuts from a furniture maker become boards, spoons and trivets.",
+      "linkLabel": "About our oak",
+      "href": "/pages/oak"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "apiId": "testimonials",
+  "name": "Testimonials",
+  "description": "Customer reviews as a grid, a swipeable carousel or one large featured quote, each with an optional star rating and the product it refers to.",
+  "icon": "quote",
+  "category": "marketing",
+  "version": 2,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "grid is the default.",
+      "metadata": { "options": ["grid", "carousel", "single-large"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as an h2 (a small label in single-large).",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "summary",
+      "name": "Summary",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"4.8 out of 5 from 9,214 verified reviews\". Not shown in single-large."
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"Read all reviews\". Not shown in single-large."
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link",
+      "type": "string",
+      "helpText": "Not shown in single-large."
+    },
+    {
+      "fieldId": "items",
+      "name": "Reviews",
+      "type": "list",
+      "helpText": "grid: 1-6 (3 is ideal); carousel: 3-12; single-large uses the first.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Review",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "quote",
+                "name": "Quote",
+                "type": "text",
+                "localized": true,
+                "helpText": "1 to 3 sentences, about 240 characters maximum.",
+                "validators": { "required": true, "maxLength": 240 }
+              },
+              {
+                "fieldId": "name",
+                "name": "Name",
+                "type": "string",
+                "localized": true,
+                "helpText": "The customer's name as they agreed to be shown, e.g. \"Hannah Reeve\".",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "meta",
+                "name": "Meta",
+                "type": "string",
+                "localized": true,
+                "helpText": "Location and/or product, e.g. \"Portland, OR · Speckled latte mug\"."
+              },
+              {
+                "fieldId": "avatar",
+                "name": "Avatar",
+                "type": "media",
+                "helpText": "Square photo. Shows initials when missing.",
+                "metadata": { "multiple": false }
+              },
+              {
+                "fieldId": "rating",
+                "name": "Rating",
+                "type": "select",
+                "helpText": "none is the default.",
+                "metadata": { "options": ["none", "1", "2", "3", "4", "5"] }
+              },
+              {
+                "fieldId": "productLabel",
+                "name": "Product label",
+                "type": "string",
+                "localized": true,
+                "helpText": "The product this review refers to."
+              },
+              {
+                "fieldId": "productHref",
+                "name": "Product link",
+                "type": "string",
+                "helpText": "Links the meta line to the product."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default (surface for single-large).",
+      "metadata": { "options": ["none", "surface", "surface-strong", "primary"] }
+    }
+  ]
+}

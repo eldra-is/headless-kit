@@ -21,6 +21,36 @@
       "component": "vue",
       "package-name": "@eldrajs/vue",
       "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/theme-core": {
+      "component": "theme-core",
+      "package-name": "@eldrajs/theme-core",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/theme-vue": {
+      "component": "theme-vue",
+      "package-name": "@eldrajs/theme-vue",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/vite-plugin-theme": {
+      "component": "vite-plugin-theme",
+      "package-name": "@eldrajs/vite-plugin-theme",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/theme-cli": {
+      "component": "theme-cli",
+      "package-name": "@eldrajs/theme-cli",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/theme-nuxt": {
+      "component": "theme-nuxt",
+      "package-name": "@eldrajs/theme-nuxt",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
+    "packages/ui": {
+      "component": "ui",
+      "package-name": "@eldrajs/ui",
+      "changelog-path": "RELEASE-NOTES.md"
     }
   },
   "plugins": ["node-workspace"]

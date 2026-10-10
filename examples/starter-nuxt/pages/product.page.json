@@ -1,0 +1,323 @@
+{
+  "template": "product",
+  "title": "Product",
+  "blocks": [
+    {
+      "apiId": "announcement-bar",
+      "id": "product-announcement",
+      "data": {
+        "variant": "primary",
+        "message": "Free shipping on orders over $80",
+        "linkLabel": "Details",
+        "linkHref": "/pages/shipping",
+        "dismissable": true
+      }
+    },
+    {
+      "apiId": "navigation",
+      "id": "product-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "product-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [],
+        "fromProduct": true,
+        "currentTitle": "Merino crew sweater",
+        "showCurrent": true,
+        "container": "content"
+      }
+    },
+    {
+      "apiId": "product-detail",
+      "id": "product-detail",
+      "data": {
+        "productHandle": "merino-crew-sweater",
+        "variant": "gallery-left",
+        "showRating": true,
+        "showQuantity": true,
+        "showWishlist": true,
+        "lowStockThreshold": "3",
+        "perks": [
+          {
+            "icon": "truck",
+            "title": "Free delivery over $80.",
+            "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+          },
+          {
+            "icon": "arrow-back-up",
+            "title": "Free 30-day returns.",
+            "text": "Unworn, with tags, no questions asked."
+          }
+        ],
+        "tabs": [
+          {
+            "label": "Details",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "100% extra-fine Merino wool, 17.5 micron"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Hand wash cold or wool cycle, dry flat"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Model is 180 cm and wears size M"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "label": "Shipping",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "label": "Returns",
+            "body": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "sizeGuideLabel": "Size guide",
+        "sizeGuideHref": "/pages/size-guide",
+        "stickyBar": true,
+        "showCategory": false
+      }
+    },
+    {
+      "apiId": "product-carousel",
+      "id": "product-related",
+      "data": {
+        "heading": "You may also like",
+        "variant": "related",
+        "limit": "8",
+        "viewAllLabel": "View all",
+        "viewAllHref": "/collections/knitwear",
+        "showSwatches": true,
+        "background": "none"
+      }
+    },
+    {
+      "apiId": "faq",
+      "id": "product-faq",
+      "data": {
+        "variant": "one-column",
+        "heading": "Shipping & care",
+        "intro": "Delivery, returns and looking after the things you buy from us.",
+        "exclusive": true,
+        "items": [
+          {
+            "question": "How long does delivery take?",
+            "open": true,
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Canadian and EU orders take 5 to 9 business days. Made-to-order knitwear ships in about 3 weeks, and the product page always says so."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Can I return something that isn't right?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Yes. You have 30 days to send back anything unused, in its original packaging. US returns are free with the prepaid label in your parcel. Seconds and personalised pieces can't be returned unless they arrive damaged."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Why does my mug look different from the photo?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Every piece is glazed by hand and fired in small batches, so colour and speckle vary from kiln to kiln. We photograph a typical piece, and the card in your box tells you which batch yours came from."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "How should I wash wool and lambswool?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Air it more, wash it less. When it does need a wash, hand wash cool with a wool detergent, press out the water in a towel and dry flat away from the radiator."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Are your ceramics dishwasher and microwave safe?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Our stoneware is dishwasher, microwave and oven safe up to 400°F. Pieces with a gold rim or raw clay base are hand wash only, which is noted on the product page."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "question": "Do you offer gift wrapping?",
+            "answer": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "contactText": "Still wondering about something?",
+        "contactLinkLabel": "Ask our customer care team",
+        "contactLinkHref": "/pages/contact",
+        "sectionBackground": "none"
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "product-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [],
+        "links": [],
+        "showNewsletter": true,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

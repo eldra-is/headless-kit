@@ -1,0 +1,9 @@
+{
+  "apiId": "cta",
+  "name": "CTA",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    { "fieldId": "label", "name": "Label", "type": "string", "isTitle": true, "localized": true }
+  ]
+}

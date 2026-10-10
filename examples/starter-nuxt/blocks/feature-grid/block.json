@@ -1,0 +1,106 @@
+{
+  "apiId": "feature-grid",
+  "name": "Feature grid",
+  "description": "A grid of short benefits or facts, each with an icon or image, a title and a sentence.",
+  "icon": "grid-dots",
+  "category": "marketing",
+  "version": 2,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "cards is the default.",
+      "metadata": { "options": ["cards", "plain"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Optional block heading."
+    },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence under the heading."
+    },
+    {
+      "fieldId": "headLinkLabel",
+      "name": "Head link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Standalone link shown to the right of the heading."
+    },
+    {
+      "fieldId": "headLinkHref",
+      "name": "Head link URL",
+      "type": "string"
+    },
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "select",
+      "helpText": "4 is the default. Column count from 64rem of block width.",
+      "metadata": { "options": ["2", "3", "4"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "mediaType",
+      "name": "Media type",
+      "type": "select",
+      "helpText": "icon is the default.",
+      "metadata": { "options": ["icon", "image"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "items",
+      "name": "Items",
+      "type": "list",
+      "helpText": "1-12 items.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Item",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "tabler-icon",
+                "helpText": "Used when the block's media type is icon."
+              },
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "helpText": "3:2 crop. Used when the block's media type is image.",
+                "metadata": { "multiple": false, "framing": true, "framingAspectRatio": "3/2" }
+              },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              { "fieldId": "text", "name": "Text", "type": "text", "localized": true },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true
+              },
+              { "fieldId": "href", "name": "Link URL", "type": "string" }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

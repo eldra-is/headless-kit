@@ -1,0 +1,133 @@
+{
+  "template": "category",
+  "title": "Ceramics",
+  "blocks": [
+    {
+      "apiId": "navigation",
+      "id": "category-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "category-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [],
+        "fromProduct": false,
+        "fromCategory": true,
+        "currentTitle": "Ceramics",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "collection-header",
+      "id": "category-header",
+      "data": {
+        "scope": "category",
+        "variant": "text-only",
+        "title": "Ceramics",
+        "showCount": false,
+        "showBreadcrumb": false,
+        "trail": [],
+        "subcollections": [],
+        "description": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Stoneware thrown and glazed by hand in small batches, then fired twice so it can go in the dishwasher and the oven. Colour and speckle vary from kiln to kiln, which is the point."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "apiId": "collection-grid",
+      "id": "category-grid",
+      "data": {
+        "scope": "category",
+        "variant": "sidebar",
+        "columns": "3",
+        "pageSize": "24",
+        "paginationStyle": "load-more",
+        "sortOptions": [
+          {
+            "option": "featured",
+            "label": "Featured"
+          },
+          {
+            "option": "price-asc",
+            "label": "Price low to high"
+          },
+          {
+            "option": "price-desc",
+            "label": "Price high to low"
+          },
+          {
+            "option": "newest",
+            "label": "Newest"
+          }
+        ],
+        "filters": [
+          {
+            "source": "category",
+            "label": "Category"
+          },
+          {
+            "source": "collection",
+            "label": "Collection"
+          },
+          {
+            "source": "options"
+          },
+          {
+            "source": "price",
+            "label": "Price"
+          },
+          {
+            "source": "availability",
+            "label": "Availability"
+          }
+        ],
+        "showColumnSelect": true,
+        "emptyTitle": "No products match these filters",
+        "emptyText": "Try removing a filter or widening the price range."
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "category-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [],
+        "links": [],
+        "showNewsletter": true,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

@@ -9,6 +9,23 @@ platform repository.
 
 ## Unreleased
 
+- **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
+  client by requests per minute, which a static build of a real catalogue meets routinely. The
+  default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a
+  `POST`, which may already have been applied), and one whose connection dropped (`fetch failed`,
+  `ECONNRESET` and the rest), honouring `Retry-After` in seconds or as an HTTP-date (up to a minute)
+  and otherwise waiting `250 ms × 2^attempt` capped at 5 s with jitter, for at most five attempts
+  including the first. Configurable as `retry: { attempts, baseDelayMs, maxDelayMs }` on
+  `createEldraClient` (`EldraRetryOptions`); `{ attempts: 0 }` is one request and no waiting. Every
+  other status is unchanged, and a consumer-supplied `httpClient` is left alone — the retry belongs
+  to the transport, and a replaced transport is the consumer's own. A caller's `AbortSignal` ends a
+  retry during the wait as well as during the request, rejecting with the signal's own reason. A
+  dropped connection is told apart from a **malformed** request by the shape `fetch` reports (a known
+  network message, or a retryable `code` on the error or its `cause`): an unparseable URL, an invalid
+  header name or a `GET` with a body fails on the first attempt, because repeating it can only fail
+  the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
+  and `EldraRetryOptions` a new exported type.
+
 - `analyticsTrackerScript`'s documentation no longer says events always reach the gateway; with
   `eventOrigin` set they go to that first-party proxy.
 

@@ -1,0 +1,404 @@
+@import 'tailwindcss';
+/* `@eldrajs/ui`'s Tailwind entry: its `tokens.css` (`--eldra-*` — colours,
+   radii, spacing, type, motion, z-index), the `@theme` block mapping those
+   onto Tailwind's own namespaces (`--color-primary`, `--radius-md`,
+   `--font-heading`, `--shadow-md`, …), the package's custom utilities
+   (`eldra-focus`, `control-h`, `text-body`, …) and a `@source "./"` so this
+   build also scans the package's compiled components — without it a class
+   only `@eldrajs/ui`'s own `dist/*.js` uses (a Button fill, an Input border)
+   would never be emitted here.
+
+   The colour variables it declares are the *defaults*; the theme's own token
+   CSS (`virtual:eldra/tokens.css`, generated from `tokens.json` by
+   @eldrajs/theme-core's `generateDesignTokenCss`) declares the same
+   `--eldra-color-<role>` names on `:root` and is what Studio edits, live
+   (`useEldraPreview` appends its own `<style>` to `<head>`, which wins over
+   every stylesheet). Keep `tokens.json`'s colour ids and the package's role
+   names identical: that name match is the whole wiring. */
+@import '@eldrajs/ui/tailwind.css';
+
+/* Nuxt's Vite root is `app/`, and Tailwind's automatic source detection starts at that root, so
+   `blocks/` (a sibling of `app/`) is never scanned in the site build: every class only a block
+   uses — each `@tablet:`/`@content:` container-query variant, a block-only grid template — was
+   missing from the deployed stylesheet while Storybook (whose root is the theme root, so it
+   scans `blocks/` on its own) looked right. Name the directory explicitly; the path is relative
+   to this file. */
+@source '../../blocks';
+
+:root {
+  color-scheme: light;
+}
+
+/* Hides the native scrollbar on a scroll-snap carousel track while keeping
+   it scrollable by wheel, trackpad, touch and keyboard (the track keeps
+   `tabindex="0"` and its own ArrowLeft/ArrowRight handling — see
+   `useCarousel`); previous/next `Button`s remain the other operable
+   path. Applied in `blocks/testimonials/Block.vue` and
+   `blocks/gallery/Block.vue`. */
+@utility scrollbar-hidden {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* "A fresher result is on its way, the one you are looking at is already stale." A slow breath
+   between 0.7 and 0.9 opacity, `alternate` so it eases both ways with no seam, applied to a
+   commerce block's own results container while a read is in flight — `collection-grid` is the
+   first consumer (its `UPDATING_PULSE`). Nothing is drawn over the results and nothing enters the
+   DOM, so there is no layout shift and nothing for assistive technology to have to ignore: the
+   block's own `aria-busy` and its "Updating…" status line carry the state in words.
+
+   Deliberately *not* `@eldrajs/ui`'s `animate-eldra-pulse`, which is the 0.6↔1 flash a spinner
+   falls back to under reduced motion — far too loud across a whole grid of cards. The duration and
+   easing are written out for the same reason the package writes its own animation timings out:
+   the `--eldra-duration-*` tokens are interaction timings (120–240ms) and the reduced-motion rule
+   in `tokens.css` zeroes them, which would stop this as well.
+
+   Reduced motion is the caller's to add — `motion-reduce:animate-none` beside a steady
+   `motion-reduce:opacity-80` — rather than a media query here, so the still opacity is visible at
+   the call site next to the moving one. */
+@keyframes eldra-pulse-soft {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+@utility animate-eldra-pulse-soft {
+  animation: eldra-pulse-soft 1.4s ease-in-out infinite alternate;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text text-body;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading leading-[1.1] tracking-tight;
+  }
+  img,
+  svg,
+  video {
+    @apply block max-w-full;
+  }
+}
+
+/* Rich-text typography for a block's `EldraRichText` output (the `article`
+   block passes `class="prose-eldra"`; `faq` uses it read-only for each
+   item's answer — see blocks/faq/Block.vue; `.prose-eldra-center` is the
+   centred variant a block applies alongside it when its own
+   `alignment: 'center'` field is set). This is spec 2's single shared
+   rich-text typography definition (blocks spec lines 2449–2526): every
+   rich-text field in the starter — article body, rich-text block, FAQ
+   answers, product descriptions — uses it unchanged.
+
+   Plain selectors over the nodes `renderRichTextDoc`
+   (`@eldrajs/theme-vue`'s richTextRender.ts / `theme-core`'s
+   richTextTree.ts) actually emits — `h2`-`h4`, `p`, `ul`/`ol`/`li`,
+   `blockquote`, `pre`/`code`, `table`/`tr`/`th`/`td`/`caption`, `img`,
+   `hr`, `a`, `.eldra-embed` — plus `figure`/`figcaption` for forward
+   compatibility with a future captioned-image node (the renderer does not
+   emit either yet). Every colour, radius and border reads a design token
+   through the package's Tailwind namespace so a customer's own token
+   values carry through unchanged; the type sizes, line heights, tracking
+   and rhythm values below are the spec's own fixed numbers — documented as
+   the one exception to the three-size rule (spec "Type-size exception").
+
+   The renderer neither wraps tables in a focusable scroll region nor marks
+   `<pre>` focusable (spec "Table" → Wrapper, "Code block" → `<pre>`); that
+   DOM surgery is `app/composables/useRichTextScrollRegions.ts`, applied by
+   whichever block renders `EldraRichText` (see that composable's own
+   comment — this is a documented theme-side enhancement, not a renderer
+   change). Editor-hint dashed boxes are `@eldrajs/ui`'s own
+   `EditorPlaceholder`, gated by `app/composables/useEditing.ts` — nothing
+   here.
+
+   Every breakpoint below is the block's own width, not the viewport
+   (`@container (width >= 48rem)`, written through Tailwind's `@tablet:`
+   container-query variant — see `Section.vue`'s root `@container` class,
+   which every rich-text field sits inside). */
+@layer components {
+  .prose-eldra {
+    @apply font-body text-text max-w-none;
+    font-size: 1rem;
+    line-height: 1.7;
+    overflow-wrap: break-word;
+  }
+  .prose-eldra > * + * {
+    margin-top: 1.25em;
+  }
+  .prose-eldra > :where(p) {
+    @apply text-pretty;
+  }
+
+  /* Headings: heading font, balance-wrapped, `text`, scroll margin clears a
+     sticky header. Space above scales by level; the element right after a
+     heading gets its own, smaller gap; the very first element (heading or
+     not) gets no top margin at all — the general flow rule above already
+     only fires on `* + *`, so these are gated the same way. */
+  .prose-eldra :where(h2, h3, h4) {
+    @apply font-heading text-text text-balance;
+    scroll-margin-top: 6rem;
+  }
+  .prose-eldra :where(h2) {
+    font-size: 1.375rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .prose-eldra :where(h3) {
+    font-size: 1.1875rem;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .prose-eldra :where(h4) {
+    font-size: 1rem;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+  .prose-eldra > * + :where(h2) {
+    margin-top: 2.5rem;
+  }
+  .prose-eldra > * + :where(h3) {
+    margin-top: 2rem;
+  }
+  .prose-eldra > * + :where(h4) {
+    margin-top: 1.75rem;
+  }
+  .prose-eldra > :where(h2, h3, h4) + * {
+    margin-top: 0.625rem;
+  }
+
+  /* Inline */
+  .prose-eldra :where(strong, b) {
+    font-weight: 600;
+  }
+  .prose-eldra :where(a) {
+    @apply text-text eldra-focus rounded-[2px];
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
+  }
+  .prose-eldra :where(a):hover {
+    text-decoration-thickness: 2px;
+    text-decoration-color: currentColor;
+  }
+  .prose-eldra :where(code) {
+    @apply bg-surface-strong text-text rounded-sm font-mono;
+    font-size: 0.875em;
+    padding: 0.125em 0.375em;
+  }
+  /* Code inside `<pre>` inherits the block's font — no inline-code fill. */
+  .prose-eldra :where(pre code) {
+    @apply bg-transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  /* Lists */
+  .prose-eldra :where(ul, ol) {
+    padding-left: 1.375em;
+  }
+  .prose-eldra :where(ul) {
+    list-style-type: disc;
+  }
+  .prose-eldra :where(ol) {
+    list-style-type: decimal;
+  }
+  .prose-eldra :where(li) + :where(li) {
+    margin-top: 0.5em;
+  }
+  .prose-eldra :where(li) > :where(ul, ol) {
+    margin-top: 0.5em;
+  }
+  .prose-eldra :where(li) :where(p) + :where(p) {
+    margin-top: 0.5em;
+  }
+  .prose-eldra :where(li)::marker {
+    color: var(--color-muted);
+  }
+  .prose-eldra :where(ol li)::marker {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Blockquote: no side bar, no italics — a hanging `accent` opening mark
+     instead, drawn by CSS (decorative, so it needs no `aria-hidden`: a
+     `::before` is never exposed to the accessibility tree). */
+  .prose-eldra :where(blockquote) {
+    @apply font-heading text-text;
+    position: relative;
+    padding-left: 2rem;
+    font-size: 1.1875rem;
+    line-height: 1.45;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .prose-eldra :where(blockquote) > * + * {
+    margin-top: 0.75rem;
+  }
+  .prose-eldra :where(blockquote)::before {
+    content: '\201C';
+    @apply text-accent;
+    position: absolute;
+    top: -0.1em;
+    left: 0;
+    font-size: 2.5em;
+    line-height: 1;
+    font-weight: 500;
+  }
+  .prose-eldra :where(blockquote) :where(footer, cite) {
+    @apply font-body text-muted;
+    display: block;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    font-style: normal;
+    font-weight: 400;
+  }
+  .prose-eldra > * + :where(blockquote) {
+    margin-top: 2.25rem;
+  }
+  .prose-eldra > :where(blockquote) {
+    margin-bottom: 2.25rem;
+  }
+
+  /* Code block */
+  .prose-eldra :where(pre) {
+    @apply bg-surface border-border overflow-x-auto rounded-md border font-mono;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    padding: 1rem 1.25rem;
+    white-space: pre;
+    tab-size: 2;
+  }
+
+  /* Table: the renderer never widens the page — the horizontally-scrolling
+     focusable wrapper is `useRichTextScrollRegions`, not CSS. */
+  .prose-eldra :where(table) {
+    @apply text-text;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .prose-eldra :where(td, th) {
+    @apply border-border border-b;
+    padding: 0.625rem 1rem 0.625rem 0;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose-eldra :where(th) {
+    @apply border-border-strong;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .prose-eldra :where(caption) {
+    @apply text-muted;
+    caption-side: bottom;
+    text-align: left;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  /* Figures and embeds. The renderer emits neither a captioned-image node
+     nor a hydrated `<iframe>` yet (`.eldra-embed` is today's inert
+     placeholder div, see richTextTree.ts's `buildEmbed`) — these rules are
+     forward-compatible with both, matching the spec ahead of the
+     renderer. */
+  .prose-eldra > * + :where(figure) {
+    margin-top: 2.25rem;
+  }
+  .prose-eldra > :where(figure) {
+    margin-bottom: 2.25rem;
+  }
+  .prose-eldra :where(figure) :where(img, picture, video) {
+    @apply rounded-lg;
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .prose-eldra :where(figcaption) {
+    @apply text-muted;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .prose-eldra :where(.eldra-embed) {
+    @apply bg-surface-strong rounded-lg;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+  }
+  .prose-eldra :where(.eldra-embed) iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  /* Divider */
+  .prose-eldra > :where(hr) {
+    @apply border-border border-t;
+    margin-bottom: 2.75rem;
+  }
+  .prose-eldra > * + :where(hr) {
+    margin-top: 2.75rem;
+  }
+
+  @container (width >= 48rem) {
+    .prose-eldra {
+      font-size: 1.0625rem;
+    }
+    .prose-eldra :where(h2) {
+      font-size: 1.5rem;
+    }
+    .prose-eldra :where(h3) {
+      font-size: 1.25rem;
+    }
+    .prose-eldra :where(h4) {
+      font-size: 1.0625rem;
+    }
+    .prose-eldra :where(blockquote) {
+      padding-left: 2.25rem;
+      font-size: 1.25rem;
+    }
+  }
+
+  /* Centred variant: Rich text with `alignment: 'center'`. Lists switch to
+     inside markers with no indent; code and tables stay left-aligned so
+     they never look centred over their own scroll region. */
+  .prose-eldra-center {
+    text-align: center;
+  }
+  .prose-eldra-center :where(ul, ol) {
+    padding-left: 0;
+    list-style-position: inside;
+  }
+  .prose-eldra-center :where(blockquote) {
+    padding-left: 0;
+    padding-top: 2rem;
+  }
+  .prose-eldra-center :where(blockquote)::before {
+    position: static;
+    display: block;
+    text-align: center;
+    margin-bottom: 0.25rem;
+  }
+  .prose-eldra-center :where(pre),
+  .prose-eldra-center :where(table) {
+    text-align: left;
+  }
+  @container (width >= 48rem) {
+    .prose-eldra-center :where(blockquote) {
+      padding-left: 0;
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import type {
   EldraCatalogGetProductOptions,
   EldraCatalogListProductsOptions,
@@ -15,12 +16,15 @@ import type {
   EldraHttpRequest,
   EldraOrganizationDetails,
   EldraOrganizationFeature,
+  EldraOrganizationLocales,
   EldraOrganizationOptions,
+  EldraPlatformConfig,
+  EldraPlatformReadOptions,
   EldraProductDetails,
   EldraProductList,
   EldraAddCartItemInput,
   EldraCart,
-  EldraCheckoutHandoffOptions,
+  EldraCheckoutUrlOptions,
   EldraCollection,
   EldraCollectionList,
   EldraCollectionListOptions,
@@ -37,6 +41,7 @@ import type {
   EldraStockAvailabilityInput,
   EldraRequestContext,
   EldraRequestOptions,
+  EldraRetryOptions,
   RuntimeEnv,
   RuntimeValue,
 } from './types';
@@ -50,16 +55,6 @@ const apiBaseUrlEnvKeys = [
 ] as const;
 
 export const DEFAULT_ELDRA_API_BASE_URL = 'https://web.eldra.app/api';
-
-const checkoutUrlEnvKeys = [
-  'ELDRA_CHECKOUT_URL',
-  'VITE_ELDRA_CHECKOUT_URL',
-  'NEXT_PUBLIC_ELDRA_CHECKOUT_URL',
-  'NUXT_PUBLIC_ELDRA_CHECKOUT_URL',
-  'PUBLIC_ELDRA_CHECKOUT_URL',
-] as const;
-
-export const DEFAULT_ELDRA_CHECKOUT_URL = 'https://checkout.eldra.app';
 
 const orgIdEnvKeys = [
   'ELDRA_ORG_ID',
@@ -75,9 +70,16 @@ export class EldraHttpError extends Error {
   readonly status: number;
   readonly statusText: string;
   readonly body: unknown;
-  /** The problem's category, such as `NOT_FOUND` or `CONFLICT`, when the body carried one. */
+  /** The gateway's problem `code`, such as `CONFLICT`, when the body carried one. */
   readonly code: string | undefined;
-  /** The problem's specific reason, such as `CART_NOT_FOUND`, when the body carried one. */
+  /**
+   * The gateway's problem `errorId` — the stable identifier for *which* failure this is, such as
+   * `CART_INSUFFICIENT_STOCK`. `code` names the class of failure (`CONFLICT`, `VALIDATION`) and
+   * several unrelated refusals share one, so a caller that reacts to a specific cause has to read
+   * this: a 409 on an add is `{ code: 'CONFLICT', errorId: 'CART_INSUFFICIENT_STOCK' }`, and
+   * telling it apart from any other conflict is what lets a storefront say "out of stock" rather
+   * than "something went wrong".
+   */
   readonly errorId: string | undefined;
 
   constructor(response: Response, body: unknown) {
@@ -86,14 +88,15 @@ export class EldraHttpError extends Error {
     this.status = response.status;
     this.statusText = response.statusText;
     this.body = body;
-    this.code = problemField(body, 'code');
-    this.errorId = problemField(body, 'errorId');
+    this.code = problemString(body, 'code');
+    this.errorId = problemString(body, 'errorId');
   }
 }
 
-function problemField(body: unknown, field: 'code' | 'errorId'): string | undefined {
-  if (body && typeof body === 'object' && field in body) {
-    const value = (body as Record<string, unknown>)[field];
+/** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
+function problemString(body: unknown, key: 'code' | 'errorId'): string | undefined {
+  if (body && typeof body === 'object' && key in body) {
+    const value = (body as Record<string, unknown>)[key];
     return typeof value === 'string' ? value : undefined;
   }
   return undefined;
@@ -112,9 +115,9 @@ export function getEldraClient(): EldraClient {
 }
 
 export function createEldraClient(options: EldraClientOptions): EldraClient {
-  const httpClient = options.httpClient ?? createFetchHttpClient(options.fetch);
+  const httpClient = options.httpClient ?? createFetchHttpClient(options.fetch, options.retry);
 
-  const request = <T = unknown>(requestOptions: EldraRequestOptions) =>
+  const request = <T = unknown>(requestOptions: InternalRequestOptions) =>
     httpClient<T>(createHttpRequest(options, requestOptions));
 
   const getOrganization = (
@@ -128,6 +131,32 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       orgId,
       path: `/organization/v1/${encodeURIComponent(orgId)}`,
     });
+  };
+
+  /**
+   * The platform's own public read, cached for the life of the client: one in-flight promise serves
+   * every caller, so two `checkout.url()` calls in the same session make one request. A *failed*
+   * read is not remembered — the cache entry is dropped so the next call tries again rather than
+   * leaving a storefront with no checkout until it is reloaded.
+   *
+   * Two deliberate details. The request carries **no organisation header**: the gateway made this
+   * route org-independent on purpose, and `X-Org-Id` would put a public read behind the
+   * origin-to-organisation binding every org-scoped read goes through — a storefront reading it
+   * from a browser origin that is not registered would be refused. And the shared read carries **no
+   * caller's signal**: one caller abandoning its wait must not cancel the read every other caller
+   * is sharing, so a signal aborts only the waiting (`withAbort`), never the request.
+   */
+  let platformConfig: Promise<EldraPlatformConfig> | undefined;
+  const readPlatformConfig = (
+    readOptions?: EldraPlatformReadOptions
+  ): Promise<EldraPlatformConfig> => {
+    platformConfig ??= request<unknown>({ path: '/platform/v1/config', orgScoped: false })
+      .then(toPlatformConfig)
+      .catch((error: unknown) => {
+        platformConfig = undefined;
+        throw error;
+      });
+    return withAbort(platformConfig, readOptions?.signal);
   };
 
   const getOrganizationFeatureMap = async (
@@ -224,6 +253,28 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ecommerce,
           features,
         };
+      },
+      getCommerce: async (
+        organizationOptions?: EldraOrganizationOptions,
+        context?: EldraRequestContext
+      ) => {
+        const organization = await getOrganization(organizationOptions, context);
+
+        // Absent on a store that has not configured commerce — reported as `null` rather than
+        // filled in with a default, so a storefront can render a price honestly (a number, no
+        // symbol) instead of showing one currency's amounts under another's sign.
+        return organization.commerce ?? null;
+      },
+      getLocales: async (
+        organizationOptions?: EldraOrganizationOptions,
+        context?: EldraRequestContext
+      ) => {
+        const organization = await getOrganization(organizationOptions, context);
+
+        // Absent on an organisation that has configured none — reported as `null` rather than
+        // guessed, so a consumer behaves exactly as it did before locales existed instead of
+        // routing visitors to prefixes no content answers.
+        return toOrganizationLocales(organization.locales);
       },
     },
     catalog: {
@@ -367,23 +418,33 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           body: { token: token.trim() },
         }),
     },
+    platform: {
+      config: (readOptions?: EldraPlatformReadOptions) => readPlatformConfig(readOptions),
+    },
     checkout: {
-      handoffUrl: (handoff: EldraCheckoutHandoffOptions) => {
-        const checkoutUrl = handoff.checkoutUrl ?? resolveCheckoutUrl(options);
+      url: async (handoff: EldraCheckoutUrlOptions, readOptions?: EldraPlatformReadOptions) => {
+        // The platform hosts checkout; where it hosts it is the platform's answer to give, so this
+        // is the only source of the base URL. One refusal either way — a storefront can do nothing
+        // different about a platform that published none and a read that did not come back — but
+        // not one *message*: the two have completely different fixes, and a caller that logs only
+        // `error.message` (or a storefront that swallows the error, as the starter does) would
+        // otherwise be told the platform is misconfigured when the gateway was simply unreachable.
+        let checkoutUrl: string | null = null;
+        let cause: unknown;
+        try {
+          checkoutUrl = (await readPlatformConfig(readOptions)).checkoutUrl;
+        } catch (error: unknown) {
+          cause = error;
+        }
         if (!checkoutUrl) {
-          throw new Error(
-            `Missing checkout URL. Pass checkoutUrl to createEldraClient() or to handoffUrl(); ${DEFAULT_ELDRA_CHECKOUT_URL} is only the default for the default API base URL.`
-          );
+          throw cause === undefined
+            ? new Error('The platform did not publish a checkout URL (GET /platform/v1/config).')
+            : new Error(
+                `Could not read the platform checkout URL (GET /platform/v1/config): ${describeCause(cause)}`,
+                { cause }
+              );
         }
-        const orgId = handoff.orgId ?? resolveOrgId(options);
-        if (!orgId) {
-          throw new Error('Missing Web Studio organization ID.');
-        }
-        const url = new URL(
-          `${checkoutUrl.replace(/\/$/, '')}/checkout/${encodeURIComponent(orgId)}/${encodeURIComponent(handoff.cartId)}`
-        );
-        if (handoff.locale) url.searchParams.set('lang', handoff.locale);
-        return url.toString();
+        return buildCheckoutUrl(checkoutUrl, handoff, options);
       },
     },
     inventory: {
@@ -398,6 +459,89 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
   };
 }
 
+/**
+ * `{checkoutUrl}/checkout/{orgId}/{cartId}` — where a storefront sends the customer, with the
+ * locale as `lang` when it has one. Internal: the base URL comes from the platform's config, which
+ * only `checkout.url()` can read, so there is no public builder that takes a base of its own.
+ *
+ * The published base is checked rather than trusted. It ends up in a link a shopper clicks, so a
+ * value that is not an absolute `http(s)` URL is refused in terms a developer can act on instead of
+ * reaching the page as `TypeError: Invalid URL` — or, for a `javascript:` or `data:` base, as a
+ * working link. Every trailing slash is stripped, not just the last one, so a doubled one cannot
+ * leave `//checkout` in the path.
+ */
+function buildCheckoutUrl(
+  checkoutUrl: string,
+  handoff: EldraCheckoutUrlOptions,
+  options: EldraClientOptions
+): string {
+  const orgId = handoff.orgId ?? resolveOrgId(options);
+  if (!orgId) {
+    throw new Error('Missing Web Studio organization ID.');
+  }
+  const base = checkoutUrl.replace(/\/+$/, '');
+  const path = `/checkout/${encodeURIComponent(orgId)}/${encodeURIComponent(handoff.cartId)}`;
+  let url: URL;
+  try {
+    url = new URL(`${base}${path}`);
+  } catch (cause: unknown) {
+    throw unusableCheckoutUrl(checkoutUrl, cause);
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw unusableCheckoutUrl(checkoutUrl);
+  }
+  if (handoff.locale) url.searchParams.set('lang', handoff.locale);
+  return url.toString();
+}
+
+function unusableCheckoutUrl(checkoutUrl: string, cause?: unknown): Error {
+  const message =
+    `The platform published an unusable checkout URL (${JSON.stringify(checkoutUrl)}): ` +
+    'it must be an absolute http(s) URL.';
+  return cause === undefined ? new Error(message) : new Error(message, { cause });
+}
+
+function describeCause(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
+/**
+ * The caller's own wait on a shared read. The read itself is not cancellable — it is one request
+ * serving every caller — so an aborted signal settles this caller's promise and leaves the request
+ * alone. The listener is removed either way, so a long-lived signal collects nothing.
+ */
+function withAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (signal === undefined) return promise;
+  if (signal.aborted) {
+    // Still in flight for whoever else is waiting; this caller is simply not one of them any more.
+    void promise.catch(() => undefined);
+    return Promise.reject(abortReason(signal));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(abortReason(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  return (
+    (signal.reason as unknown) ??
+    new Error('The platform config read was abandoned: the signal was aborted.')
+  );
+}
+
+/**
+ * The gateway answers `{ checkoutUrl: string | null }`. Anything else — a blank string, a missing
+ * key, a body that is not an object at all — is read as "no checkout published" rather than handed
+ * on as a URL, since the value goes straight into a link a shopper clicks.
+ */
+function toPlatformConfig(body: unknown): EldraPlatformConfig {
+  const value = (body as { checkoutUrl?: unknown } | null | undefined)?.checkoutUrl;
+  const checkoutUrl = typeof value === 'string' ? value.trim() : '';
+  return { checkoutUrl: checkoutUrl === '' ? null : checkoutUrl };
+}
+
 function resolveRequestOrgId(
   clientOptions: EldraClientOptions,
   organizationOptions: EldraOrganizationOptions | undefined,
@@ -408,6 +552,35 @@ function resolveRequestOrgId(
     throw new Error('Missing Web Studio organization ID.');
   }
   return orgId;
+}
+
+/**
+ * The organisation's content locales, or `null`.
+ *
+ * Validated rather than passed through, and the validation is deliberately strict: whoever reads
+ * this decides which locale lives at which URL, so half an answer — a `default` that is not a
+ * string, a `supported` array with a blank entry — would put real visitors on paths no content
+ * exists at. Anything that is not a whole, usable record reads the same as "none configured".
+ *
+ * `default` is normalised to the front of `supported` (the gateway documents it there, and a
+ * consumer that trusted the order would otherwise prefix the default locale), and duplicates are
+ * collapsed while the remaining order is kept.
+ */
+function toOrganizationLocales(
+  value: EldraOrganizationLocales | null | undefined
+): EldraOrganizationLocales | null {
+  if (value === null || typeof value !== 'object') return null;
+  const defaultLocale = typeof value.default === 'string' ? value.default.trim() : '';
+  if (defaultLocale === '') return null;
+  if (!Array.isArray(value.supported)) return null;
+  const supported = [defaultLocale];
+  for (const entry of value.supported) {
+    if (typeof entry !== 'string') return null;
+    const locale = entry.trim();
+    if (locale === '') return null;
+    if (!supported.includes(locale)) supported.push(locale);
+  }
+  return { default: defaultLocale, supported };
 }
 
 function mapOrganizationFeatures(
@@ -443,13 +616,25 @@ function resolveEntryListBody(entryList: EldraCmsEntryList): object {
   };
 }
 
+/**
+ * What this module may ask of a request beyond the public `EldraRequestOptions`. `orgScoped: false`
+ * is the one addition and exists for one route: the gateway's `/platform/v1/config` is
+ * org-independent by design, and a read that carried `X-Org-Id` would be bound to the
+ * organisation's registered origins like any org-scoped read — a 403 where the gateway promises a
+ * 200. It stays internal because no consumer has a public route that needs it.
+ */
+type InternalRequestOptions = EldraRequestOptions & { orgScoped?: boolean };
+
 function createHttpRequest(
   clientOptions: EldraClientOptions,
-  requestOptions: EldraRequestOptions
+  requestOptions: InternalRequestOptions
 ): EldraHttpRequest {
   const method = requestOptions.method ?? (requestOptions.body === undefined ? 'GET' : 'POST');
   const headers = mergeHeaders(resolveRuntimeValue(clientOptions.headers), requestOptions.headers);
-  const orgId = requestOptions.orgId ?? resolveOrgId(clientOptions);
+  const orgId =
+    requestOptions.orgScoped === false
+      ? undefined
+      : (requestOptions.orgId ?? resolveOrgId(clientOptions));
   if (orgId) {
     headers.set('X-Org-Id', orgId);
   }
@@ -475,7 +660,11 @@ function createHttpRequest(
   };
 }
 
-function createFetchHttpClient(fetchImpl: typeof fetch | undefined): EldraHttpClient {
+function createFetchHttpClient(
+  fetchImpl: typeof fetch | undefined,
+  retry: EldraRetryOptions | undefined
+): EldraHttpClient {
+  const retryPolicy = resolveRetryPolicy(retry);
   return async <T = unknown>(request: EldraHttpRequest) => {
     const resolvedFetch = fetchImpl ?? globalThis.fetch;
     if (!resolvedFetch) {
@@ -484,12 +673,21 @@ function createFetchHttpClient(fetchImpl: typeof fetch | undefined): EldraHttpCl
       );
     }
 
-    const response = await resolvedFetch(request.url, {
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-      signal: request.signal,
-    });
+    // Every request this client makes without a consumer-supplied transport
+    // passes through here, which is why the retry lives here and nowhere else:
+    // a rate limit met halfway through a static build is waited out once, for
+    // every caller, rather than fought by each of them.
+    const response = await fetchWithRetry(
+      resolvedFetch,
+      request.url,
+      {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        signal: request.signal,
+      },
+      retryPolicy
+    );
     const body = await readResponseBody(response);
     if (!response.ok) {
       throw new EldraHttpError(response, body);
@@ -517,17 +715,6 @@ export function resolveApiBaseUrl(options: EldraClientOptions): string {
     resolveRuntimeValue(options.apiBaseUrl) ??
     readFirstEnvValue(resolveRuntimeValue(options.env), apiBaseUrlEnvKeys) ??
     DEFAULT_ELDRA_API_BASE_URL
-  );
-}
-
-// The production checkout only knows production carts, so another gateway must name its own.
-function resolveCheckoutUrl(options: EldraClientOptions): string | undefined {
-  return (
-    resolveRuntimeValue(options.checkoutUrl) ??
-    readFirstEnvValue(resolveRuntimeValue(options.env), checkoutUrlEnvKeys) ??
-    (resolveApiBaseUrl(options).replace(/\/$/, '') === DEFAULT_ELDRA_API_BASE_URL
-      ? DEFAULT_ELDRA_CHECKOUT_URL
-      : undefined)
   );
 }
 
@@ -574,11 +761,41 @@ function buildUrl(apiBaseUrl: string, path: string, query: object | undefined): 
   return url.toString();
 }
 
+/**
+ * Query parameters the gateway declares as repeatable (`explode: true`): one
+ * `key=` entry per value, never a comma-joined one. Every other array
+ * parameter (`sort`, `fields`) is declared `explode: false` and stays
+ * comma-separated.
+ *
+ * `filter` has to be in here — a filter token is `[groupIndex:]field:op:value`
+ * whose value may itself contain commas (`slug:in:a,b`), so joining several
+ * tokens into one parameter runs them together and every token after the first
+ * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`
+ * on `GET /catalog/v1/products/list` and
+ * `GET /catalog/v1/collections/{slug}/products`) are declared the same way, and
+ * each is an OR over its values: comma-joined, `categoryId=a,b` is one id the
+ * catalogue has never heard of, so a shopper ticking two categories would see
+ * nothing rather than both.
+ */
+const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set([
+  'filter',
+  'categoryId',
+  'collectionId',
+  'option',
+]);
+
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: unknown): void {
   if (value === undefined || value === null || value === '') {
     return;
   }
   if (Array.isArray(value)) {
+    if (REPEATED_QUERY_KEYS.has(key)) {
+      for (const entry of value) {
+        if (entry === undefined || entry === null || entry === '') continue;
+        searchParams.append(key, String(entry));
+      }
+      return;
+    }
     searchParams.set(key, value.map(String).join(','));
     return;
   }

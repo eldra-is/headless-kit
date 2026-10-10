@@ -1,0 +1,367 @@
+<script setup lang="ts">
+/**
+ * Wishlist: the products a shopper has saved, as a card grid with a remove control on each.
+ *
+ * The block behind `/wishlist`, which is a **page** a merchant composes — announcement bar, header,
+ * breadcrumbs, this block, a carousel, footer — rather than a route the theme owns. Core seeds that
+ * page from `pages/wishlist.page.json` and creates this block's node `required`, so an author can
+ * reorder it and edit its copy but cannot delete it: the header's heart and the product page's
+ * toast both name `/wishlist`, and a page that could lose its list would break both.
+ *
+ * **The saved list is the shopper's own browser, not the store's data.** `useWishlist()` keeps
+ * `items` empty until `onMounted` (the reasoning is on `createWishlistStore()`), so one prerendered
+ * `wishlist/index.html` is served to every visitor, the server renders the empty state, the
+ * browser's first render of that file is identical to it, and the saved products arrive a moment
+ * later as an ordinary reactive update. It is the same arrangement the `search` block has for its
+ * query.
+ *
+ * **One batched read, by handle.** The wishlist stores storefront handles, and `catalog.byHandles()`
+ * turns the whole list into a single `filter=slug:in:…` products read (`app/storefront/gateway.ts`)
+ * — not one request per saved product. With nothing saved it makes no request at all, which is what
+ * the prerender and the first client render both do.
+ *
+ * **A product the catalogue does not answer about is not rendered, and not forgotten.** A handle
+ * saved before the product was deleted simply has no card. The stored list keeps it: a read that
+ * failed outright would otherwise quietly empty a shopper's wishlist, and nothing here can tell
+ * "this product is gone" from "we could not ask" (`StorefrontResult.error` is the second case, and
+ * it keeps the block showing what it has).
+ *
+ * **The editor.** In Studio nothing is saved — the editor is not a shopper's browser — so the block
+ * draws its empty state, which would read as a block that failed to find its data. One
+ * `EditorPlaceholder` above it says what the grid will hold on the live site, editor-only and gated
+ * on `useEditing()` like every other hint in the theme (`blocks/cart/Block.vue` does the same for
+ * its closed drawer).
+ */
+import { computed, nextTick, ref, watch, type Component } from 'vue';
+import {
+  Button,
+  Container,
+  EditorPlaceholder,
+  EmptyState,
+  ProductCard,
+  Section,
+  Skeleton,
+  VisuallyHidden,
+} from '@eldrajs/ui';
+import { useEldraLink } from '@eldrajs/theme-vue';
+import { useBlockData } from '../../app/composables/useBlockData';
+import { useEditing } from '../../app/composables/useEditing';
+import { iconComponent } from '../../app/composables/iconComponent';
+import { useRevalidating } from '../../app/composables/useRevalidating';
+import { useStorefront } from '../../app/composables/useStorefront';
+import { useI18n } from 'vue-i18n';
+import { useUiId } from '../../app/composables/useUiId';
+import { useWishlist } from '../../app/composables/useWishlist';
+import EldraIcon from '../../app/components/EldraIcon.vue';
+import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { useMoney } from '../../app/storefront/money';
+import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import type { StorefrontProductListItem } from '../../app/storefront/types';
+import { isInternalHref, safeHref } from '../../app/utils/links';
+
+const props = defineProps<{ entry: EldraBlockEntry<'wishlist'> }>();
+const { data } = useBlockData(props, 'wishlist');
+const editing = useEditing();
+const { t } = useI18n();
+const storefront = useStorefront();
+/** Hydrated in `onMounted`, never before — see the module comment. */
+const wishlist = useWishlist();
+const money = useMoney();
+const resolveLink = useEldraLink();
+
+const headingId = `wishlist-heading-${useUiId()}`;
+
+/** `EmptyState.icon` takes an already-bound icon component, so it goes through the theme's shared
+ *  name→component adapter, the way `blocks/cart/Block.vue` binds its own bag. */
+const HeartIcon: Component = iconComponent('heart');
+
+/** `.trim()` and `||`, never a template literal or a rewrite: a text field's value carries the
+ *  invisible payload Studio's overlay makes the text editable by (`test/inlineEditable.spec.ts`). */
+const heading = computed(() => (data.value.heading ?? '').trim());
+const emptyTitle = computed(() => (data.value.emptyTitle ?? '').trim());
+const emptyText = computed(() => (data.value.emptyText ?? '').trim());
+
+/**
+ * The empty state's one next step. The field is a `link`, so an author can point it at a collection,
+ * a page or a product and it keeps resolving when that object is renamed; the seed names `/`,
+ * the one destination every store has, where `/collections/all` is a route only some do.
+ *
+ * Two fallbacks, and both matter. A link whose target no longer resolves — or a block rendered
+ * outside a themed app at all — leaves the button pointing at `/` rather than drawing a dead
+ * anchor. And the visible label is the theme's own localized copy unless the author wrote one: the
+ * field is not localized (a destination is one decision, not a translation), so a label typed there
+ * would be the same words in every language.
+ */
+const emptyLink = computed(() => resolveLink(data.value.emptyLink));
+const emptyLinkHref = computed(() => safeHref(emptyLink.value?.href) ?? '/');
+const emptyLinkLabel = computed(() => emptyLink.value?.label ?? t('wishlist.continueShopping'));
+const emptyLinkAs = computed(() =>
+  isInternalHref(emptyLinkHref.value) ? EldraRouterLink : undefined
+);
+
+/**
+ * **The handles the batched read is keyed on — the block's own list, not the shopper's.**
+ *
+ * `StorefrontResult` watches its sources (`createGatewayResult`), so handing it `wishlist.items`
+ * directly made every heart press re-run the whole products read: `remove()` assigns a new array,
+ * the watcher fires, and the gateway is asked again for rows the block is already holding. Worse
+ * than the request, it put the block into its refresh state for the round trip — `aria-busy` on the
+ * list and `revalidating` on every card — so removing one of ten cards dimmed the other nine.
+ *
+ * This ref only ever *gains* handles, and only ones the block has no row for: a removal therefore
+ * changes nothing the read is watching, and a handle that arrives from somewhere else (another tab's
+ * save, a client navigation) still gets fetched. A handle the catalogue never answers about is asked
+ * for exactly once — it is in `asked` afterwards, which is what keeps this from looping.
+ */
+const asked = ref<string[]>([]);
+const result = storefront.catalog.byHandles(asked);
+
+/**
+ * Every row the read has ever answered, by handle. Keeping them is what makes a removal a local
+ * filter, and it is also how a volatile refresh lands: that refresh reassigns `result.data`, so the
+ * watcher below overwrites each row with the fresher one.
+ */
+const rows = ref<Record<string, StorefrontProductListItem>>({});
+watch(
+  result.data,
+  (value) => {
+    if (value === null || value.length === 0) return;
+    const next = { ...rows.value };
+    for (const item of value) next[item.handle] = item;
+    rows.value = next;
+  },
+  { immediate: true }
+);
+
+/**
+ * Ask for what the block is missing, and nothing else. Driven by both inputs: the saved list
+ * changing (hydration, a save in another tab) and rows arriving.
+ */
+watch(
+  [() => wishlist.items.value, rows],
+  () => {
+    const missing = wishlist.items.value.filter((handle) => rows.value[handle] === undefined);
+    if (missing.length === 0) return;
+    // Already in flight, or already answered with nothing. Either way, asking again changes nothing.
+    if (missing.every((handle) => asked.value.includes(handle))) return;
+    asked.value = [...new Set([...asked.value, ...missing])];
+  },
+  { immediate: true }
+);
+
+/**
+ * The saved products, in the order they were saved (newest first) rather than whatever order the
+ * catalogue answered in — the list is the shopper's, so it reads like theirs. Dropping a handle
+ * there is no row for is the other half of the same loop; see the module comment for why the stored
+ * list keeps it anyway.
+ */
+const products = computed<StorefrontProductListItem[]>(() =>
+  wishlist.items.value.flatMap((handle) => {
+    const item = rows.value[handle];
+    return item === undefined ? [] : [item];
+  })
+);
+
+/** Both refresh states a card can be in, held at `false` until after mount — `useRevalidating`'s
+ *  own doc comment has the reasoning, and it is the same one the gate on the wishlist has. */
+const { any: cardsRevalidating, refreshing } = useRevalidating({
+  keys: () => result.revalidating.value,
+  refreshing: () => result.loading.value && result.data.value !== null,
+});
+
+const cards = computed(() =>
+  toProductCardEntries(products.value, {
+    ratio: '4x5',
+    minorUnits: money.minor,
+    revalidating: cardsRevalidating.value,
+  })
+);
+
+/**
+ * The three states the list can be in, each gated on there being something saved at all — which is
+ * also the mount gate, since `items` is empty until then. That is what makes reading `loading`
+ * here safe where a block would otherwise have to hold it until after mount (`useRevalidating`): on
+ * the server, and in the browser's first render of the file the server wrote, `savedCount` is `0`
+ * and none of these three can be true.
+ *
+ * `loading`, not only `pending`: `pending` is "there is nothing to show yet", and the prerendered
+ * page's read has already *answered* — with `[]`, for the empty handle list it was given — so the
+ * read that runs a moment after mount with the shopper's real handles is a reload over an answer,
+ * never a first load. Skeletons are still the right thing to draw for it: there are saved products
+ * and not one of them is on screen.
+ */
+const savedCount = computed(() => wishlist.count.value);
+const hasSaved = computed(() => savedCount.value > 0);
+const nothingDrawn = computed(() => hasSaved.value && cards.value.length === 0);
+const showError = computed(() => nothingDrawn.value && result.error.value !== null);
+const showSkeletons = computed(
+  () => nothingDrawn.value && !showError.value && (result.loading.value || result.pending.value)
+);
+
+/**
+ * The count beside the heading is what is actually on screen — except while the skeletons are, where
+ * it is the saved count, so the heading does not count up from zero as the read lands. The same
+ * shape the cart's own title has, including the "0 items" a prerendered, empty page carries above
+ * its empty state.
+ */
+const countLabel = computed(() => {
+  const count = showSkeletons.value ? savedCount.value : cards.value.length;
+  return count === 1 ? t('wishlist.itemCountOne') : t('wishlist.itemCountMany', { count });
+});
+
+/**
+ * Removing a card takes the element the shopper was standing on out of the document, so focus has
+ * to be put somewhere deliberate — the same rule `blocks/cart/Block.vue` follows for a removed
+ * line: the next card's own remove button, or the last one when the end of the list went, or the
+ * empty state's heading when that was the only saved product. A heading is not focusable on its
+ * own, so it gets the one `tabindex` it needs at that moment rather than carrying it always.
+ *
+ * The removal is also announced: the card vanishing is the feedback for anyone who can see it, and
+ * nothing else on the page says out loud that it happened. No toast — the product page's heart
+ * raises one because *nothing* there changes, and here the list itself does.
+ *
+ * **The announcement names the product and the list's new size**, and that is mechanism as much as
+ * copy. A polite live region is announced when its *content changes*, so a fixed sentence written
+ * into it twice is one DOM mutation and one announcement: the second and later removals were
+ * silent, which for the block's only non-visual feedback meant two of three removals simply did not
+ * happen for a screen-reader user. Naming the product and the remaining count makes every removal's
+ * text differ from the one before it, and tells the shopper more at the same time.
+ */
+const listEl = ref<HTMLElement | null>(null);
+const emptyEl = ref<HTMLElement | null>(null);
+const announcement = ref('');
+
+async function removeCard(handle: string): Promise<void> {
+  const index = cards.value.findIndex((entry) => entry.item.handle === handle);
+  const title = cards.value[index]?.product.title ?? handle;
+  wishlist.remove(handle);
+  announcement.value = t('wishlist.removedNamed', { title, count: countLabel.value });
+  await nextTick();
+
+  const buttons = Array.from(
+    listEl.value?.querySelectorAll<HTMLElement>('button[aria-pressed]') ?? []
+  );
+  if (buttons.length > 0) {
+    (buttons[Math.min(index, buttons.length - 1)] ?? buttons[0])?.focus();
+    return;
+  }
+  const emptyHeading = emptyEl.value?.querySelector<HTMLElement>('[data-part="title"]');
+  if (!emptyHeading) return;
+  if (!emptyHeading.hasAttribute('tabindex')) emptyHeading.setAttribute('tabindex', '-1');
+  emptyHeading.focus();
+}
+</script>
+
+<template>
+  <Section spacing="none" :labelled-by="headingId" class="pt-8 pb-[var(--eldra-section-md)]">
+    <Container width="wide">
+      <div class="mb-6 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+        <h1
+          :id="headingId"
+          class="font-heading text-text @tablet:text-h2 flex flex-wrap items-baseline gap-3 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
+        >
+          {{ heading || t('wishlist.title') }}
+          <span class="font-body text-muted text-base font-normal tracking-normal">
+            {{ countLabel }}
+          </span>
+        </h1>
+      </div>
+
+      <!-- Editor only: in Studio nothing is saved, so without this the grid reads as a block that
+           could not find its data. -->
+      <EditorPlaceholder
+        v-if="editing"
+        class="mb-6"
+        :label="t('wishlist.editorHintLabel')"
+        :help="t('wishlist.editorHintHelp')"
+      />
+
+      <!-- Always mounted and empty until there is something to say: a live region inserted with
+           its message already in it is announced unreliably. -->
+      <VisuallyHidden as="p" role="status">{{ announcement }}</VisuallyHidden>
+
+      <ul
+        v-if="showSkeletons"
+        role="list"
+        aria-hidden="true"
+        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-2 gap-x-4 gap-y-8"
+      >
+        <li v-for="index in savedCount" :key="index" class="flex flex-col gap-3">
+          <Skeleton variant="media" ratio="4x5" />
+          <Skeleton variant="text" :lines="2" />
+        </li>
+      </ul>
+
+      <ul
+        v-else-if="cards.length > 0"
+        ref="listEl"
+        role="list"
+        :aria-label="t('wishlist.items')"
+        :aria-busy="refreshing ? 'true' : undefined"
+        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-2 gap-x-4 gap-y-8"
+      >
+        <li v-for="entry in cards" :key="entry.item.handle" class="relative">
+          <!-- No quick add, the same decision `collection-grid` makes: a cart action belongs to
+               the product page, and the one control this card owns is the heart. -->
+          <ProductCard
+            :product="entry.product"
+            ratio="4x5"
+            :heading-level="2"
+            :quick-add="false"
+            :revalidating="entry.revalidating"
+            :announce="false"
+            :link-as="entry.internal ? EldraRouterLink : undefined"
+          />
+          <!-- `z-10` over the card's stretched title link, which covers the whole card and
+               carries no `z-index` of its own — the same recipe `ProductCard` uses for its own
+               quick-add control, and what makes pressing the heart never navigate. -->
+          <div class="absolute top-3 right-3 z-10">
+            <Button
+              type="button"
+              icon-only
+              variant="outline"
+              size="sm"
+              :pressed="true"
+              :label="t('product.removeFromWishlist', { title: entry.product.title })"
+              :classes="{ container: 'bg-surface' }"
+              @click="removeCard(entry.item.handle)"
+            >
+              <template #leadingIcon>
+                <EldraIcon name="heart" size="sm" />
+              </template>
+            </Button>
+          </div>
+        </li>
+      </ul>
+
+      <!-- The read failed and there is nothing on screen to keep. A block that already has cards
+           never shows this: a failed refresh keeps what it has (`StorefrontResult`). -->
+      <EmptyState
+        v-else-if="showError"
+        variant="error"
+        :heading-level="2"
+        :title="t('storefront.error')"
+      />
+
+      <!-- Nothing to draw: nothing saved, or saved handles the catalogue answered nothing about
+           (a product deleted since). Either way there is one next step, and it is the same. -->
+      <div v-else ref="emptyEl">
+        <EmptyState
+          :icon="HeartIcon"
+          :heading-level="2"
+          :title="emptyTitle || t('wishlist.emptyTitle')"
+          :text="emptyText || t('wishlist.emptyText')"
+        >
+          <template #actions>
+            <Button
+              variant="primary"
+              :href="emptyLinkHref"
+              :as="emptyLinkAs"
+              :label="emptyLinkLabel"
+            />
+          </template>
+        </EmptyState>
+      </div>
+    </Container>
+  </Section>
+</template>

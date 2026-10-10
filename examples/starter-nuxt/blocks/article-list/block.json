@@ -1,0 +1,181 @@
+{
+  "apiId": "article-list",
+  "name": "Article list",
+  "description": "A list of journal stories as a card grid, a featured-first layout or thumbnail rows, with optional category chips and pagination.",
+  "icon": "news",
+  "category": "content",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "grid is the default.",
+      "metadata": { "options": ["grid", "featured-first", "list"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "\"From the journal\" is the default. Optional."
+    },
+    {
+      "fieldId": "viewAllLabel",
+      "name": "View all label",
+      "type": "string",
+      "localized": true,
+      "helpText": "For example \"View all stories\". Placed in the block head."
+    },
+    {
+      "fieldId": "viewAllHref",
+      "name": "View all URL",
+      "type": "string",
+      "helpText": "The journal index."
+    },
+    {
+      "fieldId": "source",
+      "name": "Source",
+      "type": "select",
+      "helpText": "The starter has no journal query of its own, so every mode renders the items below; this only documents intent for a later data source.",
+      "metadata": { "options": ["latest", "category", "manual"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "categoryHref",
+      "name": "Category URL",
+      "type": "string",
+      "helpText": "Used when source is category. Also matched against each chip to mark the active one."
+    },
+    {
+      "fieldId": "items",
+      "name": "Items",
+      "type": "list",
+      "helpText": "1-12 stories. Used when source is manual.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Story",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              { "fieldId": "dek", "name": "Dek", "type": "text", "localized": true },
+              {
+                "fieldId": "href",
+                "name": "Link URL",
+                "type": "string",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "categoryLabel",
+                "name": "Category label",
+                "type": "string",
+                "localized": true
+              },
+              { "fieldId": "categoryHref", "name": "Category URL", "type": "string" },
+              {
+                "fieldId": "publishedAt",
+                "name": "Published at",
+                "type": "datetime",
+                "helpText": "Rendered in a <time datetime>."
+              },
+              {
+                "fieldId": "readingTime",
+                "name": "Reading time",
+                "type": "string",
+                "localized": true,
+                "helpText": "For example \"6 min read\"."
+              },
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "helpText": "3:2 crop, taken from the top. Decorative; the title carries the meaning.",
+                "metadata": { "multiple": false }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "perPage",
+      "name": "Per page",
+      "type": "select",
+      "helpText": "6 is the default. For featured-first, choose 4, 7 or 10 so the rows fill.",
+      "metadata": { "options": ["3", "6", "9", "12"] }
+    },
+    {
+      "fieldId": "showFilters",
+      "name": "Show filters",
+      "type": "bool",
+      "helpText": "Category chips built from the categories that have stories."
+    },
+    {
+      "fieldId": "filters",
+      "name": "Filters",
+      "type": "list",
+      "helpText": "The theme's stand-in for derived category chips.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Filter",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "href",
+                "name": "Link URL",
+                "type": "string",
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "showPagination",
+      "name": "Show pagination",
+      "type": "bool",
+      "helpText": "True on the journal index, false in a homepage teaser — link to the journal with the view-all link instead."
+    },
+    {
+      "fieldId": "showExcerpt",
+      "name": "Show excerpt",
+      "type": "bool",
+      "default": true,
+      "helpText": "In the list variant, excerpts are always hidden below 48rem of block width."
+    },
+    {
+      "fieldId": "emptyTitle",
+      "name": "Empty title",
+      "type": "string",
+      "localized": true,
+      "helpText": "\"No stories yet\" is the default."
+    },
+    {
+      "fieldId": "emptyText",
+      "name": "Empty text",
+      "type": "text",
+      "localized": true,
+      "helpText": "\"Browse every story from the journal.\" is the default."
+    }
+  ]
+}

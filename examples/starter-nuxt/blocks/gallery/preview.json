@@ -1,0 +1,64 @@
+{
+  "items": [
+    {
+      "caption": "Bowls drying before their first firing",
+      "image": {
+        "assetId": "demo-gallery-1",
+        "url": "/demo/gallery-1.svg",
+        "altText": "Wheel-thrown bowls drying on a wooden studio shelf",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "caption": "The Fell crew in oatmeal merino",
+      "image": {
+        "assetId": "demo-gallery-2",
+        "url": "/demo/gallery-2.svg",
+        "altText": "Oatmeal merino crew sweater folded on a linen throw",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "caption": "Fjord mug, kiln batch FJ-26-09",
+      "image": {
+        "assetId": "demo-gallery-3",
+        "url": "/demo/gallery-3.svg",
+        "altText": "Blue-grey Fjord mug of coffee on a windowsill",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "caption": "Sage linen napkins, woven in Porto",
+      "image": {
+        "assetId": "demo-gallery-4",
+        "url": "/demo/gallery-4.svg",
+        "altText": "Stack of sage linen napkins with a wooden spoon",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "caption": "Glaze buckets, mixed by hand each Monday",
+      "image": {
+        "assetId": "demo-gallery-5",
+        "url": "/demo/gallery-5.svg",
+        "altText": "Buckets of mixed glaze lined up on the studio floor",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "caption": "Slate plates on a winter table",
+      "image": {
+        "assetId": "demo-gallery-6",
+        "url": "/demo/gallery-6.svg",
+        "altText": "Evening table set with dark Slate plates and candles",
+        "width": 1600,
+        "height": 1000
+      }
+    }
+  ]
+}

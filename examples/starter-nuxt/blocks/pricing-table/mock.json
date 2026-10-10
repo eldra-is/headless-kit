@@ -1,0 +1,47 @@
+{
+  "heading": "Join the Pantry Club",
+  "intro": "Small-batch coffee, preserves and a made-to-use ceramic, delivered each month. Pause or cancel from your account.",
+  "featureRows": [
+    { "label": "A pantry box every month" },
+    { "label": "Free US delivery" },
+    { "label": "Members' prices on seconds sales" },
+    { "label": "Early access to new makers" },
+    { "label": "A hand-thrown mug each winter" }
+  ],
+  "plans": [
+    {
+      "name": "Monthly",
+      "description": "Coffee, preserves and one small kitchen piece, delivered on the first Friday.",
+      "price": "$38",
+      "period": "/ month",
+      "note": "Billed monthly. Skip or cancel any time.",
+      "ctaLabel": "Start monthly",
+      "ctaHref": "",
+      "included": [true, false, true, false, false]
+    },
+    {
+      "name": "Seasonal",
+      "description": "Three boxes a season, timed to what our makers are harvesting and firing.",
+      "price": "$105",
+      "period": "/ 3 months",
+      "note": "$35 a box, billed each season.",
+      "ctaLabel": "Start seasonal",
+      "ctaHref": "",
+      "included": [true, true, true, true, false]
+    },
+    {
+      "name": "Annual",
+      "description": "Twelve boxes and a thank-you from the workshop at the start of winter.",
+      "price": "$396",
+      "period": "/ year",
+      "note": "$33 a box, billed once a year.",
+      "ctaLabel": "Start annual",
+      "ctaHref": "",
+      "included": [true, true, true, true, true]
+    }
+  ],
+  "highlightedPlan": "Seasonal",
+  "highlightLabel": "Most popular",
+  "footnote": "Prices include tax. Delivery to Canada and the EU is $6 a box.",
+  "sectionBackground": "none"
+}

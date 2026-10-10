@@ -1,0 +1,29 @@
+{
+  "variant": "cards",
+  "heading": "Why shop with Northwind",
+  "intro": "Small workshops, honest materials and service that outlasts the order.",
+  "columns": "4",
+  "mediaType": "icon",
+  "items": [
+    {
+      "icon": "truck",
+      "title": "Free shipping over $80",
+      "text": "Carbon-neutral delivery across the US in 2 to 4 business days."
+    },
+    {
+      "icon": "arrow-back-up",
+      "title": "60-day returns",
+      "text": "Changed your mind? Send it back unworn or unused for a full refund."
+    },
+    {
+      "icon": "needle-thread",
+      "title": "Repairs for life",
+      "text": "We darn, re-glaze and re-handle anything we make, free of charge."
+    },
+    {
+      "icon": "leaf",
+      "title": "Traceable materials",
+      "text": "Every product page names the farm, mill or clay pit it came from."
+    }
+  ]
+}

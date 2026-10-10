@@ -1,0 +1,55 @@
+{
+  "name": "starter-nuxt",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxi dev",
+    "generate": "nuxi generate",
+    "validate": "eldra-theme validate",
+    "typecheck": "nuxi typecheck && pnpm typecheck:storybook",
+    "test": "vitest run",
+    "demo-images": "node scripts/demo-images.mjs",
+    "storybook": "storybook dev -p 6007 --no-open",
+    "build-storybook": "storybook build",
+    "typecheck:storybook": "tsc -p tsconfig.storybook.json",
+    "previews": "node scripts/previews.mjs"
+  },
+  "dependencies": {
+    "@eldrajs/sdk": "workspace:*",
+    "@eldrajs/theme-core": "workspace:*",
+    "@eldrajs/theme-nuxt": "workspace:*",
+    "@eldrajs/theme-vue": "workspace:*",
+    "@eldrajs/ui": "workspace:*",
+    "@tabler/icons": "^3.34.0",
+    "nuxt": "^4.0.0",
+    "vue-i18n": "11.4.13"
+  },
+  "devDependencies": {
+    "@eldrajs/theme-cli": "workspace:*",
+    "@eldrajs/vite-plugin-theme": "workspace:*",
+    "@playwright/test": "1.62.1",
+    "@storybook/addon-a11y": "^10.2.19",
+    "@storybook/addon-docs": "^10.2.19",
+    "@storybook/vue3-vite": "^10.2.19",
+    "@tailwindcss/node": "^4.1.14",
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/test-utils": "^2.4.6",
+    "execa": "^9.5.2",
+    "jsdom": "^30.1.0",
+    "storybook": "^10.2.19",
+    "tailwindcss": "^4.1.14",
+    "vitest": "^5.0.0",
+    "vitest-axe": "^0.1.0",
+    "vue": "^3.5.30",
+    "vue-tsc": "^3.3.11"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "eldra": {
+    "defaultLocale": "en-US"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "apiId": "product-detail",
+  "name": "Product detail",
+  "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery notes and description tabs, plus a quick-add bar on narrow widths.",
+  "icon": "shirt",
+  "category": "commerce",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "productHandle",
+      "name": "Product",
+      "type": "string",
+      "helpText": "Leave empty on a product template — the route supplies it.",
+      "description": "Pick one by hand for a featured-product landing section."
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "gallery-left is the default. gallery-right mirrors the two columns visually; the reading order stays gallery then information.",
+      "metadata": { "options": ["gallery-left", "gallery-right"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "showRating",
+      "name": "Show rating",
+      "type": "bool",
+      "default": true,
+      "helpText": "Hidden anyway when the product has fewer than 3 reviews."
+    },
+    {
+      "fieldId": "showQuantity",
+      "name": "Show quantity",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "fieldId": "showWishlist",
+      "name": "Show wishlist",
+      "type": "bool",
+      "default": true,
+      "helpText": "Off: Add to cart fills the row alone."
+    },
+    {
+      "fieldId": "lowStockThreshold",
+      "name": "Low stock threshold",
+      "type": "select",
+      "helpText": "\"Only N left\" shows only when real inventory is at or below this number. off never shows it.",
+      "metadata": { "options": ["off", "3", "5", "10"] }
+    },
+    {
+      "fieldId": "perks",
+      "name": "Perks",
+      "type": "list",
+      "helpText": "Delivery and returns notes under the buy button. 2 work best.",
+      "metadata": {
+        "item": {
+          "fieldId": "perk",
+          "name": "Perk",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "select",
+                "metadata": {
+                  "options": ["truck", "arrow-back-up", "leaf", "shield-check", "gift"]
+                },
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "title",
+                "name": "Title",
+                "type": "string",
+                "localized": true,
+                "helpText": "For example \"Free delivery over $80.\"",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "text",
+                "name": "Text",
+                "type": "text",
+                "localized": true,
+                "helpText": "One line. Delivery dates come from the shipping API, so keep this general."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "tabs",
+      "name": "Tabs",
+      "type": "list",
+      "helpText": "Details, Shipping and Returns by default.",
+      "metadata": {
+        "item": {
+          "fieldId": "tab",
+          "name": "Tab",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Tab text, 1 to 3 words.",
+                "validators": { "required": true, "maxLength": 24 }
+              },
+              {
+                "fieldId": "body",
+                "name": "Body",
+                "type": "rich-text",
+                "localized": true,
+                "helpText": "Paragraphs, lists, bold and links. The Details tab usually repeats the product description.",
+                "metadata": {
+                  "toolbar": ["bold", "italic", "link", "bulletList", "orderedList", "undo", "redo"]
+                },
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "sizeGuideLabel",
+      "name": "Size guide label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shows the link next to the Size legend. Needs a link URL too."
+    },
+    {
+      "fieldId": "sizeGuideHref",
+      "name": "Size guide URL",
+      "type": "string"
+    },
+    {
+      "fieldId": "stickyBar",
+      "name": "Quick add bar",
+      "type": "bool",
+      "default": true,
+      "helpText": "Shows the quick-add bar below 48rem once the main button has scrolled away."
+    },
+    {
+      "fieldId": "showCategory",
+      "name": "Show the product's category",
+      "type": "bool",
+      "default": true,
+      "helpText": "One label above the title — the category this product sits in. The trail from Home down to it is the Breadcrumbs block's; turn one of the two off if a page should name the category only once."
+    }
+  ]
+}

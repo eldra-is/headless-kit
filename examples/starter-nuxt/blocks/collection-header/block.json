@@ -1,0 +1,140 @@
+{
+  "apiId": "collection-header",
+  "name": "Collection header",
+  "description": "Opens a collection page with a breadcrumb, the collection title, an optional clamped description with Read more, the live product count, and an optional image or sub-collection links.",
+  "icon": "layout-align-top",
+  "category": "commerce",
+  "version": 2,
+  "fields": [
+    {
+      "fieldId": "scope",
+      "name": "What this opens",
+      "type": "select",
+      "metadata": { "options": ["collection", "category"] },
+      "helpText": "collection (the default) opens a collection page — the one picked below, or the collection this page's route resolved. category opens a category page: the title and the strip of links under it come from the category this page's route resolved, so the strip is that category's own sub-categories and the Collection picker, Sub-collections list and count are all ignored."
+    },
+    {
+      "fieldId": "collection",
+      "name": "Collection",
+      "type": "reference",
+      "relation": { "allowCollections": true },
+      "helpText": "Leave empty on a collection page to use that collection. Ignored when What this opens is category."
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "image is the default.",
+      "metadata": {
+        "options": ["image", "text-only"]
+      },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "title",
+      "name": "Title",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Overrides the collection title. Falls back to the collection title from the store when left empty."
+    },
+    {
+      "fieldId": "description",
+      "name": "Description",
+      "type": "rich-text",
+      "localized": true,
+      "helpText": "The first sentence or two show; the rest sits behind Read more. Falls back to the collection description from the store when left empty.",
+      "metadata": {
+        "toolbar": ["bold", "italic", "link", "undo", "redo"]
+      }
+    },
+    {
+      "fieldId": "image",
+      "name": "Image",
+      "type": "media",
+      "helpText": "image variant only. Falls back to the collection image, then to the text-only layout. Needs alt text, or is marked decorative.",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "showCount",
+      "name": "Show count",
+      "type": "bool",
+      "default": true,
+      "helpText": "\"48 products\", live from the store. Collection pages only — the catalogue's categories carry no count."
+    },
+    {
+      "fieldId": "showBreadcrumb",
+      "name": "Show breadcrumb",
+      "type": "bool",
+      "default": true,
+      "helpText": "Turn off when the page has a Breadcrumbs block."
+    },
+    {
+      "fieldId": "trail",
+      "name": "Trail",
+      "type": "list",
+      "description": "The levels between the top of the site and this collection, root first — this theme's stand-in for the page tree, the same convention the Breadcrumbs block uses. The collection title is always the last, current level.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Level",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "href",
+                "name": "Link",
+                "type": "string",
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "subcollections",
+      "name": "Sub-collections",
+      "type": "list",
+      "description": "Pill links under the text, e.g. Sweaters, Cardigans.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Sub-collection",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "href",
+                "name": "Link",
+                "type": "string",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "current",
+                "name": "Current page",
+                "type": "bool",
+                "default": false,
+                "helpText": "Marks this pill as the collection page currently open."
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

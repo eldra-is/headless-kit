@@ -1,0 +1,46 @@
+{
+  "variant": "grid",
+  "heading": "Used every day, reviewed honestly",
+  "summary": "4.8 out of 5 from 9,214 verified reviews",
+  "linkLabel": "Read all reviews",
+  "linkHref": "",
+  "items": [
+    {
+      "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
+      "name": "Hannah Reeve",
+      "meta": "Portland, OR · Speckled latte mug",
+      "rating": "5",
+      "productLabel": "Speckled latte mug",
+      "productHref": ""
+    },
+    {
+      "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
+      "name": "Marcus Bell",
+      "meta": "Austin, TX · Lambswool throw",
+      "rating": "5",
+      "productLabel": "Lambswool throw blanket",
+      "productHref": ""
+    },
+    {
+      "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
+      "name": "Priya Nair",
+      "meta": "Minneapolis, MN · Stoneware dinner plates",
+      "rating": "4",
+      "productLabel": "Stoneware dinner plates",
+      "productHref": ""
+    },
+    {
+      "quote": "Customer care swapped my cardigan for a size up in two days, no forms, no fuss. It is the one I reach for first.",
+      "name": "Sofia Lind",
+      "meta": "Asheville, NC · Fisherman rib cardigan",
+      "rating": "none"
+    },
+    {
+      "quote": "You can tell the walnut board was finished by hand. It has already outlived two cheaper ones.",
+      "name": "Joel Mercer",
+      "meta": "Seattle, WA · Walnut serving board",
+      "rating": "none"
+    }
+  ],
+  "sectionBackground": "none"
+}

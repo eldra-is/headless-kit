@@ -1,0 +1,115 @@
+{
+  "variant": "one-column",
+  "heading": "Questions, answered",
+  "intro": "Delivery, returns and looking after the things you buy from us.",
+  "exclusive": true,
+  "items": [
+    {
+      "question": "How long does delivery take?",
+      "open": true,
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Canadian and EU orders take 5 to 9 business days. Made-to-order knitwear ships in about 3 weeks, and the product page always says so."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "question": "Can I return something that isn't right?",
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Yes. You have 30 days to send back anything unused, in its original packaging. US returns are free with the prepaid label in your parcel. Seconds and personalised pieces can't be returned unless they arrive damaged."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "question": "Why does my mug look different from the photo?",
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Every piece is glazed by hand and fired in small batches, so colour and speckle vary from kiln to kiln. We photograph a typical piece, and the card in your box tells you which batch yours came from."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "question": "How should I wash wool and lambswool?",
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Air it more, wash it less. When it does need a wash, hand wash cool with a wool detergent, press out the water in a towel and dry flat away from the radiator."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "question": "Are your ceramics dishwasher and microwave safe?",
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Our stoneware is dishwasher, microwave and oven safe up to 400°F. Pieces with a gold rim or raw clay base are hand wash only, which is noted on the product page."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "question": "Do you offer gift wrapping?",
+      "answer": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "contactText": "Still wondering about something?",
+  "contactLinkLabel": "Ask our customer care team",
+  "contactLinkHref": "",
+  "sectionBackground": "none"
+}

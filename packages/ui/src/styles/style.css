@@ -1,0 +1,6 @@
+/* The package's own compiled stylesheet, for consumers without Tailwind: Tailwind's base plus the
+   theme in tailwind.css, with the utilities the package's components use compiled in. Consumers
+   who run Tailwind themselves import tailwind.css instead and their own build emits the same
+   utilities. Built by vite.config.ts's `style` lib entry into dist/style.css. */
+@import 'tailwindcss';
+@import './tailwind.css';

@@ -1,0 +1,87 @@
+{
+  "heading": "Made slowly, used daily",
+  "alignment": "left",
+  "container": "content",
+  "body": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Northwind started in 2014 with one wheel in a Portland garage and a simple rule: make fewer things, and make them to last. Today a team of twelve designs every piece in Oregon and works with four family-run workshops across Europe."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "We never run seasonal sales. Instead we price fairly all year, and we repair what we sell."
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  { "type": "text", "text": "Free repairs on knitwear for the first two years" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Glaze batch and maker stamped on every ceramic piece"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  { "type": "text", "text": "Plastic-free packaging, from tissue to tape" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "Read more about " },
+          {
+            "type": "text",
+            "marks": [{ "type": "link", "attrs": { "href": "/pages/makers" } }],
+            "text": "our makers"
+          },
+          { "type": "text", "text": " or " },
+          {
+            "type": "text",
+            "marks": [{ "type": "link", "attrs": { "href": "/pages/pricing" } }],
+            "text": "how we set our prices"
+          },
+          { "type": "text", "text": "." }
+        ]
+      }
+    ]
+  }
+}

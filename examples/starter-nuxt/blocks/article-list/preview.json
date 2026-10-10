@@ -1,0 +1,84 @@
+{
+  "items": [
+    {
+      "title": "How we glaze our stoneware",
+      "dek": "Two firings, three pairs of hands and a kiln that always has the last word. A morning in the Portland studio.",
+      "href": "/journal/how-we-glaze-our-stoneware",
+      "categoryLabel": "Ceramics",
+      "categoryHref": "/journal/ceramics",
+      "publishedAt": "2026-09-18",
+      "readingTime": "6 min read",
+      "image": {
+        "assetId": "demo-gallery-1",
+        "url": "/demo/gallery-1.svg",
+        "altText": "",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "title": "Caring for merino: a winter guide",
+      "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
+      "href": "/journal/caring-for-merino",
+      "categoryLabel": "Care",
+      "categoryHref": "/journal/care",
+      "publishedAt": "2026-09-09",
+      "readingTime": "4 min read",
+      "image": {
+        "assetId": "demo-gallery-2",
+        "url": "/demo/gallery-2.svg",
+        "altText": "",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "title": "Five-minute brown butter oats",
+      "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
+      "href": "/journal/brown-butter-oats",
+      "categoryLabel": "Recipes",
+      "categoryHref": "/journal/recipes",
+      "publishedAt": "2026-08-28",
+      "readingTime": "3 min read",
+      "image": {
+        "assetId": "demo-gallery-3",
+        "url": "/demo/gallery-3.svg",
+        "altText": "",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "title": "Inside the Porto linen mill",
+      "dek": "Three generations, one loom room and the reason our tea towels soften with every wash.",
+      "href": "/journal/porto-linen-mill",
+      "categoryLabel": "Makers",
+      "categoryHref": "/journal/makers",
+      "publishedAt": "2026-08-14",
+      "readingTime": "7 min read",
+      "image": {
+        "assetId": "demo-gallery-4",
+        "url": "/demo/gallery-4.svg",
+        "altText": "",
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "title": "Setting a slow table for six",
+      "dek": "Mismatched plates, one good candle and a menu you can make the day before.",
+      "href": "/journal/slow-table-for-six",
+      "categoryLabel": "Home",
+      "categoryHref": "/journal/home",
+      "publishedAt": "2026-07-30",
+      "readingTime": "5 min read",
+      "image": {
+        "assetId": "demo-gallery-5",
+        "url": "/demo/gallery-5.svg",
+        "altText": "",
+        "width": 1600,
+        "height": 1000
+      }
+    }
+  ]
+}
