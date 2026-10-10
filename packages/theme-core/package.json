@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/theme-core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-free core of the Eldra theme SDK: the Studio preview bridge, stega encoding, the overlay runtime, layout CSS, rich-text positions, design tokens and image framing.",
   "keywords": [
     "cms",

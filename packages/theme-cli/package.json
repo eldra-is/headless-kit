@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/theme-cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "CLI for Eldra themes: init from the starter, scaffold blocks, validate, generate types, deploy a static build to Eldra.",
   "keywords": [
     "cli",
