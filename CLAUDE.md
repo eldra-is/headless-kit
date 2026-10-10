@@ -53,7 +53,9 @@ all packages. The `node-workspace` plugin bumps `vue` when `rich-text` releases 
 `workspace:^` range on publish; do not add `linked-versions` — it opens its own group PR and that
 candidate is dropped under `separate-pull-requests: false`, so only `sdk` gets released. **It reads commit
 types.** The pull request title is the squash-merge commit: `feat` or `fix` makes a release, `chore`
-does not, and the manual workflow cannot force one.
+does not, and the manual workflow cannot force one. Nor can a `chore` commit carrying `Release-As`:
+release-please only lets `Release-As` pick the version, and skips a package whose release notes
+would be empty, which they are when every commit is a hidden type (`chore`, `docs`).
 Publishing happens on the GitHub release event, one package per release, by packing that package and
 `npm publish --provenance`.
 
@@ -158,6 +160,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `examples/` — real projects on the workspace packages, type-checked by `pnpm typecheck`. A
   documented snippet lives here first and is referenced by path, so it cannot stop compiling
   silently.
+<<<<<<< HEAD
 - `examples/starter-nuxt` — the theme starter: what `eldra-theme init` copies. `theme-cli`'s
   `prepack` script copies this directory into `packages/theme-cli/template/` (git-ignored, rebuilt
   on every pack/publish) rather than the CLI depending on it at runtime. Buttons, links and form
@@ -346,6 +349,11 @@ Nuxt's module `setup()` (platform reads included) always finishes before Vite's 
   consumer restyles the package by setting variables, never by overriding a class. `tokens.css` is
   generated from `eldra-starter-spec/tokens.json` and regenerated with `build-tokens`, never
   hand-edited.
+=======
+- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `frameworks.md` (the
+  contract a wrapper for another framework must satisfy), `roadmap.md` (planned work; remove a line
+  in the change that builds it).
+>>>>>>> origin/main
 
 ## Testing
 

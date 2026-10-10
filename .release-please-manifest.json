@@ -1,6 +1,7 @@
 {
-  "packages/sdk": "0.2.6",
+  "packages/sdk": "0.2.7",
   "packages/rich-text": "0.1.1",
+<<<<<<< HEAD
   "packages/vue": "0.1.1",
   "packages/theme-core": "0.0.0",
   "packages/theme-vue": "0.0.0",
@@ -8,4 +9,7 @@
   "packages/theme-cli": "0.0.0",
   "packages/theme-nuxt": "0.0.0",
   "packages/ui": "0.0.0"
+=======
+  "packages/vue": "0.1.2"
+>>>>>>> origin/main
 }

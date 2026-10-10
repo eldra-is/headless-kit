@@ -26,9 +26,13 @@ const eldra = createEldraClient({ orgId: 'your-organisation-id' });
 const { data: products } = await eldra.catalog.listProducts();
 ```
 
+<<<<<<< HEAD
 Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md).
 UI components: start with [docs/ui.md](docs/ui.md). Themes: start with [docs/themes.md](docs/themes.md).
 Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
+=======
+Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md). Planned work: [docs/roadmap.md](docs/roadmap.md). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
+>>>>>>> origin/main
 Security reports: [SECURITY.md](SECURITY.md).
 
 MIT licensed — see [LICENSE](LICENSE).

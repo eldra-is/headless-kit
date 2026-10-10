@@ -9,6 +9,7 @@ platform repository.
 
 ## Unreleased
 
+<<<<<<< HEAD
 - **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
   client by requests per minute, which a static build of a real catalogue meets routinely. The
   default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a
@@ -25,6 +26,12 @@ platform repository.
   header name or a `GET` with a body fails on the first attempt, because repeating it can only fail
   the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
   and `EldraRetryOptions` a new exported type.
+=======
+- `analyticsTrackerScript`'s documentation no longer says events always reach the gateway; with
+  `eventOrigin` set they go to that first-party proxy.
+
+## 0.2.6 — 2026-10-08
+>>>>>>> origin/main
 
 - Responsive images: `responsiveImage` returns `src`, `srcset`, `sizes`, `width` and `height` for
   an `<img>` from any media URL or object the API returns; `imageSrcset`, `imageUrl`,
@@ -32,6 +39,7 @@ platform repository.
   URL serves 800 px, so a storefront rendering it as-is was soft on wide screens. External URLs
   and formats the host does not resize come back unchanged. See `docs/images.md`.
 
+<<<<<<< HEAD
 - `categoryId`, `collectionId` and `option` are sent as repeated query parameters, one entry per
   value, like `filter` — the gateway declares all four `explode: true` (contract 3.7.0). Each is an
   OR over its values, so the comma-joined form was one value nothing matched: a storefront filtering
@@ -100,10 +108,34 @@ checkout URL`, `Could not read the platform checkout URL … : <why>` (with the 
   several tokens ran them together and every token after the first was lost — a request that
   filtered on less than it was asked to, with no error. `sort`, `fields` and every other array
   parameter are declared `explode: false` and stay comma-separated.
+=======
+## 0.2.5 — 2026-09-25
+
+- `analyticsTrackerScript` builds the analytics tracker `<script>` attributes from the same
+  configuration as the client, so the script comes from the gateway the site reads from. Events go
+  there too, unless `eventOrigin` names a first-party proxy to send them through.
+
+## 0.2.4 — 2026-09-23
+
+- `checkout.handoffUrl` defaults to the hosted checkout at `https://checkout.eldra.app` (exported
+  as `DEFAULT_ELDRA_CHECKOUT_URL`) when the client uses the default API base URL, so a production
+  storefront no longer needs a checkout URL setting. `checkoutUrl` and the `ELDRA_CHECKOUT_URL` env
+  keys still override it; a client on any other gateway must still name its checkout.
+
+## 0.2.3 — 2026-09-23
+
+- `EldraHttpError.errorId` carries the problem's specific reason, such as `CART_NOT_FOUND` or
+  `CART_INSUFFICIENT_STOCK`. The docs told you to branch on `code` for these, but the gateway puts
+  them in `errorId`; `code` is only the category (`NOT_FOUND`, `CONFLICT`) and is unchanged.
+>>>>>>> origin/main
+
+## 0.2.2 — 2026-09-20
 
 - Restore `previewToken` on the SDK client and Vite generator after the move from
   `vue-ui-components`. Accepts a string or callback and sends `X-Preview-Token`; the generator
   forwards it to both type endpoints without embedding it in generated files.
+
+## 0.2.1 — 2026-09-16
 
 - The Vite plugin writes `.eldra/web-studio/` beside the nearest `package.json` instead of Vite's
   root; on Nuxt 4 the root is `app/`, and the folder landed there. A relative `outDir` is resolved
