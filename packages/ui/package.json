@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/ui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Accessible Vue 3 core components for Eldra storefronts: buttons, forms, selects, cards, overlays and navigation, themed through CSS design tokens.",
   "keywords": [
     "accessible",

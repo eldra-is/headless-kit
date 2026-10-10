@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/vite-plugin-theme",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vite plugin for Eldra themes: scans blocks/*/block.json, validates them, emits the theme manifest and the virtual modules the runtime reads (blocks, manifest, block fields, breakpoints, tokens CSS).",
   "keywords": [
     "cms",

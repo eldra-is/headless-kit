@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/theme-nuxt",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Nuxt module for Eldra themes: wires @eldrajs/vite-plugin-theme, the gateway client, draft overlays and the Studio preview bridge into a Nuxt 4 site.",
   "keywords": [
     "cms",

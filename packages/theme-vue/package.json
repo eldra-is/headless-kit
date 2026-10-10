@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/theme-vue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vue 3 bindings for the Eldra theme SDK: block zones, layouts, rich text and the Studio preview composables over @eldrajs/theme-core.",
   "keywords": [
     "cms",
