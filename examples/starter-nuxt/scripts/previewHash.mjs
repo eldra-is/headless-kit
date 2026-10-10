@@ -46,20 +46,54 @@ function blockFiles(blockDir, prefix = '') {
 }
 
 /**
- * The installed `@eldrajs/ui` version, as resolved from the starter itself.
+ * What `@eldrajs/ui` contributes to a block's hash.
  *
  * The screenshots render through the package's own components and stylesheet, so a package change
  * can change every preview with nothing in `blocks/**` or `main.css` touched — which is exactly
  * what happened to the carousel fix (A1): it needed a hand-written "now regenerate every preview"
- * instruction because no test could tell. In this monorepo the starter depends on
- * `workspace:*`, so the version only moves on a release; that is the coarse-grained answer, and it
- * is the honest one — hashing the package's built `dist/` would make the digest depend on whether
- * the workspace happened to be built, and on a customer's install layout.
+ * instruction because no test could tell.
+ *
+ * Inside this monorepo the starter depends on `workspace:*`, so the package resolves to
+ * `packages/ui` itself: the digest is then the package's **source** (`src/**`, minus tests,
+ * stories and screenshots), which moves exactly when the rendered output can and never on a
+ * version bump — a release pull request changes only `package.json`'s version and cannot run the
+ * preview generator, so hashing the version made every release fail this suite. A theme
+ * scaffolded by `eldra-theme init` resolves an installed copy with no `src/`; there the version is
+ * the only honest signal and is used as before. Hashing the built `dist/` is avoided in both
+ * cases: it would make the digest depend on whether the workspace happened to be built.
  */
-function uiPackageVersion(rootDir) {
+const UI_SOURCE_EXCLUDED_DIRS = new Set(['__tests__', '__screenshots__']);
+const UI_SOURCE_EXCLUDED_SUFFIXES = ['.stories.ts', '.spec.ts', '.test.ts'];
+
+function uiSourceFiles(dir, prefix = '') {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (UI_SOURCE_EXCLUDED_DIRS.has(entry.name)) continue;
+      out.push(...uiSourceFiles(join(dir, entry.name), `${prefix}${entry.name}/`));
+    } else if (!UI_SOURCE_EXCLUDED_SUFFIXES.some((suffix) => entry.name.endsWith(suffix))) {
+      out.push(`${prefix}${entry.name}`);
+    }
+  }
+  return out.sort();
+}
+
+function uiPackageDigest(rootDir) {
   try {
     const require = createRequire(join(rootDir, 'package.json'));
-    const manifest = JSON.parse(readFileSync(require.resolve('@eldrajs/ui/package.json'), 'utf8'));
+    const manifestPath = require.resolve('@eldrajs/ui/package.json');
+    const packageDir = join(manifestPath, '..');
+    const sourceDir = join(packageDir, 'src');
+    if (existsSync(sourceDir)) {
+      const hash = createHash('sha256');
+      for (const file of uiSourceFiles(sourceDir)) {
+        hash.update(`${file}\0`);
+        hash.update(readFileSync(join(sourceDir, file)));
+        hash.update('\0');
+      }
+      return `@eldrajs/ui#src:${hash.digest('hex')}`;
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     return `@eldrajs/ui@${manifest.version}`;
   } catch {
     // A tree with no installed packages (a fresh clone before `pnpm install`) still hashes, it just
@@ -71,7 +105,8 @@ function uiPackageVersion(rootDir) {
 /**
  * sha256 of every file under `blocks/<id>/` except `__tests__/` and the screenshot itself, plus
  * `app/assets/main.css` (a shared style change invalidates every block) and the resolved
- * `@eldrajs/ui` version, per the previews.json contract.
+ * `@eldrajs/ui` digest (its source in this workspace, its version in a scaffolded theme), per the
+ * previews.json contract.
  *
  * Each file's path is folded into the digest alongside its bytes, so moving content between two
  * files inside a block changes the hash too.
@@ -85,6 +120,6 @@ export function hashBlock(rootDir, id) {
   }
   hash.update('app/assets/main.css');
   hash.update(readFileSync(join(rootDir, 'app', 'assets', 'main.css')));
-  hash.update(uiPackageVersion(rootDir));
+  hash.update(uiPackageDigest(rootDir));
   return hash.digest('hex');
 }

@@ -213,9 +213,9 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   (`scripts/previews.mjs`) keyed by a content hash of **every file under `blocks/<id>/`** except
   `__tests__/` and `preview.png` itself (so a block's `parts/*.vue`, its `block.json` and any helper
   module all count — a named file list silently went stale as blocks grew part files), **plus
-  `main.css`** (a shared style change invalidates every block's hash) **plus the resolved
-  `@eldrajs/ui` version** (a package change can repaint every preview with nothing in the theme
-  touched) — `test/previewsFresh.spec.ts`
+  `main.css`** (a shared style change invalidates every block's hash) **plus the `@eldrajs/ui` package itself** (its source when it resolves to this workspace, its
+  version in a scaffolded theme — a package change can repaint every preview with nothing in the
+  theme touched, while a release bump alone must not) — `test/previewsFresh.spec.ts`
   fails "run pnpm previews" when a hash is stale, so run `pnpm --filter starter-nuxt previews` after
   any block, `main.css` or package change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
@@ -341,7 +341,8 @@ Nuxt's module `setup()` (platform reads included) always finishes before Vite's 
   build step to auto-import from.
 - **Previews hash every file that can change what they show.** A block's `preview.png` is keyed by a
   content hash of every file under `blocks/<id>/` (except `__tests__/` and `preview.png` itself)
-  plus `main.css` plus the resolved `@eldrajs/ui` version — not a named file list, which goes stale
+  plus `main.css` plus the `@eldrajs/ui` digest (source in this workspace, version in a scaffolded
+  theme) — not a named file list, which goes stale
   the moment a block grows a part file. `test/previewsFresh.spec.ts` fails a stale hash with "run
   pnpm previews".
 - **The CSS variable rule in `@eldrajs/ui`.** No value is written literally: every colour, radius,
