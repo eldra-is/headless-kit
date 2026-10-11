@@ -1,5 +1,11 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { createEldraClient, customerHeaders, EldraHttpError, isEldraError } from '../index';
+import {
+  createEldraClient,
+  customerHeaders,
+  EldraHttpError,
+  EldraIdempotencyKeyError,
+  isEldraError,
+} from '../index';
 import type { EldraErrorId, EldraHttpRequest } from '../index';
 import { stubHttpClient } from './support';
 
@@ -149,19 +155,36 @@ describe('eldra sdk sales orders', () => {
     expect(requests[0].headers.get('Idempotency-Key')).toBe('key-3');
   });
 
-  it('refuses a key longer than 255 characters with a TypeError and sends nothing', async () => {
+  it.each([
+    ['longer than 255 characters', 'k'.repeat(256)],
+    ['with a leading space', ' key'],
+    ['with a space inside', 'my key'],
+    ['with a trailing newline', 'key\n'],
+    ['with a control character', 'key\u0001'],
+    ['with a non-ASCII letter', 'lykill-þ'],
+  ])('refuses a key %s with an EldraIdempotencyKeyError and sends nothing', async (_, key) => {
     const { client, requests } = recording(order);
 
-    await expect(
-      client.salesOrders.create({ cartId: 'cart-1' }, { idempotencyKey: 'k'.repeat(256) }, signedIn)
-    ).rejects.toThrow(TypeError);
-    await client.salesOrders.create(
-      { cartId: 'cart-1' },
-      { idempotencyKey: 'k'.repeat(255) },
-      signedIn
-    );
+    const error = await client.salesOrders
+      .create({ cartId: 'cart-1' }, { idempotencyKey: key }, signedIn)
+      .catch((e: unknown) => e);
 
-    expect(requests).toHaveLength(1);
+    expect(error).toBeInstanceOf(EldraIdempotencyKeyError);
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).name).toBe('EldraIdempotencyKeyError');
+    expect(requests).toHaveLength(0);
+  });
+
+  it.each([
+    ['255 characters', 'k'.repeat(255)],
+    ['a UUID', '6f1c2d3e-4b5a-4c6d-8e7f-90a1b2c3d4e5'],
+    ['printable punctuation', '!~key:1/2'],
+  ])('sends a key of %s unchanged', async (_, key) => {
+    const { client, requests } = recording(order);
+
+    await client.salesOrders.create({ cartId: 'cart-1' }, { idempotencyKey: key }, signedIn);
+
+    expect(requests[0].headers.get('Idempotency-Key')).toBe(key);
   });
 
   it.each([undefined, '', '   '])(
@@ -175,14 +198,14 @@ describe('eldra sdk sales orders', () => {
           { idempotencyKey } as { idempotencyKey: string },
           signedIn
         )
-      ).rejects.toThrow(TypeError);
+      ).rejects.toThrow(EldraIdempotencyKeyError);
       await expect(
         client.salesOrders.create(
           { cartId: 'cart-1' },
           undefined as unknown as { idempotencyKey: string },
           signedIn
         )
-      ).rejects.toThrow(/idempotency key/i);
+      ).rejects.toThrow(EldraIdempotencyKeyError);
       expect(requests).toHaveLength(0);
     }
   );

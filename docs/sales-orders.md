@@ -3,7 +3,7 @@
 A signed-in business customer (see [business-login.md](business-login.md)) can order on account:
 the supplier sends the goods and invoices the company later, so there is no payment step. The
 calls act for the person's **active company**. The types come from the generated contract
-(2.18.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
+(3.15.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
 `EldraSalesOrderLine`, `EldraSalesOrderList`, `EldraCreateSalesOrderInput` and
 `EldraSalesOrderListOptions`.
 
@@ -60,12 +60,17 @@ already. Otherwise the answer is 409 `SALES_ORDER_CART_NOT_BOUND`: add to the ca
 
 ## The idempotency key
 
-`salesOrders.create` requires `{ idempotencyKey }`, at most 255 characters. Without a usable one it
-rejects with a `TypeError` and sends nothing: that is a bug in the calling code, never a reason to
-retry.
+`salesOrders.create` requires `{ idempotencyKey }`: 1 to 255 printable ASCII characters, no
+spaces (a UUID is fine). Without a usable one it rejects with an `EldraIdempotencyKeyError` and
+sends nothing: that is a bug in the calling code, never a reason to retry. Catch that class, not
+every `TypeError`: `fetch` reports a lost connection as a `TypeError` too, and that one may follow
+a placed order, so it is retried with the same key.
 
 - Mint a key (a random UUID) when the person starts placing the order, and store it with that
-  checkout attempt, for example in the server session.
+  checkout attempt. Either place is fine: the server session, or the browser tab's
+  `sessionStorage` when the key travels to your server through your own same-origin route (the
+  starter does this). A key per tab means two tabs make two attempts; the cart lets only one of
+  them become an order (`SALES_ORDER_CART_ALREADY_ORDERED`).
 - **Keep the same key across retries.** A 502, a 503 or a timeout may follow an order that was
   placed. Retrying with the same key replays that order instead of placing a second one. Never
   mint a new key to retry.
@@ -108,28 +113,29 @@ if (isEldraError(error, 'SALES_ORDER_CART_ALREADY_ORDERED')) {
 }
 ```
 
-| Status | `errorId`                                                                                   | What to do                                                                       |
-| ------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| 400    | `SALES_ORDER_CART_EMPTY`, `SALES_ORDER_TOO_MANY_LINES`                                      | Fix the cart                                                                     |
-| 400    | `SALES_ORDER_LINE_INVALID`                                                                  | `errors.variantId` cannot be ordered; remove it                                  |
-| 400    | `SALES_ORDER_IDEMPOTENCY_KEY_REQUIRED`                                                      | Send a key (the SDK refuses before sending)                                      |
-| 401    | `SHOP_TOKEN_INVALID`                                                                        | Refresh the token or sign in again                                               |
-| 403    | `SHOP_NO_MEMBERSHIP`, `SHOP_CUSTOMER_NOT_MEMBER`, `FEATURE_DISABLED`                        | No company, not this company's member, or business sales are off                 |
-| 403    | `ORIGIN_NOT_REGISTERED`                                                                     | Preview and create are origin-bound; call from a registered origin or the server |
-| 404    | `CART_NOT_FOUND`, `SALES_ORDER_NOT_FOUND`                                                   | Gone, or another company's                                                       |
-| 409    | `SHOP_CUSTOMER_REQUIRED`                                                                    | Send `X-Customer-Id`                                                             |
-| 409    | `CUSTOMER_BLOCKED`                                                                          | The company may not order now; tell the person to contact the supplier           |
-| 409    | `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`                                                         | Over the credit limit (no figures are answered)                                  |
-| 409    | `SALES_ORDER_CART_NOT_BOUND`                                                                | Add to the cart signed in first                                                  |
-| 409    | `SALES_ORDER_CART_ALREADY_ORDERED`                                                          | The cart is already the order `errors.salesOrderId`; show it                     |
-| 409    | `SALES_ORDER_LOCATION_UNKNOWN`                                                              | Not one of the company's locations; reload them                                  |
-| 409    | `ORDER_PRODUCT_UNAVAILABLE`                                                                 | `errors.variantIds` are no longer sold; remove them                              |
-| 409    | `ORDER_CUSTOMER_UNAVAILABLE`, `ORDER_CUSTOMER_PRICES_OFF`                                   | The company can no longer buy at its prices; move the person to a guest cart     |
-| 409    | `ORDER_IDEMPOTENCY_CONFLICT`                                                                | The key was used for another body; mint a new one                                |
-| 422    | (none)                                                                                      | A field is too long or malformed, or the body names something it may not         |
-| 502    | `SALES_ORDER_UPSTREAM_REFUSED`                                                              | Try again later. **Never sign the person out over it**                           |
-| 503    | `SALES_ORDER_TERMS_UNAVAILABLE`, `SALES_ORDER_CART_UNAVAILABLE`, `ORDER_PRICES_UNAVAILABLE` | Try again                                                                        |
-| 503    | `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`, `SHOP_LOGIN_UNAVAILABLE`                            | Try again                                                                        |
+| Status | `errorId`                                                                                   | What to do                                                                                                                                  |
+| ------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `SALES_ORDER_CART_EMPTY`, `SALES_ORDER_TOO_MANY_LINES`                                      | Fix the cart                                                                                                                                |
+| 400    | `SALES_ORDER_LINE_INVALID`                                                                  | `errors.variantId` cannot be ordered; remove it                                                                                             |
+| 400    | `SALES_ORDER_IDEMPOTENCY_KEY_REQUIRED`                                                      | Send a key (the SDK refuses before sending)                                                                                                 |
+| 401    | `SHOP_TOKEN_INVALID`                                                                        | Refresh the token or sign in again                                                                                                          |
+| 403    | `SHOP_NO_MEMBERSHIP`, `SHOP_CUSTOMER_NOT_MEMBER`, `FEATURE_DISABLED`                        | No company, not this company's member, or business sales are off                                                                            |
+| 403    | `ORIGIN_NOT_REGISTERED`                                                                     | Preview and create are origin-bound; call from a registered origin or the server                                                            |
+| 404    | `CART_NOT_FOUND`, `SALES_ORDER_NOT_FOUND`                                                   | Gone, or another company's                                                                                                                  |
+| 409    | `SHOP_CUSTOMER_REQUIRED`                                                                    | Send `X-Customer-Id`                                                                                                                        |
+| 409    | `CUSTOMER_BLOCKED`                                                                          | The company may not order now; tell the person to contact the supplier                                                                      |
+| 409    | `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`                                                         | Over the credit limit (no figures are answered)                                                                                             |
+| 409    | `SALES_ORDER_CREDIT_CURRENCY_MISMATCH`                                                      | The supplier keeps the company's credit in another currency, so it cannot be checked; do not retry, tell the person to contact the supplier |
+| 409    | `SALES_ORDER_CART_NOT_BOUND`                                                                | Add to the cart signed in first                                                                                                             |
+| 409    | `SALES_ORDER_CART_ALREADY_ORDERED`                                                          | The cart is already the order `errors.salesOrderId`; show it                                                                                |
+| 409    | `SALES_ORDER_LOCATION_UNKNOWN`                                                              | Not one of the company's locations; reload them                                                                                             |
+| 409    | `ORDER_PRODUCT_UNAVAILABLE`                                                                 | `errors.variantIds` are no longer sold; remove them                                                                                         |
+| 409    | `ORDER_CUSTOMER_UNAVAILABLE`, `ORDER_CUSTOMER_PRICES_OFF`                                   | The company can no longer buy at its prices; move the person to a guest cart                                                                |
+| 409    | `ORDER_IDEMPOTENCY_CONFLICT`                                                                | The key was used for another body; mint a new one                                                                                           |
+| 422    | (none)                                                                                      | A field is too long or malformed, or the body names something it may not                                                                    |
+| 502    | `SALES_ORDER_UPSTREAM_REFUSED`                                                              | Try again later. **Never sign the person out over it**                                                                                      |
+| 503    | `SALES_ORDER_TERMS_UNAVAILABLE`, `SALES_ORDER_CART_UNAVAILABLE`, `ORDER_PRICES_UNAVAILABLE` | Try again                                                                                                                                   |
+| 503    | `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`, `SHOP_LOGIN_UNAVAILABLE`                            | Try again                                                                                                                                   |
 
 Only 401 `SHOP_TOKEN_INVALID` means the person must sign in again. 502
 `SALES_ORDER_UPSTREAM_REFUSED` means the supplier's order service refused the platform's own call,

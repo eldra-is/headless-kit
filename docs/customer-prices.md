@@ -1,7 +1,7 @@
 # Customer prices
 
 A signed-in business customer (see [business-login.md](business-login.md)) can get their own
-prices from the same catalog and cart calls. The types come from the generated contract (2.17.0):
+prices from the same catalog and cart calls. The types come from the generated contract (3.15.0):
 priced variants add an optional `listPrice`, and list items carry the customer's `minPrice` and
 `maxPrice` plus `listPrice`, the list price of the variant `minPrice` came from.
 
@@ -61,8 +61,8 @@ reference implementation.
 - B2B switched off: cart writes on a bound cart are 409 `CART_CUSTOMER_PRICES_OFF`, and order
   create and preview are 409 `ORDER_CUSTOMER_PRICES_OFF`. Move the basket to a guest cart.
 - Company archived or unknown: cart writes on a bound cart are 409 `CART_CUSTOMER_UNAVAILABLE`,
-  and order create and preview are 409 `ORDER_CUSTOMER_UNAVAILABLE` (before contract 2.17.0 settled
-  this was 503 `*_PRICES_UNAVAILABLE`, which is now only a real price-service outage). Handle both
+  and order create and preview are 409 `ORDER_CUSTOMER_UNAVAILABLE` (503 `*_PRICES_UNAVAILABLE` is
+  only a real price-service outage). Handle both
   like `*_CUSTOMER_PRICES_OFF`: end the business session for that company, or move the basket to a
   guest cart.
 - **The order can differ from the cart page.** A bound cart shows the prices stored when each line

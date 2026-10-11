@@ -1,7 +1,13 @@
 // Orders on account for a signed-in business customer (docs/sales-orders.md).
 // Server-side only: the token comes from your session store, never from the browser.
 import { randomUUID } from 'node:crypto';
-import { createEldraClient, customerHeaders, EldraHttpError, isEldraError } from '@eldrajs/sdk';
+import {
+  createEldraClient,
+  customerHeaders,
+  EldraHttpError,
+  EldraIdempotencyKeyError,
+  isEldraError,
+} from '@eldrajs/sdk';
 import type { EldraSalesOrder } from '@eldrajs/sdk';
 
 type Eldra = ReturnType<typeof createEldraClient>;
@@ -64,15 +70,17 @@ export async function placeOnAccount(
     );
     return { kind: 'placed', order };
   } catch (error) {
-    // A missing or over-long key is a programming error, never something to retry: fix the code.
-    if (error instanceof TypeError) throw error;
+    // A missing or malformed key is a bug in this code: fix it, never retry it. Test for this class,
+    // not for TypeError: a lost connection is a TypeError too, and it is retried below.
+    if (error instanceof EldraIdempotencyKeyError) throw error;
     if (isEldraError(error, 'SALES_ORDER_CART_ALREADY_ORDERED')) {
       const salesOrderId = error.errors?.salesOrderId;
       if (typeof salesOrderId === 'string') return { kind: 'already-ordered', salesOrderId };
     }
     if (!(error instanceof EldraHttpError)) {
-      // A timeout or a dropped connection: the order may have been placed. Retry with the same
-      // checkout, and so the same key, which replays it rather than placing a second.
+      // A timeout or a dropped connection (fetch reports it as a TypeError): the order may have
+      // been placed. Retry with the same checkout, and so the same key, which replays it rather
+      // than placing a second.
       return { kind: 'retry' };
     }
     // Only an invalid token means sign in again; SALES_ORDER_UPSTREAM_REFUSED (502) never does.

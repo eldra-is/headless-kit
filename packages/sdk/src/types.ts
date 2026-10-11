@@ -561,7 +561,7 @@ export type EldraShopErrorId =
   | 'FEATURE_DISABLED';
 
 /**
- * Error ids of the sales-order routes (contract 2.18.0). `SALES_ORDER_CART_ALREADY_ORDERED`
+ * Error ids of the sales-order routes (contract 3.15.0). `SALES_ORDER_CART_ALREADY_ORDERED`
  * carries `errors.salesOrderId`, `SALES_ORDER_LINE_INVALID` `errors.variantId` and
  * `ORDER_PRODUCT_UNAVAILABLE` `errors.variantIds` on `EldraHttpError.errors`.
  */
@@ -574,6 +574,7 @@ export type EldraSalesOrderErrorId =
   | 'SALES_ORDER_CART_ALREADY_ORDERED'
   | 'SALES_ORDER_LOCATION_UNKNOWN'
   | 'SALES_ORDER_CREDIT_LIMIT_EXCEEDED'
+  | 'SALES_ORDER_CREDIT_CURRENCY_MISMATCH'
   | 'SALES_ORDER_CREDIT_CHECK_UNAVAILABLE'
   | 'SALES_ORDER_TERMS_UNAVAILABLE'
   | 'SALES_ORDER_CART_UNAVAILABLE'
@@ -608,7 +609,7 @@ export type EldraErrorId =
   | (string & {});
 
 /**
- * Orders on account for a signed-in business customer's active company (contract 2.18.0).
+ * Orders on account for a signed-in business customer's active company (contract 3.15.0).
  * Server-side only: pass `customerHeaders(accessToken, customerId)` as `context.headers` on every
  * call. Every answer is `Cache-Control: private, no-store`; never cache one. See
  * docs/sales-orders.md.
@@ -628,8 +629,8 @@ export interface EldraSalesOrdersClient {
   ): Promise<EldraSalesOrderPreview>;
   /**
    * Places the order from the cart (201) and the cart is removed. `options.idempotencyKey` is
-   * required (at most 255 characters): without a usable one the call rejects with a `TypeError`, a
-   * programming error, and sends nothing. **A 502, a 503 or a timeout may
+   * required (1 to 255 printable ASCII characters, no spaces): without a usable one the call rejects
+   * with an `EldraIdempotencyKeyError`, a programming error, and sends nothing. **A 502, a 503 or a timeout may
    * follow an order that was placed**: retry with the same key, which replays that order rather
    * than placing a second. `warnings` name steps the supplier finishes later; the order stands.
    */

@@ -9,35 +9,39 @@ platform repository.
 
 ## Unreleased
 
-- Contract 2.17.0 (customer prices) on top of 2.16.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
+Business customers (B2B), for the next release after 0.2.8. Every entry below needs a gateway
+serving public contract 3.15.0.
+
+- Contract 3.15.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
   `pkceChallenge`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`, `refreshTokens` and
   `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm, `EldraOidcError` on
   failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in business customer
-  and their company memberships (`GET /customer/v1/me`, new in contract 2.16.0). The token is passed
+  and their company memberships (`GET /customer/v1/me`). The token is passed
   per call in `context.headers`. `EldraCustomerMe`, `EldraShopUser` and `EldraCustomerMembership`
   are derived from the generated contract like every other response type. `refreshExpiresAt` is
   `undefined` when the server sends no `refresh_expires_in`. See `docs/business-login.md`.
-- Customer prices (contract 2.17.0): catalog product, list and collection-product reads and cart
+- Customer prices (contract 3.15.0): catalog product, list and collection-product reads and cart
   writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
   responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
   headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
-- Customer carts (contract 2.17.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+- Customer carts (contract 3.15.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
   signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
   `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
   `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
   code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
-- Customer carts (contract 2.17.0): an archived or unknown company now answers 409
+- Customer carts (contract 3.15.0): an archived or unknown company answers 409
   `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
-  preview (before: 503 `*_PRICES_UNAVAILABLE`); treat them like `*_CUSTOMER_PRICES_OFF`. A bound
+  preview; treat them like `*_CUSTOMER_PRICES_OFF`. A bound
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
-- Sales orders and delivery locations (contract 2.18.0) for a signed-in business customer's active
+- Sales orders and delivery locations (contract 3.15.0) for a signed-in business customer's active
   company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
   envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
   context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
-  requires the idempotency key (at most 255 characters) and rejects with a `TypeError` without a
-  usable one, sending nothing; keep the key across
+  requires the idempotency key (1 to 255 printable ASCII characters, no spaces) and rejects with
+  `EldraIdempotencyKeyError` (a `TypeError`) without a usable one, sending nothing. Catch that class,
+  not every `TypeError`: a lost connection is a `TypeError` too and is retried with the key. Keep the key across
   retries (a 502, a 503 or a timeout may follow a placed order, and the same key replays it) and
   mint a new one when the cart or the form changes. Types derived from the contract:
   `EldraCustomerLocationList`, `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrderPreviewLine`,
@@ -48,7 +52,9 @@ platform repository.
   `SALES_ORDER_PAYMENT_NOT_RECORDED` (the order stands). See `docs/sales-orders.md`.
 - Error ids are typed: `EldraHttpError.errorId` is `EldraErrorId`, the known `EldraShopErrorId` and
   `EldraSalesOrderErrorId` values or any other string. New with sales orders: `CUSTOMER_BLOCKED`,
-  `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`, `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`,
+  `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`, `SALES_ORDER_CREDIT_CURRENCY_MISMATCH` (the supplier blocks
+  over-limit orders and keeps the credit in another currency; do not retry),
+  `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`,
   `SALES_ORDER_CART_NOT_BOUND`, `SALES_ORDER_CART_EMPTY`, `SALES_ORDER_TOO_MANY_LINES`,
   `SALES_ORDER_LINE_INVALID`, `SALES_ORDER_CART_ALREADY_ORDERED`, `SALES_ORDER_LOCATION_UNKNOWN`,
   `SALES_ORDER_TERMS_UNAVAILABLE`, `SALES_ORDER_CART_UNAVAILABLE`,

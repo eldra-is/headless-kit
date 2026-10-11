@@ -2,6 +2,7 @@ export {
   createEldraClient,
   DEFAULT_ELDRA_API_BASE_URL,
   EldraHttpError,
+  EldraIdempotencyKeyError,
   getEldraClient,
   initEldraClient,
   isEldraError,

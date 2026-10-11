@@ -110,12 +110,23 @@ export class EldraHttpError extends Error {
   }
 }
 
-const maxIdempotencyKeyLength = 255;
+/**
+ * Thrown by `salesOrders.create`, before anything is sent, when the idempotency key is missing or not
+ * 1 to 255 printable ASCII characters without spaces. A bug in the calling code: fix it, never retry.
+ * Catch this class, not every `TypeError`: `fetch` reports a lost connection as a `TypeError` too,
+ * and that one may follow a placed order, so it is retried with the same key.
+ */
+export class EldraIdempotencyKeyError extends TypeError {
+  override name = 'EldraIdempotencyKeyError';
+}
 
-// A missing or malformed key is the caller's bug, not a refusal: it throws before anything is sent.
+const idempotencyKeyPattern = /^[\x21-\x7e]{1,255}$/;
+
 function checkIdempotencyKey(key: unknown): string {
-  if (typeof key !== 'string' || !key.trim() || key.length > maxIdempotencyKeyLength) {
-    throw new TypeError('salesOrders.create needs an idempotency key of 1 to 255 characters');
+  if (typeof key !== 'string' || !idempotencyKeyPattern.test(key)) {
+    throw new EldraIdempotencyKeyError(
+      'salesOrders.create needs an idempotency key of 1 to 255 printable ASCII characters'
+    );
   }
   return key;
 }
