@@ -1,0 +1,17 @@
+{
+  "apiId": "hero",
+  "name": "Hero",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true
+    },
+    { "fieldId": "subheading", "name": "Subheading", "type": "text", "localized": true }
+  ],
+  "slots": [{ "id": "actions", "label": "Actions", "maxItems": 2, "allowedBlockApiIds": ["cta"] }]
+}

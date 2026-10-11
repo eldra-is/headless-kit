@@ -1,0 +1,71 @@
+{
+  "apiId": "product-carousel",
+  "name": "Product carousel",
+  "description": "A horizontally scrolling row of product cards, such as \"You may also like\" or \"Recently viewed\", with a heading, a view-all link, arrows and a counter.",
+  "icon": "carousel-horizontal",
+  "category": "commerce",
+  "version": 3,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as an h2, e.g. \"You may also like\".",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "related is the default.",
+      "metadata": { "options": ["related", "recently-viewed", "collection"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "sourceCollection",
+      "name": "Collection",
+      "type": "reference",
+      "relation": { "allowCollections": true },
+      "helpText": "Pick the collection this carousel shows.",
+      "showWhen": { "field": "variant", "in": ["collection"] }
+    },
+    {
+      "fieldId": "limit",
+      "name": "Limit",
+      "type": "select",
+      "helpText": "8 is the default.",
+      "metadata": { "options": ["4", "8", "12"] }
+    },
+    {
+      "fieldId": "viewAllLabel",
+      "name": "View all label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Makes the heading a link; read after the heading by assistive technology, e.g. \"View all\".",
+      "showWhen": { "field": "variant", "in": ["related", "collection"] }
+    },
+    {
+      "fieldId": "viewAllHref",
+      "name": "View all link",
+      "type": "string",
+      "helpText": "Where the heading links to. The collection variant links to the collection you picked instead.",
+      "showWhen": { "field": "variant", "in": ["related"] }
+    },
+    {
+      "fieldId": "showSwatches",
+      "name": "Show swatches",
+      "type": "bool",
+      "default": true,
+      "helpText": "Off automatically in recently-viewed."
+    },
+    {
+      "fieldId": "background",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default (surface recommended for recently-viewed).",
+      "metadata": { "options": ["none", "surface"] }
+    }
+  ]
+}

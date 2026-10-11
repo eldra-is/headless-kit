@@ -1,0 +1,12 @@
+{
+  "variant": "row",
+  "heading": "Small workshop, long memory",
+  "intro": "We started with one loom and a folding table. Everything we sell is still made by people we know by name, and we still read every review.",
+  "items": [
+    { "value": "38", "label": "Independent makers, from Shetland to the Kyoto hills" },
+    { "value": "12", "label": "Years since our first market stall" },
+    { "value": "4.8", "label": "Average rating across 9,214 verified reviews" },
+    { "value": "140k", "label": "Mugs, bowls and blankets sent out since 2014" }
+  ],
+  "sectionBackground": "none"
+}

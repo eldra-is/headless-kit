@@ -1,0 +1,192 @@
+# Design tokens
+
+Theme `tokens.json` is the framework-neutral source of color tokens and layout container presets. New themes use descriptor catalogs with the required `narrow`, `content`, `wide`, and `full` containers. CMS values contain token ids or validated custom colors, never CSS variable names or utility classes.
+
+`@eldrajs/vite-plugin-theme` exposes two CSS entries:
+
+- `virtual:eldra/tokens.css` emits the generic `--eldra-color-*` and `--eldra-container-*` variables. `@eldrajs/theme-nuxt` imports this entry automatically.
+- `virtual:eldra/tailwind-theme.css` is opt-in. Configure `eldraTheme({ tailwind: true })`. The module imports Tailwind v4 and emits top-level `@theme static` `--color-*` variables backed by the generic Eldra variables.
+
+**A JS-level side-effect import of that virtual id works:**
+
+```ts
+import 'virtual:eldra/tailwind-theme.css';
+```
+
+`packages/vite-plugin-theme/src/__tests__/plugin.spec.ts`'s Tailwind test does exactly this, from a
+`.ts` entry, and passes — `vite-plugin-theme`'s `resolveId` hook resolves the bare id normally
+through Vite's plugin chain.
+
+**A CSS-level `@import` of the same id does not work, and this is not theme-specific.** Verified
+with a real `nuxi generate` against `examples/starter-nuxt`: `@tailwindcss/vite` resolves every
+`@import` inside a CSS file with its
+own filesystem resolver (`enhanced-resolve`), not through Vite's `resolveId` plugin chain, so it
+never reaches `vite-plugin-theme`'s hook that maps the bare id to the resolved virtual module. A
+theme whose CSS entry starts with
+
+```css
+@import 'virtual:eldra/tailwind-theme.css';
+```
+
+fails the build with `Error: Can't resolve 'virtual:eldra/tailwind-theme.css'`. This matters in
+practice because a real theme almost always wants to combine the adapter's color variables with its
+own hand-authored `@theme` extension (fonts, radii, shadows) and `@layer base` rules in **one** CSS
+file — and Nuxt's `css: [...]` array only accepts CSS files, so the JS-level import above is not an
+option there either. A second CSS entry carrying only the `@theme` extension does not work as a
+workaround: Tailwind v4 treats each file containing `@import "tailwindcss"` as its own independent
+build root, so a sibling file's `@theme` block is never merged into it.
+
+**The fallback every theme should use instead:** keep `eldra.tailwind: false` (the default) and
+author the CSS entry as a single self-contained Tailwind root —
+
+```css
+@import 'tailwindcss';
+
+@theme static {
+  --color-primary: var(--eldra-color-primary);
+  /* … one line per color token in tokens.json … */
+}
+
+@theme {
+  /* the theme's own font/radius/shadow/spacing extension */
+}
+```
+
+register `@tailwindcss/vite` directly in the theme's own Vite config (the adapter asserts
+`tailwindcss@4.x` is installed when `tailwind: true`, but never registers the actual transform
+plugin itself — every consumer must add `vite: { plugins: [tailwindcss()] }`), and keep the
+generated `@theme static` color block in sync with `tokens.json` with a small script checked in CI.
+`--eldra-color-*` custom properties are available regardless of the `tailwind` option (`theme-nuxt`
+always imports `virtual:eldra/tokens.css`), so the generated block's `var(--eldra-color-<id>)`
+references resolve either way.
+
+**A theme on `@eldrajs/ui` writes no generated block at all**, which is what the starter now does:
+`@import '@eldrajs/ui/tailwind.css'` after `@import 'tailwindcss'` brings the whole `@theme`
+mapping with it (`--color-<role>: var(--eldra-color-<role>)` for every role, plus radii, shadows,
+fonts and the package's utilities), and unlike the virtual module it is an ordinary `node_modules`
+file Tailwind's CSS resolver finds. The theme's `tokens.json` ids and the package's role names are
+then the same set, so no sync script can drift. One ordering rule replaces it: the package's
+defaults must come _before_ `virtual:eldra/tokens.css`, or the package's values would win over the
+theme's own. See [`docs/starter-kit.md`](starter-kit.md) and
+`examples/starter-nuxt/app/assets/main.css` for the starter's exact version of this.
+
+Literal theme-source classes such as `bg-primary`, `text-muted`, and `border-border` then compile
+normally. Do not build class names from CMS values and do not add CMS content as a Tailwind source.
+Enabling the adapter (`tailwind: true`) without `tailwindcss` major 4 installed fails the build with
+an actionable error.
+
+Vue's `EldraLayout` accepts the resolved catalog through its `designTokens` prop or the provided Eldra context. It emits nonce-compatible generic token CSS and validates every referenced container id before rendering. Explicit responsive width, maximum width, margin, and padding values override the corresponding preset declarations at each breakpoint.
+
+Live Studio updates are accepted only through the versioned bridge after the theme advertises the `design-tokens` capability. The runtime validates the complete bounded resolved catalog before atomically replacing the prior catalog; stale or malformed updates are ignored.
+
+### The build-time merge (`@eldrajs/theme-nuxt`)
+
+A saved override reaches the open builder preview immediately over the bridge above, but a
+**deployed** site only ever rendered `manifest.tokens` — the theme's own `tokens.json`, with no
+override applied — because nothing in the build read the organisation's resolved catalog. The
+module now does, alongside the store's currency, its locales and its theme-message overrides: a
+fourth fail-soft read of the public gateway route (`GET /site/v1/design-tokens`, same client, same
+retry policy) answers the contract shape `{ revision, resolved }`, `resolved` being the theme's own
+`ThemeDesignTokens` — the theme's tokens with the site's overrides already applied — which
+`readDesignTokens` (`./runtime/designTokens.ts`) re-validates through the same
+`normalizeThemeDesignTokens` a `tokens.json` goes through; a response that does not pass answers
+`null`, with one build warning, exactly like the other three reads.
+
+When that read settles, the module sets `resolveTokens` on the options it handed `eldraTheme()`
+(`EldraThemeOptions['resolveTokens']`, the same mechanism `resolveMessages` uses) to answer the
+platform's resolved catalog outright when the read succeeded, falling back to
+`normalizeThemeDesignTokens(manifestTokens)` — what a credential-less build already renders — when
+it did not. Unlike messages there is nothing to merge key by key: the platform's `resolved` field
+already **is** the whole catalog, so the result simply replaces the theme's own tokens as the input
+to `generateDesignTokenCss`, which is what `virtual:eldra/tokens.css` now serves. The same resolved
+catalog also reaches `runtimeConfig.public.eldra.designTokens`, which is what seeds
+`context.designTokens` on the client (`./runtime/plugin.ts`, falling back to the manifest's own
+tokens the same way) — so a static artifact's generated CSS and its runtime context agree, and both
+carry the organisation's overrides into SSR, prerender and hydration, not only the open preview.
+
+## Messages (`i18n/<tag>.json`)
+
+This section is the build-time merge's own reference. [Theme texts](theme-texts.md) is the
+developer-facing guide — what to ship, what Studio can override, the fallback chain in plain terms,
+and exporting an override back into the theme's own source.
+
+A theme that bakes user-facing text into its blocks — labels, empty-state copy, anything that is
+not CMS or commerce content — declares it as a vue-i18n message catalogue: one file per locale,
+`i18n/<tag>.json`, siblings of `tokens.json` at the theme root. Each file is a nested JSON object
+of strings (vue-i18n's own shape, placeholders like `{count}` included); the plugin flattens it
+into dotted keys (`header.menu`, `cart.empty.title`) for the manifest and for Studio.
+
+One locale's file defines the key set: the **default locale**. Declare it under `package.json`'s
+own `eldra` key, beside the `name`/`version` the scanner already reads from the same file:
+
+```json
+{
+  "name": "my-theme",
+  "eldra": { "defaultLocale": "en-US" }
+}
+```
+
+When undeclared, the default locale is `en-US` when the theme ships that file, else the
+alphabetically first locale file. Every other locale's keys must be a subset of the default
+locale's — a key outside that set fails validation at build time (and in `eldra-theme validate`),
+naming the locale and the offending key.
+
+`manifest.messages = { defaultLocale, locales: { "<tag>": { "<key>": "<value>" } } }` is **absent**
+— not an empty object — when the theme has no `i18n/` directory, so a theme shipping no texts
+never changes its manifest shape.
+
+`eldra-theme types` (and the Vite plugin, on every scan) generates a `MessageKey` union into
+`.eldra/block-types.d.ts` from the default locale's keys, so a theme's own code gets typed message
+keys without a hand-written `Messages` interface.
+
+At build time the plugin also serves `virtual:eldra/messages`, typed
+`{ defaultLocale: string; locales: Record<string, Record<string, string>> }`: on its own this is
+the manifest's own block, or `{ defaultLocale: 'en-US', locales: {} }` when the theme declares none
+(`EldraThemeOptions['resolveMessages']` lets a caller transform that content before it is served —
+see below). Studio can override, or translate, every key the theme ships — the theme's own value is
+always the fallback when no override exists for an organization's locale.
+
+### The build-time merge (`@eldrajs/theme-nuxt`)
+
+`@eldrajs/theme-core/i18n` (framework-free) is where the merge itself lives: `flattenMessages`/
+`unflattenMessages` convert between vue-i18n's nested JSON and the manifest's flat dotted keys;
+`mergeMessageCatalogues(themeDefaults, platform)` layers a platform's theme-message overrides over
+the manifest's own messages — the platform's value wins per key, and a locale the theme never
+shipped a file for is added **whole**, so Studio may translate into a locale nobody on the theme
+side ever wrote. `resolveMessageCatalogue(themeDefaults, platform, orgLocales, orgDefaultLocale)`
+implements the web contract's five-tier per-key fallback to the letter —
+`override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) → theme(themeDefault)`
+— filling in every organization locale's full key set. It takes `themeDefaults` and `platform`
+separately rather than only a merged catalogue because the **last** tier is explicitly
+`theme(themeDefault)` with no accompanying override tier: an override on the theme's own default
+locale must never leak into a key that, for some other locale, falls all the way through to that
+terminal safety net — it has to answer with the theme's own unmerged text there, same as a
+credential-less build would.
+
+`@eldrajs/theme-nuxt`'s module is the one caller: alongside the store's currency and locales reads,
+it adds a third fail-soft read of the public gateway route (`GET /site/v1/theme-messages`, same
+client, same retry policy) — absent gateway credentials or any error answers `null`, with one build
+warning, exactly like the other two reads. Once that read (and the locales read) settle, the module
+sets `resolveMessages` on the options it handed `eldraTheme()` to call `resolveMessageCatalogue`
+with the manifest's messages, the platform's response (or `null`), and the organization's locales
+(falling back to the theme's own locales and its own default locale when the organization's are
+unknown — which is what lets a **credential-less build** still produce a full key set for every
+locale from the manifest alone). The result reaches a theme on `context.messages`
+(`@eldrajs/theme-vue`'s `EldraContext`, reactive `{ defaultLocale, locales }`), the one source the
+starter's `vue-i18n` plugin reads from.
+
+### The preview bridge
+
+Site settings → "Theme texts" pushes a live edit into an open builder preview as
+`editor:theme-messages` (`{ revision, locales: { "<tag>": { "<key>": "<value>" } } }`,
+`@eldrajs/theme-core/bridge`'s `ResolvedThemeMessagesPayload`). `@eldrajs/theme-vue`'s
+`useEldraPreview` handles it beside `editor:design-tokens`: for every locale tag the push names, it
+**replaces** `context.messages.locales[tag]` wholesale (never a per-key merge — Studio always sends
+a locale's full resolved set) and ignores a stale `revision` (not strictly greater than the last one
+applied), the same discipline `designTokensRevision` follows.
+
+## More
+
+- [Theme texts](theme-texts.md) — the developer-facing guide to the message catalogue above.
+- [The deploy loop](theme-deploy-loop.md) — how a saved design-token or theme-text override reaches
+  a deployed site, in the context of the whole build/deploy cycle.

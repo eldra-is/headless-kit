@@ -5,7 +5,11 @@ import {
   getEldraClient,
   initEldraClient,
 } from '../client';
-import type { EldraHttpRequest } from '../types';
+import type {
+  EldraHttpRequest,
+  EldraOrganizationCommerce,
+  EldraOrganizationLocales,
+} from '../types';
 import { stubHttpClient } from './support';
 
 describe('eldra sdk client', () => {
@@ -370,6 +374,165 @@ describe('eldra sdk client', () => {
     await expect(client.features.isEnabled('ECOMMERCE', { orgId: 'request-org' })).resolves.toBe(
       true
     );
+    expect(capturedRequest?.headers.get('X-Org-Id')).toBe('request-org');
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/request-org');
+  });
+
+  it('reads what the store sells in off the organisation', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'org-123',
+          name: 'Acme',
+          features: [{ feature: 'ECOMMERCE', enabled: true }],
+          commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+        };
+      }),
+    });
+
+    const commerce = await client.features.getCommerce();
+
+    expectTypeOf(commerce).toEqualTypeOf<EldraOrganizationCommerce | null>();
+    expect(commerce).toEqual({ currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 });
+    expect(capturedRequest?.method).toBe('GET');
+    expect(capturedRequest?.headers.get('X-Org-Id')).toBe('org-123');
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/org-123');
+  });
+
+  it('reads the organisation\u2019s content locales, default first', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'org-123',
+          name: 'Acme',
+          features: [],
+          locales: { default: 'en-US', supported: ['is-IS', 'en-US'] },
+        };
+      }),
+    });
+
+    const locales = await client.features.getLocales();
+
+    expectTypeOf(locales).toEqualTypeOf<EldraOrganizationLocales | null>();
+    // The default is moved to the front and not repeated: a consumer prefixes every locale but the
+    // first, so trusting the gateway's order would have put `/en-US/` on the site.
+    expect(locales).toEqual({ default: 'en-US', supported: ['en-US', 'is-IS'] });
+    expect(capturedRequest?.method).toBe('GET');
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/org-123');
+  });
+
+  it('answers null for an organisation with no locales, and for half an answer', async () => {
+    // Four shapes, one answer. An organisation that configured none omits the record; the other
+    // three are records a consumer cannot route with, and guessing at one of them would send real
+    // visitors to a prefix no content answers.
+    const organizations: unknown[] = [
+      { id: 'org-123', name: 'Acme', features: [] },
+      { id: 'org-123', name: 'Acme', features: [], locales: null },
+      {
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        locales: { default: '  ', supported: ['is-IS'] },
+      },
+      {
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        locales: { default: 'en-US', supported: 'en-US' },
+      },
+      {
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        locales: { default: 'en-US', supported: ['en-US', ''] },
+      },
+    ];
+
+    for (const organization of organizations) {
+      const client = createEldraClient({
+        apiBaseUrl: 'https://api.example.test/api',
+        orgId: 'org-123',
+        httpClient: stubHttpClient(async () => organization),
+      });
+      await expect(client.features.getLocales()).resolves.toBeNull();
+    }
+  });
+
+  it('reads locales for a request-specific org id', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'default-org',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'request-org',
+          name: 'Acme',
+          features: [],
+          locales: { default: 'is-IS', supported: ['is-IS'] },
+        };
+      }),
+    });
+
+    await expect(client.features.getLocales({ orgId: 'request-org' })).resolves.toEqual({
+      default: 'is-IS',
+      supported: ['is-IS'],
+    });
+    expect(capturedRequest?.headers.get('X-Org-Id')).toBe('request-org');
+  });
+
+  it('answers null for a store that publishes no commerce, rather than a currency', async () => {
+    // The gateway omits `commerce` entirely until a store has configured it, and a storefront
+    // must be able to tell that apart from "sells in dollars" — the whole point of the read.
+    const absent = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async () => ({ id: 'org-123', name: 'Acme', features: [] })),
+    });
+    const explicitNull = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async () => ({
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        commerce: null,
+      })),
+    });
+
+    await expect(absent.features.getCommerce()).resolves.toBeNull();
+    await expect(explicitNull.features.getCommerce()).resolves.toBeNull();
+  });
+
+  it('reads commerce for a request-specific org id', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'default-org',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'request-org',
+          name: 'Acme',
+          features: [],
+          commerce: { currency: 'EUR', taxInclusivePricing: false, defaultTaxRate: 0 },
+        };
+      }),
+    });
+
+    await expect(client.features.getCommerce({ orgId: 'request-org' })).resolves.toEqual({
+      currency: 'EUR',
+      taxInclusivePricing: false,
+      defaultTaxRate: 0,
+    });
     expect(capturedRequest?.headers.get('X-Org-Id')).toBe('request-org');
     expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/request-org');
   });

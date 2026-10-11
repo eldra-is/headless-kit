@@ -1,0 +1,6 @@
+{
+  "apiId": "footer",
+  "name": "Footer",
+  "version": 1,
+  "fields": [{ "fieldId": "copyright", "name": "Copyright", "type": "string", "isTitle": true }]
+}

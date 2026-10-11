@@ -1,0 +1,24 @@
+name: eldra-deploy
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [eldra.rebuild]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec nuxi generate
+        env:
+          ELDRA_GATEWAY_URL: ${{ vars.ELDRA_GATEWAY_URL }}
+          ELDRA_ORG_ID: ${{ vars.ELDRA_ORG_ID }}
+      - run: pnpm exec eldra-theme deploy
+        env:
+          ELDRA_API_URL: ${{ vars.ELDRA_API_URL }}
+          ELDRA_DEPLOY_TOKEN: ${{ secrets.ELDRA_DEPLOY_TOKEN }}
+          ELDRA_TRIGGER_DEPLOYMENT_ID: ${{ github.event.client_payload.deploymentId }}

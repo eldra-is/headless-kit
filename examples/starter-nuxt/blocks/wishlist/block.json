@@ -1,0 +1,42 @@
+{
+  "apiId": "wishlist",
+  "name": "Wishlist",
+  "description": "The products a shopper has saved, as a card grid with a remove control on each — their own browser's list, not the store's.",
+  "icon": "heart",
+  "category": "commerce",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "The page heading, with the saved count beside it. Empty uses \"Your wishlist\".",
+      "validators": { "maxLength": 80 }
+    },
+    {
+      "fieldId": "emptyTitle",
+      "name": "Empty title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown with a heart icon when nothing is saved."
+    },
+    {
+      "fieldId": "emptyText",
+      "name": "Empty text",
+      "type": "text",
+      "localized": true,
+      "helpText": "One or two sentences with the next step."
+    },
+    {
+      "fieldId": "emptyLink",
+      "name": "Continue shopping",
+      "type": "link",
+      "helpText": "Where the empty state's button goes. Seeded as the home page, the one destination every store has.",
+      "metadata": {
+        "kinds": ["product", "collection", "category", "entry", "page", "url"]
+      }
+    }
+  ]
+}

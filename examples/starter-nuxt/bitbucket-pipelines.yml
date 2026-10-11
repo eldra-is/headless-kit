@@ -1,0 +1,19 @@
+image: node:20
+
+definitions:
+  steps:
+    - step: &eldra-deploy
+        name: Build and deploy to Eldra
+        script:
+          - corepack enable && corepack prepare pnpm@9.15.0 --activate
+          - pnpm install --frozen-lockfile
+          - pnpm exec nuxi generate
+          - pnpm exec eldra-theme deploy
+
+pipelines:
+  branches:
+    main:
+      - step: *eldra-deploy
+  custom:
+    eldra-rebuild:
+      - step: *eldra-deploy

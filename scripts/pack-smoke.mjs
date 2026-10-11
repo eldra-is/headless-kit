@@ -72,6 +72,148 @@ const consumers = {
       export const component = RichText;
     `,
   },
+  '@eldrajs/ui': {
+    // Proves the package resolves, that the three CSS entries are in the tarball, that a
+    // component really is a component on the other side of the build (a Vue SFC that failed to
+    // compile still imports fine as a plain object, so the render function is what is asserted),
+    // that `./resolver` resolves the `Eldra` prefix, and that `./messages/is-IS` is reachable.
+    runtime: `
+      import { existsSync } from 'node:fs';
+      import { createRequire } from 'node:module';
+      import * as ui from '@eldrajs/ui';
+      import { Button, Select, FieldWrapper } from '@eldrajs/ui';
+      import { EldraUiResolver } from '@eldrajs/ui/resolver';
+      import { isIS } from '@eldrajs/ui/messages/is-IS';
+      assert(ui && typeof ui === 'object', '@eldrajs/ui namespace');
+      for (const [name, component] of [['Button', Button], ['Select', Select], ['FieldWrapper', FieldWrapper]]) {
+        assert(component && typeof component === 'object', name + ' is an object');
+        assert(
+          typeof component.render === 'function' || typeof component.setup === 'function',
+          name + ' has a render or setup function'
+        );
+      }
+      const resolved = EldraUiResolver().resolve('EldraButton');
+      assert.deepEqual(resolved, { name: 'Button', from: '@eldrajs/ui' }, 'EldraUiResolver resolves EldraButton');
+      assert.equal(EldraUiResolver().resolve('UiButton'), undefined, 'EldraUiResolver never implies Ui');
+      assert(isIS && typeof isIS === 'object', '@eldrajs/ui/messages/is-IS exports isIS');
+      assert.equal(typeof isIS.close, 'string', 'isIS carries the message catalogue');
+      const resolve = createRequire(import.meta.url).resolve;
+      for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
+        assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
+      }
+      // The optional entry: it resolves, its components really are components, and — the point of
+      // it being optional — the root entry above loaded without vee-validate being touched.
+      const vee = await import('@eldrajs/ui/vee-validate');
+      for (const name of ['Form', 'FieldInput', 'FieldSelect', 'FieldCheckboxGroup']) {
+        const component = vee[name];
+        assert(component && typeof component === 'object', name + ' is an object');
+        assert(
+          typeof component.render === 'function' || typeof component.setup === 'function',
+          name + ' has a render or setup function'
+        );
+      }
+      assert(typeof vee.API_ERRORS_KEY === 'symbol', 'API_ERRORS_KEY');
+      assert(typeof vee.useFieldControl === 'function', 'useFieldControl');
+    `,
+    types: `
+      import * as ui from '@eldrajs/ui';
+      import { Button, Select, FieldWrapper, FORM_SUBMITTING_KEY, type ButtonProps } from '@eldrajs/ui';
+      import { EldraUiResolver, type EldraUiResolverOptions } from '@eldrajs/ui/resolver';
+      import { isIS } from '@eldrajs/ui/messages/is-IS';
+      export const namespace: typeof ui = ui;
+      export const components = { Button, Select, FieldWrapper };
+      export const key = FORM_SUBMITTING_KEY;
+      export const props: ButtonProps = { variant: 'primary', size: 'lg' };
+      export const resolverOptions: EldraUiResolverOptions = { prefix: 'Eldra' };
+      export const resolver = EldraUiResolver(resolverOptions);
+      export const messages = isIS;
+      import {
+        Form as VeeForm,
+        FieldInput,
+        API_ERRORS_KEY,
+        type FieldInputProps,
+        type FormProps,
+      } from '@eldrajs/ui/vee-validate';
+      export const veeComponents = { VeeForm, FieldInput };
+      export const apiErrorsKey = API_ERRORS_KEY;
+      export const fieldProps: FieldInputProps = { name: 'email', type: 'email', size: 'lg' };
+      export const formProps: FormProps = { layout: 'two', apiErrors: { email: 'Taken.' } };
+    `,
+  },
+  '@eldrajs/theme-core': {
+    runtime: `
+      import { createEldraClient, stripStega, encodeStega, decodeStega } from '@eldrajs/theme-core';
+      import { BRIDGE_VERSION, makeEnvelope, parseEnvelope } from '@eldrajs/theme-core/bridge';
+      import { createOverlayRuntime } from '@eldrajs/theme-core/overlay';
+      assert(typeof createEldraClient === 'function', 'createEldraClient');
+      assert(typeof encodeStega === 'function' && typeof decodeStega === 'function', 'stega');
+      assert.equal(stripStega('plain'), 'plain');
+      assert(typeof makeEnvelope === 'function' && typeof parseEnvelope === 'function', 'envelope');
+      assert.equal(typeof BRIDGE_VERSION, 'number');
+      assert(typeof createOverlayRuntime === 'function', 'createOverlayRuntime');
+    `,
+    types: `
+      import type { RichTextNode } from '@eldrajs/theme-core';
+      import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
+      import { BRIDGE_VERSION } from '@eldrajs/theme-core/bridge';
+      export const node: RichTextNode = { type: 'paragraph', content: [] };
+      export const bp: LayoutBreakpoints = { tablet: 768, normal: 1024 };
+      export const v: number = BRIDGE_VERSION;
+    `,
+  },
+  '@eldrajs/theme-vue': {
+    // No runtime probe: the index imports virtual:eldra/* modules the Vite plugin provides.
+    types: `
+      import { EldraRichText, EldraLayout, useEldra } from '@eldrajs/theme-vue';
+      export const components = { EldraRichText, EldraLayout };
+      export const hook = useEldra;
+    `,
+  },
+  '@eldrajs/vite-plugin-theme': {
+    runtime: `
+      import eldraTheme from '@eldrajs/vite-plugin-theme';
+      import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
+      assert(typeof eldraTheme === 'function', 'eldraTheme');
+      assert(typeof scanTheme === 'function', 'scanTheme');
+    `,
+    types: `
+      import eldraTheme, { type ThemeManifest } from '@eldrajs/vite-plugin-theme';
+      export const plugin = eldraTheme({ themeDir: '.' });
+      export const manifest: ThemeManifest = {
+        manifestVersion: 1,
+        theme: { name: 'demo', version: '0.0.0', framework: 'vue', sdk: { core: '0.0.0', vitePlugin: '0.0.0' } },
+        blocks: [],
+        routes: [],
+        customPages: [],
+        tokens: { colors: {}, fonts: {}, spacing: {} },
+      };
+    `,
+  },
+  '@eldrajs/theme-cli': {
+    runtime: `
+      import { validateTheme, deployTheme, scanTheme } from '@eldrajs/theme-cli';
+      import { execFileSync } from 'node:child_process';
+      assert(typeof validateTheme === 'function', 'validateTheme');
+      assert(typeof deployTheme === 'function', 'deployTheme');
+      assert(typeof scanTheme === 'function', 'scanTheme');
+      const help = execFileSync('node', ['node_modules/@eldrajs/theme-cli/dist/cli.js', '--help'], { encoding: 'utf8' });
+      assert(help.includes('validate'), 'cli --help lists validate');
+    `,
+    types: `
+      import { validateTheme, type ValidateResult } from '@eldrajs/theme-cli';
+      export const run: Promise<ValidateResult> = validateTheme({ themeDir: '.', remote: false });
+    `,
+  },
+  '@eldrajs/theme-nuxt': {
+    runtime: `
+      import eldra from '@eldrajs/theme-nuxt';
+      assert(typeof eldra === 'function', 'nuxt module');
+    `,
+    types: `
+      import type { ModuleOptions } from '@eldrajs/theme-nuxt';
+      export const options: ModuleOptions = { gatewayUrl: 'https://example.invalid/api', orgId: 'org', studioOrigins: [], pageSchema: 'page', routeTemplateSchema: 'route-template' };
+    `,
+  },
 };
 
 function run(command, args, cwd) {
@@ -117,6 +259,9 @@ async function main() {
         '--silent',
         'vite@^8',
         'vue@^3',
+        // `@eldrajs/ui`'s optional peer: the `./vee-validate` entry is only reachable with it.
+        'vee-validate@^4',
+        '@nuxt/kit@^4',
         ...Object.values(tarballs),
       ],
       project
@@ -126,11 +271,13 @@ async function main() {
       if (!tarballs[name]) throw new Error(`${name} was not packed`);
       const slug = name.replace('@', '').replace('/', '-');
 
-      await writeFile(
-        join(project, `${slug}.runtime.mjs`),
-        `import assert from 'node:assert/strict';\n${consumer.runtime}\nconsole.log('${name}: runtime ok');\n`
-      );
-      process.stdout.write(run('node', [`${slug}.runtime.mjs`], project));
+      if (consumer.runtime) {
+        await writeFile(
+          join(project, `${slug}.runtime.mjs`),
+          `import assert from 'node:assert/strict';\n${consumer.runtime}\nconsole.log('${name}: runtime ok');\n`
+        );
+        process.stdout.write(run('node', [`${slug}.runtime.mjs`], project));
+      }
 
       for (const moduleResolution of ['bundler', 'node16']) {
         const module = moduleResolution === 'bundler' ? 'ESNext' : 'Node16';

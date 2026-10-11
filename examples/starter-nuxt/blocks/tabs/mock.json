@@ -1,0 +1,129 @@
+{
+  "heading": "Looking after your things",
+  "intro": "Everything we sell is made to be used for years. A little care keeps it that way.",
+  "tabs": [
+    {
+      "label": "Knitwear",
+      "heading": "Wash less, air more",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Wool resists odour on its own. Most of the time, a night on a hanger by an open window is all a jumper needs."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      { "type": "text", "marks": [{ "type": "bold" }], "text": "Hand wash cool" },
+                      { "type": "text", "text": " with a wool detergent" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      { "type": "text", "marks": [{ "type": "bold" }], "text": "Dry flat" },
+                      { "type": "text", "text": ", away from the radiator" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      { "type": "text", "marks": [{ "type": "bold" }], "text": "Fold, never hang" },
+                      { "type": "text", "text": ", to keep the shape" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Shop wool wash and cedar blocks",
+      "href": "/collections/care"
+    },
+    {
+      "label": "Stoneware",
+      "heading": "Made for the dishwasher",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Our stoneware is fired to 2,264°F, so it is dishwasher, microwave and oven safe to 400°F. Pieces with a gold rim or raw clay foot are hand wash only."
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Shop stoneware",
+      "href": "/collections/ceramics"
+    },
+    {
+      "label": "Wood & boards",
+      "heading": "Oil it when it looks thirsty",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Wash with warm soapy water, dry upright and never soak. Every few weeks, rub in a little board oil and leave it overnight."
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Shop board oil",
+      "href": "/collections/kitchen"
+    },
+    {
+      "label": "Linen",
+      "heading": "Softer with every wash",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Wash at 105°F with like colours, skip the fabric softener and line dry. Iron while slightly damp if you like it crisp."
+              }
+            ]
+          }
+        ]
+      },
+      "linkLabel": "Shop linen",
+      "href": "/collections/linen"
+    }
+  ],
+  "defaultTab": 1,
+  "sectionBackground": "none"
+}

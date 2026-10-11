@@ -1,0 +1,240 @@
+{
+  "apiId": "footer",
+  "name": "Footer",
+  "description": "Site footer with brand, link groups, a newsletter sign-up, social links, a legal line and locale/currency selectors.",
+  "icon": "layout-bottombar",
+  "category": "structure",
+  "version": 3,
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        {
+          "from": "brand",
+          "to": "brandText"
+        },
+        {
+          "from": "legal",
+          "to": "legalText"
+        }
+      ]
+    },
+    {
+      "version": 3,
+      "renames": [],
+      "convertToLink": [
+        {
+          "from": "groups",
+          "to": "groups",
+          "shape": "list",
+          "label": "title",
+          "children": {
+            "from": "links",
+            "label": "label",
+            "url": "href"
+          }
+        },
+        {
+          "from": "links",
+          "to": "links",
+          "shape": "list",
+          "label": "label",
+          "url": "href"
+        },
+        {
+          "from": "legalLinks",
+          "to": "legalLinks",
+          "shape": "list",
+          "label": "label",
+          "url": "href"
+        }
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "Defaults to \"default\" when unset.",
+      "metadata": {
+        "options": ["default", "minimal"]
+      },
+      "validators": {
+        "required": true
+      }
+    },
+    {
+      "fieldId": "background",
+      "name": "Background",
+      "type": "select",
+      "helpText": "Defaults to \"surface-strong\" when unset.",
+      "metadata": {
+        "options": ["surface-strong", "primary"]
+      }
+    },
+    {
+      "fieldId": "brandText",
+      "name": "Brand",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": {
+        "required": true,
+        "maxLength": 80
+      }
+    },
+    {
+      "fieldId": "brandLogo",
+      "name": "Logo",
+      "type": "media",
+      "helpText": "Optional. Replaces the brand text wordmark. Max 2.5rem tall.",
+      "metadata": {
+        "multiple": false
+      }
+    },
+    {
+      "fieldId": "description",
+      "name": "Description",
+      "type": "text",
+      "localized": true,
+      "helpText": "1–3 sentences. Shown on the default variant only.",
+      "validators": {
+        "maxLength": 300
+      }
+    },
+    {
+      "fieldId": "groups",
+      "name": "Link groups",
+      "type": "list",
+      "helpText": "Up to 4 groups. Shown on the default variant only. A group is one link whose label is the column heading and whose children are the column’s links — pick the \"None\" kind for a heading that is not itself a link.",
+      "metadata": {
+        "item": {
+          "fieldId": "group",
+          "name": "Group",
+          "type": "link",
+          "localized": true,
+          "metadata": {
+            "tree": true
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "links",
+      "name": "Links",
+      "type": "list",
+      "helpText": "Up to 5 links. Shown on the minimal variant only. Give a link children to nest one level.",
+      "metadata": {
+        "item": {
+          "fieldId": "link",
+          "name": "Link",
+          "type": "link",
+          "localized": true,
+          "metadata": {
+            "tree": true
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "showNewsletter",
+      "name": "Show newsletter",
+      "type": "bool",
+      "default": true,
+      "helpText": "Shown on the default variant only. Turn off on pages that already carry a Newsletter block."
+    },
+    {
+      "fieldId": "newsletterTitle",
+      "name": "Newsletter title",
+      "type": "string",
+      "localized": true,
+      "validators": {
+        "maxLength": 80
+      }
+    },
+    {
+      "fieldId": "newsletterText",
+      "name": "Newsletter text",
+      "type": "text",
+      "localized": true,
+      "helpText": "One sentence on what is sent and how often.",
+      "validators": {
+        "maxLength": 200
+      }
+    },
+    {
+      "fieldId": "social",
+      "name": "Social links",
+      "type": "list",
+      "metadata": {
+        "item": {
+          "fieldId": "socialLink",
+          "name": "Social link",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "network",
+                "name": "Network",
+                "type": "select",
+                "metadata": {
+                  "options": ["instagram", "facebook", "pinterest", "tiktok", "youtube"]
+                },
+                "validators": {
+                  "required": true
+                }
+              },
+              {
+                "fieldId": "href",
+                "name": "URL",
+                "type": "string",
+                "validators": {
+                  "required": true
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "legalText",
+      "name": "Legal line",
+      "type": "string",
+      "localized": true,
+      "validators": {
+        "maxLength": 120
+      }
+    },
+    {
+      "fieldId": "legalLinks",
+      "name": "Legal links",
+      "type": "list",
+      "helpText": "For example Privacy, Terms, Accessibility.",
+      "metadata": {
+        "item": {
+          "fieldId": "legalLink",
+          "name": "Legal link",
+          "type": "link",
+          "localized": true,
+          "metadata": {
+            "kinds": ["product", "collection", "category", "entry", "page", "url"]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "showLocale",
+      "name": "Show country/language selector",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "fieldId": "showCurrency",
+      "name": "Show currency selector",
+      "type": "bool",
+      "default": true
+    }
+  ]
+}

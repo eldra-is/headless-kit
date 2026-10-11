@@ -1,0 +1,146 @@
+{
+  "apiId": "hero",
+  "name": "Hero",
+  "description": "Top-of-page banner with heading, supporting text, image and calls to action.",
+  "icon": "layout-dashboard",
+  "category": "marketing",
+  "version": 2,
+  "migrations": [
+    {
+      "version": 2,
+      "renames": [
+        { "from": "ctaLabel", "to": "primaryCtaLabel" },
+        { "from": "ctaHref", "to": "primaryCtaHref" }
+      ]
+    }
+  ],
+  "groups": [
+    { "groupId": "content", "name": "Content", "defaultOpen": true },
+    { "groupId": "action", "name": "Calls to action" }
+  ],
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "groupId": "content",
+      "validators": { "required": true },
+      "metadata": {
+        "options": ["image-right", "image-left", "image-background", "centered", "split-carousel"]
+      }
+    },
+    {
+      "fieldId": "eyebrow",
+      "name": "Eyebrow",
+      "type": "string",
+      "groupId": "content",
+      "localized": true,
+      "validators": { "maxLength": 60 }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "groupId": "content",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true, "maxLength": 120 }
+    },
+    {
+      "fieldId": "subheading",
+      "name": "Subheading",
+      "type": "text",
+      "groupId": "content",
+      "localized": true,
+      "validators": { "maxLength": 300 }
+    },
+    {
+      "fieldId": "image",
+      "name": "Image",
+      "type": "media",
+      "groupId": "content",
+      "metadata": { "multiple": false, "framing": true }
+    },
+    {
+      "fieldId": "slides",
+      "name": "Slides",
+      "type": "list",
+      "groupId": "content",
+      "description": "Used by the split-carousel variant only.",
+      "metadata": {
+        "item": {
+          "fieldId": "slide",
+          "name": "Slide",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "image",
+                "name": "Image",
+                "type": "media",
+                "validators": { "required": true },
+                "metadata": { "multiple": false, "framing": true }
+              },
+              {
+                "fieldId": "alt",
+                "name": "Alt text",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true
+              },
+              { "fieldId": "href", "name": "Link", "type": "string" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "spacing",
+      "name": "Spacing",
+      "type": "select",
+      "groupId": "content",
+      "metadata": { "options": ["md", "sm", "lg"] }
+    },
+    {
+      "fieldId": "primaryCtaLabel",
+      "name": "Button label",
+      "type": "string",
+      "groupId": "action",
+      "localized": true
+    },
+    {
+      "fieldId": "primaryCtaHref",
+      "name": "Button link",
+      "type": "string",
+      "groupId": "action"
+    },
+    {
+      "fieldId": "secondaryCtaLabel",
+      "name": "Secondary button label",
+      "type": "string",
+      "groupId": "action",
+      "localized": true
+    },
+    {
+      "fieldId": "secondaryCtaHref",
+      "name": "Secondary button link",
+      "type": "string",
+      "groupId": "action"
+    }
+  ],
+  "slots": [
+    {
+      "id": "actions",
+      "label": "Action buttons",
+      "description": "Buttons rendered under the hero copy. Falls back to the built-in calls to action.",
+      "maxItems": 2,
+      "allowedBlockApiIds": ["cta"]
+    }
+  ]
+}

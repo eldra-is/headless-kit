@@ -1,0 +1,9 @@
+{
+  "heading": "Your wishlist",
+  "emptyTitle": "Your wishlist is empty",
+  "emptyText": "Press the heart on any product to save it here for later.",
+  "emptyLink": {
+    "kind": "url",
+    "url": "/"
+  }
+}

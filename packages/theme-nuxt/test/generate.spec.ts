@@ -1,0 +1,512 @@
+import { execa } from 'execa';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
+
+const fixtureDir = fileURLToPath(new URL('./fixtures/basic', import.meta.url));
+const nuxi = fileURLToPath(new URL('../node_modules/.bin/nuxi', import.meta.url));
+const moduleVersion = (
+  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
+let gateway: Awaited<ReturnType<typeof startMockGateway>>;
+
+describe('theme-nuxt nuxi generate', () => {
+  beforeAll(async () => {
+    gateway = await startMockGateway();
+    rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+    rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+    await execa(nuxi, ['generate'], {
+      cwd: fixtureDir,
+      env: {
+        ELDRA_GATEWAY_URL: gateway.url,
+        ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+      },
+      timeout: 300_000,
+    });
+  }, 360_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      gateway.server.close((error) => (error ? reject(error) : resolve()))
+    );
+  });
+
+  const output = (path: string) => join(fixtureDir, '.output', 'public', path);
+
+  it('prerenders home and about routes discovered through pagination contract', () => {
+    expect(existsSync(output('index.html'))).toBe(true);
+    expect(existsSync(output('about/index.html'))).toBe(true);
+    expect(existsSync(output('slotted/index.html'))).toBe(true);
+    expect(existsSync(output('control/index.html'))).toBe(true);
+    expect(existsSync(output('bad/index.html'))).toBe(true);
+    expect(existsSync(output('articles/hello-dynamic/index.html'))).toBe(true);
+    expect(existsSync(output('articles/code-owned/index.html'))).toBe(true);
+    expect(gateway.requests.some((request) => request.includes('pageSize=100'))).toBe(true);
+  });
+
+  /**
+   * **Every content path, once per locale.** The organisation serves `is` at `/` and `en-US` under
+   * a prefix (`test/mockGateway.ts`), so each path the discovery pass found has to exist twice —
+   * static pages, the dynamic article, and the catalog-backed product alike. If the fan-out ever
+   * stops happening, a static host answers 404 for every prefixed URL on the site while the app
+   * would have rendered them perfectly, and nothing but a generate run can see it.
+   */
+  it('prerenders every content path once per locale', () => {
+    for (const path of [
+      'index.html',
+      'about/index.html',
+      'articles/hello-dynamic/index.html',
+      'products/merino-crew/index.html',
+    ]) {
+      expect(existsSync(output(path)), path).toBe(true);
+      expect(existsSync(output(join('en-US', path))), `en-US/${path}`).toBe(true);
+    }
+
+    // The default locale lives at `/` only. `/is/...` is never generated, so a visitor who types
+    // it gets the honest 404 a path with no content behind it should give — not a second copy of
+    // the site competing with the canonical one.
+    expect(existsSync(output('is/index.html'))).toBe(false);
+
+    // A code-owned route is Nuxt's own page, not content: prefixing it would name a path the code
+    // route does not match.
+    expect(existsSync(output('en-US/articles/code-owned/index.html'))).toBe(false);
+  });
+
+  /**
+   * **A prefixed page is the same document in another language**, read with that locale and nothing
+   * else changed: one document, one slug, a `locale` on every read.
+   */
+  it('reads a prefixed route’s content in that locale', () => {
+    expect(gateway.requests).toContain('/catalog/v1/products/merino-crew?locale=en-US');
+    expect(
+      gateway.requests.some((request) =>
+        request.startsWith('/cms/v1/schema/article/entry/unique/slug/hello-dynamic?locale=en-US')
+      )
+    ).toBe(true);
+    // The prefix is not part of the slug the gateway is asked for.
+    expect(gateway.requests.some((request) => request.includes('en-US%2F'))).toBe(false);
+    expect(gateway.requests.some((request) => request.includes('/en-US/'))).toBe(false);
+
+    const prefixed = readFileSync(output('products/merino-crew/index.html'), 'utf8');
+    expect(prefixed).toContain('Product: Merino crew');
+  });
+
+  /**
+   * `<html lang>` and the `hreflang` set are the module's, not a theme's: the fixture theme's
+   * `app.vue` is `<NuxtPage />` and nothing else, so anything in the head here was written by the
+   * runtime plugin.
+   */
+  it('writes the document language and an hreflang alternate per locale', () => {
+    const home = readFileSync(output('index.html'), 'utf8');
+    const prefixed = readFileSync(output('en-US/index.html'), 'utf8');
+
+    expect(home).toMatch(/<html[^>]*\slang="is"/);
+    expect(prefixed).toMatch(/<html[^>]*\slang="en-US"/);
+
+    // Both spellings of the page name the same pair, so either one tells a crawler about the
+    // other — and `x-default` names the unprefixed path, which is the one with no language in it.
+    for (const html of [home, prefixed]) {
+      expect(html).toContain('rel="alternate" hreflang="is" href="/"');
+      expect(html).toContain('rel="alternate" hreflang="en-US" href="/en-US"');
+      expect(html).toContain('rel="alternate" hreflang="x-default" href="/"');
+    }
+
+    const about = readFileSync(output('en-US/about/index.html'), 'utf8');
+    expect(about).toContain('rel="alternate" hreflang="is" href="/about"');
+    expect(about).toContain('rel="alternate" hreflang="en-US" href="/en-US/about"');
+  });
+
+  /**
+   * The locales reach the artifact the same way the currency does, so the browser knows the set
+   * without a request — which is what the language switcher's options are built from.
+   */
+  it('bakes the organisation’s locales into the prerendered runtime config', () => {
+    for (const page of ['index.html', 'en-US/index.html']) {
+      expect(readFileSync(output(page), 'utf8')).toContain('locales:{default:"is"');
+    }
+  });
+
+  /**
+   * The store's currency is read once, at build, and baked into every prerendered page's runtime
+   * config — the whole reason it is read there and not in the browser. A theme formats its prices
+   * from this, so a static page that shipped without it would render every amount bare and then
+   * reflow once the client learned what the store sells in.
+   */
+  it('bakes the store’s currency into the prerendered runtime config', () => {
+    expect(
+      gateway.requests.some((request) =>
+        request.startsWith('/organization/v1/3fa85f64-5717-4562-b3fc-2c963f66afa6')
+      )
+    ).toBe(true);
+
+    for (const page of ['index.html', 'about/index.html', 'products/merino-crew/index.html']) {
+      expect(readFileSync(output(page), 'utf8')).toContain('commerce:{currency:"ISK"');
+    }
+  });
+
+  /**
+   * The theme's own `i18n/*.json` catalogue (`test/fixtures/basic/i18n/`, `en-US.json` +
+   * `is-IS.json`) merged with the mock gateway's `/site/v1/theme-messages` response
+   * (`test/mockGateway.ts`) and resolved over the organisation's locales (`is`/`en-US` —
+   * `test/mockGateway.ts`'s `/organization/v1/` fixture). `virtual:eldra/messages` carries the
+   * result into `@eldrajs/theme-nuxt`'s runtime plugin (`context.messages`), which is what bakes
+   * it into the client bundle under `.output/public/_nuxt/` — there is no prerendered page markup
+   * to read it off yet (nothing in the fixture theme consumes `context.messages`; the starter's own
+   * `vue-i18n` wiring is a separate piece of work), so this reads the built JS directly, the same
+   * artifact a live site would ship to the browser.
+   */
+  it('serves the merged theme-message catalogue on context.messages via virtual:eldra/messages', () => {
+    const chunksDir = output('_nuxt');
+    const bundle = readdirSync(chunksDir)
+      .filter((name) => name.endsWith('.js') || name.endsWith('.mjs'))
+      .map((name) => readFileSync(join(chunksDir, name), 'utf8'))
+      .join('\n');
+
+    // The manifest's own, unmerged default ("Welcome") still rides along elsewhere in the bundle
+    // (the whole manifest object is imported for other reasons too), so the proof is the shape of
+    // the *resolved* catalogue specifically, not merely the presence of one overridden string:
+    // en-US's key is the platform's override, and "is" — the organisation's default locale, a tag
+    // the theme ships no i18n/ file for at all — was added whole by the merge, not left out.
+    expect(bundle).toMatch(
+      /defaultLocale:`is`,locales:\{"en-US":\{"banner\.welcome":`Welcome \(overridden\)`\},is:\{"banner\.welcome":`Pallborð velkomin \(override\)`\}\}/
+    );
+  });
+
+  it('prerenders and renders a catalog-backed route template from the public catalog', () => {
+    expect(existsSync(output('products/merino-crew/index.html'))).toBe(true);
+    // Only active products get a route: the archived one the list endpoint
+    // would serve unfiltered must not have been generated.
+    expect(existsSync(output('products/retired-tee/index.html'))).toBe(false);
+
+    const product = readFileSync(output('products/merino-crew/index.html'), 'utf8');
+    expect(product).toContain('Product: Merino crew');
+    expect(product).toContain('data-eldra-template-block="product-hero"');
+
+    // The catalog read replaces the CMS entry read entirely: the product came
+    // from the public catalog endpoint, and no CMS schema was consulted for it.
+    expect(gateway.requests).toContain('/catalog/v1/products/merino-crew?locale=is');
+    expect(
+      gateway.requests.some((request) => request.startsWith('/catalog/v1/products/list?'))
+    ).toBe(true);
+    expect(gateway.requests.some((request) => request.includes('/schema/catalog%3Aproduct/'))).toBe(
+      false
+    );
+  });
+
+  it('renders dynamic templates and preserves native code-route precedence', () => {
+    const dynamic = readFileSync(output('articles/hello-dynamic/index.html'), 'utf8');
+    expect(dynamic).toContain('Article: Dynamic article heading');
+    expect(dynamic).toContain('Static dynamic-page subheading');
+    expect(dynamic).toContain('data-eldra-template-block="article-hero"');
+    expect(dynamic).toContain('data-eldra-block="77777777-7777-4777-8777-777777777777"');
+    expect(dynamic).toContain('data-eldra-schema="hero"');
+
+    const codeOwned = readFileSync(output('articles/code-owned/index.html'), 'utf8');
+    expect(codeOwned).toContain('Code-owned route wins');
+    expect(codeOwned).not.toContain('CMS content must not render');
+    expect(gateway.requests).not.toContain(
+      '/cms/v1/schema/article/entry/unique/slug/code-owned?locale=is&depth=3'
+    );
+  });
+
+  it('renders a route template whose reusable placement arrived pre-expanded, leaking nothing', () => {
+    // The public route-template read is expanded and redacted the way a public
+    // page read is: the placement is gone, the component's container and block
+    // are ordinary layout nodes, and no component/site identity exists to leak.
+    // So the header must render beside the template's own block, and the
+    // prerendered payload must carry no projection — the assertion the static
+    // pages above already make, now on a template route as well.
+    const dynamic = readFileSync(output('articles/hello-dynamic/index.html'), 'utf8');
+    expect(dynamic).toContain('Shared template header');
+    expect(dynamic).toContain('data-eldra-layout-node="article-shared-header"');
+    expect(dynamic).toContain(`data-eldra-layout-node="${TEMPLATE_HEADER_NODE_ID}"`);
+    expect(dynamic).toContain('data-eldra-block="99999999-9999-4999-8999-999999999999"');
+    // Public output carries no placement identity, exactly as a public page.
+    expect(dynamic).not.toContain('data-eldra-reusable-placement');
+    expect(dynamic).not.toContain('data-eldra-invalid-layout');
+    // …and the template's own bound block still renders beside it.
+    expect(dynamic).toContain('Article: Dynamic article heading');
+
+    const payload = readFileSync(output('articles/hello-dynamic/_payload.json'), 'utf8');
+    expect(payload).not.toContain('reusableComponentProjection');
+    expect(payload).not.toContain('componentId');
+  });
+
+  it('generates declared slot content with fallback, no markers, and fail-closed invalid layouts', () => {
+    const slotted = readFileSync(output('slotted/index.html'), 'utf8');
+    const control = readFileSync(output('control/index.html'), 'utf8');
+    const bad = readFileSync(output('bad/index.html'), 'utf8');
+    const staticPages = [
+      readFileSync(output('index.html'), 'utf8'),
+      readFileSync(output('about/index.html'), 'utf8'),
+      slotted,
+      control,
+      bad,
+      readFileSync(output('200.html'), 'utf8'),
+      readFileSync(output('404.html'), 'utf8'),
+    ].join('');
+
+    // 1. Exact DOM parity with the theme-vue slot tests: the cta child block
+    // renders inside the [data-eldra-slot-id="actions"] wrapper. The wrapper
+    // carries the child entry id; the nested block wrapper carries the child
+    // schema annotation.
+    expect(slotted).toContain('data-eldra-layout-node="slotted-hero"');
+    expect(slotted).toContain('data-eldra-block="55555555-5555-4555-8555-555555555555"');
+    expect(slotted).toContain('data-eldra-layout-node="slotted-cta"');
+    expect(slotted).toMatch(
+      /data-eldra-slot-id="actions"[^>]*data-eldra-block="66666666-6666-4666-8666-666666666666"[^>]*>[\s\S]*?data-eldra-schema="cta"/
+    );
+    expect(slotted).toContain('Shop now');
+    expect(slotted).not.toContain('data-eldra-slot-fallback');
+
+    // 2. The empty-slot control page renders the block's fallback markup, with
+    // no slot wrapper at all.
+    expect(control).toContain('data-eldra-slot-fallback');
+    expect(control).toContain('Default action');
+    expect(control).not.toContain('data-eldra-slot-id');
+
+    // 3. Slot markers are editor-only: none may appear anywhere in static output.
+    expect(staticPages).not.toContain('data-eldra-slot-marker');
+
+    // 4. The slot-descendant entry reached the renderer through the depth
+    // pipeline: the gateway records every entry id it serves, and the cta
+    // child must be among them. Block entries are inlined in the page document
+    // by design (there is no per-block HTTP fetch), so the served-entry record
+    // is the gateway-side proof; the layout-driven projection that keeps the
+    // child is covered by the runtime draft-overlay tests.
+    expect([...gateway.servedEntryIds]).toContain('66666666-6666-4666-8666-666666666666');
+
+    // 5. A slot id the fixture manifest does not declare fails closed: the
+    // invalid-layout div replaces the whole tree, with no partial slot content.
+    expect(bad).toContain('data-eldra-invalid-layout');
+    expect(bad).not.toContain('data-eldra-slot-id');
+    expect(bad).not.toContain('Shop now');
+  });
+
+  it('keeps a breakpoint-hidden node in the artifact, hidden by CSS and unmarked', () => {
+    const html = readFileSync(output('index.html'), 'utf8');
+    // `visible: { normal: true, tablet: false, mobile: true }`: tablet only.
+    expect(html).toContain('data-eldra-hidden="tablet"');
+    const cls = `eldra-layout-${createHash('sha256').update('secondary-hero').digest('hex')}`;
+    expect(html).toContain(`.${cls}:not([data-eldra-edit-mode]){display:none;}`);
+    expect(html).toContain(
+      `.${cls}[data-eldra-edit-mode]:not([data-eldra-edit-mode] *){opacity:0.35;}`
+    );
+    // The gate is shut on a published artifact: nothing carries the marker the
+    // overlay sets in edit mode, so the node is hidden exactly as before. The
+    // match is anchored inside a start tag, so the selectors naming the same
+    // attribute in the inline stylesheet (which is text between tags, never
+    // inside one) cannot satisfy it.
+    expect(html).not.toMatch(/<[^>]*\sdata-eldra-edit-mode\b/);
+  });
+
+  it('renders resolved blocks through the shared responsive layout renderer', () => {
+    const html = readFileSync(output('index.html'), 'utf8');
+    const about = readFileSync(output('about/index.html'), 'utf8');
+    expect(html).toContain('Generated heading');
+    expect(html).toContain('Nested heading');
+    expect(html).toContain('data-eldra-block="11111111-1111-4111-8111-111111111111"');
+    expect(html).toContain('data-eldra-block="22222222-2222-4222-8222-222222222222"');
+    expect(html).toContain('data-eldra-schema="hero"');
+    expect(html).toContain('data-eldra-layout-node="page-grid"');
+    expect(html).toContain('data-eldra-layout-node="primary-hero"');
+    expect(html).toContain('data-eldra-layout-node="nested-flex"');
+    expect(html).toContain('data-eldra-layout-node="secondary-hero"');
+    const homeFooterId = `r${createHash('sha256').update('shared-footer\0footer-content').digest('hex')}`;
+    const aboutFooterId = `r${createHash('sha256').update('shared-footer-about\0footer-content').digest('hex')}`;
+    expect(html).toContain('data-eldra-layout-node="shared-footer"');
+    expect(html).toContain(`data-eldra-layout-node="${homeFooterId}"`);
+    expect(html).toContain('Sameiginlegur fótur');
+    expect(html).not.toContain('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+    expect(about).toContain('Sameiginlegur fótur');
+    expect(about).toContain(`data-eldra-layout-node="${aboutFooterId}"`);
+    expect(about).toContain('data-eldra-layout-node="shared-footer-about"');
+    expect(about).not.toContain('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+    expect(`${html}${about}`).not.toContain('data-eldra-reusable-placement');
+
+    const payloads = [
+      readFileSync(output('_payload.json'), 'utf8'),
+      readFileSync(output('about/_payload.json'), 'utf8'),
+    ].join('');
+    expect(payloads).not.toContain('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+    expect(payloads).not.toContain('reusableComponentProjection');
+    expect(payloads).not.toContain('componentId');
+    expect(`${html}${about}${payloads}`).not.toContain('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  });
+
+  it('emits deterministic scoped CSS for the three fixed viewport ranges', () => {
+    const html = readFileSync(output('index.html'), 'utf8');
+    const styles = [...html.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)].map(
+      (match) => match[1] ?? ''
+    );
+    const css = styles.find((style) => style.includes('.eldra-layout-')) ?? '';
+    const pageGridClass = `eldra-layout-${createHash('sha256').update('page-grid').digest('hex')}`;
+    expect(html).toContain(`class="${pageGridClass}"`);
+    expect(css).toContain(`.${pageGridClass}{`);
+    expect(css).toMatch(/@media\s*\(min-width:\s*1024px\)/);
+    expect(css).toMatch(/@media\s*\(min-width:\s*768px\)\s*and\s*\(max-width:\s*1023px\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)/);
+    expect(css.match(/@media/g)).toHaveLength(3);
+    const tabletStart = css.indexOf('@media (min-width:768px) and (max-width:1023px)');
+    const mobileStart = css.indexOf('@media (max-width:767px)');
+    const normalCss = css.slice(0, tabletStart);
+    const tabletCss = css.slice(tabletStart, mobileStart);
+    const mobileCss = css.slice(mobileStart);
+    expect(normalCss).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(normalCss).toMatch(/flex-direction:\s*row/);
+    expect(tabletCss).toMatch(/flex-direction:\s*row/);
+    expect(tabletCss).toMatch(/display:\s*none/);
+    expect(mobileCss).toMatch(/grid-template-columns:\s*repeat\(1,\s*minmax\(0,\s*1fr\)\)/);
+    expect(mobileCss).toMatch(/flex-direction:\s*column/);
+    expect(mobileCss).toMatch(/display:\s*block/);
+    expect(normalCss).toContain('max-width:var(--eldra-container-content-max-width)');
+    expect(mobileCss).toContain('max-width:var(--eldra-container-full-max-width)');
+    expect(css).not.toMatch(/(?:url\(|calc\(|position:\s*(?:absolute|fixed|sticky)|<script)/i);
+    expect(html).toMatch(/<style[^>]*nonce="fixture-layout-nonce"[^>]*>/);
+  });
+
+  it('writes CSP headers, version metadata, manifest, and SPA fallback', () => {
+    const headers = readFileSync(output('_headers'), 'utf8');
+    expect(headers).toContain("frame-ancestors 'self' https://acme.eldracms.com");
+    expect(headers).not.toContain('https://*.eldracms.com');
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
+    expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
+    // The build attempted the platform's design-token read (`readDesignTokens`,
+    // `./runtime/designTokens.ts`) — this fixture's gateway 404s it, like a site with no
+    // published overrides — and fell back to the theme's own `tokens.json`, fail-soft, with one
+    // warning (proven at the unit level, `test/designTokens.spec.ts`); the generated CSS is the
+    // theme's own unmerged value.
+    expect(gateway.requests).toContain('/site/v1/design-tokens');
+    expect(html).toContain('--eldra-color-primary:#4f46e5;');
+    expect(html).toContain('--eldra-container-content-max-width:64rem;');
+    expect(html).toContain(
+      'studioOrigins:["https://acme.eldracms.com","https://*.studio.example.test:3000"]'
+    );
+    expect(existsSync(output('.eldra/manifest.json'))).toBe(true);
+    const manifest = JSON.parse(readFileSync(output('.eldra/manifest.json'), 'utf8')) as {
+      customPages?: unknown;
+    };
+    expect(manifest.customPages).toEqual([
+      {
+        path: '/articles/code-owned',
+        title: 'Code-owned article',
+        description: 'A native Nuxt route that wins over the CMS template.',
+      },
+    ]);
+    expect(existsSync(output('200.html'))).toBe(true);
+  });
+
+  it('ships no editor runtime: no TipTap, ProseMirror or UI-library code in the output', () => {
+    // §18 v2: the theme SDK is a bridge — it renders rich text but hosts no
+    // editor. Nothing in a generated theme may reference the editor stack,
+    // neither inline in the HTML nor as a chunk name under _nuxt.
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toMatch(/tiptap|prosemirror|vue-ui-components/i);
+
+    const chunks = readdirSync(join(fixtureDir, '.output', 'public', '_nuxt'));
+    for (const chunk of chunks) {
+      expect(chunk, chunk).not.toMatch(/tiptap|prosemirror|vue-ui-components|editor/i);
+    }
+  });
+
+  it('keeps static pages renderable while an upgraded site awaits its route-template schema', async () => {
+    const upgradeGateway = await startMockGateway({ missingRouteTemplateSchema: true });
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: upgradeGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+
+      expect(readFileSync(output('index.html'), 'utf8')).toContain('Generated heading');
+      expect(readFileSync(output('index.html'), 'utf8')).not.toContain('Page not found');
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        upgradeGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }, 360_000);
+
+  /**
+   * The build-time merge's other half: a platform that *does* publish a resolved design-token
+   * catalog. `test/mockGateway.ts`'s `/site/v1/design-tokens` answers the public contract shape
+   * (`{ revision, resolved }`) with a catalog that overrides the theme's own primary colour and
+   * content container width; `@eldrajs/theme-nuxt`'s module (`readDesignTokens`/`resolveTokens`,
+   * same as the no-override build above) must bake the override into the generated
+   * `virtual:eldra/tokens.css` CSS *and* the prerendered runtime config's `designTokens` key, which
+   * is what seeds `context.designTokens` in the browser (`./runtime/plugin.ts`) — this reads the
+   * static artifact directly, so it is the same evidence a live site would carry.
+   */
+  it('merges the platform’s design-token overrides into the generated CSS and the runtime context', async () => {
+    const overrideGateway = await startMockGateway({
+      designTokens: {
+        colors: { primary: { label: 'Primary', value: '#ff6600', allowSiteOverride: true } },
+        containers: {
+          narrow: {
+            label: 'Narrow',
+            maxWidth: '40rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          content: {
+            label: 'Content',
+            maxWidth: '70rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          wide: {
+            label: 'Wide',
+            maxWidth: '80rem',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+          full: {
+            label: 'Full',
+            maxWidth: 'none',
+            gutter: { normal: '2rem', tablet: '1.5rem', mobile: '1rem' },
+            allowSiteOverride: true,
+          },
+        },
+      },
+    });
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: overrideGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+
+      const html = readFileSync(output('index.html'), 'utf8');
+      // The generated CSS carries the platform's resolved values, not the theme's own.
+      expect(html).toContain('--eldra-color-primary:#ff6600;');
+      expect(html).toContain('--eldra-container-content-max-width:70rem;');
+      expect(html).not.toContain('--eldra-color-primary:#4f46e5;');
+      expect(html).not.toContain('--eldra-container-content-max-width:64rem;');
+      // The same resolved catalog rides along in the prerendered runtime config, which is what
+      // seeds `context.designTokens` on the client — the override, not the manifest's own tokens.
+      expect(html).toContain('value:"#ff6600"');
+      expect(html).toContain('maxWidth:"70rem"');
+      expect(html).not.toContain('value:"#4f46e5"');
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        overrideGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }, 360_000);
+});

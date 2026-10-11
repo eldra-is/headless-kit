@@ -1,0 +1,45 @@
+{
+  "apiId": "announcement-bar",
+  "name": "Announcement bar",
+  "description": "A slim strip above the header for one short store-wide message, with an optional link and an optional dismiss button.",
+  "icon": "speakerphone",
+  "category": "structure",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "primary is the default.",
+      "metadata": { "options": ["primary", "accent", "subtle"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "message",
+      "name": "Message",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "One sentence, ideally under 60 characters.",
+      "validators": { "required": true, "maxLength": 160 }
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link URL",
+      "type": "string"
+    },
+    {
+      "fieldId": "dismissable",
+      "name": "Dismissable",
+      "type": "bool",
+      "default": true,
+      "helpText": "Shows the dismiss button. The dismissal is remembered for the visitor, keyed to this message."
+    }
+  ]
+}

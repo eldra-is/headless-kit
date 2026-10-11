@@ -1,0 +1,16 @@
+{
+  "coverImage": {
+    "assetId": "demo-article-cover",
+    "url": "/demo/article-cover.svg",
+    "altText": "Unglazed stoneware bowls stacked on a wooden studio shelf",
+    "width": 1920,
+    "height": 1080
+  },
+  "authorAvatar": {
+    "assetId": "demo-avatar-6",
+    "url": "/demo/avatar-6.svg",
+    "altText": "",
+    "width": 256,
+    "height": 256
+  }
+}

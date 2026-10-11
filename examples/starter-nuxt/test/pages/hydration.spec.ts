@@ -1,0 +1,557 @@
+// @vitest-environment jsdom
+//
+// The prerendered page's other half. `test/pages/ssr.spec.ts` proves the server writes real prices
+// and stock lines; this file proves the **browser's first render is that same markup**, which is the
+// half a commerce block can break on its own.
+//
+// It can, because the storefront result is not in the same state on both sides. On a hydrating
+// client `createGatewayResult` (`app/storefront/gateway.ts`) raises `loading` synchronously, fills
+// `data` from the hydration payload in the same turn, and only clears `loading` after
+// `await handle.settled` — so `loading && data !== null` is *true* during the first client render
+// and was false during the render it has to match. A block that draws its refresh treatment
+// straight off that (dimmed values, spinners, `aria-busy`, "Updating…") paints a busy page over a
+// calm one: Vue patches the difference, logs a hydration warning, and the visitor sees the block
+// repaint on arrival. `app/composables/useRevalidating.ts` is the fix — every flag it returns is
+// false until `onMounted`, which never runs on the server and runs after the first client render.
+import { describe, expect, it, afterEach } from 'vitest';
+import { nextTick, onServerPrefetch, ref, type Ref } from 'vue';
+import type { Component } from 'vue';
+import type { EldraClient } from '@eldrajs/sdk';
+import Navigation from '../../blocks/navigation/Block.vue';
+import navigationMock from '../../blocks/navigation/mock.json';
+import ProductDetail from '../../blocks/product-detail/Block.vue';
+import productDetailMock from '../../blocks/product-detail/mock.json';
+import ProductCarousel from '../../blocks/product-carousel/Block.vue';
+import productCarouselMock from '../../blocks/product-carousel/mock.json';
+import CollectionGrid from '../../blocks/collection-grid/Block.vue';
+import collectionGridMock from '../../blocks/collection-grid/mock.json';
+import Search from '../../blocks/search/Block.vue';
+import searchMock from '../../blocks/search/mock.json';
+import Wishlist from '../../blocks/wishlist/Block.vue';
+import wishlistMock from '../../blocks/wishlist/mock.json';
+import { createDemoStorefront } from '../../app/storefront/demo';
+import { createGatewayStorefront, type StorefrontRuntime } from '../../app/storefront/gateway';
+import { STOREFRONT_KEY } from '../../app/storefront/types';
+import type {
+  StorefrontResult,
+  StorefrontRoute,
+  StorefrontSource,
+  VolatileKey,
+} from '../../app/storefront/types';
+import enUS from '../../i18n/en-US.json';
+import {
+  hydrateBlock,
+  hydrationWarnings,
+  renderBlockHtml,
+  type BlockEntry,
+  type HydrationRun,
+} from '../support/hydrate';
+
+const runs: HydrationRun[] = [];
+afterEach(() => {
+  for (const run of runs.splice(0)) run.unmount();
+  // The wishlist cases below put a saved list in `localStorage`, which jsdom keeps for the file.
+  localStorage.clear();
+});
+
+/** Where the wishlist keeps a shopper's saved handles (`app/storefront/history.ts`). */
+const WISHLIST_KEY = 'eldra.storefront.wishlist';
+
+/**
+ * A result in the shape `createGatewayResult` hands a block, with the two states that differ
+ * between the two renders under the caller's control: `loading` (true while hydrating, until the
+ * prerendered read settles) and `revalidating` (raised by the volatile refresh a moment after
+ * mount).
+ */
+function gatewayShaped<T>(
+  value: T,
+  options: { loading?: boolean } = {}
+): {
+  result: StorefrontResult<T>;
+  loading: Ref<boolean>;
+  revalidating: Ref<ReadonlySet<VolatileKey>>;
+} {
+  const loading = ref(options.loading ?? false);
+  const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
+  const result = {
+    data: ref(value),
+    pending: ref(false),
+    loading,
+    error: ref(null),
+    revalidating,
+    refresh: async () => {},
+  } as unknown as StorefrontResult<T>;
+  return { result, loading, revalidating };
+}
+
+/** The demo catalogue's own answer for one read, settled — the "payload" both renders share. */
+async function demoValue<T>(pick: (source: StorefrontSource) => StorefrontResult<T>): Promise<T> {
+  const result = pick(createDemoStorefront());
+  await nextTick();
+  await nextTick();
+  return result.data.value as T;
+}
+
+interface Subject {
+  name: string;
+  component: Component;
+  entry: BlockEntry;
+  /** The settled value, read once from the demo catalogue. */
+  value: () => Promise<unknown>;
+  /** A storefront whose one relevant read answers with `result`. */
+  storefront: (result: StorefrontResult<never>) => StorefrontSource;
+}
+
+const SUBJECTS: Subject[] = [
+  {
+    name: 'product-detail',
+    component: ProductDetail,
+    entry: { id: 'h-detail', data: productDetailMock as unknown as Record<string, unknown> },
+    value: () => demoValue((source) => source.catalog.product(ref('merino-crew-sweater'))),
+    storefront: (result) => {
+      const base = createDemoStorefront();
+      return { ...base, catalog: { ...base.catalog, product: () => result } };
+    },
+  },
+  {
+    name: 'product-carousel',
+    component: ProductCarousel,
+    entry: { id: 'h-carousel', data: productCarouselMock as unknown as Record<string, unknown> },
+    value: () => demoValue((source) => source.catalog.related(ref('merino-crew-sweater'), 8)),
+    storefront: (result) => {
+      const base = createDemoStorefront();
+      return { ...base, catalog: { ...base.catalog, related: () => result } };
+    },
+  },
+  {
+    name: 'collection-grid',
+    component: CollectionGrid,
+    entry: { id: 'h-grid', data: collectionGridMock as unknown as Record<string, unknown> },
+    value: () =>
+      demoValue((source) =>
+        source.catalog.collectionProducts(
+          ref({ slug: 'winter-knitwear' }),
+          ref({ page: 1, pageSize: 24 })
+        )
+      ),
+    storefront: (result) => {
+      const base = createDemoStorefront();
+      return { ...base, catalog: { ...base.catalog, collectionProducts: () => result } };
+    },
+  },
+];
+
+/**
+ * `@eldrajs/ui`'s `Carousel` decorates its slides **imperatively after mount** — `useCarousel.ts`
+ * `setAttribute`s `data-part="slide"`, `role="group"`, `aria-roledescription="slide"` and an
+ * "n of total" label onto whatever children the consumer passed, adds the `eldra-carousel-slide`
+ * sizing class, and writes the roving tab stop's `tabindex` (one stop for the whole row, on the
+ * active slide; every other slide's controls parked at `-1`) — precisely so a block can hand it
+ * plain elements. That is a deliberate progressive enhancement of the package's, not a render the
+ * server disagreed with (Vue reports no mismatch for any of it), and `product-detail`'s gallery and
+ * `product-carousel`'s row both go through it. The `tabindex` pass is the same kind of thing as the
+ * labelling: the server renders the pre-enhancement shape, the first client render matches it
+ * exactly, and the model only moves in `onMounted` afterwards — which is why removing it from both
+ * sides leaves the comparison below an honest one.
+ *
+ * **The `tabindex` removal is scoped to the carousel's own track**, through a parse rather than the
+ * regex the other four tokens use: `tabindex` is an ordinary attribute a block writes for itself —
+ * `collection-grid`, one of the subjects here, renders a `tabindex="-1"` status line and no
+ * `Carousel` at all — and a blanket strip would quietly delete that block's own markup from both
+ * halves of the comparison, which is exactly the kind of difference this spec exists to catch. Only
+ * attributes inside `[data-part="track"]` go, so what is left really is the *block's* own markup.
+ * Nothing in `blocks/**` writes any of the other four.
+ */
+const CAROUSEL_ENHANCEMENT =
+  /\s(?:data-part="slide"|role="group"|aria-roledescription="slide"|aria-label="\d+ of \d+")|\seldra-carousel-slide|eldra-carousel-slide\s/g;
+
+function withoutPackageEnhancement(html: string): string {
+  // Both halves go through the same parse, so any normalisation the parser does of its own
+  // (attribute quoting, void elements) cancels out and a real difference still shows.
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  for (const el of doc.querySelectorAll('[data-part="track"] [tabindex]')) {
+    el.removeAttribute('tabindex');
+  }
+  return doc.body.innerHTML.replace(CAROUSEL_ENHANCEMENT, '');
+}
+
+/** A route with a product handle on it, the way the slug page fills one in. */
+function routeFor(handle: string): StorefrontRoute {
+  return {
+    productHandle: handle,
+    collectionHandle: null,
+    orderToken: null,
+    query: null,
+    page: 1,
+    sort: null,
+    columns: null,
+    filters: {},
+    setQuery: () => {},
+  };
+}
+
+/**
+ * The **real** gateway storefront on both sides of a prerendered not-found page, with the storefront
+ * runtime standing in for the framework's keyed async data at the one boundary that differs between
+ * the two renders (`StorefrontPrerenderHandle`):
+ *
+ *   * the server's read ran and answered nothing — no value in hand yet, the render waits for it
+ *     (`onServerPrefetch`, which is what `useAsyncData` registers);
+ *   * the browser reads that same answer back out of the page payload, where it is a settled
+ *     `null` — `{ data: null }`, not "no answer yet".
+ *
+ * Every state the block then branches on is `createGatewayResult`'s own.
+ */
+function gatewayStorefront(handle: string, half: 'server' | 'client'): StorefrontSource {
+  const settled = Promise.resolve({ data: null, error: null });
+  const runtime: StorefrontRuntime = {
+    prerender: () => {
+      if (half === 'server') {
+        onServerPrefetch(() => settled);
+        return { answered: null, settled };
+      }
+      return { answered: { data: null }, settled };
+    },
+  };
+  // Never called: the read is answered by the runtime on both sides, which is the point.
+  const client = { catalog: {}, checkout: { url: async () => '' } } as unknown as EldraClient;
+  return createGatewayStorefront(client, { route: routeFor(handle), runtime });
+}
+
+describe('hydrating a prerendered commerce block', () => {
+  /**
+   * The general rule, and the regression guard the review asked for: server render and first client
+   * render of the same block over the same prerendered data must be the same markup — with the
+   * client's result in the state a hydrating page actually puts it in, `loading` still true.
+   *
+   * "First client render" is the DOM straight after `app.mount()` on a `createSSRApp` over the
+   * server's own HTML: a real hydration, not a re-render. `onMounted` runs inside that mount but the
+   * render it schedules is queued, so this is genuinely the paint a visitor sees first.
+   *
+   * Two assertions, and the first is the load-bearing one: Vue's own hydration warnings. An
+   * attribute mismatch is patched in place during hydration, so the two strings would agree
+   * *afterwards* — only the warning says it happened. The string equality then catches anything Vue
+   * accepts silently.
+   */
+  it.each(SUBJECTS.map((subject) => [subject.name, subject] as const))(
+    '%s renders the same markup on the server and on the browser’s first paint',
+    async (_name, subject) => {
+      const value = await subject.value();
+
+      const server = gatewayShaped(value);
+      const html = await renderBlockHtml(subject.component, subject.entry, {
+        [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+      });
+
+      // The hydrating client: same data, `loading` still true — exactly what `gateway.ts` leaves
+      // behind between the payload assignment and `await handle.settled`.
+      const client = gatewayShaped(value, { loading: true });
+      const run = hydrateBlock(subject.component, subject.entry, html, {
+        [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+      });
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(withoutPackageEnhancement(run.firstPaint)).toBe(
+        withoutPackageEnhancement(run.expected)
+      );
+    }
+  );
+
+  /**
+   * The same run, read as behaviour rather than as equality: nothing of the refresh treatment is in
+   * the first paint, and all of it arrives on the tick after mount while the read is still in
+   * flight. Both halves matter — the first is the hydration contract, the second is that gating the
+   * flag did not simply turn the treatment off.
+   *
+   * **What the grid draws for a whole read is its own opacity pulse, not the per-card
+   * treatment.** `collection-grid` pulses the card list itself (`animate-eldra-pulse-soft`,
+   * 0.7 ↔ 0.9) and keeps the dimmed-value-and-spinner treatment for the volatile price/stock
+   * refresh alone — two indicators for one state read as the page stuttering, and the pulse is the
+   * one the shopper can actually see from across a 24-card grid. So `eldra-revalidating` and the
+   * block's own "Updating prices and stock" region belong to the *other* state here, and the test
+   * that proves they still work for it is the volatile one below.
+   */
+  it('shows no refresh treatment until after mount, then shows it while the read is in flight', async () => {
+    const subject = SUBJECTS[2]!; // collection-grid: cards, a busy grid and a count line in one
+    const value = await subject.value();
+
+    const server = gatewayShaped(value);
+    const html = await renderBlockHtml(subject.component, subject.entry, {
+      [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+    });
+    expect(html).not.toContain('aria-busy');
+    expect(html).not.toContain('eldra-revalidating');
+    expect(html).not.toContain('animate-eldra-pulse-soft');
+    expect(html).not.toContain(enUS.grid.updating);
+
+    const client = gatewayShaped(value, { loading: true });
+    const run = hydrateBlock(subject.component, subject.entry, html, {
+      [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+    });
+    runs.push(run);
+
+    expect(run.firstPaint).not.toContain('aria-busy');
+    expect(run.firstPaint).not.toContain('eldra-revalidating');
+    expect(run.firstPaint).not.toContain('animate-eldra-pulse-soft');
+    expect(run.firstPaint).not.toContain('data-part="spinner"');
+    expect(run.firstPaint).not.toContain(enUS.grid.updating);
+    expect(run.firstPaint).not.toContain(enUS.storefront.updatingValues);
+
+    await nextTick();
+
+    // `loading` has not changed — only `onMounted` has run. The treatment is the block's, not the
+    // storefront's.
+    expect(client.loading.value).toBe(true);
+    expect(run.container.innerHTML).toContain('aria-busy="true"');
+    expect(run.container.innerHTML).toContain('animate-eldra-pulse-soft');
+    expect(run.container.innerHTML).toContain(enUS.grid.updating);
+    // The cards underneath are left alone: one indicator, not two (see the note above).
+    expect(run.container.innerHTML).not.toContain('eldra-revalidating');
+    expect(run.container.innerHTML).not.toContain(enUS.storefront.updatingValues);
+
+    // And it clears when the prerendered read finally settles.
+    client.loading.value = false;
+    await nextTick();
+    expect(run.container.innerHTML).not.toContain('aria-busy="true"');
+    expect(run.container.innerHTML).not.toContain('animate-eldra-pulse-soft');
+    expect(run.container.innerHTML).not.toContain('eldra-revalidating');
+  });
+
+  /**
+   * The grid's *other* refresh state, on the same block: the volatile price/stock re-read, which
+   * is not a whole read over the list and therefore keeps the per-card treatment and the block's
+   * one polite region. This is the half the pulse must not have taken with it.
+   */
+  it('keeps the grid’s per-card treatment for the volatile refresh', async () => {
+    const subject = SUBJECTS[2]!;
+    const value = await subject.value();
+
+    const server = gatewayShaped(value);
+    const html = await renderBlockHtml(subject.component, subject.entry, {
+      [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+    });
+
+    const client = gatewayShaped(value);
+    client.revalidating.value = new Set<VolatileKey>(['price', 'stock']);
+    const run = hydrateBlock(subject.component, subject.entry, html, {
+      [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+    });
+    runs.push(run);
+
+    expect(run.firstPaint).not.toContain('eldra-revalidating');
+
+    await nextTick();
+
+    expect(run.container.innerHTML).toContain('eldra-revalidating');
+    expect(run.container.innerHTML).toContain(enUS.storefront.updatingValues);
+    // No whole read is in flight, so the list does not pulse and the count still reads a number.
+    expect(run.container.innerHTML).not.toContain('animate-eldra-pulse-soft');
+    expect(run.container.innerHTML).not.toContain(enUS.grid.updating);
+  });
+
+  /** The volatile refresh itself is gated by the same flag, on the same first paint. */
+  it('keeps a revalidating volatile set out of the first paint too', async () => {
+    const subject = SUBJECTS[0]!; // product-detail: one price, one stock line
+    const value = await subject.value();
+
+    const server = gatewayShaped(value);
+    const html = await renderBlockHtml(subject.component, subject.entry, {
+      [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+    });
+
+    const client = gatewayShaped(value);
+    client.revalidating.value = new Set<VolatileKey>(['price', 'stock']);
+    const run = hydrateBlock(subject.component, subject.entry, html, {
+      [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+    });
+    runs.push(run);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).not.toContain('eldra-revalidating');
+
+    await nextTick();
+    expect(run.container.innerHTML).toContain('eldra-revalidating');
+  });
+  /**
+   * A prerendered page outlives its catalogue, so a read that answers *nothing* is a real
+   * prerendered state: the server writes "this product is no longer available" with nothing
+   * pending. The browser has to start from that same answer. It did not — the payload's `null` was
+   * indistinguishable from "no answer yet", so the hydrating result stayed `pending` and the first
+   * client paint was the loading line over the server's not-found line.
+   */
+  it('product-detail hydrates a prerendered not-found page as not found, not as loading', async () => {
+    const entry: BlockEntry = {
+      id: 'h-gone',
+      data: { ...(productDetailMock as unknown as Record<string, unknown>), productHandle: '' },
+    };
+
+    const html = await renderBlockHtml(ProductDetail, entry, {
+      [STOREFRONT_KEY]: gatewayStorefront('gone-for-good', 'server'),
+    });
+    expect(html).toContain(enUS.storefront.notFound);
+    expect(html).not.toContain(enUS.storefront.loading);
+
+    const run = hydrateBlock(ProductDetail, entry, html, {
+      [STOREFRONT_KEY]: gatewayStorefront('gone-for-good', 'client'),
+    });
+    runs.push(run);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).toContain(enUS.storefront.notFound);
+    expect(run.firstPaint).not.toContain(enUS.storefront.loading);
+    expect(withoutPackageEnhancement(run.firstPaint)).toBe(withoutPackageEnhancement(run.expected));
+  });
+
+  /**
+   * `/search` is the one route whose prerendered file answers *every* URL: a static host serves the
+   * same `search/index.html` for `/search` and for `/search?q=linen`, so the markup it ships knows
+   * no query at all (`pages/search.page.json` seeds that page). The browser's first render has to be that same markup
+   * even though the address bar — and therefore `useStorefront().route.query` — already carries the
+   * query, which is why `blocks/search/Block.vue` adopts it in `onMounted` rather than at setup.
+   *
+   * Without that gate the first paint is a different `h1` and a `<p role="status">` where the
+   * popular-search chips were: Vue patches the difference, warns, and the shopper watches the idle
+   * heading flash into the answered one.
+   */
+  it('search hydrates a prerendered shell as idle, then answers the URL’s query', async () => {
+    const entry: BlockEntry = {
+      id: 'h-search',
+      data: searchMock as unknown as Record<string, unknown>,
+    };
+
+    // The prerender: no query on the route, because the file is built once for every query.
+    const html = await renderBlockHtml(Search, entry, {
+      [STOREFRONT_KEY]: createDemoStorefront(),
+    });
+    expect(html).toContain(enUS.search.idleTitle);
+    // `not.toContain('No results')` would match the template's own HTML comment, which SSR keeps.
+    expect(html).not.toContain('No results for');
+
+    // The browser: the real URL, `?q=linen`, from the first synchronous read onwards.
+    const run = hydrateBlock(Search, entry, html, {
+      [STOREFRONT_KEY]: createDemoStorefront({ query: 'linen' }),
+    });
+    runs.push(run);
+
+    expect(hydrationWarnings(run)).toEqual([]);
+    expect(run.firstPaint).toContain(enUS.search.idleTitle);
+    expect(withoutPackageEnhancement(run.firstPaint)).toBe(withoutPackageEnhancement(run.expected));
+
+    // And the gate did not simply turn the query off: the answer arrives on the ticks after mount.
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(run.container.innerHTML).toContain('Results for');
+    expect(run.container.innerHTML).not.toContain(enUS.search.idleTitle);
+  });
+
+  /**
+   * **The wishlist's half of the same contract, asserted rather than argued.** A shopper's saved
+   * list is in their own browser, and one prerendered file is served to all of them — so the markup
+   * a build wrote carries no count and no pressed state, and the browser's first render of that file
+   * has to be identical to it even though `localStorage` already holds the list.
+   *
+   * `app/composables/useWishlist.ts` is what makes that true: `WishlistStore.items` stays empty
+   * until `hydrate()`, which only `onMounted` calls. The gate is one edit away from being lost — a
+   * `hydrate()` moved into `setup`, a `watchEffect`, a `v-if` reading storage for itself — and only
+   * a hydration test fails for that reason. `test/pages/ssr.spec.ts` proves the server half; these
+   * two prove the client's first paint agrees with it and that the saved state arrives *after*.
+   */
+  describe('with a wishlist already saved in the browser', () => {
+    it('hydrates a header whose heart carries no count, then takes one', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const entry: BlockEntry = {
+        id: 'h-header',
+        data: navigationMock as unknown as Record<string, unknown>,
+      };
+
+      const html = await renderBlockHtml(Navigation, entry);
+      // The heart is in the file — it is nobody's state — and its name has no number in it.
+      expect(html).toContain('aria-label="Wishlist"');
+      expect(html).not.toContain('Wishlist, 1 item');
+
+      const run = hydrateBlock(Navigation, entry, html);
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(withoutPackageEnhancement(run.firstPaint)).toBe(
+        withoutPackageEnhancement(run.expected)
+      );
+      expect(run.firstPaint).not.toContain('Wishlist, 1 item');
+
+      // `onMounted` ran inside the mount; the render it queued is the next tick, and the store's
+      // read reaches the count through one more.
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('Wishlist, 1 item');
+      expect(run.container.innerHTML).toContain('href="/wishlist"');
+    });
+
+    it('hydrates a product page with its heart unpressed, then presses it', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const subject = SUBJECTS[0]!; // product-detail, over the demo catalogue's own product
+      const value = await subject.value();
+
+      const server = gatewayShaped(value);
+      const html = await renderBlockHtml(subject.component, subject.entry, {
+        [STOREFRONT_KEY]: subject.storefront(server.result as StorefrontResult<never>),
+      });
+      expect(html).toContain('aria-pressed="false"');
+      expect(html).not.toContain('aria-pressed="true"');
+
+      const client = gatewayShaped(value, { loading: true });
+      const run = hydrateBlock(subject.component, subject.entry, html, {
+        [STOREFRONT_KEY]: subject.storefront(client.result as StorefrontResult<never>),
+      });
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(run.firstPaint).toContain('aria-pressed="false"');
+
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('aria-pressed="true"');
+    });
+
+    /**
+     * The wishlist **block** — what `/wishlist` is made of now that the page is a document Core
+     * seeds rather than a route the theme owns. One `wishlist/index.html` is served to every
+     * visitor, so the markup it ships is the empty state, and the browser's first render of that
+     * file has to be the empty state too even though the saved list is already in `localStorage`.
+     * The cards are the update that follows, never part of the file.
+     */
+    it('hydrates a prerendered wishlist as empty, then fills it from the browser', async () => {
+      localStorage.setItem(WISHLIST_KEY, JSON.stringify(['merino-crew-sweater']));
+      const entry: BlockEntry = {
+        id: 'h-wishlist',
+        data: wishlistMock as unknown as Record<string, unknown>,
+      };
+
+      const html = await renderBlockHtml(Wishlist, entry, {
+        [STOREFRONT_KEY]: createDemoStorefront(),
+      });
+      expect(html).toContain(enUS.wishlist.emptyTitle);
+      expect(html).not.toContain('Merino crew sweater');
+
+      const run = hydrateBlock(Wishlist, entry, html, {
+        [STOREFRONT_KEY]: createDemoStorefront(),
+      });
+      runs.push(run);
+
+      expect(hydrationWarnings(run)).toEqual([]);
+      expect(run.firstPaint).toContain(enUS.wishlist.emptyTitle);
+      expect(run.firstPaint).not.toContain('Merino crew sweater');
+      expect(withoutPackageEnhancement(run.firstPaint)).toBe(
+        withoutPackageEnhancement(run.expected)
+      );
+
+      // Hydration, then the batched read the hydrated list asks for.
+      await nextTick();
+      await nextTick();
+      await nextTick();
+      expect(run.container.innerHTML).toContain('Merino crew sweater');
+      expect(run.container.innerHTML).not.toContain(enUS.wishlist.emptyTitle);
+    });
+  });
+});

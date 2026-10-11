@@ -1,0 +1,187 @@
+{
+  "apiId": "collection-grid",
+  "name": "Collection grid",
+  "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
+  "icon": "layout-grid",
+  "category": "commerce",
+  "version": 3,
+  "fields": [
+    {
+      "fieldId": "scope",
+      "name": "What to list",
+      "type": "select",
+      "metadata": { "options": ["collection", "catalogue", "category"] },
+      "helpText": "collection (the default) lists one collection — the one picked below, or the collection this page's route resolved. catalogue lists every product in the store, which is what the All products page uses. category lists the products of the category this page's route resolved, including every category under it, which is what the Category page uses; its Category filter group then offers that category's children. The Collection picker is ignored by both of the last two."
+    },
+    {
+      "fieldId": "collection",
+      "name": "Collection",
+      "type": "reference",
+      "relation": { "allowCollections": true },
+      "helpText": "Leave empty on a collection page to use that collection. Ignored when What to list is catalogue."
+    },
+    {
+      "fieldId": "variant",
+      "name": "Variant",
+      "type": "select",
+      "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size.",
+      "metadata": { "options": ["sidebar", "drawer-only"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "columns",
+      "name": "Columns",
+      "type": "select",
+      "helpText": "The default column count on wide layouts. Shoppers can change it.",
+      "metadata": { "options": ["2", "3", "4"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "pageSize",
+      "name": "Products per page",
+      "type": "select",
+      "metadata": { "options": ["12", "24", "48"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "paginationStyle",
+      "name": "Pagination style",
+      "type": "select",
+      "helpText": "load-more keeps the footer reachable; pages numbers the results.",
+      "metadata": { "options": ["load-more", "pages"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "sortOptions",
+      "name": "Sort options",
+      "type": "list",
+      "helpText": "Which sort options to offer, in order.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Sort option",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "option",
+                "name": "Option",
+                "type": "select",
+                "metadata": {
+                  "options": ["featured", "best-selling", "price-asc", "price-desc", "newest"]
+                },
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Overrides the option's own name."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "filters",
+      "name": "Filter groups",
+      "type": "list",
+      "helpText": "Filter groups, in order. Values and counts come from the store.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Filter group",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "source",
+                "name": "Source",
+                "type": "select",
+                "helpText": "What the group filters on. \"options\" is one group per variant option the store has (Size, Colour, Fabric…), labelled and ordered by the store itself — pick a single \"option:…\" instead only to rename one or pin where it sits. A group the storefront cannot narrow by in this grid's scope is not shown to shoppers: \"collection\" is one such group on a grid that already shows a collection, since the catalogue has no way to ask for products in both.",
+                "metadata": {
+                  "options": [
+                    "category",
+                    "collection",
+                    "options",
+                    "option:size",
+                    "option:colour",
+                    "price",
+                    "availability"
+                  ]
+                },
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Overrides the group title."
+              },
+              {
+                "fieldId": "collapsed",
+                "name": "Start closed",
+                "type": "bool",
+                "helpText": "A group with an active value always starts open."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "priceSlider",
+      "name": "Price slider",
+      "type": "bool",
+      "default": true,
+      "helpText": "Off shows the price group's two typed fields alone, for prices that sit in a few tight clusters."
+    },
+    {
+      "fieldId": "colourLayout",
+      "name": "Colour layout",
+      "type": "select",
+      "metadata": { "options": ["list", "grid"] },
+      "helpText": "list (the default) shows swatch rows with the name and count; grid shows a grid of swatch tiles. Colour filter groups only."
+    },
+    {
+      "fieldId": "sizeGuideHref",
+      "name": "Size guide link",
+      "type": "link",
+      "helpText": "Shown under the Size filter group's tiles. Leave empty to show no link.",
+      "metadata": {
+        "kinds": ["page", "entry", "url"]
+      }
+    },
+    {
+      "fieldId": "priceStep",
+      "name": "Price step",
+      "type": "int",
+      "validators": { "min": 1 },
+      "helpText": "The price slider's step. Leave empty for one unit of the store currency (ISK 100, USD 1)."
+    },
+    {
+      "fieldId": "showColumnSelect",
+      "name": "Show the Columns select",
+      "type": "bool",
+      "default": true,
+      "helpText": "Wide layouts only."
+    },
+    {
+      "fieldId": "emptyTitle",
+      "name": "Empty title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown when no product matches the filters."
+    },
+    {
+      "fieldId": "emptyText",
+      "name": "Empty text",
+      "type": "text",
+      "localized": true,
+      "helpText": "The block appends a sentence naming the active filters."
+    }
+  ]
+}

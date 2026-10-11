@@ -1,0 +1,23 @@
+{
+  "variant": "sidebar",
+  "columns": "3",
+  "pageSize": "24",
+  "paginationStyle": "load-more",
+  "sortOptions": [
+    { "option": "featured", "label": "Featured" },
+    { "option": "best-selling", "label": "Best selling" },
+    { "option": "price-asc", "label": "Price low to high" },
+    { "option": "price-desc", "label": "Price high to low" },
+    { "option": "newest", "label": "Newest" }
+  ],
+  "filters": [
+    { "source": "category", "label": "Category" },
+    { "source": "options" },
+    { "source": "price", "label": "Price" },
+    { "source": "availability", "label": "Availability" }
+  ],
+  "showColumnSelect": true,
+  "colourLayout": "list",
+  "emptyTitle": "No products match these filters",
+  "emptyText": "Try removing a filter or widening the price range."
+}

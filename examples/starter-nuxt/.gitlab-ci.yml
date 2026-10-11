@@ -1,0 +1,16 @@
+stages: [deploy]
+
+eldra-deploy:
+  stage: deploy
+  image: node:20
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script:
+    - corepack enable && corepack prepare pnpm@9.15.0 --activate
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm exec nuxi generate
+    - pnpm exec eldra-theme deploy
+  variables:
+    ELDRA_TRIGGER_DEPLOYMENT_ID: $ELDRA_TRIGGER_DEPLOYMENT_ID

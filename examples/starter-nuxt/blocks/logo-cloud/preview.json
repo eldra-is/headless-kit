@@ -1,0 +1,92 @@
+{
+  "logos": [
+    {
+      "name": "Hearth & Co.",
+      "href": "https://hearthandco.example",
+      "image": {
+        "assetId": "demo-logo-1",
+        "url": "/demo/logo-1.svg",
+        "altText": "Hearth & Co.",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "Maple Row",
+      "href": "https://maplerow.example",
+      "image": {
+        "assetId": "demo-logo-2",
+        "url": "/demo/logo-2.svg",
+        "altText": "Maple Row",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "The Larder",
+      "href": "https://thelarder.example",
+      "image": {
+        "assetId": "demo-logo-3",
+        "url": "/demo/logo-3.svg",
+        "altText": "The Larder",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "Fernhill",
+      "href": "https://fernhill.example",
+      "image": {
+        "assetId": "demo-logo-4",
+        "url": "/demo/logo-4.svg",
+        "altText": "Fernhill",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "kiln & kettle",
+      "href": "https://kilnandkettle.example",
+      "image": {
+        "assetId": "demo-logo-5",
+        "url": "/demo/logo-5.svg",
+        "altText": "kiln & kettle",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "Common Room",
+      "href": "https://commonroom.example",
+      "image": {
+        "assetId": "demo-logo-6",
+        "url": "/demo/logo-6.svg",
+        "altText": "Common Room",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "Tidewater",
+      "href": "https://tidewater.example",
+      "image": {
+        "assetId": "demo-logo-7",
+        "url": "/demo/logo-7.svg",
+        "altText": "Tidewater",
+        "width": 480,
+        "height": 160
+      }
+    },
+    {
+      "name": "oak/ash",
+      "href": "https://oakash.example",
+      "image": {
+        "assetId": "demo-logo-8",
+        "url": "/demo/logo-8.svg",
+        "altText": "oak/ash",
+        "width": 480,
+        "height": 160
+      }
+    }
+  ]
+}

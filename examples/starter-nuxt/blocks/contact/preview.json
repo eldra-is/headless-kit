@@ -1,0 +1,9 @@
+{
+  "mapImage": {
+    "assetId": "demo-map",
+    "url": "/demo/map.svg",
+    "altText": "Map of 1420 SE Tannery Lane, Portland, marking the Northwind Goods workshop",
+    "width": 1600,
+    "height": 500
+  }
+}

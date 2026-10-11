@@ -1,0 +1,194 @@
+{
+  "template": "collection",
+  "title": "The winter edit",
+  "blocks": [
+    {
+      "apiId": "navigation",
+      "id": "collection-navigation",
+      "data": {
+        "variant": "default",
+        "brandText": "Northwind Goods",
+        "links": [],
+        "showSearch": true,
+        "searchStyle": "icon",
+        "sticky": true,
+        "transparentOverHero": false
+      }
+    },
+    {
+      "apiId": "breadcrumbs",
+      "id": "collection-breadcrumbs",
+      "data": {
+        "showHome": true,
+        "homeLabel": "Home",
+        "trail": [
+          {
+            "label": "Shop",
+            "href": "/collections"
+          }
+        ],
+        "currentTitle": "The winter edit",
+        "showCurrent": true,
+        "container": "wide"
+      }
+    },
+    {
+      "apiId": "collection-header",
+      "id": "collection-header",
+      "data": {
+        "variant": "image",
+        "collection": {
+          "_type": "collection",
+          "slug": "the-winter-edit"
+        },
+        "title": "The winter edit",
+        "showCount": true,
+        "showBreadcrumb": false,
+        "trail": [
+          {
+            "label": "Shop",
+            "href": "/collections"
+          }
+        ],
+        "description": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders. Every piece is knitted to order in small runs, finished by hand and washed once before it ships so it arrives soft. We keep the colours earthy and the shapes simple, so a sweater you buy this winter still looks right in ten years. Mending is free for the first two years."
+                }
+              ]
+            }
+          ]
+        },
+        "subcollections": [
+          {
+            "label": "All",
+            "href": "/collections/winter-knitwear",
+            "current": true
+          },
+          {
+            "label": "Sweaters",
+            "href": "/collections/sweaters"
+          },
+          {
+            "label": "Cardigans",
+            "href": "/collections/cardigans"
+          },
+          {
+            "label": "Hats & scarves",
+            "href": "/collections/hats-scarves"
+          },
+          {
+            "label": "Throws",
+            "href": "/collections/throws"
+          }
+        ],
+        "image": {
+          "assetId": "demo-collection-1",
+          "url": "/demo/collection-1.svg",
+          "altText": "Folded winter knitwear in oat, charcoal and moss",
+          "width": 1600,
+          "height": 1067
+        }
+      }
+    },
+    {
+      "apiId": "collection-grid",
+      "id": "collection-grid",
+      "data": {
+        "collection": {
+          "_type": "collection",
+          "slug": "the-winter-edit"
+        },
+        "variant": "sidebar",
+        "columns": "3",
+        "pageSize": "24",
+        "paginationStyle": "load-more",
+        "sortOptions": [
+          {
+            "option": "featured",
+            "label": "Featured"
+          },
+          {
+            "option": "best-selling",
+            "label": "Best selling"
+          },
+          {
+            "option": "price-asc",
+            "label": "Price low to high"
+          },
+          {
+            "option": "price-desc",
+            "label": "Price high to low"
+          },
+          {
+            "option": "newest",
+            "label": "Newest"
+          }
+        ],
+        "filters": [
+          {
+            "source": "category",
+            "label": "Category"
+          },
+          {
+            "source": "options"
+          },
+          {
+            "source": "price",
+            "label": "Price"
+          },
+          {
+            "source": "availability",
+            "label": "Availability"
+          }
+        ],
+        "showColumnSelect": true,
+        "emptyTitle": "No products match these filters",
+        "emptyText": "Try removing a filter or widening the price range."
+      }
+    },
+    {
+      "apiId": "cta",
+      "id": "collection-cta",
+      "data": {
+        "variant": "subtle",
+        "heading": "Not sure what to give?",
+        "text": "A Northwind gift card never expires and arrives by email in minutes.",
+        "primaryCtaLabel": "Send a gift card",
+        "primaryCtaHref": "/products/gift-card",
+        "image": {
+          "assetId": "demo-cta-split",
+          "url": "/demo/cta-split.svg",
+          "altText": "Darned elbow of a sage wool sweater",
+          "width": 1200,
+          "height": 900
+        }
+      }
+    },
+    {
+      "apiId": "footer",
+      "id": "collection-footer",
+      "data": {
+        "variant": "default",
+        "background": "surface-strong",
+        "brandText": "Northwind Goods",
+        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "groups": [],
+        "links": [],
+        "showNewsletter": true,
+        "newsletterTitle": "Letters from the workshop",
+        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "social": [],
+        "legalText": "© 2026 Northwind Goods",
+        "legalLinks": [],
+        "showLocale": true,
+        "showCurrency": true
+      }
+    }
+  ]
+}

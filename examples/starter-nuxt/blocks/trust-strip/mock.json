@@ -1,0 +1,37 @@
+{
+  "variant": "columns",
+  "items": [
+    {
+      "icon": "truck",
+      "title": "Free shipping over $80",
+      "text": "Delivered in 2–4 business days, carbon-neutral."
+    },
+    {
+      "icon": "arrow-back-up",
+      "title": "30-day returns",
+      "text": "Changed your mind? Send it back free of charge.",
+      "linkLabel": "30-day returns",
+      "href": "/pages/returns"
+    },
+    {
+      "icon": "shield-check",
+      "title": "Secure payment",
+      "text": "Encrypted checkout, and we never store card details."
+    },
+    {
+      "icon": "needle-thread",
+      "title": "Made by hand",
+      "text": "In small batches by four family-run workshops."
+    }
+  ],
+  "mobileLayout": "grid",
+  "showPayments": true,
+  "paymentsLabel": "Secure checkout with",
+  "payments": [
+    { "brand": "visa" },
+    { "brand": "mastercard" },
+    { "brand": "paypal" },
+    { "brand": "apple-pay" }
+  ],
+  "background": "surface"
+}

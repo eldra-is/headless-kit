@@ -1,0 +1,18 @@
+{
+  "variant": "results-page",
+  "heading": "Results for “{query}”",
+  "placeholder": "Search knitwear, ceramics, journal…",
+  "types": [
+    { "type": "products", "label": "Products" },
+    { "type": "journal", "label": "Journal" },
+    { "type": "pages", "label": "Pages" }
+  ],
+  "suggestionsPerGroup": "3",
+  "popularSearches": [
+    { "label": "Merino" },
+    { "label": "Mugs" },
+    { "label": "Tea towels" },
+    { "label": "Gift cards" }
+  ],
+  "noResultsCollection": "best-sellers"
+}

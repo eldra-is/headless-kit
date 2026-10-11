@@ -1,0 +1,113 @@
+{
+  "productHandle": "merino-crew-sweater",
+  "variant": "gallery-left",
+  "showRating": true,
+  "showQuantity": true,
+  "showWishlist": true,
+  "lowStockThreshold": "3",
+  "perks": [
+    {
+      "icon": "truck",
+      "title": "Free delivery over $80.",
+      "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+    },
+    {
+      "icon": "arrow-back-up",
+      "title": "Free 30-day returns.",
+      "text": "Unworn, with tags, no questions asked."
+    }
+  ],
+  "tabs": [
+    {
+      "label": "Details",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      { "type": "text", "text": "100% extra-fine Merino wool, 17.5 micron" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      { "type": "text", "text": "Hand wash cold or wool cycle, dry flat" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [{ "type": "text", "text": "Model is 180 cm and wears size M" }]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "Shipping",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "label": "Returns",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sizeGuideLabel": "Size guide",
+  "sizeGuideHref": "",
+  "stickyBar": true,
+  "showCategory": true
+}

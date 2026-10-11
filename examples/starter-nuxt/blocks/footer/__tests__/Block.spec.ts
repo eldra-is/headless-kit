@@ -1,0 +1,700 @@
+// @vitest-environment jsdom
+import { flushPromises, mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
+import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
+import { EditorPlaceholder } from '@eldrajs/ui';
+import { axe } from '../../../test/support/axe';
+import Block from '../Block.vue';
+import mock from '../mock.json';
+import { mountOptions } from '../../../test/support/mountBlock';
+import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import type { StorefrontCommerce, StorefrontForms } from '../../../app/storefront/types';
+import { createDemoStorefront } from '../../../app/storefront/demo';
+import { currencyLabel } from '../../../app/storefront/money';
+import enUS from '../../../i18n/en-US.json';
+import isIS from '../../../i18n/is-IS.json';
+
+/**
+ * `mock.json` names a collection or product by handle, because a theme cannot know an
+ * organisation's catalog ids: Core rewrites those to ids when it seeds the entry, and the site
+ * resolves each id to a slug before rendering. This is the same route context a real page carries,
+ * keyed to the ids `resolveTargets` writes, so a spec can assert the hrefs the footer produces.
+ */
+const TEMPLATES = [
+  {
+    id: 'rt-collection',
+    data: {
+      schemaApiId: 'catalog:collection',
+      routePattern: '/collections/:slug',
+      slugField: 'slug',
+    },
+  },
+  {
+    id: 'rt-product',
+    data: { schemaApiId: 'catalog:product', routePattern: '/products/:slug', slugField: 'slug' },
+  },
+];
+
+interface SeedLink {
+  kind: string;
+  target?: { _type: string; slug?: string; id?: string };
+  url?: string;
+  label?: string;
+  children?: SeedLink[];
+}
+
+const linkTargets = new Map<string, unknown>();
+function resolveSeedLink(link: SeedLink): SeedLink {
+  const slug = link.target?.slug;
+  if (link.target === undefined || slug === undefined) return link;
+  const id = `id-${slug}`;
+  linkTargets.set(`${link.target._type}:${id}`, { slug, title: link.label });
+  return { ...link, target: { _type: link.target._type, id } };
+}
+
+const resolvedMock = {
+  ...mock,
+  groups: (mock.groups as SeedLink[]).map((group) => ({
+    ...group,
+    children: (group.children ?? []).map(resolveSeedLink),
+  })),
+  links: (mock.links as SeedLink[]).map(resolveSeedLink),
+  legalLinks: (mock.legalLinks as SeedLink[]).map(resolveSeedLink),
+};
+const linkContext = { templates: TEMPLATES, targets: linkTargets };
+
+function mountFooter(
+  data: Record<string, unknown>,
+  options: {
+    failForms?: boolean;
+    subscribe?: StorefrontForms['subscribe'];
+    /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
+    editing?: boolean;
+    /** The content locale — `@eldrajs/ui`'s number locale follows it (`mountOptions`). */
+    locale?: string;
+    /** What the store sells in; the demo store's own `DEMO_COMMERCE` (USD) by default, `null` for
+     *  a store that publishes no currency at all — same shape `product-detail`'s spec uses. */
+    commerce?: StorefrontCommerce | null;
+    /**
+     * The site's content locales. One unprefixed site by default, which is a store that has
+     * configured a single locale — and the state in which this block renders **no** language
+     * switcher at all, because there is nothing to switch between.
+     */
+    locales?: Partial<EldraLocaleState>;
+  } = {}
+) {
+  const base = mountOptions(
+    { entry: { id: 'e1', data } },
+    {
+      links: linkContext,
+      locale: options.locale,
+      commerce: options.commerce,
+      locales: options.locales,
+    }
+  );
+  if (options.editing) {
+    const context = base.global.provide[ELDRA_KEY] as {
+      preview: { active: boolean; mode: string };
+    };
+    context.preview.active = true;
+    context.preview.mode = 'edit';
+  }
+  const storefront = options.subscribe
+    ? (() => {
+        const demo = createDemoStorefront();
+        return { ...demo, forms: { ...demo.forms, subscribe: options.subscribe! } };
+      })()
+    : undefined;
+  return mount(Block, {
+    ...base,
+    // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
+    // needs the tree connected to the document — jsdom does not reliably track focus on a
+    // detached mount. Auto-unmount (`test/setup.ts`) removes this from `document.body` again
+    // after every test.
+    attachTo: document.body,
+    global: {
+      ...base.global,
+      provide: {
+        ...base.global.provide,
+        ...(options.failForms
+          ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
+          : {}),
+        ...(storefront ? { [STOREFRONT_KEY]: storefront } : {}),
+      },
+    },
+  });
+}
+
+/**
+ * Every `Select` trigger in the legal row, in DOM order. **Neither selector is always there:** the
+ * language switcher appears only once the organisation serves more than one locale (pass
+ * `locales: twoLocales()`), and the currency slot becomes a `Select` only once a store can sell in
+ * more than one currency — with today's one-currency platform it is a plain-text slot instead (see
+ * `Block.vue`'s legal row). So on a single-locale store this list is empty.
+ */
+function selectTriggers(wrapper: ReturnType<typeof mountFooter>) {
+  return wrapper.findAll('[role="combobox"]').filter((c) => c.element.tagName === 'BUTTON');
+}
+
+/**
+ * An organisation serving English at `/` and Icelandic under a prefix, with the page itself on the
+ * English one. `select` records rather than navigates: there is no router under a block mount, and
+ * what the switcher owes the visitor is exactly that call.
+ */
+function twoLocales(active = 'en-US'): Partial<EldraLocaleState> & { chosen: string[] } {
+  const chosen: string[] = [];
+  return {
+    chosen,
+    active,
+    defaultLocale: 'en-US',
+    supported: ['en-US', 'is-IS'],
+    name: localeName,
+    path: (href: string) => href,
+    switchPath: (locale: string) => (locale === 'en-US' ? '/' : `/${locale}`),
+    select: (locale: string) => chosen.push(locale),
+  };
+}
+
+/**
+ * Each locale's own name, which on a real page is resolved once on the server and carried in the
+ * payload (`useEldraLocale().name`) — the block never computes it, because `Intl.DisplayNames` is
+ * ICU data the renderer and the browser do not always share.
+ */
+const localeName = (tag: string): string =>
+  new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
+
+describe('footer block', () => {
+  it('renders the default variant (merged data — no preview.json exists for this block) with no axe violations', async () => {
+    const wrapper = mountFooter(mock);
+    expect(wrapper.text()).toContain(mock.brandText);
+    expect(wrapper.text()).toContain(mock.description);
+    for (const group of mock.groups) expect(wrapper.text()).toContain(group.label);
+    expect(wrapper.text()).toContain(mock.legalText);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders the bare mock.json content (freshly-inserted regression net) with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock });
+    expect(wrapper.find('footer').exists()).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('minimal variant renders the flat links row and no groups or newsletter, with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock, variant: 'minimal' });
+    expect(wrapper.text()).toContain(mock.brandText);
+    for (const link of mock.links) expect(wrapper.text()).toContain(link.label);
+    expect(wrapper.text()).not.toContain(mock.groups[0]!.label);
+    expect(wrapper.findAll('h3')).toHaveLength(0);
+    expect(wrapper.find('input[type="email"]').exists()).toBe(false);
+    expect(wrapper.find('form').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders a resolved collection and product row as their own paths', async () => {
+    const wrapper = mountFooter(resolvedMock);
+    const anchor = (label: string) => wrapper.findAll('a').find((a) => a.text() === label)!;
+    expect(anchor('Knitwear').attributes('href')).toBe('/collections/knitwear');
+    expect(anchor('Gift cards').attributes('href')).toBe('/products/gift-card');
+    // A legal row is an ordinary URL and needs no catalog at all.
+    expect(anchor('Privacy').attributes('href')).toBe('/pages/privacy');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders a row whose target no longer exists as plain text, never a dead anchor', async () => {
+    const wrapper = mountFooter({
+      ...resolvedMock,
+      variant: 'minimal',
+      links: [
+        { kind: 'collection', target: { _type: 'collection', id: 'id-gone' }, label: 'Gone' },
+      ],
+    });
+    expect(wrapper.text()).toContain('Gone');
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Gone')).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('renders a column heading as a heading, never as an anchor', () => {
+    // `kind: "none"` is the only shape a column heading has: a label, children,
+    // and nowhere to go.
+    const wrapper = mountFooter(resolvedMock);
+    const heading = wrapper.findAll('h3').find((h) => h.text() === 'Shop')!;
+    expect(heading.find('a').exists()).toBe(false);
+    expect(wrapper.findAll('a').some((a) => a.text() === 'Shop')).toBe(false);
+    // …and its children are the column's links.
+    expect(
+      wrapper
+        .findAll('a')
+        .find((a) => a.text() === 'Knitwear')!
+        .attributes('href')
+    ).toBe('/collections/knitwear');
+  });
+
+  it('renders nothing at all for a row with no label', () => {
+    const wrapper = mountFooter({
+      ...resolvedMock,
+      variant: 'minimal',
+      links: [
+        { kind: 'url', url: '/pages/terms' },
+        { kind: 'url', url: '/pages/privacy', label: 'Privacy' },
+      ],
+    });
+    const rows = wrapper.findAll('nav ul li');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.text()).toBe('Privacy');
+  });
+
+  it('background primary renders with no axe violations', async () => {
+    const wrapper = mountFooter({ ...mock, background: 'primary' });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('has a contentinfo <footer> landmark labelled by a visually hidden <h2> (default variant)', () => {
+    const wrapper = mountFooter(mock);
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    const labelledBy = footer.attributes('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    expect(footer.attributes('aria-label')).toBeUndefined();
+    const heading = wrapper.find(`#${labelledBy}`);
+    expect(heading.element.tagName).toBe('H2');
+    expect(heading.text()).toBe(enUS.footer.title);
+    expect(heading.classes()).toContain('sr-only');
+  });
+
+  it('names the <footer> landmark with aria-label directly in the minimal variant (no hidden <h2>)', () => {
+    const wrapper = mountFooter({ ...mock, variant: 'minimal' });
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    expect(footer.attributes('aria-label')).toBe(enUS.footer.title);
+    expect(footer.attributes('aria-labelledby')).toBeUndefined();
+    expect(wrapper.find('h2').exists()).toBe(false);
+  });
+
+  it('the block root is the Section component, a width container for its own @content:/@tablet: breakpoints', () => {
+    // Structural guard, not a layout one: happy-dom/jsdom compute no layout, so this only proves
+    // the `@container` utility Section's own root always carries (see Section.vue) survives onto
+    // the rendered <footer> — it cannot prove container queries actually resolve in a real
+    // browser. (A known `@eldrajs/ui` package issue currently keeps `@content:` utilities from
+    // compiling — its `@theme` container-query breakpoints are `var()` references, which Tailwind
+    // cannot use as a query threshold — tracked and fixed at the package, not worked around here.)
+    const wrapper = mountFooter(mock);
+    const footer = wrapper.find('footer');
+    expect(footer.exists()).toBe(true);
+    expect(footer.classes()).toContain('@container');
+  });
+
+  it('labels the link-groups nav', () => {
+    const wrapper = mountFooter(mock);
+    const nav = wrapper.find('nav');
+    expect(nav.exists()).toBe(true);
+    expect(nav.attributes('aria-label')).toBe(enUS.footer.nav);
+  });
+
+  it('the newsletter email input has type="email", autocomplete="email" and a programmatic label', () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    expect(input.exists()).toBe(true);
+    expect(input.attributes('autocomplete')).toBe('email');
+    const id = input.attributes('id');
+    expect(id).toBeTruthy();
+    const label = wrapper.find(`label[for="${id}"]`);
+    expect(label.exists()).toBe(true);
+    expect(label.text()).toBe(enUS.footer.emailLabel);
+    expect(label.classes()).toContain('sr-only');
+  });
+
+  it('an invalid (malformed) email submit sets aria-invalid, shows the error linked by aria-describedby, and keeps focus in the field', async () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('not-an-email');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
+    const describedBy = input.attributes('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(wrapper.find(`#${describedBy?.split(' ')[0]}`).text()).toContain(
+      enUS.footer.emailInvalid
+    );
+    expect(document.activeElement).toBe(input.element);
+  });
+
+  it('an empty submit is invalid too', async () => {
+    const wrapper = mountFooter(mock);
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    const input = wrapper.find('input[type="email"]');
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
+  });
+
+  it('a valid submit calls forms.subscribe and announces success through role="status"', async () => {
+    const wrapper = mountFooter(mock);
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    const status = wrapper.find('[role="status"]');
+    expect(status.exists()).toBe(true);
+    expect(status.text()).toContain(enUS.footer.subscribed);
+    // The form is replaced, not merely supplemented, by the success line (spec: "the form is
+    // replaced by a status line").
+    expect(wrapper.find('form').exists()).toBe(false);
+  });
+
+  it('a subscribe failure (backend ok:false) shows an error and keeps focus in the field', async () => {
+    const wrapper = mountFooter(mock, { failForms: true });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailError);
+    expect(document.activeElement).toBe(input.element);
+    // The form stays (retryable), unlike the success path.
+    expect(wrapper.find('form').exists()).toBe(true);
+  });
+
+  it('after a backend failure, resubmitting the unchanged email reaches the service again and can succeed', async () => {
+    // The gap `blocks/newsletter/Block.vue` fixed first: `FormLayout`'s own submit handler
+    // refuses to emit `submit` at all while a field still carries `aria-invalid="true"`, so an
+    // unchanged resubmit right after a backend failure needs the block's own `retryable` +
+    // `@invalid` handling to ever reach the service a second time. Mutation check (manual):
+    // removing `@invalid="onNewsletterInvalid"` (or `retryable.value = serviceFailed` in
+    // `onNewsletterSubmit`) makes `subscribe` stay called once and the field stay marked invalid
+    // forever — confirmed by temporarily reverting each change and observing this test fail.
+    const results = [{ ok: false as const, reason: 'failed' as const }, { ok: true as const }];
+    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
+    const wrapper = mountFooter(mock, { subscribe });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(input.attributes('aria-invalid')).toBe('true');
+
+    // Same value, no edit in between: the form's own invalid gate must not swallow this.
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    await flushPromises();
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenLastCalledWith({
+      email: 'reader@example.com',
+      list: 'footer-newsletter',
+    });
+    expect(wrapper.find('form').exists()).toBe(false);
+    expect(wrapper.find('[role="status"]').text()).toContain(enUS.footer.subscribed);
+  });
+
+  it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message (not the retryable one)', async () => {
+    const wrapper = mountFooter(mock, {
+      subscribe: async () => ({ ok: false, reason: 'invalid' }),
+    });
+    const input = wrapper.find('input[type="email"]');
+    await input.setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
+  });
+
+  /**
+   * The switcher's options are the organisation's own content locales, each named in **its own**
+   * language — a visitor hunting for their language is hunting for the word they write it with.
+   * The block used to ship a `us-en / ca-en / ca-fr` demo list, which named three locales no store
+   * has and switched to none of them.
+   */
+  describe('the language switcher', () => {
+    it('offers every locale the organisation serves, named in its own language', async () => {
+      const wrapper = mountFooter(mock, { locales: twoLocales() });
+      const triggers = selectTriggers(wrapper);
+      // One `Select` only: with the store's one currency (the demo store's default, USD), the
+      // currency slot renders as plain text, not a second combobox — see the tests below.
+      expect(triggers).toHaveLength(1);
+      expect(triggers[0]!.attributes('aria-haspopup')).toBe('listbox');
+      expect(triggers[0]!.attributes('aria-expanded')).toBe('false');
+      // The page is on `en-US`, so that is what the closed trigger shows.
+      expect(triggers[0]!.text()).toContain(localeName('en-US'));
+
+      triggers[0]!.element.focus();
+      await triggers[0]!.trigger('keydown', { key: 'ArrowDown' });
+      const options = [...document.querySelectorAll('[role="option"]')].map((node) =>
+        (node.textContent ?? '').trim()
+      );
+      // Each in its own language, which is the whole point: "íslenska (Ísland)", never "Icelandic".
+      expect(options).toEqual([localeName('en-US'), localeName('is-IS')]);
+      expect(localeName('is-IS')).toContain('íslenska');
+    });
+
+    it('names itself "Language" for a screen reader', () => {
+      const wrapper = mountFooter(mock, { locales: twoLocales() });
+      expect(wrapper.findAll('.sr-only').map((el) => el.text())).toContain(enUS.footer.localeLabel);
+      expect(enUS.footer.localeLabel).toBe('Language');
+    });
+
+    /**
+     * **Nothing to switch between is no control.** Most stores configure one locale, and every
+     * Storybook story and unit mount is in that state; a combobox a visitor can open onto a single
+     * option is worse than no combobox, which is the same judgement the currency slot already
+     * makes.
+     */
+    it('renders nothing at all on a single-locale store', async () => {
+      const single = mountFooter(mock, {
+        locales: { active: 'en-US', defaultLocale: 'en-US', supported: ['en-US'] },
+      });
+      expect(selectTriggers(single)).toHaveLength(0);
+      expect(single.findAll('.sr-only').map((el) => el.text())).not.toContain(
+        enUS.footer.localeLabel
+      );
+
+      expect(await axe(single.element)).toHaveNoViolations();
+
+      // And with no locale state at all — a story, or a context one version behind. Mounted last,
+      // because a second `<footer>` on `document.body` is a second `contentinfo` landmark and axe
+      // reports the pair rather than this footer.
+      expect(selectTriggers(mountFooter(mock))).toHaveLength(0);
+    });
+
+    it('commits only on Enter — arrow keys alone navigate nowhere', async () => {
+      const locales = twoLocales();
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
+
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      expect(localeTrigger.attributes('aria-expanded')).toBe('true');
+      expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+
+      // Moves the active option (English -> Icelandic) without choosing it.
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      expect(locales.chosen).toEqual([]);
+
+      await localeTrigger.trigger('keydown', { key: 'Enter' });
+      expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+      // The one thing the switcher owes the visitor: the same page under the chosen locale. The
+      // trigger still reads English because the value *is* the page's locale, and in a block mount
+      // no navigation happens — which is also why a local `ref` of the choice would be a lie.
+      expect(locales.chosen).toEqual(['is-IS']);
+      expect(localeTrigger.text()).toContain(localeName('en-US'));
+    });
+
+    it('Esc closes it without navigating', async () => {
+      const locales = twoLocales();
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
+
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'Escape' });
+
+      expect(localeTrigger.attributes('aria-expanded')).toBe('false');
+      expect(locales.chosen).toEqual([]);
+    });
+
+    /** Choosing the locale the page is already in is not a navigation. */
+    it('does not navigate when the visitor re-chooses the locale they are on', async () => {
+      const locales = twoLocales('is-IS');
+      const wrapper = mountFooter(mock, { locales });
+      const localeTrigger = selectTriggers(wrapper)[0]!;
+      localeTrigger.element.focus();
+
+      await localeTrigger.trigger('keydown', { key: 'ArrowDown' });
+      await localeTrigger.trigger('keydown', { key: 'Enter' });
+
+      expect(locales.chosen).toEqual([]);
+    });
+  });
+
+  /**
+   * The spec was written for a multi-currency store; the platform supports exactly one currency
+   * today, so there is nothing to select — the slot renders the store's currency as plain text
+   * instead of a `Select`, with the same leading icon and a visually hidden "Currency" label.
+   */
+  describe('the currency slot', () => {
+    it('renders the single store currency as plain text, not a Select, with its leading icon and a visually hidden label', async () => {
+      const wrapper = mountFooter(mock, {
+        locale: 'is-IS',
+        commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+      });
+
+      // No combobox at all: this store serves one locale (so no language switcher) and one
+      // currency (so no currency Select either).
+      expect(selectTriggers(wrapper)).toHaveLength(0);
+
+      const label = currencyLabel('ISK', 'is-IS');
+      expect(label).toBe('ISK kr.');
+      const currencyText = wrapper.findAll('p').find((p) => p.text().includes(label));
+      expect(currencyText).toBeTruthy();
+      expect(currencyText!.find('svg').exists()).toBe(true);
+
+      // The content locale is Icelandic here (`locale: 'is-IS'`), so the visually hidden label
+      // is `isIS`'s, not `enUS`'s.
+      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      expect(hiddenLabels).toContain(isIS.footer.currencyLabel);
+
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders nothing for the currency when the store publishes none', async () => {
+      const wrapper = mountFooter(mock, { commerce: null });
+
+      // No currency text and no combobox of either kind.
+      expect(selectTriggers(wrapper)).toHaveLength(0);
+      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      expect(hiddenLabels).not.toContain(enUS.footer.currencyLabel);
+
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  it('keyboard order: a link precedes the email field, which precedes the subscribe button, which precedes the selectors', () => {
+    // Two locales, so there is a switcher in the legal row to order the newsletter against.
+    const wrapper = mountFooter(mock, { locales: twoLocales() });
+    const focusable = Array.from(
+      wrapper.element.querySelectorAll('a, input, button, select, [tabindex]')
+    );
+    const firstLink = wrapper.find('a').element;
+    const emailInput = wrapper.find('input[type="email"]').element;
+    const subscribeButton = wrapper.find('button[type="submit"]').element;
+    const firstSelectorTrigger = selectTriggers(wrapper)[0]!.element;
+
+    expect(focusable.indexOf(firstLink)).toBeLessThan(focusable.indexOf(emailInput));
+    expect(focusable.indexOf(emailInput)).toBeLessThan(focusable.indexOf(subscribeButton));
+    expect(focusable.indexOf(subscribeButton)).toBeLessThan(
+      focusable.indexOf(firstSelectorTrigger)
+    );
+  });
+
+  /**
+   * The spec's three Footer "States" rows. `footer` was the one block of 33 with no editor hints at
+   * all: a freshly inserted footer showed an almost-empty band with nothing telling the editor
+   * where the description, the link groups and the newsletter go, while every sibling block showed
+   * dashed placeholders.
+   */
+  describe('editor hints', () => {
+    const empty = {
+      variant: 'default',
+      brandText: mock.brandText,
+      showNewsletter: false,
+    };
+
+    it('shows the description, link-group and newsletter hints in edit mode', async () => {
+      const wrapper = mountFooter(empty, { editing: true });
+      await flushPromises();
+      const labels = wrapper.findAllComponents(EditorPlaceholder).map((p) => p.props('label'));
+      expect(labels).toEqual([
+        enUS.footer.descriptionHintLabel,
+        enUS.footer.groupsHintLabel,
+        enUS.footer.newsletterHintLabel,
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders none of them on the live site', async () => {
+      const wrapper = mountFooter(empty);
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+      expect(wrapper.text()).not.toContain(enUS.footer.groupsHintLabel);
+    });
+
+    it('replaces each hint with the real content as soon as the field is filled', async () => {
+      const wrapper = mountFooter(
+        {
+          ...empty,
+          description: mock.description,
+          groups: mock.groups,
+          showNewsletter: true,
+        },
+        { editing: true }
+      );
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+      expect(wrapper.text()).toContain(mock.description);
+      expect(wrapper.find('input[type="email"]').exists()).toBe(true);
+    });
+
+    it('shows no hint on the minimal variant, which has none of those three parts', async () => {
+      const wrapper = mountFooter({ ...empty, variant: 'minimal' }, { editing: true });
+      await flushPromises();
+      expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
+    });
+  });
+
+  /**
+   * The footer a fresh store actually starts with, copied from the shape every `pages/*.page.json`
+   * seeds: brand, description, the legal line and the selectors — no link groups, no flat links, no
+   * legal links and no social accounts, because none of those destinations exist in an organisation
+   * nobody has filled in yet. `mock.json` keeps all of them: it is the state an author sees the
+   * moment they insert the block, not the state a deploy seeds.
+   */
+  describe('the seeded empty footer', () => {
+    const SEEDED = {
+      variant: 'default',
+      background: 'surface-strong',
+      brandText: mock.brandText,
+      description: mock.description,
+      groups: [],
+      links: [],
+      showNewsletter: false,
+      social: [],
+      legalText: mock.legalText,
+      legalLinks: [],
+      showLocale: true,
+      showCurrency: true,
+    };
+
+    it('renders brand and description only, with no empty column or link markup, axe-clean', async () => {
+      const wrapper = mountFooter(SEEDED);
+      expect(wrapper.text()).toContain(mock.brandText);
+      expect(wrapper.text()).toContain(mock.description);
+      // No link-groups `nav`, no column headings, and no social row: each part is drawn only when
+      // it has something in it, so nothing renders a heading or a list over nothing.
+      expect(wrapper.find('nav').exists()).toBe(false);
+      expect(wrapper.findAll('h3')).toHaveLength(0);
+      expect(wrapper.find('a[target="_blank"]').exists()).toBe(false);
+      // The brand wordmark is still a link home — that is the only anchor left.
+      const anchors = wrapper.findAll('a');
+      expect(anchors).toHaveLength(1);
+      expect(anchors[0]!.attributes('href')).toBe('/');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('keeps the legal row for the legal line and the selectors', () => {
+      const wrapper = mountFooter(SEEDED);
+      expect(wrapper.text()).toContain(mock.legalText);
+      // The demo store's one currency (USD) renders as plain text, and a single-locale store has
+      // no language switcher — so the legal row is kept by the legal line and the currency alone.
+      expect(wrapper.findAll('[role="combobox"]')).toHaveLength(0);
+      expect(wrapper.text()).toContain(currencyLabel('USD', 'en-US'));
+    });
+
+    it('drops the legal row — and its rule — when there is nothing to put in it', async () => {
+      // The row carries the hairline that separates it from the zone above, so an empty one is a
+      // line drawn across the footer under nothing at all.
+      const wrapper = mountFooter({
+        ...SEEDED,
+        legalText: '',
+        showLocale: false,
+        showCurrency: false,
+      });
+      expect(wrapper.find('.border-t').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  it('social link names include the store name', () => {
+    const wrapper = mountFooter(mock);
+    const instagramLink = wrapper
+      .findAll('a[target="_blank"]')
+      .find((a) => a.attributes('href')?.includes('instagram'));
+    expect(instagramLink).toBeTruthy();
+    expect(instagramLink!.attributes('aria-label')).toBe(`${mock.brandText} on Instagram`);
+  });
+});

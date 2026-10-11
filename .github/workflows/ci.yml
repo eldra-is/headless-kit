@@ -16,7 +16,7 @@ jobs:
   check:
     name: Lint, types, tests, build, package checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,29 +31,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint:check
+      # `pnpm test` runs theme-nuxt's two browser specs, which need a real
+      # browser; the screenshot harness (`pnpm --filter @eldrajs/ui
+      # screenshots`) is deliberately *not* part of `check` and does not run
+      # here — its baselines are macOS renderings, see packages/ui/README.md.
+      - name: Chromium, for the theme-nuxt browser tests
+        run: pnpm exec playwright install --with-deps chromium
 
-      - name: Format
-        run: pnpm format:check
-
-      - name: Build, so the workspace packages' types exist for the steps below
-        run: pnpm build
-
-      - name: Types, including the specs
-        run: pnpm typecheck
-
-      - name: Unit tests
-        run: pnpm test
-
-      - name: publint
-        run: pnpm publint
-
-      - name: Are the types wrong
-        run: pnpm attw
-
-      - name: Size budgets
-        run: pnpm size
-
-      - name: Tarball smoke test
-        run: pnpm pack-smoke
+      # One step, on purpose: `check` is the same command a contributor runs
+      # locally, so CI and it cannot drift. Enumerating its steps here is how
+      # the @eldrajs/ui Storybook build went unbuilt in CI while `check` built
+      # it. Add new gates to the root `check` script, not to this file.
+      - name: Lint, format, build, types, tests, package checks, Storybook builds
+        run: pnpm check

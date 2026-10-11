@@ -1,0 +1,868 @@
+[
+  {
+    "name": "paragraph with plain text",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 7,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 7 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 6 }
+    ]
+  },
+  {
+    "name": "text at the document start and end",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Start"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "End"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 12,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 7 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 6 },
+      { "path": [1], "type": "paragraph", "pos": 7, "end": 12 },
+      { "path": [1, 0], "type": "text", "pos": 8, "end": 11 }
+    ]
+  },
+  {
+    "name": "empty paragraph before and after text",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph"
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "after"
+            }
+          ]
+        },
+        {
+          "type": "paragraph"
+        }
+      ]
+    },
+    "size": 11,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 2 },
+      { "path": [1], "type": "paragraph", "pos": 2, "end": 9 },
+      { "path": [1, 0], "type": "text", "pos": 3, "end": 8 },
+      { "path": [2], "type": "paragraph", "pos": 9, "end": 11 }
+    ]
+  },
+  {
+    "name": "paragraph with marks",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Plain "
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "bold"
+                }
+              ],
+              "text": "bold"
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "italic"
+                }
+              ],
+              "text": "italic"
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "link",
+                  "attrs": {
+                    "href": "https://example.com"
+                  }
+                }
+              ],
+              "text": "link"
+            },
+            {
+              "type": "text",
+              "text": "."
+            }
+          ]
+        }
+      ]
+    },
+    "size": 33,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 33 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 7 },
+      { "path": [0, 1], "type": "text", "pos": 7, "end": 11 },
+      { "path": [0, 2], "type": "text", "pos": 11, "end": 16 },
+      { "path": [0, 3], "type": "text", "pos": 16, "end": 22 },
+      { "path": [0, 4], "type": "text", "pos": 22, "end": 27 },
+      { "path": [0, 5], "type": "text", "pos": 27, "end": 31 },
+      { "path": [0, 6], "type": "text", "pos": 31, "end": 32 }
+    ]
+  },
+  {
+    "name": "nested marks, highlight, code and a file attachment",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "a"
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "bold"
+                },
+                {
+                  "type": "italic"
+                }
+              ],
+              "text": "bold italic"
+            },
+            {
+              "type": "text",
+              "text": "b"
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "highlight",
+                  "attrs": {
+                    "color": "#ffee00"
+                  }
+                }
+              ],
+              "text": "marked"
+            },
+            {
+              "type": "text",
+              "text": "c"
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "code"
+                }
+              ],
+              "text": "inline"
+            },
+            {
+              "type": "text",
+              "text": "d"
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "fileAttachment",
+                  "attrs": {
+                    "href": "https://cdn.example.com/f.pdf",
+                    "assetId": "asset-1",
+                    "filename": "file.pdf",
+                    "contentType": "application/pdf"
+                  }
+                }
+              ],
+              "text": "file.pdf"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 37,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 37 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 2 },
+      { "path": [0, 1], "type": "text", "pos": 2, "end": 13 },
+      { "path": [0, 2], "type": "text", "pos": 13, "end": 14 },
+      { "path": [0, 3], "type": "text", "pos": 14, "end": 20 },
+      { "path": [0, 4], "type": "text", "pos": 20, "end": 21 },
+      { "path": [0, 5], "type": "text", "pos": 21, "end": 27 },
+      { "path": [0, 6], "type": "text", "pos": 27, "end": 28 },
+      { "path": [0, 7], "type": "text", "pos": 28, "end": 36 }
+    ]
+  },
+  {
+    "name": "headings",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "heading",
+          "attrs": {
+            "level": 1
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Title"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Intro"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "attrs": {
+            "level": 3
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Sub"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 19,
+    "nodes": [
+      { "path": [0], "type": "heading", "pos": 0, "end": 7 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 6 },
+      { "path": [1], "type": "paragraph", "pos": 7, "end": 14 },
+      { "path": [1, 0], "type": "text", "pos": 8, "end": 13 },
+      { "path": [2], "type": "heading", "pos": 14, "end": 19 },
+      { "path": [2, 0], "type": "text", "pos": 15, "end": 18 }
+    ]
+  },
+  {
+    "name": "nested lists",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "One"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Two"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Nested a"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Nested b"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "size": 42,
+    "nodes": [
+      { "path": [0], "type": "bulletList", "pos": 0, "end": 42 },
+      { "path": [0, 0], "type": "listItem", "pos": 1, "end": 8 },
+      { "path": [0, 0, 0], "type": "paragraph", "pos": 2, "end": 7 },
+      { "path": [0, 0, 0, 0], "type": "text", "pos": 3, "end": 6 },
+      { "path": [0, 1], "type": "listItem", "pos": 8, "end": 41 },
+      { "path": [0, 1, 0], "type": "paragraph", "pos": 9, "end": 14 },
+      { "path": [0, 1, 0, 0], "type": "text", "pos": 10, "end": 13 },
+      { "path": [0, 1, 1], "type": "orderedList", "pos": 14, "end": 40 },
+      { "path": [0, 1, 1, 0], "type": "listItem", "pos": 15, "end": 27 },
+      { "path": [0, 1, 1, 0, 0], "type": "paragraph", "pos": 16, "end": 26 },
+      { "path": [0, 1, 1, 0, 0, 0], "type": "text", "pos": 17, "end": 25 },
+      { "path": [0, 1, 1, 1], "type": "listItem", "pos": 27, "end": 39 },
+      { "path": [0, 1, 1, 1, 0], "type": "paragraph", "pos": 28, "end": 38 },
+      { "path": [0, 1, 1, 1, 0, 0], "type": "text", "pos": 29, "end": 37 }
+    ]
+  },
+  {
+    "name": "blockquote",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "blockquote",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Quoted"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Second"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "After"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 25,
+    "nodes": [
+      { "path": [0], "type": "blockquote", "pos": 0, "end": 18 },
+      { "path": [0, 0], "type": "paragraph", "pos": 1, "end": 9 },
+      { "path": [0, 0, 0], "type": "text", "pos": 2, "end": 8 },
+      { "path": [0, 1], "type": "paragraph", "pos": 9, "end": 17 },
+      { "path": [0, 1, 0], "type": "text", "pos": 10, "end": 16 },
+      { "path": [1], "type": "paragraph", "pos": 18, "end": 25 },
+      { "path": [1, 0], "type": "text", "pos": 19, "end": 24 }
+    ]
+  },
+  {
+    "name": "code block",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "codeBlock",
+          "attrs": {
+            "language": "javascript"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "const a = 1;"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "After"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 21,
+    "nodes": [
+      { "path": [0], "type": "codeBlock", "pos": 0, "end": 14 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 13 },
+      { "path": [1], "type": "paragraph", "pos": 14, "end": 21 },
+      { "path": [1, 0], "type": "text", "pos": 15, "end": 20 }
+    ]
+  },
+  {
+    "name": "hard breaks",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Line one"
+            },
+            {
+              "type": "hardBreak"
+            },
+            {
+              "type": "text",
+              "text": "Line two"
+            },
+            {
+              "type": "hardBreak"
+            },
+            {
+              "type": "hardBreak"
+            },
+            {
+              "type": "text",
+              "text": "Line three"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 31,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 31 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 9 },
+      { "path": [0, 1], "type": "hardBreak", "pos": 9, "end": 10 },
+      { "path": [0, 2], "type": "text", "pos": 10, "end": 18 },
+      { "path": [0, 3], "type": "hardBreak", "pos": 18, "end": 19 },
+      { "path": [0, 4], "type": "hardBreak", "pos": 19, "end": 20 },
+      { "path": [0, 5], "type": "text", "pos": 20, "end": 30 }
+    ]
+  },
+  {
+    "name": "image between paragraphs",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Before"
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "attrs": {
+            "src": "https://cdn.example.com/a.png",
+            "alt": "An image",
+            "assetId": "asset-2"
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "After"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 16,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 8 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 7 },
+      { "path": [1], "type": "image", "pos": 8, "end": 9 },
+      { "path": [2], "type": "paragraph", "pos": 9, "end": 16 },
+      { "path": [2, 0], "type": "text", "pos": 10, "end": 15 }
+    ]
+  },
+  {
+    "name": "horizontal rule",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Above"
+            }
+          ]
+        },
+        {
+          "type": "horizontalRule"
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Below"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 15,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 7 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 6 },
+      { "path": [1], "type": "horizontalRule", "pos": 7, "end": 8 },
+      { "path": [2], "type": "paragraph", "pos": 8, "end": 15 },
+      { "path": [2, 0], "type": "text", "pos": 9, "end": 14 }
+    ]
+  },
+  {
+    "name": "embed",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Before"
+            }
+          ]
+        },
+        {
+          "type": "embed",
+          "attrs": {
+            "src": "https://www.youtube.com/embed/x"
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "After"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 16,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 8 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 7 },
+      { "path": [1], "type": "embed", "pos": 8, "end": 9 },
+      { "path": [2], "type": "paragraph", "pos": 9, "end": 16 },
+      { "path": [2, 0], "type": "text", "pos": 10, "end": 15 }
+    ]
+  },
+  {
+    "name": "table",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "table",
+          "content": [
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "H1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "H2"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "c1"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "c2"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "After"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 37,
+    "nodes": [
+      { "path": [0], "type": "table", "pos": 0, "end": 30 },
+      { "path": [0, 0], "type": "tableRow", "pos": 1, "end": 15 },
+      { "path": [0, 0, 0], "type": "tableHeader", "pos": 2, "end": 8 },
+      { "path": [0, 0, 0, 0], "type": "paragraph", "pos": 3, "end": 7 },
+      { "path": [0, 0, 0, 0, 0], "type": "text", "pos": 4, "end": 6 },
+      { "path": [0, 0, 1], "type": "tableHeader", "pos": 8, "end": 14 },
+      { "path": [0, 0, 1, 0], "type": "paragraph", "pos": 9, "end": 13 },
+      { "path": [0, 0, 1, 0, 0], "type": "text", "pos": 10, "end": 12 },
+      { "path": [0, 1], "type": "tableRow", "pos": 15, "end": 29 },
+      { "path": [0, 1, 0], "type": "tableCell", "pos": 16, "end": 22 },
+      { "path": [0, 1, 0, 0], "type": "paragraph", "pos": 17, "end": 21 },
+      { "path": [0, 1, 0, 0, 0], "type": "text", "pos": 18, "end": 20 },
+      { "path": [0, 1, 1], "type": "tableCell", "pos": 22, "end": 28 },
+      { "path": [0, 1, 1, 0], "type": "paragraph", "pos": 23, "end": 27 },
+      { "path": [0, 1, 1, 0, 0], "type": "text", "pos": 24, "end": 26 },
+      { "path": [1], "type": "paragraph", "pos": 30, "end": 37 },
+      { "path": [1, 0], "type": "text", "pos": 31, "end": 36 }
+    ]
+  },
+  {
+    "name": "astral-plane text counts UTF-16 code units",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "hi 😀 𝔘 ok"
+            }
+          ]
+        }
+      ]
+    },
+    "size": 13,
+    "nodes": [
+      { "path": [0], "type": "paragraph", "pos": 0, "end": 13 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 12 }
+    ]
+  },
+  {
+    "name": "mixed document",
+    "doc": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "heading",
+          "attrs": {
+            "level": 2
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Mixed"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Lead "
+            },
+            {
+              "type": "text",
+              "marks": [
+                {
+                  "type": "bold"
+                }
+              ],
+              "text": "in"
+            }
+          ]
+        },
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "point"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "attrs": {
+            "src": "https://cdn.example.com/b.png"
+          }
+        },
+        {
+          "type": "blockquote",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "end"
+                },
+                {
+                  "type": "hardBreak"
+                },
+                {
+                  "type": "text",
+                  "text": "stop"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "size": 40,
+    "nodes": [
+      { "path": [0], "type": "heading", "pos": 0, "end": 7 },
+      { "path": [0, 0], "type": "text", "pos": 1, "end": 6 },
+      { "path": [1], "type": "paragraph", "pos": 7, "end": 16 },
+      { "path": [1, 0], "type": "text", "pos": 8, "end": 13 },
+      { "path": [1, 1], "type": "text", "pos": 13, "end": 15 },
+      { "path": [2], "type": "bulletList", "pos": 16, "end": 27 },
+      { "path": [2, 0], "type": "listItem", "pos": 17, "end": 26 },
+      { "path": [2, 0, 0], "type": "paragraph", "pos": 18, "end": 25 },
+      { "path": [2, 0, 0, 0], "type": "text", "pos": 19, "end": 24 },
+      { "path": [3], "type": "image", "pos": 27, "end": 28 },
+      { "path": [4], "type": "blockquote", "pos": 28, "end": 40 },
+      { "path": [4, 0], "type": "paragraph", "pos": 29, "end": 39 },
+      { "path": [4, 0, 0], "type": "text", "pos": 30, "end": 33 },
+      { "path": [4, 0, 1], "type": "hardBreak", "pos": 33, "end": 34 },
+      { "path": [4, 0, 2], "type": "text", "pos": 34, "end": 38 }
+    ]
+  }
+]

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="160" viewBox="0 0 480 160" role="img" aria-label="logo-7"><defs><linearGradient id="logo7-grad" x1="68.57%" y1="3.58%" x2="31.43%" y2="96.42%"><stop offset="0%" stop-color="#1d4ed8"/><stop offset="100%" stop-color="#0f766e"/></linearGradient></defs>
+    <circle cx="80" cy="80" r="44.8" fill="url(#logo7-grad)"/>
+    <rect x="172.8" y="54.4" width="185" height="25.6" rx="12.8" fill="#14181f" fill-opacity="0.82"/>
+    <rect x="172.8" y="99.2" width="122.19" height="25.6" rx="12.8" fill="#14181f" fill-opacity="0.5"/></svg>

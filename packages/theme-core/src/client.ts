@@ -1,0 +1,455 @@
+import { isBlockFieldSelect } from './blockFields';
+import { fetchWithRetry, resolveRetryPolicy } from './retry';
+import { encodeEntryDataStega } from './stegaWalk';
+import type {
+  CatalogDoc,
+  CatalogList,
+  EldraClient,
+  EldraClientOptions,
+  EntryDoc,
+  EntryList,
+  EntryQuery,
+  PageMeta,
+  ResolveEntryListBody,
+} from './clientTypes';
+import { EldraClientError } from './clientTypes';
+
+export * from './clientTypes'; // the interface block from **Interfaces** lives in clientTypes.ts
+
+/**
+ * Strips every trailing `/` from a URL (`https://x///` → `https://x`). A regex
+ * equivalent (`/\/+$/`) backtracks polynomially on a long run of slashes
+ * because the engine re-tries every split of the repeated group before
+ * failing to match past the string's end; this walks the string once from
+ * the end instead, which is linear regardless of how many slashes it finds.
+ */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* '/' */) end--;
+  return value.slice(0, end);
+}
+
+export function createEldraClient(opts: EldraClientOptions): EldraClient {
+  const gatewayUrl = stripTrailingSlashes(opts.gatewayUrl);
+  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  const retryPolicy = resolveRetryPolicy(opts.retry);
+  const stegaEnabled = opts.stega === true;
+  const defaultLocale = opts.defaultLocale ?? null;
+  let previewToken: string | null = null;
+  const requestErrorListeners = new Set<(error: EldraClientError) => void>();
+
+  function buildUrl(path: string, query?: EntryQuery, extra?: Record<string, string>): URL {
+    const url = new URL(gatewayUrl + path);
+    if (query?.locale !== undefined) url.searchParams.set('locale', query.locale);
+    if (query?.depth !== undefined) url.searchParams.set('depth', String(query.depth));
+    if (query?.page !== undefined) url.searchParams.set('page', String(query.page));
+    if (query?.pageSize !== undefined) url.searchParams.set('pageSize', String(query.pageSize));
+    if (query?.sort?.length) url.searchParams.set('sort', query.sort.join(','));
+    if (query?.fields?.length) url.searchParams.set('fields', query.fields.join(','));
+    for (const f of query?.filter ?? []) url.searchParams.append('filter', f);
+    for (const [k, v] of Object.entries(extra ?? {})) url.searchParams.set(k, v);
+    return url;
+  }
+
+  async function request(url: URL, init?: RequestInit): Promise<Response> {
+    const headers = new Headers(init?.headers);
+    headers.set('X-Org-Id', opts.orgId);
+    if (previewToken !== null) headers.set('X-Preview-Token', previewToken);
+    const merged: RequestInit = { ...init, headers };
+    if (previewToken !== null) merged.cache = 'no-store'; // draft responses must never be cached
+    // The token this request actually carries. A failure is only reported to
+    // listeners while it is still the token the client holds: after the editor
+    // recovers a revoked token (`enablePreview` with a new one), the reads that
+    // were already in flight with the old one still reject, and reporting
+    // those would read as "the fresh token failed too" and stop the recovery
+    // that just worked.
+    const tokenAtRequest = previewToken;
+    // Every read passes through here, which is why the retry lives here and
+    // nowhere else: a rate limit met halfway through a static build is waited
+    // out once, for every caller, rather than fought by each of them.
+    const res = await fetchWithRetry(doFetch, url.toString(), merged, retryPolicy);
+    if (!res.ok) {
+      const error = new EldraClientError(res.status, res.statusText, url.pathname);
+      if (previewToken === tokenAtRequest) notifyRequestError(error);
+      throw error;
+    }
+    return res;
+  }
+
+  function notifyRequestError(error: EldraClientError): void {
+    for (const listener of [...requestErrorListeners]) {
+      try {
+        listener(error);
+      } catch {
+        // A listener is observational: its failure must neither replace the
+        // request's own rejection nor hide the error from the other listeners.
+      }
+    }
+  }
+
+  function maybeStega(entry: EntryDoc, locale: string | null): EntryDoc {
+    const apiId = typeof entry.schemaApiId === 'string' ? entry.schemaApiId : undefined;
+    const projected = {
+      ...entry,
+      data: projectLocalizedLeaves(entry.data, locale, defaultLocale, apiId),
+    };
+    if (!stegaEnabled || previewToken === null) return projected;
+    return { ...projected, data: encodeEntryDataStega(entry.id, projected.data, locale, apiId) };
+  }
+
+  return {
+    // Catalog documents are never stega-encoded or locale-projected: they are
+    // commerce records, not merchant-authored CMS content, and the gateway
+    // resolves their translations server-side from the `locale` query.
+    catalog: {
+      async getProduct(productIdOrSlug, query) {
+        const res = await request(
+          buildUrl(`/catalog/v1/products/${encodeURIComponent(productIdOrSlug)}`, query)
+        );
+        return (await res.json()) as CatalogDoc;
+      },
+      async listProducts(query) {
+        const res = await request(buildUrl('/catalog/v1/products/list', query));
+        return toCatalogList(await res.json());
+      },
+      async getCollection(slug, query) {
+        const res = await request(
+          buildUrl(`/catalog/v1/collections/${encodeURIComponent(slug)}`, query)
+        );
+        return (await res.json()) as CatalogDoc;
+      },
+      async listCollections(query) {
+        const res = await request(buildUrl('/catalog/v1/collections', query));
+        return toCatalogList(await res.json());
+      },
+      async listCategories(query) {
+        const res = await request(buildUrl('/catalog/v1/categories', query));
+        return toCatalogList(await res.json());
+      },
+    },
+    async getEntries(schemaIdentifier, query) {
+      const res = await request(
+        buildUrl(`/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry`, query)
+      );
+      const list = (await res.json()) as Omit<EntryList, 'data'> & { data?: EntryDoc[] | null };
+      if (list.data !== undefined && list.data !== null && !Array.isArray(list.data)) {
+        throw new TypeError('[eldra] gateway entry list data must be an array');
+      }
+      return {
+        ...list,
+        data: (list.data ?? []).map((e) => maybeStega(e, query?.locale ?? null)),
+      };
+    },
+    async getEntry(schemaIdentifier, entryId, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/${encodeURIComponent(entryId)}`,
+          query
+        )
+      );
+      return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
+    },
+    async getEntryByUniqueField(schemaIdentifier, fieldId, value, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/unique/${encodeURIComponent(fieldId)}/${encodeURIComponent(value)}`,
+          query
+        )
+      );
+      return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
+    },
+    async resolveEntryListField(entryId, fieldId, query) {
+      const res = await request(
+        buildUrl(
+          `/cms/v1/entry/${encodeURIComponent(entryId)}/list/${encodeURIComponent(fieldId)}`,
+          query
+        )
+      );
+      return (await res.json()) as Record<string, unknown>;
+    },
+    async resolveEntryList(body, query) {
+      const res = await request(buildUrl('/cms/v1/entry-list/resolve', query), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body satisfies ResolveEntryListBody),
+      });
+      return (await res.json()) as Record<string, unknown>;
+    },
+    async getTypeScriptDefinitions(tsOpts) {
+      const url = new URL(`${gatewayUrl}/cms/v1/typescript-definitions`);
+      if (tsOpts?.schemas?.length) url.searchParams.set('schemas', tsOpts.schemas.join(','));
+      if (tsOpts?.maxDepth !== undefined) url.searchParams.set('maxDepth', String(tsOpts.maxDepth));
+      if (tsOpts?.moduleName !== undefined) url.searchParams.set('moduleName', tsOpts.moduleName);
+      const res = await request(url);
+      return await res.text();
+    },
+    enablePreview(token) {
+      previewToken = token;
+    },
+    disablePreview() {
+      previewToken = null;
+    },
+    get previewEnabled() {
+      return previewToken !== null;
+    },
+    onRequestError(listener) {
+      requestErrorListeners.add(listener);
+      return () => {
+        requestErrorListeners.delete(listener);
+      };
+    },
+    encodeEntryDataStega,
+  };
+}
+
+/**
+ * Normalise a catalog list response. The gateway serialises an empty page as
+ * `"data": null`, and a caller that pages through the list must not have to
+ * guess whether a missing `meta` means "one page" or "keep asking" — an absent
+ * meta is reported as a single, final page.
+ *
+ * **A bare array is a list too.** `GET /catalog/v1/categories` answers the whole
+ * tree as a top-level array rather than a `{data, meta}` page — the categories
+ * are a handful of rows and the endpoint takes no paging — and reading that as
+ * "an object with no `data`" made every category read answer *nothing*: no
+ * category target for a `link` field to resolve, and no category route for a
+ * build to generate, with no error anywhere to say so. The two paged endpoints
+ * are unaffected: they answer an object, and an object still has to carry an
+ * array under `data` or this throws.
+ */
+function toCatalogList(value: unknown): CatalogList {
+  if (Array.isArray(value)) return toCatalogList({ data: value });
+  const raw = (value ?? {}) as { data?: unknown; meta?: unknown };
+  if (raw.data !== undefined && raw.data !== null && !Array.isArray(raw.data)) {
+    throw new TypeError('[eldra] gateway catalog list data must be an array');
+  }
+  const data = (raw.data ?? []) as CatalogDoc[];
+  const meta = raw.meta as PageMeta | undefined;
+  return {
+    data,
+    meta: meta ?? {
+      hasNext: false,
+      hasPrev: false,
+      page: 1,
+      pageSize: data.length,
+      rows: data.length,
+      total: data.length,
+      totalPages: 1,
+    },
+  };
+}
+
+const localeKey = /^[a-z]{2}(?:-[A-Za-z0-9]{2,8})*$/;
+
+/**
+ * A resolved `select` field's public-read shape: the CMS gateway replaces
+ * the stored plain string with `{ value, label }` so a schema-blind consumer
+ * can show a human label.
+ * Themes only ever declare `select` fields as their plain value union
+ * (`variant?: 'primary' | 'subtle' | 'split'`, generated from `block.json`),
+ * so every `Block.vue` compares `data.variant` against those literals
+ * directly — never against this wrapper. Left unprojected, every variant
+ * (and any other select-typed) field always fails that comparison and a
+ * block silently renders its default/no-variant markup forever, in preview
+ * and in production alike.
+ *
+ * This shape check alone is not enough to unwrap: a theme-authored composite
+ * field can legitimately declare two string sub-fields literally named
+ * `value`/`label` (a stat/metric field, a generic chip). Every call site
+ * must additionally confirm, via `isBlockFieldSelect`, that the *registered*
+ * field at this path really is `type: "select"` before unwrapping.
+ */
+function looksLikeSelectValue(value: unknown): value is { value: string; label: string } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  return keys.length === 2 && typeof record.value === 'string' && typeof record.label === 'string';
+}
+
+/**
+ * Public CMS reads normally resolve localized fields server-side. Older content
+ * can still contain locale maps below list/composite fields because those
+ * leaves were persisted before recursive localization extraction existed.
+ * Project only objects whose every key is a locale tag, leaving ordinary
+ * records (including media and references) untouched.
+ *
+ * `apiId` (the entry's own `schemaApiId`, when known) and `path` (the
+ * dot-separated field path built as this walk descends, matching
+ * `stegaWalk.ts`'s path convention) gate the `{value,label}` select unwrap
+ * above on `isBlockFieldSelect`, so it only ever fires for a field the
+ * theme's manifest actually registered as `type: "select"` — including one
+ * nested inside a `list`'s composite item, e.g. `"items.0.variant"`. When
+ * `apiId` is undefined, or the schema has no registered block fields at all
+ * (a non-block entry, such as a page, never appears in the block-fields
+ * registry), `isBlockFieldSelect` returns false for every path and nothing
+ * is unwrapped — safe by construction, never a guess.
+ *
+ * Entering a nested resolved entry doc (`{id, data, schemaApiId, ...}` — the
+ * shape a page's embedded `blocks[]` array carries, or any other resolved
+ * reference field) re-derives `apiId` from that doc's own `schemaApiId` and
+ * resets `path`, mirroring `stegaWalk.ts`'s `encodeEntryDataStega`. Without
+ * this, every `getEntry`/`getEntries` call that embeds referenced entries
+ * (a page fetched with `depth` > 0, most visibly) threads the *outer*
+ * entry's `apiId` — a page's own schema is never a registered block — into
+ * every nested block, so none of their `select` fields ever unwrap: exactly
+ * the "non-block entry" case above, but for every block a page renders.
+ */
+function looksLikeEntryDoc(
+  v: unknown
+): v is { id: string; data: Record<string, unknown>; schemaApiId?: unknown } {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    typeof (v as Record<string, unknown>).id === 'string' &&
+    typeof (v as Record<string, unknown>).data === 'object' &&
+    (v as Record<string, unknown>).data !== null &&
+    !Array.isArray((v as Record<string, unknown>).data)
+  );
+}
+
+/**
+ * Whether a localized field's value counts as "translated", mirroring the
+ * gateway's own server-side rule for a localization row
+ * (`entry_read.go`'s `isTranslatedValue`): present and not null, not an empty
+ * string after trimming whitespace, not an empty array or object, and a
+ * rich-text document only when it carries actual text content. Every other
+ * value (including `0`/`false`) counts as translated.
+ *
+ * Exported so the per-field link fallback below (and a theme, if it ever
+ * needs the same call) has one definition of "untranslated" rather than a
+ * second copy that can drift from it.
+ */
+export function isTranslatedValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (Object.keys(record).length === 0) return false;
+    if (record.type === 'doc') return richTextDocHasText(record);
+    return true;
+  }
+  return true;
+}
+
+/** Whether a TipTap-shaped rich-text node carries any non-whitespace text in
+ * one of its `text` leaves. Used only to decide whether a whole rich-text
+ * document counts as "translated" — never a renderer. */
+function richTextDocHasText(node: unknown): boolean {
+  if (node === null || typeof node !== 'object') return false;
+  const { type, text, content } = node as { type?: unknown; text?: unknown; content?: unknown };
+  if (type === 'text') return typeof text === 'string' && text.trim() !== '';
+  if (!Array.isArray(content)) return false;
+  return content.some(richTextDocHasText);
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Per-field fallback for one locale's chosen node against the default
+ * locale's node, for the record-shaped sub-fields of a `link` field (and any
+ * other locale-keyed composite). Composite records (not a rich-text
+ * document) are merged **per field**: a key `chosen` leaves untranslated is
+ * copied from `defaultValue`, and every other key of `chosen` (including one
+ * `defaultValue` does not have) is kept. A leaf value — a string, an array,
+ * a rich-text document — is replaced only as a whole when `chosen` itself is
+ * untranslated.
+ *
+ * `children` needs no special case: an untranslated (missing/empty) array
+ * already falls back to the default's whole array under the same per-field
+ * rule, and a translated one is kept outright — never merged by index.
+ */
+function mergeLocalizedFallback(chosen: unknown, defaultValue: unknown): unknown {
+  const isComposite = (value: unknown): value is Record<string, unknown> =>
+    isPlainRecord(value) && value.type !== 'doc';
+  if (isComposite(chosen) && isComposite(defaultValue)) {
+    const merged: Record<string, unknown> = { ...chosen };
+    for (const key of Object.keys(defaultValue)) {
+      merged[key] = isTranslatedValue(merged[key])
+        ? mergeLocalizedFallback(merged[key], defaultValue[key])
+        : defaultValue[key];
+    }
+    return merged;
+  }
+  // Two lists of the same length are the same list in two languages: the platform's
+  // link control mirrors everything but the words across locales, so position n here
+  // is position n there, and each pair merges like the records above. Lists of
+  // different lengths are not that, and the active locale's own list stands.
+  if (Array.isArray(chosen) && Array.isArray(defaultValue)) {
+    if (chosen.length === 0) return defaultValue;
+    if (chosen.length !== defaultValue.length) return chosen;
+    return chosen.map((item, i) => mergeLocalizedFallback(item, defaultValue[i]));
+  }
+  return isTranslatedValue(chosen) ? chosen : defaultValue;
+}
+
+function projectLocalizedValue(
+  value: unknown,
+  locale: string | null,
+  defaultLocale: string | null,
+  apiId: string | undefined,
+  path: string
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item, i) =>
+      projectLocalizedValue(
+        item,
+        locale,
+        defaultLocale,
+        apiId,
+        path === '' ? String(i) : `${path}.${i}`
+      )
+    );
+  }
+  if (value === null || typeof value !== 'object') return value;
+  if (looksLikeSelectValue(value) && isBlockFieldSelect(apiId, path)) return value.value;
+
+  if (looksLikeEntryDoc(value)) {
+    const nestedApiId = typeof value.schemaApiId === 'string' ? value.schemaApiId : undefined;
+    return {
+      ...value,
+      data: projectLocalizedValue(value.data, locale, defaultLocale, nestedApiId, ''),
+    };
+  }
+
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length > 0 && keys.every((key) => localeKey.test(key))) {
+    const exactKey = locale && record[locale] !== undefined ? locale : undefined;
+    const language = locale?.split('-')[0]?.toLowerCase();
+    const languageKey = language
+      ? keys.find((key) => key.split('-')[0]?.toLowerCase() === language)
+      : undefined;
+    const chosenKey = exactKey ?? languageKey ?? keys[0]!;
+    const chosen = record[chosenKey];
+    const defaultValue =
+      defaultLocale != null && chosenKey !== defaultLocale ? record[defaultLocale] : undefined;
+    const resolved =
+      defaultValue !== undefined ? mergeLocalizedFallback(chosen, defaultValue) : chosen;
+    return projectLocalizedValue(resolved, locale, defaultLocale, apiId, path);
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, item]) => [
+      key,
+      projectLocalizedValue(
+        item,
+        locale,
+        defaultLocale,
+        apiId,
+        path === '' ? key : `${path}.${key}`
+      ),
+    ])
+  );
+}
+
+function projectLocalizedLeaves(
+  data: Record<string, unknown>,
+  locale: string | null,
+  defaultLocale: string | null,
+  apiId: string | undefined
+): Record<string, unknown> {
+  return projectLocalizedValue(data, locale, defaultLocale, apiId, '') as Record<string, unknown>;
+}

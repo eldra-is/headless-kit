@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.7...sdk-v0.2.8) (2026-10-10)
+
+
+### Features
+
+* theme SDK for the page builder — ui library, storefront starter, categories, filters, locales, theme texts ([#37](https://github.com/eldra-is/headless-kit/issues/37)) ([cead3f9](https://github.com/eldra-is/headless-kit/commit/cead3f91eeb5eb9d5bb72bf9a0957c2f4ab1f0b3))
+
 ## [0.2.7](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.6...sdk-v0.2.7) (2026-10-09)
 
 

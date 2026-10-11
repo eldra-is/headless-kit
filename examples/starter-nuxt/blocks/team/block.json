@@ -1,0 +1,125 @@
+{
+  "apiId": "team",
+  "name": "Team",
+  "description": "A grid of the people behind the shop, each with a photo, name, role, short bio and optional links.",
+  "icon": "users",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "helpText": "Rendered as an h2.",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "intro",
+      "name": "Intro",
+      "type": "text",
+      "localized": true,
+      "helpText": "One or two sentences."
+    },
+    {
+      "fieldId": "linkLabel",
+      "name": "Link label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Header link, e.g. \"Meet our makers\"."
+    },
+    {
+      "fieldId": "linkHref",
+      "name": "Link",
+      "type": "string"
+    },
+    {
+      "fieldId": "people",
+      "name": "People",
+      "type": "list",
+      "helpText": "1-12 people. Multiples of 4 fill the desktop grid.",
+      "metadata": {
+        "item": {
+          "fieldId": "person",
+          "name": "Person",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "photo",
+                "name": "Photo",
+                "type": "media",
+                "helpText": "Portrait 4:5 with a focal point.",
+                "metadata": { "multiple": false, "framing": true, "framingAspectRatio": "4/5" }
+              },
+              {
+                "fieldId": "name",
+                "name": "Name",
+                "type": "string",
+                "localized": true,
+                "helpText": "Rendered as an h3.",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "role",
+                "name": "Role",
+                "type": "string",
+                "localized": true,
+                "helpText": "For example \"Head potter\".",
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "bio",
+                "name": "Bio",
+                "type": "text",
+                "localized": true,
+                "helpText": "About 120 characters maximum.",
+                "validators": { "maxLength": 120 }
+              },
+              {
+                "fieldId": "links",
+                "name": "Links",
+                "type": "list",
+                "helpText": "Up to 3.",
+                "metadata": {
+                  "item": {
+                    "fieldId": "link",
+                    "name": "Link",
+                    "type": "composite",
+                    "metadata": {
+                      "fields": [
+                        {
+                          "fieldId": "type",
+                          "name": "Type",
+                          "type": "select",
+                          "metadata": {
+                            "options": ["instagram", "email", "website", "tiktok", "pinterest"]
+                          },
+                          "validators": { "required": true }
+                        },
+                        {
+                          "fieldId": "href",
+                          "name": "URL",
+                          "type": "string",
+                          "validators": { "required": true }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": { "options": ["none", "surface", "surface-strong"] }
+    }
+  ]
+}

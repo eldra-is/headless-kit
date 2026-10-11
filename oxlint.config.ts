@@ -6,10 +6,11 @@ export default oxlintConfig({
     '**/CHANGELOG.md',
     '**/RELEASE-NOTES.md',
     'packages/sdk/src/__tests__/fixtures/contract.ts',
+    'examples/starter-nuxt/stories/generated/**',
   ],
   overrides: [
     {
-      files: ['scripts/**', 'packages/*/scripts/**', 'examples/**'],
+      files: ['scripts/**', 'packages/*/scripts/**', 'examples/**', 'packages/theme-cli/src/**'],
       rules: { 'no-console': 'off' },
     },
   ],
