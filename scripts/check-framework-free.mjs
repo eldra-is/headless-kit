@@ -6,7 +6,14 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const FRAMEWORK_FREE = ['sdk', 'rich-text', 'theme-core', 'vite-plugin-theme', 'theme-cli'];
+const FRAMEWORK_FREE = [
+  'sdk',
+  'rich-text',
+  'format',
+  'theme-core',
+  'vite-plugin-theme',
+  'theme-cli',
+];
 const BANNED = /from\s+['"](vue|nuxt|#app|#imports|@vue\/|nuxt\/|react|svelte)/;
 
 let failed = false;

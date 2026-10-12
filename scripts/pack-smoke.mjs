@@ -59,6 +59,30 @@ const consumers = {
       export const html: string = toHtml(doc, options);
     `,
   },
+  '@eldrajs/format': {
+    runtime: `
+      import { comparator, formatPrice, numberFormat } from '@eldrajs/format';
+      import { dateTimeFormat } from '@eldrajs/format/date';
+      import { listFormat } from '@eldrajs/format/list';
+      import { relativeTimeFormat } from '@eldrajs/format/relative-time';
+      import { displayNames } from '@eldrajs/format/display-names';
+      assert.equal(formatPrice(12900, 'ISK', 'is-IS'), '12.900\u00a0kr.');
+      assert.equal(formatPrice(12900, 'ISK', 'en-US'), 'ISK\u00a012,900');
+      assert.equal(numberFormat('is-IS').format(1234.5), '1.234,5');
+      assert.equal(dateTimeFormat('is-IS', { dateStyle: 'long' }).format(new Date(Date.UTC(2026, 9, 12))), '12. október 2026');
+      assert.equal(listFormat('is-IS').format(['a', 'b', 'c']), 'a, b og c');
+      assert.equal(relativeTimeFormat('is-IS').format(-3, 'day'), 'fyrir 3 dögum');
+      assert.equal(displayNames('is-IS', { type: 'region' }).of('DK'), 'Danmörk');
+      assert.equal(['Ö', 'Z', 'Þ', 'A'].sort(comparator('is-IS')).join(''), 'AZÞÖ');
+    `,
+    types: `
+      import { formatPrice, numberFormat } from '@eldrajs/format';
+      import { dateTimeFormat } from '@eldrajs/format/date';
+      export const price: string = formatPrice(1, 'ISK', 'is-IS');
+      export const number: Intl.NumberFormat = numberFormat('en-US', { style: 'percent' });
+      export const date: Intl.DateTimeFormat = dateTimeFormat('is-IS', { dateStyle: 'short' });
+    `,
+  },
   '@eldrajs/vue': {
     runtime: `
       import { RichText, TextRenderer, defaultNodeComponents } from '@eldrajs/vue';

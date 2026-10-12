@@ -1125,8 +1125,8 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Intl`'s own message blaming a `maximumFractionDigits` the caller never set.
 
   `formatCurrency` is what a theme should reach for when it has to put money in a sentence ("Add to
-  cart · kr 2,800") rather than render a `<Price>`: a hand-built
-  `Intl.NumberFormat({ style: 'currency' })` writes the **wide** sign (`"ISK 2,800"`), which is not
+  cart · ISK 2,800") rather than render a `<Price>`: a hand-built
+  `Intl.NumberFormat({ style: 'currency' })` prints English for Icelandic in Chrome, which is not
   the shape this package's own prices and currency fields are in, and that mismatch is exactly the
   defect it exists to prevent. Note that `maxFraction` defaults to `2` whatever the currency, so a
   caller that wants the currency's own count passes it — which is what keeps a króna from growing a
@@ -1199,21 +1199,18 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
 
-- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `true` by
-  default, the same default `CurrencyInput` already carried, so every currency this package renders
-  is written with the currency's **narrow** sign: `"kr 2,800"` under `en-US`/`ISK`, not
-  `"ISK 2,800"`; `"$"`, not `"US$"`, in a locale that distinguishes the two. The design spec says
-  only that the amount is formatted by `Intl`, which leaves the sign open; a store's own back office
-  writes narrow signs, and a price that disagreed with the currency field the operator typed it into
-  was the defect worth closing by default rather than by opt-in. Set it to `false` for the wide
-  sign; a locale whose two signs are identical (`is-IS` writes `kr.` either way) is unaffected
-  either way. **`ProductCard`'s price follows the same narrow default and has no opt-out** — the prop
-  is `Price`'s alone, not forwarded through the card, so a consumer who needs the wide sign inside a
-  card reaches for `Price` directly.
+- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
+  default, the same default `CurrencyInput` carries, so every currency this package renders is
+  written with the currency's **wide** sign: `"ISK 2,800"` under `en-US`/`ISK`, not `"kr 2,800"`,
+  the form every Eldra surface writes (`docs/icelandic-formatting.md`). Set it to `true` for the narrow sign; a locale whose two signs
+  are identical (`is-IS` writes `kr.` either way) is unaffected either way. **`ProductCard`'s price
+  follows the same default and has no opt-out** — the prop is `Price`'s alone, not forwarded
+  through the card, so a consumer who needs the narrow sign inside a card reaches for `Price`
+  directly.
 
   `Price` formats every amount through that ported `formatCurrency`, passing
   `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
-  digits. The maximum keeps a zero-decimal currency integral (`"kr 2,800"`, never `"kr 2,800.4"`)
+  digits. The maximum keeps a zero-decimal currency integral (`"ISK 2,800"`, never `"ISK 2,800.4"`)
   and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
   the same formatter gives a currency _field_, which pads nothing because a field shows what
   someone typed. One formatter, two rules, and the caller says which.

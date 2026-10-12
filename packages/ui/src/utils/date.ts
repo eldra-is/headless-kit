@@ -1,3 +1,5 @@
+import { dateTimeFormat } from '@eldrajs/format/date';
+
 /**
  * Format an ISO date as `<time datetime>` text (spec "Content card" → Properties, `date` row:
  * `'Rendered as "12 Sep 2026" in a <time datetime>'`), in whatever style `Intl.DateTimeFormat`
@@ -5,12 +7,8 @@
  * "12 Sep 2026" is one locale's rendering, not a format this function reproduces literally.
  *
  * `iso` is parsed by its calendar components (`YYYY-MM-DD`, an optional `T…` time/offset
- * discarded) rather than handed to `new Date(iso)` directly: the ISO 8601 string constructor
- * parses a date-only string as UTC midnight, and formatting that in a locale west of UTC
- * (`America/Los_Angeles`, most of the Americas) rolls it back to the previous day —
- * "2026-09-12" reads as "Sep 11" for a visitor there. Building the `Date` from its year/month/day
- * components in the *local* time zone instead means there is no UTC offset to cross, so the
- * calendar date never shifts.
+ * discarded) and built and formatted in UTC, so the calendar date never shifts with the visitor's
+ * time zone and the server and the browser print the same text (`@eldrajs/format/date`).
  *
  * Never throws. `iso` is content — often round-tripped through a CMS field a caller does not fully
  * control — so a malformed, empty or out-of-range value (`''`, `'not-a-date'`, `'2026-02-30'`,
@@ -54,6 +52,8 @@ const DEFAULT_PARTS = {
   year: 'numeric',
 } as const satisfies Intl.DateTimeFormatOptions;
 
+const defaultLocale = (): string => new Intl.DateTimeFormat().resolvedOptions().locale;
+
 const warnedInvalidDates = new Set<string>();
 
 function warnInvalidDate(iso: string): void {
@@ -93,16 +93,16 @@ export function formatDate(
   }
 
   const [year, month, day] = segments as [number, number, number];
-  const date = new Date(year, month - 1, day);
+  const date = new Date(Date.UTC(year, month - 1, day));
   // `Date` silently rolls an out-of-range day/month over into the next one (`2026-02-30` becomes
   // 2 March) instead of producing an Invalid Date — comparing the constructed date's own
   // components back against the input is what catches that case; `Number.isNaN(date.getTime())`
   // alone would not.
   if (
     Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
   ) {
     warnInvalidDate(iso);
     return null;
@@ -120,15 +120,15 @@ export function formatDate(
   );
   const requested: Intl.DateTimeFormatOptions = { ...DEFAULT_PARTS, ...overrides };
   try {
-    return new Intl.DateTimeFormat(locale, requested).format(date);
+    return dateTimeFormat(locale ?? defaultLocale(), requested).format(date);
   } catch {
     warnInvalidOptions(JSON.stringify(options ?? {}));
     // `locale` itself can be the invalid one (`Intl` rejects a malformed language tag), so the
     // retry drops it too rather than re-throwing — the runtime default locale still formats.
     try {
-      return new Intl.DateTimeFormat(locale, DEFAULT_PARTS).format(date);
+      return dateTimeFormat(locale ?? defaultLocale(), DEFAULT_PARTS).format(date);
     } catch {
-      return new Intl.DateTimeFormat(undefined, DEFAULT_PARTS).format(date);
+      return new Intl.DateTimeFormat(undefined, { ...DEFAULT_PARTS, timeZone: 'UTC' }).format(date);
     }
   }
 }

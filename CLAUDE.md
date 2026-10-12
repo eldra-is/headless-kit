@@ -26,7 +26,7 @@ package checks`) and the commit check by its job id (`check`). Rename either and
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
 - **Framework-free packages import no framework.** `scripts/check-framework-free.mjs` enforces it
-  for sdk, rich-text, theme-core, vite-plugin-theme, theme-cli; wrappers (`vue`, `theme-vue`,
+  for sdk, rich-text, format, theme-core, vite-plugin-theme, theme-cli; wrappers (`vue`, `theme-vue`,
   `theme-nuxt`) import only their framework and the core packages.
 - **The SDK ships no response types.** `src/contract.ts` declares an empty `EldraContract`
   interface; the Vite plugin generates the gateway's OpenAPI document into the consumer's project
@@ -89,6 +89,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   carries `/* @__PURE__ */`, or importing `safeImageSrc` alone bundles the renderer. The
   `rich-text — safeImageSrc` size budget catches a missing one.
   Built by tsdown.
+- `packages/format` — `@eldrajs/format`. Framework-free Icelandic and English formatting that
+  prints the same on every runtime, over the formatjs ponyfill classes with `is`/`en` data in
+  `src/data` (`pnpm --filter @eldrajs/format data`; `check:data` fails on drift). See
+  `docs/icelandic-formatting.md`. Built by tsdown, one entry per `Intl` constructor.
 - `packages/vue` — `@eldrajs/vue`. The `RichText` renderer and `EldraImage`; depends on
   `@eldrajs/rich-text` and `@eldrajs/sdk`, peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
@@ -97,7 +101,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
   (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
   optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
-  `@floating-ui/vue` and `tailwind-merge`. Built by Vite in library mode with `vite-plugin-dts`, the
+  `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/format` (every number, price, date and list it
+  prints), all external in the Vite build. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
   spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
   consumer restyles by setting variables. `scripts/build-tokens.mjs` generates
@@ -220,7 +225,8 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   any block, `main.css` or package change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
-- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `frameworks.md` (the contract a
+- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`,
+  `icelandic-formatting.md`, `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
   three CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
@@ -374,7 +380,9 @@ two specs in that package declaring `environment: node` per file (the other is
 `src/components/select/__tests__/teleportSsr.spec.ts`, which server-renders with no DOM at all):
 under the package's default happy-dom, closing Playwright's browser raises an unhandled
 `ECONNRESET` on the driver connection, which vitest reports as a worker crash rather than a test
-result. `theme-cli`'s tests run
+result. `packages/format` needs the same Chromium for `src/__tests__/chromium.browser.spec.ts`,
+which proves the formatters match Node's full-ICU output in a browser that has no Icelandic data.
+`theme-cli`'s tests run
 `dist/cli.js` as a subprocess, so build that package first too. `examples/starter-nuxt` needs the
 same Chromium for
 `test/prerenderRefresh.browser.spec.ts`, which runs a real `nuxi generate` against a mock gateway

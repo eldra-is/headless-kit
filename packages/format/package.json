@@ -1,0 +1,76 @@
+{
+  "name": "@eldrajs/format",
+  "version": "0.0.0",
+  "description": "Icelandic and English number, price, date, list and name formatting that gives the same text on every runtime, including Chrome and Cloudflare Workers, which ship without Icelandic locale data.",
+  "keywords": [
+    "eldra",
+    "icelandic",
+    "intl",
+    "is-IS",
+    "locale",
+    "ssr"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/format#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/format"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./date": {
+      "types": "./dist/date.d.ts",
+      "import": "./dist/date.js"
+    },
+    "./list": {
+      "types": "./dist/list.d.ts",
+      "import": "./dist/list.js"
+    },
+    "./relative-time": {
+      "types": "./dist/relative-time.d.ts",
+      "import": "./dist/relative-time.js"
+    },
+    "./display-names": {
+      "types": "./dist/display-names.d.ts",
+      "import": "./dist/display-names.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "data": "node scripts/extract-data.mjs",
+    "check:data": "node scripts/extract-data.mjs --check"
+  },
+  "dependencies": {
+    "@formatjs/intl-datetimeformat": "7.8.1",
+    "@formatjs/intl-displaynames": "7.3.15",
+    "@formatjs/intl-listformat": "8.3.15",
+    "@formatjs/intl-numberformat": "9.4.3",
+    "@formatjs/intl-relativetimeformat": "12.3.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "vite": "^8.0.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

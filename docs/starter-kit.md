@@ -742,10 +742,10 @@ places.
 The module builds **no `Intl.NumberFormat` for a currency itself**: `formatMoney` is
 `@eldrajs/ui`'s `formatCurrency` and `currencyLabel` is its `currencySymbol`, which is what makes
 the sign in a sentence the same one every `<Price>`, `<ProductCard>` and `<CurrencyInput>` on the
-page writes — the currency's **narrow** sign (`kr 2,800` on an English page, `2.800 kr.` on an
-Icelandic one, `$28.00` for dollars). A theme that reaches for `{ style: 'currency' }` directly gets
-the _wide_ sign instead (`ISK 2,800`) and quietly disagrees with every price beside it; that is the
-one reason to go through the package here rather than through `Intl`. `test/moneyFormatting.spec.ts`
+page writes — the currency's **wide** sign (`ISK 2,800` on an English page, `2.800 kr.` on an
+Icelandic one, `$28.00` for dollars). A theme that reaches for `Intl.NumberFormat` directly prints
+English for Icelandic in Chrome and on Workers, and quietly disagrees with every price beside it;
+that is the one reason to go through the package here rather than through `Intl`. `test/moneyFormatting.spec.ts`
 scans `app/**` and `blocks/**` and fails on any second formatter, because the failure is silent: a
 second one renders perfectly good-looking money that simply disagrees with the money beside it.
 
@@ -1863,7 +1863,7 @@ The same active locale is what every `Intl` format on the page runs in: `app/plu
 eldra-ui-messages.ts` provides it to `@eldrajs/ui` under `LOCALE_KEY`, which is where `<Price>`,
 `<CurrencyInput>` and `app/storefront/money.ts` all read it from. The **currency** does not follow
 the locale — it is the store's, from the platform — so a page served under `/is-IS` prints
-"2.800 kr." where the same money reads "kr 2,800" on the English one.
+"2.800 kr." where the same money reads "ISK 2,800" on the English one.
 
 No hard-coded UI copy in primitives, blocks, or pages — every visible string, `aria-label`, and
 `sr-only` label goes through `t(...)`. Content copy from a block's `mock.json` is data, not UI copy,

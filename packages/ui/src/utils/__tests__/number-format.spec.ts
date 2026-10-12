@@ -14,9 +14,10 @@ import {
 } from '../number-format';
 
 describe('createNumberFormat', () => {
-  it('returns a real Intl.NumberFormat', () => {
+  it('returns a formatter with Intl.NumberFormat’s interface', () => {
     const nf = createNumberFormat({ locale: 'en-US' });
-    expect(nf).toBeInstanceOf(Intl.NumberFormat);
+    expect(nf.resolvedOptions().locale).toBe('en-US');
+    expect(nf.formatToParts(1)[0]).toEqual({ type: 'integer', value: '1' });
   });
 
   it('defaults to the decimal style', () => {
@@ -498,8 +499,8 @@ describe('defaultUnitFormat', () => {
     { unit: 'kilogram', narrow: true },
   ];
 
-  it('returns a real Intl.NumberFormat', () => {
-    expect(defaultUnitFormat()).toBeInstanceOf(Intl.NumberFormat);
+  it('returns a formatter with Intl.NumberFormat’s interface', () => {
+    expect(defaultUnitFormat().resolvedOptions().locale).toBe('en-US');
   });
 
   it('compares only options the private helper has', () => {
@@ -744,67 +745,10 @@ describe('parseLocaleNumber — a trailing separator', () => {
 });
 
 /**
- * What `LOCALE_FALLBACKS`'s own doc comment claims: `da-DK` is digit-for-digit identical to genuine
- * `is-IS` for a narrow currency sign and for a plain decimal's grouping/separators — every shape
- * this package's own components actually format a number in. Computed against *this* runtime's own
- * `is-IS` output (not a hand-typed string), so the comparison stays true on whatever ICU data the
- * machine running the suite has, the same reason `formatNumber`'s own `is-IS` tests above do it.
- */
-describe('da-DK vs genuine is-IS — the fallback’s own claim of parity', () => {
-  it('is identical for a narrow currency sign, every currency and value this package forms', () => {
-    for (const currency of ['ISK', 'USD', 'EUR', 'GBP', 'BHD', 'JPY']) {
-      for (const value of [0, 28, 28.5, 28.567, 2800, 1_234_567.89]) {
-        const genuine = new Intl.NumberFormat('is-IS', {
-          style: 'currency',
-          currency,
-          currencyDisplay: 'narrowSymbol',
-        }).format(value);
-        const substitute = new Intl.NumberFormat('da-DK', {
-          style: 'currency',
-          currency,
-          currencyDisplay: 'narrowSymbol',
-        }).format(value);
-        expect(substitute, `${currency} ${value}`).toBe(genuine);
-      }
-    }
-  });
-
-  it('is identical for a plain decimal’s grouping and separators', () => {
-    for (const value of [0, 28, 28.5, 1_234_567.89, -12.3]) {
-      expect(new Intl.NumberFormat('da-DK').format(value)).toBe(
-        new Intl.NumberFormat('is-IS').format(value)
-      );
-    }
-    expect(localeSeparators('da-DK')).toEqual({ group: '.', decimal: ',' });
-  });
-
-  /**
-   * The one divergence this package knows about and accepts, written out so it is a documented
-   * boundary rather than a silent surprise: a currency's **wide** sign is not the same word in the
-   * two locales (Danish spells it out, Icelandic falls back to the bare ISO code), and neither is a
-   * non-currency unit's own abbreviation. Nothing in this package calls either shape under `is-IS`
-   * (`CurrencyInput`/`formatCurrency` always ask for the narrow sign), so the fallback never reaches
-   * this path today — this test exists so a future caller that does finds the boundary documented
-   * rather than discovering it as a field in a wrong currency code.
-   */
-  it('is NOT claimed identical for a wide currency sign or a unit’s own abbreviation', () => {
-    expect(
-      new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'USD' }).format(28)
-    ).not.toBe(new Intl.NumberFormat('is-IS', { style: 'currency', currency: 'USD' }).format(28));
-    expect(
-      new Intl.NumberFormat('da-DK', { style: 'unit', unit: 'kilometer-per-hour' }).format(3.33)
-    ).not.toBe(
-      new Intl.NumberFormat('is-IS', { style: 'unit', unit: 'kilometer-per-hour' }).format(3.33)
-    );
-  });
-});
-
-/**
  * The defect itself, reproduced and proven fixed without an actual browser:
  * `withoutIcuDataFor('is-IS')` makes this runtime's own `Intl.NumberFormat` negotiate exactly the
  * way Chromium's real one does for a tag it has no data for (see `src/test/intlStub.ts`), so these
- * assertions are the same ones that fail against the pre-fix code and against a real
- * `is-IS`-ICU-less Chromium.
+ * assertions fail if formatting stops going through `@eldrajs/format`.
  */
 describe('number formatting on a runtime without is-IS ICU data', () => {
   it('still renders the narrow ISK sign as a suffix with "." grouping, not en-US’s prefix/comma', () => {
@@ -831,9 +775,7 @@ describe('number formatting on a runtime without is-IS ICU data', () => {
     const restore = withoutIcuDataFor('is-IS');
     try {
       expect(formatCurrency(40, 'en-US', 'USD')).toBe('$40');
-      // And without `LOCALE_FALLBACKS` the fallback-less `new Intl.NumberFormat('is-IS', …)` this
-      // runtime now simulates reproduces the exact pre-fix string, confirming the stub is standing
-      // in for the real missing-ICU-data runtime and not merely for "a different locale".
+      // The runtime's own Intl really has lost Icelandic, as in Chromium.
       expect(
         new Intl.NumberFormat('is-IS', {
           style: 'currency',

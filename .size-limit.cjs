@@ -41,6 +41,40 @@ module.exports = [
     path: 'packages/rich-text/dist/index.js',
     limit: '6 kB',
   },
+  // Each entry is mostly CLDR data for `is` and `en`; the comparator alone must stay small.
+  {
+    name: '@eldrajs/format — formatPrice',
+    path: 'packages/format/dist/index.js',
+    import: '{ formatPrice }',
+    limit: '38 kB',
+  },
+  {
+    name: '@eldrajs/format — compareIcelandic',
+    path: 'packages/format/dist/index.js',
+    import: '{ compareIcelandic }',
+    limit: '1 kB',
+  },
+  // Dates include the number formatter (shared with the root entry) for the decimal in fractional seconds.
+  {
+    name: '@eldrajs/format — date',
+    path: 'packages/format/dist/date.js',
+    limit: '70 kB',
+  },
+  {
+    name: '@eldrajs/format — list',
+    path: 'packages/format/dist/list.js',
+    limit: '12 kB',
+  },
+  {
+    name: '@eldrajs/format — relative-time',
+    path: 'packages/format/dist/relative-time.js',
+    limit: '43 kB',
+  },
+  {
+    name: '@eldrajs/format — display-names',
+    path: 'packages/format/dist/display-names.js',
+    limit: '32 kB',
+  },
   {
     name: '@eldrajs/vue — RichText, without vue',
     path: 'packages/vue/dist/index.js',
@@ -107,11 +141,12 @@ module.exports = [
   // honest size of a component that composes a third of the catalogue, not a shaking regression.
   // The same check is what the next jump close to this ceiling should start with, before any
   // further raise.
+  // Raised from 88 kB for `@eldrajs/format`'s Icelandic and English data (~59 kB), which Chrome and Workers lack.
   {
     name: '@eldrajs/ui — everything, without vue',
     path: 'packages/ui/dist/index.js',
     ignore: ['vue'],
-    limit: '88 kB',
+    limit: '150 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

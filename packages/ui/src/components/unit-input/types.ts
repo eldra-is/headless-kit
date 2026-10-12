@@ -50,7 +50,7 @@ export interface UnitInputProps {
   isCurrency?: boolean;
   /** ISO 4217, e.g. `USD`, `ISK`. Only read when `isCurrency`. Defaults to `USD`. */
   currency?: string;
-  /** `$` rather than `US$` where the two differ (`currencyDisplay: 'narrowSymbol'`). Default `true`. */
+  /** `$` rather than `US$` where the two differ (`currencyDisplay: 'narrowSymbol'`). Default `false`. */
   narrowSymbol?: boolean;
   /** One of the spec's three field sizes. Defaults to `md`. */
   size?: InputSize;

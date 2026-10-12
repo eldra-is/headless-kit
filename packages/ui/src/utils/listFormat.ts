@@ -1,3 +1,5 @@
+import { listFormat } from '@eldrajs/format/list';
+
 /**
  * Joins a list of strings the way a short list naturally reads: comma-separated, with the last
  * item introduced by the locale's own conjunction word and no comma before it —
@@ -24,7 +26,7 @@ export function formatConjunctionList(items: string[], locale: string): string {
   if (items.length === 1) return items[0] as string;
 
   if (typeof Intl !== 'undefined' && typeof Intl.ListFormat === 'function') {
-    const formatter = new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' });
+    const formatter = listFormat(locale, { style: 'long', type: 'conjunction' });
     const parts = formatter.formatToParts(items);
     // The literal immediately before the final element is the conjunction's own separator
     // ("`, and `" in English, "` og `" in Icelandic) — every earlier literal is a plain

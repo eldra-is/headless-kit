@@ -17,6 +17,11 @@
       "package-name": "@eldrajs/rich-text",
       "changelog-path": "RELEASE-NOTES.md"
     },
+    "packages/format": {
+      "component": "format",
+      "package-name": "@eldrajs/format",
+      "changelog-path": "RELEASE-NOTES.md"
+    },
     "packages/vue": {
       "component": "vue",
       "package-name": "@eldrajs/vue",

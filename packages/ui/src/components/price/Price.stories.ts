@@ -55,18 +55,17 @@ const meta = {
           "**Every amount is formatted by the package's own `formatCurrency`**, the canonical copy",
           "of the private library's currency formatter — so a price, a `CurrencyInput` and a",
           "theme's own formatted sentence cannot write the same money three ways. Two things come",
-          'from that formatter rather than from this component: the **narrow** sign, and the',
+          'from that formatter rather than from this component: the sign, and the',
           "**fraction digits** it is given: `Price` asks for the currency's own count as both the",
           'maximum and the minimum, so `$48.00` keeps its zeroes and a zero-decimal currency prints',
           'none. Called the way a currency *field* calls it — without that minimum — the same',
           'formatter pads nothing (`"$48"`), which is why the argument is there.',
           '',
-          '**`narrowSymbol`** is `true` by default, the same default `CurrencyInput` carries: the',
-          'currency\'s narrow sign, so an Icelandic store priced in krónur reads "kr 2,800" on an',
-          '`en-US` page rather than "ISK 2,800", and a price never disagrees with a currency field',
-          'beside it. Set it to `false` for the wide sign, which for some currency-and-locale pairs',
-          "is the ISO code itself. A locale whose two signs are identical (`is-IS`'s `kr.`) is",
-          'unaffected either way.',
+          '**`narrowSymbol`** is `false` by default, the same default `CurrencyInput` carries: the',
+          'currency\'s wide sign, so an Icelandic store priced in krónur reads "ISK 2,800" on an',
+          '`en-US` page rather than "kr 2,800".',
+          'Set it to `true` for the narrow sign. A locale whose two signs are identical',
+          "(`is-IS`'s `kr.`) is unaffected either way.",
           '',
           '**`unitPrice`** renders a second, full-width line ("$5.10 / 100 g") — `amount` in minor',
           'units, `per` rendered verbatim after `messages.perUnit`.',
@@ -134,9 +133,7 @@ export const Isk: Story = {
 };
 
 /**
- * The same krónur price on an `en-US` page, which is where the narrow sign is visible: `"kr 6,990"`
- * by default, `"ISK 6,990"` with `narrowSymbol: false`. `is-IS` writes `kr.` either way, so the
- * story above cannot show the difference.
+ * The same krónur price on an `en-US` page: `"ISK 6,990"` by default, `"kr 6,990"` with `narrowSymbol: true`.
  */
 export const NarrowSymbol: Story = {
   render: (args) => ({
@@ -145,7 +142,7 @@ export const NarrowSymbol: Story = {
     template: `
       <div class="flex flex-col gap-3">
         <Price v-bind="args" />
-        <Price v-bind="args" :narrow-symbol="false" />
+        <Price v-bind="args" :narrow-symbol="true" />
       </div>
     `,
   }),

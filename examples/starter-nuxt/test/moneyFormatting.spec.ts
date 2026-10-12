@@ -9,11 +9,7 @@ import { formatMoney } from '../app/storefront/money';
  * One formatter for every currency on the storefront, and it is the public one.
  *
  * `@eldrajs/ui`'s `formatCurrency` (and the `<Price>`/`<ProductCard>`/`<CurrencyInput>` components
- * that format through it) writes the currency's **narrow** sign — `kr 2,800` on an English page,
- * `2.800 kr.` on an Icelandic one. A hand-built `Intl.NumberFormat({ style: 'currency' })` writes
- * the *wide* sign instead (`ISK 2,800`), and the two look nothing alike on the same page: that is
- * exactly how this theme came to show `ISK 2,800` in an Add-to-cart label beside a `<Price>`
- * reading `kr 2,800` for the same money.
+ * that format through it) is the one formatter, so every price on a page writes the same sign.
  *
  * So no block and no app module may build a currency formatter of its own. `app/storefront/money.ts`
  * is the single exception — it is the module that calls the public util — and it builds only a
@@ -78,12 +74,12 @@ describe('money is formatted in exactly one place', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('formats through the public util, which is what gives every price the narrow sign', () => {
+  it('formats through the public util, which is what gives every price the same sign', () => {
     // The module under the exception, held to the util it exists to call.
     expect(formatMoney(2800, 'ISK', 'en-US')).toBe(
-      formatCurrency(2800, 'en-US', 'ISK', true, 0, 0)
+      formatCurrency(2800, 'en-US', 'ISK', false, 0, 0)
     );
-    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('ISK\u00a02,800');
     expect(formatMoney(2800, 'ISK', 'is-IS')).toBe('2.800\u00a0kr.');
   });
 });
