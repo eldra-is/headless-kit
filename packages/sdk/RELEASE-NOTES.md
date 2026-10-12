@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.8...sdk-v0.2.9) (2026-10-12)
+
+
+### Features
+
+* **sdk:** Icelandic formatting that prints the same on every runtime ([#51](https://github.com/eldra-is/headless-kit/issues/51)) ([1a731f0](https://github.com/eldra-is/headless-kit/commit/1a731f0e700205ce7cd6e34b4a8824744df34e96))
+
 ## [0.2.8](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.7...sdk-v0.2.8) (2026-10-10)
 
 
