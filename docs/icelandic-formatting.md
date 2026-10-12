@@ -75,5 +75,5 @@ from what Node or Safari's own `Intl` would print:
 `packages/sdk/src/__tests__/format/parity.spec.ts` replaces Node's `Intl` constructors with ones that
 drop Icelandic, the way Chrome and Workers behave, and requires every shape a storefront prints to
 match Node's own full-ICU output exactly. `chromium.browser.spec.ts` runs the same cases in real
-Chromium. The locale data is copied from formatjs into `src/data` by `pnpm --filter
+Chromium. The locale data is copied from formatjs into `src/format/data` by `pnpm --filter
 @eldrajs/sdk format-data`; `check:format-data` fails when a formatjs upgrade leaves it stale.
