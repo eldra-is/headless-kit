@@ -6,7 +6,7 @@
  *
  * Everything else is `UnitInput`'s: the live formatting, the caret mapping, the drag handle, the
  * clear button, the field context and the parts. `currency` defaults to `USD` and `narrowSymbol`
- * to `true`, so `$` is shown rather than `US$` where a locale distinguishes the two.
+ * to `false`, the same sign `Price` prints (`ISK 2,800` in English, not `kr 2,800`).
  *
  * **Only props that were actually passed are forwarded.** Handing `UnitInput` every declared prop,
  * `undefined` included, would make it see a bound `modelValue` on a field nobody bound — and a
@@ -28,7 +28,7 @@ defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<CurrencyInputProps>(), {
   currency: 'USD',
-  narrowSymbol: true,
+  narrowSymbol: false,
 });
 
 const instance = getCurrentInstance();

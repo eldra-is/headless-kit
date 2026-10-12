@@ -26,7 +26,8 @@ const eldra = createEldraClient({ orgId: 'your-organisation-id' });
 const { data: products } = await eldra.catalog.listProducts();
 ```
 
-Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md).
+Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md); for
+Icelandic text, [docs/icelandic-formatting.md](docs/icelandic-formatting.md).
 Planned work: [docs/roadmap.md](docs/roadmap.md).
 UI components: start with [docs/ui.md](docs/ui.md). Themes: start with [docs/themes.md](docs/themes.md).
 Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).

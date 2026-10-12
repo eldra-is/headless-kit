@@ -88,7 +88,7 @@ const props = withDefaults(defineProps<UnitInputProps>(), {
   clearable: false,
   isCurrency: false,
   currency: 'USD',
-  narrowSymbol: true,
+  narrowSymbol: false,
   size: 'md',
   id: undefined,
   name: undefined,

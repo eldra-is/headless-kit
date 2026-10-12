@@ -61,6 +61,27 @@ const image = responsiveImage(product.thumbnail, {
 parts on their own. Anything that is not an Eldra media asset comes back unchanged. The variants,
 choosing `sizes`, and avoiding layout shift are in [docs/images.md](../../docs/images.md).
 
+## Icelandic formatting
+
+Chrome, Edge and Cloudflare Workers ship without Icelandic locale data, and `Intl` then prints
+English without an error (`ISK 1,234,567` for `1.234.567 kr.`), which also breaks hydration. The
+`./format` entries print Icelandic and English the same on every runtime:
+
+```ts
+import { comparator, formatPrice, numberFormat } from '@eldrajs/sdk/format';
+import { dateTimeFormat } from '@eldrajs/sdk/format/date';
+
+formatPrice(12900, 'ISK', 'is-IS'); // "12.900 kr."
+formatPrice(12900, 'ISK', 'en-US'); // "ISK 12,900"
+dateTimeFormat('is-IS', { dateStyle: 'long' }).format(date); // "12. október 2026"
+towns.sort(comparator('is-IS')); // Akureyri, Ísafjörður, Þórshöfn, Ölfus
+```
+
+Each takes the options of the `Intl` constructor it is named after and returns an object with the
+same methods. `./format/list`, `./format/relative-time` and `./format/display-names` cover the rest.
+Import only the entries you use; each carries its own data. The rules and what it costs are in
+[docs/icelandic-formatting.md](../../docs/icelandic-formatting.md).
+
 ## What is in the client
 
 | Group       | Methods                                                                                                                |

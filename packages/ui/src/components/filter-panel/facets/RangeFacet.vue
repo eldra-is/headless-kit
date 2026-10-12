@@ -128,7 +128,7 @@ function onCommit(range: [number, number]): void {
  */
 function formatValue(amount: number, end?: RangeSliderEnd): string {
   const text = isMoney.value
-    ? formatCurrency(amount, locale.value, currency.value, true, 0)
+    ? formatCurrency(amount, locale.value, currency.value, false, 0)
     : formatNumber(amount, { locale: locale.value, maxFraction: 0, minFraction: 0 });
   const atMax = end === 1 && amount >= limits.value[1];
   return atMax ? `${text}${m.value.filterPanelOrMore}` : text;

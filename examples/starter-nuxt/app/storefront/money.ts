@@ -1,5 +1,6 @@
 import type { ComputedRef } from 'vue';
 import {
+  createNumberFormat,
   currencyFractionDigits,
   currencySymbol,
   formatCurrency,
@@ -16,14 +17,14 @@ import {
  * read **minor** units (their own `amount` docs say so), so anything handed to one of those
  * components goes through `toMinorUnits` first, while money that has to appear inside a sentence
  * ("Add to cart · 2.800 kr.") is formatted here with `formatMoney`. A third shape names the
- * currency itself rather than an amount in it ("ISK kr"): `currencyLabel`.
+ * currency itself rather than an amount in it ("ISK kr."): `currencyLabel`.
  *
  * **Nothing here builds an `Intl.NumberFormat` of its own.** Both money shapes go through
  * `@eldrajs/ui`'s `formatCurrency`/`currencySymbol`, which is the same formatter — and therefore
- * the same **narrow** currency sign — that every `<Price>`, `<ProductCard>` and `<CurrencyInput>`
- * on the page renders with. A hand-built `{ style: 'currency' }` formatter writes the *wide* sign
- * instead, and that is exactly how this theme came to read "ISK 2,800" in a button label beside a
- * `<Price>` reading "kr 2,800" for the same money.
+ * the same currency sign — that every `<Price>`, `<ProductCard>` and `<CurrencyInput>` on the page
+ * renders with: the **wide** one, so English reads `ISK 2,800` and Icelandic `2.800 kr.`. A second
+ * formatter with its own sign is how a button label once read "ISK 2,800" beside a `<Price>`
+ * reading "kr 2,800" for the same money.
  *
  * **The currency is the store's, and it is never guessed.** It comes from the platform — the
  * organisation's own commerce settings, read once at build and put on
@@ -58,11 +59,11 @@ interface MoneyFormat {
  * `useMoney().format` is a fresh call on every render of every price and a collection grid renders
  * one or two per card, so what this saves is worth saving: the `currencyFractionDigits` lookup, the
  * one probe that decides whether `Intl` will accept the store's code at all, and — for a store with
- * no currency — the one `Intl.NumberFormat` this module still constructs itself. A store has one
+ * no currency — the one plain-decimal formatter this module still asks for itself. A store has one
  * currency and a handful of locales, so the cache is a few entries that never need evicting.
  *
  * What it deliberately does **not** cache is a currency formatter. `formatCurrency` is
- * `@eldrajs/ui`'s own, stateless by design, and the single place the narrow sign and the
+ * `@eldrajs/ui`'s own, stateless by design, and the single place the sign and the
  * fraction-digit rule are decided; a formatter cached here would be a second definition of both,
  * which is precisely the bug this module had. Its per-amount construction is a few microseconds
  * against a render that costs far more.
@@ -86,7 +87,7 @@ function resolveFormat(currency: string | undefined, locale: string): MoneyForma
    * dangling separator would reach the DOM and the accessible text of every price on the page.
    */
   const decimal = (): MoneyFormat => {
-    const formatter = new Intl.NumberFormat(locale, { style: 'decimal' });
+    const formatter = createNumberFormat({ locale, style: 'decimal' });
     return {
       format: (amount) =>
         code === '' ? formatter.format(amount) : `${formatter.format(amount)} ${code}`,
@@ -102,15 +103,15 @@ function resolveFormat(currency: string | undefined, locale: string): MoneyForma
     // helper it ports does, and this runs inside `computed`s where a throw takes the whole block
     // down. So the code is probed once per pair here rather than guarded once per amount.
     try {
-      formatCurrency(0, locale, code, true, digits, digits);
+      formatCurrency(0, locale, code, false, digits, digits);
       resolved = {
-        // The narrow sign is the util's own default and the whole reason to go through it. The
-        // currency's own count goes in twice: as the cap, because the util's default of 2 would
+        // The wide sign, as every `<Price>` writes it. The currency's own count goes in twice: as
+        // the cap, because the util's default of 2 would
         // print a fractional króna and round a three-decimal currency to two; and as the
         // **minimum**, which is the util's display rule — without it `$96` and `$96.50` sit in the
         // same column. Both are exactly what `<Price>` passes, so a formatted sentence and the
         // `<Price>` beside it cannot disagree about either.
-        format: (amount) => formatCurrency(amount, locale, code, true, digits, digits),
+        format: (amount) => formatCurrency(amount, locale, code, false, digits, digits),
         digits,
       };
     } catch {
@@ -123,8 +124,8 @@ function resolveFormat(currency: string | undefined, locale: string): MoneyForma
 }
 
 /**
- * A major-unit amount as text, in the currency's own shape and its **narrow** sign: `$28.00` for
- * `USD`, `2.800 kr.` for `ISK` on an Icelandic page, `kr 2,800` for the same money on an English
+ * A major-unit amount as text, in the currency's own shape and its **wide** sign: `$28.00` for
+ * `USD`, `2.800 kr.` for `ISK` on an Icelandic page, `ISK 2,800` for the same money on an English
  * one. The fraction count is the currency's own, as both the maximum and the minimum, so a
  * zero-decimal currency never renders phantom decimals and a two-decimal one never renders a
  * ragged column.
@@ -147,19 +148,19 @@ export function formatMoney(
 
 /**
  * A currency *code* as text naming itself, not an amount: `"ISK kr."` on an Icelandic page,
- * `"ISK kr"` on an English one, `"USD $"` — the code plus the sign `formatMoney` prints in front
+ * `"ISK"` on an English one, `"USD $"` — the code plus the sign `formatMoney` prints in front
  * of the amounts on the same page, for a place that names the store's currency rather than
  * formatting a price in it (the footer's currency selector, with one option now that the platform
  * publishes one currency).
  *
- * `@eldrajs/ui`'s `currencySymbol` is where the sign comes from — the **narrow** one, read out of
+ * `@eldrajs/ui`'s `currencySymbol` is where the sign comes from — the **wide** one, read out of
  * `formatToParts`, never a hand-maintained code → symbol table — so this label and every price on
  * the page are written with the same character. One fallback, and it is the honest one: the code
  * appended to itself is noise, so a currency with no sign distinct from its code in this locale
  * (which is also what `currencySymbol` answers for a code `Intl` rejects) prints just the code.
  */
 export function currencyLabel(code: string, locale: string = DEFAULT_LOCALE): string {
-  const symbol = currencySymbol(code, locale);
+  const symbol = currencySymbol(code, locale, false);
   return symbol === code ? code : `${code} ${symbol}`;
 }
 

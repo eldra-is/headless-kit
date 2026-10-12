@@ -159,29 +159,31 @@ changes. A value that is on screen never turns back into a skeleton.
 
 ## Money and number formatting
 
-Every currency the package renders is written with the currency's **narrow** sign — `kr 2,800`
-under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28.00` for dollars — because that is the sign a
-store's own back office writes, and a price that disagreed with the currency field an operator
-typed it into is a bug the shopper sees. `Price` takes `narrowSymbol`, `true` by default, as
-`CurrencyInput` already did; pass `false` for the wide sign, which for some currency-and-locale pairs
-is the ISO code itself. `ProductCard`'s own price follows the same default and has no opt-out of its
-own — the prop is `Price`'s.
+Every price the components render is written with the currency's **wide** sign — `ISK 2,800`
+under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28.00` for dollars — the form every Eldra surface
+writes ([Icelandic formatting](icelandic-formatting.md)). `Price` takes `narrowSymbol`, `false` by
+default, as `CurrencyInput` does; pass `true` for the narrow sign. The `formatCurrency` util keeps
+the private library's narrow default, so pass `false` to match. `ProductCard`'s own price follows the same default and has no opt-out of
+its own — the prop is `Price`'s.
+
+Every number, date and list goes through [`@eldrajs/sdk/format`](icelandic-formatting.md), so Icelandic
+prints the same on the server and in Chrome, which ships without Icelandic locale data.
 
 `Price` formats through `formatCurrency` (below), asking it for the currency's own fraction count
 as both the maximum and the minimum: a zero-decimal currency prints none, and a two-decimal one
 pads, so a column of prices lines up (`$48.00`, not `$48`).
 
 A theme that has to put money in a sentence rather than render a `<Price>` — "Add to cart ·
-kr 2,800", a cart line total, a search suggestion — should format it with the package's own
-`formatCurrency` rather than `Intl.NumberFormat`, which writes the wide sign by default and so
-quietly disagrees with every price beside it:
+ISK 2,800", a cart line total, a search suggestion — should format it with the package's own
+`formatCurrency` rather than `Intl.NumberFormat`, which prints English in Chrome for an Icelandic
+page and so quietly disagrees with every price beside it:
 
 ```ts
 import { currencySymbol, formatCurrency } from '@eldrajs/ui';
 
 formatCurrency(28, 'en-US', 'USD'); // "$28"       — a field: shows what was typed
-formatCurrency(28, 'en-US', 'USD', true, 2, 2); // "$28.00"   — a display: padded
-formatCurrency(2800, 'en-US', 'ISK', true, 0, 0); // "kr 2,800"
+formatCurrency(28, 'en-US', 'USD', false, 2, 2); // "$28.00"   — a display: padded
+formatCurrency(2800, 'en-US', 'ISK', false, 0, 0); // "ISK 2,800"
 currencySymbol('ISK', 'is-IS'); // "kr."
 ```
 

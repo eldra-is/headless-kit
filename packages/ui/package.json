@@ -66,6 +66,7 @@
     "drag-smoke": "node scripts/drag-smoke.mjs"
   },
   "dependencies": {
+    "@eldrajs/sdk": "workspace:^",
     "@floating-ui/vue": "^1.1.5",
     "tailwind-merge": "^3.0.0"
   },

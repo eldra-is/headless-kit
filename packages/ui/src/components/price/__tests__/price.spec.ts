@@ -132,12 +132,12 @@ describe('Price — formatting', () => {
   });
 
   it('takes the currency’s own count, not the util’s default of 2, as the cap', () => {
-    // `formatCurrency`'s own default would print 2800.4 krónur as "kr 2,800.4" and round BHD to
+    // `formatCurrency`'s own default would print 2800.4 krónur as "ISK 2,800.4" and round BHD to
     // two places; this component passes `currencyFractionDigits` instead, which is what keeps a
     // zero-decimal currency integral — no fractional króna to show, and nothing to pad to either
     // — and BHD at three.
     const isk = mountWith(Price, { props: { amount: 2800, currency: 'ISK', locale: 'en-US' } });
-    expect(isk.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
+    expect(isk.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
     isk.unmount();
 
     const bhd = mountWith(Price, {
@@ -155,19 +155,19 @@ describe('Price — formatting', () => {
  * default that field carries.
  */
 describe('Price — narrowSymbol', () => {
-  it('renders the narrow currency sign by default', () => {
+  it('renders the wide currency sign by default', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
     wrapper.unmount();
   });
 
-  it('renders the wide sign when narrowSymbol is false', () => {
+  it('renders the narrow sign when narrowSymbol is true', () => {
     const wrapper = mountWith(Price, {
-      props: { amount: 2800, currency: 'ISK', locale: 'en-US', narrowSymbol: false },
+      props: { amount: 2800, currency: 'ISK', locale: 'en-US', narrowSymbol: true },
     });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    expect(wrapper.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
     wrapper.unmount();
   });
 
@@ -175,8 +175,8 @@ describe('Price — narrowSymbol', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 2800, currency: 'ISK', locale: 'en-US' },
     });
-    await wrapper.setProps({ narrowSymbol: false });
-    expect(wrapper.get('[data-part="current"]').text()).toBe('ISK\u00a02,800');
+    await wrapper.setProps({ narrowSymbol: true });
+    expect(wrapper.get('[data-part="current"]').text()).toBe('kr\u00a02,800');
     wrapper.unmount();
   });
 
@@ -214,8 +214,8 @@ describe('Price — narrowSymbol', () => {
         unitPrice: { amount: 500, per: '100 g' },
       },
     });
-    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('kr\u00a03,600');
-    expect(wrapper.get('[data-part="unit"]').text()).toContain('kr\u00a0500');
+    expect(wrapper.get('[data-part="compareAt"]').text()).toBe('ISK\u00a03,600');
+    expect(wrapper.get('[data-part="unit"]').text()).toContain('ISK\u00a0500');
     wrapper.unmount();
   });
 });

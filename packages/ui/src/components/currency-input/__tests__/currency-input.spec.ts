@@ -106,16 +106,16 @@ describe('CurrencyInput — the money field', () => {
     wrapper.unmount();
   });
 
-  it('shows the narrow symbol by default and the wide one when asked', async () => {
-    const narrow = mount({ currency: 'USD', locale: 'en-CA', modelValue: 12 });
-    await nextTick();
-    expect(control(narrow).value).toBe('$12');
-    narrow.unmount();
-
-    const wide = mount({ currency: 'USD', locale: 'en-CA', modelValue: 12, narrowSymbol: false });
+  it('shows the wide symbol by default and the narrow one when asked', async () => {
+    const wide = mount({ currency: 'USD', locale: 'en-CA', modelValue: 12 });
     await nextTick();
     expect(control(wide).value).toBe('US$12');
     wide.unmount();
+
+    const narrow = mount({ currency: 'USD', locale: 'en-CA', modelValue: 12, narrowSymbol: true });
+    await nextTick();
+    expect(control(narrow).value).toBe('$12');
+    narrow.unmount();
   });
 
   it('round-trips a number through v-model', async () => {

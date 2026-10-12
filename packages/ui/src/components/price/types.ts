@@ -51,10 +51,10 @@ export interface PriceProps {
   locale?: string;
   /**
    * Whether the currency's **narrow** sign is used — `"kr 2,800"` rather than `"ISK 2,800"` under
-   * `en-US`/`ISK`, `"$"` rather than `"US$"` in a locale that distinguishes the two. `true` by
+   * `en-US`/`ISK`, `"$"` rather than `"US$"` in a locale that distinguishes the two. `false` by
    * default, the same default `CurrencyInput.narrowSymbol` carries, so a price and a currency
-   * field on the same page can only write the same sign. Set it to `false` for the wide sign,
-   * which for some currency-and-locale pairs is the ISO code itself.
+   * field on the same page can only write the same sign, and an English price reads `ISK 2,800`:
+   * a bare "kr" is also the Danish, Norwegian and Swedish krone.
    *
    * It changes only the sign: the fraction digits stay the currency's own either way (none for
    * `ISK`, two for `USD`), and a locale whose narrow and wide signs are the same (`is-IS`'s `kr.`)

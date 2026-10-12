@@ -104,7 +104,7 @@ export default defineNuxtPlugin({
     nuxtApp.vueApp.provide(MESSAGES_KEY, messages);
     // The same value is the locale every `Intl` format in the theme runs in — `@eldrajs/ui`'s
     // `Price`/`CurrencyInput` and, through `useEldraUiLocale()`, `app/storefront/money.ts`. So a
-    // page served under `/is-IS` prints "2.800 kr." where the same money reads "kr 2,800" on the
+    // page served under `/is-IS` prints "2.800 kr." where the same money reads "ISK 2,800" on the
     // English one, while the currency itself stays the store's.
     nuxtApp.vueApp.provide(LOCALE_KEY, activeLocale);
     nuxtApp.vueApp.provide(CURRENCY_KEY, currency);
