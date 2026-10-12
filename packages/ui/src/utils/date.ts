@@ -1,4 +1,4 @@
-import { dateTimeFormat } from '@eldrajs/format/date';
+import { dateTimeFormat } from '@eldrajs/sdk/format/date';
 
 /**
  * Format an ISO date as `<time datetime>` text (spec "Content card" → Properties, `date` row:
@@ -8,7 +8,7 @@ import { dateTimeFormat } from '@eldrajs/format/date';
  *
  * `iso` is parsed by its calendar components (`YYYY-MM-DD`, an optional `T…` time/offset
  * discarded) and built and formatted in UTC, so the calendar date never shifts with the visitor's
- * time zone and the server and the browser print the same text (`@eldrajs/format/date`).
+ * time zone and the server and the browser print the same text (`@eldrajs/sdk/format/date`).
  *
  * Never throws. `iso` is content — often round-tripped through a CMS field a caller does not fully
  * control — so a malformed, empty or out-of-range value (`''`, `'not-a-date'`, `'2026-02-30'`,

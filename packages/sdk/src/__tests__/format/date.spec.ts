@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dateTimeFormat } from '../date';
+import { dateTimeFormat } from '../../format/date';
 
 const MOMENT = new Date(Date.UTC(2026, 9, 12, 23, 30));
 

@@ -2,7 +2,7 @@
 
 Numbers, prices, dates, lists and names in Icelandic need locale data that several runtimes do not
 ship. Where it is missing, `Intl` does not fail: it formats in English instead. Use
-[`@eldrajs/format`](../packages/format) for any text a shopper reads, and the same text comes out
+[`@eldrajs/sdk/format`](../packages/sdk/README.md#icelandic-formatting) for any text a shopper reads, and the same text comes out
 on every runtime.
 
 ## The problem
@@ -31,7 +31,7 @@ Two things go wrong:
 
 ## The rules
 
-- **Format with `@eldrajs/format`, never with `Intl.*`, `toLocaleString` or vue-i18n's `n()`/`d()`**
+- **Format with `@eldrajs/sdk/format`, never with `Intl.*`, `toLocaleString` or vue-i18n's `n()`/`d()`**
   for text a shopper reads. Those all use the runtime's own data. The package carries Icelandic and
   English itself and passes every other locale to the runtime.
 - **The same code runs on the server and in the browser.** There is no polyfill to load and nothing
@@ -72,8 +72,8 @@ from what Node or Safari's own `Intl` would print:
 
 ## How it is tested
 
-`packages/format/src/__tests__/parity.spec.ts` replaces Node's `Intl` constructors with ones that
+`packages/sdk/src/__tests__/format/parity.spec.ts` replaces Node's `Intl` constructors with ones that
 drop Icelandic, the way Chrome and Workers behave, and requires every shape a storefront prints to
 match Node's own full-ICU output exactly. `chromium.browser.spec.ts` runs the same cases in real
 Chromium. The locale data is copied from formatjs into `src/data` by `pnpm --filter
-@eldrajs/format data`; `check:data` fails when a formatjs upgrade leaves it stale.
+@eldrajs/sdk format-data`; `check:format-data` fails when a formatjs upgrade leaves it stale.

@@ -1,4 +1,4 @@
-import { listFormat } from '@eldrajs/format/list';
+import { listFormat } from '@eldrajs/sdk/format/list';
 
 /**
  * Joins a list of strings the way a short list naturally reads: comma-separated, with the last

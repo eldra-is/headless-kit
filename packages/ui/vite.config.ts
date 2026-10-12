@@ -32,7 +32,7 @@ export default defineConfig({
         'vee-validate',
         '@floating-ui/vue',
         'tailwind-merge',
-        /^@eldrajs\/format(\/|$)/,
+        /^@eldrajs\/sdk(\/|$)/,
       ],
       output: {
         assetFileNames: (info) =>

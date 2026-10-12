@@ -577,7 +577,7 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
    * text** — what `CurrencyInput`/`UnitInput` put in the box — which is the thing a prior round
    * shipped wrong (`"kr 5,000"`, en-US grouping and a prefix sign) because a real browser's `Intl`
    * silently falls back to `en-US` for the one locale this package ships messages for whose
-   * number-formatting CLDR data Chromium does not bundle; `@eldrajs/format` supplies it. Exact equality, not `toContain`, so a regression in grouping, sign
+   * number-formatting CLDR data Chromium does not bundle; `@eldrajs/sdk/format` supplies it. Exact equality, not `toContain`, so a regression in grouping, sign
    * placement or the narrow symbol itself fails this test.
    */
   it('renders the is-IS/ISK and en-US/USD field text exactly, not just the thumb', () => {

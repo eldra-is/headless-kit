@@ -1,4 +1,4 @@
-import { numberFormat } from '@eldrajs/format';
+import { numberFormat } from '@eldrajs/sdk/format';
 
 /**
  * Locale-aware number formatting and parsing, ported from the private library's own `unit-utils.ts`.
@@ -11,7 +11,7 @@ import { numberFormat } from '@eldrajs/format';
  * formatter of its own to hold, and construction costs some 40× a `format()` call. The memo is keyed
  * on every input that reaches `Intl` and holds nothing but `Intl.NumberFormat` instances, so the
  * function stays pure and there is no cross-request state on a server; see `unitFormatters`' own
- * note. Every formatter comes from `@eldrajs/format`, which writes Icelandic the same on every
+ * note. Every formatter comes from `@eldrajs/sdk/format`, which writes Icelandic the same on every
  * runtime (Chrome and Cloudflare Workers ship without it) and shares one instance per locale and options.
  */
 

@@ -9,6 +9,12 @@ platform repository.
 
 ## Unreleased
 
+- **Icelandic formatting that prints the same on every runtime: `@eldrajs/sdk/format`.**
+  `numberFormat`, `formatPrice` and `comparator`/`compareIcelandic`, plus `./format/date`,
+  `./format/list`, `./format/relative-time` and `./format/display-names`. Icelandic and English come
+  from the package's own CLDR 48.2 data, so Chrome and Cloudflare Workers, which lack it, print what
+  Node and Safari do; every other locale goes to the runtime's `Intl`. Dates are UTC. No new
+  runtime dependency: the formatjs code is bundled.
 - **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
   client by requests per minute, which a static build of a real catalogue meets routinely. The
   default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a

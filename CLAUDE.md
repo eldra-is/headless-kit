@@ -26,7 +26,7 @@ package checks`) and the commit check by its job id (`check`). Rename either and
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
 - **Framework-free packages import no framework.** `scripts/check-framework-free.mjs` enforces it
-  for sdk, rich-text, format, theme-core, vite-plugin-theme, theme-cli; wrappers (`vue`, `theme-vue`,
+  for sdk, rich-text, theme-core, vite-plugin-theme, theme-cli; wrappers (`vue`, `theme-vue`,
   `theme-nuxt`) import only their framework and the core packages.
 - **The SDK ships no response types.** `src/contract.ts` declares an empty `EldraContract`
   interface; the Vite plugin generates the gateway's OpenAPI document into the consumer's project
@@ -79,6 +79,12 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   against the fixture. Built by tsdown. `src/image.ts` encodes the media host's contract — variant
   names and widths, the asset URL shape, which content types it resizes — copied from
   `eldra-is/studio-media-worker` `src/index.ts`; change both together.
+  `src/format/` is the `./format` entries (`./format/date`, `/list`, `/relative-time`,
+  `/display-names`): Icelandic and English formatting that prints the same on every runtime
+  (`docs/icelandic-formatting.md`). The formatjs classes are devDependencies **bundled** into
+  `dist`, never runtime dependencies: each formatjs package ships every locale's data (344 MB
+  installed for the five). `is`/`en` data lives in `src/format/data`, copied by `pnpm --filter
+@eldrajs/sdk format-data`; `check:format-data` in `lint:check` fails on drift.
 - `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
   are declared here, not imported from TipTap. `src/html.ts` is the kit's XSS surface: it
   serialises merchant-authored content to HTML, so every text and attribute value goes through
@@ -89,10 +95,6 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   carries `/* @__PURE__ */`, or importing `safeImageSrc` alone bundles the renderer. The
   `rich-text — safeImageSrc` size budget catches a missing one.
   Built by tsdown.
-- `packages/format` — `@eldrajs/format`. Framework-free Icelandic and English formatting that
-  prints the same on every runtime, over the formatjs ponyfill classes with `is`/`en` data in
-  `src/data` (`pnpm --filter @eldrajs/format data`; `check:data` fails on drift). See
-  `docs/icelandic-formatting.md`. Built by tsdown, one entry per `Intl` constructor.
 - `packages/vue` — `@eldrajs/vue`. The `RichText` renderer and `EldraImage`; depends on
   `@eldrajs/rich-text` and `@eldrajs/sdk`, peers on `vue`. Uses the same safety helpers in `Link.vue`, `Image.vue` and `Embed.vue`. Built by
   Vite in library mode with `vite-plugin-dts` bundling the declarations into one `index.d.ts` —
@@ -101,7 +103,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
   (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
   optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
-  `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/format` (every number, price, date and list it
+  `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/sdk` (`./format`, for every number, price, date and list it
   prints), all external in the Vite build. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
   spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
@@ -380,7 +382,7 @@ two specs in that package declaring `environment: node` per file (the other is
 `src/components/select/__tests__/teleportSsr.spec.ts`, which server-renders with no DOM at all):
 under the package's default happy-dom, closing Playwright's browser raises an unhandled
 `ECONNRESET` on the driver connection, which vitest reports as a worker crash rather than a test
-result. `packages/format` needs the same Chromium for `src/__tests__/chromium.browser.spec.ts`,
+result. `packages/sdk` needs the same Chromium for `src/__tests__/format/chromium.browser.spec.ts`,
 which proves the formatters match Node's full-ICU output in a browser that has no Icelandic data.
 `theme-cli`'s tests run
 `dist/cli.js` as a subprocess, so build that package first too. `examples/starter-nuxt` needs the

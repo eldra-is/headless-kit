@@ -166,7 +166,7 @@ default, as `CurrencyInput` does; pass `true` for the narrow sign. The `formatCu
 the private library's narrow default, so pass `false` to match. `ProductCard`'s own price follows the same default and has no opt-out of
 its own — the prop is `Price`'s.
 
-Every number, date and list goes through [`@eldrajs/format`](../packages/format), so Icelandic
+Every number, date and list goes through [`@eldrajs/sdk/format`](icelandic-formatting.md), so Icelandic
 prints the same on the server and in Chrome, which ships without Icelandic locale data.
 
 `Price` formats through `formatCurrency` (below), asking it for the currency's own fraction count

@@ -32,7 +32,7 @@ describe('the standard strings', () => {
     ['is-IS', 'EUR', 1234.5, '1.234,50\u00a0EUR'],
     ['en-US', 'EUR', 1234.5, '€1,234.50'],
   ])('%s %s %d → %s', async (locale, currency, amount, text) => {
-    const { formatPrice } = await import('../number');
+    const { formatPrice } = await import('../../format/number');
     expect(formatPrice(amount, currency, locale)).toBe(text);
   });
 });

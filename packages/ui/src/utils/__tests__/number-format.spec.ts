@@ -748,7 +748,7 @@ describe('parseLocaleNumber — a trailing separator', () => {
  * The defect itself, reproduced and proven fixed without an actual browser:
  * `withoutIcuDataFor('is-IS')` makes this runtime's own `Intl.NumberFormat` negotiate exactly the
  * way Chromium's real one does for a tag it has no data for (see `src/test/intlStub.ts`), so these
- * assertions fail if formatting stops going through `@eldrajs/format`.
+ * assertions fail if formatting stops going through `@eldrajs/sdk/format`.
  */
 describe('number formatting on a runtime without is-IS ICU data', () => {
   it('still renders the narrow ISK sign as a suffix with "." grouping, not en-US’s prefix/comma', () => {

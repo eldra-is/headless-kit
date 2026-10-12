@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'data');
+const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'format', 'data');
 const check = process.argv.includes('--check');
 
 const SETS = {
@@ -70,7 +70,7 @@ for (const [name, [pkg, ctor]] of Object.entries(SETS)) {
     const json = `${JSON.stringify(data)}\n`;
     if (!check) writeFileSync(file, json);
     else if (readFileSync(file, 'utf8') !== json) {
-      console.error(`stale: ${file} (run pnpm --filter @eldrajs/format data)`);
+      console.error(`stale: ${file} (run pnpm --filter @eldrajs/sdk format-data)`);
       stale++;
     }
   }

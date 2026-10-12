@@ -40,7 +40,7 @@ export function dateTimeFormat(
     if (!usesBundledData(locale)) return new Intl.DateTimeFormat(locale, resolved);
     if (!UTC_ZONES.has(resolved.timeZone.toLowerCase())) {
       throw new RangeError(
-        `@eldrajs/format formats ${locale} dates in UTC (Iceland's time), not ${resolved.timeZone}`
+        `@eldrajs/sdk/format formats ${locale} dates in UTC (Iceland's time), not ${resolved.timeZone}`
       );
     }
     new Intl.DateTimeFormat('en', resolved); // the runtime's own option checks and error messages

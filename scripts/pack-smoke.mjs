@@ -15,6 +15,19 @@ const tsc = join(root, 'node_modules', '.bin', 'tsc');
 const consumers = {
   '@eldrajs/sdk': {
     runtime: `
+      import { comparator, formatPrice, numberFormat } from '@eldrajs/sdk/format';
+      import { dateTimeFormat } from '@eldrajs/sdk/format/date';
+      import { listFormat } from '@eldrajs/sdk/format/list';
+      import { relativeTimeFormat } from '@eldrajs/sdk/format/relative-time';
+      import { displayNames } from '@eldrajs/sdk/format/display-names';
+      assert.equal(formatPrice(12900, 'ISK', 'is-IS'), '12.900\u00a0kr.');
+      assert.equal(formatPrice(12900, 'ISK', 'en-US'), 'ISK\u00a012,900');
+      assert.equal(numberFormat('is-IS').format(1234.5), '1.234,5');
+      assert.equal(dateTimeFormat('is-IS', { dateStyle: 'long' }).format(new Date(Date.UTC(2026, 9, 12))), '12. október 2026');
+      assert.equal(listFormat('is-IS').format(['a', 'b', 'c']), 'a, b og c');
+      assert.equal(relativeTimeFormat('is-IS').format(-3, 'day'), 'fyrir 3 dögum');
+      assert.equal(displayNames('is-IS', { type: 'region' }).of('DK'), 'Danmörk');
+      assert.equal(['Ö', 'Z', 'Þ', 'A'].sort(comparator('is-IS')).join(''), 'AZÞÖ');
       import { createEldraClient, EldraHttpError } from '@eldrajs/sdk';
       import { eldra } from '@eldrajs/sdk/vite';
       assert(typeof createEldraClient === 'function', 'createEldraClient');
@@ -25,6 +38,11 @@ const consumers = {
       assert(typeof client.cart.addItem === 'function', 'client.cart');
     `,
     types: `
+      import { formatPrice, numberFormat } from '@eldrajs/sdk/format';
+      import { dateTimeFormat } from '@eldrajs/sdk/format/date';
+      export const price: string = formatPrice(1, 'ISK', 'is-IS');
+      export const number: Intl.NumberFormat = numberFormat('en-US', { style: 'percent' });
+      export const date: Intl.DateTimeFormat = dateTimeFormat('is-IS', { dateStyle: 'short' });
       import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldrajs/sdk';
       import { eldra } from '@eldrajs/sdk/vite';
       // What the generated .eldra/web-studio/contract.ts does in a real project.
@@ -57,30 +75,6 @@ const consumers = {
       const doc: RichTextDocument = { type: 'doc', content: [] };
       const options: ToHtmlOptions = { nodes: { paragraph: 'div' } };
       export const html: string = toHtml(doc, options);
-    `,
-  },
-  '@eldrajs/format': {
-    runtime: `
-      import { comparator, formatPrice, numberFormat } from '@eldrajs/format';
-      import { dateTimeFormat } from '@eldrajs/format/date';
-      import { listFormat } from '@eldrajs/format/list';
-      import { relativeTimeFormat } from '@eldrajs/format/relative-time';
-      import { displayNames } from '@eldrajs/format/display-names';
-      assert.equal(formatPrice(12900, 'ISK', 'is-IS'), '12.900\u00a0kr.');
-      assert.equal(formatPrice(12900, 'ISK', 'en-US'), 'ISK\u00a012,900');
-      assert.equal(numberFormat('is-IS').format(1234.5), '1.234,5');
-      assert.equal(dateTimeFormat('is-IS', { dateStyle: 'long' }).format(new Date(Date.UTC(2026, 9, 12))), '12. október 2026');
-      assert.equal(listFormat('is-IS').format(['a', 'b', 'c']), 'a, b og c');
-      assert.equal(relativeTimeFormat('is-IS').format(-3, 'day'), 'fyrir 3 dögum');
-      assert.equal(displayNames('is-IS', { type: 'region' }).of('DK'), 'Danmörk');
-      assert.equal(['Ö', 'Z', 'Þ', 'A'].sort(comparator('is-IS')).join(''), 'AZÞÖ');
-    `,
-    types: `
-      import { formatPrice, numberFormat } from '@eldrajs/format';
-      import { dateTimeFormat } from '@eldrajs/format/date';
-      export const price: string = formatPrice(1, 'ISK', 'is-IS');
-      export const number: Intl.NumberFormat = numberFormat('en-US', { style: 'percent' });
-      export const date: Intl.DateTimeFormat = dateTimeFormat('is-IS', { dateStyle: 'short' });
     `,
   },
   '@eldrajs/vue': {

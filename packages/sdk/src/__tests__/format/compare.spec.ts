@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comparator, compareIcelandic } from '../compare';
+import { comparator, compareIcelandic } from '../../format/compare';
 
 const ALPHABET =
   "aábcdðeéfghiíjklłmnoópqrstuúvwxyýzþæöAÁBDÐEÉIÍOÓUÚYÝZÞÆÖŁäøåüçèñßœŒđΩж0123456789 -_.,&'()/\u00ad\u200bSOE";

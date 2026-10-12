@@ -9,7 +9,7 @@
  * that follows is the same one a runtime with no data for it would run on its own: a lone `'is-IS'`
  * strips to an empty list, which `Intl.NumberFormat` treats exactly as "no locale requested" and
  * answers with the runtime's own default (`en-US` here) — reproducing `number-format.ts`'s original
- * bug bit for bit, which `@eldrajs/format` now formats around.
+ * bug bit for bit, which `@eldrajs/sdk/format` now formats around.
  *
  * Patches the global `Intl.NumberFormat` in place rather than replacing all of `Intl`, so
  * `Intl.DateTimeFormat` and the rest are untouched; call the returned function (in a `finally` or an
