@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@eldrajs/sdk": "workspace:^",
-    "@floating-ui/vue": "^1.1.5",
+    "@floating-ui/vue": "^2.0.1",
     "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
