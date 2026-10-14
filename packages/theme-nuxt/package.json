@@ -61,7 +61,7 @@
     "@nuxt/schema": "^4.0.0",
     "@playwright/test": "1.62.1",
     "execa": "^9.5.2",
-    "nuxt": "^4.0.0"
+    "nuxt": "^4.6.1"
   },
   "engines": {
     "node": ">=20"
