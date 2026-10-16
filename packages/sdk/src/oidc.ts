@@ -47,6 +47,11 @@ export interface EldraAuthorizeUrlOptions {
   codeChallenge: string;
   scope?: string;
   prompt?: string;
+  /**
+   * The language(s) the login pages should use, most preferred first, as BCP 47 tags (`is`,
+   * `en`). Sent as the OIDC `ui_locales` parameter (space-separated); omitted when empty.
+   */
+  uiLocales?: string | readonly string[];
 }
 
 export interface EldraTokenClientOptions {
@@ -137,6 +142,13 @@ export function buildAuthorizeUrl(options: EldraAuthorizeUrlOptions): string {
   url.searchParams.set('code_challenge', options.codeChallenge);
   url.searchParams.set('code_challenge_method', 'S256');
   if (options.prompt) url.searchParams.set('prompt', options.prompt);
+  const uiLocales = (
+    typeof options.uiLocales === 'string' ? options.uiLocales.split(' ') : (options.uiLocales ?? [])
+  )
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .join(' ');
+  if (uiLocales) url.searchParams.set('ui_locales', uiLocales);
   return url.toString();
 }
 

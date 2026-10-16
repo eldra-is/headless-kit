@@ -25,7 +25,10 @@ challenge on its own, if you make verifiers yourself.
 
 1. `createPkcePair()` and a random `state`; keep `codeVerifier`, `state` and the `redirectUri` in a
    short-lived pending-login session.
-2. Redirect to `buildAuthorizeUrl({ issuer, clientId, redirectUri, state, codeChallenge })`.
+2. Redirect to `buildAuthorizeUrl({ issuer, clientId, redirectUri, state, codeChallenge, uiLocales })`.
+   `uiLocales` (optional, a tag or a list, most preferred first, such as `'is'`) is sent as the
+   OIDC `ui_locales` parameter so the login, password and error pages speak the storefront's
+   language rather than the browser's.
 3. On the callback, take and delete the pending login, check `state`, then
    `exchangeAuthorizationCode(...)` with the `code`, the stored `codeVerifier` and the same
    `redirectUri`. Store the tokens under a **new** session id.

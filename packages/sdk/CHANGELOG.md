@@ -20,6 +20,9 @@ serving public contract 3.15.0.
   per call in `context.headers`. `EldraCustomerMe`, `EldraShopUser` and `EldraCustomerMembership`
   are derived from the generated contract like every other response type. `refreshExpiresAt` is
   `undefined` when the server sends no `refresh_expires_in`. See `docs/business-login.md`.
+- `buildAuthorizeUrl` takes an optional `uiLocales` (a BCP 47 tag or a list, most preferred
+  first), sent as the OIDC `ui_locales` parameter so the shop login pages use the storefront's
+  language. No contract change.
 - Customer prices (contract 3.15.0): catalog product, list and collection-product reads and cart
   writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced

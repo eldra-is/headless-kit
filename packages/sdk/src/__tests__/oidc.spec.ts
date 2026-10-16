@@ -99,6 +99,32 @@ describe('buildAuthorizeUrl', () => {
     expect(url.searchParams.get('scope')).toBe('openid email');
     expect(url.searchParams.get('prompt')).toBe('login');
   });
+
+  it('sends uiLocales as ui_locales, space-separated', () => {
+    const base = {
+      issuer,
+      clientId: 'storefront',
+      redirectUri: 'https://shop.test/cb',
+      state: 's',
+      codeChallenge: 'c',
+    };
+    expect(
+      new URL(buildAuthorizeUrl({ ...base, uiLocales: 'is' })).searchParams.get('ui_locales')
+    ).toBe('is');
+    expect(
+      new URL(buildAuthorizeUrl({ ...base, uiLocales: ['is', ' en '] })).searchParams.get(
+        'ui_locales'
+      )
+    ).toBe('is en');
+    expect(
+      new URL(buildAuthorizeUrl({ ...base, uiLocales: 'is  en' })).searchParams.get('ui_locales')
+    ).toBe('is en');
+    for (const uiLocales of ['', ' ', []]) {
+      expect(
+        new URL(buildAuthorizeUrl({ ...base, uiLocales })).searchParams.has('ui_locales')
+      ).toBe(false);
+    }
+  });
 });
 
 describe('exchangeAuthorizationCode', () => {
