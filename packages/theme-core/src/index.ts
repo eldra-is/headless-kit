@@ -60,3 +60,11 @@ export {
   type BlockFieldDefinition,
   type BlockFieldsMap,
 } from './blockFields';
+export {
+  blockApiIdOf,
+  getRegisteredThemeId,
+  registerThemeId,
+  RESERVED_THEME_IDS,
+  THEME_ID_PATTERN,
+  themeSchemaApiId,
+} from './themeId';

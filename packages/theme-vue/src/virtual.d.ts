@@ -13,6 +13,7 @@ declare module 'virtual:eldra/manifest' {
   // unrecognized top-level key. The resolved breakpoints travel through the
   // separate `virtual:eldra/breakpoints` module below instead.
   const manifest: {
+    theme?: { id?: string };
     blocks?: Array<{ apiId?: string; slots?: BlockSlotDefinition[] }>;
   };
   export default manifest;

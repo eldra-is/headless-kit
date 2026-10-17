@@ -1,18 +1,28 @@
 import { defineAsyncComponent, defineComponent, h, type Component, type PropType } from 'vue';
-import type { EntryDoc } from '@eldrajs/theme-core';
+import { blockApiIdOf, type EntryDoc } from '@eldrajs/theme-core';
 import blockImports from 'virtual:eldra/blocks';
+import themeManifest from 'virtual:eldra/manifest';
 
-/** Resolve the schema API id across both supported gateway response shapes. */
+/** This theme's own id, injected at build as the manifest's `theme.id`. */
+const THEME_ID = themeManifest.theme?.id;
+
+/**
+ * Resolve a block entry's **bare** block apiId across both supported gateway
+ * response shapes. Core spells a theme's block schema `<themeId>:<apiId>` on
+ * the wire; the theme's own id is stripped here (and only its own), so
+ * `blockImports`, `data-eldra-schema`, the slot catalog and the overlay all
+ * keep speaking the bare id `block.json` declares.
+ */
 export function getBlockSchemaApiId(entry: EntryDoc): string | null {
   const direct = entry.schemaApiId;
-  if (typeof direct === 'string') return direct;
+  if (typeof direct === 'string') return blockApiIdOf(direct, THEME_ID);
   const schema = entry.schema;
   if (
     typeof schema === 'object' &&
     schema !== null &&
     typeof (schema as { apiId?: unknown }).apiId === 'string'
   ) {
-    return (schema as { apiId: string }).apiId;
+    return blockApiIdOf((schema as { apiId: string }).apiId, THEME_ID);
   }
   return null;
 }

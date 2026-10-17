@@ -235,6 +235,7 @@ function createFixture(tailwind: boolean, studioOrigin: string): string {
       private: true,
       version: '1.0.0',
       type: 'module',
+      eldra: { themeId: 'token-parity' },
     })
   );
   writeFileSync(join(root, 'app', 'app.vue'), '<template><NuxtPage /></template>\n');

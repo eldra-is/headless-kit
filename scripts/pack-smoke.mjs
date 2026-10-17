@@ -198,8 +198,8 @@ const consumers = {
       import eldraTheme, { type ThemeManifest } from '@eldrajs/vite-plugin-theme';
       export const plugin = eldraTheme({ themeDir: '.' });
       export const manifest: ThemeManifest = {
-        manifestVersion: 1,
-        theme: { name: 'demo', version: '0.0.0', framework: 'vue', sdk: { core: '0.0.0', vitePlugin: '0.0.0' } },
+        manifestVersion: 2,
+        theme: { id: 'demo', name: 'demo', version: '0.0.0', framework: 'vue', sdk: { core: '0.0.0', vitePlugin: '0.0.0' } },
         blocks: [],
         routes: [],
         customPages: [],

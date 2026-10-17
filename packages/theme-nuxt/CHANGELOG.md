@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The runtime registers the theme's own id (`manifest.theme.id`) with `registerBlockFields`, and
+  the draft projection validates slots against bare block ids when a published entry's
+  `schemaApiId` is `<themeId>:<apiId>`. Route-template targets (a merchant's own schema) and
+  `catalog:*` are unchanged. The theme must declare `eldra.themeId` in `package.json` (see the
+  `@eldrajs/vite-plugin-theme` changelog).
+
 - **Site icons, set in Studio and generated at build.** A fifth fail-soft read, `GET
   /site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon image
   (SVG or PNG, square, at least 512 px), background colour, theme colour and short name. When an

@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra-theme validate` and the plugin build fail naming `package.json: eldra.themeId` when a theme
+  declares no id (or an invalid one); `eldra-theme deploy` refuses a build whose
+  `.eldra/manifest.json` is not `manifestVersion: 2` with a valid `theme.id` before uploading
+  anything. `eldra-theme init` scaffolds the starter with `"eldra": { "themeId": "starter" }`;
+  change it to your own theme's id.
+
 - `eldra-theme validate` surfaces the scanner's new message-catalogue errors (an invalid
   `i18n/<tag>.json` key, value, locale file name, or a non-default locale's keys that are not a
   subset of the default locale's) exactly as `@eldrajs/vite-plugin-theme/scan` reports them.

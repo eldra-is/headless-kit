@@ -50,6 +50,7 @@
     "node": ">=20"
   },
   "eldra": {
+    "themeId": "starter",
     "defaultLocale": "en-US"
   }
 }
