@@ -528,7 +528,7 @@ describe('starter theme', () => {
       'footer',
     ]);
     expect(readFileSync(output('_headers'), 'utf8')).toContain(
-      "frame-ancestors 'self' https://localhost:4311"
+      "frame-ancestors 'self' https://eldra.app"
     );
     // A build with no credentials cannot know what the store sells in, and says so in the one place
     // that matters: the runtime config baked into every page carries no currency, rather than one
