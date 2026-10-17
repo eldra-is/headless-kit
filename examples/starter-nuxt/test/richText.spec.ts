@@ -49,14 +49,17 @@ const body = {
  * not the test's invention.
  */
 function registerArticleFields(): void {
-  registerBlockFields({
-    article: blockManifest.fields.map((field) => ({
-      fieldId: field.fieldId,
-      type: field.type,
-      ...(field.localized === true ? { localized: true } : {}),
-      ...(field.metadata === undefined ? {} : { metadata: field.metadata }),
-    })),
-  });
+  registerBlockFields(
+    {
+      article: blockManifest.fields.map((field) => ({
+        fieldId: field.fieldId,
+        type: field.type,
+        ...(field.localized === true ? { localized: true } : {}),
+        ...(field.metadata === undefined ? {} : { metadata: field.metadata }),
+      })),
+    },
+    'starter'
+  );
 }
 
 /** A preview bridge attached with an active content locale. */
@@ -84,7 +87,7 @@ function mountArticle(context?: unknown, doc: unknown = body) {
 }
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'starter');
 });
 
 describe('article body renders through EldraRichText', () => {

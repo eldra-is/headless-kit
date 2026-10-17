@@ -32,9 +32,9 @@ let registeredBlockFields: BlockFieldsMap = {};
  * block entry's schema `<themeId>:<apiId>` on the wire while this map is keyed
  * by the bare `apiId`, so the lookups below strip that one prefix.
  */
-export function registerBlockFields(fields: BlockFieldsMap, themeId?: string): void {
+export function registerBlockFields(fields: BlockFieldsMap, themeId: string): void {
   registeredBlockFields = fields;
-  if (themeId !== undefined) registerThemeId(themeId);
+  registerThemeId(themeId);
 }
 
 /**

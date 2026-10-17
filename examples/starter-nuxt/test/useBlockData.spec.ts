@@ -19,7 +19,7 @@ describe('useBlockData', () => {
     // Block field metadata is a module-level registry (theme-core's
     // registerBlockFields) — reset it so a test that registers a block
     // never leaks into the next one.
-    registerBlockFields({});
+    registerBlockFields({}, 'starter');
   });
 
   it('exposes the typed data and the entry id', () => {
@@ -31,9 +31,12 @@ describe('useBlockData', () => {
   });
 
   it('field() wraps useEldraBlockField, threading the block apiId through', () => {
-    registerBlockFields({
-      hero: [{ fieldId: 'heading', type: 'string', localized: true }],
-    });
+    registerBlockFields(
+      {
+        hero: [{ fieldId: 'heading', type: 'string', localized: true }],
+      },
+      'starter'
+    );
     const { field } = useBlockData({ entry }, 'hero');
     expect(field('heading')).toEqual({ localized: true });
     expect(field('align')).toEqual({ localized: false });

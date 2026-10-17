@@ -1179,17 +1179,10 @@ function previousBlocks(
 ): Map<string, BlockDefinition> {
   const result = new Map<string, BlockDefinition>();
   if (manifest === undefined) return result;
-  // The local history is the one place a v1 file is still read: a build writes
-  // `.eldra/manifest.json` and this reads it back to diff block migrations, so a
-  // file left by the previous kit version would otherwise fail every build until
-  // someone deleted it by hand. Only `blocks` is read, and v1 and v2 spell them
-  // identically (v2 adds `theme.id`). Nothing else accepts a v1 manifest.
-  if (
-    !isRecord(manifest) ||
-    ((manifest.manifestVersion as unknown) !== 1 && manifest.manifestVersion !== 2) ||
-    !Array.isArray(manifest.blocks)
-  ) {
-    errors.push('previous manifest: expected manifestVersion 2 (or 1) and a blocks array');
+  // The local history is the manifest a previous build wrote; only `blocks` is read.
+  // No v1 acceptance: delete a stale `.eldra/manifest.json` and rebuild.
+  if (!isRecord(manifest) || manifest.manifestVersion !== 2 || !Array.isArray(manifest.blocks)) {
+    errors.push('previous manifest: expected manifestVersion 2 and a blocks array');
     return result;
   }
   for (const [index, value] of manifest.blocks.entries()) {

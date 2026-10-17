@@ -4,7 +4,7 @@ import { decodeStega, encodeStega } from '../stega';
 import { encodeEntryDataStega, projectEntryDataLocale } from '../stegaWalk';
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'starter');
 });
 
 // Registered fields for the 'cta' schema shared by the select-gating tests
@@ -83,7 +83,7 @@ describe('localized preview draft projection', () => {
     // never matches a Block.vue's plain-string comparison while editing.
     // Gated on the registered field type, not the shape alone — see the
     // "does not unwrap" tests below.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const withVariant = {
       heading: 'CTA',
       variant: { value: 'subtle', label: 'Subtle' },
@@ -107,7 +107,7 @@ describe('localized preview draft projection', () => {
     // apiId re-derivation, threading the page's apiId straight through
     // leaves every nested block's variant permanently un-unwrapped — the
     // "non-block entry" case above, but for every block a page renders.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const page = {
       title: 'Home',
       blocks: [
@@ -131,7 +131,7 @@ describe('localized preview draft projection', () => {
     // Same two-string-key shape resolveSelectLabels produces for a real
     // select, but 'metric' is registered as type "composite", not "select" —
     // the unwrap must be gated on the registered type, not the key names.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const projected = projectEntryDataLocale(
       { metric: { value: '42', label: 'Active users' } },
       'en-US',
@@ -167,7 +167,7 @@ describe('localized preview draft projection', () => {
     // characters, appended to every other string leaf so the preview
     // overlay can map rendered DOM text back to its field, break that
     // comparison silently and permanently if applied here too.
-    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] });
+    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] }, 'starter');
     const encoded = encodeEntryDataStega(
       'block-1',
       { heading: 'Sale', variant: 'split' },
@@ -179,7 +179,7 @@ describe('localized preview draft projection', () => {
   });
 
   it('re-derives apiId from a nested resolved entry doc to protect its own select fields', () => {
-    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] });
+    registerBlockFields({ cta: [{ fieldId: 'variant', type: 'select' }] }, 'starter');
     const page = {
       title: 'Home',
       blocks: [
@@ -210,7 +210,7 @@ describe('localized preview draft projection', () => {
     // a forward guard: the day a block declares one, editing it must not
     // silently break the block's own ===-comparison the same way a
     // top-level select field would.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const encoded = encodeEntryDataStega(
       'block-1',
       { items: [{ title: 'A', variant: 'split' }] },

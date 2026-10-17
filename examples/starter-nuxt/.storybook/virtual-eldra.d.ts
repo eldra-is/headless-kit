@@ -18,6 +18,11 @@ declare module 'virtual:eldra/block-fields' {
   export default blockFields;
 }
 
+declare module 'virtual:eldra/manifest' {
+  const manifest: { theme: { id: string } };
+  export default manifest;
+}
+
 declare module 'virtual:eldra/tokens.css' {}
 
 // Plain `tsc` (see shims-vue.d.ts) has no `vite/client` ambient CSS-import

@@ -553,24 +553,14 @@ describe('migration history in the Vite plugin', () => {
     expect(readFileSync(path, 'utf8')).toBe(raw);
   });
 
-  it('still reads a v1 manifest left on disk as block history, then rewrites it as v2', async () => {
+  it('rejects a v1 manifest left on disk as block history', async () => {
     const root = copyFixture('valid-theme');
     await buildTheme(root);
     const path = join(root, '.eldra/manifest.json');
-    const current = JSON.parse(readFileSync(path, 'utf8')) as {
-      manifestVersion: number;
-      theme: { id?: string };
-    };
-    delete current.theme.id;
+    const current = JSON.parse(readFileSync(path, 'utf8')) as { manifestVersion: number };
     current.manifestVersion = 1;
     writeFileSync(path, JSON.stringify(current));
-    await buildTheme(root);
-    const rewritten = JSON.parse(readFileSync(path, 'utf8')) as {
-      manifestVersion: number;
-      theme: { id: string };
-    };
-    expect(rewritten.manifestVersion).toBe(2);
-    expect(rewritten.theme.id).toBe('marketing');
+    await expect(buildTheme(root)).rejects.toThrow(/manifest/);
   });
 
   it('fails the build when package.json declares no eldra.themeId', async () => {

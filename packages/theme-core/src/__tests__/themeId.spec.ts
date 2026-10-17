@@ -9,7 +9,7 @@ import {
 } from '../themeId';
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'starter');
   registerThemeId(undefined);
 });
 
@@ -75,7 +75,8 @@ describe('registered theme id', () => {
   });
 
   it('does nothing before a theme id is registered', () => {
-    registerBlockFields({ hero: [{ fieldId: 'variant', type: 'select' }] });
+    registerBlockFields({ hero: [{ fieldId: 'variant', type: 'select' }] }, 'soley');
+    registerThemeId(undefined);
     expect(isBlockFieldSelect('soley:hero', 'variant')).toBe(false);
   });
 });
