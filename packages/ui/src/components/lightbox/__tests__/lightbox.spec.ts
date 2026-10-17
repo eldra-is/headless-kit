@@ -146,7 +146,10 @@ describe('Lightbox — element and structure', () => {
   });
 
   it('balances the bar with an equal bottom inset unless the thumbnail strip fills that space', async () => {
-    const stageClassName = async (props: Record<string, unknown>): Promise<string> => {
+    const stageClassName = async (props: {
+      images: LightboxImage[];
+      thumbnails?: boolean;
+    }): Promise<string> => {
       const wrapper = mountWith(Lightbox, {
         props: { ariaLabel: 'Gallery', modelValue: true, ...props },
       });
