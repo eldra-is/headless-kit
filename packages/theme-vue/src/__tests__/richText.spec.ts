@@ -35,7 +35,7 @@ function previewContext(locale: string | null): EldraContext {
 }
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'shop');
 });
 
 describe('EldraRichText root', () => {
@@ -54,20 +54,20 @@ describe('EldraRichText root', () => {
   });
 
   it('defaults an omitted locale to the preview locale for a localized field', () => {
-    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text', localized: true }] });
+    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text', localized: true }] }, 'shop');
     const wrapper = mountDoc(doc([]), { apiId: 'article' }, previewContext('is-IS'));
     expect(wrapper.attributes('data-eldra-locale')).toBe('is-IS');
     expect((wrapper.vm as unknown as { locale: string | null }).locale).toBe('is-IS');
   });
 
   it('keeps a non-localized field locale-less even inside a localized preview', () => {
-    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text' }] });
+    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text' }] }, 'shop');
     const wrapper = mountDoc(doc([]), { apiId: 'article' }, previewContext('is-IS'));
     expect(wrapper.attributes('data-eldra-locale')).toBeUndefined();
   });
 
   it('an explicit locale prop always wins over the preview locale', () => {
-    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text', localized: true }] });
+    registerBlockFields({ article: [{ fieldId: 'body', type: 'rich-text', localized: true }] }, 'shop');
     const wrapper = mountDoc(
       doc([]),
       { apiId: 'article', locale: 'fr-FR' },
