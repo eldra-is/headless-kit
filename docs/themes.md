@@ -9,6 +9,43 @@ default data Studio shows before a page has real content. The scan output — th
 ingests it to create or update the org's `block`-tagged CMS schemas. Git is version control for the
 theme's code; the manifest is the sync channel, not the other way around.
 
+## Theme id and schema ownership
+
+Every theme declares a stable **theme id** in its `package.json`, beside the keys the scanner
+already reads:
+
+```json
+{
+  "name": "@acme/shop-theme",
+  "version": "1.0.0",
+  "eldra": { "themeId": "shop", "defaultLocale": "en-US" }
+}
+```
+
+- `eldra.themeId` is **required**. It has the block `apiId` grammar (`^[a-z][a-z0-9-]{1,48}$`),
+  and `catalog` is reserved. There is no derivation from the package name: renaming the package
+  must not change who owns the theme's content. A missing or invalid id fails the plugin build,
+  `eldra-theme validate` and `eldra-theme deploy` with `package.json: eldra.themeId — …`.
+- The scanner emits it as `manifest.theme.id`, and `manifestVersion` is `2`. Core rejects a
+  manifest that is not v2 or has no `theme.id`.
+- Core stores the theme's block **schemas** as `<themeId>:<blockApiId>` (`shop:hero`) and stamps
+  every schema and entry the deploy creates with the theme id, so two themes in one organisation
+  never clash (`shop:hero`, `starter:hero`) and Studio can tell a theme's content from the
+  merchant's own.
+- **Everything the theme authors stays bare.** `block.json`, the manifest's block ids, a layout
+  node's `apiId`, a slot's `allowedBlockApiIds`, `data-eldra-schema` and the overlay's
+  `theme:block-clicked` all keep the bare `hero`. Only the wire spelling of an entry's
+  `schemaApiId` (and of `/cms/v1/schema/{schemaApiId}/entry`) carries the prefix.
+- The runtime strips the prefix of **its own** theme (the manifest's `theme.id`, which
+  `virtual:eldra/manifest` carries into the build), never "any prefix": `catalog:product` and
+  another theme's `starter:hero` are not this theme's blocks. `getBlockSchemaApiId(entry)` returns
+  the bare id; `@eldrajs/theme-core` exports the two pure helpers `blockApiIdOf(schemaApiId,
+themeId)` (wire to bare) and `themeSchemaApiId(blockApiId, themeId)` (bare to wire), and
+  `registerBlockFields(fields, themeId)` registers the id for the block-field lookups inside
+  theme-core. `@eldrajs/theme-nuxt` does that for you.
+- Code that reads a block's entries through the SDK passes the **wire** id:
+  `client.getEntries('shop:hero')`. A custom (merchant-owned) schema a route points at stays bare.
+
 ## Package map
 
 ```

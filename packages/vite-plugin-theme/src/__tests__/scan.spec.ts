@@ -17,8 +17,8 @@ describe('scanTheme', () => {
     expect(errors).toEqual([]);
     expect(Object.keys(blockDirs)).toEqual(['footer', 'hero']);
     expect(manifest).toMatchObject({
-      manifestVersion: 1,
-      theme: { name: 'marketing-theme', version: '1.2.0', framework: 'nuxt' },
+      manifestVersion: 2,
+      theme: { id: 'marketing', name: 'marketing-theme', version: '1.2.0', framework: 'nuxt' },
       routes: [{ pattern: '/:path(.*)*', kind: 'page' }],
       customPages: [],
       tokens: {
@@ -46,6 +46,56 @@ describe('scanTheme', () => {
       previewImage: null,
     });
     expect(manifest).toMatchSnapshot();
+  });
+
+  describe('theme id', () => {
+    function themeWith(eldra: unknown): string {
+      const root = mkdtempSync(join(tmpdir(), 'eldra-theme-id-'));
+      cpSync(fixture('valid-theme'), root, { recursive: true });
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({ name: 'marketing-theme', version: '1.2.0', eldra })
+      );
+      return root;
+    }
+
+    it('emits eldra.themeId as manifest.theme.id, independent of the package name', () => {
+      const { manifest, errors } = scanTheme({ themeDir: themeWith({ themeId: 'acme-shop' }) });
+      expect(errors).toEqual([]);
+      expect(manifest?.manifestVersion).toBe(2);
+      expect(manifest?.theme.id).toBe('acme-shop');
+      expect(manifest?.theme.name).toBe('marketing-theme');
+    });
+
+    it('fails when eldra.themeId is missing, naming the key', () => {
+      const root = mkdtempSync(join(tmpdir(), 'eldra-theme-id-'));
+      cpSync(fixture('valid-theme'), root, { recursive: true });
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'm', version: '1.0.0' }));
+      const { manifest, errors } = scanTheme({ themeDir: root });
+      expect(manifest).toBeNull();
+      expect(errors.join('\n')).toMatch(/package\.json: eldra\.themeId — required/);
+    });
+
+    it('fails when eldra exists but themeId is missing (no derivation from the name)', () => {
+      const { manifest, errors } = scanTheme({ themeDir: themeWith({ defaultLocale: 'en-US' }) });
+      expect(manifest).toBeNull();
+      expect(errors.join('\n')).toMatch(/eldra\.themeId — required/);
+    });
+
+    it.each([
+      ['uppercase', 'Soley'],
+      ['a colon', 'soley:x'],
+      ['a leading digit', '1soley'],
+      ['a single character', 's'],
+      ['too long', 'a'.repeat(50)],
+      ['an empty string', ''],
+      ['a number', 42],
+      ['the reserved catalog namespace', 'catalog'],
+    ])('rejects a theme id that is %s', (_label, themeId) => {
+      const { manifest, errors } = scanTheme({ themeDir: themeWith({ themeId }) });
+      expect(manifest).toBeNull();
+      expect(errors.join('\n')).toMatch(/package\.json: eldra\.themeId/);
+    });
   });
 
   it("never puts breakpoints on the manifest — that file is persisted/uploaded and Core's ingest rejects an unrecognized key", () => {
@@ -148,7 +198,7 @@ describe('scanTheme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-'));
     writeFileSync(
       join(dir, 'package.json'),
-      JSON.stringify({ name: 'scan-test', version: '1.0.0' })
+      JSON.stringify({ name: 'scan-test', version: '1.0.0', eldra: { themeId: 'test-theme' } })
     );
     mkdirSync(join(dir, 'blocks', 'hero'), { recursive: true });
     cpSync(join(fixture('valid-theme'), 'blocks', 'hero'), join(dir, 'blocks', 'hero'), {
@@ -168,7 +218,7 @@ describe('scanTheme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-depth-'));
     writeFileSync(
       join(dir, 'package.json'),
-      JSON.stringify({ name: 'scan-depth', version: '1.0.0' })
+      JSON.stringify({ name: 'scan-depth', version: '1.0.0', eldra: { themeId: 'test-theme' } })
     );
     const blockDir = join(dir, 'blocks', 'nested');
     mkdirSync(blockDir, { recursive: true });
@@ -208,7 +258,11 @@ describe('scanTheme', () => {
     cpSync(fixture('valid-theme'), dir, { recursive: true });
     writeFileSync(
       join(dir, 'package.json'),
-      JSON.stringify({ name: 'route-theme', version: 'next' })
+      JSON.stringify({
+        name: 'route-theme',
+        version: 'next',
+        eldra: { themeId: 'test-theme' },
+      })
     );
 
     const { manifest, errors } = scanTheme({
@@ -280,7 +334,7 @@ function makeTheme(blocks: Array<Record<string, unknown>>): string {
   const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-slots-'));
   writeFileSync(
     join(dir, 'package.json'),
-    JSON.stringify({ name: 'slots-theme', version: '1.0.0' })
+    JSON.stringify({ name: 'slots-theme', version: '1.0.0', eldra: { themeId: 'test-theme' } })
   );
   for (const block of blocks) {
     const blockDir = join(dir, 'blocks', String(block.apiId));
@@ -640,7 +694,11 @@ describe("scanTheme mock.json media contract (Studio seeds an inserted block's e
     const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-mock-media-'));
     writeFileSync(
       join(dir, 'package.json'),
-      JSON.stringify({ name: 'mock-media-theme', version: '1.0.0' })
+      JSON.stringify({
+        name: 'mock-media-theme',
+        version: '1.0.0',
+        eldra: { themeId: 'test-theme' },
+      })
     );
     const blockDir = join(dir, 'blocks', 'widget');
     mkdirSync(blockDir, { recursive: true });
@@ -1029,7 +1087,11 @@ describe('scanTheme theme messages', () => {
    * in `theme-with-messages` fixture. */
   function messagesTheme(
     localeFiles: Record<string, string>,
-    packageJson: Record<string, unknown> = { name: 'messages-theme', version: '1.0.0' }
+    packageJson: Record<string, unknown> = {
+      name: 'messages-theme',
+      version: '1.0.0',
+      eldra: { themeId: 'test-theme' },
+    }
   ): string {
     const dir = mkdtempSync(join(tmpdir(), 'eldra-scan-messages-'));
     writeFileSync(join(dir, 'package.json'), JSON.stringify(packageJson));
@@ -1084,7 +1146,7 @@ describe('scanTheme theme messages', () => {
       JSON.stringify({
         name: 'messages-theme',
         version: '1.0.0',
-        eldra: { defaultLocale: 'is-IS' },
+        eldra: { themeId: 'test-theme', defaultLocale: 'is-IS' },
       })
     );
 

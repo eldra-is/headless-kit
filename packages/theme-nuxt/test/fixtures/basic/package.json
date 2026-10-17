@@ -2,5 +2,8 @@
   "name": "eldra-theme-nuxt-fixture",
   "version": "1.2.3",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "eldra": {
+    "themeId": "nuxt-fixture"
+  }
 }

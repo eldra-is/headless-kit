@@ -21,6 +21,11 @@ pnpm install
 ELDRA_GATEWAY_URL=https://web-gateway.example.com ELDRA_ORG_ID=<org-id> pnpm dev
 ```
 
+Set your theme's own id before the first deploy: `package.json` declares `"eldra": { "themeId":
+"starter" }`, and Core files the theme's schemas and entries under that id (`starter:hero`), so two
+themes in one organisation need different ids. Lower-case letters, digits and hyphens; it is the
+theme's identity, so choose it once. See [`docs/themes.md`](../../docs/themes.md).
+
 ## Commands
 
 ```sh
