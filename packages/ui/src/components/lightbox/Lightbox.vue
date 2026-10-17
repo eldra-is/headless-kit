@@ -61,6 +61,7 @@ const nextButtonRef = ref<HTMLButtonElement | null>(null);
  *  there, but there is nothing to pick between with one photo, so it is hidden too — a consumer
  *  who still passes `thumbnails` with one image gets the same result the spec's own rule implies. */
 const single = computed(() => props.images.length <= 1);
+const showThumbnails = computed(() => props.thumbnails && !single.value);
 
 const {
   index: carouselIndex,
@@ -282,7 +283,15 @@ const closeClass = computed(() =>
 /** A plain layout wrapper, not a named part (the spec's own anatomy numbers the track/arrows
  *  together as one "stage"; see `Lightbox.vue`'s own file comment). `min-h-0` is what lets `track`
  *  actually scroll within the flex column rather than growing the whole panel. */
-const stageClass = 'relative min-h-0 flex-1';
+const stageClass = computed(() =>
+  cx(
+    'relative min-h-0 flex-1',
+    // With no thumbnail strip below, the stage mirrors the bar's height (0.75rem padding twice plus
+    // the 2.5rem close button, 2.75rem below 48rem) so the image sits centred with equal space
+    // above and below instead of running to the viewport's bottom edge.
+    !showThumbnails.value && 'pb-16 max-md:pb-17'
+  )
+);
 
 /**
  * No padding here, deliberately — see `slideClass` below for where the 4rem inset actually lives
@@ -534,7 +543,7 @@ const thumbnailClass = computed(() =>
         </button>
       </div>
 
-      <div v-if="thumbnails && !single && model" data-part="thumbnails" :class="thumbnailsClass">
+      <div v-if="showThumbnails && model" data-part="thumbnails" :class="thumbnailsClass">
         <button
           v-for="(img, i) in images"
           :key="`thumb-${img.src}-${i}`"
