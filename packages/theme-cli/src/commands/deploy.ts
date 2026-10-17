@@ -259,6 +259,20 @@ async function toDeployError(res: Response): Promise<DeployError> {
       'manifest exceeds the 2 MiB limit — reduce block metadata and mock content, rebuild, and redeploy',
     SITE_DEPLOY_RATE_LIMITED: 'deploy rate limit hit — wait a few minutes, then retry',
   };
+  // BUGS.md A11: a raw 413 with no JSON body (body is null — res.json() above
+  // threw) means a proxy/CDN in front of the gateway rejected the request
+  // before site-service's own SITE_ARTIFACT_TOO_LARGE check ever ran, so
+  // there is no `detail` to look up above. The app's own limits are
+  // documented in SITE_ARTIFACT_TOO_LARGE's message; name both possibilities
+  // rather than leaving a bare status code.
+  if (res.status === 413 && body === null) {
+    return new DeployError(
+      'deploy: gateway responded 413 (payload too large) before the artifact reached site-service — ' +
+        'either a proxy/CDN in front of it has a smaller limit than the app\'s own ' +
+        '(≤ 20,000 files, ≤ 25 MiB/file, ≤ 500 MiB unpacked, ≤ 200 MiB compressed), or the request ' +
+        'genuinely exceeds one of those; check the artifact size and ask infra about the proxy limit'
+    );
+  }
   return new DeployError(
     `deploy: ${messages[detail ?? ''] ?? `gateway responded ${res.status}${detail ? ` (${detail})` : ''}`}`,
     detail
