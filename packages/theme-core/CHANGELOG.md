@@ -9,8 +9,8 @@ Release-please writes the generated notes from commit messages and does not repl
   `<themeId>:<apiId>` to the bare block id, stripping only the given theme's own prefix, so
   `catalog:product` and another theme's `starter:hero` pass through) and
   `themeSchemaApiId(blockApiId, themeId)` (the reverse, idempotent), plus `THEME_ID_PATTERN`,
-  `RESERVED_THEME_IDS`, `registerThemeId`/`getRegisteredThemeId`. `registerBlockFields(fields,
-  themeId?)` takes the theme's own id and registers it, so `isBlockFieldLocalized`,
+  `RESERVED_THEME_IDS`, `registerThemeId`/`getRegisteredThemeId`. **Breaking:** `registerBlockFields(fields,
+  themeId)` now requires the theme's own id and registers it, so `isBlockFieldLocalized`,
   `isBlockFieldSelect` (and the select unwrap and stega skip that use it) and a template block's
   entry/placement match resolve a block entry whose `schemaApiId` is `<themeId>:<apiId>`. Bare ids
   keep working. The bridge's `theme:ready` reports `manifestVersion: 2`.

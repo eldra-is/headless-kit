@@ -12,9 +12,9 @@ Release-please writes the generated notes from commit messages and does not repl
   `eldra-theme deploy` fail naming `package.json: eldra.themeId`; there is no derivation from the
   package name and no v1 manifest is produced. Core stores a theme's block schemas as
   `<themeId>:<blockApiId>`; block ids in `block.json` and the manifest stay bare.
-  `readPreviousManifest` still reads a v1 `.eldra/manifest.json` left on disk (only its `blocks`,
-  for the migration diff) so the first build after upgrading does not fail on a stale file; the
-  next build rewrites it as v2. See `docs/themes.md`'s "Theme id and schema ownership".
+  A v1 `.eldra/manifest.json` left on disk from an earlier build is rejected as the previous
+  manifest (`previous manifest: expected manifestVersion 2`): delete it once before the first build
+  after upgrading. See `docs/themes.md`'s "Theme id and schema ownership".
 
 - The scanner now reads a theme's own message catalogue: `i18n/<tag>.json`, siblings of
   `tokens.json`, one file per locale, each a nested JSON object of strings that gets flattened to
