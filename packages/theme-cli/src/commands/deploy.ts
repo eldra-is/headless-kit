@@ -268,7 +268,7 @@ async function toDeployError(res: Response): Promise<DeployError> {
   if (res.status === 413 && body === null) {
     return new DeployError(
       'deploy: gateway responded 413 (payload too large) before the artifact reached site-service — ' +
-        'either a proxy/CDN in front of it has a smaller limit than the app\'s own ' +
+        "either a proxy/CDN in front of it has a smaller limit than the app's own " +
         '(≤ 20,000 files, ≤ 25 MiB/file, ≤ 500 MiB unpacked, ≤ 200 MiB compressed), or the request ' +
         'genuinely exceeds one of those; check the artifact size and ask infra about the proxy limit'
     );
