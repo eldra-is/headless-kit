@@ -8,7 +8,7 @@
 //   node scripts/bootstrap-npm-packages.mjs --dry-run
 //   node scripts/bootstrap-npm-packages.mjs [--republish] [package-dir ...]
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -43,7 +43,7 @@ function packages() {
 // null when the package does not exist; trusted is true once any version was published over
 // OIDC, which the registry records on that version's _npmUser.
 async function registryState(name) {
-  const response = await fetch(`${REGISTRY}/${name.replace('/', '%2f')}?t=${Date.now()}`, {
+  const response = await fetch(`${REGISTRY}/${name.replaceAll('/', '%2f')}?t=${Date.now()}`, {
     headers: { 'cache-control': 'no-cache' },
   });
   if (response.status === 404) return null;
@@ -83,15 +83,48 @@ function run(command, commandArgs, options = {}) {
     encoding: 'utf8',
     cwd: options.cwd ?? root,
   });
-  if (result.status !== 0) {
-    if (options.allowFailure) return null;
-    throw new Error(`${command} ${commandArgs.join(' ')} failed`);
-  }
+  if (result.status !== 0) throw new Error(`${command} ${commandArgs.join(' ')} failed`);
   return result.stdout ?? '';
 }
 
 function npx(npmArgs, options) {
   return run('npx', [...NPM, ...npmArgs], options);
+}
+
+// stdout and stdin stay on the terminal so npm can still ask for a login or an OTP; stderr is
+// echoed live and kept, because npm exits 1 for every error and only its text names a 409.
+// Resolves to 'added' or 'exists' and rejects on anything else.
+function addTrustedPublisher(name) {
+  const npmArgs = [
+    'trust',
+    'github',
+    name,
+    '--repo',
+    REPO,
+    '--file',
+    WORKFLOW,
+    '--allow-publish',
+    '--yes',
+  ];
+  console.log(`  $ npx ${[...NPM, ...npmArgs].join(' ')}`);
+  if (dryRun) return Promise.resolve('added');
+  return new Promise((done, fail) => {
+    const child = spawn('npx', [...NPM, ...npmArgs], {
+      stdio: ['inherit', 'inherit', 'pipe'],
+      cwd: root,
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      process.stderr.write(chunk);
+      stderr += chunk;
+    });
+    child.on('error', fail);
+    child.on('close', (code) => {
+      if (code === 0) done('added');
+      else if (/\bE409\b|\b409 Conflict\b/.test(stderr)) done('exists');
+      else fail(new Error(`${name}: npm trust github failed (see above)`));
+    });
+  });
 }
 
 function publishPlaceholder({ dir, manifest }) {
@@ -148,51 +181,44 @@ async function main() {
   if (dryRun) console.log('Dry run: nothing is published, trusted or dispatched.\n');
   for (const pkg of packages()) {
     const { name } = pkg.manifest;
-    const state = await registryState(name);
-    if (state?.trusted) {
-      console.log(`${name}: already publishes through trusted publishing, skipped`);
-      continue;
-    }
-    console.log(`${name}`);
-    let current = state;
+    let current = await registryState(name);
 
-    if (current === null) {
-      console.log('  not on npm: publishing a placeholder');
-      publishPlaceholder(pkg);
-      current = dryRun
-        ? {
-            versions: [PLACEHOLDER_VERSION],
-            latest: PLACEHOLDER_VERSION,
-            placeholderDeprecated: false,
-          }
-        : await waitUntilPublished(name);
+    if (current?.trusted) {
+      console.log(`${name}: already publishes through trusted publishing`);
     } else {
-      console.log(`  on npm (${current.versions.join(', ')}), latest ${current.latest}`);
-    }
+      console.log(`${name}`);
+      if (current === null) {
+        console.log('  not on npm: publishing a placeholder');
+        publishPlaceholder(pkg);
+        current = dryRun
+          ? {
+              versions: [PLACEHOLDER_VERSION],
+              latest: PLACEHOLDER_VERSION,
+              trusted: false,
+              placeholderDeprecated: false,
+            }
+          : await waitUntilPublished(name);
+      } else {
+        console.log(`  on npm (${current.versions.join(', ')}), latest ${current.latest}`);
+      }
 
-    // Not checked first: `npm trust list` cannot log in while its output is captured.
-    const added = npx(
-      ['trust', 'github', name, '--repo', REPO, '--file', WORKFLOW, '--allow-publish', '--yes'],
-      { allowFailure: true }
-    );
-    if (added === null) {
-      console.log(
-        '  trust not added: a 409 "already exists" above means it was set on an earlier run'
-      );
-    }
+      // Not checked first: `npm trust list` cannot log in while its output is captured.
+      if ((await addTrustedPublisher(name)) === 'exists') {
+        console.log('  trusted publisher was already set on an earlier run');
+      }
 
-    const { versions } = current;
-    if (republish) {
-      const newest = newestReleaseTag(pkg.dir);
-      if (newest !== null && !versions.includes(newest.version)) {
-        console.log(`  ${newest.version} is tagged but not on npm: dispatching ${WORKFLOW}`);
-        run('gh', ['workflow', 'run', WORKFLOW, '--repo', REPO, '-f', `tag=${newest.tag}`]);
+      if (republish) {
+        const newest = newestReleaseTag(pkg.dir);
+        if (newest !== null && !current.versions.includes(newest.version)) {
+          console.log(`  ${newest.version} is tagged but not on npm: dispatching ${WORKFLOW}`);
+          run('gh', ['workflow', 'run', WORKFLOW, '--repo', REPO, '-f', `tag=${newest.tag}`]);
+        }
       }
     }
 
     // npm gives a new package's first version `latest` whatever --tag says, so deprecating the
     // placeholder while it is latest puts a "deprecated" banner on the package page.
-    if (versions.includes(PLACEHOLDER_VERSION) && !current.placeholderDeprecated) {
+    if (current.versions.includes(PLACEHOLDER_VERSION) && !current.placeholderDeprecated) {
       if (current.latest === PLACEHOLDER_VERSION) {
         console.log('  placeholder is still latest: run again after the release to deprecate it');
       } else {
