@@ -1,5 +1,5 @@
-import sharp from 'sharp';
-import type { ResolvedSiteIcons } from './siteIcons';
+import type { Sharp } from "sharp";
+import type { ResolvedSiteIcons } from "./siteIcons";
 
 /** One file the build writes into the static output. */
 export interface GeneratedIconFile {
@@ -26,10 +26,23 @@ export const MIN_SOURCE_SIZE = 512;
  */
 export const MASKABLE_ARTWORK_SCALE = 0.6;
 
-export const SITE_ICONS_SKIPPED =
-  '[eldra] site icons not generated — keeping the theme’s own files';
+type SharpFactory = typeof import("sharp");
 
-type SourceKind = 'svg' | 'png';
+/**
+ * sharp loads a native binary when imported and throws if it is missing (stripped optional
+ * dependency, libc/arch mismatch). Importing it lazily keeps that failure inside the icon step,
+ * which turns it into the single skipped warning — a build never fails because of icons.
+ */
+async function loadSharp(): Promise<SharpFactory> {
+  const imported = await import("sharp");
+  return ((imported as { default?: SharpFactory }).default ??
+    imported) as SharpFactory;
+}
+
+export const SITE_ICONS_SKIPPED =
+  "[eldra] site icons not generated — keeping the theme’s own files";
+
+type SourceKind = "svg" | "png";
 
 export interface IconSource {
   data: Buffer;
@@ -41,37 +54,56 @@ export interface IconSource {
 /** Why a source was rejected, or the source. Never throws. */
 export async function loadIconSource(
   url: string,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
 ): Promise<{ source: IconSource } | { error: string }> {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return { error: 'the icon URL is not a URL' };
+    return { error: "the icon URL is not a URL" };
   }
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
-  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && loopback)) {
-    return { error: 'the icon URL is not https' };
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
+    parsed.hostname,
+  );
+  if (
+    parsed.protocol !== "https:" &&
+    !(parsed.protocol === "http:" && loopback)
+  ) {
+    return { error: "the icon URL is not https" };
   }
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new Error(`timed out after ${FETCH_TIMEOUT_MS}ms`)),
-    FETCH_TIMEOUT_MS
+    FETCH_TIMEOUT_MS,
   );
   try {
-    const response = await fetchImpl(parsed, { signal: controller.signal });
-    if (!response.ok) return { error: `the icon answered ${response.status}` };
-    const type = (response.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
-    if (type !== 'image/png' && type !== 'image/svg+xml') {
-      return { error: `the icon is ${type === '' ? 'untyped' : type}, not SVG or PNG` };
+    // Redirects are not followed: an https URL must not lead to http or another origin.
+    const response = await fetchImpl(parsed, {
+      signal: controller.signal,
+      redirect: "manual",
+    });
+    if (response.status >= 300 && response.status < 400) {
+      return {
+        error: `the icon redirects (${response.status}); use the final https URL`,
+      };
     }
-    const declared = Number(response.headers.get('content-length'));
+    if (!response.ok) return { error: `the icon answered ${response.status}` };
+    const type = (response.headers.get("content-type") ?? "")
+      .split(";")[0]!
+      .trim()
+      .toLowerCase();
+    if (type !== "image/png" && type !== "image/svg+xml") {
+      return {
+        error: `the icon is ${type === "" ? "untyped" : type}, not SVG or PNG`,
+      };
+    }
+    const declared = Number(response.headers.get("content-length"));
     if (Number.isFinite(declared) && declared > MAX_SOURCE_BYTES) {
-      return { error: 'the icon is larger than 10 MB' };
+      return { error: "the icon is larger than 10 MB" };
     }
     const data = await readCapped(response);
-    if (data === null) return { error: 'the icon is larger than 10 MB' };
-    return inspectIconSource(data, type === 'image/svg+xml' ? 'svg' : 'png');
+    if (data === null) return { error: "the icon is larger than 10 MB" };
+    return inspectIconSource(data, type === "image/svg+xml" ? "svg" : "png");
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   } finally {
@@ -94,24 +126,30 @@ async function readCapped(response: Response): Promise<Buffer | null> {
 /** Validates what the bytes really are (sharp metadata), not what the server claimed. */
 export async function inspectIconSource(
   data: Buffer,
-  kind: SourceKind
+  kind: SourceKind,
 ): Promise<{ source: IconSource } | { error: string }> {
   try {
+    const sharp = await loadSharp();
     const meta = await sharp(data).metadata();
-    if (meta.format !== kind) return { error: `the icon is not really ${kind.toUpperCase()}` };
+    if (meta.format !== kind)
+      return { error: `the icon is not really ${kind.toUpperCase()}` };
     const width = meta.width ?? 0;
     const height = meta.height ?? 0;
-    if (width === 0 || height === 0) return { error: 'the icon has no size' };
+    if (width === 0 || height === 0) return { error: "the icon has no size" };
     // SVG sizes are rounded by the rasteriser, so allow a pixel of slack on "square".
-    if (Math.abs(width - height) > (kind === 'svg' ? 1 : 0)) {
+    if (Math.abs(width - height) > (kind === "svg" ? 1 : 0)) {
       return { error: `the icon is ${width}x${height}, not square` };
     }
-    if (kind === 'png' && width < MIN_SOURCE_SIZE) {
-      return { error: `the icon is ${width}px, below the ${MIN_SOURCE_SIZE}px minimum` };
+    if (kind === "png" && width < MIN_SOURCE_SIZE) {
+      return {
+        error: `the icon is ${width}px, below the ${MIN_SOURCE_SIZE}px minimum`,
+      };
     }
     return { source: { data, kind, size: width } };
   } catch (error) {
-    return { error: `the icon cannot be read (${error instanceof Error ? error.message : error})` };
+    return {
+      error: `the icon cannot be read (${error instanceof Error ? error.message : error})`,
+    };
   }
 }
 
@@ -122,27 +160,43 @@ export async function inspectIconSource(
  */
 export async function generateSiteIcons(
   source: IconSource,
-  setting: Pick<ResolvedSiteIcons, 'backgroundColor' | 'themeColor' | 'shortName' | 'name'>,
-  baseURL = '/'
+  setting: Pick<
+    ResolvedSiteIcons,
+    "backgroundColor" | "themeColor" | "shortName" | "name"
+  >,
+  baseURL = "/",
 ): Promise<GeneratedSiteIcons> {
-  const base = baseURL.endsWith('/') ? baseURL : `${baseURL}/`;
-  const render = (side: number): sharp.Sharp => {
+  const base = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+  const sharp = await loadSharp();
+  const render = (side: number): Sharp => {
     // An SVG is rasterised at a density that makes `side` px native, so large sizes stay crisp.
-    const density = source.kind === 'svg' ? Math.max(72, Math.ceil((72 * side) / source.size)) : 72;
+    const density =
+      source.kind === "svg"
+        ? Math.max(72, Math.ceil((72 * side) / source.size))
+        : 72;
     return sharp(source.data, { density }).resize(side, side, {
-      fit: 'contain',
+      fit: "contain",
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     });
   };
   const png = (side: number): Promise<Buffer> => render(side).png().toBuffer();
   const flattened = (side: number): Promise<Buffer> =>
-    render(side).flatten({ background: setting.backgroundColor }).removeAlpha().png().toBuffer();
+    render(side)
+      .flatten({ background: setting.backgroundColor })
+      .removeAlpha()
+      .png()
+      .toBuffer();
   const maskable = async (side: number): Promise<Buffer> => {
     const inner = Math.round(side * MASKABLE_ARTWORK_SCALE);
     return sharp({
-      create: { width: side, height: side, channels: 3, background: setting.backgroundColor },
+      create: {
+        width: side,
+        height: side,
+        channels: 3,
+        background: setting.backgroundColor,
+      },
     })
-      .composite([{ input: await png(inner), gravity: 'centre' }])
+      .composite([{ input: await png(inner), gravity: "centre" }])
       .removeAlpha()
       .png()
       .toBuffer();
@@ -160,58 +214,76 @@ export async function generateSiteIcons(
 
   const files: GeneratedIconFile[] = [
     {
-      name: 'favicon.ico',
+      name: "favicon.ico",
       data: encodeIco([
         { side: 16, data: p16 },
         { side: 32, data: p32 },
         { side: 48, data: p48 },
       ]),
     },
-    { name: 'favicon-32.png', data: p32 },
-    { name: 'apple-touch-icon.png', data: apple },
-    { name: 'icon-192.png', data: p192 },
-    { name: 'icon-512.png', data: p512 },
-    { name: 'icon-512-maskable.png', data: p512m },
+    { name: "favicon-32.png", data: p32 },
+    { name: "apple-touch-icon.png", data: apple },
+    { name: "icon-192.png", data: p192 },
+    { name: "icon-512.png", data: p512 },
+    { name: "icon-512-maskable.png", data: p512m },
   ];
   const link: Record<string, string>[] = [
-    { rel: 'icon', href: `${base}favicon.ico`, sizes: '48x48' },
+    { rel: "icon", href: `${base}favicon.ico`, sizes: "48x48" },
   ];
-  if (source.kind === 'svg') {
-    files.push({ name: 'icon.svg', data: source.data });
-    link.push({ rel: 'icon', type: 'image/svg+xml', href: `${base}icon.svg`, sizes: 'any' });
+  if (source.kind === "svg") {
+    files.push({ name: "icon.svg", data: source.data });
+    link.push({
+      rel: "icon",
+      type: "image/svg+xml",
+      href: `${base}icon.svg`,
+      sizes: "any",
+    });
   }
   link.push(
-    { rel: 'icon', type: 'image/png', sizes: '32x32', href: `${base}favicon-32.png` },
-    { rel: 'apple-touch-icon', href: `${base}apple-touch-icon.png` },
-    { rel: 'manifest', href: `${base}site.webmanifest` }
+    {
+      rel: "icon",
+      type: "image/png",
+      sizes: "32x32",
+      href: `${base}favicon-32.png`,
+    },
+    { rel: "apple-touch-icon", href: `${base}apple-touch-icon.png` },
+    { rel: "manifest", href: `${base}site.webmanifest` },
   );
-  files.push({ name: 'site.webmanifest', data: Buffer.from(manifestJson(setting, base) + '\n') });
+  files.push({
+    name: "site.webmanifest",
+    data: Buffer.from(manifestJson(setting, base) + "\n"),
+  });
   const meta =
-    setting.themeColor === null ? [] : [{ name: 'theme-color', content: setting.themeColor }];
+    setting.themeColor === null
+      ? []
+      : [{ name: "theme-color", content: setting.themeColor }];
   return { files, link, meta };
 }
 
 function manifestJson(
-  setting: Pick<ResolvedSiteIcons, 'backgroundColor' | 'themeColor' | 'shortName' | 'name'>,
-  base: string
+  setting: Pick<
+    ResolvedSiteIcons,
+    "backgroundColor" | "themeColor" | "shortName" | "name"
+  >,
+  base: string,
 ): string {
   const name = setting.name ?? setting.shortName;
   const manifest: Record<string, unknown> = {
     ...(name === null ? {} : { name }),
     ...(setting.shortName === null ? {} : { short_name: setting.shortName }),
     icons: [
-      { src: `${base}icon-192.png`, sizes: '192x192', type: 'image/png' },
-      { src: `${base}icon-512.png`, sizes: '512x512', type: 'image/png' },
+      { src: `${base}icon-192.png`, sizes: "192x192", type: "image/png" },
+      { src: `${base}icon-512.png`, sizes: "512x512", type: "image/png" },
       {
         src: `${base}icon-512-maskable.png`,
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
     ...(setting.themeColor === null ? {} : { theme_color: setting.themeColor }),
     background_color: setting.backgroundColor,
-    display: 'standalone',
+    display: "standalone",
     start_url: base,
   };
   return JSON.stringify(manifest, null, 2);
@@ -247,18 +319,20 @@ export async function prepareSiteIcons(
     baseURL?: string;
     fetch?: typeof fetch;
     warn?: (message: string) => void;
-  } = {}
+  } = {},
 ): Promise<GeneratedSiteIcons | null> {
   const warn = options.warn ?? console.warn;
   const loaded = await loadIconSource(resolved.iconUrl, options.fetch);
-  if ('error' in loaded) {
+  if ("error" in loaded) {
     warn(`${SITE_ICONS_SKIPPED} (${loaded.error})`);
     return null;
   }
   try {
     return await generateSiteIcons(loaded.source, resolved, options.baseURL);
   } catch (error) {
-    warn(`${SITE_ICONS_SKIPPED} (${error instanceof Error ? error.message : String(error)})`);
+    warn(
+      `${SITE_ICONS_SKIPPED} (${error instanceof Error ? error.message : String(error)})`,
+    );
     return null;
   }
 }
