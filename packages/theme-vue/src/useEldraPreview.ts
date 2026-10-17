@@ -6,6 +6,7 @@ import type {
   ResolvedThemeMessagesPayload,
 } from '@eldrajs/theme-core/bridge';
 import {
+  blockApiIdOf,
   DEFAULT_LAYOUT_BREAKPOINTS,
   generateDesignTokenCss,
   normalizeThemeDesignTokens,
@@ -15,6 +16,7 @@ import {
 import { sanitizeLocaleMessages } from '@eldrajs/theme-core/i18n';
 import { useEldra, type EldraContext, type SlotGeometry } from './context';
 import themeBreakpoints from 'virtual:eldra/breakpoints';
+import themeManifest from 'virtual:eldra/manifest';
 
 /**
  * The theme's own tablet/normal layout breakpoints, already resolved and
@@ -164,7 +166,12 @@ export function startEldraPreview(
           overlay.acceptExternalUpdate(entries.map(({ entryId }) => entryId));
           for (const update of entries) {
             context.preview.sourceDrafts[update.entryId] = update.draftDoc;
-            context.preview.draftSchemaApiIds[update.entryId] = update.schemaApiId;
+            // Bare, whichever spelling the editor sent: the slot catalog and the
+            // block components are keyed by the bare id block.json declares.
+            context.preview.draftSchemaApiIds[update.entryId] = blockApiIdOf(
+              update.schemaApiId,
+              themeManifest.theme?.id
+            );
           }
           projectDrafts(context);
           // Page draft updates can introduce or replace reusable placements.

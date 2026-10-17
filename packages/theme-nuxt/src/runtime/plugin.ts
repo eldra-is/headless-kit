@@ -44,8 +44,10 @@ export default defineNuxtPlugin({
     // Block field metadata: lets theme-core's `isBlockFieldLocalized` (and
     // theme-vue's `useEldraBlockField` wrapper) resolve a field's `localized`
     // flag without the SDK packages importing the virtual module id
-    // themselves — they can't, at their own package build time.
-    registerBlockFields(blockFields);
+    // themselves — they can't, at their own package build time. The theme's own
+    // id rides along: Core spells a block entry's schema `<themeId>:<apiId>`
+    // and these lookups are keyed by the bare apiId.
+    registerBlockFields(blockFields, manifest.theme.id);
     const cfg = useRuntimeConfig().public.eldra as RuntimeEldraConfig;
     // Resolved before the client so its organisation default locale — the
     // store's own `locales.default`, falling back to the routing default for

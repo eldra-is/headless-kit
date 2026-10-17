@@ -1,4 +1,5 @@
 import {
+  blockApiIdOf,
   normalizeLayoutDocument,
   type BlockSlotDefinition,
   type EntryDoc,
@@ -108,7 +109,14 @@ function layoutBlockEntryIds(
   // blocks array (C14 drop-into-slot): resolve from the draft schema map too.
   const slotContext: SlotValidationContext = {
     slotCatalog: THEME_SLOT_CATALOG,
-    entryApiId: (entryId) => byId.get(entryId)?.schemaApiId ?? draftSchemaApiIds[entryId],
+    // The slot catalog is keyed by the bare block id; a published entry's
+    // schemaApiId is the wire spelling `<themeId>:<apiId>`.
+    entryApiId: (entryId) => {
+      const schemaApiId = byId.get(entryId)?.schemaApiId ?? draftSchemaApiIds[entryId];
+      return typeof schemaApiId === 'string'
+        ? blockApiIdOf(schemaApiId, themeManifest.theme?.id)
+        : undefined;
+    },
   };
   try {
     return normalizeLayoutDocument(value, undefined, undefined, slotContext).blockEntryIds;
