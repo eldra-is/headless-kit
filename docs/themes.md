@@ -483,15 +483,14 @@ browsers, iOS and Android want from the one image, using [sharp](https://sharp.p
 | File                           | What it is                                                                                                                                           |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `favicon.ico`                  | 16, 32 and 48 px images in one file                                                                                                                  |
-| `icon.svg`                     | the source itself, only when it is an SVG                                                                                                            |
 | `favicon-32.png`               | 32 px PNG                                                                                                                                            |
 | `apple-touch-icon.png`         | 180 px, flattened onto the background colour (iOS has no alpha)                                                                                      |
 | `icon-192.png`, `icon-512.png` | transparent PNGs for the web app manifest                                                                                                            |
 | `icon-512-maskable.png`        | artwork at 60% of the side, centred on the background colour, so it survives Android's circle and squircle masks                                     |
 | `site.webmanifest`             | `name`, `short_name`, `icons` (the maskable one with `purpose: "maskable"`), `theme_color`, `background_color`, `display: "standalone"`, `start_url` |
 
-They are written into the static output (`.output/public`) after prerender, and the module adds
-`<link rel="icon">` (ico, svg when present, 32 px png), `<link rel="apple-touch-icon">`,
+They are written into the static output (`.output/public`) when the server build is compiled and
+again after prerender, and the module adds `<link rel="icon">` (ico, 32 px png), `<link rel="apple-touch-icon">`,
 `<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head. A tag is only ever
 added for a file that was generated.
 
@@ -508,9 +507,13 @@ not what its content type says all end the same way: one warning, no files, no t
 
 **Things a theme should know.**
 
-- The module does not remove a theme's own `<link rel="icon">`/`apple-touch-icon`/manifest tags.
-  A theme that hard-codes them should drop them (or leave the files in `public/` and no tags, as the
-  starter does: browsers and iOS look for `/favicon.ico` and `/apple-touch-icon.png` on their own).
+- When icons are generated they replace the theme's own `icon`/`shortcut icon`/`apple-touch-icon`/
+  `manifest` links in `app.head` (and its `theme-color` meta), so the merchant's icons never sit
+  beside the theme's. Tags a theme adds at runtime with `useHead` are not touched, so keep icon tags
+  in `app.head` or leave the files in `public/` with no tags, as the starter does (browsers and iOS
+  look for `/favicon.ico` and `/apple-touch-icon.png` on their own).
+- An SVG source is rasterised into every size but never published itself: an SVG served from the
+  storefront's own origin could run a script there.
 - `nuxi dev` generates nothing — there is no static output to serve it from. The icons appear in
   `nuxi generate`/`build` output only.
 - `sharp` is a regular dependency of `@eldrajs/theme-nuxt` and ships prebuilt binaries for

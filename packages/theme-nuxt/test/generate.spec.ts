@@ -545,6 +545,7 @@ describe('theme-nuxt nuxi generate', () => {
       expect(existsSync(output(name)), name).toBe(false);
     }
     const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).toContain('href="/theme-own-icon.svg"');
     expect(html).not.toContain('rel="manifest"');
     expect(html).not.toContain('rel="apple-touch-icon"');
     expect(html).not.toContain('name="theme-color"');
@@ -566,7 +567,6 @@ describe('theme-nuxt nuxi generate', () => {
 
     for (const name of [
       'favicon.ico',
-      'icon.svg',
       'favicon-32.png',
       'apple-touch-icon.png',
       'icon-192.png',
@@ -577,6 +577,8 @@ describe('theme-nuxt nuxi generate', () => {
       expect(existsSync(output(name)), name).toBe(true);
     }
     expect(readFileSync(output('favicon.ico')).readUInt16LE(4)).toBe(3);
+    // The source SVG is rasterised, never published on the storefront's origin.
+    expect(existsSync(output('icon.svg'))).toBe(false);
 
     const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
       short_name: string;
@@ -595,6 +597,8 @@ describe('theme-nuxt nuxi generate', () => {
       expect(html, page).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
       expect(html, page).toContain('rel="manifest" href="/site.webmanifest"');
       expect(html, page).toContain('name="theme-color" content="#4f46e5"');
+      expect(html, page).not.toContain('theme-own-icon.svg');
+      expect(html, page).not.toContain('icon.svg');
     }
   }, 360_000);
 

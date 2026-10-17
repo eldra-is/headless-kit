@@ -92,7 +92,7 @@ export interface ModuleOptions {
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
 interface NitroInitContext {
-  hooks: { hook: (name: 'prerender:done', callback: () => void) => void };
+  hooks: { hook: (name: 'prerender:done' | 'compiled', callback: () => void) => void };
   options: { output: { publicDir: string } };
 }
 
@@ -314,13 +314,21 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     (nuxt.hooks.hook as (name: 'nitro:init', callback: (nitro: NitroInitContext) => void) => void)(
       'nitro:init',
       (nitro) => {
+        // Generated icons replace a same-named file from the theme's own `public/`: the
+        // merchant's setting is the more specific one, and the head tags point at these names.
+        // Written on `compiled` too: `prerender:done` never fires for a build with nothing to
+        // prerender, and the head tags must not point at files that were not written.
+        const writeSiteIconFiles = (publicDir: string) => {
+          if (siteIconFiles.length === 0) return;
+          mkdirSync(publicDir, { recursive: true });
+          for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
+        };
+        nitro.hooks.hook('compiled', () => writeSiteIconFiles(nitro.options.output.publicDir));
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
-          // Generated icons replace a same-named file from the theme's own `public/`: the
-          // merchant's setting is the more specific one, and the head tags point at these names.
-          for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
+          writeSiteIconFiles(publicDir);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
@@ -402,12 +410,22 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         : await prepareSiteIcons(resolvedSiteIcons, { baseURL: nuxt.options.app.baseURL });
     if (siteIcons !== null) {
       siteIconFiles = siteIcons.files;
+      // The merchant's icons replace the theme's configured ones rather than sit beside them:
+      // Unhead keeps links with different hrefs, and a browser would pick between the two.
+      const replacedRels = new Set(['icon', 'shortcut icon', 'apple-touch-icon', 'manifest']);
+      const generatesThemeColor = siteIcons.meta.some((tag) => tag.name === 'theme-color');
       nuxt.options.app.head.link = [
-        ...(nuxt.options.app.head.link ?? []),
+        ...(nuxt.options.app.head.link ?? []).filter(
+          (tag) => !replacedRels.has(String((tag as { rel?: unknown }).rel ?? '').toLowerCase())
+        ),
         ...(siteIcons.link as unknown as NonNullable<typeof nuxt.options.app.head.link>),
       ];
       nuxt.options.app.head.meta = [
-        ...(nuxt.options.app.head.meta ?? []),
+        ...(nuxt.options.app.head.meta ?? []).filter(
+          (tag) =>
+            !generatesThemeColor ||
+            String((tag as { name?: unknown }).name ?? '').toLowerCase() !== 'theme-color'
+        ),
         ...(siteIcons.meta as unknown as NonNullable<typeof nuxt.options.app.head.meta>),
       ];
     }

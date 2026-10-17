@@ -61,7 +61,7 @@ const pixel = async (
 };
 
 describe('generateSiteIcons from an SVG', () => {
-  it('writes every file, with icon.svg only because the source is SVG', async () => {
+  it('writes every rasterised file and never publishes the source SVG', async () => {
     const icons = await generateSiteIcons(await svgSource(), RESOLVED);
 
     expect(icons.files.map((f) => f.name).sort()).toEqual(
@@ -72,11 +72,12 @@ describe('generateSiteIcons from an SVG', () => {
         'icon-192.png',
         'icon-512-maskable.png',
         'icon-512.png',
-        'icon.svg',
         'site.webmanifest',
       ].sort()
     );
-    expect(file(icons, 'icon.svg').toString()).toBe(BRAND_SVG);
+    expect(icons.link.some((l) => l.type === 'image/svg+xml' || l.href?.endsWith('.svg'))).toBe(
+      false
+    );
   });
 
   it('writes PNGs at the documented sizes', async () => {
@@ -196,13 +197,7 @@ describe('generateSiteIcons from an SVG', () => {
     const icons = await generateSiteIcons(await svgSource(), RESOLVED);
     const names = new Set(icons.files.map((f) => f.name));
 
-    expect(icons.link.map((l) => l.rel)).toEqual([
-      'icon',
-      'icon',
-      'icon',
-      'apple-touch-icon',
-      'manifest',
-    ]);
+    expect(icons.link.map((l) => l.rel)).toEqual(['icon', 'icon', 'apple-touch-icon', 'manifest']);
     for (const link of icons.link) expect(names.has(link.href!.slice(1)), link.href).toBe(true);
     expect(icons.meta).toEqual([{ name: 'theme-color', content: '#ff6600' }]);
   });
