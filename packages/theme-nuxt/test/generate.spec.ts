@@ -509,4 +509,118 @@ describe('theme-nuxt nuxi generate', () => {
       );
     }
   }, 360_000);
+  /**
+   * Regenerates the fixture against a gateway with the given options. Each call replaces `.output`,
+   * so a test reads what it needs before the next one runs.
+   */
+  async function generateWith(options: Parameters<typeof startMockGateway>[0]): Promise<void> {
+    const scenarioGateway = await startMockGateway(options);
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: scenarioGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }
+
+  /**
+   * **No icon set** is the default for every site: the fixture theme ships its own
+   * `public/favicon.ico`, and the build must neither overwrite it nor tag anything. (The first
+   * `generate` in this file ran against a gateway that 404s the setting — the fail-soft read.)
+   */
+  it('keeps the theme’s own icon files and head when the platform has no site icons', () => {
+    expect(gateway.requests).toContain('/site/v1/site-icons');
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+    for (const name of ['apple-touch-icon.png', 'site.webmanifest', 'icon-512-maskable.png']) {
+      expect(existsSync(output(name)), name).toBe(false);
+    }
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('name="theme-color"');
+  });
+
+  /**
+   * The setting is on: every file is written into the static output (replacing the theme's own
+   * same-named file), and **every** prerendered page — both locales — carries the tags, with the
+   * theme colour defaulted from the theme's primary token.
+   */
+  it('generates the icon files and tags every page when the platform has site icons', async () => {
+    await generateWith({
+      siteIcons: {
+        iconPath: '/assets/brand.svg',
+        backgroundColor: '#112233',
+        shortName: 'Fixture',
+      },
+    });
+
+    for (const name of [
+      'favicon.ico',
+      'icon.svg',
+      'favicon-32.png',
+      'apple-touch-icon.png',
+      'icon-192.png',
+      'icon-512.png',
+      'icon-512-maskable.png',
+      'site.webmanifest',
+    ]) {
+      expect(existsSync(output(name)), name).toBe(true);
+    }
+    expect(readFileSync(output('favicon.ico')).readUInt16LE(4)).toBe(3);
+
+    const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
+      short_name: string;
+      theme_color: string;
+      background_color: string;
+    };
+    expect(manifest).toMatchObject({
+      short_name: 'Fixture',
+      theme_color: '#4f46e5',
+      background_color: '#112233',
+    });
+
+    for (const page of ['index.html', 'about/index.html', 'en-US/index.html']) {
+      const html = readFileSync(output(page), 'utf8');
+      expect(html, page).toContain('rel="icon" href="/favicon.ico"');
+      expect(html, page).toContain('rel="apple-touch-icon" href="/apple-touch-icon.png"');
+      expect(html, page).toContain('rel="manifest" href="/site.webmanifest"');
+      expect(html, page).toContain('name="theme-color" content="#4f46e5"');
+    }
+  }, 360_000);
+
+  /**
+   * "Unset" and "unusable" end the same way: nothing generated, nothing tagged, the theme's own
+   * file untouched — never a tag pointing at a file that does not exist.
+   */
+  it.each([
+    ['an unset icon', { iconPath: null }],
+    ['a non-square icon', { iconPath: '/assets/brand-wide.png' }],
+    ['a too-small icon', { iconPath: '/assets/brand-small.png' }],
+    ['a corrupt icon', { iconPath: '/assets/corrupt.png' }],
+    ['a missing icon', { iconPath: '/assets/gone.png' }],
+  ])(
+    'keeps the theme’s files and emits no tags for %s',
+    async (_name, siteIcons) => {
+      await generateWith({ siteIcons });
+
+      expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+      expect(existsSync(output('site.webmanifest'))).toBe(false);
+      expect(existsSync(output('apple-touch-icon.png'))).toBe(false);
+      const html = readFileSync(output('index.html'), 'utf8');
+      expect(html).not.toContain('rel="manifest"');
+      expect(html).not.toContain('rel="apple-touch-icon"');
+      expect(html).not.toContain('name="theme-color"');
+    },
+    360_000
+  );
 });

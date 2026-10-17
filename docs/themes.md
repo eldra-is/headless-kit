@@ -435,6 +435,53 @@ is selected and what is being edited. Everything a theme is expected to set is a
 (see [Design tokens](theme-design-tokens.md)); anything else under those prefixes is internal and
 may change in a minor release.
 
+## Site icons
+
+A site's icons are the merchant's brand, not the theme's, so a merchant sets them in Studio (Site
+settings): one square SVG or PNG (at least 512 px), a background colour, an optional theme colour
+and an optional short name. `@eldrajs/theme-nuxt` reads that setting at build time
+(`GET /site/v1/site-icons`, the same fail-soft read as the design tokens) and generates everything
+browsers, iOS and Android want from the one image, using [sharp](https://sharp.pixelplumbing.com):
+
+| File                           | What it is                                                                                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `favicon.ico`                  | 16, 32 and 48 px images in one file                                                                                                                  |
+| `icon.svg`                     | the source itself, only when it is an SVG                                                                                                            |
+| `favicon-32.png`               | 32 px PNG                                                                                                                                            |
+| `apple-touch-icon.png`         | 180 px, flattened onto the background colour (iOS has no alpha)                                                                                      |
+| `icon-192.png`, `icon-512.png` | transparent PNGs for the web app manifest                                                                                                            |
+| `icon-512-maskable.png`        | artwork at 60% of the side, centred on the background colour, so it survives Android's circle and squircle masks                                     |
+| `site.webmanifest`             | `name`, `short_name`, `icons` (the maskable one with `purpose: "maskable"`), `theme_color`, `background_color`, `display: "standalone"`, `start_url` |
+
+They are written into the static output (`.output/public`) after prerender, and the module adds
+`<link rel="icon">` (ico, svg when present, 32 px png), `<link rel="apple-touch-icon">`,
+`<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head. A tag is only ever
+added for a file that was generated.
+
+Defaults are resolved by the build, not by Core: the theme colour is the primary design token
+(the platform's resolved catalog, else the theme's own `tokens.json`), and the short name is the
+site name (the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
+characters. With no site name known, the manifest simply omits `name`/`short_name`.
+
+**When nothing is generated.** An unset icon, a failed read, an image that cannot be fetched (10 s
+timeout, 10 MB cap, `image/svg+xml` or `image/png` only), is not square, is a PNG under 512 px or is
+not what its content type says all end the same way: one warning, no files, no tags. The theme's own
+`public/` files and head tags are then what ships, so a single-brand theme that keeps its icons in
+`public/` loses nothing. Only a successful generation replaces a same-named file from `public/`.
+
+**Things a theme should know.**
+
+- The module does not remove a theme's own `<link rel="icon">`/`apple-touch-icon`/manifest tags.
+  A theme that hard-codes them should drop them (or leave the files in `public/` and no tags, as the
+  starter does: browsers and iOS look for `/favicon.ico` and `/apple-touch-icon.png` on their own).
+- `nuxi dev` generates nothing — there is no static output to serve it from. The icons appear in
+  `nuxi generate`/`build` output only.
+- `sharp` is a regular dependency of `@eldrajs/theme-nuxt` and ships prebuilt binaries for
+  macOS and Linux (glibc and musl) through its optional `@img/sharp-*` packages, so no build script
+  runs. A deploy that installs with `--ignore-scripts` or pnpm's `allowBuilds` needs nothing more,
+  but it must not strip optional dependencies (`--no-optional`), or sharp cannot load and the build
+  falls back, with the warning above, to the theme's own files.
+
 ## More
 
 - [The deploy loop](theme-deploy-loop.md) — `eldra-theme init` → run locally → `validate` →
