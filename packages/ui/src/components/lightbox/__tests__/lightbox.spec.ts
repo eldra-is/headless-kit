@@ -144,6 +144,26 @@ describe('Lightbox — element and structure', () => {
     expect(slideClassName).not.toContain('px-16');
     wrapper.unmount();
   });
+
+  it('balances the bar with an equal bottom inset unless the thumbnail strip fills that space', async () => {
+    const stageClassName = async (props: {
+      images: LightboxImage[];
+      thumbnails?: boolean;
+    }): Promise<string> => {
+      const wrapper = mountWith(Lightbox, {
+        props: { ariaLabel: 'Gallery', modelValue: true, ...props },
+      });
+      await settle();
+      const className = wrapper.find('[data-part="track"]').element.parentElement!.className;
+      wrapper.unmount();
+      return className;
+    };
+
+    // Bar = 0.75rem padding twice + the 2.5rem close button (2.75rem below 48rem).
+    expect(await stageClassName({ images: IMAGES.slice(0, 1) })).toContain('pb-16 max-md:pb-17');
+    expect(await stageClassName({ images: IMAGES })).toContain('pb-16 max-md:pb-17');
+    expect(await stageClassName({ images: IMAGES, thumbnails: true })).not.toContain('pb-16');
+  });
 });
 
 describe('Lightbox — captions', () => {

@@ -203,6 +203,21 @@ describe('deployTheme', () => {
     await expect(rejection).rejects.toMatchObject({ code: detail });
   });
 
+  // BUGS.md A11: a raw 413 from a proxy/CDN in front of the gateway (no JSON
+  // body, so no errorId to look up) used to surface as a bare
+  // "gateway responded 413" with no hint at all.
+  it('gives actionable guidance for a raw 413 with no JSON body', async () => {
+    makeBuild(root, 'dist');
+    api = await startMockDeployApi({
+      postStatus: 413,
+      rawErrorBody: '<html><body>413 Request Entity Too Large</body></html>',
+    });
+
+    await expect(deployTheme(options())).rejects.toThrow(
+      /proxy\/CDN in front of it may have.*app's own.*25 MiB\/file/s
+    );
+  });
+
   it('prints one line per retired field migration', async () => {
     makeBuild(root);
     api = await startMockDeployApi({
