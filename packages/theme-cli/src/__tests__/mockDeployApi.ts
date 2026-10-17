@@ -5,6 +5,9 @@ export interface MockDeployApiOptions {
   errorDetail?: string;
   /** Full POST error response body, overriding the default `{status, detail}` shape. */
   errorBody?: unknown;
+  /** Non-JSON POST error body (a proxy/CDN rejection in front of the app, e.g. an
+   * nginx 413 HTML page), sent as `text/plain` instead of the JSON default. */
+  rawErrorBody?: string;
   statuses?: string[];
   previewUrl?: string;
   logExcerpt?: string;
@@ -41,6 +44,11 @@ export function startMockDeployApi(opts: MockDeployApiOptions = {}): Promise<Moc
           const status = opts.postStatus ?? 202;
           res.statusCode = status;
           if (status !== 202) {
+            if (opts.rawErrorBody !== undefined) {
+              res.setHeader('content-type', 'text/plain');
+              res.end(opts.rawErrorBody);
+              return;
+            }
             res.end(
               JSON.stringify(
                 opts.errorBody ?? { status, detail: opts.errorDetail ?? 'SITE_DEPLOY_FAILED' }

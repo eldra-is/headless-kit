@@ -254,9 +254,12 @@ interface DeployErrorBody {
 
 async function toDeployError(res: Response): Promise<DeployError> {
   let body: DeployErrorBody | null = null;
+  let bodyUnparseable = false;
   try {
     body = (await res.json()) as DeployErrorBody;
-  } catch {}
+  } catch {
+    bodyUnparseable = true;
+  }
   const detail = body?.detail ?? null;
   // A version-bump refusal (spec: manifest-field-retire) carries the human
   // `detail` plus a structured `errors.activationRefusal.locations` array —
@@ -290,6 +293,19 @@ async function toDeployError(res: Response): Promise<DeployError> {
       'manifest exceeds the 2 MiB limit — reduce block metadata and mock content, rebuild, and redeploy',
     SITE_DEPLOY_RATE_LIMITED: 'deploy rate limit hit — wait a few minutes, then retry',
   };
+  // BUGS.md A11: a 413 whose body is not JSON (res.json() above threw) most
+  // likely came from a proxy/CDN in front of the gateway, which answers with
+  // its own HTML page and no `detail` to look up above. The app's own limits
+  // are documented in SITE_ARTIFACT_TOO_LARGE's message; name both
+  // possibilities rather than leaving a bare status code.
+  if (res.status === 413 && bodyUnparseable) {
+    return new DeployError(
+      'deploy: gateway responded 413 (payload too large) with no error body — ' +
+        "a proxy/CDN in front of it may have a smaller limit than the app's own " +
+        '(≤ 20,000 files, ≤ 25 MiB/file, ≤ 500 MiB unpacked, ≤ 200 MiB compressed), or the request ' +
+        'exceeds one of those; check the artifact size, and if it is within them ask infra about the proxy limit'
+    );
+  }
   return new DeployError(
     `deploy: ${messages[detail ?? ''] ?? `gateway responded ${res.status}${detail ? ` (${detail})` : ''}`}`,
     detail
