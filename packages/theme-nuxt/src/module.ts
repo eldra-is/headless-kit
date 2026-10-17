@@ -29,6 +29,7 @@ import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
+import { prepareSiteIcons, type GeneratedIconFile } from './runtime/iconGenerate';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -39,6 +40,7 @@ import {
 } from './runtime/locales';
 import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
+import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
 
 export interface ModuleOptions {
   gatewayUrl: string;
@@ -296,6 +298,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       }
     });
 
+    /**
+     * The generated icon files (`./runtime/iconGenerate.ts`), filled in by the platform read at
+     * the end of `setup()` and written into the static output by the `prerender:done` hook below.
+     * Empty when no icon is set or generation failed — then nothing is written and no head tag was
+     * added, so the theme's own `public/` files are what ships.
+     */
+    let siteIconFiles: GeneratedIconFile[] = [];
+
     // Nitro's own `nitro:init` hook is real — Nuxt calls it internally — but
     // this version of @nuxt/schema does not declare it on NuxtHooks, so
     // `nuxt.hook` cannot infer a callback type for it. Type only the shape
@@ -308,6 +318,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
+          // Generated icons replace a same-named file from the theme's own `public/`: the
+          // merchant's setting is the more specific one, and the head tags point at these names.
+          for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
@@ -357,12 +370,17 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
     // manifest catalogue — a different thing from what this read answers (the platform's
     // overrides), and the two must not share a name across the call below.
-    const [commerce, locales, platformMessages, platformDesignTokens] = await Promise.all([
-      readStoreCommerce(platformClient),
-      readStoreLocales(platformClient),
-      readThemeMessages(platformClient),
-      readDesignTokens(platformClient),
-    ]);
+    //
+    // The site icons are a fifth read on the same terms. Only a static build (`nuxi generate`/
+    // `build`) reads them: `nuxi dev` serves no generated files, so a tag for one would 404.
+    const [commerce, locales, platformMessages, platformDesignTokens, platformSiteIcons] =
+      await Promise.all([
+        readStoreCommerce(platformClient),
+        readStoreLocales(platformClient),
+        readThemeMessages(platformClient),
+        readDesignTokens(platformClient),
+        nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
+      ]);
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
@@ -371,6 +389,28 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
+    // Unset (`iconUrl: null`), failed read and failed generation all leave `siteIconFiles` empty
+    // and the head untouched: tags are added only for files that exist.
+    const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
+      siteName: siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
+      primaryToken:
+        platformDesignTokens?.colors.primary?.value ?? themePrimaryToken(nuxt.options.rootDir),
+    });
+    const siteIcons =
+      resolvedSiteIcons === null
+        ? null
+        : await prepareSiteIcons(resolvedSiteIcons, { baseURL: nuxt.options.app.baseURL });
+    if (siteIcons !== null) {
+      siteIconFiles = siteIcons.files;
+      nuxt.options.app.head.link = [
+        ...(nuxt.options.app.head.link ?? []),
+        ...(siteIcons.link as unknown as NonNullable<typeof nuxt.options.app.head.link>),
+      ];
+      nuxt.options.app.head.meta = [
+        ...(nuxt.options.app.head.meta ?? []),
+        ...(siteIcons.meta as unknown as NonNullable<typeof nuxt.options.app.head.meta>),
+      ];
+    }
     localeRouting = resolveLocaleRouting(locales, options.locale);
     // Merge over the manifest's own messages (resolved over `locales` — the organisation's own
     // locales, falling back to the theme's own when they are unknown) only now that both reads
@@ -429,6 +469,30 @@ function packageVersion(path: string): string {
     return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
   } catch {
     return '0.0.0';
+  }
+}
+
+function siteName(title: unknown, rootDir: string): string | null {
+  if (typeof title === 'string' && title.trim() !== '') return title;
+  try {
+    const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')) as {
+      name?: unknown;
+    };
+    return typeof pkg.name === 'string' ? pkg.name.replace(/^@[^/]+\//, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The theme's own primary colour, for a build whose platform design-token read failed. */
+function themePrimaryToken(rootDir: string): string | null {
+  try {
+    const tokens = normalizeThemeDesignTokens(
+      JSON.parse(readFileSync(join(rootDir, 'tokens.json'), 'utf8'))
+    );
+    return tokens.colors.primary?.value ?? null;
+  } catch {
+    return null;
   }
 }
 
