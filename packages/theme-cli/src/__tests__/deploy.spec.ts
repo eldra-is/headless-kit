@@ -214,7 +214,7 @@ describe('deployTheme', () => {
     });
 
     await expect(deployTheme(options())).rejects.toThrow(
-      /proxy\/CDN in front of it|app's own.*25 MiB\/file/s
+      /proxy\/CDN in front of it may have.*app's own.*25 MiB\/file/s
     );
   });
 
