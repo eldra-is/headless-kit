@@ -8,14 +8,16 @@ Release-please writes the generated notes from commit messages and does not repl
 - **Site icons, set in Studio and generated at build.** A fifth fail-soft read, `GET
   /site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon image
   (SVG or PNG, square, at least 512 px), background colour, theme colour and short name. When an
-  icon is set, `nuxi generate` now writes `favicon.ico` (16/32/48), `icon.svg` (SVG sources only),
+  icon is set, `nuxi generate` now writes `favicon.ico` (16/32/48),
   `favicon-32.png`, `apple-touch-icon.png` (180 px, flattened onto the background colour),
   `icon-192.png`, `icon-512.png`, `icon-512-maskable.png` and `site.webmanifest` into the static
   output, and adds the matching `<link rel="icon">`, `apple-touch-icon`, `manifest` and
   `<meta name="theme-color">` tags to every page — only for files that were generated. The theme
   colour defaults to the primary design token and the short name to the site name. With no icon set,
   a failed read or an unusable image, nothing is written or tagged (one warning) and the theme's own
-  `public/` files stay. New dependency: `sharp` 0.34.5 (prebuilt binaries, no install script).
+  `public/` files stay. Generated icons replace the theme's own icon, manifest and `theme-color`
+  tags in `app.head`. An SVG source is rasterised but never published as `icon.svg` (a script
+  in it would run on the storefront's origin). New dependency: `sharp` 0.34.5 (prebuilt binaries, no install script).
   Documented in `docs/themes.md` (Site icons).
 
 - **The deployed site now carries Studio's design-token overrides, not only the open preview.** A

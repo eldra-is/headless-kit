@@ -210,15 +210,8 @@ export async function generateSiteIcons(
   const link: Record<string, string>[] = [
     { rel: 'icon', href: `${base}favicon.ico`, sizes: '48x48' },
   ];
-  if (source.kind === 'svg') {
-    files.push({ name: 'icon.svg', data: source.data });
-    link.push({
-      rel: 'icon',
-      type: 'image/svg+xml',
-      href: `${base}icon.svg`,
-      sizes: 'any',
-    });
-  }
+  // The source SVG itself is never published: served from the storefront's own origin, a script
+  // inside it would run there. Every size is rasterised from it instead.
   link.push(
     {
       rel: 'icon',
