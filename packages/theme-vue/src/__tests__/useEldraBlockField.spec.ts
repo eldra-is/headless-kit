@@ -10,7 +10,7 @@ const FIELDS = {
 };
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'shop');
 });
 
 /**
@@ -20,7 +20,7 @@ afterEach(() => {
  */
 describe('useEldraBlockField', () => {
   it('returns the manifest localized flag, and nothing else', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
 
     expect(useEldraBlockField('article', 'title')).toEqual({ localized: true });
     expect(useEldraBlockField('article', 'body')).toEqual({ localized: false });
@@ -32,7 +32,7 @@ describe('useEldraBlockField', () => {
   });
 
   it('needs no Vue context: a block rendered in isolation must not warn', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     // Called entirely outside setup(); the old implementation reached for an
     // injected preview context here purely to gate a toolbar warning.
     expect(() => useEldraBlockField('article', 'title')).not.toThrow();
