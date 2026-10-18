@@ -105,6 +105,49 @@ describe('validateFormSeeds', () => {
     expect(validate([seed]).errors).toEqual([]);
   });
 
+  describe('subscribe.consentText', () => {
+    const newsletter = (consentText?: unknown) => ({
+      ...contactSeed(),
+      key: 'newsletter',
+      fields: [contactSeed().fields[1]],
+      actions: {
+        notify: false,
+        confirm: false,
+        subscribe: { list: 'newsletter', ...(consentText === undefined ? {} : { consentText }) },
+      },
+    });
+
+    it('accepts a sentence per locale and keeps it, with the {shop} placeholder', () => {
+      const consentText = {
+        'en-US': 'I want mail from {shop}.',
+        'is-IS': 'Ég vil póst frá {shop}.',
+      };
+      const { normalized, errors } = validate([newsletter(consentText)]);
+      expect(errors).toEqual([]);
+      expect(normalized[0]?.actions.subscribe?.consentText).toEqual(consentText);
+    });
+
+    it('leaves it out when the seed does (Core fills in its default)', () => {
+      const { normalized, errors } = validate([newsletter()]);
+      expect(errors).toEqual([]);
+      expect(normalized[0]?.actions.subscribe).toEqual({ list: 'newsletter' });
+    });
+
+    it.each([
+      ['an empty map', {}],
+      ['a bad locale tag', { EN_us: 'Hello' }],
+      ['an empty sentence', { 'en-US': '   ' }],
+      ['more than 500 characters', { 'en-US': 'a'.repeat(501) }],
+      ['markup', { 'en-US': 'Hello <b>there</b>' }],
+      ['a control character', { 'en-US': 'Hello\u0007there' }],
+      ['a non-object', 'Hello'],
+    ])('refuses %s', (_name, consentText) => {
+      expect(validate([newsletter(consentText)]).errors.join('\n')).toContain(
+        'actions.subscribe.consentText'
+      );
+    });
+  });
+
   it('means "none" for no seeds', () => {
     expect(validate(undefined)).toEqual({ normalized: [], errors: [] });
     expect(validate([])).toEqual({ normalized: [], errors: [] });

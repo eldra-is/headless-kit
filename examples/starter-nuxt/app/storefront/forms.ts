@@ -85,6 +85,7 @@ export function localizeFormDefinition(
     turnstileSiteKey: raw.turnstileSiteKey,
     successMessage: pickLocalized(raw.success.message, locale),
     successRedirect: redirect === '' ? null : redirect,
+    consentText: pickLocalized(raw.consentText, locale),
   };
 }
 

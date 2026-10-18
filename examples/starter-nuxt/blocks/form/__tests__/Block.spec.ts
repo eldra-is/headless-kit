@@ -165,6 +165,37 @@ describe('form block', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
+    describe('the consent sentence of a subscribing form', () => {
+      const SENTENCE =
+        'I want to receive the newsletter from Northwind Goods. I can unsubscribe at any time.';
+
+      it('shows it under the submit button, tied to it with aria-describedby', async () => {
+        const wrapper = await mountForm({ ...mock, formKey: 'newsletter' });
+        const sentence = wrapper.get('[data-part="consent-sentence"]');
+        expect(sentence.text()).toBe(SENTENCE);
+        expect(wrapper.get('button[type="submit"]').attributes('aria-describedby')).toBe(
+          sentence.attributes('id')
+        );
+        expect(await axe(wrapper.element)).toHaveNoViolations();
+      });
+
+      it('shows it for the inline preset too, in the page’s locale', async () => {
+        const wrapper = await mountForm(
+          { ...mock, preset: 'inline', formKey: 'newsletter' },
+          { locale: 'is-IS', submit: ok() }
+        );
+        expect(wrapper.get('[data-part="consent-sentence"]').text()).toBe(
+          'Ég vil fá fréttabréf frá Northwind Goods. Ég get afskráð mig hvenær sem er.'
+        );
+      });
+
+      it('shows nothing on a form that does not subscribe', async () => {
+        const wrapper = await mountForm(mock);
+        expect(wrapper.find('[data-part="consent-sentence"]').exists()).toBe(false);
+        expect(wrapper.get('button[type="submit"]').attributes('aria-describedby')).toBeUndefined();
+      });
+    });
+
     it('an inline form of several fields falls back to stacked fields and an actions row', async () => {
       const wrapper = await mountForm({ ...mock, preset: 'inline' });
       expect(wrapper.get('[data-part="fields"]').classes().join(' ')).not.toContain(

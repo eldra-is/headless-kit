@@ -8402,7 +8402,11 @@
         "notify": false,
         "confirm": false,
         "subscribe": {
-          "list": "newsletter"
+          "list": "newsletter",
+          "consentText": {
+            "en-US": "I want to receive the newsletter from {shop}. I can unsubscribe at any time.",
+            "is-IS": "Ég vil fá fréttabréf frá {shop}. Ég get afskráð mig hvenær sem er."
+          }
         }
       },
       "success": {

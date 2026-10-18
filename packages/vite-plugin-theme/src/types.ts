@@ -440,7 +440,16 @@ export interface ManifestFormSeed {
     /** Email the visitor a copy (needs an email field). */
     confirm: boolean;
     /** Subscribe the visitor's email to a list, double opt-in (needs an email field). */
-    subscribe?: { list: string };
+    subscribe?: {
+      list: string;
+      /**
+       * The consent sentence shown beside the submit button, per locale, with a `{shop}`
+       * placeholder Core replaces with the shop name. It is sent to marketing as the proof of
+       * consent. Plain text, at most 500 characters per locale. Left out, Core fills in its
+       * platform default on create, so a seed without it keeps working.
+       */
+      consentText?: Record<string, string>;
+    };
   };
   success: { message: Record<string, string>; redirect?: Record<string, string> };
 }

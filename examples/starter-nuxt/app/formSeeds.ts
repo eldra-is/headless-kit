@@ -71,7 +71,17 @@ export function starterFormSeeds(): DeclaredFormSeed[] {
           placeholder: { 'en-US': 'name@example.com', 'is-IS': 'nafn@example.is' },
         },
       ],
-      actions: { notify: false, confirm: false, subscribe: { list: 'newsletter' } },
+      actions: {
+        notify: false,
+        confirm: false,
+        subscribe: {
+          list: 'newsletter',
+          consentText: {
+            'en-US': 'I want to receive the newsletter from {shop}. I can unsubscribe at any time.',
+            'is-IS': 'Ég vil fá fréttabréf frá {shop}. Ég get afskráð mig hvenær sem er.',
+          },
+        },
+      },
       success: {
         message: {
           'en-US': 'Check your inbox to confirm your subscription.',

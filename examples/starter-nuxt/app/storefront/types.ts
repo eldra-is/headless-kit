@@ -779,6 +779,11 @@ export interface StorefrontFormDefinition {
   successMessage: string;
   /** Where to send the visitor after a success, or `null` to stay and show the message. */
   successRedirect: string | null;
+  /**
+   * The consent sentence of a subscribing form, in the page's locale, `{shop}` already replaced.
+   * `''` when the form does not subscribe. Rendered as plain text beside the submit button.
+   */
+  consentText: string;
 }
 
 export interface StorefrontFormSubmitInput {

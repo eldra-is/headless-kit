@@ -1310,7 +1310,22 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
             honeypotField: 'website',
             turnstileSiteKey: null,
             success: seed.success,
-            kinds: ['store', ...(seed.actions.notify ? (['notify'] as const) : [])],
+            kinds: [
+              'store',
+              ...(seed.actions.notify ? (['notify'] as const) : []),
+              ...(seed.actions.subscribe ? (['subscribe'] as const) : []),
+            ],
+            // The platform fills `{shop}` in before it answers; the demo store is Northwind Goods.
+            ...(seed.actions.subscribe?.consentText
+              ? {
+                  consentText: Object.fromEntries(
+                    Object.entries(seed.actions.subscribe.consentText).map(([locale, text]) => [
+                      locale,
+                      text.replaceAll('{shop}', 'Northwind Goods'),
+                    ])
+                  ),
+                }
+              : {}),
           },
           options.formLocale ?? 'en-US'
         );

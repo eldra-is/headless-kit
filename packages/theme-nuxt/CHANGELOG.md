@@ -5,6 +5,9 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Baked form definitions keep `consentText` (WS-386).** `toFormDefinition` carries a subscribing
+  form's consent sentence per locale and refuses a malformed one, like the other localized texts.
+
 - **The analytics tracker never loads on `localhost` or `*.previews.eldra.dev` (WS-387).** A local
   `nuxi generate` is a production build now, so the browser skips the tracker on a developer's
   machine and on the Studio preview host. `ELDRA_BUILD_TARGET` is also read once in `setup()`, so a

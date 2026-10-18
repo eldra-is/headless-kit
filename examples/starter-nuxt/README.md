@@ -129,7 +129,7 @@ your own site's pages, or as a reference for how a set of blocks composes.
 Forms come from the platform: a merchant builds them on Studio's Forms page, and the `form` block
 (plus `contact`, `newsletter` and the footer's sign-up, which submit to the seeded `contact` and
 `newsletter` forms) renders and submits them through `useStorefront().forms`. `app/formSeeds.ts` is
-what a fresh site starts with. See `docs/starter-kit.md`, "Forms".
+what a fresh site starts with (the `newsletter` seed carries its consent sentence per locale, which the `form` block shows under the button). See `docs/starter-kit.md`, "Forms".
 
 `formsEndpoint` overrides where a form _submission_ goes, and is where the back-in-stock form
 (`catalog.notifyBackInStock`, which has no platform endpoint) posts. Without it that one resolves

@@ -12,6 +12,8 @@ const MAX_OPTIONS = 50;
 const MAX_NAME_LENGTH = 80;
 const MAX_TEXT_LENGTH = 200;
 const MAX_MESSAGE_LENGTH = 1000;
+/** Core's cap on a subscribe action's consent sentence, per locale. */
+const MAX_CONSENT_TEXT_LENGTH = 500;
 /** Core's form key rule: a URL segment, and never the reserved `subscriptions` route. */
 const FORM_KEY_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
 const RESERVED_FORM_KEY = 'subscriptions';
@@ -340,21 +342,52 @@ function validateActions(
   if (value.subscribe !== undefined) {
     const subscribe = value.subscribe;
     if (!isRecord(subscribe)) {
-      errors.push(`${at}.actions.subscribe — must be { list }`);
+      errors.push(`${at}.actions.subscribe — must be { list, consentText? }`);
     } else {
-      unknownKeys(`${at}.actions.subscribe`, subscribe, new Set(['list']), errors);
+      unknownKeys(`${at}.actions.subscribe`, subscribe, new Set(['list', 'consentText']), errors);
       const list = typeof subscribe.list === 'string' ? subscribe.list : '';
       if (!LIST_KEY_PATTERN.test(list)) {
         errors.push(
           `${at}.actions.subscribe.list — invalid list ${JSON.stringify(subscribe.list)}`
         );
       } else actions.subscribe = { list };
+      if (subscribe.consentText !== undefined) {
+        const consentText = consentSentence(
+          `${at}.actions.subscribe.consentText`,
+          subscribe.consentText,
+          errors
+        );
+        if (consentText !== null && actions.subscribe !== undefined) {
+          actions.subscribe.consentText = consentText;
+        }
+      }
       if (!hasEmailField) {
         errors.push(`${at}.actions.subscribe — needs an email field to subscribe`);
       }
     }
   }
   return actions;
+}
+
+/**
+ * A subscribe action's consent sentence: a locale map like any label, but plain text only (Core
+ * refuses `<`, `>` and control characters rather than strip them, since the sentence is the proof of consent and must
+ * be stored exactly as the visitor saw it) and up to 500 characters per locale.
+ */
+function consentSentence(
+  at: string,
+  value: unknown,
+  errors: string[]
+): Record<string, string> | null {
+  if (isRecord(value)) {
+    for (const [locale, text] of Object.entries(value)) {
+      if (typeof text === 'string' && /[<>\p{Cc}]/u.test(text)) {
+        errors.push(`${at}.${locale} — must be plain text (no < or > or control characters)`);
+        return null;
+      }
+    }
+  }
+  return localizedText(at, value, MAX_CONSENT_TEXT_LENGTH, errors);
 }
 
 /** Core's `checkFormRedirect`: a site path, or an absolute http(s) URL. */

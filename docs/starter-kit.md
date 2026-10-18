@@ -1229,6 +1229,12 @@ see "Forms without a theme" in `getting-started.md`.
   (`app/composables/useTurnstile.ts`) and its token sent — a site without it loads nothing
   third-party. Success replaces the form with a focused `role="status"` panel; a merchant-set
   redirect (checked with `safeHref`) sends the visitor on instead, outside the editor.
+- **The consent sentence.** A form that subscribes the visitor publishes `consentText`, a sentence
+  per locale with the shop name already filled in; `localizeFormDefinition` resolves it to
+  `StorefrontFormDefinition.consentText` (`''` otherwise). The `form` block shows it under the submit
+  button as small, escaped text linked to the button with `aria-describedby`; pressing the button is
+  the consent, so there is no extra checkbox. The seeded `newsletter` form sets it in `en-US` and
+  `is-IS`, and the platform records it as the proof of consent.
 - **`contact` and `newsletter` stay for one version** as the same forms with their own designs
   (the contact block's details and map, the newsletter's consent line): they submit to the seeded
   `contact` and `newsletter` forms (`forms.submit('contact', …)`; the newsletter block's `formKey`

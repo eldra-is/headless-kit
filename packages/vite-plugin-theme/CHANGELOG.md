@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`formSeeds[].actions.subscribe.consentText` (WS-386).** A subscribe action may carry its consent
+  sentence per locale (`{ 'en-US': '… {shop} …' }`), validated like Core: locale tags, at most 500
+  characters each, plain text (no `<`, `>` or control characters), at least one locale when the key is
+  present. Left out, Core fills in its platform default on create, so existing seeds keep working.
+
 - **Form seed field types `number` and `url` (WS-386).** `validateFormSeeds` and
   `ManifestFormSeedFieldType` list every type Core accepts: `text`, `email`, `phone`, `textarea`,
   `select`, `checkbox`, `consent`, `number`, `url`. `number` and `url` take `validation` like `text`.

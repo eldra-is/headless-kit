@@ -126,6 +126,16 @@ describe('readFormDefinitions', () => {
 });
 
 describe('toFormDefinition', () => {
+  it('keeps a subscribing form’s consent sentence per locale, and refuses a malformed one', () => {
+    const consentText = { 'en-US': 'I want mail from Shop.' };
+    expect(
+      toFormDefinition({ ...contact, kinds: ['store', 'subscribe'], consentText }, 'contact')
+        ?.consentText
+    ).toEqual(consentText);
+    expect(toFormDefinition({ ...contact, consentText: 'plain string' }, 'contact')).toBeNull();
+    expect(toFormDefinition(contact, 'contact')).not.toHaveProperty('consentText');
+  });
+
   it('accepts a whole definition and drops action kinds it does not know', () => {
     const result = toFormDefinition({ ...contact, kinds: ['store', 'teleport'] }, 'contact');
 

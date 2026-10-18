@@ -414,7 +414,18 @@ formSeeds: [
       { id: 'email', type: 'email', required: true, label: { 'en-US': 'Email address', 'is-IS': 'Netfang' } },
     ],
     // notify: email the merchant; confirm: email the visitor a copy; subscribe: a double opt-in list
-    actions: { notify: false, confirm: false, subscribe: { list: 'newsletter' } },
+    actions: {
+      notify: false,
+      confirm: false,
+      subscribe: {
+        list: 'newsletter',
+        // the consent wording per locale; {shop} becomes the shop name on the platform
+        consentText: {
+          'en-US': 'I want to receive the newsletter from {shop}. I can unsubscribe at any time.',
+          'is-IS': 'Ég vil fá fréttabréf frá {shop}. Ég get afskráð mig hvenær sem er.',
+        },
+      },
+    },
     success: { message: { 'en-US': 'Check your inbox to confirm.', 'is-IS': 'Kíktu í pósthólfið.' } },
   },
 ],
@@ -422,7 +433,7 @@ formSeeds: [
 
 Field types are `text`, `email`, `phone`, `textarea`, `select` (with `options`), `checkbox`, `consent`
 (a checkbox whose `required` means it must be checked), `number` and `url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
-email field. Core creates a seeded form only when its key is absent and never over a merchant's edits
+email field. `subscribe.consentText` is validated like Core (a locale map, 500 characters each, plain text). Core creates a seeded form only when its key is absent and never over a merchant's edits
 (an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
 `examples/starter-nuxt/app/formSeeds.ts`.
 
@@ -448,15 +459,22 @@ Core refuses a whole manifest over one bad seed. From code,
 are gated by the organisation's `FORMS` feature, not `PAGE_BUILDER`, and a headless app can use them
 with no theme at all (see `getting-started.md`, "Forms without a theme").
 
-**What a subscription records.** A form with a `subscribe` action keeps proof of consent per
-subscriber: the label of each ticked `consent` field in the visitor's locale (read by Core from the
-form definition at submission time, never sent by the client), its SHA-256, the form key and name,
-the `pagePath` the SDK sent (client-supplied, so informational), and when they subscribed, confirmed
-and unsubscribed. IP addresses and user agents are not stored. The seeded `newsletter` form has
-**no** `consent` field, so a subscriber from it has no consent wording on record; a theme that
-subscribes people should seed a required `consent` field (the `form` block renders it) or the
-merchant adds one in Studio. The `newsletter` block's own consent checkbox and rich-text consent
-line are block copy and are not recorded.
+**What a subscription records.** A subscribing form always has real consent wording. The
+`subscribe` action carries a `consentText` sentence per locale (up to 500 characters each, plain
+text with no `<` or `>`, with a `{shop}` placeholder the platform replaces with the shop name).
+Core refuses to save a form whose subscribe action has no sentence in any locale; a seed that leaves
+`consentText` out gets the platform's default on create, so older seeds keep working, and Studio
+prefills the same default. The public definition (`GET /site/v1/forms/{key}`) exposes the resolved
+sentence per locale as `consentText`, only when the form subscribes. The `form` block shows it as
+small text under the submit button, escaped and linked to the button with `aria-describedby`;
+pressing the button is the consent, so there is no extra checkbox and no new submit field.
+
+At submission the platform sends marketing the sentence in the visitor's locale (resolved like a
+field label), followed by the label of each ticked `consent` field, newline-separated, never
+anything the client sent, plus its SHA-256, the form key and name, the `pagePath` the SDK sent
+(client-supplied, so informational), and when they subscribed, confirmed and unsubscribed. IP
+addresses and user agents are not stored. The `newsletter` block's own consent checkbox and
+rich-text consent line are block copy and are not recorded.
 
 The platform's marketing service owns subscribers and this record (the form only submits; the
 SDK and the emailed confirm/unsubscribe links are unchanged).

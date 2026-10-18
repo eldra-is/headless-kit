@@ -111,12 +111,14 @@ widget itself and sends the token as `turnstileToken`. The form types are hand-w
 `EldraPlatformConfig`: the SDK ships no response types.
 
 **Proof of consent.** For a form that subscribes the visitor, the platform records what they agreed
-to. The wording comes from the form definition on the server (the label, in the visitor's `locale`,
-of each `consent` field they ticked), never from the client, so an app sends the ticked `consent`
-value and nothing else; there is no consent-text parameter. `pagePath` is stored as the page the
-submission came from, so send the real `location.pathname`; it is client-supplied and informational.
-IP addresses and user agents are not stored. A form with no `consent` field records no wording, so
-add one (required) to a form you subscribe people with.
+to, and that wording is always real: the definition's `consentText` (a sentence per locale, with the
+shop name already filled in; present only when `kinds` contains `subscribe`). Show it next to the
+submit button as escaped plain text; submitting is the consent, so there is no extra checkbox and
+nothing extra to send. The platform stores the sentence in the visitor's `locale`, followed by the
+label of each `consent` field they ticked, taken from the form definition on the server, never from
+the client. `pagePath` is stored as the page the submission came from, so send the real
+`location.pathname`; it is client-supplied and informational. IP addresses and user agents are not
+stored.
 
 Subscribers and this record are owned by the platform's marketing service; `confirm` and
 `unsubscribe` keep calling the same `/site/v1/forms/subscriptions/*` paths, so nothing changes in an app.

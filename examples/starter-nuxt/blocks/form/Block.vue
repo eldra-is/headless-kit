@@ -103,6 +103,20 @@ const mutedToneClass = computed(() => {
   if (sectionBackground.value === 'accent') return 'text-accent-contrast/90';
   return 'text-muted';
 });
+/**
+ * The platform's consent sentence of a subscribing form (`{shop}` already filled in). Plain text,
+ * rendered as an escaped interpolation, never as HTML, and tied to the submit button with
+ * `aria-describedby`: pressing it is the consent, so a screen reader hears the wording with it.
+ */
+const consentSentence = computed(() => (form.value?.consentText ?? '').trim());
+const consentSentenceId = `form-consent-sentence-${uid}`;
+const consentSentenceToneClass = computed(() =>
+  sectionBackground.value === 'primary'
+    ? 'text-primary-contrast/90'
+    : sectionBackground.value === 'accent'
+      ? 'text-accent-contrast/90'
+      : 'text-muted'
+);
 const consentToneClass = computed(() => {
   if (sectionBackground.value === 'primary') {
     return 'text-primary-contrast/90 [&_a]:text-primary-contrast';
@@ -504,9 +518,19 @@ const successTitle = computed(
               size="lg"
               class="@two-col:w-auto w-full"
               :label="t('form.submitting')"
+              :aria-describedby="consentSentence ? consentSentenceId : undefined"
             >
               {{ buttonLabelText }}
             </Button>
+            <p
+              v-if="isInlineRow && consentSentence"
+              :id="consentSentenceId"
+              data-part="consent-sentence"
+              class="text-body-sm @two-col:col-span-2"
+              :class="consentSentenceToneClass"
+            >
+              {{ consentSentence }}
+            </p>
 
             <div ref="consentRoot" class="@two-col:col-span-2">
               <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->
@@ -523,7 +547,33 @@ const successTitle = computed(
             </div>
 
             <template v-if="!isInlineRow" #actions>
-              <Button type="submit" variant="primary" size="lg" :label="t('form.submitting')">
+              <div v-if="consentSentence" class="grid w-full gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  class="@two-col:justify-self-end"
+                  :label="t('form.submitting')"
+                  :aria-describedby="consentSentenceId"
+                >
+                  {{ buttonLabelText }}
+                </Button>
+                <p
+                  :id="consentSentenceId"
+                  data-part="consent-sentence"
+                  class="text-body-sm"
+                  :class="consentSentenceToneClass"
+                >
+                  {{ consentSentence }}
+                </p>
+              </div>
+              <Button
+                v-else
+                type="submit"
+                variant="primary"
+                size="lg"
+                :label="t('form.submitting')"
+              >
                 {{ buttonLabelText }}
               </Button>
             </template>

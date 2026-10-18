@@ -560,6 +560,13 @@ export interface EldraFormDefinition {
   turnstileSiteKey: string | null;
   success: { message: EldraFormLocalized; redirect?: EldraFormLocalized };
   kinds: EldraFormActionKind[];
+  /**
+   * The consent sentence per locale, with the shop name already filled in for `{shop}`. Present
+   * only when `kinds` contains `subscribe`. Show it next to the submit button (escaped, plain
+   * text): submitting the form is the visitor's consent to exactly this wording, and the platform
+   * stores it as the proof. There is no extra checkbox and no extra submit field.
+   */
+  consentText?: EldraFormLocalized;
 }
 
 export interface EldraFormSubmitInput {

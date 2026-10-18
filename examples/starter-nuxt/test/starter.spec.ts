@@ -909,7 +909,12 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     expect(scanned.errors).toEqual([]);
     const forms = scanned.manifest!.formSeeds!;
     expect(forms.map((form) => form.key)).toEqual(['contact', 'newsletter']);
-    expect(forms[1]!.actions.subscribe).toEqual({ list: 'newsletter' });
+    // The newsletter carries its consent sentence in both shipped locales, with the shop placeholder.
+    expect(forms[1]!.actions.subscribe?.list).toBe('newsletter');
+    expect(Object.keys(forms[1]!.actions.subscribe?.consentText ?? {})).toEqual(['en-US', 'is-IS']);
+    for (const text of Object.values(forms[1]!.actions.subscribe?.consentText ?? {})) {
+      expect(text).toContain('{shop}');
+    }
     // The contact block sends exactly these values (`blocks/contact/Block.vue`).
     expect(forms[0]!.fields.map((field) => field.id)).toEqual([
       'name',

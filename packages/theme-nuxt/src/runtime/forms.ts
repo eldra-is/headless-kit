@@ -184,7 +184,7 @@ export function toFormDefinition(value: unknown, key: string): EldraFormDefiniti
     (kind): kind is EldraFormDefinition['kinds'][number] =>
       typeof kind === 'string' && ACTION_KINDS.has(kind)
   );
-  return {
+  const definition: EldraFormDefinition = {
     key,
     name: value.name,
     fields,
@@ -193,4 +193,10 @@ export function toFormDefinition(value: unknown, key: string): EldraFormDefiniti
     success,
     kinds,
   };
+  if (value.consentText !== undefined) {
+    const consentText = toLocalized(value.consentText);
+    if (consentText === null) return null;
+    definition.consentText = consentText;
+  }
+  return definition;
 }

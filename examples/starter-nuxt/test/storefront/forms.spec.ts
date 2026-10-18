@@ -125,6 +125,15 @@ describe('localizeFormDefinition', () => {
     expect(result).not.toHaveProperty('kinds');
   });
 
+  it('resolves the consent sentence for the locale, and is empty without one', () => {
+    const subscribing = {
+      ...definition,
+      consentText: { 'en-US': 'I want mail from Shop.', 'is-IS': 'Ég vil póst frá Shop.' },
+    };
+    expect(localizeFormDefinition(subscribing, 'is-IS').consentText).toBe('Ég vil póst frá Shop.');
+    expect(localizeFormDefinition(definition, 'is-IS').consentText).toBe('');
+  });
+
   it('refuses a field type the theme cannot render rather than showing it as text', () => {
     const odd = {
       ...definition,

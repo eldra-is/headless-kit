@@ -9,6 +9,12 @@ platform repository.
 
 ## Unreleased
 
+- **`EldraFormDefinition.consentText` (WS-386, contract 4.13.0).** A form that subscribes the
+  visitor now publishes the consent sentence per locale, with the shop name already filled in
+  (`consentText?: EldraFormLocalized`, present only when `kinds` contains `subscribe`). Show it
+  beside the submit button as escaped plain text; the platform records it as the proof of consent
+  (followed by the labels of any ticked `consent` fields). No new submit field and no checkbox.
+
 - **Forms are gated by the `FORMS` feature, and mailed links go to the web gateway (WS-386,
   contract 4.12.0).** `client.forms` no longer needs `PAGE_BUILDER`: the organisation's new `FORMS`
   feature switches on form reads and submissions, so a headless app with no theme or page builder

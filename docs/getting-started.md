@@ -94,12 +94,13 @@ work:
   (a 422 resolves as field-keyed errors). Render the honeypot field the definition names off-screen
   and send it as `hp`. When the definition carries a Turnstile site key, your app must render the
   Cloudflare Turnstile widget and send its token as `turnstileToken`; the SDK does not render it.
-- **Consent for a subscribing form.** The platform stores, per subscriber, the consent wording the
-  visitor saw, taken server-side from the form definition (the label of each ticked `consent`
-  field in the `locale` you send), a SHA-256 of it, the form key and name, and `pagePath` (the page
-  the submission came from, supplied by your app, so send `location.pathname`). Your app never
-  sends consent text. IP addresses and user agents are deliberately not stored (data
-  minimisation). Give a subscribing form a required `consent` field, or no wording is recorded.
+- **Consent for a subscribing form.** The definition's `consentText` (a sentence per locale, the
+  shop name already filled in; only on a form that subscribes) is the wording the visitor agrees to.
+  Show it next to the submit button as plain text; your app sends no extra field. The platform
+  stores that sentence in the `locale` you send, followed by the label of each ticked `consent`
+  field, a SHA-256 of it, the form key and name, and `pagePath` (the page the submission came from,
+  supplied by your app, so send `location.pathname`). IP addresses and user agents are deliberately
+  not stored (data minimisation).
 
 `confirm(token)` and `unsubscribe(token)` finish a subscriber's emailed links. You do not need to
 build pages or proxy routes for them: the confirm and unsubscribe links in form mails point straight
