@@ -8,7 +8,11 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
-import type { StorefrontCommerce, StorefrontForms } from '../../../app/storefront/types';
+import type {
+  StorefrontCommerce,
+  StorefrontFormSubmitResult,
+  StorefrontForms,
+} from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { currencyLabel } from '../../../app/storefront/money';
 import enUS from '../../../i18n/en-US.json';
@@ -67,7 +71,7 @@ function mountFooter(
   data: Record<string, unknown>,
   options: {
     failForms?: boolean;
-    subscribe?: StorefrontForms['subscribe'];
+    subscribe?: StorefrontForms['submit'];
     /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
     editing?: boolean;
     /** The content locale — `@eldrajs/ui`'s number locale follows it (`mountOptions`). */
@@ -102,7 +106,7 @@ function mountFooter(
   const storefront = options.subscribe
     ? (() => {
         const demo = createDemoStorefront();
-        return { ...demo, forms: { ...demo.forms, subscribe: options.subscribe! } };
+        return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
       })()
     : undefined;
   return mount(Block, {
@@ -330,7 +334,7 @@ describe('footer block', () => {
     expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
   });
 
-  it('a valid submit calls forms.subscribe and announces success through role="status"', async () => {
+  it('a valid submit calls forms.submit and announces success through role="status"', async () => {
     const wrapper = mountFooter(mock);
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
@@ -367,8 +371,11 @@ describe('footer block', () => {
     // removing `@invalid="onNewsletterInvalid"` (or `retryable.value = serviceFailed` in
     // `onNewsletterSubmit`) makes `subscribe` stay called once and the field stay marked invalid
     // forever — confirmed by temporarily reverting each change and observing this test fail.
-    const results = [{ ok: false as const, reason: 'failed' as const }, { ok: true as const }];
-    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
+    const results: StorefrontFormSubmitResult[] = [
+      { ok: false, reason: 'unavailable' },
+      { ok: true, pending: true },
+    ];
+    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const, pending: true });
     const wrapper = mountFooter(mock, { subscribe });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
@@ -383,9 +390,8 @@ describe('footer block', () => {
     await flushPromises();
 
     expect(subscribe).toHaveBeenCalledTimes(2);
-    expect(subscribe).toHaveBeenLastCalledWith({
-      email: 'reader@example.com',
-      list: 'footer-newsletter',
+    expect(subscribe).toHaveBeenLastCalledWith('newsletter', {
+      values: { email: 'reader@example.com' },
     });
     expect(wrapper.find('form').exists()).toBe(false);
     expect(wrapper.find('[role="status"]').text()).toContain(enUS.footer.subscribed);
@@ -393,7 +399,7 @@ describe('footer block', () => {
 
   it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message (not the retryable one)', async () => {
     const wrapper = mountFooter(mock, {
-      subscribe: async () => ({ ok: false, reason: 'invalid' }),
+      subscribe: async () => ({ ok: false, reason: 'invalid', errors: {}, form: [] }),
     });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');

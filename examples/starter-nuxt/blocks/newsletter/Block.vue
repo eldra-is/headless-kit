@@ -36,7 +36,9 @@
  * `text-field-note`/`text-danger`, the 0.3125rem icon gap) since that internal component is not
  * exported from the package.
  *
- * The newsletter posts through `useStorefront().forms.subscribe({ email, list })` — see
+ * The newsletter posts through `useStorefront().forms.submit(formKey, { values: { email } })` — the
+ * platform's own form (`formKey`, `newsletter` by default; the seeded one subscribes the visitor with
+ * a double opt-in email) — see
  * `blocks/footer/Block.vue`'s own newsletter zone for the identical local-validation-first,
  * backend-`{ok:false}`-second pattern this reuses: empty/malformed email never reaches the
  * storefront, and a backend `reason: 'invalid'` shows the exact same message a local check would.
@@ -246,7 +248,9 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
   emailError.value = null;
   consentError.value = null;
   isSubmitting.value = true;
-  const result = await storefront.forms.subscribe({ email: value, list: data.value.list });
+  const result = await storefront.forms.submit((data.value.formKey ?? '').trim() || 'newsletter', {
+    values: { email: value },
+  });
   isSubmitting.value = false;
 
   if (result.ok) {
@@ -257,7 +261,10 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
 
   const serviceFailed = result.reason !== 'invalid';
   retryable.value = serviceFailed;
-  emailError.value = serviceFailed ? t('newsletter.failed') : t('newsletter.invalidEmail');
+  // The platform's own message for the email, when it gave one; ours for a bare refusal.
+  emailError.value = serviceFailed
+    ? t('newsletter.failed')
+    : (result.errors.email?.[0] ?? t('newsletter.invalidEmail'));
   await focusEmailField();
 }
 </script>

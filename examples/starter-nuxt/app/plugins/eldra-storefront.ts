@@ -1,6 +1,6 @@
 import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
-import { createEldraClient, type EldraRetryOptions } from '@eldrajs/sdk';
+import { createEldraClient, type EldraFormDefinition, type EldraRetryOptions } from '@eldrajs/sdk';
 import {
   STOREFRONT_KEY,
   type StorefrontRoute,
@@ -173,6 +173,7 @@ export default defineNuxtPlugin({
         orgId?: string;
         commerce?: unknown;
         retry?: EldraRetryOptions | null;
+        forms?: Record<string, EldraFormDefinition> | '';
       };
       formsEndpoint?: string;
     };
@@ -281,6 +282,13 @@ export default defineNuxtPlugin({
           ? undefined
           : activeLocale.active,
       formsEndpoint: publicConfig.formsEndpoint,
+      // The form definitions the build baked (`@eldrajs/theme-nuxt`'s `forms` read); a form the
+      // build could not read, or the merchant made after it, is fetched when the page opens.
+      formDefinitions:
+        typeof publicConfig.eldra?.forms === 'object' ? publicConfig.eldra.forms : undefined,
+      // The default locale included: a submission always says which language it was written in,
+      // where `locale` above is `undefined` for it so catalogue reads keep their old keys.
+      formLocale: () => activeLocale.active ?? activeLocale.defaultLocale ?? undefined,
       runtime,
     });
 

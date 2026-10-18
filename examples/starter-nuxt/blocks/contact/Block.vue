@@ -40,7 +40,13 @@
  * (the three `watch`es), which is what lets a corrected field's `aria-invalid` go false in time for
  * that next submit to get past `FormLayout`'s own scan.
  *
- * **Success.** `forms.sendMessage` resolving `{ ok: true }` swaps the card's content for a
+ * **Submitting** is the platform's own form, `forms.submit('contact', { values })`: the seeded
+ * `contact` form (`app/formSeeds.ts`) names the fields this block sends (`name`, `email`, `topic`,
+ * `orderNumber`, `message`), and who is notified is the merchant's setting on the Forms page, not
+ * block data. A `422` marks the field it names (the same three error refs a local check sets);
+ * every other failure shows the server summary.
+ *
+ * **Success.** `forms.submit` resolving `{ ok: true }` swaps the card's content for a
  * `role="status" tabindex="-1"` panel that receives focus (spec: "the card content is replaced").
  * "Send another message" restores an empty form and focuses the Name field (spec: "moves focus to
  * its first field").
@@ -314,7 +320,6 @@ async function sendForm(): Promise<void> {
   sending.value = true;
 
   const payload: Record<string, string> = {
-    recipient: data.value.recipient,
     name: name.value.trim(),
     email: emailValue.value.trim(),
     message: message.value.trim(),
@@ -324,11 +329,19 @@ async function sendForm(): Promise<void> {
   }
   if (hasTopics.value && topic.value !== '') payload.topic = topic.value;
 
-  const result = await storefront.forms.sendMessage(payload);
+  const result = await storefront.forms.submit('contact', { values: payload });
   sending.value = false;
 
   if (!result.ok) {
-    serverError.value = true;
+    if (result.reason === 'invalid') {
+      // The platform's own message for each field it refused, shown where a local check's would be.
+      nameError.value = result.errors.name?.[0] ?? null;
+      emailError.value = result.errors.email?.[0] ?? null;
+      messageError.value = result.errors.message?.[0] ?? null;
+    }
+    // A refusal that named none of the three fields (another field, the form as a whole, or no
+    // reason at all) would otherwise leave nothing on screen.
+    serverError.value = !nameError.value && !emailError.value && !messageError.value;
     await focusSummary();
     return;
   }
@@ -469,7 +482,13 @@ const successText = computed(() =>
                 <template v-if="hasFormError" #errorSummary>
                   <div ref="summaryRef" tabindex="-1">
                     <template v-if="serverError">
-                      <p>{{ t('contact.serverError', { email: data.recipient }) }}</p>
+                      <p>
+                        {{
+                          email
+                            ? t('contact.serverError', { email })
+                            : t('contact.serverErrorGeneric')
+                        }}
+                      </p>
                     </template>
                     <template v-else>
                       <p class="font-semibold">{{ summaryTitle }}</p>

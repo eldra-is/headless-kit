@@ -1,0 +1,69 @@
+{
+  "apiId": "form",
+  "name": "Form",
+  "description": "A form from the Forms page: contact, newsletter or any form you build, with the fields, spam protection and emails managed in Studio.",
+  "icon": "mail",
+  "category": "marketing",
+  "version": 1,
+  "fields": [
+    {
+      "fieldId": "variant",
+      "name": "Layout",
+      "type": "select",
+      "helpText": "default stacks the fields. inline puts a single field and the button on one row, for a sign-up.",
+      "metadata": { "options": ["default", "inline"] },
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "formKey",
+      "name": "Form",
+      "type": "string",
+      "helpText": "The key of the form on the Forms page, for example \"contact\" or \"newsletter\".",
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "heading",
+      "name": "Heading",
+      "type": "string",
+      "isTitle": true,
+      "localized": true,
+      "validators": { "required": true }
+    },
+    {
+      "fieldId": "text",
+      "name": "Text",
+      "type": "text",
+      "localized": true,
+      "helpText": "What the visitor gets, or what happens next."
+    },
+    {
+      "fieldId": "buttonLabel",
+      "name": "Button label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Defaults to \"Send\" when unset."
+    },
+    {
+      "fieldId": "consent",
+      "name": "Consent",
+      "type": "rich-text",
+      "localized": true,
+      "helpText": "One line with a privacy link, shown under the button. Inline links only.",
+      "metadata": { "toolbar": ["bold", "italic", "link", "undo", "redo"] }
+    },
+    {
+      "fieldId": "successTitle",
+      "name": "Success title",
+      "type": "string",
+      "localized": true,
+      "helpText": "Shown above the form's own confirmation text. Defaults to \"Thank you\"."
+    },
+    {
+      "fieldId": "sectionBackground",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "Defaults to \"none\" when unset.",
+      "metadata": { "options": ["none", "surface", "surface-strong", "primary", "accent"] }
+    }
+  ]
+}

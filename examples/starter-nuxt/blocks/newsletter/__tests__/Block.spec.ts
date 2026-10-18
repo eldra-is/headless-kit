@@ -6,12 +6,15 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
-import type { StorefrontAck, StorefrontForms } from '../../../app/storefront/types';
+import type {
+  StorefrontFormSubmitResult as StorefrontAck,
+  StorefrontForms,
+} from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import enUS from '../../../i18n/en-US.json';
 import { renderedMessage } from '../../../test/support/i18nText';
 
-/** Only the fields the block requires (`variant`, `heading`, `consent`, `list`) — the "genuinely
+/** Only the fields the block requires (`variant`, `heading`, `consent`) — the "genuinely
  *  minimal" fixture every rebuilt block spec covers alongside the full `mock.json` (see
  *  `blocks/faq/__tests__/Block.spec.ts`'s own `bare` comment). Exercises every fallback default
  *  (field label, placeholder, button label, success title) at once. */
@@ -19,7 +22,6 @@ const bare = {
   variant: 'centered',
   heading: 'Letters from the workshop',
   consent: mock.consent,
-  list: 'letters-from-the-workshop',
 };
 
 /** A resolvable-on-demand `forms.subscribe`, for the "submitting"/"repeat submits ignored" tests
@@ -33,9 +35,9 @@ function deferredAck(): { promise: Promise<StorefrontAck>; resolve: (ack: Storef
   return { promise, resolve };
 }
 
-function withForms(subscribe: StorefrontForms['subscribe']) {
+function withForms(submit: StorefrontForms['submit']) {
   const base = createDemoStorefront();
-  return { ...base, forms: { ...base.forms, subscribe } };
+  return { ...base, forms: { ...base.forms, submit } };
 }
 
 const trackedWrappers: VueWrapper[] = [];
@@ -45,7 +47,7 @@ afterEach(() => {
 
 function mountNewsletter(
   data: Record<string, unknown>,
-  options: { subscribe?: StorefrontForms['subscribe'] } = {}
+  options: { submit?: StorefrontForms['submit'] } = {}
 ) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const wrapper = mount(Block, {
@@ -57,7 +59,7 @@ function mountNewsletter(
       ...base.global,
       provide: {
         ...base.global.provide,
-        ...(options.subscribe ? { [STOREFRONT_KEY]: withForms(options.subscribe) } : {}),
+        ...(options.submit ? { [STOREFRONT_KEY]: withForms(options.submit) } : {}),
       },
     },
   });
@@ -178,7 +180,7 @@ describe('newsletter block', () => {
 
     it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message', async () => {
       const wrapper = mountNewsletter(mock, {
-        subscribe: async () => ({ ok: false, reason: 'invalid' }),
+        submit: async () => ({ ok: false, reason: 'invalid', errors: {}, form: [] }),
       });
       await submitValidEmail(wrapper);
 
@@ -191,7 +193,7 @@ describe('newsletter block', () => {
 
     it('a backend failure with no reason shows the generic failed message and keeps the form', async () => {
       const wrapper = mountNewsletter(mock, {
-        subscribe: async () => ({ ok: false, reason: 'failed' }),
+        submit: async () => ({ ok: false, reason: 'unavailable' }),
       });
       await submitValidEmail(wrapper);
 
@@ -203,11 +205,14 @@ describe('newsletter block', () => {
     });
 
     it('after a backend failure, resubmitting the unchanged email reaches the service again and can succeed', async () => {
-      const results = [{ ok: false as const, reason: 'failed' }, { ok: true as const }];
-      const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
-      const wrapper = mountNewsletter(mock, { subscribe });
+      const results: StorefrontAck[] = [
+        { ok: false, reason: 'unavailable' },
+        { ok: true, pending: true },
+      ];
+      const submit = vi.fn(async () => results.shift() ?? { ok: true as const, pending: true });
+      const wrapper = mountNewsletter(mock, { submit });
       await submitValidEmail(wrapper, 'reader@example.com');
-      expect(subscribe).toHaveBeenCalledTimes(1);
+      expect(submit).toHaveBeenCalledTimes(1);
       expect(wrapper.find('input[type="email"]').attributes('aria-invalid')).toBe('true');
 
       // Same value, no edit in between: the form's own invalid gate must not swallow this.
@@ -215,8 +220,10 @@ describe('newsletter block', () => {
       await flushPromises();
       await flushPromises();
 
-      expect(subscribe).toHaveBeenCalledTimes(2);
-      expect(subscribe).toHaveBeenLastCalledWith({ email: 'reader@example.com', list: mock.list });
+      expect(submit).toHaveBeenCalledTimes(2);
+      expect(submit).toHaveBeenLastCalledWith('newsletter', {
+        values: { email: 'reader@example.com' },
+      });
       expect(wrapper.find('form').exists()).toBe(false);
       expect(wrapper.find('[role="status"]').text()).toContain(enUS.newsletter.successTitle);
     });
@@ -230,12 +237,14 @@ describe('newsletter block', () => {
       expect(status.text()).toBe('');
     });
 
-    it('a valid submit calls forms.subscribe with the email and list, replaces the form with the status panel, and moves focus to it', async () => {
-      const subscribe = vi.fn(async () => ({ ok: true }) as StorefrontAck);
-      const wrapper = mountNewsletter(mock, { subscribe });
+    it('a valid submit calls forms.submit with the form key and the email, replaces the form with the status panel, and moves focus to it', async () => {
+      const submit = vi.fn(async () => ({ ok: true, pending: false }) as StorefrontAck);
+      const wrapper = mountNewsletter(mock, { submit });
       await submitValidEmail(wrapper, 'reader@example.com');
 
-      expect(subscribe).toHaveBeenCalledWith({ email: 'reader@example.com', list: mock.list });
+      expect(submit).toHaveBeenCalledWith('newsletter', {
+        values: { email: 'reader@example.com' },
+      });
       expect(wrapper.find('form').exists()).toBe(false);
 
       const status = wrapper.find('[role="status"]');
@@ -247,7 +256,9 @@ describe('newsletter block', () => {
 
     it('falls back to the default success title when successTitle is unset', async () => {
       const { successTitle: _omit, ...withoutTitle } = mock;
-      const wrapper = mountNewsletter(withoutTitle, { subscribe: async () => ({ ok: true }) });
+      const wrapper = mountNewsletter(withoutTitle, {
+        submit: async () => ({ ok: true, pending: false }),
+      });
       await submitValidEmail(wrapper);
       expect(wrapper.find('[role="status"]').text()).toContain(enUS.newsletter.successTitle);
     });
@@ -256,8 +267,8 @@ describe('newsletter block', () => {
   describe('submitting state', () => {
     it('aria-busy is true on the submit button while pending, and repeat submits are ignored', async () => {
       const deferred = deferredAck();
-      const subscribe = vi.fn(() => deferred.promise);
-      const wrapper = mountNewsletter(mock, { subscribe });
+      const submit = vi.fn(() => deferred.promise);
+      const wrapper = mountNewsletter(mock, { submit });
 
       await wrapper.find('input[type="email"]').setValue('reader@example.com');
       await wrapper.find('form').trigger('submit');
@@ -266,10 +277,10 @@ describe('newsletter block', () => {
       const button = wrapper.get('button[type="submit"]');
       expect(button.attributes('aria-busy')).toBe('true');
 
-      // A second submit while still pending must not call subscribe again.
+      // A second submit while still pending must not call submit again.
       await wrapper.find('form').trigger('submit');
       await flushPromises();
-      expect(subscribe).toHaveBeenCalledTimes(1);
+      expect(submit).toHaveBeenCalledTimes(1);
 
       deferred.resolve({ ok: true });
       await flushPromises();
@@ -291,14 +302,14 @@ describe('newsletter block', () => {
     });
 
     it('blocks submission until ticked, showing its own error and moving focus to it', async () => {
-      const subscribe = vi.fn(async () => ({ ok: true }) as StorefrontAck);
-      const wrapper = mountNewsletter({ ...mock, requireConsentCheckbox: true }, { subscribe });
+      const submit = vi.fn(async () => ({ ok: true, pending: false }) as StorefrontAck);
+      const wrapper = mountNewsletter({ ...mock, requireConsentCheckbox: true }, { submit });
 
       await wrapper.find('input[type="email"]').setValue('reader@example.com');
       await wrapper.find('form').trigger('submit');
       await flushPromises();
 
-      expect(subscribe).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
       const checkbox = wrapper.find('input[type="checkbox"]');
       expect(checkbox.attributes('aria-invalid')).toBe('true');
       expect(wrapper.text()).toContain(enUS.newsletter.consentRequired);
@@ -311,7 +322,7 @@ describe('newsletter block', () => {
       await checkbox.setValue(true);
       await wrapper.find('form').trigger('submit');
       await flushPromises();
-      expect(subscribe).toHaveBeenCalledTimes(1);
+      expect(submit).toHaveBeenCalledTimes(1);
       expect(wrapper.find('[role="status"]').text()).toContain(mock.successTitle);
     });
   });
@@ -333,8 +344,8 @@ describe('newsletter block', () => {
     });
 
     it('Enter in the input submits the form', async () => {
-      const subscribe = vi.fn(async () => ({ ok: true }) as StorefrontAck);
-      const wrapper = mountNewsletter(mock, { subscribe });
+      const submit = vi.fn(async () => ({ ok: true, pending: false }) as StorefrontAck);
+      const wrapper = mountNewsletter(mock, { submit });
       await wrapper.find('input[type="email"]').setValue('reader@example.com');
       // jsdom does not implement the browser's native "Enter submits the nearest form" default
       // action for a dispatched keydown (the same limitation `faq`'s own accordion suite documents
@@ -342,7 +353,7 @@ describe('newsletter block', () => {
       // stand-in for that native behaviour, on the same real, unmodified `<form>`.
       await wrapper.find('form').trigger('submit');
       await flushPromises();
-      expect(subscribe).toHaveBeenCalledOnce();
+      expect(submit).toHaveBeenCalledOnce();
     });
 
     it('Space toggles the checkbox (native default; a click stands in for it under jsdom)', async () => {

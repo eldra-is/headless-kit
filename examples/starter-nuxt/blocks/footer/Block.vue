@@ -57,7 +57,8 @@
  * slot renders nothing. The `Select` branch stays for the day the derived list carries two or more
  * entries; which branch renders is driven by that list's length, not by a separate flag.
  *
- * The newsletter zone posts through `useStorefront().forms.subscribe`. Email format is validated
+ * The newsletter zone posts through `useStorefront().forms.submit('newsletter', …)` — the platform's
+ * seeded `newsletter` form, the same one the newsletter block defaults to. Email format is validated
  * locally (empty/malformed never reaches the storefront); a backend `{ ok: false }` shows the same
  * error slot. Both failure paths return focus to the email field — `FormLayout`'s own submit
  * handler only refuses a *second* submit while a field is already marked invalid, so the first
@@ -108,6 +109,9 @@ type FooterLink = {
   href: string | undefined;
   as: typeof EldraRouterLink | undefined;
 };
+
+/** The seeded form the footer's sign-up zone submits to (`app/formSeeds.ts`). */
+const NEWSLETTER_FORM_KEY = 'newsletter';
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
@@ -355,7 +359,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
 
   emailError.value = null;
   newsletterState.value = 'submitting';
-  const result = await storefront.forms.subscribe({ email: value, list: 'footer-newsletter' });
+  const result = await storefront.forms.submit(NEWSLETTER_FORM_KEY, { values: { email: value } });
 
   if (result.ok) {
     newsletterState.value = 'success';
@@ -365,7 +369,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
   newsletterState.value = 'idle';
   const serviceFailed = result.reason !== 'invalid';
   retryable.value = serviceFailed;
-  emailError.value = serviceFailed ? t('footer.emailError') : t('footer.emailInvalid');
+  emailError.value = serviceFailed
+    ? t('footer.emailError')
+    : (result.errors.email?.[0] ?? t('footer.emailInvalid'));
   await focusEmailField();
 }
 </script>

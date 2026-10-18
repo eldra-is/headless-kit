@@ -1,8 +1,19 @@
 import { onWatcherCleanup, ref, watch, type Ref } from 'vue';
-import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sdk';
+import {
+  createCartSession,
+  EldraHttpError,
+  type EldraClient,
+  type EldraFormDefinition,
+} from '@eldrajs/sdk';
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
+import {
+  localizeFormDefinition,
+  postToFormsEndpoint,
+  submitFailure,
+  toSubmitResult,
+} from './forms';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
@@ -51,9 +62,10 @@ import type {
  * generated *test* fixture never imported here) — the same thing a real customer theme has to do
  * before its own `eldra()` Vite plugin has generated a contract against their tenant.
  *
- * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint
- * today: this posts to `options.formsEndpoint` when the plugin configured one, and resolves
- * `{ ok: false, reason: 'unsupported' }` otherwise.
+ * `catalog.notifyBackInStock` has no gateway endpoint today: this posts to `options.formsEndpoint`
+ * when the plugin configured one, and resolves `{ ok: false, reason: 'unsupported' }` otherwise.
+ * Forms are the platform's own (`client.forms`, `GET /site/v1/forms/{key}`); `formsEndpoint` only
+ * overrides where a *submission* goes.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -1883,7 +1895,22 @@ async function detailSnapshots(
 
 export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
+  /**
+   * Overrides where form submissions go (`forms.submit`); see `postToFormsEndpoint`. Form
+   * definitions still come from the platform. Also the endpoint `catalog.notifyBackInStock` posts to.
+   */
   formsEndpoint?: string;
+  /**
+   * The form definitions the build baked (`@eldrajs/theme-nuxt`, `eldra.forms` in the runtime
+   * config), by form key. A key found here is served with no request; any other is fetched.
+   */
+  formDefinitions?: Record<string, EldraFormDefinition>;
+  /**
+   * The locale a submission reports and a definition's text resolves to: the page's active content
+   * locale, the default locale included (unlike `locale`, which is `undefined` there so reads keep
+   * their pre-locale keys). Omitted — a story, a spec — `en-US`.
+   */
+  formLocale?: () => string | undefined;
   /**
    * What the store sells in (`StorefrontCommerce`) — the platform's own answer, which only the app
    * layer can read (`app/plugins/eldra-storefront.ts`, off the runtime config). Omitted — a
@@ -2249,10 +2276,45 @@ export function createGatewayStorefront(
       ),
   };
 
+  const formLocale = (): string => options.formLocale?.() ?? locale?.() ?? 'en-US';
   const forms: StorefrontForms = {
-    subscribe: (input) => postToEndpoint(options.formsEndpoint, { kind: 'subscribe', ...input }),
-    sendMessage: (input) =>
-      postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
+    definition: (key) =>
+      createGatewayResult(
+        [key],
+        async (signal) => {
+          // Re-resolved against the page's locale on every read, so a language switch relabels a
+          // baked definition too: only the platform's per-locale maps are baked, never one language.
+          const raw =
+            options.formDefinitions?.[key.value] ??
+            (await rawClient.forms.get(key.value, { signal }));
+          return localizeFormDefinition(raw, formLocale());
+        },
+        { method: 'forms.definition', runtime, locale: () => formLocale() }
+      ),
+    submit: async (key, input) => {
+      const pagePath = typeof location === 'undefined' ? '/' : location.pathname;
+      if (options.formsEndpoint) {
+        return postToFormsEndpoint(options.formsEndpoint, {
+          key,
+          values: input.values,
+          locale: formLocale(),
+          pagePath,
+        });
+      }
+      try {
+        return toSubmitResult(
+          await rawClient.forms.submit(key, {
+            values: input.values,
+            locale: formLocale(),
+            pagePath,
+            ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+            ...(input.hp ? { hp: input.hp } : {}),
+          })
+        );
+      } catch (error) {
+        return submitFailure(error);
+      }
+    },
   };
 
   return {

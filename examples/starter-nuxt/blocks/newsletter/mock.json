@@ -26,6 +26,6 @@
   "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
   "successTitle": "You're on the list",
   "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
-  "list": "letters-from-the-workshop",
+  "formKey": "newsletter",
   "sectionBackground": "surface"
 }

@@ -4,7 +4,7 @@
   "description": "The shop's address, opening hours, phone and email beside a short enquiry form, with a map that always offers an \"Open in maps\" link outside any embed.",
   "icon": "map-pin",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
   "fields": [
     {
       "fieldId": "variant",
@@ -155,13 +155,6 @@
       "name": "Show order number field",
       "type": "bool",
       "default": false
-    },
-    {
-      "fieldId": "recipient",
-      "name": "Recipient",
-      "type": "string",
-      "helpText": "Where submissions go. Not shown.",
-      "validators": { "required": true }
     },
     {
       "fieldId": "successText",
