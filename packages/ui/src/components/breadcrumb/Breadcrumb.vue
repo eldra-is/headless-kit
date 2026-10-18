@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<BreadcrumbProps>(), {
   collapseAfter: 1,
   keepLast: 2,
   linkAs: undefined,
+  structuredData: true,
   classes: undefined,
 });
 
@@ -321,7 +322,7 @@ const ellipsisClass = computed(() =>
  * — see `endItems` above) — the full, uncollapsed `items` prop feeds this regardless of whether the
  * trail is visually collapsed, since collapsing is a display concern only.
  */
-const structuredData = computed(() =>
+const structuredDataJson = computed(() =>
   JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -480,6 +481,11 @@ const structuredData = computed(() =>
          RAWTEXT element, so a literal mustache would never even parse as an expression inside one
          — `v-text` sets `el.textContent` directly, which also sidesteps `innerHTML`'s HTML-
          fragment reparsing (and the `</script`-breakout risk that comes with it) entirely. -->
-    <component :is="'script'" type="application/ld+json" v-text="structuredData" />
+    <component
+      :is="'script'"
+      v-if="structuredData"
+      type="application/ld+json"
+      v-text="structuredDataJson"
+    />
   </nav>
 </template>

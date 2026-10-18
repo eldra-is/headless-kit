@@ -72,6 +72,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   it('renders the not-found shell, not the error alert, for /404 even when useEldraPage reports an error', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/404' }));
     vi.stubGlobal('useEldraSeo', () => {});
+    vi.stubGlobal('usePageStructuredData', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -94,6 +95,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   it('renders the error alert, not the not-found shell, for a real route with an error', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/some-real-page' }));
     vi.stubGlobal('useEldraSeo', () => {});
+    vi.stubGlobal('usePageStructuredData', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -121,6 +123,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   it('renders the header blocks before <main> and a trailing footer after it', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
     vi.stubGlobal('useEldraSeo', () => {});
+    vi.stubGlobal('usePageStructuredData', () => {});
     const blocks = [
       { id: 'b1', schemaApiId: 'announcement-bar' },
       { id: 'b2', schemaApiId: 'navigation' },
@@ -174,6 +177,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   it('renders a layout-driven page through EldraLayout alone, with no extra zones', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
     vi.stubGlobal('useEldraSeo', () => {});
+    vi.stubGlobal('usePageStructuredData', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref({ data: { title: 'Home' } }),
       template: ref(null),
@@ -209,6 +213,7 @@ describe('[...slug].vue SEO input', () => {
     vi.stubGlobal('useEldraSeo', (...received: unknown[]) => {
       args = received;
     });
+    vi.stubGlobal('usePageStructuredData', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),

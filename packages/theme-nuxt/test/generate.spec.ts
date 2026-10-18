@@ -797,4 +797,110 @@ describe('theme-nuxt nuxi generate', () => {
       rmSync(join(publicDir, 'sitemap.xml'), { force: true });
     }
   }, 360_000);
+
+  /**
+   * The structured data (`useStructuredData`): the home page writes `Organization` + `WebSite`, any
+   * other page a `BreadcrumbList`, as one `<script type="application/ld+json">` in the prerendered
+   * HTML, from the platform's site profile with the icon as the logo fallback.
+   */
+  const SCRIPT = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  const ldNodes = (html: string): Array<Record<string, any>> => {
+    const scripts = [...html.matchAll(SCRIPT)];
+    expect(scripts.length, 'one ld+json script per page').toBeLessThanOrEqual(1);
+    return scripts.flatMap(([, json]) => {
+      const parsed = JSON.parse(json!) as Record<string, any> | Array<Record<string, any>>;
+      return Array.isArray(parsed) ? parsed : [parsed];
+    });
+  };
+  const PRODUCTION = {
+    ELDRA_BUILD_TARGET: 'production',
+    ELDRA_SITE_URL: 'https://shop.example.test',
+  };
+
+  it('writes Organization and WebSite on home and a BreadcrumbList elsewhere in a production build', async () => {
+    await generateWith(
+      {
+        siteProfile: {
+          revision: 1,
+          name: 'Fixture Shop Ltd',
+          logoUrl: null,
+          sameAs: ['https://social.example.test/fixture', 'http://insecure.example.test/x'],
+          contact: { email: 'hello@shop.example.test', telephone: null },
+        },
+        siteIcons: { iconUrl: 'https://media.example.test/public/org/assets/icon' },
+      },
+      PRODUCTION
+    );
+
+    expect(gateway.requests).toBeDefined();
+    const home = ldNodes(readFileSync(output('index.html'), 'utf8'));
+    expect(home.map((node) => node['@type'])).toEqual(['Organization', 'WebSite']);
+    expect(home[0]).toMatchObject({
+      name: 'Fixture Shop Ltd',
+      url: 'https://shop.example.test',
+      // The icon's 512 px rendering stands in for a logo nobody uploaded.
+      logo: 'https://media.example.test/public/org/assets/icon/icon-512',
+      // A non-https profile link is dropped, not written.
+      sameAs: ['https://social.example.test/fixture'],
+      contactPoint: { email: 'hello@shop.example.test' },
+    });
+    expect(home[1].potentialAction.target.urlTemplate).toBe(
+      'https://shop.example.test/search?q={search_term_string}'
+    );
+
+    const about = ldNodes(readFileSync(output('about/index.html'), 'utf8'));
+    expect(about).toHaveLength(1);
+    expect(about[0]).toMatchObject({ '@type': 'BreadcrumbList' });
+    expect(about[0].itemListElement.map((item: { name: string }) => item.name)).toEqual([
+      'Home',
+      'About',
+    ]);
+    expect(about[0].itemListElement[1].item).toBe('https://shop.example.test/about');
+  }, 360_000);
+
+  it('still writes an Organization from the SEO site name when the profile read fails', async () => {
+    await generateWith(
+      {
+        seo: {
+          revision: 2,
+          syntax: 1,
+          site: {
+            name: 'Fixture Shop',
+            titlePattern: {},
+            description: {},
+            imageAssetId: null,
+            imageUrl: null,
+            twitterHandle: null,
+          },
+          templates: {},
+        },
+      },
+      PRODUCTION
+    );
+
+    const [organization] = ldNodes(readFileSync(output('index.html'), 'utf8'));
+    expect(organization).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'Fixture Shop',
+      url: 'https://shop.example.test',
+    });
+  }, 360_000);
+
+  it('writes no structured data in a preview build, which is noindex', async () => {
+    await generateWith({}, { ELDRA_SITE_URL: 'https://shop.example.test' });
+    expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
+    expect(readFileSync(output('about/index.html'), 'utf8')).not.toContain('application/ld+json');
+  }, 360_000);
+
+  it('honours the theme’s opt-out per kind and altogether', async () => {
+    await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'breadcrumb,website' });
+    expect(ldNodes(readFileSync(output('index.html'), 'utf8')).map((n) => n['@type'])).toEqual([
+      'Organization',
+    ]);
+    expect(readFileSync(output('about/index.html'), 'utf8')).not.toContain('application/ld+json');
+
+    await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'all' });
+    expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
+  }, 360_000);
 });

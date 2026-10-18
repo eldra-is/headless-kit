@@ -5,6 +5,18 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Structured data: `useStructuredData`, `provideStructuredData`, `useSiteProfile`.** Writes a
+  page's schema.org JSON-LD (nodes from `@eldrajs/theme-core`'s builders) into the head as one
+  `<script type="application/ld+json">` under a fixed key, for `enabled` pages only (pass
+  `!seo.noindex`). New module option `structuredData: { disable }` (`true`, or the node kinds
+  `product`, `breadcrumb`, `itemList`, `organization`, `website`) on `runtimeConfig.public.eldra`;
+  editing a node at runtime is `provideStructuredData((type, node, { path, locale }) => node |
+  null)`. The build reads the shop's profile from `GET /site/v1/site-profile` (`readSiteProfile`,
+  `./runtime/siteProfile.ts`; fail-soft like the other platform reads, build-only) and carries it,
+  with the site name and the site icon's 512 px rendering filling its gaps, on
+  `runtimeConfig.public.eldra.siteProfile`; `useSiteProfile()` returns it with the site origin.
+  Documented in `docs/theme-seo.md`.
+
 - **`sitemap.xml` and `robots.txt`, generated from the prerendered routes.** `nuxi generate` writes
   both into the static output. A preview build (the default) writes `Disallow: /` and no sitemap; a
   production build (`ELDRA_BUILD_TARGET=production`) writes `Allow: /`, the merchant's own lines

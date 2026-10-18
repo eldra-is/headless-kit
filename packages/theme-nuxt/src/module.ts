@@ -16,6 +16,7 @@ import {
   type EldraRetryOptions,
   type EntryDoc,
   type SeoSetting,
+  type StructuredDataType,
   type SitemapLimits,
   type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
@@ -46,6 +47,11 @@ import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
 import { readSeo } from './runtime/seo';
 import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
+import {
+  readSiteProfile,
+  resolveSiteProfile,
+  type ResolvedSiteProfile,
+} from './runtime/siteProfile';
 
 export interface ModuleOptions {
   gatewayUrl: string;
@@ -99,6 +105,13 @@ export interface ModuleOptions {
    * both must be absolute and a guessed host is worse than none.
    */
   siteUrl?: string;
+  /**
+   * Which schema.org JSON-LD a page may write (`useStructuredData`): `disable` is `true` for none,
+   * or the node kinds to leave out (`'product' | 'breadcrumb' | 'itemList' | 'organization' |
+   * 'website'`). A function cannot be serialised into the runtime config, so editing a node is
+   * `provideStructuredData(extend)` at runtime instead.
+   */
+  structuredData?: { disable?: StructuredDataType[] | boolean };
   /**
    * `'production'` for the build that serves the public site; anything else (the default, unless
    * `ELDRA_BUILD_TARGET=production`) is a preview build, which is always `noindex`. Defaults to
@@ -194,6 +207,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // storefront's own client (`examples/starter-nuxt`'s storefront plugin)
       // reads the same policy the module's reads use.
       retry: options.retry ?? null,
+      // Which structured-data nodes pages may write; `useStructuredData` reads it. `false` rather
+      // than `undefined`: the key has to survive the payload.
+      structuredData: { disable: options.structuredData?.disable ?? false },
+      // The `Organization` node's inputs (name, logo, social links, contact), filled in below once
+      // the platform read settles. Written here first for the same reason `commerce` is.
+      siteProfile: null as ResolvedSiteProfile | null,
     };
     // The page-title and SEO inputs `useEldraSeo` reads (`./runtime/composables/useEldraSeo.ts`):
     // the platform's SEO setting (filled in below once the read settles), the site's origin and
@@ -209,6 +228,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     addImports([
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
       { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
+      // schema.org JSON-LD: write a page's nodes (opt-out per kind via the `structuredData` option,
+      // runtime edits via `provideStructuredData`) and read the shop's profile for `Organization`.
+      ...['useStructuredData', 'provideStructuredData', 'useSiteProfile'].map((name) => ({
+        name,
+        from: resolver.resolve('./runtime/composables/useStructuredData'),
+      })),
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
@@ -477,6 +502,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       platformDesignTokens,
       platformSiteIcons,
       platformSeo,
+      platformSiteProfile,
       platformCrawl,
     ] = await Promise.all([
       readStoreCommerce(platformClient),
@@ -485,6 +511,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       readDesignTokens(platformClient),
       nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
       nuxt.options.dev ? Promise.resolve(null) : readSeo(platformClient),
+      // The site profile is the eighth read, on the same terms (build-only, fail-soft).
+      nuxt.options.dev ? Promise.resolve(null) : readSiteProfile(platformClient),
       // The crawl settings matter only to a production build: a preview build writes `Disallow: /`
       // and no sitemap whatever they say.
       nuxt.options.dev || options.buildTarget !== 'production'
@@ -501,12 +529,20 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
       designTokens: ThemeDesignTokens | null;
+      siteProfile: ResolvedSiteProfile | null;
     };
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
     (nuxt.options.runtimeConfig.public.eldraSeo as { setting: SeoSetting | null }).setting =
       platformSeo;
+    // The merchant's profile with its gaps filled: the site name, and the site icon's 512 px
+    // rendering for the logo. Resolved (always an object), so a build whose read failed still
+    // writes an `Organization` from what it knows.
+    runtimeEldra.siteProfile = resolveSiteProfile(platformSiteProfile, {
+      siteName: platformSeoName(platformSeo) || seoSiteName(nuxt.options.app.head.title) || '',
+      iconLogoUrl: platformSiteIcons?.icons?.icon512 ?? null,
+    });
     // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
     // and the head untouched: tags are added only when the platform answered with icons.
     const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
@@ -605,6 +641,10 @@ function packageVersion(path: string): string {
  * name (`starter-nuxt` is not a shop name); with none, titles are the bare page title and the
  * platform's own `site.name` (when the merchant or Core sets one) still wins.
  */
+function platformSeoName(setting: SeoSetting | null): string {
+  return setting?.site.name?.trim() ?? '';
+}
+
 function seoSiteName(title: unknown): string {
   return typeof title === 'string' ? title.trim() : '';
 }

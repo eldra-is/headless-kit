@@ -403,6 +403,9 @@ export function startMockGateway(
      *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
      *  with no published overrides, proving the build-time read's fail-soft fallback. */
     designTokens?: Record<string, unknown>;
+    /** The profile `/site/v1/site-profile` answers with, in the public shape. Absent, the route
+     *  404s like a Core that predates it (the build's fail-soft Organization). */
+    siteProfile?: Record<string, unknown>;
     /** The setting `/site/v1/site-icons` answers with, in the public shape: `iconUrl` is a media
      *  asset URL, and `icons` the variants Core derives from it (`null` for "no icon set"). Nothing
      *  is served at those URLs — the build only links to them. Absent, the route 404s like a Core
@@ -518,6 +521,13 @@ export function startMockGateway(
           res.end('{}');
         } else {
           res.end(JSON.stringify(options.seo));
+        }
+      } else if (url.pathname === '/site/v1/site-profile') {
+        if (options.siteProfile === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.siteProfile));
         }
       } else if (url.pathname === '/site/v1/crawl') {
         if (options.crawl === undefined) {

@@ -58,6 +58,12 @@ export interface BreadcrumbProps {
    * which *does* pick the root tag — see this package's README "as vs linkAs" note.
    */
   linkAs?: string | Component;
+  /**
+   * Write the trail's own `BreadcrumbList` JSON-LD `<script>`. Defaults to `true`, so the
+   * component stays standalone. Pass `false` when the page already emits one (a theme's
+   * page-level structured data), because two `BreadcrumbList`s on one page are duplicate markup.
+   */
+  structuredData?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<BreadcrumbPart, string>>;
 }
