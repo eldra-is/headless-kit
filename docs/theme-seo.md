@@ -87,18 +87,16 @@ a guessed host is worse than none. A relative image or canonical is resolved aga
 > its live site**. The starter's GitHub, GitLab and Bitbucket pipelines set both; copy them. A
 > deploy that should be indexed, a staging site included, needs both.
 
-### The preview host is noindexed by the host, not the build
+### The preview host is protected by the edge router
 
 A deployment is **one** static artifact, which the platform serves on the stable preview host
 (`<org>.previews.eldra.dev`, and the `previews-staging` / `previews-dev` equivalents) and, later, on
-the site's own domain. A build flag cannot be right for both, so `nuxi generate` also writes a
-Cloudflare Pages `_headers` rule that sends `X-Robots-Tag: noindex, nofollow` for those hosts only
-(`https://:org.previews.eldra.dev/*`, between `# BEGIN/END eldra preview host noindex` markers).
-Override the list with the module option `previewHosts`; `[]` writes no rule. The build target keeps
-deciding the page's own `robots` tag, canonical, `robots.txt` and sitemap. Still open on the
-serving side: `robots.txt` is one file per artifact, so the preview host serves the production one
-(`Allow: /`); the header is what keeps it out of an index. A host-specific `robots.txt` belongs to
-`site-deploy-worker` / the edge.
+the site's own domain. A build flag cannot be right for both, so the kit does not try: the preview
+host is protected by the edge router (`site-deploy-worker`'s preview router), which sends
+`X-Robots-Tag: noindex, nofollow` and serves a disallow-all `robots.txt` for those hosts only. The
+kit writes no host rule of its own (the earlier `_headers` rule and the `previewHosts` module option
+are gone). The build target keeps deciding the page's own `robots` tag, canonical, `robots.txt` and
+sitemap, which is what `nuxi dev` and a local preview build rely on.
 
 ## sitemap.xml, robots.txt and hreflang
 
@@ -207,6 +205,8 @@ on with the default pattern. Nothing breaks a deploy.
 
 Replace the theme's own `useHead({ title })` with `useEldraSeo`, and keep a not-found page out of
 the index by passing `{ entry: { title, noindex: true } }`. The starter's `seoInput()` is a good
-starting point for the data of each context. A theme that sets `app.head.title` has that as the
-default site name; otherwise there is none (never the package name) and titles are the bare page
-title until the platform's `site.name` is set.
+starting point for the data of each context. The platform's `site.name` (from
+`GET /site/v1/seo`, always the resolved name: the merchant's own, else the site's name) is used
+first, for `{{site.name}}`, `og:site_name`, the structured data and the icon manifest. A theme's
+`app.head.title` is only the fallback when that read fails or is empty; otherwise there is none
+(never the package name) and titles are the bare page title.

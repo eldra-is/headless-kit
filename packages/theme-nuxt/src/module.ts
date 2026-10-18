@@ -35,11 +35,6 @@ import { resolveAnalyticsConfig, type AnalyticsOption } from './runtime/analytic
 import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
 import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
 import {
-  DEFAULT_PREVIEW_HOST_PATTERNS,
-  previewHostHeadersBlock,
-  stripPreviewHostHeaders,
-} from './runtime/previewHeaders';
-import {
   buildRedirectsFile,
   readRedirects,
   readThemeRedirects,
@@ -139,13 +134,6 @@ export interface ModuleOptions {
    * `ELDRA_BUILD_TARGET`.
    */
   buildTarget?: 'production' | 'preview';
-  /**
-   * Cloudflare Pages `_headers` URL patterns of the hosts that serve a deployment as a **preview**
-   * (`https://:org.previews.eldra.dev/*`): every page on them is sent `X-Robots-Tag: noindex`,
-   * whatever the build target, because one built artifact is served on the preview host and on the
-   * live domain alike. Defaults to the platform's three preview suffixes; `[]` writes no rule.
-   */
-  previewHosts?: string[];
   /**
    * `sitemap.xml` (and `robots.txt`) generation. Both are written into the static output of a
    * `nuxi generate`/`build` from the prerendered routes; a `public/robots.txt` or
@@ -528,19 +516,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
           const existing = existsSync(target)
-            ? stripPreviewHostHeaders(readFileSync(target, 'utf8'))
+            ? readFileSync(target, 'utf8')
                 .replace(/^\s*Content-Security-Policy:\s*frame-ancestors[^\r\n]*(?:\r?\n|$)/gim, '')
                 .trimEnd() + '\n\n'
             : '';
           const ancestors = ["'self'", ...studioOrigins].join(' ');
-          const previewBlock = previewHostHeadersBlock(
-            options.previewHosts ?? DEFAULT_PREVIEW_HOST_PATTERNS
-          );
           writeFileSync(
             target,
-            `${existing}/*\n  Content-Security-Policy: frame-ancestors ${ancestors}\n${
-              previewBlock === '' ? '' : `\n${previewBlock}\n`
-            }`
+            `${existing}/*\n  Content-Security-Policy: frame-ancestors ${ancestors}\n`
           );
         });
       }
@@ -650,7 +633,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
     // and the head untouched: tags are added only when the platform answered with icons.
     const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
-      siteName: siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
+      siteName:
+        platformSeoName(platformSeo) || siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
       primaryToken:
         platformDesignTokens?.colors.primary?.value ?? themePrimaryToken(nuxt.options.rootDir),
     });

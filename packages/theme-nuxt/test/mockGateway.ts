@@ -100,6 +100,8 @@ const ABOUT = {
   data: {
     slug: 'about',
     title: 'About',
+    // The page's own share image: wins over the site's default (generate.spec).
+    seo: { imageUrl: 'https://media.example.test/public/org-1/assets/entry-og/og' },
     layout: {
       version: 1,
       root: {

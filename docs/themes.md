@@ -545,7 +545,7 @@ No `favicon.ico` is generated: the theme's own `public/favicon.ico` stays the ro
 
 Defaults are resolved by the build, not by Core: the theme colour is the primary design token
 (the platform's resolved catalog, else the theme's own `tokens.json`), and the short name is the
-site name (the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
+site name (the platform SEO read's `site.name`, else the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
 characters. With no site name known, the manifest simply omits `name`/`short_name`.
 
 **When nothing is written.** An unset icon, a failed read or a response that is not the documented

@@ -63,8 +63,8 @@ A **deploy build is a production build**: set `ELDRA_BUILD_TARGET=production` an
 (the public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow and
 GitLab job already do (`ELDRA_SITE_URL` is a repository variable). Without the target every page is
 written `noindex` with no canonical or `og:url`, because the default build is a preview build; see
-[Page titles and SEO](theme-seo.md#which-builds-are-indexed). A site that sets no `app.head.title`
-gets bare page titles until the merchant's SEO site name is set.
+[Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
+gets bare page titles.
 
 **Deploy prerequisite.** Every pipeline that should produce an indexed site, a staging deploy
 included, must set `ELDRA_BUILD_TARGET=production`, plus `ELDRA_SITE_URL` when the production URL

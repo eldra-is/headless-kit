@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { buildBreadcrumbLd, buildOrganizationLd, buildWebSiteLd } from '@eldrajs/theme-core';
+import {
+  buildBreadcrumbLd,
+  buildOrganizationLd,
+  buildWebSiteLd,
+  type SeoEntryValue,
+} from '@eldrajs/theme-core';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
@@ -10,7 +15,8 @@ const route = useRoute();
 const isHome = () => route.path.replace(/\/+$/, '') === '';
 const seo = useEldraSeo(
   () => (isHome() ? 'home' : 'page'),
-  () => ({ 'page.title': String((template.value ?? page.value)?.data?.title ?? '') })
+  () => ({ 'page.title': String((template.value ?? page.value)?.data?.title ?? '') }),
+  () => ({ entry: (template.value ?? page.value)?.data?.seo as SeoEntryValue | undefined })
 );
 
 // The structured data (`useStructuredData`): the generate test reads the script it writes.

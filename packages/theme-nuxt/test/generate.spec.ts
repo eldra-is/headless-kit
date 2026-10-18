@@ -374,11 +374,8 @@ describe('theme-nuxt nuxi generate', () => {
     const headers = readFileSync(output('_headers'), 'utf8');
     expect(headers).toContain("frame-ancestors 'self' https://acme.eldracms.com");
     expect(headers).not.toContain('https://*.eldracms.com');
-    // One artifact serves the preview host and the live domain, so noindex is a rule about the
-    // preview hosts, whatever the build target.
-    expect(headers).toContain(
-      'https://:org.previews.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow'
-    );
+    // The preview host's noindex is the edge router's job (site-deploy-worker), not a `_headers` rule.
+    expect(headers).not.toContain('X-Robots-Tag');
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
     expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
@@ -735,6 +732,16 @@ describe('theme-nuxt nuxi generate', () => {
     expect(html).toContain('property="og:image" content="https://media.example.test/');
     expect(html).toContain('name="twitter:site" content="@fixture"');
     expect(html).not.toContain('name="robots"');
+    // The platform's resolved site name wins over the theme's app.head.title everywhere.
+    expect(html).toContain('property="og:site_name" content="Fixture Shop"');
+    // The page's own seo.imageUrl beats the site's default share image.
+    expect(html).toContain(
+      'property="og:image" content="https://media.example.test/public/org-1/assets/entry-og/og"'
+    );
+    expect(html).toContain(
+      'name="twitter:image" content="https://media.example.test/public/org-1/assets/entry-og/og"'
+    );
+    expect(html.match(/property="og:image"/g)).toHaveLength(1);
   }, 360_000);
 
   /**
