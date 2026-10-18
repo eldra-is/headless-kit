@@ -376,7 +376,9 @@ describe('theme-nuxt nuxi generate', () => {
     expect(headers).not.toContain('https://*.eldracms.com');
     // One artifact serves the preview host and the live domain, so noindex is a rule about the
     // preview hosts, whatever the build target.
-    expect(headers).toContain('https://:org.previews.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow');
+    expect(headers).toContain(
+      'https://:org.previews.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow'
+    );
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
     expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
@@ -894,6 +896,8 @@ describe('theme-nuxt nuxi generate', () => {
         [
           '# BEGIN eldra platform redirects (generated, edit them in Studio)',
           '/old /new 302',
+          // The fixture's site serves en-US under a prefix, so the applyToLocales rule gets its twin.
+          '/en-US/old /en-US/new 302',
           '/blog/* /news/:splat 301',
           '# END eldra platform redirects',
           '',

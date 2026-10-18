@@ -193,9 +193,10 @@ const outerClass = computed(() =>
 );
 const copyClass = 'grid gap-3';
 
-const NUMERIC_INPUT_MODE: Partial<
-  Record<StorefrontFormField['type'], 'tel' | 'email'>
-> = { phone: 'tel', email: 'email' };
+const NUMERIC_INPUT_MODE: Partial<Record<StorefrontFormField['type'], 'tel' | 'email'>> = {
+  phone: 'tel',
+  email: 'email',
+};
 const AUTOCOMPLETE: Partial<Record<string, string>> = {
   name: 'name',
   email: 'email',

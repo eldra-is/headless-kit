@@ -55,7 +55,10 @@ describe('readRedirects', () => {
       }) as never),
     ],
     ['a malformed rule', reader((async () => ({ revision: 1, rules: [{ source: 1 }] })) as never)],
-    ['a status Core never serves', reader((async () => ({ revision: 1, rules: [rule({ status: 307 as never })] })) as never)],
+    [
+      'a status Core never serves',
+      reader((async () => ({ revision: 1, rules: [rule({ status: 307 as never })] })) as never),
+    ],
   ])('warns once and answers null for %s', async (_name, input) => {
     const warn = vi.fn();
     await expect(readRedirects(input, warn)).resolves.toBeNull();

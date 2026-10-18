@@ -194,7 +194,12 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
       for (const key of ['minLength', 'maxLength'] as const) {
         const value = rules[key];
         if (value === undefined) continue;
-        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX_VALIDATION_LENGTH) {
+        if (
+          typeof value !== 'number' ||
+          !Number.isInteger(value) ||
+          value < 0 ||
+          value > MAX_VALIDATION_LENGTH
+        ) {
           errors.push(`${at}.validation.${key} — must be an integer 0..${MAX_VALIDATION_LENGTH}`);
         } else validation[key] = value;
       }

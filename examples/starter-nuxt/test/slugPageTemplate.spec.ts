@@ -118,6 +118,9 @@ function stubTemplateRoute(options: { layout?: unknown; projection?: unknown } =
   vi.stubGlobal('useRoute', () => ({ path: '/products/ash-glaze-mug' }));
   vi.stubGlobal('useEldraSeo', () => {});
   vi.stubGlobal('usePageStructuredData', () => {});
+  vi.stubGlobal('useStorefront', () => ({
+    catalog: { product: () => ({ data: { value: null } }) },
+  }));
   vi.stubGlobal('useEldraPage', () => ({
     page: ref(null),
     template: ref({ id: 'rt-product', data: { title: 'Product', layout } }),

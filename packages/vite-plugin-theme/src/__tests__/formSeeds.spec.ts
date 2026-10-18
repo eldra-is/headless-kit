@@ -113,7 +113,11 @@ describe('validateFormSeeds', () => {
 
   describe('Core parity', () => {
     const withField = (field: Record<string, unknown>) => [
-      { ...contactSeed(), actions: { notify: false, confirm: false }, fields: [{ id: 'x', required: false, label: { 'en-US': 'X' }, ...field }] },
+      {
+        ...contactSeed(),
+        actions: { notify: false, confirm: false },
+        fields: [{ id: 'x', required: false, label: { 'en-US': 'X' }, ...field }],
+      },
     ];
     it.each([
       ['a number field', { type: 'number' }, '.type'],
@@ -128,7 +132,11 @@ describe('validateFormSeeds', () => {
         },
         'takes no validation',
       ],
-      ['validation on a consent', { type: 'consent', validation: { maxLength: 3 } }, 'no validation'],
+      [
+        'validation on a consent',
+        { type: 'consent', validation: { maxLength: 3 } },
+        'no validation',
+      ],
       ['a length above 8000', { type: 'text', validation: { maxLength: 8001 } }, '0..8000'],
       ['a lookahead', { type: 'text', validation: { pattern: '^(?=a)a' } }, 'lookaround'],
       ['a lookbehind', { type: 'text', validation: { pattern: '(?<!a)b' } }, 'lookaround'],

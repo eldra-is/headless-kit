@@ -39,7 +39,12 @@ import {
   previewHostHeadersBlock,
   stripPreviewHostHeaders,
 } from './runtime/previewHeaders';
-import { buildRedirectsFile, readRedirects, readThemeRedirects, type RedirectsSetting } from './runtime/redirects';
+import {
+  buildRedirectsFile,
+  readRedirects,
+  readThemeRedirects,
+  type RedirectsSetting,
+} from './runtime/redirects';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
 import { readFormDefinitions, type FormDefinitions } from './runtime/forms';

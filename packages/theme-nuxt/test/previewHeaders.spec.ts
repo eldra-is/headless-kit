@@ -10,7 +10,9 @@ describe('preview host headers', () => {
   it('sends noindex on every default preview host and nowhere else', () => {
     const block = previewHostHeadersBlock(DEFAULT_PREVIEW_HOST_PATTERNS);
     for (const suffix of ['previews', 'previews-staging', 'previews-dev']) {
-      expect(block).toContain(`https://:org.${suffix}.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow`);
+      expect(block).toContain(
+        `https://:org.${suffix}.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow`
+      );
     }
     expect(block).not.toMatch(/^\/\*/m);
   });

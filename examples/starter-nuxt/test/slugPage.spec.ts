@@ -73,6 +73,9 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/404' }));
     vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('usePageStructuredData', () => {});
+    vi.stubGlobal('useStorefront', () => ({
+      catalog: { product: () => ({ data: { value: null } }) },
+    }));
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -96,6 +99,9 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/some-real-page' }));
     vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('usePageStructuredData', () => {});
+    vi.stubGlobal('useStorefront', () => ({
+      catalog: { product: () => ({ data: { value: null } }) },
+    }));
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -124,6 +130,9 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
     vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('usePageStructuredData', () => {});
+    vi.stubGlobal('useStorefront', () => ({
+      catalog: { product: () => ({ data: { value: null } }) },
+    }));
     const blocks = [
       { id: 'b1', schemaApiId: 'announcement-bar' },
       { id: 'b2', schemaApiId: 'navigation' },
@@ -178,6 +187,9 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
     vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('usePageStructuredData', () => {});
+    vi.stubGlobal('useStorefront', () => ({
+      catalog: { product: () => ({ data: { value: null } }) },
+    }));
     vi.stubGlobal('useEldraPage', () => ({
       page: ref({ data: { title: 'Home' } }),
       template: ref(null),
@@ -214,6 +226,9 @@ describe('[...slug].vue SEO input', () => {
       args = received;
     });
     vi.stubGlobal('usePageStructuredData', () => {});
+    vi.stubGlobal('useStorefront', () => ({
+      catalog: { product: () => ({ data: { value: null } }) },
+    }));
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
