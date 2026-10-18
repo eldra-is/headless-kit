@@ -287,8 +287,6 @@ const serverError = ref(false);
 /** The spam check (Turnstile) is on and the visitor has not passed it. */
 const challengeError = ref<string | null>(null);
 const sent = ref(false);
-const sentFirstName = ref('');
-const sentEmail = ref('');
 
 const summaryRef = ref<HTMLElement | null>(null);
 const statusRef = ref<HTMLElement | null>(null);
@@ -361,8 +359,6 @@ async function sendForm(): Promise<void> {
     return;
   }
 
-  sentFirstName.value = name.value.trim().split(/\s+/)[0] ?? '';
-  sentEmail.value = emailValue.value.trim();
   sent.value = true;
   await nextTick();
   statusRef.value?.focus();
@@ -400,15 +396,8 @@ async function onSendAnother(): Promise<void> {
   focusField(nameFieldId);
 }
 
-function interpolate(template: string, params: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
-    Object.hasOwn(params, key) ? params[key]! : match
-  );
-}
-
-const successText = computed(() =>
-  interpolate(data.value.successText || t('contact.successTextDefault'), { email: sentEmail.value })
-);
+/** The receipt never echoes what the visitor typed (no name, no address): it is shown to whoever is at the screen. */
+const successText = computed(() => data.value.successText || t('contact.successTextDefault'));
 </script>
 
 <template>
@@ -604,7 +593,7 @@ const successText = computed(() =>
             <div v-else ref="statusRef" role="status" tabindex="-1" class="grid gap-4 text-center">
               <EldraIcon name="circle-check" size="xl" class="text-success mx-auto" />
               <p class="text-h4 font-heading font-semibold">
-                {{ t('contact.successTitle', { name: sentFirstName }) }}
+                {{ t('contact.successTitle') }}
               </p>
               <p class="text-muted text-base">{{ successText }}</p>
               <Button variant="outline" type="button" class="mx-auto" @click="onSendAnother">{{

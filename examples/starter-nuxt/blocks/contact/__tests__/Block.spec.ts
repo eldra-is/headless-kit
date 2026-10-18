@@ -217,8 +217,9 @@ describe('contact block', () => {
     expect(wrapper.find('form').exists()).toBe(false);
     const status = wrapper.find('[role="status"]');
     expect(status.exists()).toBe(true);
-    expect(status.text()).toContain('Hannah');
-    expect(status.text()).toContain('hannah@example.com');
+    // A receipt never echoes what the visitor typed.
+    expect(status.text()).not.toContain('Hannah');
+    expect(status.text()).not.toContain('hannah@example.com');
     expect(document.activeElement).toBe(status.element);
   });
 

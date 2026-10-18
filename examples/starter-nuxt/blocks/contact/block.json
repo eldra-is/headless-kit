@@ -161,7 +161,7 @@
       "name": "Success text",
       "type": "text",
       "localized": true,
-      "helpText": "Shown after a successful submit. {email} is replaced with the sender's own address."
+      "helpText": "Shown after a successful submit. It never echoes what the visitor typed."
     }
   ]
 }

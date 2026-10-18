@@ -23,5 +23,5 @@
     { "label": "Something else" }
   ],
   "showOrderNumber": true,
-  "successText": "We reply within one business day, usually sooner. A copy is on its way to {email}."
+  "successText": "We reply within one business day, usually sooner."
 }
