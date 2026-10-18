@@ -5,6 +5,29 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`formSeeds[].actions.subscribe.consentText` (WS-386).** A subscribe action may carry its consent
+  sentence per locale (`{ 'en-US': '… {shop} …' }`), validated like Core: locale tags, at most 500
+  characters each, plain text (no `<`, `>` or control characters), at least one locale when the key is
+  present. Left out, Core fills in its platform default on create, so existing seeds keep working.
+
+- **Form seed field types `number` and `url` (WS-386).** `validateFormSeeds` and
+  `ManifestFormSeedFieldType` list every type Core accepts: `text`, `email`, `phone`, `textarea`,
+  `select`, `checkbox`, `consent`, `number`, `url`. `number` and `url` take `validation` like `text`.
+
+- **`formSeeds` cannot reference an email template (WS-386).** Core now refuses a form action that
+  would send anything but a form design or the organisation's own custom template. A seed's
+  `notify`/`confirm` are flags and `subscribe` takes only `{ list }`, so a seed can only ever use the
+  platform form designs; `validateFormSeeds` rejects a `templateRef` (object in place of a flag, or an
+  unknown key) as a scan error. No behaviour change for valid seeds; the starter's seeds are unaffected.
+- **`formSeeds`: the forms a site starts with (WS-386).** A new `eldra.formSeeds` option (and
+  `ScanOptions.formSeeds`) declares up to eight forms, `{ key, name, fields, actions, success }`, with a
+  label per locale on every field. `validateFormSeeds` (exported) refuses what Core refuses — a key
+  outside `^[a-z][a-z0-9-]{0,39}$` or the reserved `subscriptions`, duplicate keys or field ids, an
+  unknown field type, a `select` with no options, a bad `pattern`, `confirm`/`subscribe` without an
+  email field, an unknown key at any level — as scan errors. The manifest carries `formSeeds` only when
+  the theme declares some, so a theme that seeds none emits the manifest it always has. New types
+  `ManifestFormSeed`, `ManifestFormSeedField`, `ManifestFormSeedFieldType`, `DeclaredFormSeed`.
+  Needs a Core whose manifest ingest accepts `formSeeds` (contract 4.4.0).
 - **Breaking:** a theme must declare its id in `package.json` under `eldra.themeId`
   (`^[a-z][a-z0-9-]{1,48}$`, `catalog` reserved). The scanner emits it as `manifest.theme.id` and
   `manifestVersion` is now `2` (`ThemeManifest.manifestVersion: 2`, `theme.id: string`). A missing

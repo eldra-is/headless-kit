@@ -9,7 +9,9 @@ module.exports = [
     name: '@eldrajs/sdk — createEldraClient',
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
-    limit: '3.5 kB',
+    // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
+    // about 0.2 kB brotlied, and the client is one object, so an unused method is not shaken out.
+    limit: '3.75 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -92,7 +94,8 @@ module.exports = [
   {
     name: '@eldrajs/theme-core — everything',
     path: 'packages/theme-core/dist/index.js',
-    limit: '29 kB',
+    // SEO, sitemap, structured data, forms and analytics (WS-382–WS-387); storefronts tree-shake what they skip.
+    limit: '32 kB',
   },
   {
     name: '@eldrajs/theme-core — overlay runtime',

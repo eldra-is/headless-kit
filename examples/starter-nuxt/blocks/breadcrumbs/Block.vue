@@ -266,6 +266,7 @@ watchEffect(() => {
           :keep-last="2"
           :link-as="linkAs"
           :classes="currentClasses"
+          :structured-data="false"
         />
       </div>
     </Container>

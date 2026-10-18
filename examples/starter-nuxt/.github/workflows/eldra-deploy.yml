@@ -17,6 +17,8 @@ jobs:
         env:
           ELDRA_GATEWAY_URL: ${{ vars.ELDRA_GATEWAY_URL }}
           ELDRA_ORG_ID: ${{ vars.ELDRA_ORG_ID }}
+          # A build is production unless ELDRA_BUILD_TARGET=preview, so none is set here.
+          ELDRA_SITE_URL: ${{ vars.ELDRA_SITE_URL }}
       - run: pnpm exec eldra-theme deploy
         env:
           ELDRA_API_URL: ${{ vars.ELDRA_API_URL }}

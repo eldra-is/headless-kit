@@ -173,7 +173,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   controls come from `@eldrajs/ui` (a real dependency, restyled through the `--eldra-*` tokens,
   never forked); everything else is copied source the customer owns — `app/components/ui/` is down
   to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
-  matching `@eldrajs/ui` component). **34 blocks** ship under `blocks/`, `block.json`'s `category`
+  matching `@eldrajs/ui` component). **35 blocks** ship under `blocks/`, `block.json`'s `category`
   grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
   full set); nine hand-authored sample pages, `pages/*.page.json`
   (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has, with
@@ -259,6 +259,10 @@ manifest in, generated artifact out.
   merchant's own edits are never overwritten. See [Seeding default templates and
   pages](docs/themes.md#seeding-default-templates-and-pages) and
   [Reusable page components](docs/theme-reusable-components.md).
+- **`formSeeds`** — the forms a site starts with (at most 8): `{ key, name, fields, actions, success }`,
+  each field with a label per locale. Core creates one only when its key is absent and refreshes an
+  unedited one on a version bump, so a merchant's edits win (`ManifestFormSeed`; validated by
+  `validateFormSeeds`). See [Forms](docs/themes.md#forms).
 - **`tokens`** — the theme's own `tokens.json`, normalized into `--eldra-color-*` /
   `--eldra-container-*` CSS variables. Studio's site settings can override any token marked
   `allowSiteOverride`, live, with no redeploy of the theme's code — but a **deployed** (prerendered)
@@ -311,6 +315,19 @@ another down (a currency the gateway will not give up must not cost the site its
 with no `ELDRA_GATEWAY_URL`/`ELDRA_ORG_ID` configured still produces the static shell a scaffold
 build is for. See `readStoreCommerce`/`readStoreLocales`/`readThemeMessages`/`readDesignTokens` and
 their own `*_WARNING` constants for the exact wording each prints.
+
+Form definitions follow the same rule: every key in `eldra.formSeeds` and `eldra.forms` is read
+(`GET /site/v1/forms/{key}`, `readFormDefinitions`) once per build, each key independently, and baked into
+`runtimeConfig.public.eldra.forms`; a key that fails is left out with one warning and the storefront
+fetches it when the page opens.
+
+Three more follow the same rule: site icons (`GET /site/v1/site-icons`), the SEO setting
+(`GET /site/v1/seo`) and, on a **production** build only, the crawl settings (`GET /site/v1/crawl`:
+the site's production URL and the merchant's `robots.txt` lines, `readCrawlSettings`). The crawl
+settings feed `robots.txt` and `sitemap.xml`, which `module.ts` writes on nitro's `prerender:done`/
+`compiled` from the routes the `prerender:routes` hook collected (`./runtime/crawlOutput.ts`; pure
+builders in `@eldrajs/theme-core`'s `sitemap.ts`). A preview build writes `Disallow: /` and no
+sitemap; a file of the same name in the theme's own `public/` is never replaced.
 
 ### Virtual modules
 

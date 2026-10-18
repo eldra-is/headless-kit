@@ -1,4 +1,6 @@
 import { nextTick, reactive, ref, watch, type Ref } from 'vue';
+import { starterFormSeeds } from '../formSeeds';
+import { localizeFormDefinition } from './forms';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
@@ -25,6 +27,7 @@ import type {
   StorefrontCollectionSelector,
   StorefrontCommerce,
   StorefrontForms,
+  StorefrontFormSubmitResult,
   StorefrontMedia,
   StorefrontOrder,
   StorefrontOrderStatus,
@@ -1129,7 +1132,10 @@ export interface DemoStorefrontOptions {
   query?: string;
   collectionHandle?: string;
   productHandle?: string;
+  /** Makes `forms.submit` (and `catalog.notifyBackInStock`) fail, for the "service is down" states. */
   failForms?: boolean;
+  /** The locale the demo forms are written in; `en-US` by default. */
+  formLocale?: string;
   /** Seeds the cart with these lines, e.g. `DEMO_CART_LINES` — the demo cart is empty otherwise. */
   cartLines?: StorefrontCartLine[];
   /** Seeds `route.sort` — restores `collection-grid`'s sort choice the way a shared URL would. */
@@ -1292,8 +1298,48 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
   };
 
   const forms: StorefrontForms = {
-    subscribe: () => ack(),
-    sendMessage: () => ack(),
+    definition: (key) =>
+      createDemoResult([key], () => {
+        const seed = starterFormSeeds().find((candidate) => candidate.key === key.value);
+        if (seed === undefined) return null;
+        return localizeFormDefinition(
+          {
+            key: seed.key,
+            name: seed.name,
+            fields: seed.fields,
+            honeypotField: 'website',
+            turnstileSiteKey: null,
+            success: seed.success,
+            kinds: [
+              'store',
+              ...(seed.actions.notify ? (['notify'] as const) : []),
+              ...(seed.actions.subscribe ? (['subscribe'] as const) : []),
+            ],
+            // The platform fills `{shop}` in before it answers; the demo store is Northwind Goods.
+            ...(seed.actions.subscribe?.consentText
+              ? {
+                  consentText: Object.fromEntries(
+                    Object.entries(seed.actions.subscribe.consentText).map(([locale, text]) => [
+                      locale,
+                      text.replaceAll('{shop}', 'Northwind Goods'),
+                    ])
+                  ),
+                }
+              : {}),
+          },
+          options.formLocale ?? 'en-US'
+        );
+      }),
+    // Always succeeds, like the demo's other writes; a spec that needs a refusal replaces `submit`.
+    submit: async (key): Promise<StorefrontFormSubmitResult> => {
+      await nextTick();
+      if (options.failForms) return { ok: false, reason: 'unavailable' };
+      return {
+        ok: true,
+        pending:
+          starterFormSeeds().find((seed) => seed.key === key)?.actions.subscribe !== undefined,
+      };
+    },
   };
 
   return {

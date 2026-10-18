@@ -1,6 +1,6 @@
 import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
-import { createEldraClient, type EldraRetryOptions } from '@eldrajs/sdk';
+import { createEldraClient, type EldraFormDefinition, type EldraRetryOptions } from '@eldrajs/sdk';
 import {
   STOREFRONT_KEY,
   type StorefrontRoute,
@@ -13,6 +13,7 @@ import {
   type StorefrontPrerenderHandle,
   type StorefrontRuntime,
 } from '../storefront/gateway';
+import { withAnalytics } from '../storefront/analytics';
 import { createVolatileRefresher } from '../storefront/refresh';
 import {
   prerenderThroughAsyncData,
@@ -172,6 +173,7 @@ export default defineNuxtPlugin({
         orgId?: string;
         commerce?: unknown;
         retry?: EldraRetryOptions | null;
+        forms?: Record<string, EldraFormDefinition> | '';
       };
       formsEndpoint?: string;
     };
@@ -280,9 +282,24 @@ export default defineNuxtPlugin({
           ? undefined
           : activeLocale.active,
       formsEndpoint: publicConfig.formsEndpoint,
+      // The form definitions the build baked (`@eldrajs/theme-nuxt`'s `forms` read); a form the
+      // build could not read, or the merchant made after it, is fetched when the page opens.
+      formDefinitions:
+        typeof publicConfig.eldra?.forms === 'object' ? publicConfig.eldra.forms : undefined,
+      // The default locale included: a submission always says which language it was written in,
+      // where `locale` above is `undefined` for it so catalogue reads keep their old keys.
+      formLocale: () => activeLocale.active ?? activeLocale.defaultLocale ?? undefined,
       runtime,
     });
 
-    nuxtApp.vueApp.provide(STOREFRONT_KEY, source);
+    // Commerce events (`app/storefront/analytics.ts`) go through the tracker `@eldrajs/theme-nuxt`
+    // loads on a deployed site; everywhere else (dev, preview, no organisation, opted out)
+    // `enabled` is false and the source is provided untouched. The unwrapped `source` stays the one
+    // the refresher above reads.
+    const analytics = useEldraAnalytics();
+    nuxtApp.vueApp.provide(
+      STOREFRONT_KEY,
+      analytics.enabled ? withAnalytics(source, analytics.track) : source
+    );
   },
 });

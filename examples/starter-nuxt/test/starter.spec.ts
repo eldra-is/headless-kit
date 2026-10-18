@@ -8,6 +8,7 @@ import { execa } from 'execa';
 import { scanTheme } from '@eldrajs/vite-plugin-theme/scan';
 import { encodeStega } from '@eldrajs/theme-core/stega';
 import { safeHref } from '../app/utils/links';
+import { starterFormSeeds } from '../app/formSeeds';
 import { starterSeeds, starterTemplateRoles, stripSeedMedia } from '../app/templates';
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
@@ -35,6 +36,7 @@ const expectedBlocks = [
   'faq',
   'feature-grid',
   'footer',
+  'form',
   'gallery',
   'hero',
   'image',
@@ -102,7 +104,7 @@ describe('starter theme', () => {
       ])
     );
     const expectedFields: Record<string, string[]> = {
-      // Every one of the 34 blocks has its field list here — the map used to cover 31, leaving
+      // Every one of the 35 blocks has its field list here — the map used to cover 31, leaving
       // `announcement-bar` and `newsletter` with only the manifest version rule behind a field
       // rename or reorder, not the explicit list every sibling block has.
       'announcement-bar': ['variant', 'message', 'linkLabel', 'linkHref', 'dismissable'],
@@ -118,7 +120,17 @@ describe('starter theme', () => {
         'consentCheckboxLabel',
         'successTitle',
         'successText',
-        'list',
+        'formKey',
+        'sectionBackground',
+      ],
+      form: [
+        'preset',
+        'formKey',
+        'heading',
+        'text',
+        'buttonLabel',
+        'consent',
+        'successTitle',
         'sectionBackground',
       ],
       hero: [
@@ -297,7 +309,6 @@ describe('starter theme', () => {
         'formTitle',
         'topics',
         'showOrderNumber',
-        'recipient',
         'successText',
       ],
       'video-embed': [
@@ -875,6 +886,8 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     // page seeds in one list, exactly as `eldra.templates` takes them.
     templates: starterSeeds(),
     templateRoles: starterTemplateRoles(),
+    // What `nuxt.config.ts` passes as `eldra.formSeeds`.
+    formSeeds: starterFormSeeds(),
   });
 
   /** The blocks of one `pages/<name>.page.json` fixture in order, minus the two role blocks. */
@@ -886,6 +899,31 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     ).blocks
       .filter((block) => block.apiId !== 'navigation' && block.apiId !== 'footer')
       .map((block) => `${block.apiId}#${block.id}`);
+
+  /**
+   * The forms the blocks submit to must exist on a fresh site: `contact` (the contact block) and
+   * `newsletter` (the newsletter block's default and the footer's sign-up zone). A block that
+   * names a form no seed creates renders "this form can't be shown" until a merchant builds it.
+   */
+  it('seeds the contact and newsletter forms the starter blocks submit to', () => {
+    expect(scanned.errors).toEqual([]);
+    const forms = scanned.manifest!.formSeeds!;
+    expect(forms.map((form) => form.key)).toEqual(['contact', 'newsletter']);
+    // The newsletter carries its consent sentence in both shipped locales, with the shop placeholder.
+    expect(forms[1]!.actions.subscribe?.list).toBe('newsletter');
+    expect(Object.keys(forms[1]!.actions.subscribe?.consentText ?? {})).toEqual(['en-US', 'is-IS']);
+    for (const text of Object.values(forms[1]!.actions.subscribe?.consentText ?? {})) {
+      expect(text).toContain('{shop}');
+    }
+    // The contact block sends exactly these values (`blocks/contact/Block.vue`).
+    expect(forms[0]!.fields.map((field) => field.id)).toEqual([
+      'name',
+      'email',
+      'topic',
+      'orderNumber',
+      'message',
+    ]);
+  });
 
   /**
    * The emitted page-seed wire shape, which Core decodes strictly — an unknown key fails the whole

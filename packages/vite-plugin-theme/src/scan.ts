@@ -15,6 +15,7 @@ import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
 import { checkSeedData } from './seedData';
+import { validateFormSeeds } from './formSeeds';
 import { validatePageSeeds, validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
@@ -199,6 +200,7 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     templateRoles,
     errors
   );
+  const formSeeds = validateFormSeeds(opts.formSeeds, errors);
   // The theme's own i18n message catalogue, read beside tokens.json/blocks —
   // see readMessages. Absent (not computed to {}) when the theme ships no
   // i18n/ directory.
@@ -237,6 +239,8 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // it stays the `templates` entry it has always been, which Core maps to the
     // site's root Page itself.
     ...(pageSeeds.length === 0 ? {} : { pageSeeds }),
+    // Absent rather than empty for the same reason.
+    ...(formSeeds.length === 0 ? {} : { formSeeds }),
     tokens: readTokens(themeDir, errors),
     // Absent rather than empty when the theme ships no i18n/ directory, so a
     // theme that declares no texts keeps emitting the manifest shape an

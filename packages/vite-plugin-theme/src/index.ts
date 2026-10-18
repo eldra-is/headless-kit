@@ -1,5 +1,6 @@
 export { default } from './plugin';
 export { generateBlockTypes } from './blockTypes';
+export { validateFormSeeds } from './formSeeds';
 export {
   seedLayout,
   validatePageSeeds,
@@ -10,6 +11,7 @@ export type {
   BlockDefinition,
   BlockField,
   BlockMigration,
+  DeclaredFormSeed,
   DeclaredPageSeed,
   DeclaredPageSeedBlock,
   DeclaredPageSeedEntry,
@@ -19,6 +21,9 @@ export type {
   DeclaredTemplateSeedBlock,
   DeclaredThemeCodePage,
   EldraThemeOptions,
+  ManifestFormSeed,
+  ManifestFormSeedField,
+  ManifestFormSeedFieldType,
   ManifestPageSeed,
   ManifestPageSeedBlock,
   ManifestPageSeedEntry,

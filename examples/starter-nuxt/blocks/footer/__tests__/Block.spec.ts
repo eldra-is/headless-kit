@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EditorPlaceholder } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
@@ -8,11 +8,22 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
-import type { StorefrontCommerce, StorefrontForms } from '../../../app/storefront/types';
+import type {
+  StorefrontCommerce,
+  StorefrontFormSubmitResult,
+  StorefrontForms,
+} from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import { currencyLabel } from '../../../app/storefront/money';
 import enUS from '../../../i18n/en-US.json';
 import isIS from '../../../i18n/is-IS.json';
+import {
+  cleanUpTurnstile,
+  storefrontWithTurnstile,
+  stubTurnstile,
+} from '../../../test/support/turnstileForms';
+
+afterEach(cleanUpTurnstile);
 
 /**
  * `mock.json` names a collection or product by handle, because a theme cannot know an
@@ -67,7 +78,9 @@ function mountFooter(
   data: Record<string, unknown>,
   options: {
     failForms?: boolean;
-    subscribe?: StorefrontForms['subscribe'];
+    subscribe?: StorefrontForms['submit'];
+    /** Turn Cloudflare Turnstile on for the sign-up form (with `subscribe` as its submit). */
+    turnstile?: boolean;
     /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
     editing?: boolean;
     /** The content locale — `@eldrajs/ui`'s number locale follows it (`mountOptions`). */
@@ -99,12 +112,15 @@ function mountFooter(
     context.preview.active = true;
     context.preview.mode = 'edit';
   }
-  const storefront = options.subscribe
-    ? (() => {
-        const demo = createDemoStorefront();
-        return { ...demo, forms: { ...demo.forms, subscribe: options.subscribe! } };
-      })()
-    : undefined;
+  const storefront =
+    options.subscribe && options.turnstile
+      ? storefrontWithTurnstile(options.subscribe)
+      : options.subscribe
+        ? (() => {
+            const demo = createDemoStorefront();
+            return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
+          })()
+        : undefined;
   return mount(Block, {
     ...base,
     // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
@@ -303,6 +319,18 @@ describe('footer block', () => {
     expect(label.classes()).toContain('sr-only');
   });
 
+  it('shows the platform consent sentence under the sign-up button, tied to it with aria-describedby', async () => {
+    const wrapper = mountFooter(mock);
+    await flushPromises();
+    const sentence = wrapper.get('[data-part="consent-sentence"]');
+    expect(sentence.text()).toBe(
+      'I want to receive the newsletter from Northwind Goods. I can unsubscribe at any time.'
+    );
+    expect(wrapper.get('button[type="submit"]').attributes('aria-describedby')).toBe(
+      sentence.attributes('id')
+    );
+  });
+
   it('an invalid (malformed) email submit sets aria-invalid, shows the error linked by aria-describedby, and keeps focus in the field', async () => {
     const wrapper = mountFooter(mock);
     const input = wrapper.find('input[type="email"]');
@@ -330,7 +358,7 @@ describe('footer block', () => {
     expect(wrapper.text()).toContain(enUS.footer.emailInvalid);
   });
 
-  it('a valid submit calls forms.subscribe and announces success through role="status"', async () => {
+  it('a valid submit calls forms.submit and announces success through role="status"', async () => {
     const wrapper = mountFooter(mock);
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
@@ -343,6 +371,30 @@ describe('footer block', () => {
     // The form is replaced, not merely supplemented, by the success line (spec: "the form is
     // replaced by a status line").
     expect(wrapper.find('form').exists()).toBe(false);
+  });
+
+  it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
+    const turnstile = stubTurnstile();
+    const subscribe = vi.fn(async () => ({ ok: true as const, pending: false }));
+    const wrapper = mountFooter(mock, { subscribe, turnstile: true });
+    await flushPromises();
+    expect(turnstile.render).toHaveBeenCalledOnce();
+
+    await wrapper.find('input[type="email"]').setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain(enUS.form.turnstileRequired);
+
+    turnstile.solve('token-1');
+    await wrapper.find('input[name="website"]').setValue('bot');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).toHaveBeenCalledWith('newsletter', {
+      values: { email: 'reader@example.com' },
+      turnstileToken: 'token-1',
+      hp: 'bot',
+    });
   });
 
   it('a subscribe failure (backend ok:false) shows an error and keeps focus in the field', async () => {
@@ -367,8 +419,11 @@ describe('footer block', () => {
     // removing `@invalid="onNewsletterInvalid"` (or `retryable.value = serviceFailed` in
     // `onNewsletterSubmit`) makes `subscribe` stay called once and the field stay marked invalid
     // forever — confirmed by temporarily reverting each change and observing this test fail.
-    const results = [{ ok: false as const, reason: 'failed' as const }, { ok: true as const }];
-    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const });
+    const results: StorefrontFormSubmitResult[] = [
+      { ok: false, reason: 'unavailable' },
+      { ok: true, pending: true },
+    ];
+    const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const, pending: true });
     const wrapper = mountFooter(mock, { subscribe });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
@@ -383,9 +438,8 @@ describe('footer block', () => {
     await flushPromises();
 
     expect(subscribe).toHaveBeenCalledTimes(2);
-    expect(subscribe).toHaveBeenLastCalledWith({
-      email: 'reader@example.com',
-      list: 'footer-newsletter',
+    expect(subscribe).toHaveBeenLastCalledWith('newsletter', {
+      values: { email: 'reader@example.com' },
     });
     expect(wrapper.find('form').exists()).toBe(false);
     expect(wrapper.find('[role="status"]').text()).toContain(enUS.footer.subscribed);
@@ -393,7 +447,7 @@ describe('footer block', () => {
 
   it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message (not the retryable one)', async () => {
     const wrapper = mountFooter(mock, {
-      subscribe: async () => ({ ok: false, reason: 'invalid' }),
+      subscribe: async () => ({ ok: false, reason: 'invalid', errors: {}, form: [] }),
     });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');

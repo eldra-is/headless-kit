@@ -179,6 +179,28 @@ export interface StorefrontProduct extends StorefrontProductListItem {
    */
   inventory: number | null;
   shipsBy?: string | null;
+  /**
+   * The product's brand, when the platform carries one (`brand` on the public product read). Read
+   * by the page's structured data only; the page itself does not show it.
+   */
+  brand?: string | null;
+  /**
+   * **Every variant, with the price and stock the page's own variant resolves from** — what the
+   * page's structured data writes one offer per. Absent from a source that has no variants to
+   * list (the demo), where the structured data falls back to one offer from `price` and `stock`.
+   * `barcode` is the catalog's free text; the structured-data builder validates it as a GTIN.
+   */
+  variants?: StorefrontProductVariant[];
+}
+
+export interface StorefrontProductVariant {
+  sku: string;
+  barcode: string | null;
+  /** Major units, like every amount in this file. */
+  price: number;
+  compareAt: number | null;
+  /** `variantStock`'s four states for this variant: `out` for an unpublished one. */
+  stock: 'in' | 'low' | 'out' | 'preorder';
 }
 
 export interface StorefrontCollectionInfo {
@@ -717,9 +739,86 @@ export interface StorefrontCatalog {
   notifyBackInStock(input: { email: string; variantId: string }): Promise<StorefrontAck>;
 }
 
+/** The field types a form definition carries (the platform's `site/v1/forms` contract). */
+export type StorefrontFormFieldType =
+  | 'text'
+  | 'email'
+  | 'phone'
+  | 'textarea'
+  | 'select'
+  | 'checkbox'
+  | 'consent'
+  | 'number'
+  | 'url';
+
+/**
+ * A form field with its text already resolved to the active content locale (`pickLocalized` in
+ * `forms.ts`): a block renders strings, never a per-locale map.
+ */
+export interface StorefrontFormField {
+  /** The key of this field's value in a submission and of its messages in a `422`. */
+  id: string;
+  type: StorefrontFormFieldType;
+  required: boolean;
+  label: string;
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+  validation?: { minLength?: number; maxLength?: number; pattern?: string };
+}
+
+/** A form as the platform serves it (`GET /site/v1/forms/{key}`), localized for the page. */
+export interface StorefrontFormDefinition {
+  key: string;
+  name: string;
+  fields: StorefrontFormField[];
+  /** A field name a person never fills: render it off-screen and send its value as `hp`. */
+  honeypotField: string;
+  /** Cloudflare Turnstile site key; `null` when the merchant has not turned it on. */
+  turnstileSiteKey: string | null;
+  /** The merchant's confirmation text. */
+  successMessage: string;
+  /** Where to send the visitor after a success, or `null` to stay and show the message. */
+  successRedirect: string | null;
+  /**
+   * The consent sentence of a subscribing form, in the page's locale, `{shop}` already replaced.
+   * `''` when the form does not subscribe. Rendered as plain text beside the submit button.
+   */
+  consentText: string;
+}
+
+export interface StorefrontFormSubmitInput {
+  /** `fieldId` to the entered value; a checkbox is a boolean, every other type a string. */
+  values: Record<string, string | boolean>;
+  turnstileToken?: string;
+  /** The honeypot field's value. */
+  hp?: string;
+}
+
+/**
+ * What a submission came to. `invalid` carries the platform's own field-keyed messages (the
+ * `422` body), which a form shows inline under each field; every other failure is a reason the
+ * visitor can act on. `pending` on a success means a confirmation email (double opt-in) is on its
+ * way, so a block says "check your inbox" rather than "you're subscribed".
+ */
+export type StorefrontFormSubmitResult =
+  | { ok: true; pending: boolean }
+  | { ok: false; reason: 'invalid'; errors: Record<string, string[]>; form: string[] }
+  | { ok: false; reason: 'rate-limited' | 'too-large' | 'unavailable' | 'unsupported' };
+
 export interface StorefrontForms {
-  subscribe(i: { email: string; list: string }): Promise<StorefrontAck>;
-  sendMessage(i: Record<string, string>): Promise<StorefrontAck>;
+  /**
+   * The definition of the form `key` names, in the page's content locale. Baked into the site at
+   * build time when the build could read it (`@eldrajs/theme-nuxt`'s `forms` read); fetched when a
+   * visitor opens the page otherwise. `data` stays `null` for a key the platform does not know
+   * (`error` is then set), and a block renders nothing for it rather than an empty form.
+   */
+  definition(key: Ref<string>): StorefrontResult<StorefrontFormDefinition>;
+  /**
+   * Sends one submission. Never throws: a refusal is a `{ ok: false, reason }`. With the theme's
+   * `formsEndpoint` configured the submission goes there instead of the platform
+   * (`{ kind: 'form', key, values, locale, pagePath }` as JSON, any 2xx is a success).
+   */
+  submit(key: string, input: StorefrontFormSubmitInput): Promise<StorefrontFormSubmitResult>;
 }
 
 export interface StorefrontSearch {

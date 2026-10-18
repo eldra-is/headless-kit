@@ -50,6 +50,7 @@ const PAGE_BLOCK_UUID_OFFSET = 100;
 interface MockVariant {
   id: string;
   sku: string;
+  barcode?: string;
   price: number;
   compareAtPrice?: number;
   status: string;
@@ -64,6 +65,7 @@ interface MockProduct {
   minPrice: number;
   maxPrice: number;
   compareAtPrice?: number;
+  brand?: string;
   variants: MockVariant[];
 }
 
@@ -89,7 +91,19 @@ export const PRODUCT_HANDLE = 'ash-glaze-mug';
 export const COLLECTION_HANDLE = 'the-winter-edit';
 
 export const PRODUCTS: MockProduct[] = [
-  product(PRODUCT_HANDLE, 'Ash glaze mug', 42),
+  product(PRODUCT_HANDLE, 'Ash glaze mug', 42, {
+    brand: 'Northwind Ceramics',
+    variants: [
+      {
+        id: `var-${PRODUCT_HANDLE}`,
+        sku: PRODUCT_HANDLE.toUpperCase(),
+        // A valid EAN-13: the structured data writes it as `gtin`.
+        barcode: '4006381333931',
+        price: 42,
+        status: 'ACTIVE',
+      },
+    ],
+  }),
   product('cedar-serving-board', 'Cedar serving board', 68),
   product('flax-tea-towel', 'Flax tea towel', 24),
   product('stoneware-bowl', 'Stoneware bowl', 36),
@@ -220,6 +234,7 @@ const detailOf = (row: MockProduct): Record<string, unknown> => ({
   // already read. Both, with the same value, is what a live response looks like.
   primaryCategoryId: row.categoryId,
   categoryIds: [row.categoryId],
+  ...(row.brand === undefined ? {} : { brand: row.brand }),
   description: { text: `${row.title} — thrown by hand, glazed in ash.` },
   mediaLinks: [],
   options: [],
@@ -871,6 +886,19 @@ export function startMockGateway(
       // not ask for one. `client.checkout.url()` reads it to build the cart hand-off, which is the
       // one thing a restored cart asks for beyond the cart itself; without an answer here that
       // read is a 400 in the browser's console on every page with a cart in it.
+      // The site profile: the `Organization` structured data's name and links. Not org-scoped in
+      // the mock either, so a read without credentials is answered like one with.
+      if (url.pathname === '/site/v1/site-profile') {
+        answer({
+          revision: 1,
+          name: 'Northwind Goods',
+          logoUrl: null,
+          sameAs: ['https://social.example.test/northwind'],
+          contact: { email: 'hello@northwind.example.test', telephone: null },
+        });
+        return;
+      }
+
       if (url.pathname === '/platform/v1/config') {
         answer({ checkoutUrl: 'https://checkout.example' });
         return;

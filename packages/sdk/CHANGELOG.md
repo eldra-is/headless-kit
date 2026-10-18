@@ -9,6 +9,36 @@ platform repository.
 
 ## Unreleased
 
+- **`EldraFormDefinition.consentText` (WS-386, contract 4.13.0).** A form that subscribes the
+  visitor now publishes the consent sentence per locale, with the shop name already filled in
+  (`consentText?: EldraFormLocalized`, present only when `kinds` contains `subscribe`). Show it
+  beside the submit button as escaped plain text; the platform records it as the proof of consent
+  (followed by the labels of any ticked `consent` fields). No new submit field and no checkbox.
+
+- **Forms are gated by the `FORMS` feature, and mailed links go to the web gateway (WS-386,
+  contract 4.12.0).** `client.forms` no longer needs `PAGE_BUILDER`: the organisation's new `FORMS`
+  feature switches on form reads and submissions, so a headless app with no theme or page builder
+  can use them (its origin must be a registered storefront origin). The confirm and unsubscribe
+  links in form mails now point at the web gateway's own page rather than the storefront's domain;
+  nothing changes for `confirm(token)` and `unsubscribe(token)`. No SDK code change.
+
+- **`EldraFormFieldType` gains `number` and `url` (WS-386, contract 4.11.0).** The two types Core
+  accepts besides the earlier set from contract 4.11.0 on; both carry text the platform validates
+  (a finite number, with a decimal comma stored as a point, and an absolute http(s) URL).
+
+- **`client.forms.confirm(token)` and `unsubscribe(token)` POST (WS-386, contract 4.10.0).** The
+  emailed confirm and unsubscribe links no longer act on a `GET`: Core answers a `GET` with a small
+  HTML page whose button posts the token back, so a mail scanner that prefetches the link confirms
+  and unsubscribes nobody. The two methods now `POST` the same paths with the token in the query and
+  still resolve `{ status }`; confirming or unsubscribing twice is a success. Needs a gateway at
+  contract 4.10.0 or later (the `GET` JSON answer of 4.7.0 to 4.9.0, never released, is gone).
+- **`client.forms`: the site-forms API (WS-386).** `get(key)` reads a form definition,
+  `submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission and
+  `confirm(token)` / `unsubscribe(token)` finish a subscriber's emailed links. A `422` resolves as
+  `{ status: 'invalid', errors, form }` (field-keyed, ready for `apiErrors`) rather than throwing;
+  `404`, `413` and `429` reject with `EldraHttpError`. New types `EldraFormDefinition`,
+  `EldraFormField`, `EldraFormSubmitInput`, `EldraFormSubmitResult` and friends, hand-written like
+  `EldraPlatformConfig`. Needs a gateway at contract 4.4.0 or later.
 - **Icelandic formatting that prints the same on every runtime: `@eldrajs/sdk/format`.**
   `numberFormat`, `formatPrice` and `comparator`/`compareIcelandic`, plus `./format/date`,
   `./format/list`, `./format/relative-time` and `./format/display-names`. Icelandic and English come

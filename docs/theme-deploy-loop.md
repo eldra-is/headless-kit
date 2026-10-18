@@ -59,6 +59,31 @@ with the wrong `ELDRA_ORG_ID` still succeeds — it just builds against the wron
 content, locales and overrides, which is the thing to check first when a build "looks right" but
 reads like the wrong store.
 
+A **deploy build is a production build**, and production is the default: set `ELDRA_SITE_URL` (the
+public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow, GitLab
+job and Bitbucket pipeline already do (`ELDRA_SITE_URL` is a repository variable). Only
+`ELDRA_BUILD_TARGET=preview` makes a build `noindex` with no canonical or `og:url`; `nuxi dev` is
+always a preview. A local `nuxi generate` (or `nuxi build` with `nuxi preview`) is production too unless you set `ELDRA_BUILD_TARGET=preview`; the analytics tracker never loads on `localhost` or the `*.previews.eldra.dev` host either way. See [Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
+gets bare page titles.
+
+**Deploy prerequisite.** A pipeline needs `ELDRA_SITE_URL` when the production URL set in Studio is
+not the origin that deploy serves; without an absolute origin the home page's `Organization`/`WebSite`
+markup and every canonical are omitted. A build is production unless `ELDRA_BUILD_TARGET=preview`;
+a preview build is `noindex`, writes no JSON-LD (structured data follows `noindex`), loads no
+analytics tracker, and writes `robots.txt` `Disallow: /`. The platform's CI trigger passes only
+`ELDRA_TRIGGER_DEPLOYMENT_ID`, so the variables belong in your pipeline file (the starter's GitHub,
+GitLab and Bitbucket files carry `ELDRA_SITE_URL`). The preview host is kept out of indexes by site-deploy-worker's preview
+router at the edge (`withNoIndex` and `PREVIEW_ROBOTS_TXT` in `src/preview-router.ts`), not by the
+build target
+([details](theme-seo.md#the-preview-host-is-protected-by-the-edge-router)).
+
+The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`
+and no sitemap, a production build writes both from the prerendered routes. Without an absolute
+site URL (`ELDRA_SITE_URL`, else the production URL set on the site in Studio) a production build
+writes neither and prints one line. A `public/robots.txt` or `public/sitemap.xml` in the theme is
+kept and the generated one skipped. See [sitemap.xml, robots.txt and
+hreflang](theme-seo.md#sitemapxml-robotstxt-and-hreflang).
+
 `nuxi generate` writes the manifest the scan produced to `.eldra/manifest.json` inside the build
 output — `eldra-theme deploy` reads that exact file, not a fresh scan, so what you deploy is what
 you generated, byte for byte.
@@ -134,6 +159,22 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
   token); a token is site-scoped and revocable independently of any other credential.
 - **`deploy rate limit hit`** — wait and retry; this is a platform-side throttle, not a build defect.
 
+### Redirects
+
+`nuxi generate` also reads the site's redirect rules (`GET /site/v1/redirects`, managed in Studio)
+and writes them into the static output's `_redirects`: the platform's rules first, between
+`# BEGIN/END eldra platform redirects` markers, then the theme's own `public/_redirects` (minus any rule matching the manifest path, see below).
+A rule with `applyToLocales` is expanded here into one rule per prefixed locale (the unprefixed
+rule is the default locale), exact rules before wildcards (longest first). Cloudflare Pages allows
+2,000 static and 100 wildcard rules per site; the theme's own count first, the locale expansion
+counts, and anything over a cap is dropped with one warning. The read is fail-soft (one warning,
+and the theme's own `_redirects` ships as it is, apart from that drop).
+
+A rule, the platform's or the theme's, whose source would match `/.eldra/manifest.json` (a catch-all
+such as `/* /index.html 200`, `/.eldra/*`, `/:a/:b`) is dropped with one warning naming it: the
+deploy validator rejects any artifact whose `_redirects` matches the manifest path, so one such
+line would fail every deploy. The match is the validator's: `*` matches anything, `:name` one segment.
+
 ## 5. Publish-triggered rebuilds
 
 Everything above is what your CI pipeline runs on every push. The loop closes the other way too:
@@ -165,4 +206,6 @@ completes the deployment it already created rather than opening a duplicate.
   "theme content compatibility requires confirmation".
 - [Design tokens](theme-design-tokens.md) and [Theme texts](theme-texts.md) — what Studio can
   override and how an override reaches a deployed (not just previewed) site.
+- [Page titles and SEO metadata](theme-seo.md) — `useEldraSeo`, the title patterns and which builds are
+  indexed.
 - `packages/theme-cli/README.md` — the CLI's own command summary.

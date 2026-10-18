@@ -13,9 +13,6 @@ before picking one up so the shape can be agreed first.
   others, and computes the default selection from the product data alone so server and browser
   render the same; every storefront writes this today, and a picker that emits its default from a
   child's setup causes a hydration mismatch in Nuxt — the guide states both rules.
-- **Product structured data.** A helper that builds schema.org `Product` / `Offer` JSON-LD from a
-  public product (price, sale price from `compareAtPrice`, availability, one offer per variant),
-  so search engines can show a product page as a product; plus a paragraph in the storefront guide.
 - **A codegen CLI.** The generator behind the `eldra()` Vite plugin as a command, so Next,
   SvelteKit, Angular and plain Node projects get `.eldra/web-studio/` without Vite; the plugin then
   becomes a thin wrapper over it rather than a second implementation.

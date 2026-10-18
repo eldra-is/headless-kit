@@ -1,8 +1,19 @@
 import { onWatcherCleanup, ref, watch, type Ref } from 'vue';
-import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sdk';
+import {
+  createCartSession,
+  EldraHttpError,
+  type EldraClient,
+  type EldraFormDefinition,
+} from '@eldrajs/sdk';
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
+import {
+  localizeFormDefinition,
+  postToFormsEndpoint,
+  submitFailure,
+  toSubmitResult,
+} from './forms';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
@@ -51,9 +62,10 @@ import type {
  * generated *test* fixture never imported here) — the same thing a real customer theme has to do
  * before its own `eldra()` Vite plugin has generated a contract against their tenant.
  *
- * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint
- * today: this posts to `options.formsEndpoint` when the plugin configured one, and resolves
- * `{ ok: false, reason: 'unsupported' }` otherwise.
+ * `catalog.notifyBackInStock` has no gateway endpoint today: this posts to `options.formsEndpoint`
+ * when the plugin configured one, and resolves `{ ok: false, reason: 'unsupported' }` otherwise.
+ * Forms are the platform's own (`client.forms`, `GET /site/v1/forms/{key}`); `formsEndpoint` only
+ * overrides where a *submission* goes.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -189,6 +201,8 @@ interface RawProductOption {
 interface RawProductVariant {
   id: string;
   sku: string;
+  /** Free text; the structured data validates it as a GTIN before it writes one. */
+  barcode?: string | null;
   price: number;
   compareAtPrice?: number;
   status: string;
@@ -223,6 +237,8 @@ interface RawProductDetails {
    * knows the response carries it rather than inferring the catalogue only ever assigns one.
    */
   categoryIds?: string[] | null;
+  /** Per-product brand, for `Product.brand` in the structured data. */
+  brand?: string | null;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -584,6 +600,16 @@ function mapProductDetails(
       ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
       : null,
     stock: variantStock(firstAvailable, stock),
+    brand: raw.brand?.trim() || null,
+    // Each variant's own price and stock state, for the page's structured data: the same
+    // `variantStock` rule the buy box's line uses, so the markup and the page cannot disagree.
+    variants: variants.map((variant) => ({
+      sku: variant.sku,
+      barcode: variant.barcode ?? null,
+      price: variant.price,
+      compareAt: variant.compareAtPrice ?? null,
+      stock: variantStock(variant, stock),
+    })),
     available: raw.status === 'ACTIVE',
     productId: raw.id,
     // The variant an add would send, paired with `productId` above: the cart service looks the two
@@ -1869,7 +1895,24 @@ async function detailSnapshots(
 
 export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
+  /**
+   * Overrides where form submissions go (`forms.submit`); see `postToFormsEndpoint`. Form
+   * definitions still come from the platform. Also the endpoint `catalog.notifyBackInStock` posts to.
+   */
   formsEndpoint?: string;
+  /**
+   * The form definitions the build baked (`@eldrajs/theme-nuxt`, `eldra.forms` in the runtime
+   * config), by form key. A key found here is the first paint (and the prerendered HTML); the
+   * browser then re-reads it live, because the platform serves definitions with no rebuild. Any
+   * other key is fetched.
+   */
+  formDefinitions?: Record<string, EldraFormDefinition>;
+  /**
+   * The locale a submission reports and a definition's text resolves to: the page's active content
+   * locale, the default locale included (unlike `locale`, which is `undefined` there so reads keep
+   * their pre-locale keys). Omitted — a story, a spec — `en-US`.
+   */
+  formLocale?: () => string | undefined;
   /**
    * What the store sells in (`StorefrontCommerce`) — the platform's own answer, which only the app
    * layer can read (`app/plugins/eldra-storefront.ts`, off the runtime config). Omitted — a
@@ -2235,10 +2278,73 @@ export function createGatewayStorefront(
       ),
   };
 
+  const formLocale = (): string => options.formLocale?.() ?? locale?.() ?? 'en-US';
   const forms: StorefrontForms = {
-    subscribe: (input) => postToEndpoint(options.formsEndpoint, { kind: 'subscribe', ...input }),
-    sendMessage: (input) =>
-      postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
+    definition: (key) => {
+      const result = createGatewayResult(
+        [key],
+        async (signal) => {
+          // Re-resolved against the page's locale on every read, so a language switch relabels a
+          // baked definition too: only the platform's per-locale maps are baked, never one language.
+          if (key.value === '') return null;
+          const raw =
+            options.formDefinitions?.[key.value] ??
+            (await rawClient.forms.get(key.value, { signal }));
+          return localizeFormDefinition(raw, formLocale());
+        },
+        { method: 'forms.definition', runtime, locale: () => formLocale() }
+      );
+      // The platform serves a definition live (`GET /site/v1/forms/{key}`, no rebuild when a
+      // merchant edits a form), so the baked copy is only the first paint: once the page is open
+      // in a browser the live definition replaces it, which is what makes a field added in Studio
+      // render, and what turns the spam-check widget on when Turnstile was enabled after the
+      // build. A failed read keeps the baked definition on screen.
+      if (typeof window !== 'undefined' && options.formDefinitions !== undefined) {
+        let generation = 0;
+        const revalidate = async (): Promise<void> => {
+          const requested = key.value;
+          if (requested === '' || options.formDefinitions?.[requested] === undefined) return;
+          generation += 1;
+          const mine = generation;
+          try {
+            const raw = await rawClient.forms.get(requested);
+            if (mine !== generation || key.value !== requested) return;
+            result.data.value = localizeFormDefinition(raw, formLocale());
+          } catch {
+            // Offline, a transient 5xx, or a type this theme cannot render: keep what is shown.
+          }
+        };
+        void revalidate();
+        watch(key, () => void revalidate());
+      }
+      return result;
+    },
+    submit: async (key, input) => {
+      const pagePath = typeof location === 'undefined' ? '/' : location.pathname;
+      if (options.formsEndpoint) {
+        return postToFormsEndpoint(options.formsEndpoint, {
+          key,
+          values: input.values,
+          locale: formLocale(),
+          pagePath,
+          ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+          ...(input.hp ? { hp: input.hp } : {}),
+        });
+      }
+      try {
+        return toSubmitResult(
+          await rawClient.forms.submit(key, {
+            values: input.values,
+            locale: formLocale(),
+            pagePath,
+            ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+            ...(input.hp ? { hp: input.hp } : {}),
+          })
+        );
+      } catch (error) {
+        return submitFailure(error);
+      }
+    },
   };
 
   return {

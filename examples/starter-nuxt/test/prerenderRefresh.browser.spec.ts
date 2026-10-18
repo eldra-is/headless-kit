@@ -395,7 +395,7 @@ describe('prerendered commerce data on the generated static site', () => {
     );
     const generated = await execa(nuxi, ['generate'], {
       cwd: root,
-      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID },
+      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID, ELDRA_BUILD_TARGET: 'preview' },
       reject: false,
       timeout: 600_000,
     });
@@ -1017,6 +1017,10 @@ describe('prerendered commerce data on the generated static site', () => {
       'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
       'storefront:catalog.related:["ash-glaze-mug",8]',
+      // The footer's sign-up spam guard (`useFormSpam`): a footer with no newsletter zone names no
+      // form, so the read is keyed `""`, resolves `null` without a request and is in the payload
+      // because it exists.
+      'storefront:forms.definition:["","en-US"]',
       'storefront:search.run:[""]',
     ]);
   });

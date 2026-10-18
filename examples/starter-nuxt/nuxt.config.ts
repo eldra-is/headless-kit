@@ -2,6 +2,7 @@ import { existsSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
+import { starterFormSeeds } from './app/formSeeds';
 import { starterSeeds, starterTemplateRoles } from './app/templates';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
@@ -135,6 +136,11 @@ export default defineNuxtConfig({
     // header and one footer.
     templates: starterSeeds(),
     templateRoles: starterTemplateRoles(),
+    // The forms Core creates on the first deploy (only when their key is absent, and never over a
+    // merchant's own edits): `contact` and `newsletter`, which the `contact`, `newsletter`,
+    // `footer` and `form` blocks submit to. The build also reads each one's definition from the
+    // platform and bakes it into the site (`app/formSeeds.ts`, "Forms" in `docs/starter-kit.md`).
+    formSeeds: starterFormSeeds(),
   },
   typescript: {
     tsConfig: {

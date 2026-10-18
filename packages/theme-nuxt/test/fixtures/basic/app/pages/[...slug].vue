@@ -1,8 +1,63 @@
 <script setup lang="ts">
+import {
+  buildBreadcrumbLd,
+  buildOrganizationLd,
+  buildWebSiteLd,
+  type SeoEntryValue,
+} from '@eldrajs/theme-core';
 import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
   useEldraPage();
+
+// The SEO head (`useEldraSeo`): the generate test reads the tags it writes.
+const route = useRoute();
+const isHome = () => route.path.replace(/\/+$/, '') === '';
+const seo = useEldraSeo(
+  () => (isHome() ? 'home' : 'page'),
+  () => ({ 'page.title': String((template.value ?? page.value)?.data?.title ?? '') }),
+  () => ({ entry: (template.value ?? page.value)?.data?.seo as SeoEntryValue | undefined })
+);
+
+// The structured data (`useStructuredData`): the generate test reads the script it writes.
+const profile = useSiteProfile();
+useStructuredData(
+  () => {
+    if (profile.siteUrl === '') return [];
+    if (isHome()) {
+      return [
+        {
+          type: 'organization' as const,
+          node: buildOrganizationLd({
+            name: profile.name,
+            url: profile.siteUrl,
+            logo: profile.logoUrl,
+            sameAs: profile.sameAs,
+            contact: profile.contact,
+          }),
+        },
+        {
+          type: 'website' as const,
+          node: buildWebSiteLd({ name: profile.name, url: profile.siteUrl, searchPath: '/search' }),
+        },
+      ];
+    }
+    return [
+      {
+        type: 'breadcrumb' as const,
+        node: buildBreadcrumbLd([
+          { name: 'Home', url: `${profile.siteUrl}/` },
+          {
+            name: String((template.value ?? page.value)?.data?.title ?? ''),
+            url: seo.value.canonical ?? '',
+          },
+        ]),
+      },
+    ];
+  },
+  // A page kept out of the index carries no markup either.
+  { enabled: () => !seo.value.noindex }
+);
 </script>
 
 <template>

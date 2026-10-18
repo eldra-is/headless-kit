@@ -12,6 +12,10 @@ import type {
   EldraCmsResolveEntryListOptions,
   EldraFeature,
   EldraFeatureCapabilities,
+  EldraFormDefinition,
+  EldraFormSubmitInput,
+  EldraFormSubmitResult,
+  EldraFormTokenResult,
   EldraHttpClient,
   EldraHttpRequest,
   EldraOrganizationDetails,
@@ -421,6 +425,51 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
     platform: {
       config: (readOptions?: EldraPlatformReadOptions) => readPlatformConfig(readOptions),
     },
+    forms: {
+      get: (key: string, context?: EldraRequestContext) =>
+        request<EldraFormDefinition>({
+          ...context,
+          path: `/site/v1/forms/${encodeURIComponent(key)}`,
+        }),
+      submit: async (
+        key: string,
+        input: EldraFormSubmitInput,
+        context?: EldraRequestContext
+      ): Promise<EldraFormSubmitResult> => {
+        try {
+          const answer = await request<unknown>({
+            ...context,
+            method: 'POST',
+            path: `/site/v1/forms/${encodeURIComponent(key)}/submissions`,
+            body: input,
+          });
+          const pending =
+            typeof answer === 'object' && answer !== null && 'pending' in answer
+              ? (answer as { pending?: unknown }).pending === true
+              : false;
+          return { status: 'ok', pending };
+        } catch (error) {
+          if (error instanceof EldraHttpError && error.status === 422) {
+            return toFormInvalid(error.body);
+          }
+          throw error;
+        }
+      },
+      confirm: (token: string, context?: EldraRequestContext) =>
+        request<EldraFormTokenResult>({
+          ...context,
+          method: 'POST',
+          path: '/site/v1/forms/subscriptions/confirm',
+          query: { token },
+        }),
+      unsubscribe: (token: string, context?: EldraRequestContext) =>
+        request<EldraFormTokenResult>({
+          ...context,
+          method: 'POST',
+          path: '/site/v1/forms/subscriptions/unsubscribe',
+          query: { token },
+        }),
+    },
     checkout: {
       url: async (handoff: EldraCheckoutUrlOptions, readOptions?: EldraPlatformReadOptions) => {
         // The platform hosts checkout; where it hosts it is the platform's answer to give, so this
@@ -614,6 +663,26 @@ function resolveEntryListBody(entryList: EldraCmsEntryList): object {
     orderBy: entryList.orderBy,
     pageSize: entryList.pageSize,
   };
+}
+
+/**
+ * A `422` body, narrowed to the field-keyed shape. Anything that is not a string array under a key
+ * is dropped rather than guessed at, so a malformed body still reads as "invalid" with no messages
+ * (the caller shows its own generic line) instead of throwing a TypeError at the visitor.
+ */
+function toFormInvalid(body: unknown): Extract<EldraFormSubmitResult, { status: 'invalid' }> {
+  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+  const errors: Record<string, string[]> = {};
+  const rawErrors = record.errors;
+  if (typeof rawErrors === 'object' && rawErrors !== null && !Array.isArray(rawErrors)) {
+    for (const [field, messages] of Object.entries(rawErrors)) {
+      const list = strings(messages);
+      if (list.length > 0) errors[field] = list;
+    }
+  }
+  return { status: 'invalid', errors, form: strings(record.form) };
 }
 
 /**

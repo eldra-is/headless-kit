@@ -81,7 +81,7 @@ describe('a prerendered route whose resolution failed', () => {
     symlinkSync(join(templateDir, 'node_modules'), join(root, 'node_modules'), 'dir');
     const run = await execa(nuxi, ['generate'], {
       cwd: root,
-      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID },
+      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID, ELDRA_BUILD_TARGET: 'preview' },
       reject: false,
       timeout: 600_000,
     });

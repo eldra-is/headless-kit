@@ -40,7 +40,13 @@
  * (the three `watch`es), which is what lets a corrected field's `aria-invalid` go false in time for
  * that next submit to get past `FormLayout`'s own scan.
  *
- * **Success.** `forms.sendMessage` resolving `{ ok: true }` swaps the card's content for a
+ * **Submitting** is the platform's own form, `forms.submit('contact', { values })`: the seeded
+ * `contact` form (`app/formSeeds.ts`) names the fields this block sends (`name`, `email`, `topic`,
+ * `orderNumber`, `message`), and who is notified is the merchant's setting on the Forms page, not
+ * block data. A `422` marks the field it names (the same three error refs a local check sets);
+ * every other failure shows the server summary.
+ *
+ * **Success.** `forms.submit` resolving `{ ok: true }` swaps the card's content for a
  * `role="status" tabindex="-1"` panel that receives focus (spec: "the card content is replaced").
  * "Send another message" restores an empty form and focuses the Name field (spec: "moves focus to
  * its first field").
@@ -64,10 +70,12 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -272,11 +280,13 @@ watch(message, () => {
   if (messageError.value) messageError.value = null;
 });
 
+const spam = useFormSpam(computed(() => (hasForm.value ? 'contact' : '')));
+const { honeypot, honeypotField, siteKey, turnstileRoot } = spam;
 const sending = ref(false);
 const serverError = ref(false);
+/** The spam check (Turnstile) is on and the visitor has not passed it. */
+const challengeError = ref<string | null>(null);
 const sent = ref(false);
-const sentFirstName = ref('');
-const sentEmail = ref('');
 
 const summaryRef = ref<HTMLElement | null>(null);
 const statusRef = ref<HTMLElement | null>(null);
@@ -284,7 +294,9 @@ const statusRef = ref<HTMLElement | null>(null);
 const invalidCount = computed(
   () => [nameError.value, emailError.value, messageError.value].filter(Boolean).length
 );
-const hasFormError = computed(() => invalidCount.value > 0 || serverError.value);
+const hasFormError = computed(
+  () => invalidCount.value > 0 || serverError.value || challengeError.value !== null
+);
 const summaryTitle = computed(() =>
   invalidCount.value === 1
     ? t('contact.summaryTitleOne')
@@ -311,10 +323,14 @@ function focusField(id: string): void {
 
 async function sendForm(): Promise<void> {
   serverError.value = false;
+  challengeError.value = spam.challenge();
+  if (challengeError.value !== null) {
+    await focusSummary();
+    return;
+  }
   sending.value = true;
 
   const payload: Record<string, string> = {
-    recipient: data.value.recipient,
     name: name.value.trim(),
     email: emailValue.value.trim(),
     message: message.value.trim(),
@@ -324,17 +340,25 @@ async function sendForm(): Promise<void> {
   }
   if (hasTopics.value && topic.value !== '') payload.topic = topic.value;
 
-  const result = await storefront.forms.sendMessage(payload);
+  const result = await storefront.forms.submit('contact', { values: payload, ...spam.signals() });
   sending.value = false;
+  // A Turnstile token is single-use, whatever the outcome.
+  spam.reset();
 
   if (!result.ok) {
-    serverError.value = true;
+    if (result.reason === 'invalid') {
+      // The platform's own message for each field it refused, shown where a local check's would be.
+      nameError.value = result.errors.name?.[0] ?? null;
+      emailError.value = result.errors.email?.[0] ?? null;
+      messageError.value = result.errors.message?.[0] ?? null;
+    }
+    // A refusal that named none of the three fields (another field, the form as a whole, or no
+    // reason at all) would otherwise leave nothing on screen.
+    serverError.value = !nameError.value && !emailError.value && !messageError.value;
     await focusSummary();
     return;
   }
 
-  sentFirstName.value = name.value.trim().split(/\s+/)[0] ?? '';
-  sentEmail.value = emailValue.value.trim();
   sent.value = true;
   await nextTick();
   statusRef.value?.focus();
@@ -365,20 +389,15 @@ async function onSendAnother(): Promise<void> {
   emailError.value = null;
   messageError.value = null;
   serverError.value = false;
+  challengeError.value = null;
+  honeypot.value = '';
   sent.value = false;
   await nextTick();
   focusField(nameFieldId);
 }
 
-function interpolate(template: string, params: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
-    Object.hasOwn(params, key) ? params[key]! : match
-  );
-}
-
-const successText = computed(() =>
-  interpolate(data.value.successText || t('contact.successTextDefault'), { email: sentEmail.value })
-);
+/** The receipt never echoes what the visitor typed (no name, no address): it is shown to whoever is at the screen. */
+const successText = computed(() => data.value.successText || t('contact.successTextDefault'));
 </script>
 
 <template>
@@ -468,8 +487,15 @@ const successText = computed(() =>
               >
                 <template v-if="hasFormError" #errorSummary>
                   <div ref="summaryRef" tabindex="-1">
-                    <template v-if="serverError">
-                      <p>{{ t('contact.serverError', { email: data.recipient }) }}</p>
+                    <p v-if="challengeError">{{ challengeError }}</p>
+                    <template v-else-if="serverError">
+                      <p>
+                        {{
+                          email
+                            ? t('contact.serverError', { email })
+                            : t('contact.serverErrorGeneric')
+                        }}
+                      </p>
                     </template>
                     <template v-else>
                       <p class="font-semibold">{{ summaryTitle }}</p>
@@ -553,6 +579,9 @@ const successText = computed(() =>
                   />
                 </FieldWrapper>
 
+                <FormHoneypot v-model="honeypot" :name="honeypotField" />
+                <div v-if="siteKey" ref="turnstileRoot" class="@two-col:col-span-2" />
+
                 <template #actions>
                   <Button variant="primary" type="submit" size="lg" :label="t('contact.sending')">{{
                     t('contact.sendMessage')
@@ -564,7 +593,7 @@ const successText = computed(() =>
             <div v-else ref="statusRef" role="status" tabindex="-1" class="grid gap-4 text-center">
               <EldraIcon name="circle-check" size="xl" class="text-success mx-auto" />
               <p class="text-h4 font-heading font-semibold">
-                {{ t('contact.successTitle', { name: sentFirstName }) }}
+                {{ t('contact.successTitle') }}
               </p>
               <p class="text-muted text-base">{{ successText }}</p>
               <Button variant="outline" type="button" class="mx-auto" @click="onSendAnother">{{
