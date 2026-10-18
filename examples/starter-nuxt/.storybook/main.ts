@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import eldraTheme from '@eldrajs/vite-plugin-theme';
 import { generateStories } from '../scripts/generate-stories.mjs';
+import { starterFormSeeds } from '../app/formSeeds';
 import { starterSeeds, starterTemplateRoles } from '../app/templates';
 
 const themeDir = fileURLToPath(new URL('..', import.meta.url));
@@ -47,6 +48,8 @@ const config: StorybookConfig = {
         tailwind: false,
         templates: starterSeeds(),
         templateRoles: starterTemplateRoles(),
+        // Declared for the same reason: this instance writes `.eldra/manifest.json` too.
+        formSeeds: starterFormSeeds(),
       }),
     ];
     config.resolve = {

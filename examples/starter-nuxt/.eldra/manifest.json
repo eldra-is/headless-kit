@@ -1794,7 +1794,7 @@
       "description": "The shop's address, opening hours, phone and email beside a short enquiry form, with a map that always offers an \"Open in maps\" link outside any embed.",
       "icon": "map-pin",
       "category": "marketing",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
           "fieldId": "variant",
@@ -1966,15 +1966,6 @@
           "default": false
         },
         {
-          "fieldId": "recipient",
-          "name": "Recipient",
-          "type": "string",
-          "helpText": "Where submissions go. Not shown.",
-          "validators": {
-            "required": true
-          }
-        },
-        {
           "fieldId": "successText",
           "name": "Success text",
           "type": "text",
@@ -2026,7 +2017,6 @@
           }
         ],
         "showOrderNumber": true,
-        "recipient": "hello@northwind.example",
         "successText": "We reply within one business day, usually sooner. A copy is on its way to {email}."
       },
       "previewImage": ".eldra/previews/contact.png"
@@ -3019,6 +3009,141 @@
       "previewImage": ".eldra/previews/footer.png"
     },
     {
+      "apiId": "form",
+      "name": "Form",
+      "description": "A form from the Forms page: contact, newsletter or any form you build, with the fields, spam protection and emails managed in Studio.",
+      "icon": "mail",
+      "category": "marketing",
+      "version": 1,
+      "fields": [
+        {
+          "fieldId": "preset",
+          "name": "Layout",
+          "type": "select",
+          "helpText": "default stacks the fields. inline puts a single field and the button on one row, for a sign-up.",
+          "metadata": {
+            "options": [
+              "default",
+              "inline"
+            ]
+          },
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "formKey",
+          "name": "Form",
+          "type": "string",
+          "helpText": "The key of the form on the Forms page, for example \"contact\" or \"newsletter\".",
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "heading",
+          "name": "Heading",
+          "type": "string",
+          "isTitle": true,
+          "localized": true,
+          "validators": {
+            "required": true
+          }
+        },
+        {
+          "fieldId": "text",
+          "name": "Text",
+          "type": "text",
+          "localized": true,
+          "helpText": "What the visitor gets, or what happens next."
+        },
+        {
+          "fieldId": "buttonLabel",
+          "name": "Button label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Defaults to \"Send\" when unset."
+        },
+        {
+          "fieldId": "consent",
+          "name": "Consent",
+          "type": "rich-text",
+          "localized": true,
+          "helpText": "One line with a privacy link, shown under the button. Inline links only.",
+          "metadata": {
+            "toolbar": [
+              "bold",
+              "italic",
+              "link",
+              "undo",
+              "redo"
+            ]
+          }
+        },
+        {
+          "fieldId": "successTitle",
+          "name": "Success title",
+          "type": "string",
+          "localized": true,
+          "helpText": "Shown above the form's own confirmation text. Defaults to \"Thank you\"."
+        },
+        {
+          "fieldId": "sectionBackground",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "Defaults to \"none\" when unset.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface",
+              "surface-strong",
+              "primary",
+              "accent"
+            ]
+          }
+        }
+      ],
+      "mock": {
+        "preset": "default",
+        "formKey": "contact",
+        "heading": "Send us a message",
+        "text": "Questions about an order, a wholesale enquiry or just which glaze to choose: a real person will answer.",
+        "buttonLabel": "Send message",
+        "consent": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "We only use your details to reply. Read our "
+                },
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "/pages/privacy"
+                      }
+                    }
+                  ],
+                  "text": "privacy policy"
+                },
+                {
+                  "type": "text",
+                  "text": "."
+                }
+              ]
+            }
+          ]
+        },
+        "sectionBackground": "none"
+      },
+      "previewImage": ".eldra/previews/form.png"
+    },
+    {
       "apiId": "gallery",
       "name": "Gallery",
       "description": "A set of photos as a grid, masonry columns or a carousel, each opening the Lightbox at that image.",
@@ -4002,7 +4127,7 @@
       "description": "An email sign-up with a clear promise, one field and visible error/success states. Use it once per page.",
       "icon": "mail",
       "category": "marketing",
-      "version": 1,
+      "version": 2,
       "fields": [
         {
           "fieldId": "variant",
@@ -4105,13 +4230,10 @@
           "helpText": "For example the confirmation step and the welcome code."
         },
         {
-          "fieldId": "list",
-          "name": "List",
+          "fieldId": "formKey",
+          "name": "Form",
           "type": "string",
-          "validators": {
-            "required": true
-          },
-          "helpText": "The marketing list or audience id in the connected email app."
+          "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
         },
         {
           "fieldId": "sectionBackground",
@@ -4170,7 +4292,7 @@
         "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
         "successTitle": "You're on the list",
         "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
-        "list": "letters-from-the-workshop",
+        "formKey": "newsletter",
         "sectionBackground": "surface"
       },
       "previewImage": ".eldra/previews/newsletter.png"
@@ -8185,6 +8307,112 @@
       ]
     }
   ],
+  "formSeeds": [
+    {
+      "key": "contact",
+      "name": "Contact",
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "required": true,
+          "label": {
+            "en-US": "Name",
+            "is-IS": "Nafn"
+          }
+        },
+        {
+          "id": "email",
+          "type": "email",
+          "required": true,
+          "label": {
+            "en-US": "Email address",
+            "is-IS": "Netfang"
+          },
+          "placeholder": {
+            "en-US": "name@example.com",
+            "is-IS": "nafn@example.is"
+          }
+        },
+        {
+          "id": "topic",
+          "type": "text",
+          "required": false,
+          "label": {
+            "en-US": "What is it about?",
+            "is-IS": "Um hvað er málið?"
+          },
+          "validation": {
+            "maxLength": 120
+          }
+        },
+        {
+          "id": "orderNumber",
+          "type": "text",
+          "required": false,
+          "label": {
+            "en-US": "Order number",
+            "is-IS": "Pöntunarnúmer"
+          }
+        },
+        {
+          "id": "message",
+          "type": "textarea",
+          "required": true,
+          "label": {
+            "en-US": "Message",
+            "is-IS": "Skilaboð"
+          },
+          "validation": {
+            "minLength": 10,
+            "maxLength": 4000
+          }
+        }
+      ],
+      "actions": {
+        "notify": true,
+        "confirm": true
+      },
+      "success": {
+        "message": {
+          "en-US": "Thanks. We reply within one business day, usually sooner.",
+          "is-IS": "Takk fyrir. Við svörum innan eins virks dags, oftast fyrr."
+        }
+      }
+    },
+    {
+      "key": "newsletter",
+      "name": "Newsletter",
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "required": true,
+          "label": {
+            "en-US": "Email address",
+            "is-IS": "Netfang"
+          },
+          "placeholder": {
+            "en-US": "name@example.com",
+            "is-IS": "nafn@example.is"
+          }
+        }
+      ],
+      "actions": {
+        "notify": false,
+        "confirm": false,
+        "subscribe": {
+          "list": "newsletter"
+        }
+      },
+      "success": {
+        "message": {
+          "en-US": "Check your inbox to confirm your subscription.",
+          "is-IS": "Kíktu í pósthólfið til að staðfesta áskriftina."
+        }
+      }
+    }
+  ],
   "tokens": {
     "colors": {
       "accent": {
@@ -8499,9 +8727,37 @@
         "contact.summaryTitleOne": "One field needs a look",
         "contact.summaryTitleMany": "{count} fields need a look",
         "contact.serverError": "We couldn't send your message. Please email {email} instead.",
+        "contact.serverErrorGeneric": "We couldn't send your message. Please try again in a minute.",
         "contact.successTitle": "Thanks, {name}. Your message is with us.",
         "contact.successTextDefault": "We reply within one working day, usually sooner. A copy is on its way to {email}.",
         "contact.sendAnother": "Send another message",
+        "form.headingHintLabel": "Add a heading",
+        "form.formHintLabel": "Choose a form",
+        "form.formHintHelp": "Set the form key to a form from the Forms page, for example \"contact\".",
+        "form.submit": "Send",
+        "form.submitting": "Sending…",
+        "form.selectPlaceholder": "Choose an option",
+        "form.loading": "Loading the form…",
+        "form.loadFailed": "This form can't be shown right now.",
+        "form.required": "{field} is required.",
+        "form.requiredCheckbox": "Tick the box: {field}",
+        "form.invalidEmail": "Enter a full email address, like name{'@'}example.com",
+        "form.invalidUrl": "Enter a full web address, starting with https://",
+        "form.invalidNumber": "Enter a number.",
+        "form.tooShort": "Use at least {min} characters.",
+        "form.tooLong": "Use at most {max} characters.",
+        "form.invalidFormat": "Check the format of this answer.",
+        "form.invalidForm": "Please check your answers and try again.",
+        "form.rateLimited": "Too many attempts. Please wait a minute and try again.",
+        "form.tooLarge": "That is more than we can accept. Please shorten your answers.",
+        "form.unavailable": "We couldn't send that just now. Please try again in a minute.",
+        "form.unsupported": "This form isn't connected yet.",
+        "form.turnstileRequired": "Please complete the spam check before sending.",
+        "form.turnstileFailed": "The spam check could not load. Reload the page and try again.",
+        "form.successTitle": "Thank you",
+        "form.successTitlePending": "Check your inbox",
+        "form.sendAnother": "Send another",
+        "form.richTextTableLabel": "Table",
         "video.play": "Play video: {title}",
         "video.playWithDuration": "Play video: {title}, {duration}",
         "video.minuteOne": "{count} minute",
@@ -9018,9 +9274,37 @@
         "contact.summaryTitleOne": "Einn reit þarf að skoða",
         "contact.summaryTitleMany": "{count} reiti þarf að skoða",
         "contact.serverError": "Ekki tókst að senda skilaboðin. Sendu tölvupóst á {email} í staðinn.",
+        "contact.serverErrorGeneric": "Ekki tókst að senda skilaboðin. Reyndu aftur eftir smá stund.",
         "contact.successTitle": "Takk, {name}. Skilaboðin þín eru komin til okkar.",
         "contact.successTextDefault": "Við svörum innan eins virks dags, oftast fyrr. Afrit er á leiðinni á {email}.",
         "contact.sendAnother": "Senda önnur skilaboð",
+        "form.headingHintLabel": "Bættu við fyrirsögn",
+        "form.formHintLabel": "Veldu eyðublað",
+        "form.formHintHelp": "Settu lykil eyðublaðsins af eyðublaðasíðunni, til dæmis \"contact\".",
+        "form.submit": "Senda",
+        "form.submitting": "Sendi…",
+        "form.selectPlaceholder": "Veldu valkost",
+        "form.loading": "Hleð eyðublaðinu…",
+        "form.loadFailed": "Ekki er hægt að sýna þetta eyðublað núna.",
+        "form.required": "{field} er nauðsynlegt.",
+        "form.requiredCheckbox": "Hakaðu í reitinn: {field}",
+        "form.invalidEmail": "Sláðu inn fullt netfang, eins og nafn{'@'}example.is",
+        "form.invalidUrl": "Sláðu inn fullt veffang sem byrjar á https://",
+        "form.invalidNumber": "Sláðu inn tölu.",
+        "form.tooShort": "Notaðu að minnsta kosti {min} stafi.",
+        "form.tooLong": "Notaðu í mesta lagi {max} stafi.",
+        "form.invalidFormat": "Athugaðu snið svarsins.",
+        "form.invalidForm": "Athugaðu svörin og reyndu aftur.",
+        "form.rateLimited": "Of margar tilraunir. Bíddu í eina mínútu og reyndu aftur.",
+        "form.tooLarge": "Þetta er meira en við getum tekið við. Styttu svörin.",
+        "form.unavailable": "Ekki tókst að senda þetta núna. Reyndu aftur eftir smá stund.",
+        "form.unsupported": "Þetta eyðublað er ekki tengt ennþá.",
+        "form.turnstileRequired": "Kláraðu ruslpóstsvörnina áður en þú sendir.",
+        "form.turnstileFailed": "Ekki tókst að hlaða ruslpóstsvörninni. Endurhlaðið síðuna og reyndu aftur.",
+        "form.successTitle": "Takk fyrir",
+        "form.successTitlePending": "Kíktu í pósthólfið",
+        "form.sendAnother": "Senda annað",
+        "form.richTextTableLabel": "Tafla",
         "video.play": "Spila myndband: {title}",
         "video.playWithDuration": "Spila myndband: {title}, {duration}",
         "video.minuteOne": "{count} mínúta",

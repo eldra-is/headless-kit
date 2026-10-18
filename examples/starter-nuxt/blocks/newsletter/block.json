@@ -4,7 +4,7 @@
   "description": "An email sign-up with a clear promise, one field and visible error/success states. Use it once per page.",
   "icon": "mail",
   "category": "marketing",
-  "version": 1,
+  "version": 2,
   "fields": [
     {
       "fieldId": "variant",
@@ -88,11 +88,10 @@
       "helpText": "For example the confirmation step and the welcome code."
     },
     {
-      "fieldId": "list",
-      "name": "List",
+      "fieldId": "formKey",
+      "name": "Form",
       "type": "string",
-      "validators": { "required": true },
-      "helpText": "The marketing list or audience id in the connected email app."
+      "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
     },
     {
       "fieldId": "sectionBackground",

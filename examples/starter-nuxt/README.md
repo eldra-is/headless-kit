@@ -102,7 +102,7 @@ alongside it.
 
 - **structure** — `navigation` ("Header"), `announcement-bar`, `breadcrumbs`, `footer`.
 - **marketing** — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
-  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact`
+  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact`, `form`
   ("Contact and map"), `video-embed`, `team`, `timeline`.
 - **content** — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
 - **commerce** — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
@@ -126,10 +126,14 @@ your own site's pages, or as a reference for how a set of blocks composes.
 
 ## Storefront forms
 
-The newsletter (`forms.subscribe`), contact (`forms.sendMessage`) and back-in-stock
-(`catalog.notifyBackInStock`) forms have no gateway endpoint by default: without one configured,
-they resolve `{ ok: false, reason: 'unsupported' }` and the block renders its own "isn't set up
-yet" copy rather than crashing. Wire a real endpoint by adding it to `nuxt.config.ts`:
+Forms come from the platform: a merchant builds them on Studio's Forms page, and the `form` block
+(plus `contact`, `newsletter` and the footer's sign-up, which submit to the seeded `contact` and
+`newsletter` forms) renders and submits them through `useStorefront().forms`. `app/formSeeds.ts` is
+what a fresh site starts with. See `docs/starter-kit.md`, "Forms".
+
+`formsEndpoint` overrides where a form _submission_ goes, and is where the back-in-stock form
+(`catalog.notifyBackInStock`, which has no platform endpoint) posts. Without it that one resolves
+`{ ok: false, reason: 'unsupported' }` and the block renders its own "isn't set up yet" copy:
 
 ```ts
 export default defineNuxtConfig({
@@ -141,10 +145,10 @@ export default defineNuxtConfig({
 });
 ```
 
-or by setting the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time.
-Once set, `app/storefront/gateway.ts` posts `{ kind: 'subscribe' | 'sendMessage' |
-'notifyBackInStock', ...input }` as JSON to that endpoint and treats a non-2xx response as a
-recoverable failure (the same retry-on-resubmit path each form's own spec proves).
+or set the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time. A form
+submission is posted as `{ kind: 'form', key, values, locale, pagePath, turnstileToken?, hp? }` JSON (the last two are the
+spam signals the form collected; verify them or ignore them), a back-in-stock
+request as `{ kind: 'notifyBackInStock', ... }`; a non-2xx is a recoverable failure.
 
 ## Checkout
 

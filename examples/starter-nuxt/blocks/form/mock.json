@@ -1,0 +1,25 @@
+{
+  "preset": "default",
+  "formKey": "contact",
+  "heading": "Send us a message",
+  "text": "Questions about an order, a wholesale enquiry or just which glaze to choose: a real person will answer.",
+  "buttonLabel": "Send message",
+  "consent": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "We only use your details to reply. Read our " },
+          {
+            "type": "text",
+            "marks": [{ "type": "link", "attrs": { "href": "/pages/privacy" } }],
+            "text": "privacy policy"
+          },
+          { "type": "text", "text": "." }
+        ]
+      }
+    ]
+  },
+  "sectionBackground": "none"
+}

@@ -158,14 +158,14 @@ runtime config.
 
 ### The starter's own blocks
 
-`blocks/` ships 34 blocks, `block.json`'s `category` grouping them the same way Studio's insert
+`blocks/` ships 35 blocks, `block.json`'s `category` grouping them the same way Studio's insert
 palette does:
 
 - **structure** (4) — `navigation` (display name "Header"), `announcement-bar`, `breadcrumbs`,
   `footer`.
-- **marketing** (14) — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
+- **marketing** (15) — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
   `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact` ("Contact and
-  map"), `video-embed`, `team`, `timeline`.
+  map"), `form`, `video-embed`, `team`, `timeline`.
 - **content** (7) — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
 - **commerce** (9) — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
   `cart`, `search`, `wishlist`, `order-status`, `trust-strip`.
@@ -293,7 +293,7 @@ has to be composed into (`search`'s heading, where `{query}` is replaced with th
 composing from the stripped copy is what stops the overlay offering an edit that would write the
 composed sentence back over the author's template). **Emptiness checks are the same rule and are the
 convention for new blocks** — `stripStega(value).trim() !== ''`, because `trim()` alone leaves the
-payload's bit characters behind and reads a cleared field as filled. The 34 blocks here still write
+payload's bit characters behind and reads a cleared field as filled. The 35 blocks here still write
 `(value ?? '').trim() !== ''` and are being migrated.
 
 **Field types, and the one `reference` shape that is typed.** `block.json`'s field `type` values are
@@ -1193,15 +1193,58 @@ write and (in the drawer) a batched apply.
   collection), while the pre-rename `?availability=in-stock` still is — it is folded into
   `in_stock` on the way in, and a value from no vocabulary at all is dropped rather than guessed.
 
-`forms.subscribe`, `forms.sendMessage` and `catalog.notifyBackInStock` (the newsletter, contact and
-back-in-stock forms) have no gateway endpoint today: `createGatewayStorefront` posts
-`{ kind: 'subscribe' | 'sendMessage' | 'notifyBackInStock', ...input }` as JSON to
+`catalog.notifyBackInStock` (the back-in-stock form) has no gateway endpoint today:
+`createGatewayStorefront` posts `{ kind: 'notifyBackInStock', ...input }` as JSON to
 `runtimeConfig.public.formsEndpoint` when a site has configured one, and resolves
 `{ ok: false, reason: 'unsupported' }` (rendered as the form's own "isn't set up yet" copy, not a
-crash) when it hasn't. Wire a real endpoint by adding it to `nuxt.config.ts`'s `runtimeConfig.public`
-(or the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable) — see
-[`examples/starter-nuxt/README.md`](../examples/starter-nuxt/README.md#storefront-forms) for the
-exact snippet.
+crash) when it hasn't. Every other form goes through the platform's forms API — see "Forms" below.
+
+### Forms
+
+Forms are the platform's, not the theme's: a merchant builds them on Studio's Forms page (fields
+with a label per language, which are required, spam protection, who is emailed, what the visitor is
+told), and a theme only places and styles them. The API is `GET /site/v1/forms/{key}` (the
+definition), `POST /site/v1/forms/{key}/submissions` and the two emailed links
+(`subscriptions/confirm`, `subscriptions/unsubscribe`); `@eldrajs/sdk`'s `client.forms` wraps all of
+them, and a `422` comes back as field-keyed messages (`{ status: 'invalid', errors, form }`), not a
+thrown error.
+
+- **`useStorefront().forms`** is the starter's view of it: `definition(key)` is a
+  `StorefrontResult` of the form with every per-locale text already resolved to the page's content
+  locale (`app/storefront/forms.ts`, `pickLocalized`: the exact tag, then the same language, then the
+  first entry), and `submit(key, { values, turnstileToken?, hp? })` never throws — it resolves
+  `{ ok: true, pending }` (`pending` is a double opt-in email on its way) or
+  `{ ok: false, reason }` where `reason` is `invalid` (with the platform's `errors` and `form`
+  messages), `rate-limited`, `too-large`, `unavailable` or `unsupported`.
+- **`form` block** — one generic block rendering `@eldrajs/ui`'s `FormLayout` from the definition,
+  for any form key (`contact`, `newsletter`, one a merchant made). `preset`: `default` (fields
+  stacked in two columns) or `inline` (one field and the button on one row, a sign-up). Errors are
+  **field-keyed**: a failed local check (required, shape, length, pattern — the rules of
+  `blocks/form/validate.ts`) and a `422` both land under the field they name as `FieldWrapper`'s
+  `error`, and focus moves to the first invalid control; messages about the form as a whole go in the
+  form's `role="alert"` summary. The honeypot field the definition names is rendered off-screen and
+  `inert`, and sent as `hp`; when the merchant turned on Cloudflare Turnstile the widget is rendered
+  (`app/composables/useTurnstile.ts`) and its token sent — a site without it loads nothing
+  third-party. Success replaces the form with a focused `role="status"` panel; a merchant-set
+  redirect (checked with `safeHref`) sends the visitor on instead, outside the editor.
+- **`contact` and `newsletter` stay for one version** as the same forms with their own designs
+  (the contact block's details and map, the newsletter's consent line): they submit to the seeded
+  `contact` and `newsletter` forms (`forms.submit('contact', …)`; the newsletter block's `formKey`
+  replaced its `list`, and the contact block's `recipient` is gone — who is notified is the form's
+  setting now, both retired by a block `version` bump). New pages should use `form`; these two are
+  retired once a theme's pages have moved. `footer`'s sign-up zone submits to `newsletter`.
+- **Build-time bake.** `@eldrajs/theme-nuxt` reads the definition of every key in `eldra.formSeeds`
+  and `eldra.forms` at `nuxi generate` time, each read independently fail-soft (one warning, never a
+  failed build), and writes them to the runtime config; `forms.definition` serves a baked key with no
+  request and fetches any other when the page opens. `app/formSeeds.ts` is the starter's `formSeeds`
+  (`contact`, `newsletter`), passed in `nuxt.config.ts` _and_ `.storybook/main.ts` (both write
+  `.eldra/manifest.json`). Core creates a seeded form only when its key is absent and never over a
+  merchant's edits.
+- **`formsEndpoint` stays an override.** With `runtimeConfig.public.formsEndpoint` set, a submission
+  is posted there as `{ kind: 'form', key, values, locale, pagePath, turnstileToken?, hp? }`
+  (`turnstileToken` and `hp` are the spam signals the block collected, forwarded so the endpoint can
+  verify them; any 2xx is a success, `429`
+  and `413` keep their meaning) instead of to the platform; the definition is still the platform's.
 
 ### A route the gateway could not answer is never written
 

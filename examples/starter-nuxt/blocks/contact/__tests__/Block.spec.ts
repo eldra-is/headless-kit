@@ -1,19 +1,34 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
+import type { StorefrontSource } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import enUS from '../../../i18n/en-US.json';
 import { renderedMessage } from '../../../test/support/i18nText';
+import {
+  cleanUpTurnstile,
+  storefrontWithTurnstile,
+  stubTurnstile,
+} from '../../../test/support/turnstileForms';
+
+afterEach(cleanUpTurnstile);
 
 const merged = { ...mock, ...preview };
 
-function mountContact(data: Record<string, unknown>, options: { failForms?: boolean } = {}) {
+function mountContact(
+  data: Record<string, unknown>,
+  options: {
+    failForms?: boolean;
+    submit?: StorefrontSource['forms']['submit'];
+    storefront?: StorefrontSource;
+  } = {}
+) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   return mount(Block, {
     ...base,
@@ -28,6 +43,15 @@ function mountContact(data: Record<string, unknown>, options: { failForms?: bool
         ...(options.failForms
           ? { [STOREFRONT_KEY]: createDemoStorefront({ failForms: true }) }
           : {}),
+        ...(options.submit
+          ? {
+              [STOREFRONT_KEY]: (() => {
+                const base = createDemoStorefront();
+                return { ...base, forms: { ...base.forms, submit: options.submit } };
+              })(),
+            }
+          : {}),
+        ...(options.storefront ? { [STOREFRONT_KEY]: options.storefront } : {}),
       },
     },
   });
@@ -177,16 +201,47 @@ describe('contact block', () => {
     expect(document.activeElement).toBe(messageField.element);
   });
 
-  it('a valid submit calls forms.sendMessage and shows a role="status" success panel that receives focus, replacing the form', async () => {
-    const wrapper = mountContact(mock);
+  it('a valid submit posts the seeded contact form’s fields to forms.submit and shows a role="status" success panel that receives focus, replacing the form', async () => {
+    const submit = vi.fn(async () => ({ ok: true as const, pending: false }));
+    const wrapper = mountContact(mock, { submit });
     await submitValid(wrapper);
 
+    expect(submit).toHaveBeenCalledWith('contact', {
+      values: {
+        name: 'Hannah Reyes',
+        email: 'hannah@example.com',
+        topic: mock.topics[0]!.label,
+        message: 'Do you carry the moss glaze in stock right now?',
+      },
+    });
     expect(wrapper.find('form').exists()).toBe(false);
     const status = wrapper.find('[role="status"]');
     expect(status.exists()).toBe(true);
     expect(status.text()).toContain('Hannah');
     expect(status.text()).toContain('hannah@example.com');
     expect(document.activeElement).toBe(status.element);
+  });
+
+  it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
+    const turnstile = stubTurnstile();
+    const submit = vi.fn(async () => ({ ok: true as const, pending: false }));
+    const wrapper = mountContact(mock, { storefront: storefrontWithTurnstile(submit) });
+    await flushPromises();
+    expect(turnstile.render).toHaveBeenCalledOnce();
+
+    await submitValid(wrapper);
+    expect(submit).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain(enUS.form.turnstileRequired);
+
+    turnstile.solve('token-1');
+    await wrapper.find('input[name="website"]').setValue('bot');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(submit).toHaveBeenCalledWith(
+      'contact',
+      expect.objectContaining({ turnstileToken: 'token-1', hp: 'bot' })
+    );
+    expect(turnstile.reset).toHaveBeenCalled();
   });
 
   it('"Send another message" restores an empty form and focuses the Name field', async () => {
@@ -206,12 +261,37 @@ describe('contact block', () => {
     expect(document.activeElement).toBe(name.element);
   });
 
-  it('a server failure (forms.sendMessage ok:false) shows the summary again and keeps the form', async () => {
+  it('a server failure (forms.submit ok:false) shows the summary again and keeps the form', async () => {
     const wrapper = mountContact(mock, { failForms: true });
     await submitValid(wrapper);
 
     expect(wrapper.find('form').exists()).toBe(true);
-    expect(wrapper.find('[role="alert"]').text()).toContain(mock.recipient);
+    expect(wrapper.find('[role="alert"]').text()).toContain(mock.email);
+  });
+
+  it('a server failure with no contact email on the block still says what happened', async () => {
+    const { email: _omit, ...withoutEmail } = mock;
+    const wrapper = mountContact(withoutEmail, { failForms: true });
+    await submitValid(wrapper);
+
+    expect(wrapper.find('[role="alert"]').text()).toBe(enUS.contact.serverErrorGeneric);
+  });
+
+  it('a 422 marks the field the platform names, with its own message, and focuses the summary', async () => {
+    const submit = vi.fn(async () => ({
+      ok: false as const,
+      reason: 'invalid' as const,
+      errors: { email: ['That domain does not accept mail.'] },
+      form: [],
+    }));
+    const wrapper = mountContact(mock, { submit });
+    await submitValid(wrapper);
+
+    expect(wrapper.find('form').exists()).toBe(true);
+    expect(wrapper.find('input[type="email"]').attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain('That domain does not accept mail.');
+    expect(wrapper.find('input[autocomplete="name"]').attributes('aria-invalid')).toBeUndefined();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   it.each(['Enter', ' ', 'ArrowDown'])(

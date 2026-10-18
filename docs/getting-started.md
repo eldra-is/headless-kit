@@ -102,16 +102,17 @@ the script and the event endpoint are proxied through the storefront's own domai
 
 ## What the client covers
 
-| Group       | Methods                                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
-| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                              |
-| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`  |
-| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                           |
-| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                      |
-| `inventory` | `availability`                                                                                                         |
-| `features`  | the organisation's enabled features                                                                                    |
-| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                 |
+| Group       | Methods                                                                                                                          |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search`           |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                                        |
+| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`            |
+| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                                     |
+| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                                |
+| `inventory` | `availability`                                                                                                                   |
+| `features`  | the organisation's enabled features                                                                                              |
+| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                           |
+| `forms`     | `get(key)`, `submit(key, { values, locale, pagePath })` (a 422 resolves as field errors), `confirm(token)`, `unsubscribe(token)` |
 
 Totals come from the server. The cart's `totals` are the truth; never sum lines in the storefront.
 

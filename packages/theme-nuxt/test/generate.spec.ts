@@ -645,6 +645,61 @@ describe('theme-nuxt nuxi generate', () => {
     expect(html).not.toContain('property="og:url"');
   }, 360_000);
 
+  /**
+   * **Form definitions are baked, each key on its own.** `contact` is served and rides along in the
+   * prerendered runtime config (what `useEldraForms()` reads, and the starter's `forms.definition`
+   * serves with no request); `newsletter` 404s — a form not created yet — and costs the build
+   * nothing: the other form is still baked and every page is still written.
+   */
+  it('bakes the form definitions the platform serves and survives one it does not', async () => {
+    const scenarioGateway = await startMockGateway({
+      forms: {
+        contact: {
+          key: 'contact',
+          name: 'Contact',
+          fields: [
+            {
+              id: 'email',
+              type: 'email',
+              required: true,
+              label: { 'en-US': 'Baked email label', 'is-IS': 'Netfang' },
+            },
+          ],
+          honeypotField: 'website',
+          turnstileSiteKey: null,
+          success: { message: { 'en-US': 'Thanks' } },
+          kinds: ['store', 'notify'],
+        },
+      },
+    });
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      const result = await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: scenarioGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+
+      expect(scenarioGateway.requests).toContain('/site/v1/forms/contact');
+      expect(scenarioGateway.requests).toContain('/site/v1/forms/newsletter');
+      const html = readFileSync(output('index.html'), 'utf8');
+      expect(html).toContain('Baked email label');
+      expect(html).toContain('honeypotField:"website"');
+      expect(html).not.toContain('"newsletter"');
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'could not read the platform’s form “newsletter”'
+      );
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }, 360_000);
+
   /** The production build writes the merchant's patterns, the canonical and the share tags. */
   it('writes the platform’s SEO setting into every page of a production build', async () => {
     await generateWith(

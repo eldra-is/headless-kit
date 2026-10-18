@@ -395,6 +395,43 @@ the site's own tests) after changing a seed. The starter does all of this in
 [Seeded templates and pages](starter-kit.md#seeded-templates-and-pages) for how it builds its
 three template seeds and its three page seeds out of the sample page fixtures.
 
+## Forms
+
+A theme does not own its forms: a merchant builds them on Studio's Forms page and the platform
+serves them (`GET /site/v1/forms/{key}`, submissions to `POST /site/v1/forms/{key}/submissions`, with
+a honeypot, a per-IP rate limit and optional Cloudflare Turnstile). A theme does two things.
+
+**Seed the forms a fresh site needs.** `formSeeds` (an `eldra.formSeeds` option, validated by
+`@eldrajs/vite-plugin-theme`'s `validateFormSeeds` and written to the manifest) lists up to eight
+forms:
+
+```ts
+formSeeds: [
+  {
+    key: 'newsletter', // ^[a-z][a-z0-9-]{0,39}$, "subscriptions" is reserved
+    name: 'Newsletter',
+    fields: [
+      { id: 'email', type: 'email', required: true, label: { 'en-US': 'Email address', 'is-IS': 'Netfang' } },
+    ],
+    // notify: email the merchant; confirm: email the visitor a copy; subscribe: a double opt-in list
+    actions: { notify: false, confirm: false, subscribe: { list: 'newsletter' } },
+    success: { message: { 'en-US': 'Check your inbox to confirm.', 'is-IS': 'Kíktu í pósthólfið.' } },
+  },
+],
+```
+
+Field types are `text`, `email`, `phone`, `textarea`, `select` (with `options`), `checkbox`, `consent`
+(a checkbox whose `required` means it must be checked), `number` and `url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
+email field. Core creates a seeded form only when its key is absent and never over a merchant's edits
+(an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
+`examples/starter-nuxt/app/formSeeds.ts`.
+
+**Place them.** The starter's `form` block renders any form by key. `@eldrajs/theme-nuxt` also reads
+the definition of every seeded key — and every key in its `forms` option, for a merchant-made form a
+block names by default — at build time, fail-soft per key, and bakes them into the site
+(`useEldraForms()`); a key it could not read is fetched when the page opens. From code,
+`@eldrajs/sdk`'s `client.forms` (`get`, `submit`, `confirm`, `unsubscribe`) is the same API.
+
 ## Layout sizing and container queries
 
 Blocks adapt to the width they are given with container queries: every block root is a

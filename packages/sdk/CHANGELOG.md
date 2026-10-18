@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- **`client.forms`: the site-forms API (WS-386).** `get(key)` reads a form definition,
+  `submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission and
+  `confirm(token)` / `unsubscribe(token)` finish a subscriber's emailed links. A `422` resolves as
+  `{ status: 'invalid', errors, form }` (field-keyed, ready for `apiErrors`) rather than throwing;
+  `404`, `413` and `429` reject with `EldraHttpError`. New types `EldraFormDefinition`,
+  `EldraFormField`, `EldraFormSubmitInput`, `EldraFormSubmitResult` and friends, hand-written like
+  `EldraPlatformConfig`. Needs a gateway at contract 4.4.0 or later.
 - **Icelandic formatting that prints the same on every runtime: `@eldrajs/sdk/format`.**
   `numberFormat`, `formatPrice` and `comparator`/`compareIcelandic`, plus `./format/date`,
   `./format/list`, `./format/relative-time` and `./format/display-names`. Icelandic and English come

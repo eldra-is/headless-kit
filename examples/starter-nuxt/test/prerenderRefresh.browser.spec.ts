@@ -1017,6 +1017,10 @@ describe('prerendered commerce data on the generated static site', () => {
       'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
       'storefront:catalog.related:["ash-glaze-mug",8]',
+      // The footer's sign-up spam guard (`useFormSpam`): a footer with no newsletter zone names no
+      // form, so the read is keyed `""`, resolves `null` without a request and is in the payload
+      // because it exists.
+      'storefront:forms.definition:["","en-US"]',
       'storefront:search.run:[""]',
     ]);
   });
