@@ -167,6 +167,36 @@ describe('forms.definition', () => {
     expect(result.data.value?.fields[0]?.label).toBe('Netfang');
   });
 
+  it('replaces the baked definition with the live one in a browser, and keeps it when the read fails', async () => {
+    vi.stubGlobal('window', {});
+    try {
+      const live = {
+        ...definition,
+        turnstileSiteKey: 'live-key',
+        fields: [{ ...definition.fields[0], label: { 'en-US': 'Live email' } }],
+      };
+      const { storefront, requests } = setup(() => live, {
+        formDefinitions: { contact: definition },
+      });
+      const result = storefront.forms.definition(ref('contact'));
+      await vi.waitFor(() => expect(result.data.value?.fields[0]?.label).toBe('Live email'));
+      expect(requests).toHaveLength(1);
+      expect(result.data.value?.turnstileSiteKey).toBe('live-key');
+
+      const failing = setup(
+        () => {
+          throw problem(503);
+        },
+        { formDefinitions: { contact: definition } }
+      );
+      const kept = failing.storefront.forms.definition(ref('contact'));
+      await vi.waitFor(() => expect(failing.requests).toHaveLength(1));
+      expect(kept.data.value?.fields[0]?.label).toBe('Email address');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('fetches a form that was not baked', async () => {
     const { storefront, requests } = setup(() => definition);
 

@@ -1902,7 +1902,9 @@ export interface GatewayStorefrontOptions {
   formsEndpoint?: string;
   /**
    * The form definitions the build baked (`@eldrajs/theme-nuxt`, `eldra.forms` in the runtime
-   * config), by form key. A key found here is served with no request; any other is fetched.
+   * config), by form key. A key found here is the first paint (and the prerendered HTML); the
+   * browser then re-reads it live, because the platform serves definitions with no rebuild. Any
+   * other key is fetched.
    */
   formDefinitions?: Record<string, EldraFormDefinition>;
   /**
@@ -2278,8 +2280,8 @@ export function createGatewayStorefront(
 
   const formLocale = (): string => options.formLocale?.() ?? locale?.() ?? 'en-US';
   const forms: StorefrontForms = {
-    definition: (key) =>
-      createGatewayResult(
+    definition: (key) => {
+      const result = createGatewayResult(
         [key],
         async (signal) => {
           // Re-resolved against the page's locale on every read, so a language switch relabels a
@@ -2291,7 +2293,32 @@ export function createGatewayStorefront(
           return localizeFormDefinition(raw, formLocale());
         },
         { method: 'forms.definition', runtime, locale: () => formLocale() }
-      ),
+      );
+      // The platform serves a definition live (`GET /site/v1/forms/{key}`, no rebuild when a
+      // merchant edits a form), so the baked copy is only the first paint: once the page is open
+      // in a browser the live definition replaces it, which is what makes a field added in Studio
+      // render, and what turns the spam-check widget on when Turnstile was enabled after the
+      // build. A failed read keeps the baked definition on screen.
+      if (typeof window !== 'undefined' && options.formDefinitions !== undefined) {
+        let generation = 0;
+        const revalidate = async (): Promise<void> => {
+          const requested = key.value;
+          if (requested === '' || options.formDefinitions?.[requested] === undefined) return;
+          generation += 1;
+          const mine = generation;
+          try {
+            const raw = await rawClient.forms.get(requested);
+            if (mine !== generation || key.value !== requested) return;
+            result.data.value = localizeFormDefinition(raw, formLocale());
+          } catch {
+            // Offline, a transient 5xx, or a type this theme cannot render: keep what is shown.
+          }
+        };
+        void revalidate();
+        watch(key, () => void revalidate());
+      }
+      return result;
+    },
     submit: async (key, input) => {
       const pagePath = typeof location === 'undefined' ? '/' : location.pathname;
       if (options.formsEndpoint) {
