@@ -15,6 +15,8 @@ export default defineNuxtConfig({
   },
   eldra: {
     locale: 'is',
+    // Form keys whose definitions the build bakes into the runtime config (fail-soft per key).
+    forms: ['contact', 'newsletter'],
     // Lets a test switch the structured-data kinds off (`breadcrumb,website`, or `all`).
     structuredData: process.env.ELDRA_TEST_LD_DISABLE
       ? {

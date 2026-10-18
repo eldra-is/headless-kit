@@ -22,6 +22,7 @@ import {
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
+  type DeclaredFormSeed,
   type DeclaredSeed,
   type DeclaredThemeCodePage,
   type EldraThemeOptions,
@@ -35,6 +36,7 @@ import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
 import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
+import { readFormDefinitions, type FormDefinitions } from './runtime/forms';
 import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
 import { normalizeLocale } from './runtime/locale';
 import {
@@ -73,6 +75,13 @@ export interface ModuleOptions {
    * `templates` layouts may reference. See that package's changelog for the
    * validation rules. */
   templateRoles?: ManifestTemplateRoles;
+  /** The forms a site is created with on its first deploy (at most 8). The build also reads each
+   * one's definition from the platform and bakes it into the site, so a form renders with no
+   * request in the visitor's browser. Never overwrites a form the merchant has edited. */
+  formSeeds?: DeclaredFormSeed[];
+  /** Further form keys to bake at build time, for forms a theme references that it does not seed
+   * (a merchant-made form a block names by default). Each read is independently fail-soft. */
+  forms?: string[];
   tailwind?: boolean;
   /** The theme's own tablet/normal layout breakpoints (min-width px), so
    * Studio's UI can react to the theme's actual ranges (its side panels
@@ -177,6 +186,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       customPages: options.customPages,
       templates: options.templates,
       templateRoles: options.templateRoles,
+      formSeeds: options.formSeeds,
       themeDir: nuxt.options.rootDir,
       tailwind: options.tailwind,
       breakpoints: options.breakpoints,
@@ -224,6 +234,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // The `Organization` node's inputs (name, logo, social links, contact), filled in below once
       // the platform read settles. Written here first for the same reason `commerce` is.
       siteProfile: null as ResolvedSiteProfile | null,
+      // The form definitions the build baked (`./runtime/forms.ts`), filled in below once the
+      // platform read settles. Written here first for the same reason `commerce` is.
+      forms: {} as FormDefinitions,
       // Whether the deployed site reports to the Eldra tracker, and to which origin; see
       // `./runtime/analytics.ts` and the `analytics` option.
       analytics: resolveAnalyticsConfig({
@@ -261,6 +274,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       })),
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
+      { name: 'useEldraForms', from: resolver.resolve('./runtime/composables/useEldraForms') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
       // The active content locale and the path helpers around it. Re-exported from theme-vue
       // rather than defined here: the state lives on the theme context so a **block** can read it
@@ -529,6 +543,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       platformSeo,
       platformSiteProfile,
       platformCrawl,
+      platformForms,
     ] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
@@ -543,6 +558,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       nuxt.options.dev || options.buildTarget !== 'production'
         ? Promise.resolve(null)
         : readCrawlSettings(platformClient),
+      // The form definitions the theme seeds or names, one independently fail-soft read each.
+      // Build-only: `nuxi dev` has nothing to bake, and the storefront fetches them live there.
+      nuxt.options.dev
+        ? Promise.resolve({} as FormDefinitions)
+        : readFormDefinitions(platformClient, [
+            ...(options.formSeeds ?? []).map((seed) => seed.key),
+            ...(options.forms ?? []),
+          ]),
     ]);
     crawlSetting = platformCrawl;
     // `ELDRA_SITE_URL` wins over the platform's production URL, so an operator can override it
@@ -555,10 +578,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       locales: StoreLocales | null;
       designTokens: ThemeDesignTokens | null;
       siteProfile: ResolvedSiteProfile | null;
+      forms: FormDefinitions;
     };
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
+    runtimeEldra.forms = platformForms;
     (nuxt.options.runtimeConfig.public.eldraSeo as { setting: SeoSetting | null }).setting =
       platformSeo;
     // The merchant's profile with its gaps filled: the site name, and the site icon's 512 px

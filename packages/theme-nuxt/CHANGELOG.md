@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Form definitions are read at build time and baked in (WS-386).** The module reads
+  `GET /site/v1/forms/{key}` for every key in the new `formSeeds` option (also passed to
+  `@eldrajs/vite-plugin-theme`) and the new `forms: string[]` option, once per `nuxi generate`, each key
+  independently fail-soft — one warning naming the key, never a failed build, and one form's failure
+  never costs another its definition. The validated definitions are written to
+  `runtimeConfig.public.eldra.forms` and read with the new auto-imported `useEldraForms()`; the starter's
+  `forms.definition` serves a baked key with no request and fetches any other when the page opens.
+  `nuxi dev` reads none.
 - **Built-in analytics: the Eldra tracker, `useEldraAnalytics`, the `analytics` option.** A production
   build (`ELDRA_BUILD_TARGET=production`) with an organisation id loads the tracker
   (`analyticsTrackerScript` from `@eldrajs/sdk`) through a client plugin, so a deployed site reports

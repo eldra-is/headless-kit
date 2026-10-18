@@ -396,6 +396,9 @@ export function startMockGateway(
     /** The SEO setting `/site/v1/seo` answers with, in the public shape. Absent, the route 404s
      *  like a Core that predates the setting (the build's fail-soft default pattern). */
     seo?: Record<string, unknown>;
+    /** The form definitions `/site/v1/forms/{key}` answers with, by key, in the public shape. A key
+     *  not listed 404s like a form the platform does not have (or a Core that predates forms). */
+    forms?: Record<string, Record<string, unknown>>;
     /** The crawl settings `/site/v1/crawl` answers with (`{ revision, siteUrl, robotsExtra }`).
      *  Absent, the route 404s like a Core that predates them. */
     crawl?: Record<string, unknown>;
@@ -514,6 +517,15 @@ export function startMockGateway(
           res.end('{}');
         } else {
           res.end(JSON.stringify({ revision: 7, resolved: options.designTokens }));
+        }
+      } else if (url.pathname.startsWith('/site/v1/forms/')) {
+        const form =
+          options.forms?.[decodeURIComponent(url.pathname.slice('/site/v1/forms/'.length))];
+        if (form === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(form));
         }
       } else if (url.pathname === '/site/v1/seo') {
         if (options.seo === undefined) {
