@@ -155,6 +155,14 @@ button appears when that resolves. If the platform publishes no checkout URL, or
 come back, the cart still adds, updates and persists lines normally; it just has no Check out
 button to show, since there is nowhere to hand the cart off to.
 
+## Analytics
+
+On a production build the theme reports to Studio's analytics through `@eldrajs/theme-nuxt` (see
+`docs/themes.md`, _Built-in analytics_), and `app/storefront/analytics.ts` sends `product_view`,
+`add_to_cart`, `remove_from_cart`, `begin_checkout` and `search` by wrapping the storefront source in
+`app/plugins/eldra-storefront.ts`, so blocks never call it. Opt out with `eldra: { analytics: false }`
+in `nuxt.config.ts` or `ELDRA_ANALYTICS=off`. Nothing is written to cookies or storage.
+
 ## Prices and the store currency
 
 Nothing to configure here either, and nothing to guess: the organisation's own commerce settings

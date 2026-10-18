@@ -519,6 +519,63 @@ own `public/` files and head tags are then what ships.
   every theme build was fragile (optional binaries, libc/arch, install scripts) and is unnecessary
   now that the media worker renders the variants.
 
+## Built-in analytics
+
+A deployed Nuxt theme reports to the organisation's Studio analytics with no code: `@eldrajs/theme-nuxt`
+loads the Eldra tracker (`<gateway>/js/script.js`, the tag `analyticsTrackerScript` in `@eldrajs/sdk`
+describes) and the platform counts pageviews, including client-side navigations (the script patches
+`history.pushState`, so no router hook is involved).
+
+**When it runs.** The build decides: only a **production** build (`ELDRA_BUILD_TARGET=production`) with an
+organisation id (`ELDRA_ORG_ID`) and no opt-out reports. Never `nuxi dev`, never a preview build (the
+Studio preview host's), never a credential-less build. The browser decides the last thing: the tag is
+added by a client plugin, not written into the HTML, because the preview serves the same bundle in an
+iframe; a document framed by an allowed Studio origin (`studioOrigins`) never loads it. A live site
+embedded in someone else's frame still reports.
+
+**Options.** `eldra: { analytics }` in `nuxt.config.ts`:
+
+| Option                       | Effect                                                                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analytics: false`           | Opts out (also `{ enabled: false }` or `ELDRA_ANALYTICS=off`). No tag, and `useEldraAnalytics().track` is a no-op.                                                                                      |
+| `analytics: { eventOrigin }` | A bare origin (`https://shop.example`, no path) that receives events instead of the gateway: becomes the tag's `data-api`. Also `ELDRA_ANALYTICS_ORIGIN`. An invalid value is warned about and ignored. |
+
+The module does not serve a first-party proxy; `eventOrigin` only names one that exists. Without it,
+events go to the gateway cross-origin, which ad blockers may drop.
+
+**Events must come from a registered origin.** The platform drops an event whose `Origin` is not one of the
+organisation's storefront origins (Studio, General settings, _Storefront origins_) without an error, so a
+new domain or a `*.pages.dev` URL shows nothing until it is registered.
+
+**Custom events.** `useEldraAnalytics()` (auto-imported) returns `{ track(name, props?), enabled }`. Props
+are stringified, `null`/`undefined` ones are dropped, and they are cut to the platform's limits (30
+entries, keys 60 bytes, values 300 bytes; names 120). It queues up to 50 events until the script has
+loaded and is a no-op on the server and wherever tracking is off. `pageview` is rejected: the script owns
+it. The framework-free core is `createAnalytics` in `@eldrajs/theme-core`.
+
+The starter theme sends these (`examples/starter-nuxt/app/storefront/analytics.ts`, a wrapper around the
+storefront source, so no block sends or forgets one). Values are major units with `.` as the decimal
+separator, `currency` is ISO 4217:
+
+| Event              | Props                                                       | Sent when                                                                                                        |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `product_view`     | `product_id`, `handle`, `variant_id`, `value`, `currency`   | The product page's product loads, once per visit                                                                 |
+| `add_to_cart`      | `product_id`, `variant_id`, `quantity`, `value`, `currency` | A cart add succeeded, or a quantity went up, or a removal was undone                                             |
+| `remove_from_cart` | same                                                        | A cart line removal succeeded, or a quantity went down                                                           |
+| `begin_checkout`   | `cart_id`, `item_count`, `value`, `currency`                | The shopper follows the Check out link                                                                           |
+| `search`           | `query` (trimmed, 100 characters), `result_count`           | A search result for the typed query settled (800 ms), once per query across the header panel and the search page |
+
+`purchase` is never sent from the browser; it belongs to the order module. The platform stores these events
+but Studio's analytics do not report them yet.
+
+**What is collected, for your privacy notice.** Technically: no cookie and nothing in `localStorage` or
+`sessionStorage` is written by the tracker or by `useEldraAnalytics`. A visitor is a salted hash that
+rotates daily, computed by the platform from the request, never an identifier kept in the browser. A
+browser can opt itself out by setting `localStorage.eldra_ignore = 'true'`, which the script reads and
+never writes. Whether that means no consent banner is a legal judgment for the site owner; this section
+states only the technical facts. (The starter's own wishlist and recently-viewed lists use
+`localStorage` for the shopper's features, not for analytics.)
+
 ## More
 
 - [The deploy loop](theme-deploy-loop.md) — `eldra-theme init` → run locally → `validate` →

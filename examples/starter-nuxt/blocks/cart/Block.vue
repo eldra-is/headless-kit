@@ -282,6 +282,7 @@ const DRAWER_CLASSES = {
           block
           :href="checkoutHref"
           :as="checkoutAs"
+          @click="cart.beginCheckout()"
         >
           <template #leadingIcon>
             <EldraIcon name="lock" size="sm" />

@@ -80,6 +80,10 @@ not subject to this.
 
 ## Analytics tracker
 
+A Nuxt theme on `@eldrajs/theme-nuxt` needs none of this: the module loads the tracker on
+production builds by itself (see [Built-in analytics](themes.md#built-in-analytics)). Everything
+below is for a site that is not a theme-nuxt theme.
+
 The tracker is a script tag served by the same gateway the client reads from. Build it from the
 client's configuration so the two can never point at different environments:
 

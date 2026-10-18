@@ -752,6 +752,23 @@ describe('theme-nuxt nuxi generate', () => {
     );
   }, 360_000);
 
+  /**
+   * The tracker tag is added by a runtime plugin, so the HTML never carries it; what the build
+   * decides is `runtimeConfig.public.eldra.analytics.enabled`, baked into every page.
+   */
+  it('bakes analytics enabled into a production build and disabled into a preview build', async () => {
+    const analyticsConfig = () =>
+      /analytics:\{enabled:(!0|!1|true|false)/.exec(
+        readFileSync(output('index.html'), 'utf8')
+      )?.[1];
+
+    await generateWith({}, { ELDRA_BUILD_TARGET: 'production' });
+    expect(['!0', 'true']).toContain(analyticsConfig());
+
+    await generateWith({});
+    expect(['!1', 'false']).toContain(analyticsConfig());
+  }, 720_000);
+
   it('splits the sitemap into an index and children past the limit', async () => {
     await generateWith(
       { crawl: { revision: 1, siteUrl: null, robotsExtra: '' } },

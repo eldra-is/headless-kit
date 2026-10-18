@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Built-in analytics: the Eldra tracker, `useEldraAnalytics`, the `analytics` option.** A production
+  build (`ELDRA_BUILD_TARGET=production`) with an organisation id loads the tracker
+  (`analyticsTrackerScript` from `@eldrajs/sdk`) through a client plugin, so a deployed site reports
+  pageviews, SPA navigations included, with no code. Never `nuxi dev`, a preview build, a credential-less
+  build or a Studio preview frame. New module option `analytics: false | { enabled?, eventOrigin? }`
+  (env `ELDRA_ANALYTICS=off`, `ELDRA_ANALYTICS_ORIGIN`) on `runtimeConfig.public.eldra.analytics`; an
+  invalid `eventOrigin` is warned about and ignored. New auto-import `useEldraAnalytics()` returns
+  `{ track(name, props?), enabled }`, a no-op wherever tracking is off. No cookie or storage identifier.
+  Documented in `docs/themes.md`.
+
 - **Structured data: `useStructuredData`, `provideStructuredData`, `useSiteProfile`.** Writes a
   page's schema.org JSON-LD (nodes from `@eldrajs/theme-core`'s builders) into the head as one
   `<script type="application/ld+json">` under a fixed key, for `enabled` pages only (pass

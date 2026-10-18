@@ -30,6 +30,7 @@ import eldraTheme, {
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { resolveAnalyticsConfig, type AnalyticsOption } from './runtime/analytics';
 import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
 import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
@@ -125,6 +126,16 @@ export interface ModuleOptions {
    * The limits are sitemaps.org's (50,000 URLs, 50 MiB per file) and exist as options for tests.
    */
   sitemap?: false | SitemapLimits;
+  /**
+   * Built-in analytics on the deployed site: the Eldra tracker (`@eldrajs/sdk`'s
+   * `analyticsTrackerScript`) is loaded on **production** builds that have an organisation id —
+   * never under `nuxi dev`, in a preview build, in a Studio preview frame or without credentials —
+   * and `useEldraAnalytics().track()` sends custom events. `false` (or `{ enabled: false }`, or
+   * `ELDRA_ANALYTICS=off`) opts out. `eventOrigin` (or `ELDRA_ANALYTICS_ORIGIN`) is a first-party
+   * origin (`https://shop.example`, no path) that receives events instead of the gateway, for a
+   * proxy on the site's own domain. No cookie or storage identifier is written.
+   */
+  analytics?: AnalyticsOption;
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
@@ -213,6 +224,15 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // The `Organization` node's inputs (name, logo, social links, contact), filled in below once
       // the platform read settles. Written here first for the same reason `commerce` is.
       siteProfile: null as ResolvedSiteProfile | null,
+      // Whether the deployed site reports to the Eldra tracker, and to which origin; see
+      // `./runtime/analytics.ts` and the `analytics` option.
+      analytics: resolveAnalyticsConfig({
+        option: options.analytics,
+        env: process.env,
+        dev: nuxt.options.dev,
+        production: options.buildTarget === 'production',
+        orgId: options.orgId,
+      }),
     };
     // The page-title and SEO inputs `useEldraSeo` reads (`./runtime/composables/useEldraSeo.ts`):
     // the platform's SEO setting (filled in below once the read settles), the site's origin and
@@ -225,9 +245,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
+    addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
     addImports([
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
       { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
+      {
+        name: 'useEldraAnalytics',
+        from: resolver.resolve('./runtime/composables/useEldraAnalytics'),
+      },
       // schema.org JSON-LD: write a page's nodes (opt-out per kind via the `structuredData` option,
       // runtime edits via `provideStructuredData`) and read the shop's profile for `Organization`.
       ...['useStructuredData', 'provideStructuredData', 'useSiteProfile'].map((name) => ({

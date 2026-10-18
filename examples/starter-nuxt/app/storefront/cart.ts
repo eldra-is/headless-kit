@@ -66,6 +66,12 @@ export interface CartStore {
   applyDiscount(code: string): Promise<StorefrontAck>;
   removeDiscount(code: string): Promise<StorefrontFailure | null>;
   checkoutUrl: ComputedRef<string | null>;
+  /**
+   * The shopper followed the Check out link. Does nothing here — the link itself does the
+   * navigating — and exists as the one hook `app/storefront/analytics.ts` listens on to record a
+   * `begin_checkout`, which a source-level wrapper cannot observe from a plain `href`.
+   */
+  beginCheckout: () => void;
 }
 
 /**
@@ -177,6 +183,7 @@ export function createCartStore(ops: CartOps): CartStore {
     drawerHosted,
     lastRemoved,
     checkoutUrl,
+    beginCheckout: () => undefined,
     add: (input) => run(() => ops.add(input)),
     setQuantity: (lineId, quantity) => run(() => ops.setQuantity(lineId, quantity)),
     async remove(lineId) {
