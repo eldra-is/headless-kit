@@ -177,11 +177,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     routeTemplateSchema: 'route-template',
     tailwind: false,
     siteUrl: process.env.ELDRA_SITE_URL ?? '',
-    buildTarget: resolveBuildTarget(process.env.ELDRA_BUILD_TARGET),
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
     const studioOrigins = validateStudioOrigins(options.studioOrigins);
+    // Resolved here, not in `defaults`, so a mistyped ELDRA_BUILD_TARGET warns once, in context.
+    const buildTarget = options.buildTarget ?? resolveBuildTarget(process.env.ELDRA_BUILD_TARGET);
 
     // A named, mutable object — not an inline literal — because `resolveMessages` below is set
     // only after this module's own platform read settles, near the end of `setup()`. `eldraTheme`
@@ -250,7 +251,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         option: options.analytics,
         env: process.env,
         dev: nuxt.options.dev,
-        production: options.buildTarget === 'production',
+        production: buildTarget === 'production',
         orgId: options.orgId,
       }),
     };
@@ -261,7 +262,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       setting: null as SeoSetting | null,
       siteUrl: options.siteUrl ?? '',
       siteName: seoSiteName(nuxt.options.app.head.title),
-      isPreview: nuxt.options.dev || options.buildTarget !== 'production',
+      isPreview: nuxt.options.dev || buildTarget !== 'production',
     };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
@@ -462,7 +463,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         const crawlLogged = new Set<string>();
         const writeCrawlFiles = (publicDir: string) => {
           const files = buildCrawlFiles({
-            target: options.buildTarget === 'production' ? 'production' : 'preview',
+            target: buildTarget === 'production' ? 'production' : 'preview',
             siteUrl: crawlSiteUrl,
             robotsExtra: crawlSetting?.robotsExtra,
             routes: crawlRoutes,
@@ -589,7 +590,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       nuxt.options.dev ? Promise.resolve(null) : readSiteProfile(platformClient),
       // The crawl settings matter only to a production build: a preview build writes `Disallow: /`
       // and no sitemap whatever they say.
-      nuxt.options.dev || options.buildTarget !== 'production'
+      nuxt.options.dev || buildTarget !== 'production'
         ? Promise.resolve(null)
         : readCrawlSettings(platformClient),
       // The form definitions the theme seeds or names, one independently fail-soft read each.

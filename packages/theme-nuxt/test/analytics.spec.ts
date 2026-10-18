@@ -71,6 +71,15 @@ describe('shouldReport', () => {
     expect(shouldReport({ ...input, config: undefined })).toBe(false);
     expect(shouldReport({ ...input, studioPreviewFrame: true })).toBe(false);
   });
+
+  it.each(['localhost', 'app.localhost', '127.0.0.1', 'shop.previews.eldra.dev'])(
+    'never reports from %s',
+    (hostname) => {
+      const input = { client: true, dev: false, config: on, studioPreviewFrame: false };
+      expect(shouldReport({ ...input, hostname })).toBe(false);
+      expect(shouldReport({ ...input, hostname: 'shop.example' })).toBe(true);
+    }
+  );
 });
 
 describe('setupAnalytics (the plugin body)', () => {

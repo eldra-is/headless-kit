@@ -27,8 +27,10 @@ describe('validateField', () => {
 
   it('accepts only a finite number in a number field', () => {
     const field: StorefrontFormField = { id: 'qty', type: 'number', required: true, label: 'Qty' };
-    for (const ok of ['12', '-3.5', '.5', '1e3']) expect(validateField(field, ok, t)).toBeNull();
-    for (const bad of ['abc', '1,5', '1e999', '12px']) {
+    for (const ok of ['12', '-3.5', '.5', '1e3', '3,5']) {
+      expect(validateField(field, ok, t)).toBeNull();
+    }
+    for (const bad of ['abc', '1,2,3', '1e999', '12px']) {
       expect(validateField(field, bad, t)).toBe('form.invalidNumber');
     }
   });

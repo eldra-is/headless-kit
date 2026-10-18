@@ -34,6 +34,7 @@ export default defineNuxtPlugin({
       isFrame: import.meta.client && isStudioPreviewFrame(cfg.studioOrigins),
       gatewayUrl: cfg.gatewayUrl,
       orgId: cfg.orgId,
+      hostname: import.meta.client ? window.location.hostname : undefined,
       doc: import.meta.client ? document : undefined,
       win: import.meta.client ? (window as { eldra?: AnalyticsSender }) : undefined,
     });

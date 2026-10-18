@@ -63,7 +63,7 @@ A **deploy build is a production build**, and production is the default: set `EL
 public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow, GitLab
 job and Bitbucket pipeline already do (`ELDRA_SITE_URL` is a repository variable). Only
 `ELDRA_BUILD_TARGET=preview` makes a build `noindex` with no canonical or `og:url`; `nuxi dev` is
-always a preview. See [Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
+always a preview. A local `nuxi generate` (or `nuxi build` with `nuxi preview`) is production too unless you set `ELDRA_BUILD_TARGET=preview`; the analytics tracker never loads on `localhost` or the `*.previews.eldra.dev` host either way. See [Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
 gets bare page titles.
 
 **Deploy prerequisite.** A pipeline needs `ELDRA_SITE_URL` when the production URL set in Studio is

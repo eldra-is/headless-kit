@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The analytics tracker never loads on `localhost` or `*.previews.eldra.dev` (WS-387).** A local
+  `nuxi generate` is a production build now, so the browser skips the tracker on a developer's
+  machine and on the Studio preview host. `ELDRA_BUILD_TARGET` is also read once in `setup()`, so a
+  mistyped value warns once, in context, instead of at import.
+
 - **Baked form definitions accept `number` and `url` fields (WS-386).** `readFormDefinitions` no
   longer drops a form that has one.
 

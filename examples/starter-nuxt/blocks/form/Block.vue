@@ -225,9 +225,11 @@ function autocompleteFor(field: StorefrontFormField): string | undefined {
   );
 }
 
-function inputType(field: StorefrontFormField): 'text' | 'email' | 'tel' | 'number' | 'url' {
+// A number field stays `type="text"` with `inputmode="decimal"`: a `type="number"` input blanks a
+// value the browser's locale does not parse (a decimal comma), which would submit it empty.
+function inputType(field: StorefrontFormField): 'text' | 'email' | 'tel' | 'url' {
   if (field.type === 'phone') return 'tel';
-  if (field.type === 'email' || field.type === 'number' || field.type === 'url') return field.type;
+  if (field.type === 'email' || field.type === 'url') return field.type;
   return 'text';
 }
 

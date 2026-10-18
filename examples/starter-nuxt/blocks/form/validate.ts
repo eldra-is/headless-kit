@@ -5,9 +5,13 @@ type Translate = (key: string, params?: Record<string, unknown>) => string;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** A finite decimal number, the way `<input type="number">` accepts one (a `.` separator). */
+/** A finite decimal number, written with a `.` or, as an Icelandic visitor types it, a `,`. */
 function isNumber(text: string): boolean {
-  return /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text) && Number.isFinite(Number(text));
+  const normalized = text.replace(',', '.');
+  return (
+    /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(normalized) &&
+    Number.isFinite(Number(normalized))
+  );
 }
 
 /** An absolute http(s) URL: what a `url` field collects. */

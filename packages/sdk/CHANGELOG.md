@@ -9,8 +9,9 @@ platform repository.
 
 ## Unreleased
 
-- **`EldraFormFieldType` gains `number` and `url` (WS-386).** The two types Core accepts besides
-  the earlier set; both carry text the platform validates.
+- **`EldraFormFieldType` gains `number` and `url` (WS-386, contract 4.11.0).** The two types Core
+  accepts besides the earlier set from contract 4.11.0 on; both carry text the platform validates
+  (a finite number, with a decimal comma stored as a point, and an absolute http(s) URL).
 
 - **`client.forms.confirm(token)` and `unsubscribe(token)` POST (WS-386, contract 4.10.0).** The
   emailed confirm and unsubscribe links no longer act on a `GET`: Core answers a `GET` with a small

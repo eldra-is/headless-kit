@@ -67,6 +67,24 @@ export function resolveAnalyticsConfig(input: AnalyticsBuildInput): AnalyticsRun
 }
 
 /**
+ * A host that is never the live site: a developer's machine and the Studio preview host. A build
+ * that is production by default (a local `nuxi generate`) must not report visits from there.
+ */
+export function isNonSiteHost(hostname: string | undefined): boolean {
+  if (hostname === undefined) return false;
+  const host = hostname.toLowerCase();
+  return (
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host === '127.0.0.1' ||
+    host === '[::1]' ||
+    host === '::1' ||
+    host === 'previews.eldra.dev' ||
+    host.endsWith('.previews.eldra.dev')
+  );
+}
+
+/**
  * Whether this document reports: a browser (never the server), not a dev server, a build that
  * decided to report, and not a Studio preview frame.
  */
@@ -75,8 +93,16 @@ export function shouldReport(input: {
   dev: boolean;
   config: AnalyticsRuntimeConfig | undefined;
   studioPreviewFrame: boolean;
+  /** The document's hostname: a local or preview host never reports. */
+  hostname?: string;
 }): boolean {
-  return input.client && !input.dev && input.config?.enabled === true && !input.studioPreviewFrame;
+  return (
+    input.client &&
+    !input.dev &&
+    input.config?.enabled === true &&
+    !input.studioPreviewFrame &&
+    !isNonSiteHost(input.hostname)
+  );
 }
 
 /**
@@ -129,8 +155,10 @@ export function setupAnalytics(input: {
   orgId: string;
   doc: Document | undefined;
   win: { eldra?: AnalyticsSender } | undefined;
+  hostname?: string;
 }): Analytics {
   const active = shouldReport({
+    hostname: input.hostname,
     client: input.client,
     dev: input.dev,
     config: input.config,

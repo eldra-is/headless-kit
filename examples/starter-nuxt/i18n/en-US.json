@@ -204,7 +204,7 @@
     "summaryTitleMany": "{count} fields need a look",
     "serverError": "We couldn't send your message. Please email {email} instead.",
     "serverErrorGeneric": "We couldn't send your message. Please try again in a minute.",
-    "successTitle": "Thanks. Your message is with us.",
+    "successTitle": "Thanks! Your message is with us.",
     "successTextDefault": "We reply within one working day, usually sooner.",
     "sendAnother": "Send another message"
   },
