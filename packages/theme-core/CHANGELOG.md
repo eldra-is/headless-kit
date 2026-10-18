@@ -5,6 +5,15 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New framework-free SEO resolver, `resolveSeo` (and `substituteSeoPattern`, `tidySeoTitle`,
+  `renderSeoTitle`, `pickSeoLocale`, the `SeoSetting`/`SeoEntryValue`/`ResolvedSeo` types):
+  title, description, share image, canonical, `noindex`, `og:type` and Twitter handle for one route
+  from the entry's own `seo` value, the route template's pattern, the site's pattern and the page's
+  own title, in that order. `{{dot.path}}` substitution is a single pass, an unknown or empty
+  variable becomes empty (never literal braces), and a separator left dangling by an empty variable
+  is dropped. Studio's previews run the same function; `src/__tests__/fixtures/seo-vectors.json`
+  is the vector file shared with Core and Studio. Documented in `docs/theme-seo.md`.
+
 - New `themeId` helpers, framework-free: `blockApiIdOf(schemaApiId, themeId)` (the wire spelling
   `<themeId>:<apiId>` to the bare block id, stripping only the given theme's own prefix, so
   `catalog:product` and another theme's `starter:hero` pass through) and

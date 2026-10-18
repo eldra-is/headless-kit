@@ -15,6 +15,7 @@ import {
   type EldraClient,
   type EldraRetryOptions,
   type EntryDoc,
+  type SeoSetting,
   type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
@@ -40,6 +41,7 @@ import {
 } from './runtime/locales';
 import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
+import { readSeo } from './runtime/seo';
 import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
 
 export interface ModuleOptions {
@@ -88,6 +90,18 @@ export interface ModuleOptions {
    * storefront building its own commerce client reads the same policy.
    */
   retry?: EldraRetryOptions;
+  /**
+   * The site's public origin (`https://shop.example`), used for canonical URLs and absolute share
+   * images. Defaults to `ELDRA_SITE_URL`. Without it no canonical or `og:url` is written, because
+   * both must be absolute and a guessed host is worse than none.
+   */
+  siteUrl?: string;
+  /**
+   * `'production'` for the build that serves the public site; anything else (the default, unless
+   * `ELDRA_BUILD_TARGET=production`) is a preview build, which is always `noindex`. Defaults to
+   * `ELDRA_BUILD_TARGET`.
+   */
+  buildTarget?: 'production' | 'preview';
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
@@ -112,6 +126,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     pageSchema: 'page',
     routeTemplateSchema: 'route-template',
     tailwind: false,
+    siteUrl: process.env.ELDRA_SITE_URL ?? '',
+    buildTarget: process.env.ELDRA_BUILD_TARGET === 'production' ? 'production' : 'preview',
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
@@ -169,10 +185,20 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // reads the same policy the module's reads use.
       retry: options.retry ?? null,
     };
+    // The page-title and SEO inputs `useEldraSeo` reads (`./runtime/composables/useEldraSeo.ts`):
+    // the platform's SEO setting (filled in below once the read settles), the site's origin and
+    // name, and whether this is a preview build, which is always `noindex`.
+    nuxt.options.runtimeConfig.public.eldraSeo = {
+      setting: null as SeoSetting | null,
+      siteUrl: options.siteUrl ?? '',
+      siteName: seoSiteName(nuxt.options.app.head.title),
+      isPreview: nuxt.options.dev || options.buildTarget !== 'production',
+    };
 
     addPlugin(resolver.resolve('./runtime/plugin'));
     addImports([
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
+      { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
@@ -381,14 +407,23 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     //
     // The site icons are a fifth read on the same terms. Only a static build (`nuxi generate`/
     // `build`) reads them: `nuxi dev` serves no generated files, so a tag for one would 404.
-    const [commerce, locales, platformMessages, platformDesignTokens, platformSiteIcons] =
-      await Promise.all([
-        readStoreCommerce(platformClient),
-        readStoreLocales(platformClient),
-        readThemeMessages(platformClient),
-        readDesignTokens(platformClient),
-        nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
-      ]);
+    //
+    // The SEO setting is a sixth, also build-only (`nuxi dev` writes no head a crawler reads).
+    const [
+      commerce,
+      locales,
+      platformMessages,
+      platformDesignTokens,
+      platformSiteIcons,
+      platformSeo,
+    ] = await Promise.all([
+      readStoreCommerce(platformClient),
+      readStoreLocales(platformClient),
+      readThemeMessages(platformClient),
+      readDesignTokens(platformClient),
+      nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
+      nuxt.options.dev ? Promise.resolve(null) : readSeo(platformClient),
+    ]);
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
@@ -397,6 +432,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
+    (nuxt.options.runtimeConfig.public.eldraSeo as { setting: SeoSetting | null }).setting =
+      platformSeo;
     // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
     // and the head untouched: tags are added only when the platform answered with icons.
     const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
@@ -488,6 +525,15 @@ function packageVersion(path: string): string {
   } catch {
     return '0.0.0';
   }
+}
+
+/**
+ * The site name SEO titles fall back to: the theme's `app.head.title` only. Never the npm package
+ * name (`starter-nuxt` is not a shop name); with none, titles are the bare page title and the
+ * platform's own `site.name` (when the merchant or Core sets one) still wins.
+ */
+function seoSiteName(title: unknown): string {
+  return typeof title === 'string' ? title.trim() : '';
 }
 
 function siteName(title: unknown, rootDir: string): string | null {

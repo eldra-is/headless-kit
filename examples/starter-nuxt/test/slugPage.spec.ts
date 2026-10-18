@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // `app/pages/[...slug].vue` reads `useEldraPage()`, `useRoute()`, and
-// `useHead()` as bare Nuxt-auto-imported globals (no imports in the source
+// `useEldraSeo()` as bare Nuxt-auto-imported globals (no imports in the source
 // file — see test/useEldraIcon.test.ts for the same pattern). Outside a
 // Nuxt build we install them ourselves with `vi.stubGlobal` before mounting,
 // the same technique used there. `NuxtLink` is stubbed via `global.stubs` so
@@ -71,7 +71,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
 
   it('renders the not-found shell, not the error alert, for /404 even when useEldraPage reports an error', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/404' }));
-    vi.stubGlobal('useHead', () => {});
+    vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -93,7 +93,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
 
   it('renders the error alert, not the not-found shell, for a real route with an error', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/some-real-page' }));
-    vi.stubGlobal('useHead', () => {});
+    vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
       template: ref(null),
@@ -120,7 +120,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   // above the navigation it exists to skip. The rule itself is `app/utils/pageStructure.ts`.
   it('renders the header blocks before <main> and a trailing footer after it', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
-    vi.stubGlobal('useHead', () => {});
+    vi.stubGlobal('useEldraSeo', () => {});
     const blocks = [
       { id: 'b1', schemaApiId: 'announcement-bar' },
       { id: 'b2', schemaApiId: 'navigation' },
@@ -173,7 +173,7 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   // also render the blocks `EldraLayout` is already rendering.
   it('renders a layout-driven page through EldraLayout alone, with no extra zones', () => {
     vi.stubGlobal('useRoute', () => ({ path: '/' }));
-    vi.stubGlobal('useHead', () => {});
+    vi.stubGlobal('useEldraSeo', () => {});
     vi.stubGlobal('useEldraPage', () => ({
       page: ref({ data: { title: 'Home' } }),
       template: ref(null),
@@ -197,17 +197,17 @@ describe('[...slug].vue not-found vs. error branch priority', () => {
   });
 });
 
-describe('[...slug].vue document title', () => {
+describe('[...slug].vue SEO input', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  /** `useHead` is called with a function, so the title is read back by calling it. */
-  function titleFor(page: Record<string, unknown>): string {
-    let head: (() => { title: string }) | undefined;
-    vi.stubGlobal('useRoute', () => ({ path: '/products/ash-glaze-mug' }));
-    vi.stubGlobal('useHead', (input: () => { title: string }) => {
-      head = input;
+  /** `useEldraSeo` is called with getters, so the resolved input is read back by calling them. */
+  function seoFor(page: Record<string, unknown>, path = '/products/ash-glaze-mug') {
+    let args: unknown[] = [];
+    vi.stubGlobal('useRoute', () => ({ path }));
+    vi.stubGlobal('useEldraSeo', (...received: unknown[]) => {
+      args = received;
     });
     vi.stubGlobal('useEldraPage', () => ({
       page: ref(null),
@@ -222,23 +222,39 @@ describe('[...slug].vue document title', () => {
       ...page,
     }));
     mount(SlugPage, { global: mountGlobal });
-    return head!().title;
+    const [context, data, options] = args as [() => unknown, () => unknown, () => unknown];
+    return { context: context(), data: data() as Record<string, unknown>, options: options() };
   }
 
-  it('titles a catalog route with the product’s own name, not the template’s', () => {
-    // A product page renders through the shared "Product" route template, so its own document
-    // title names the template — every product page's tab read "Product" before this.
-    expect(
-      titleFor({
-        template: ref({ data: { title: 'Product' } }),
-        entry: ref({ data: { title: 'Ash glaze mug' } }),
-        catalog: computed(() => ({ kind: 'product', slug: 'ash-glaze-mug' })),
-        blocks: computed(() => [{ id: 'b1', schemaApiId: 'product-detail' }]),
-      })
-    ).toBe('Ash glaze mug');
+  it('names a catalog route after the product, not the template, and uses the template’s seo', () => {
+    const seo = seoFor({
+      template: ref({ data: { title: 'Product', seo: { noindex: true } } }),
+      entry: ref({ data: { title: 'Ash glaze mug' } }),
+      catalog: computed(() => ({ kind: 'product', slug: 'ash-glaze-mug' })),
+      blocks: computed(() => [{ id: 'b1', schemaApiId: 'product-detail' }]),
+    });
+    expect(seo.context).toBe('catalog:product');
+    expect(seo.data['page.title']).toBe('Ash glaze mug');
+    expect(seo.data['product.name']).toBe('Ash glaze mug');
+    expect(seo.options).toMatchObject({ entry: null, template: { noindex: true } });
   });
 
-  it('titles an ordinary page with its own document title', () => {
-    expect(titleFor({ page: ref({ data: { title: 'About us' } }) })).toBe('About us');
+  it('passes an ordinary page’s own title and seo field', () => {
+    const seo = seoFor(
+      { page: ref({ data: { title: 'About us', seo: { description: 'Who we are' } } }) },
+      '/about'
+    );
+    expect(seo.context).toBe('page');
+    expect(seo.data['page.title']).toBe('About us');
+    expect(seo.options).toMatchObject({ entry: { description: 'Who we are' } });
+  });
+
+  it('treats / as the home page', () => {
+    expect(seoFor({ page: ref({ data: { title: 'Home' } }) }, '/').context).toBe('home');
+  });
+
+  it('titles the not-found shell itself and keeps it out of the index', () => {
+    const seo = seoFor({}, '/404');
+    expect(seo.options).toMatchObject({ entry: { title: 'Page not found', noindex: true } });
   });
 });

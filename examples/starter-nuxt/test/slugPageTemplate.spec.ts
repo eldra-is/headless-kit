@@ -116,7 +116,7 @@ const projection = {
 function stubTemplateRoute(options: { layout?: unknown; projection?: unknown } = {}): void {
   const layout = options.layout ?? previewLayout;
   vi.stubGlobal('useRoute', () => ({ path: '/products/ash-glaze-mug' }));
-  vi.stubGlobal('useHead', () => {});
+  vi.stubGlobal('useEldraSeo', () => {});
   vi.stubGlobal('useEldraPage', () => ({
     page: ref(null),
     template: ref({ id: 'rt-product', data: { title: 'Product', layout } }),
