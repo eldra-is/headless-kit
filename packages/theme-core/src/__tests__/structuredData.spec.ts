@@ -292,3 +292,25 @@ describe('applyStructuredDataPolicy', () => {
     expect(seen).toEqual(['product@/p', 'breadcrumb@/p']);
   });
 });
+
+describe('untrusted input stays linear', () => {
+  it('strips tags and trailing slashes from hostile strings without backtracking', () => {
+    const lt = '<'.repeat(100_000);
+    const started = performance.now();
+    expect(ldPlainText(`a<b>c ${lt}`)).toBe(`a c ${lt}`.slice(0, 5000).trim());
+    const site = buildWebSiteLd({
+      name: 'S',
+      url: `https://x.is${'/'.repeat(100_000)}`,
+      searchPath: '/search',
+    });
+    expect(JSON.stringify(site)).toContain(
+      '"urlTemplate":"https://x.is/search?q={search_term_string}"'
+    );
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it('drops every closed tag and keeps an unclosed one as text', () => {
+    expect(ldPlainText('<p>Hello <b>world</b></p>')).toBe('Hello world');
+    expect(ldPlainText('1 < 2 and more')).toBe('1 < 2 and more');
+  });
+});

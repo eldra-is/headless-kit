@@ -289,7 +289,7 @@ export function buildWebSiteLd(input: WebSiteLdInput): JsonLd {
             '@type': 'SearchAction',
             target: {
               '@type': 'EntryPoint',
-              urlTemplate: `${input.url.replace(/\/+$/, '')}${search.startsWith('/') ? '' : '/'}${search}?q={search_term_string}`,
+              urlTemplate: `${trimTrailingSlashes(input.url)}${search.startsWith('/') ? '' : '/'}${search}?q={search_term_string}`,
             },
             'query-input': 'required name=search_term_string',
           },
@@ -317,12 +317,33 @@ export const LD_DESCRIPTION_MAX = 5000;
  * on a word boundary.
  */
 export function ldPlainText(value: unknown, max: number = LD_DESCRIPTION_MAX): string {
-  const raw = typeof value === 'string' ? value.replace(/<[^>]*>/g, ' ') : flatten(value);
+  const raw = typeof value === 'string' ? stripTags(value) : flatten(value);
   const plain = raw.replace(/\s+/g, ' ').trim();
   if (plain.length <= max) return plain;
   const cut = plain.slice(0, max);
   const space = cut.lastIndexOf(' ');
   return (space > max * 0.8 ? cut.slice(0, space) : cut).trim();
+}
+
+function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
+/** Drops `<…>` tags in one pass (a linear scan; an unclosed `<` keeps the rest as text). */
+function stripTags(html: string): string {
+  let out = '';
+  let i = 0;
+  while (i < html.length) {
+    const open = html.indexOf('<', i);
+    if (open === -1) break;
+    const close = html.indexOf('>', open + 1);
+    if (close === -1) break;
+    out += `${html.slice(i, open)} `;
+    i = close + 1;
+  }
+  return out + html.slice(i);
 }
 
 function flatten(value: unknown): string {
