@@ -5,6 +5,9 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Baked form definitions accept `number` and `url` fields (WS-386).** `readFormDefinitions` no
+  longer drops a form that has one.
+
 - **Breaking: a build is production unless `ELDRA_BUILD_TARGET=preview` (WS-387).** The marker
   flipped. Before, only `ELDRA_BUILD_TARGET=production` was a production build and everything else
   was a noindex preview; now an unset or empty variable is production, `preview` is the preview

@@ -512,7 +512,8 @@ export type EldraFormLocalized = Record<string, string>;
 
 /**
  * The field types a form definition can carry. `checkbox` and `consent` both carry a boolean;
- * `required` on a `consent` field means it must be checked.
+ * `required` on a `consent` field means it must be checked. `number` and `url` carry text the
+ * platform validates (a finite number, an absolute http(s) URL).
  */
 export type EldraFormFieldType =
   | 'text'
@@ -521,7 +522,9 @@ export type EldraFormFieldType =
   | 'textarea'
   | 'select'
   | 'checkbox'
-  | 'consent';
+  | 'consent'
+  | 'number'
+  | 'url';
 
 export interface EldraFormFieldOption {
   value: string;

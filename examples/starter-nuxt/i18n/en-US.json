@@ -204,8 +204,8 @@
     "summaryTitleMany": "{count} fields need a look",
     "serverError": "We couldn't send your message. Please email {email} instead.",
     "serverErrorGeneric": "We couldn't send your message. Please try again in a minute.",
-    "successTitle": "Thanks, {name}. Your message is with us.",
-    "successTextDefault": "We reply within one working day, usually sooner. A copy is on its way to {email}.",
+    "successTitle": "Thanks. Your message is with us.",
+    "successTextDefault": "We reply within one working day, usually sooner.",
     "sendAnother": "Send another message"
   },
   "form": {
@@ -220,6 +220,8 @@
     "required": "{field} is required.",
     "requiredCheckbox": "Tick the box: {field}",
     "invalidEmail": "Enter a full email address, like name{'@'}example.com",
+    "invalidNumber": "Enter a number, like 12 or 3.5",
+    "invalidUrl": "Enter a full web address, like https://example.com",
     "tooShort": "Use at least {min} characters.",
     "tooLong": "Use at most {max} characters.",
     "invalidFormat": "Check the format of this answer.",

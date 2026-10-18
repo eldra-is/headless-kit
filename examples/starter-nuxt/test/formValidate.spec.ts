@@ -24,4 +24,21 @@ describe('validateField', () => {
     expect(validateField(field, 'cd', t)).toBeNull();
     expect(validateField(field, 'abcd', t)).toBe('form.invalidFormat');
   });
+
+  it('accepts only a finite number in a number field', () => {
+    const field: StorefrontFormField = { id: 'qty', type: 'number', required: true, label: 'Qty' };
+    for (const ok of ['12', '-3.5', '.5', '1e3']) expect(validateField(field, ok, t)).toBeNull();
+    for (const bad of ['abc', '1,5', '1e999', '12px']) {
+      expect(validateField(field, bad, t)).toBe('form.invalidNumber');
+    }
+  });
+
+  it('accepts only an absolute http(s) address in a url field', () => {
+    const field: StorefrontFormField = { id: 'site', type: 'url', required: false, label: 'Site' };
+    expect(validateField(field, 'https://example.com/a?b=1', t)).toBeNull();
+    expect(validateField(field, '', t)).toBeNull();
+    for (const bad of ['example.com', 'javascript:alert(1)', 'ftp://x.test']) {
+      expect(validateField(field, bad, t)).toBe('form.invalidUrl');
+    }
+  });
 });

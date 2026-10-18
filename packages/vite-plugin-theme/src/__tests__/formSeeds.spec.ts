@@ -71,6 +71,25 @@ describe('validateFormSeeds', () => {
     expect(validate(quote('tel')).errors.join('\n')).toContain('.type');
   });
 
+  it('accepts number and url fields, with validation', () => {
+    const seed = {
+      ...contactSeed(),
+      key: 'quote',
+      actions: { notify: true, confirm: false },
+      fields: [
+        {
+          id: 'quantity',
+          type: 'number',
+          required: true,
+          label: { 'en-US': 'Quantity' },
+          validation: { pattern: '[0-9]+' },
+        },
+        { id: 'website', type: 'url', required: false, label: { 'en-US': 'Website' } },
+      ],
+    };
+    expect(validate([seed]).errors).toEqual([]);
+  });
+
   it('accepts a subscribe form with a list', () => {
     const seed = {
       ...contactSeed(),
@@ -155,8 +174,7 @@ describe('validateFormSeeds', () => {
       },
     ];
     it.each([
-      ['a number field', { type: 'number' }, '.type'],
-      ['a url field', { type: 'url' }, '.type'],
+      ['an unknown field type', { type: 'date' }, '.type'],
       ['the reserved id "all"', { type: 'text', id: 'All' }, 'reserved'],
       [
         'validation on a select',

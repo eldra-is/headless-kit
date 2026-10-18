@@ -37,6 +37,8 @@ const FORM_FIELD_TYPES: ReadonlySet<string> = new Set<StorefrontFormFieldType>([
   'select',
   'checkbox',
   'consent',
+  'number',
+  'url',
 ]);
 
 /**

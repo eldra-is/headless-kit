@@ -204,8 +204,8 @@
     "summaryTitleMany": "{count} reiti þarf að skoða",
     "serverError": "Ekki tókst að senda skilaboðin. Sendu tölvupóst á {email} í staðinn.",
     "serverErrorGeneric": "Ekki tókst að senda skilaboðin. Reyndu aftur eftir smá stund.",
-    "successTitle": "Takk, {name}. Skilaboðin þín eru komin til okkar.",
-    "successTextDefault": "Við svörum innan eins virks dags, oftast fyrr. Afrit er á leiðinni á {email}.",
+    "successTitle": "Takk. Skilaboðin þín eru komin til okkar.",
+    "successTextDefault": "Við svörum innan eins virks dags, oftast fyrr.",
     "sendAnother": "Senda önnur skilaboð"
   },
   "form": {
@@ -220,6 +220,8 @@
     "required": "{field} er nauðsynlegt.",
     "requiredCheckbox": "Hakaðu í reitinn: {field}",
     "invalidEmail": "Sláðu inn fullt netfang, eins og nafn{'@'}example.is",
+    "invalidNumber": "Sláðu inn tölu, t.d. 12 eða 3.5",
+    "invalidUrl": "Sláðu inn fullt veffang, t.d. https://example.is",
     "tooShort": "Notaðu að minnsta kosti {min} stafi.",
     "tooLong": "Notaðu í mesta lagi {max} stafi.",
     "invalidFormat": "Athugaðu snið svarsins.",

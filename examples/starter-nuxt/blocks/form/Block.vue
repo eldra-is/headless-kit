@@ -193,9 +193,13 @@ const outerClass = computed(() =>
 );
 const copyClass = 'grid gap-3';
 
-const NUMERIC_INPUT_MODE: Partial<Record<StorefrontFormField['type'], 'tel' | 'email'>> = {
+const NUMERIC_INPUT_MODE: Partial<
+  Record<StorefrontFormField['type'], 'tel' | 'email' | 'decimal' | 'url'>
+> = {
   phone: 'tel',
   email: 'email',
+  number: 'decimal',
+  url: 'url',
 };
 const AUTOCOMPLETE: Partial<Record<string, string>> = {
   name: 'name',
@@ -211,13 +215,20 @@ function isBoolean(field: StorefrontFormField): boolean {
 function autocompleteFor(field: StorefrontFormField): string | undefined {
   return (
     AUTOCOMPLETE[field.id] ??
-    (field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : undefined)
+    (field.type === 'email'
+      ? 'email'
+      : field.type === 'phone'
+        ? 'tel'
+        : field.type === 'url'
+          ? 'url'
+          : undefined)
   );
 }
 
-function inputType(field: StorefrontFormField): 'text' | 'email' | 'tel' {
+function inputType(field: StorefrontFormField): 'text' | 'email' | 'tel' | 'number' | 'url' {
   if (field.type === 'phone') return 'tel';
-  return field.type === 'email' ? 'email' : 'text';
+  if (field.type === 'email' || field.type === 'number' || field.type === 'url') return field.type;
+  return 'text';
 }
 
 /* ---------------------------------------------------------------------- */

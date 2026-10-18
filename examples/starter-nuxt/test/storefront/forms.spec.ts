@@ -147,6 +147,20 @@ describe('localizeFormDefinition', () => {
     expect(result.fields.map((field) => field.type)).toEqual(['phone', 'consent']);
   });
 
+  it('carries number and url fields through', () => {
+    const result = localizeFormDefinition(
+      {
+        ...definition,
+        fields: [
+          { id: 'qty', type: 'number', required: true, label: { 'en-US': 'Quantity' } },
+          { id: 'site', type: 'url', required: false, label: { 'en-US': 'Website' } },
+        ],
+      },
+      'en-US'
+    );
+    expect(result.fields.map((field) => field.type)).toEqual(['number', 'url']);
+  });
+
   it('has no redirect when the platform names none', () => {
     const { redirect: _drop, ...success } = definition.success;
     expect(localizeFormDefinition({ ...definition, success }, 'en-US').successRedirect).toBeNull();

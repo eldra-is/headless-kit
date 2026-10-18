@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Form seed field types `number` and `url` (WS-386).** `validateFormSeeds` and
+  `ManifestFormSeedFieldType` list every type Core accepts: `text`, `email`, `phone`, `textarea`,
+  `select`, `checkbox`, `consent`, `number`, `url`. `number` and `url` take `validation` like `text`.
+
 - **`formSeeds` cannot reference an email template (WS-386).** Core now refuses a form action that
   would send anything but a form design or the organisation's own custom template. A seed's
   `notify`/`confirm` are flags and `subscribe` takes only `{ list }`, so a seed can only ever use the

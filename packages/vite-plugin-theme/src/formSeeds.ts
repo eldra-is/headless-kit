@@ -25,7 +25,14 @@ const RESERVED_FIELD_ID = 'all';
 /** Core's cap on `minLength` / `maxLength`. */
 const MAX_VALIDATION_LENGTH = 8000;
 /** The field types that take a `validation` block; Core refuses it on the rest. */
-const VALIDATION_TYPES: ReadonlySet<string> = new Set(['text', 'email', 'phone', 'textarea']);
+const VALIDATION_TYPES: ReadonlySet<string> = new Set([
+  'text',
+  'email',
+  'phone',
+  'textarea',
+  'number',
+  'url',
+]);
 const FIELD_TYPES: ReadonlySet<string> = new Set<ManifestFormSeedFieldType>([
   'text',
   'email',
@@ -34,6 +41,8 @@ const FIELD_TYPES: ReadonlySet<string> = new Set<ManifestFormSeedFieldType>([
   'select',
   'checkbox',
   'consent',
+  'number',
+  'url',
 ]);
 
 const SEED_KEYS = new Set(['key', 'name', 'fields', 'actions', 'success']);

@@ -26,6 +26,8 @@ const FIELD_TYPES = new Set([
   'select',
   'checkbox',
   'consent',
+  'number',
+  'url',
 ]);
 const ACTION_KINDS = new Set(['store', 'notify', 'confirm', 'subscribe']);
 
