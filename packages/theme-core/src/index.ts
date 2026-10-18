@@ -68,3 +68,4 @@ export {
   THEME_ID_PATTERN,
   themeSchemaApiId,
 } from './themeId';
+export * from './seo';
