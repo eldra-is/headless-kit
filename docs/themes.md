@@ -426,6 +426,12 @@ email field. Core creates a seeded form only when its key is absent and never ov
 (an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
 `examples/starter-nuxt/app/formSeeds.ts`.
 
+A seed cannot name an email template: `notify`, `confirm` and `subscribe` are flags, and Core maps each to
+its own form design (`form_notification`, `form_confirmation`, `form_subscribe_confirm`). A visitor can
+type any address into a form, so Core refuses a form action that would send anything but a form design
+or the organisation's own custom template (`SITE_FORM_TEMPLATE_NOT_ALLOWED`); the plugin refuses a
+`templateRef` on a seed with the same wording before the deploy.
+
 **Place them.** The starter's `form` block renders any form by key. `@eldrajs/theme-nuxt` also reads
 the definition of every seeded key — and every key in its `forms` option, for a merchant-made form a
 block names by default — at build time, fail-soft per key, and bakes them into the site

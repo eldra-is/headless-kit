@@ -10,7 +10,12 @@ const contactSeed = (): DeclaredFormSeed => ({
   key: 'contact',
   name: 'Contact',
   fields: [
-    { id: 'name', type: 'text', required: true, label: { 'en-US': 'Name', 'is-IS': 'Nafn' } },
+    {
+      id: 'name',
+      type: 'text',
+      required: true,
+      label: { 'en-US': 'Name', 'is-IS': 'Nafn' },
+    },
     { id: 'email', type: 'email', required: true, label: { 'en-US': 'Email' } },
     {
       id: 'topic',
@@ -53,7 +58,12 @@ describe('validateFormSeeds', () => {
         actions: { notify: true, confirm: false },
         fields: [
           { id: 'phone', type, required: true, label: { 'en-US': 'Phone' } },
-          { id: 'agree', type: 'consent', required: true, label: { 'en-US': 'I agree' } },
+          {
+            id: 'agree',
+            type: 'consent',
+            required: true,
+            label: { 'en-US': 'I agree' },
+          },
         ],
       },
     ];
@@ -66,7 +76,11 @@ describe('validateFormSeeds', () => {
       ...contactSeed(),
       key: 'newsletter',
       fields: [contactSeed().fields[1]],
-      actions: { notify: false, confirm: false, subscribe: { list: 'newsletter' } },
+      actions: {
+        notify: false,
+        confirm: false,
+        subscribe: { list: 'newsletter' },
+      },
     };
 
     expect(validate([seed]).errors).toEqual([]);
@@ -96,6 +110,27 @@ describe('validateFormSeeds', () => {
       'actions.push',
     ],
     ['a non-boolean notify', { actions: { notify: 'yes', confirm: false } }, 'actions.notify'],
+    [
+      'a template reference on notify (a seed can only name the form designs, by flag)',
+      {
+        actions: {
+          notify: { templateRef: { templateId: 'order_confirmation' } },
+          confirm: false,
+        },
+      },
+      'actions.notify — must be true or false',
+    ],
+    [
+      'a template reference beside the flags',
+      {
+        actions: {
+          notify: true,
+          confirm: false,
+          templateRef: 'password_reset',
+        },
+      },
+      'actions.templateRef — unknown key',
+    ],
   ])('refuses %s', (_name, patch, message) => {
     const { errors } = validate([{ ...contactSeed(), ...patch }]);
 
@@ -146,7 +181,10 @@ describe('validateFormSeeds', () => {
     });
 
     it('accepts RE2 syntax, including a class holding lookaround characters', () => {
-      const field = { type: 'text', validation: { pattern: '[(?=\\d]+(?:ab|cd)\\d{2}' } };
+      const field = {
+        type: 'text',
+        validation: { pattern: '[(?=\\d]+(?:ab|cd)\\d{2}' },
+      };
       expect(validate(withField(field)).errors).toEqual([]);
     });
 
@@ -159,7 +197,11 @@ describe('validateFormSeeds', () => {
     it('caps a list key at 40 characters', () => {
       const seed = {
         ...contactSeed(),
-        actions: { notify: false, confirm: false, subscribe: { list: `a${'b'.repeat(40)}` } },
+        actions: {
+          notify: false,
+          confirm: false,
+          subscribe: { list: `a${'b'.repeat(40)}` },
+        },
       };
       expect(validate([seed]).errors.join('\n')).toContain('subscribe.list');
     });
@@ -255,7 +297,11 @@ describe('validateFormSeeds', () => {
 
     it('refuses subscribe without an email field, and a bad list', () => {
       const errors = validate([
-        textOnly({ notify: false, confirm: false, subscribe: { list: 'Bad List' } }),
+        textOnly({
+          notify: false,
+          confirm: false,
+          subscribe: { list: 'Bad List' },
+        }),
       ]).errors.join('\n');
 
       expect(errors).toContain('actions.subscribe.list');

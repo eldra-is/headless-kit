@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`formSeeds` cannot reference an email template (WS-386).** Core now refuses a form action that
+  would send anything but a form design or the organisation's own custom template. A seed's
+  `notify`/`confirm` are flags and `subscribe` takes only `{ list }`, so a seed can only ever use the
+  platform form designs; `validateFormSeeds` rejects a `templateRef` (object in place of a flag, or an
+  unknown key) as a scan error. No behaviour change for valid seeds; the starter's seeds are unaffected.
 - **`formSeeds`: the forms a site starts with (WS-386).** A new `eldra.formSeeds` option (and
   `ScanOptions.formSeeds`) declares up to eight forms, `{ key, name, fields, actions, success }`, with a
   label per locale on every field. `validateFormSeeds` (exported) refuses what Core refuses — a key
