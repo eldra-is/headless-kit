@@ -510,14 +510,18 @@ export interface EldraInventoryClient {
  */
 export type EldraFormLocalized = Record<string, string>;
 
-/** The field types a form definition can carry. */
+/**
+ * The field types a form definition can carry. `checkbox` and `consent` both carry a boolean;
+ * `required` on a `consent` field means it must be checked.
+ */
 export type EldraFormFieldType =
   | 'text'
   | 'email'
-  | 'tel'
+  | 'phone'
   | 'textarea'
   | 'select'
   | 'checkbox'
+  | 'consent'
   | 'number'
   | 'url';
 

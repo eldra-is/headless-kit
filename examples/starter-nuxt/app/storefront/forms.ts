@@ -2,6 +2,7 @@ import type { EldraFormDefinition, EldraFormSubmitResult } from '@eldrajs/sdk';
 import type {
   StorefrontFormDefinition,
   StorefrontFormField,
+  StorefrontFormFieldType,
   StorefrontFormSubmitResult,
 } from './types';
 
@@ -28,11 +29,33 @@ export function pickLocalized(
   return entries[0]?.[1] ?? '';
 }
 
-/** A definition as the platform serves it, with every per-locale text resolved for `locale`. */
+const FORM_FIELD_TYPES: ReadonlySet<string> = new Set<StorefrontFormFieldType>([
+  'text',
+  'email',
+  'phone',
+  'textarea',
+  'select',
+  'checkbox',
+  'consent',
+  'number',
+  'url',
+]);
+
+/**
+ * A definition as the platform serves it, with every per-locale text resolved for `locale`.
+ * Throws on a field type this theme cannot render: a form with a field it would show as the wrong
+ * control (a `consent` as a text box) is refused whole, so the block shows its load-failed state
+ * instead of collecting values the platform would reject.
+ */
 export function localizeFormDefinition(
   raw: EldraFormDefinition,
   locale: string | undefined
 ): StorefrontFormDefinition {
+  for (const field of raw.fields) {
+    if (!FORM_FIELD_TYPES.has(field.type)) {
+      throw new Error(`form “${raw.key}”: unsupported field type “${String(field.type)}”`);
+    }
+  }
   const fields = raw.fields.map((field): StorefrontFormField => {
     const out: StorefrontFormField = {
       id: field.id,

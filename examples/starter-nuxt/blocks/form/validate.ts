@@ -19,7 +19,7 @@ export function validateField(
   value: string | boolean | undefined,
   t: Translate
 ): string | null {
-  if (field.type === 'checkbox') {
+  if (field.type === 'checkbox' || field.type === 'consent') {
     return field.required && value !== true
       ? t('form.requiredCheckbox', { field: field.label })
       : null;

@@ -420,8 +420,8 @@ formSeeds: [
 ],
 ```
 
-Field types are `text`, `email`, `tel`, `textarea`, `select` (with `options`), `checkbox`, `number` and
-`url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
+Field types are `text`, `email`, `phone`, `textarea`, `select` (with `options`), `checkbox`, `consent`
+(a checkbox whose `required` means it must be checked), `number` and `url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
 email field. Core creates a seeded form only when its key is absent and never over a merchant's edits
 (an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
 `examples/starter-nuxt/app/formSeeds.ts`.

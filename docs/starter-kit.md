@@ -1217,7 +1217,7 @@ thrown error.
   `{ ok: false, reason }` where `reason` is `invalid` (with the platform's `errors` and `form`
   messages), `rate-limited`, `too-large`, `unavailable` or `unsupported`.
 - **`form` block** — one generic block rendering `@eldrajs/ui`'s `FormLayout` from the definition,
-  for any form key (`contact`, `newsletter`, one a merchant made). `variant`: `default` (fields
+  for any form key (`contact`, `newsletter`, one a merchant made). `preset`: `default` (fields
   stacked in two columns) or `inline` (one field and the button on one row, a sign-up). Errors are
   **field-keyed**: a failed local check (required, shape, length, pattern — the rules of
   `blocks/form/validate.ts`) and a `422` both land under the field they name as `FieldWrapper`'s
@@ -1241,7 +1241,9 @@ thrown error.
   `.eldra/manifest.json`). Core creates a seeded form only when its key is absent and never over a
   merchant's edits.
 - **`formsEndpoint` stays an override.** With `runtimeConfig.public.formsEndpoint` set, a submission
-  is posted there as `{ kind: 'form', key, values, locale, pagePath }` (any 2xx is a success, `429`
+  is posted there as `{ kind: 'form', key, values, locale, pagePath, turnstileToken?, hp? }`
+  (`turnstileToken` and `hp` are the spam signals the block collected, forwarded so the endpoint can
+  verify them; any 2xx is a success, `429`
   and `413` keep their meaning) instead of to the platform; the definition is still the platform's.
 
 ### A route the gateway could not answer is never written

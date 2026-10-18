@@ -45,6 +45,22 @@ describe('validateFormSeeds', () => {
     expect(normalized).toEqual([contactSeed()]);
   });
 
+  it('accepts phone and consent fields (a quote request) and refuses the old `tel`', () => {
+    const quote = (type: string): unknown[] => [
+      {
+        ...contactSeed(),
+        key: 'quote',
+        actions: { notify: true, confirm: false },
+        fields: [
+          { id: 'phone', type, required: true, label: { 'en-US': 'Phone' } },
+          { id: 'agree', type: 'consent', required: true, label: { 'en-US': 'I agree' } },
+        ],
+      },
+    ];
+    expect(validate(quote('phone')).errors).toEqual([]);
+    expect(validate(quote('tel')).errors.join('\n')).toContain('.type');
+  });
+
   it('accepts a subscribe form with a list', () => {
     const seed = {
       ...contactSeed(),

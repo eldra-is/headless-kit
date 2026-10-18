@@ -67,16 +67,22 @@ import { EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'newsletter'> }>();
 const { data, entryId } = useBlockData(props, 'newsletter');
 const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
+
+const formKey = computed(() => (data.value.formKey ?? '').trim() || 'newsletter');
+const { honeypot, honeypotField, siteKey, turnstileRoot, challenge, signals, reset } =
+  useFormSpam(formKey);
 
 const headingId = `newsletter-heading-${useUiId()}`;
 const consentErrorId = `newsletter-consent-error-${useUiId()}`;
@@ -245,13 +251,25 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
     return;
   }
 
+  // Turnstile is on and not passed: nothing about the address is wrong, so a retry is welcome.
+  const blocked = challenge();
+  if (blocked !== null) {
+    retryable.value = true;
+    emailError.value = blocked;
+    await focusEmailField();
+    return;
+  }
+
   emailError.value = null;
   consentError.value = null;
   isSubmitting.value = true;
-  const result = await storefront.forms.submit((data.value.formKey ?? '').trim() || 'newsletter', {
+  const result = await storefront.forms.submit(formKey.value, {
     values: { email: value },
+    ...signals(),
   });
   isSubmitting.value = false;
+  // A Turnstile token is single-use, whatever the outcome.
+  reset();
 
   if (result.ok) {
     succeeded.value = true;
@@ -320,6 +338,9 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
                 />
               </FieldWrapper>
             </div>
+
+            <FormHoneypot v-model="honeypot" :name="honeypotField" />
+            <div v-if="siteKey" ref="turnstileRoot" class="@two-col:col-span-2 order-2" />
 
             <div
               v-if="requireConsentCheckbox"

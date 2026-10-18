@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -11,12 +11,23 @@ import type { StorefrontSource } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import enUS from '../../../i18n/en-US.json';
 import { renderedMessage } from '../../../test/support/i18nText';
+import {
+  cleanUpTurnstile,
+  storefrontWithTurnstile,
+  stubTurnstile,
+} from '../../../test/support/turnstileForms';
+
+afterEach(cleanUpTurnstile);
 
 const merged = { ...mock, ...preview };
 
 function mountContact(
   data: Record<string, unknown>,
-  options: { failForms?: boolean; submit?: StorefrontSource['forms']['submit'] } = {}
+  options: {
+    failForms?: boolean;
+    submit?: StorefrontSource['forms']['submit'];
+    storefront?: StorefrontSource;
+  } = {}
 ) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   return mount(Block, {
@@ -40,6 +51,7 @@ function mountContact(
               })(),
             }
           : {}),
+        ...(options.storefront ? { [STOREFRONT_KEY]: options.storefront } : {}),
       },
     },
   });
@@ -208,6 +220,28 @@ describe('contact block', () => {
     expect(status.text()).toContain('Hannah');
     expect(status.text()).toContain('hannah@example.com');
     expect(document.activeElement).toBe(status.element);
+  });
+
+  it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
+    const turnstile = stubTurnstile();
+    const submit = vi.fn(async () => ({ ok: true as const, pending: false }));
+    const wrapper = mountContact(mock, { storefront: storefrontWithTurnstile(submit) });
+    await flushPromises();
+    expect(turnstile.render).toHaveBeenCalledOnce();
+
+    await submitValid(wrapper);
+    expect(submit).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain(enUS.form.turnstileRequired);
+
+    turnstile.solve('token-1');
+    await wrapper.find('input[name="website"]').setValue('bot');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(submit).toHaveBeenCalledWith(
+      'contact',
+      expect.objectContaining({ turnstileToken: 'token-1', hp: 'bot' })
+    );
+    expect(turnstile.reset).toHaveBeenCalled();
   });
 
   it('"Send another message" restores an empty form and focuses the Name field', async () => {

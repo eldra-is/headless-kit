@@ -1,5 +1,5 @@
 {
-  "variant": "default",
+  "preset": "default",
   "formKey": "contact",
   "heading": "Send us a message",
   "text": "Questions about an order, a wholesale enquiry or just which glaze to choose: a real person will answer.",

@@ -743,10 +743,11 @@ export interface StorefrontCatalog {
 export type StorefrontFormFieldType =
   | 'text'
   | 'email'
-  | 'tel'
+  | 'phone'
   | 'textarea'
   | 'select'
   | 'checkbox'
+  | 'consent'
   | 'number'
   | 'url';
 

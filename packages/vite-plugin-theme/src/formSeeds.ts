@@ -23,10 +23,11 @@ const LIST_KEY_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 const FIELD_TYPES: ReadonlySet<string> = new Set<ManifestFormSeedFieldType>([
   'text',
   'email',
-  'tel',
+  'phone',
   'textarea',
   'select',
   'checkbox',
+  'consent',
   'number',
   'url',
 ]);
@@ -188,10 +189,11 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
 
 /**
  * Validates the declared `formSeeds`: the forms a site is created with, ingested by Core's
- * `site_forms` seeding. Core refuses an unknown key outright, so this one does too, and it
- * enforces the same rules Core's validation applies to a form a merchant edits — a seed that
- * passed here and was refused on deploy would be a scan that lied. A merchant-edited form is
- * never overwritten by a later version of a seed (Core's `editedByMerchant` flag).
+ * `site_forms` seeding. It rejects an unknown key outright and enforces the wire contract
+ * agreed for WS-386 (key and field-id grammar, field types, option and length caps). That contract
+ * is the kit's reading of the plan: Core's own validation is not yet verified to match it, so a
+ * rule changed on the Core side must be changed here too. A merchant-edited form is never
+ * overwritten by a later version of a seed (Core's `editedByMerchant` flag).
  *
  * Absent (`undefined`) and empty both mean "this theme seeds no forms".
  */

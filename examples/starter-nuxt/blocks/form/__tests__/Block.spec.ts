@@ -14,8 +14,8 @@ import type {
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import enUS from '../../../i18n/en-US.json';
 
-/** Only what the block requires: `variant`, `formKey`, `heading`. */
-const bare = { variant: 'default', formKey: 'contact', heading: 'Send us a message' };
+/** Only what the block requires: `preset`, `formKey`, `heading`. */
+const bare = { preset: 'default', formKey: 'contact', heading: 'Send us a message' };
 
 type Submit = StorefrontSource['forms']['submit'];
 
@@ -150,13 +150,13 @@ describe('form block', () => {
     it.each(['default', 'inline'] as const)(
       'renders the %s layout with no axe violations',
       async (variant) => {
-        const wrapper = await mountForm({ ...mock, variant });
+        const wrapper = await mountForm({ ...mock, preset: variant });
         expect(await axe(wrapper.element)).toHaveNoViolations();
       }
     );
 
     it('the inline layout puts a single field and the button on one grid row', async () => {
-      const wrapper = await mountForm({ ...mock, variant: 'inline', formKey: 'newsletter' });
+      const wrapper = await mountForm({ ...mock, preset: 'inline', formKey: 'newsletter' });
       expect(wrapper.get('[data-part="fields"]').classes().join(' ')).toContain(
         'grid-cols-[1fr_auto]'
       );
@@ -166,7 +166,7 @@ describe('form block', () => {
     });
 
     it('an inline form of several fields falls back to stacked fields and an actions row', async () => {
-      const wrapper = await mountForm({ ...mock, variant: 'inline' });
+      const wrapper = await mountForm({ ...mock, preset: 'inline' });
       expect(wrapper.get('[data-part="fields"]').classes().join(' ')).not.toContain(
         'grid-cols-[1fr_auto]'
       );
@@ -377,7 +377,7 @@ describe('form block', () => {
 
     it('a pending (double opt-in) success tells the visitor to check their inbox', async () => {
       const wrapper = await mountForm(
-        { ...mock, variant: 'inline', formKey: 'newsletter' },
+        { ...mock, preset: 'inline', formKey: 'newsletter' },
         { submit: ok(true) }
       );
       await wrapper.find('input[name="email"]').setValue('anna@example.is');
@@ -498,7 +498,7 @@ describe('form block', () => {
 
   describe('editing', () => {
     it('is empty-safe: a block with no form key renders without crashing', async () => {
-      const wrapper = await mountForm({ variant: 'default', formKey: '', heading: 'Hello' });
+      const wrapper = await mountForm({ preset: 'default', formKey: '', heading: 'Hello' });
       expect(wrapper.find('form').exists()).toBe(false);
     });
   });

@@ -21,10 +21,11 @@ export const READ_TIMEOUT_MS = 10_000;
 const FIELD_TYPES = new Set([
   'text',
   'email',
-  'tel',
+  'phone',
   'textarea',
   'select',
   'checkbox',
+  'consent',
   'number',
   'url',
 ]);

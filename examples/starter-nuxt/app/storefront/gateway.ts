@@ -2284,6 +2284,7 @@ export function createGatewayStorefront(
         async (signal) => {
           // Re-resolved against the page's locale on every read, so a language switch relabels a
           // baked definition too: only the platform's per-locale maps are baked, never one language.
+          if (key.value === '') return null;
           const raw =
             options.formDefinitions?.[key.value] ??
             (await rawClient.forms.get(key.value, { signal }));
@@ -2299,6 +2300,8 @@ export function createGatewayStorefront(
           values: input.values,
           locale: formLocale(),
           pagePath,
+          ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+          ...(input.hp ? { hp: input.hp } : {}),
         });
       }
       try {

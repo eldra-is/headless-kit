@@ -398,14 +398,19 @@ export interface ScanResult {
   breakpoints: LayoutBreakpoints;
 }
 
-/** The field types a seeded form field may take; the same set Core's site forms accept. */
+/**
+ * The field types a seeded form field may take: the WS-386 set (`text`, `email`, `phone`,
+ * `textarea`, `select`, `checkbox`, `consent`) plus `number` and `url`. `consent` is a checkbox
+ * whose value is a boolean and whose `required` means it must be checked.
+ */
 export type ManifestFormSeedFieldType =
   | 'text'
   | 'email'
-  | 'tel'
+  | 'phone'
   | 'textarea'
   | 'select'
   | 'checkbox'
+  | 'consent'
   | 'number'
   | 'url';
 

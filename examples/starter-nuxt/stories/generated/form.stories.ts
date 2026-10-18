@@ -25,15 +25,15 @@ export const Inserted: Story = {
   args: { entry: { id: "form", data: mock } },
 };
 
-export const VariantDefault: Story = {
+export const PresetDefault: Story = {
   args: {
-    entry: { id: "form", data: { ...base, "variant": "default" } },
+    entry: { id: "form", data: { ...base, "preset": "default" } },
   },
 };
 
-export const VariantInline: Story = {
+export const PresetInline: Story = {
   args: {
-    entry: { id: "form", data: { ...base, "variant": "inline" } },
+    entry: { id: "form", data: { ...base, "preset": "inline" } },
   },
 };
 

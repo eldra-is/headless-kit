@@ -70,10 +70,12 @@ import {
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
@@ -278,8 +280,12 @@ watch(message, () => {
   if (messageError.value) messageError.value = null;
 });
 
+const spam = useFormSpam(computed(() => (hasForm.value ? 'contact' : '')));
+const { honeypot, honeypotField, siteKey, turnstileRoot } = spam;
 const sending = ref(false);
 const serverError = ref(false);
+/** The spam check (Turnstile) is on and the visitor has not passed it. */
+const challengeError = ref<string | null>(null);
 const sent = ref(false);
 const sentFirstName = ref('');
 const sentEmail = ref('');
@@ -290,7 +296,9 @@ const statusRef = ref<HTMLElement | null>(null);
 const invalidCount = computed(
   () => [nameError.value, emailError.value, messageError.value].filter(Boolean).length
 );
-const hasFormError = computed(() => invalidCount.value > 0 || serverError.value);
+const hasFormError = computed(
+  () => invalidCount.value > 0 || serverError.value || challengeError.value !== null
+);
 const summaryTitle = computed(() =>
   invalidCount.value === 1
     ? t('contact.summaryTitleOne')
@@ -317,6 +325,11 @@ function focusField(id: string): void {
 
 async function sendForm(): Promise<void> {
   serverError.value = false;
+  challengeError.value = spam.challenge();
+  if (challengeError.value !== null) {
+    await focusSummary();
+    return;
+  }
   sending.value = true;
 
   const payload: Record<string, string> = {
@@ -329,8 +342,10 @@ async function sendForm(): Promise<void> {
   }
   if (hasTopics.value && topic.value !== '') payload.topic = topic.value;
 
-  const result = await storefront.forms.submit('contact', { values: payload });
+  const result = await storefront.forms.submit('contact', { values: payload, ...spam.signals() });
   sending.value = false;
+  // A Turnstile token is single-use, whatever the outcome.
+  spam.reset();
 
   if (!result.ok) {
     if (result.reason === 'invalid') {
@@ -378,6 +393,8 @@ async function onSendAnother(): Promise<void> {
   emailError.value = null;
   messageError.value = null;
   serverError.value = false;
+  challengeError.value = null;
+  honeypot.value = '';
   sent.value = false;
   await nextTick();
   focusField(nameFieldId);
@@ -481,7 +498,8 @@ const successText = computed(() =>
               >
                 <template v-if="hasFormError" #errorSummary>
                   <div ref="summaryRef" tabindex="-1">
-                    <template v-if="serverError">
+                    <p v-if="challengeError">{{ challengeError }}</p>
+                    <template v-else-if="serverError">
                       <p>
                         {{
                           email
@@ -571,6 +589,9 @@ const successText = computed(() =>
                     :classes="{ control: '@tablet:min-h-44' }"
                   />
                 </FieldWrapper>
+
+                <FormHoneypot v-model="honeypot" :name="honeypotField" />
+                <div v-if="siteKey" ref="turnstileRoot" class="@two-col:col-span-2" />
 
                 <template #actions>
                   <Button variant="primary" type="submit" size="lg" :label="t('contact.sending')">{{

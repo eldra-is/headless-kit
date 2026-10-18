@@ -97,8 +97,10 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import type { ThemeIconName } from '../../app/icons';
 import { currencyLabel, useMoney } from '../../app/storefront/money';
@@ -312,6 +314,10 @@ const emailFieldRoot = ref<HTMLElement | null>(null);
 const showNewsletter = computed(
   () => variant.value === 'default' && (data.value.showNewsletter ?? true)
 );
+// Only a footer that shows the sign-up reads the form's definition (its honeypot and Turnstile).
+const { honeypot, honeypotField, siteKey, turnstileRoot, challenge, signals, reset } = useFormSpam(
+  computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : ''))
+);
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -357,9 +363,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
     return;
   }
 
+  // Turnstile is on and not passed: nothing about the address is wrong, so a retry is welcome.
+  const blocked = challenge();
+  if (blocked !== null) {
+    retryable.value = true;
+    emailError.value = blocked;
+    await focusEmailField();
+    return;
+  }
+
   emailError.value = null;
   newsletterState.value = 'submitting';
-  const result = await storefront.forms.submit(NEWSLETTER_FORM_KEY, { values: { email: value } });
+  const result = await storefront.forms.submit(NEWSLETTER_FORM_KEY, {
+    values: { email: value },
+    ...signals(),
+  });
+  // A Turnstile token is single-use, whatever the outcome.
+  reset();
 
   if (result.ok) {
     newsletterState.value = 'success';
@@ -517,6 +537,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                   />
                 </FieldWrapper>
               </div>
+              <FormHoneypot v-model="honeypot" :name="honeypotField" />
+              <div v-if="siteKey" ref="turnstileRoot" class="w-full" />
               <template #actions>
                 <Button type="submit" variant="primary" :label="t('footer.subscribing')">{{
                   t('footer.subscribe')

@@ -146,7 +146,8 @@ export default defineNuxtConfig({
 ```
 
 or set the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time. A form
-submission is posted as `{ kind: 'form', key, values, locale, pagePath }` JSON, a back-in-stock
+submission is posted as `{ kind: 'form', key, values, locale, pagePath, turnstileToken?, hp? }` JSON (the last two are the
+spam signals the form collected; verify them or ignore them), a back-in-stock
 request as `{ kind: 'notifyBackInStock', ... }`; a non-2xx is a recoverable failure.
 
 ## Checkout

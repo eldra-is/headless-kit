@@ -13,6 +13,11 @@ import type {
 import { createDemoStorefront } from '../../../app/storefront/demo';
 import enUS from '../../../i18n/en-US.json';
 import { renderedMessage } from '../../../test/support/i18nText';
+import {
+  cleanUpTurnstile,
+  storefrontWithTurnstile,
+  stubTurnstile,
+} from '../../../test/support/turnstileForms';
 
 /** Only the fields the block requires (`variant`, `heading`, `consent`) — the "genuinely
  *  minimal" fixture every rebuilt block spec covers alongside the full `mock.json` (see
@@ -43,11 +48,12 @@ function withForms(submit: StorefrontForms['submit']) {
 const trackedWrappers: VueWrapper[] = [];
 afterEach(() => {
   for (const wrapper of trackedWrappers.splice(0)) wrapper.unmount();
+  cleanUpTurnstile();
 });
 
 function mountNewsletter(
   data: Record<string, unknown>,
-  options: { submit?: StorefrontForms['submit'] } = {}
+  options: { submit?: StorefrontForms['submit']; turnstile?: boolean } = {}
 ) {
   const base = mountOptions({ entry: { id: 'e1', data } });
   const wrapper = mount(Block, {
@@ -59,7 +65,13 @@ function mountNewsletter(
       ...base.global,
       provide: {
         ...base.global.provide,
-        ...(options.submit ? { [STOREFRONT_KEY]: withForms(options.submit) } : {}),
+        ...(options.submit
+          ? {
+              [STOREFRONT_KEY]: options.turnstile
+                ? storefrontWithTurnstile(options.submit)
+                : withForms(options.submit),
+            }
+          : {}),
       },
     },
   });
@@ -252,6 +264,28 @@ describe('newsletter block', () => {
       expect(status.text()).toContain(mock.successText);
       expect(status.attributes('tabindex')).toBe('-1');
       expect(document.activeElement).toBe(status.element);
+    });
+
+    it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
+      const turnstile = stubTurnstile();
+      const submit = vi.fn(async () => ({ ok: true, pending: false }) as StorefrontAck);
+      const wrapper = mountNewsletter(mock, { submit, turnstile: true });
+      await flushPromises();
+      expect(turnstile.render).toHaveBeenCalledOnce();
+
+      await submitValidEmail(wrapper);
+      expect(submit).not.toHaveBeenCalled();
+      expect(wrapper.text()).toContain(enUS.form.turnstileRequired);
+
+      turnstile.solve('token-1');
+      await wrapper.find('input[name="website"]').setValue('bot');
+      await wrapper.find('form').trigger('submit');
+      await flushPromises();
+      expect(submit).toHaveBeenCalledWith('newsletter', {
+        values: { email: 'reader@example.com' },
+        turnstileToken: 'token-1',
+        hp: 'bot',
+      });
     });
 
     it('falls back to the default success title when successTitle is unset', async () => {

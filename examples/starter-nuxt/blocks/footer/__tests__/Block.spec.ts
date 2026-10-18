@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EditorPlaceholder } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
@@ -17,6 +17,13 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 import { currencyLabel } from '../../../app/storefront/money';
 import enUS from '../../../i18n/en-US.json';
 import isIS from '../../../i18n/is-IS.json';
+import {
+  cleanUpTurnstile,
+  storefrontWithTurnstile,
+  stubTurnstile,
+} from '../../../test/support/turnstileForms';
+
+afterEach(cleanUpTurnstile);
 
 /**
  * `mock.json` names a collection or product by handle, because a theme cannot know an
@@ -72,6 +79,8 @@ function mountFooter(
   options: {
     failForms?: boolean;
     subscribe?: StorefrontForms['submit'];
+    /** Turn Cloudflare Turnstile on for the sign-up form (with `subscribe` as its submit). */
+    turnstile?: boolean;
     /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
     editing?: boolean;
     /** The content locale — `@eldrajs/ui`'s number locale follows it (`mountOptions`). */
@@ -103,12 +112,15 @@ function mountFooter(
     context.preview.active = true;
     context.preview.mode = 'edit';
   }
-  const storefront = options.subscribe
-    ? (() => {
-        const demo = createDemoStorefront();
-        return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
-      })()
-    : undefined;
+  const storefront =
+    options.subscribe && options.turnstile
+      ? storefrontWithTurnstile(options.subscribe)
+      : options.subscribe
+        ? (() => {
+            const demo = createDemoStorefront();
+            return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
+          })()
+        : undefined;
   return mount(Block, {
     ...base,
     // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
@@ -347,6 +359,30 @@ describe('footer block', () => {
     // The form is replaced, not merely supplemented, by the success line (spec: "the form is
     // replaced by a status line").
     expect(wrapper.find('form').exists()).toBe(false);
+  });
+
+  it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
+    const turnstile = stubTurnstile();
+    const subscribe = vi.fn(async () => ({ ok: true as const, pending: false }));
+    const wrapper = mountFooter(mock, { subscribe, turnstile: true });
+    await flushPromises();
+    expect(turnstile.render).toHaveBeenCalledOnce();
+
+    await wrapper.find('input[type="email"]').setValue('reader@example.com');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain(enUS.form.turnstileRequired);
+
+    turnstile.solve('token-1');
+    await wrapper.find('input[name="website"]').setValue('bot');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+    expect(subscribe).toHaveBeenCalledWith('newsletter', {
+      values: { email: 'reader@example.com' },
+      turnstileToken: 'token-1',
+      hp: 'bot',
+    });
   });
 
   it('a subscribe failure (backend ok:false) shows an error and keeps focus in the field', async () => {

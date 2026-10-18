@@ -4,7 +4,7 @@
  * the page's locale, which are required, the spam protection and what a visitor is told afterwards
  * are all the merchant's (Studio, `GET /site/v1/forms/{key}`), so one block serves a contact form,
  * a newsletter sign-up or any form a merchant builds. This block owns only the copy around the
- * form — heading, text, button label, consent line — and the look. `variant`:
+ * form — heading, text, button label, consent line — and the look. `preset`:
  *  - `default`: the fields stacked in a two-column `FormLayout` (long fields and checkboxes span
  *    both columns), the button in the actions row.
  *  - `inline`: one field and the button on one row, centred under the copy — a sign-up. A form of
@@ -55,6 +55,7 @@ import { useTurnstile } from '../../app/composables/useTurnstile';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 import { safeHref } from '../../app/utils/links';
 import type { StorefrontFormField, StorefrontFormSubmitResult } from '../../app/storefront/types';
 import { validateField } from './validate';
@@ -71,7 +72,7 @@ const fieldId = (id: string): string => `form-${uid}-${id}`;
 const fieldErrorId = (id: string): string => `form-${uid}-${id}-error`;
 
 const variant = computed<'default' | 'inline'>(() =>
-  data.value.variant === 'inline' ? 'inline' : 'default'
+  data.value.preset === 'inline' ? 'inline' : 'default'
 );
 const sectionBackground = computed<SectionBackground>(() => data.value.sectionBackground ?? 'none');
 const isInverted = computed(
@@ -138,7 +139,7 @@ watch(
     for (const key of Object.keys(values)) delete values[key];
     for (const key of Object.keys(fieldErrors)) delete fieldErrors[key];
     for (const field of form.value?.fields ?? []) {
-      values[field.id] = field.type === 'checkbox' ? false : '';
+      values[field.id] = isBoolean(field) ? false : '';
     }
     formErrors.value = [];
     succeeded.value = null;
@@ -171,7 +172,7 @@ const isInlineRow = computed(() => {
     variant.value === 'inline' &&
     fields.length === 1 &&
     fields[0] !== undefined &&
-    fields[0].type !== 'checkbox' &&
+    !isBoolean(fields[0]) &&
     fields[0].type !== 'textarea' &&
     fields[0].type !== 'select'
   );
@@ -194,26 +195,28 @@ const copyClass = 'grid gap-3';
 
 const NUMERIC_INPUT_MODE: Partial<
   Record<StorefrontFormField['type'], 'numeric' | 'tel' | 'email' | 'url'>
-> = { number: 'numeric', tel: 'tel', email: 'email', url: 'url' };
+> = { number: 'numeric', phone: 'tel', email: 'email', url: 'url' };
 const AUTOCOMPLETE: Partial<Record<string, string>> = {
   name: 'name',
   email: 'email',
   tel: 'tel',
   phone: 'tel',
 };
+/** A checkbox and a consent are both a boolean control; `required` means it must be checked. */
+function isBoolean(field: StorefrontFormField): boolean {
+  return field.type === 'checkbox' || field.type === 'consent';
+}
 
 function autocompleteFor(field: StorefrontFormField): string | undefined {
   return (
     AUTOCOMPLETE[field.id] ??
-    (field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : undefined)
+    (field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : undefined)
   );
 }
 
 function inputType(field: StorefrontFormField): 'text' | 'email' | 'tel' | 'url' | 'number' {
-  return field.type === 'email' ||
-    field.type === 'tel' ||
-    field.type === 'url' ||
-    field.type === 'number'
+  if (field.type === 'phone') return 'tel';
+  return field.type === 'email' || field.type === 'url' || field.type === 'number'
     ? field.type
     : 'text';
 }
@@ -325,7 +328,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
 
 async function onSendAnother(): Promise<void> {
   for (const field of form.value?.fields ?? []) {
-    values[field.id] = field.type === 'checkbox' ? false : '';
+    values[field.id] = isBoolean(field) ? false : '';
     fieldErrors[field.id] = undefined;
   }
   honeypot.value = '';
@@ -407,7 +410,7 @@ const successTitle = computed(
             </template>
 
             <template v-for="field in form.fields" :key="field.id">
-              <div v-if="field.type === 'checkbox'" class="@two-col:col-span-2 grid gap-1">
+              <div v-if="isBoolean(field)" class="@two-col:col-span-2 grid gap-1">
                 <Checkbox
                   :id="fieldId(field.id)"
                   :model-value="values[field.id] === true"
@@ -478,19 +481,7 @@ const successTitle = computed(
 
             <!-- The honeypot: off-screen and inert, so a person never reaches it; a bot that fills
                  every input does, and the platform drops the submission. -->
-            <div
-              aria-hidden="true"
-              inert
-              class="absolute -left-[10000px] size-px overflow-hidden opacity-0"
-            >
-              <input
-                v-model="honeypot"
-                type="text"
-                :name="form.honeypotField"
-                tabindex="-1"
-                autocomplete="off"
-              />
-            </div>
+            <FormHoneypot v-model="honeypot" :name="form.honeypotField" />
 
             <div v-if="form.turnstileSiteKey" ref="turnstileRoot" class="@two-col:col-span-2" />
 

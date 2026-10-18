@@ -200,7 +200,7 @@ declare global {
       showCurrency?: boolean;
     };
     form: {
-      variant: 'default' | 'inline';
+      preset: 'default' | 'inline';
       formKey: string;
       heading: string;
       text?: string;

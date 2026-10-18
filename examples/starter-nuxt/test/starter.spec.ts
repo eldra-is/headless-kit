@@ -124,7 +124,7 @@ describe('starter theme', () => {
         'sectionBackground',
       ],
       form: [
-        'variant',
+        'preset',
         'formKey',
         'heading',
         'text',

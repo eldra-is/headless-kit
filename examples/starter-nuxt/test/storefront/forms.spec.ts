@@ -125,6 +125,28 @@ describe('localizeFormDefinition', () => {
     expect(result).not.toHaveProperty('kinds');
   });
 
+  it('refuses a field type the theme cannot render rather than showing it as text', () => {
+    const odd = {
+      ...definition,
+      fields: [{ ...definition.fields[0], type: 'signature' }],
+    } as unknown as EldraFormDefinition;
+    expect(() => localizeFormDefinition(odd, 'en-US')).toThrow(/unsupported field type/);
+  });
+
+  it('carries phone and consent fields through', () => {
+    const result = localizeFormDefinition(
+      {
+        ...definition,
+        fields: [
+          { id: 'phone', type: 'phone', required: true, label: { 'en-US': 'Phone' } },
+          { id: 'ok', type: 'consent', required: true, label: { 'en-US': 'I agree' } },
+        ],
+      },
+      'en-US'
+    );
+    expect(result.fields.map((field) => field.type)).toEqual(['phone', 'consent']);
+  });
+
   it('has no redirect when the platform names none', () => {
     const { redirect: _drop, ...success } = definition.success;
     expect(localizeFormDefinition({ ...definition, success }, 'en-US').successRedirect).toBeNull();
@@ -265,6 +287,19 @@ describe('forms.submit', () => {
         locale: 'is-IS',
         pagePath: '/',
       });
+    });
+
+    it('forwards the honeypot and the Turnstile token to the endpoint', async () => {
+      const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+      const { storefront } = setup(() => ({ ok: true }), {
+        formsEndpoint: 'https://forms.example.test/submit',
+      });
+
+      await storefront.forms.submit('contact', { ...input, hp: 'bot', turnstileToken: 'tok' });
+
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toMatchObject({ hp: 'bot', turnstileToken: 'tok' });
     });
 
     it.each([

@@ -7,7 +7,7 @@
   "version": 1,
   "fields": [
     {
-      "fieldId": "variant",
+      "fieldId": "preset",
       "name": "Layout",
       "type": "select",
       "helpText": "default stacks the fields. inline puts a single field and the button on one row, for a sign-up.",
