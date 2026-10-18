@@ -19,6 +19,12 @@ export interface SeoInputParts {
   path: string;
   /** Every locale the site serves; used to tell `/` from `/is-IS`. */
   locales: readonly string[];
+  /**
+   * The name of the product's own (deepest) category, for `product.category`. The product
+   * projection serves only `categoryIds`; the name comes from the category list the storefront
+   * already loads (`categoryTrailFor`), so the caller resolves it.
+   */
+  productCategory?: string | null;
   /** Formats a major-unit amount in the store's currency and locale. */
   formatPrice: (amount: number) => string;
 }
@@ -66,6 +72,8 @@ export function seoInput(parts: SeoInputParts): SeoInput {
     data['product.sku'] = text(variants[0]?.sku) ?? '';
     data['product.price'] = prices.length === 0 ? '' : parts.formatPrice(Math.min(...prices));
     data['product.shortDescription'] = shortDescription(entryData.description);
+    data['product.brand'] = text(entryData.brand) ?? '';
+    data['product.category'] = text(parts.productCategory) ?? '';
     contentImage = shareImage(list(entryData.images)[0]);
   } else if (catalogKind !== null) {
     data[`${catalogKind}.name`] = title;

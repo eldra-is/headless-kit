@@ -54,8 +54,14 @@ const isNotFound = computed(
 // not-found shell names itself and is never indexed. See `docs/theme-seo.md`.
 const money = useMoney();
 const { supported } = useEldraLocale();
+// The product's category name for `product.category`: the deepest level of the trail the product
+// page draws (same cache key as the blocks and `usePageStructuredData`, so no extra read).
+const seoProduct = useStorefront().catalog.product(
+  computed(() => (catalog.value?.kind === 'product' ? catalog.value.slug : null))
+).data;
 const seo = computed(() =>
   seoInput({
+    productCategory: seoProduct.value?.categoryTrail.at(-1)?.label ?? null,
     isNotFound: isNotFound.value,
     notFoundTitle: t('notFound.title'),
     catalog: catalog.value,

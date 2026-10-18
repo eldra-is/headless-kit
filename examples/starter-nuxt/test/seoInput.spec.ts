@@ -50,6 +50,25 @@ describe('seoInput', () => {
     expect(input.options.contentImage).toMatch(/\/lg$/);
   });
 
+  it('sets product.brand from the projection and product.category from the resolved name', () => {
+    const input = seoInput({
+      ...base,
+      catalog: { kind: 'product', slug: 'mug' },
+      productCategory: 'Mugs',
+      entry: { data: { title: 'Mug', brand: 'Acme', variants: [] } },
+    });
+    expect(input.data).toMatchObject({ 'product.brand': 'Acme', 'product.category': 'Mugs' });
+  });
+
+  it('leaves product.brand and product.category empty when the product has none', () => {
+    const input = seoInput({
+      ...base,
+      catalog: { kind: 'product', slug: 'mug' },
+      entry: { data: { title: 'Mug' } },
+    });
+    expect(input.data).toMatchObject({ 'product.brand': '', 'product.category': '' });
+  });
+
   it('leaves a missing price empty instead of inventing one', () => {
     const input = seoInput({
       ...base,
