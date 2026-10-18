@@ -429,7 +429,15 @@ email field. Core creates a seeded form only when its key is absent and never ov
 **Place them.** The starter's `form` block renders any form by key. `@eldrajs/theme-nuxt` also reads
 the definition of every seeded key — and every key in its `forms` option, for a merchant-made form a
 block names by default — at build time, fail-soft per key, and bakes them into the site
-(`useEldraForms()`); a key it could not read is fetched when the page opens. From code,
+(`useEldraForms()`); a key it could not read is fetched when the page opens. The baked copy is
+only the first paint and the prerendered HTML: a definition is **live** on the platform (no rebuild
+when a merchant edits a form), so the starter's storefront re-reads it in the browser and replaces
+the baked one, which is what renders a field added in Studio and the spam-check widget when
+Turnstile was turned on after the build. Seeds are validated exactly as Core validates them (field
+types `text`, `email`, `phone`, `textarea`, `select`, `checkbox`, `consent`; `validation` only on
+text-like fields; RE2 patterns with no lookaround or backreferences; ids compared ignoring case,
+`all` reserved; lengths up to 8000; a success redirect is a `/` path or an http(s) URL), because
+Core refuses a whole manifest over one bad seed. From code,
 `@eldrajs/sdk`'s `client.forms` (`get`, `submit`, `confirm`, `unsubscribe`) is the same API.
 
 ## Layout sizing and container queries

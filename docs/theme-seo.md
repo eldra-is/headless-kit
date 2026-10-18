@@ -79,6 +79,27 @@ a guessed host is worse than none. A relative image or canonical is resolved aga
 `ELDRA_SITE_URL` is unset, a production build reads the site's production URL from the platform
 (`GET /site/v1/crawl`, below).
 
+> **Behaviour change for existing themes.** A build that does not set `ELDRA_BUILD_TARGET=production`
+> is a preview build: every page is `noindex` with no canonical or `og:url`, `robots.txt` is
+> `Disallow: /` and there is no sitemap. A theme made from an older starter (or any pipeline that
+> only runs `nuxi generate`) that upgrades `@eldrajs/theme-nuxt` without adding
+> `ELDRA_BUILD_TARGET=production` and `ELDRA_SITE_URL` to its generate step therefore **de-indexes
+> its live site**. The starter's GitHub, GitLab and Bitbucket pipelines set both; copy them. A
+> deploy that should be indexed, a staging site included, needs both.
+
+### The preview host is noindexed by the host, not the build
+
+A deployment is **one** static artifact, which the platform serves on the stable preview host
+(`<org>.previews.eldra.dev`, and the `previews-staging` / `previews-dev` equivalents) and, later, on
+the site's own domain. A build flag cannot be right for both, so `nuxi generate` also writes a
+Cloudflare Pages `_headers` rule that sends `X-Robots-Tag: noindex, nofollow` for those hosts only
+(`https://:org.previews.eldra.dev/*`, between `# BEGIN/END eldra preview host noindex` markers).
+Override the list with the module option `previewHosts`; `[]` writes no rule. The build target keeps
+deciding the page's own `robots` tag, canonical, `robots.txt` and sitemap. Still open on the
+serving side: `robots.txt` is one file per artifact, so the preview host serves the production one
+(`Allow: /`); the header is what keeps it out of an index. A host-specific `robots.txt` belongs to
+`site-deploy-worker` / the edge.
+
 ## sitemap.xml, robots.txt and hreflang
 
 `nuxi generate` writes `robots.txt` and `sitemap.xml` into the static output from the routes it
@@ -92,8 +113,13 @@ prerendered, so neither can list a page that does not exist:
   locale, each with `xhtml:link rel="alternate" hreflang` for every locale and `x-default` (the
   unprefixed one), and `<lastmod>` where the entry or catalog record has an `updatedAt`.
 - A page whose `seo.noindex` is set is **left out**. Its `seo.canonicalUrl` becomes the `loc` when
-  it is a plain URL on the site's own origin; a canonical on another host, or a `{{pattern}}`, is
-  ignored and the path-derived URL is used.
+  it is a plain URL on the site's own origin; a canonical on another host, or one that still holds a
+  `{` (a `{{pattern}}`, or a `{fieldId}` template Studio stored unresolved), is ignored and the
+  path-derived URL is used. Core serves a multi-locale entry's `seo` already merged to **one**
+  locale, so the sitemap's canonicals (a plain string counts only on a single-locale site) and its
+  `noindex` apply to the build locale's read: on a multi-locale site, set `noindex` and canonicals
+  per page in every locale or treat the sitemap as path-derived. `useEldraSeo` still writes each
+  page's own canonical in its head.
 - Past 50,000 URLs or 50 MiB per file, `sitemap.xml` becomes a `sitemapindex` over `sitemap-1.xml`,
   `sitemap-2.xml`, ... (the module option `sitemap: { maxUrls, maxBytes }` lowers the limits;
   `sitemap: false` turns the sitemap off). Every locale counts, so a store's URL count is its page
@@ -108,6 +134,14 @@ prerendered, so neither can list a page that does not exist:
 The same origin makes the `<link rel="alternate" hreflang>` set in every page's head absolute
 (relative paths without it). Reading the crawl settings is a fail-soft platform read like the
 others: one warning, and the build goes on with no merchant lines.
+
+### Canonical URLs
+
+`seo.canonicalUrl` is a `{{variable}}` pattern or a URL. A value that still contains a `{` or `}`
+after substitution (the single-brace `{fieldId}` form Studio's field editor lets an author type)
+is not a URL and counts as no canonical: the page's own path stands in. Shared vector:
+`resolveSeo` in `packages/theme-core/src/__tests__/seo.spec.ts` ("treats a stored {fieldId}
+canonical template as no canonical").
 
 ## Structured data (JSON-LD)
 

@@ -66,6 +66,17 @@ written `noindex` with no canonical or `og:url`, because the default build is a 
 [Page titles and SEO](theme-seo.md#which-builds-are-indexed). A site that sets no `app.head.title`
 gets bare page titles until the merchant's SEO site name is set.
 
+**Deploy prerequisite.** Every pipeline that should produce an indexed site, a staging deploy
+included, must set `ELDRA_BUILD_TARGET=production`, plus `ELDRA_SITE_URL` when the production URL
+set in Studio is not the origin that deploy serves. Without the target a build is `noindex`, writes
+no JSON-LD (structured data follows `noindex`), loads no analytics tracker, and writes
+`robots.txt` `Disallow: /`; without an absolute origin the home page's `Organization`/`WebSite`
+markup and every canonical are omitted. The platform's CI trigger passes only
+`ELDRA_TRIGGER_DEPLOYMENT_ID`, so the variables belong in your pipeline file (the starter's GitHub,
+GitLab and Bitbucket files carry them). The preview host is kept out of indexes by an
+`X-Robots-Tag` header rule the build writes, not by the target
+([details](theme-seo.md#the-preview-host-is-noindexed-by-the-host-not-the-build)).
+
 The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`
 and no sitemap, a production build writes both from the prerendered routes. Without an absolute
 site URL (`ELDRA_SITE_URL`, else the production URL set on the site in Studio) a production build
@@ -147,6 +158,17 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
 - **`token invalid or revoked`** — generate a fresh deploy token in Studio (Settings → Site → Deploy
   token); a token is site-scoped and revocable independently of any other credential.
 - **`deploy rate limit hit`** — wait and retry; this is a platform-side throttle, not a build defect.
+
+### Redirects
+
+`nuxi generate` also reads the site's redirect rules (`GET /site/v1/redirects`, managed in Studio)
+and writes them into the static output's `_redirects`: the platform's rules first, between
+`# BEGIN/END eldra platform redirects` markers, then the theme's own `public/_redirects` unchanged.
+A rule with `applyToLocales` is expanded here into one rule per prefixed locale (the unprefixed
+rule is the default locale), exact rules before wildcards (longest first). Cloudflare Pages allows
+2,000 static and 100 wildcard rules per site; the theme's own count first, the locale expansion
+counts, and anything over a cap is dropped with one warning. The read is fail-soft (one warning,
+and the theme's own `_redirects` ships as it is).
 
 ## 5. Publish-triggered rebuilds
 
