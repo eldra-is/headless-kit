@@ -5,6 +5,20 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`sitemap.xml` and `robots.txt`, generated from the prerendered routes.** `nuxi generate` writes
+  both into the static output. A preview build (the default) writes `Disallow: /` and no sitemap; a
+  production build (`ELDRA_BUILD_TARGET=production`) writes `Allow: /`, the merchant's own lines
+  and the sitemap line, and a sitemap with every content path once per locale, `xhtml:link`
+  hreflang alternates plus `x-default`, `lastmod` from the entry's or product's `updatedAt`, noindex
+  pages left out and a same-origin `seo.canonicalUrl` as the `loc`. It splits into a
+  `sitemapindex` and children past 50,000 URLs or 50 MiB. The origin is `ELDRA_SITE_URL`, else the
+  production URL from a seventh fail-soft read, `GET /site/v1/crawl` (`readCrawlSettings`,
+  `./runtime/crawl.ts`, production builds only); with neither, nothing is written and one line says
+  why. A theme's own `public/robots.txt` or `public/sitemap.xml` is never replaced (one line, `[eldra]
+  <file> generation skipped: theme ships its own`). New module option `sitemap` (`false`, or
+  `{ maxUrls, maxBytes }`). The head's hreflang `<link>`s are absolute when the origin is known. The
+  runtime `eldraSeo.siteUrl` now follows the same origin. Documented in `docs/theme-seo.md`.
+
 - **Page titles and SEO metadata, set in Studio.** A sixth fail-soft read, `GET /site/v1/seo`
   (`readSeo`, `./runtime/seo.ts`), carries the site's title pattern, description, share image,
   Twitter handle and per-context patterns (one warning and the default pattern

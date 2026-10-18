@@ -69,3 +69,4 @@ export {
   themeSchemaApiId,
 } from './themeId';
 export * from './seo';
+export * from './sitemap';

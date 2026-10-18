@@ -1,3 +1,4 @@
+import { buildAlternates } from '@eldrajs/theme-core';
 import type { EldraContext, EldraLocaleState } from '@eldrajs/theme-vue';
 import { reactive } from 'vue';
 import { normalizeLocale } from './locale';
@@ -88,26 +89,20 @@ export function createNuxtEldraLocaleState(
  * Empty on a site with one locale or none: a single-locale site has no alternates, and emitting
  * one that points at itself says nothing.
  *
- * The hrefs are **paths**, not absolute URLs. A prerendered artifact does not know the origin it
- * will be served from — the host that generated it is a build machine — and a baked-in wrong
- * origin would be worse than a relative one.
+ * The hrefs are **paths** unless `siteUrl` (the site's public origin, when the build knows it) is
+ * given, and then they are absolute: hreflang is the one place a search engine prefers a full
+ * URL. A prerendered artifact otherwise does not know the origin it will be served from — the
+ * host that generated it is a build machine — and a baked-in wrong origin would be worse than a
+ * relative one.
  */
 export function localeAlternates(
   path: string,
-  routing: EldraLocaleRouting
+  routing: EldraLocaleRouting,
+  siteUrl?: string | null
 ): Array<{ rel: 'alternate'; hreflang: string; href: string }> {
-  if (routing.supported.length < 2) return [];
-  const alternates = routing.supported.map((locale) => ({
-    rel: 'alternate' as const,
-    hreflang: locale,
-    href: localePathFor(path, locale, routing),
-  }));
-  return [
-    ...alternates,
-    {
-      rel: 'alternate' as const,
-      hreflang: 'x-default',
-      href: localePathFor(path, undefined, routing),
-    },
-  ];
+  return buildAlternates({
+    locales: routing.supported,
+    pathFor: (locale) => localePathFor(path, locale, routing),
+    siteUrl,
+  });
 }

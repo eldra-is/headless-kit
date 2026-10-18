@@ -349,13 +349,13 @@ export async function listCatalogDocs(
  * list does not hold — has no route at all, which is exactly what the resolver
  * would answer for it at request time.
  */
-export function catalogDocRoutes(
+export function catalogDocRouteRefs(
   kind: CatalogRouteKind,
   docs: readonly CatalogDoc[],
   pattern: string,
   warn: (message: string) => void = (message) => console.warn(message)
-): string[] {
-  const paths: string[] = [];
+): Array<{ path: string; doc: CatalogDoc }> {
+  const paths: Array<{ path: string; doc: CatalogDoc }> = [];
   if (kind === 'category') {
     for (const node of buildCategoryTree(docs).values()) {
       const path = buildDynamicRoutePath(pattern, node.path);
@@ -365,7 +365,7 @@ export function catalogDocRoutes(
         );
         continue;
       }
-      paths.push(path);
+      paths.push({ path, doc: node.raw });
     }
     return paths;
   }
@@ -380,9 +380,19 @@ export function catalogDocRoutes(
       );
       continue;
     }
-    paths.push(path);
+    paths.push({ path, doc });
   }
   return paths;
+}
+
+/** The paths alone: `catalogDocRouteRefs` without the records they came from. */
+export function catalogDocRoutes(
+  kind: CatalogRouteKind,
+  docs: readonly CatalogDoc[],
+  pattern: string,
+  warn: (message: string) => void = (message) => console.warn(message)
+): string[] {
+  return catalogDocRouteRefs(kind, docs, pattern, warn).map((ref) => ref.path);
 }
 
 function isActive(doc: CatalogDoc): boolean {

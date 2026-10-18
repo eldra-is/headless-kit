@@ -66,6 +66,13 @@ written `noindex` with no canonical or `og:url`, because the default build is a 
 [Page titles and SEO](theme-seo.md#which-builds-are-indexed). A site that sets no `app.head.title`
 gets bare page titles until the merchant's SEO site name is set.
 
+The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`
+and no sitemap, a production build writes both from the prerendered routes. Without an absolute
+site URL (`ELDRA_SITE_URL`, else the production URL set on the site in Studio) a production build
+writes neither and prints one line. A `public/robots.txt` or `public/sitemap.xml` in the theme is
+kept and the generated one skipped. See [sitemap.xml, robots.txt and
+hreflang](theme-seo.md#sitemapxml-robotstxt-and-hreflang).
+
 `nuxi generate` writes the manifest the scan produced to `.eldra/manifest.json` inside the build
 output — `eldra-theme deploy` reads that exact file, not a fresh scan, so what you deploy is what
 you generated, byte for byte.
