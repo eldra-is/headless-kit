@@ -31,6 +31,7 @@ import eldraTheme, {
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { resolveBuildTarget } from './buildTarget';
 import { resolveAnalyticsConfig, type AnalyticsOption } from './runtime/analytics';
 import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
 import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
@@ -129,9 +130,9 @@ export interface ModuleOptions {
    */
   structuredData?: { disable?: StructuredDataType[] | boolean };
   /**
-   * `'production'` for the build that serves the public site; anything else (the default, unless
-   * `ELDRA_BUILD_TARGET=production`) is a preview build, which is always `noindex`. Defaults to
-   * `ELDRA_BUILD_TARGET`.
+   * `'production'` for the build that serves the public site (the default); `'preview'` is a preview
+   * build, which is always `noindex`. Defaults to `ELDRA_BUILD_TARGET`: production unless that is
+   * `preview`.
    */
   buildTarget?: 'production' | 'preview';
   /**
@@ -176,7 +177,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     routeTemplateSchema: 'route-template',
     tailwind: false,
     siteUrl: process.env.ELDRA_SITE_URL ?? '',
-    buildTarget: process.env.ELDRA_BUILD_TARGET === 'production' ? 'production' : 'preview',
+    buildTarget: resolveBuildTarget(process.env.ELDRA_BUILD_TARGET),
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);

@@ -59,23 +59,22 @@ with the wrong `ELDRA_ORG_ID` still succeeds — it just builds against the wron
 content, locales and overrides, which is the thing to check first when a build "looks right" but
 reads like the wrong store.
 
-A **deploy build is a production build**: set `ELDRA_BUILD_TARGET=production` and `ELDRA_SITE_URL`
-(the public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow and
-GitLab job already do (`ELDRA_SITE_URL` is a repository variable). Without the target every page is
-written `noindex` with no canonical or `og:url`, because the default build is a preview build; see
-[Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
+A **deploy build is a production build**, and production is the default: set `ELDRA_SITE_URL` (the
+public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow, GitLab
+job and Bitbucket pipeline already do (`ELDRA_SITE_URL` is a repository variable). Only
+`ELDRA_BUILD_TARGET=preview` makes a build `noindex` with no canonical or `og:url`; `nuxi dev` is
+always a preview. See [Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
 gets bare page titles.
 
-**Deploy prerequisite.** Every pipeline that should produce an indexed site, a staging deploy
-included, must set `ELDRA_BUILD_TARGET=production`, plus `ELDRA_SITE_URL` when the production URL
-set in Studio is not the origin that deploy serves. Without the target a build is `noindex`, writes
-no JSON-LD (structured data follows `noindex`), loads no analytics tracker, and writes
-`robots.txt` `Disallow: /`; without an absolute origin the home page's `Organization`/`WebSite`
-markup and every canonical are omitted. The platform's CI trigger passes only
+**Deploy prerequisite.** A pipeline needs `ELDRA_SITE_URL` when the production URL set in Studio is
+not the origin that deploy serves; without an absolute origin the home page's `Organization`/`WebSite`
+markup and every canonical are omitted. A build is production unless `ELDRA_BUILD_TARGET=preview`;
+a preview build is `noindex`, writes no JSON-LD (structured data follows `noindex`), loads no
+analytics tracker, and writes `robots.txt` `Disallow: /`. The platform's CI trigger passes only
 `ELDRA_TRIGGER_DEPLOYMENT_ID`, so the variables belong in your pipeline file (the starter's GitHub,
-GitLab and Bitbucket files carry them). The preview host is kept out of indexes by site-deploy-worker's preview
+GitLab and Bitbucket files carry `ELDRA_SITE_URL`). The preview host is kept out of indexes by site-deploy-worker's preview
 router at the edge (`withNoIndex` and `PREVIEW_ROBOTS_TXT` in `src/preview-router.ts`), not by the
-target or the build
+build target
 ([details](theme-seo.md#the-preview-host-is-protected-by-the-edge-router)).
 
 The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`

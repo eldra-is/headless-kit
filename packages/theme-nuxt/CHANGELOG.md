@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Breaking: a build is production unless `ELDRA_BUILD_TARGET=preview` (WS-387).** The marker
+  flipped. Before, only `ELDRA_BUILD_TARGET=production` was a production build and everything else
+  was a noindex preview; now an unset or empty variable is production, `preview` is the preview
+  (noindex, `robots.txt` `Disallow: /`, no sitemap, no analytics), and any other value warns and
+  counts as production. `nuxi dev` is unchanged: always a preview, with no tracker. A pipeline that
+  must not be indexed sets `ELDRA_BUILD_TARGET=preview`; the starter's CI files no longer set
+  `production`. The `buildTarget` module option still overrides.
+
 - **`_redirects` rules that would match `/.eldra/manifest.json` are dropped (WS-384).** A theme's own
   `public/_redirects` catch-all (or a platform rule) used to make every deploy fail the validator's
   manifest check; the build now drops such a rule with one warning naming it and ships the rest.

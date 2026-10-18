@@ -577,7 +577,7 @@ loads the Eldra tracker (`<gateway>/js/script.js`, the tag `analyticsTrackerScri
 describes) and the platform counts pageviews, including client-side navigations (the script patches
 `history.pushState`, so no router hook is involved).
 
-**When it runs.** The build decides: only a **production** build (`ELDRA_BUILD_TARGET=production`) with an
+**When it runs.** The build decides: only a **production** build (the default; not `ELDRA_BUILD_TARGET=preview`) with an
 organisation id (`ELDRA_ORG_ID`) and no opt-out reports. Never `nuxi dev`, never a preview build (the
 Studio preview host's), never a credential-less build. The browser decides the last thing: the tag is
 added by a client plugin, not written into the HTML, because the preview serves the same bundle in an

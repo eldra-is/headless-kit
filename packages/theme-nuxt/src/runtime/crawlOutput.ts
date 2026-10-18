@@ -118,7 +118,7 @@ export interface CrawlOutputInput {
 /**
  * The `robots.txt` and `sitemap.xml` (and its children) a build writes into the static output.
  *
- *  * **Preview** (the default; anything but `ELDRA_BUILD_TARGET=production`): `robots.txt` is
+ *  * **Preview** (`ELDRA_BUILD_TARGET=preview`): `robots.txt` is
  *    `Disallow: /`, and there is no sitemap — a preview host must never be indexed.
  *  * **Production** needs an absolute site URL. Without one nothing is written (a sitemap of
  *    relative URLs is invalid, and a `Sitemap:` line must be absolute) and one line says why.

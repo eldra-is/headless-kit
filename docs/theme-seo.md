@@ -71,21 +71,22 @@ reads the URL.
 
 ## Which builds are indexed
 
-A **preview build** is always `noindex`: anything built without `ELDRA_BUILD_TARGET=production`
-(the module option `buildTarget`), `nuxi dev`, and any page framed by Studio. A production build
+A **preview build** is always `noindex`: anything built with `ELDRA_BUILD_TARGET=preview` (the
+module option `buildTarget`), `nuxi dev`, and any page framed by Studio. **A build is production
+unless it says otherwise**: an unset or empty `ELDRA_BUILD_TARGET` is production, and a value other
+than `production` or `preview` is warned about and counts as production. A production build
 writes `robots` only for a page that opts out. Set `ELDRA_SITE_URL` (the module option `siteUrl`) to
 the public origin: without it there is no canonical or `og:url`, because both must be absolute and
 a guessed host is worse than none. A relative image or canonical is resolved against it. When
 `ELDRA_SITE_URL` is unset, a production build reads the site's production URL from the platform
 (`GET /site/v1/crawl`, below).
 
-> **Behaviour change for existing themes.** A build that does not set `ELDRA_BUILD_TARGET=production`
-> is a preview build: every page is `noindex` with no canonical or `og:url`, `robots.txt` is
-> `Disallow: /` and there is no sitemap. A theme made from an older starter (or any pipeline that
-> only runs `nuxi generate`) that upgrades `@eldrajs/theme-nuxt` without adding
-> `ELDRA_BUILD_TARGET=production` and `ELDRA_SITE_URL` to its generate step therefore **de-indexes
-> its live site**. The starter's GitHub, GitLab and Bitbucket pipelines set both; copy them. A
-> deploy that should be indexed, a staging site included, needs both.
+> **Behaviour change.** The default flipped: a build is production unless `ELDRA_BUILD_TARGET=preview`
+> (it used to be a preview unless `ELDRA_BUILD_TARGET=production`). A pipeline that only runs
+> `nuxi generate` now produces an indexable site, so a build that must **not** be indexed (a
+> throwaway or staging build served on a host the edge router does not cover) sets
+> `ELDRA_BUILD_TARGET=preview`. `nuxi dev` needs nothing: it is always a preview. Set
+> `ELDRA_SITE_URL` for the canonical, `og:url` and sitemap origin.
 
 ### The preview host is protected by the edge router
 
@@ -103,9 +104,9 @@ sitemap, which is what `nuxi dev` and a local preview build rely on.
 `nuxi generate` writes `robots.txt` and `sitemap.xml` into the static output from the routes it
 prerendered, so neither can list a page that does not exist:
 
-- **Preview build** (the default): `robots.txt` is `User-agent: *` / `Disallow: /` and there is no
+- **Preview build** (`ELDRA_BUILD_TARGET=preview`): `robots.txt` is `User-agent: *` / `Disallow: /` and there is no
   sitemap, whatever the platform says about the site's URL.
-- **Production build** (`ELDRA_BUILD_TARGET=production`): `robots.txt` is `User-agent: *` /
+- **Production build** (the default): `robots.txt` is `User-agent: *` /
   `Allow: /`, then the merchant's own lines (the platform's `robotsExtra`, set in Studio), then
   `Sitemap: <origin>/sitemap.xml`. `sitemap.xml` lists every prerendered content path once per
   locale, each with `xhtml:link rel="alternate" hreflang` for every locale and `x-default` (the

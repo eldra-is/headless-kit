@@ -395,7 +395,7 @@ describe('prerendered commerce data on the generated static site', () => {
     );
     const generated = await execa(nuxi, ['generate'], {
       cwd: root,
-      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID },
+      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID, ELDRA_BUILD_TARGET: 'preview' },
       reject: false,
       timeout: 600_000,
     });

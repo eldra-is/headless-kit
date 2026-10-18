@@ -25,6 +25,7 @@ describe('theme-nuxt nuxi generate', () => {
       env: {
         ELDRA_GATEWAY_URL: gateway.url,
         ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        ELDRA_BUILD_TARGET: 'preview',
       },
       timeout: 300_000,
     });
@@ -427,6 +428,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: upgradeGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
         },
         timeout: 300_000,
       });
@@ -490,6 +492,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: overrideGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
         },
         timeout: 300_000,
       });
@@ -528,6 +531,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: scenarioGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
           ...env,
         },
         timeout: 300_000,
@@ -659,8 +663,8 @@ describe('theme-nuxt nuxi generate', () => {
   }, 360_000);
 
   /**
-   * **A preview build is never indexed**, whatever the SEO setting says: the default build (no
-   * `ELDRA_BUILD_TARGET=production`) writes `robots: noindex`. With no setting (the mock 404s
+   * **A preview build is never indexed**, whatever the SEO setting says: a build with
+   * `ELDRA_BUILD_TARGET=preview` writes `robots: noindex`. With no setting (the mock 404s
    * the read) the default pattern applies and nothing absolute is written.
    */
   it('titles pages with the default pattern and marks a preview build noindex', async () => {
@@ -708,6 +712,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: scenarioGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
         },
         timeout: 300_000,
       });
@@ -771,7 +776,7 @@ describe('theme-nuxt nuxi generate', () => {
   }, 360_000);
 
   /**
-   * **A preview build is never crawlable**: no `ELDRA_BUILD_TARGET=production` means `robots.txt`
+   * **A preview build is never crawlable**: `ELDRA_BUILD_TARGET=preview` means `robots.txt`
    * is `Disallow: /` and there is no sitemap, whatever the platform says about the site's URL.
    */
   it('writes a Disallow-all robots.txt and no sitemap for a preview build', async () => {

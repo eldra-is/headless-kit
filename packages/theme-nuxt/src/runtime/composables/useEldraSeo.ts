@@ -31,7 +31,7 @@ export interface UseEldraSeoOptions {
  * that context's variables (`page.title`, `product.name`, ...); `site.*` is filled in here. Every
  * argument may be a ref or a getter, so the tags follow a route change.
  *
- * A **preview build** (anything but `ELDRA_BUILD_TARGET=production`, `nuxi dev`, or a page framed
+ * A **preview build** (`ELDRA_BUILD_TARGET=preview`, `nuxi dev`, or a page framed
  * by Studio) is always `noindex`. A site whose setting could not be read renders with the default
  * pattern (`{{page.title}} · {{site.name}}`).
  *

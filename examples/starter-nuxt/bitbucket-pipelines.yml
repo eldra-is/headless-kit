@@ -7,9 +7,9 @@ definitions:
         script:
           - corepack enable && corepack prepare pnpm@9.15.0 --activate
           - pnpm install --frozen-lockfile
-          # A build without ELDRA_BUILD_TARGET=production is a preview build: noindex pages and a
-          # `Disallow: /` robots.txt. Set ELDRA_SITE_URL as a repository variable.
-          - ELDRA_BUILD_TARGET=production ELDRA_SITE_URL="$ELDRA_SITE_URL" pnpm exec nuxi generate
+          # A build is production unless ELDRA_BUILD_TARGET=preview (noindex, `Disallow: /`).
+          # Set ELDRA_SITE_URL as a repository variable.
+          - ELDRA_SITE_URL="$ELDRA_SITE_URL" pnpm exec nuxi generate
           - pnpm exec eldra-theme deploy
 
 pipelines:
