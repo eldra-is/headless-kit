@@ -165,4 +165,6 @@ completes the deployment it already created rather than opening a duplicate.
   "theme content compatibility requires confirmation".
 - [Design tokens](theme-design-tokens.md) and [Theme texts](theme-texts.md) — what Studio can
   override and how an override reaches a deployed (not just previewed) site.
+- [Page titles and SEO metadata](theme-seo.md) — `useEldraSeo`, the title patterns and which builds are
+  indexed.
 - `packages/theme-cli/README.md` — the CLI's own command summary.
