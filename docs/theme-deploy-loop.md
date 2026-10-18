@@ -164,12 +164,12 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
 
 `nuxi generate` also reads the site's redirect rules (`GET /site/v1/redirects`, managed in Studio)
 and writes them into the static output's `_redirects`: the platform's rules first, between
-`# BEGIN/END eldra platform redirects` markers, then the theme's own `public/_redirects` unchanged.
+`# BEGIN/END eldra platform redirects` markers, then the theme's own `public/_redirects` (minus any rule matching the manifest path, see below).
 A rule with `applyToLocales` is expanded here into one rule per prefixed locale (the unprefixed
 rule is the default locale), exact rules before wildcards (longest first). Cloudflare Pages allows
 2,000 static and 100 wildcard rules per site; the theme's own count first, the locale expansion
 counts, and anything over a cap is dropped with one warning. The read is fail-soft (one warning,
-and the theme's own `_redirects` ships as it is).
+and the theme's own `_redirects` ships as it is, apart from that drop).
 
 A rule, the platform's or the theme's, whose source would match `/.eldra/manifest.json` (a catch-all
 such as `/* /index.html 200`, `/.eldra/*`, `/:a/:b`) is dropped with one warning naming it: the
