@@ -118,6 +118,9 @@ submission came from, so send the real `location.pathname`; it is client-supplie
 IP addresses and user agents are not stored. A form with no `consent` field records no wording, so
 add one (required) to a form you subscribe people with.
 
+Subscribers and this record are owned by the platform's marketing service; `confirm` and
+`unsubscribe` keep calling the same `/site/v1/forms/subscriptions/*` paths, so nothing changes in an app.
+
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
 checkout page, so the client asks the platform where (`platform.config()`, a public read cached per
 client instance, sent without the organisation header because the route takes none) and returns
