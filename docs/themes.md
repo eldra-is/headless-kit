@@ -458,6 +458,9 @@ subscribes people should seed a required `consent` field (the `form` block rende
 merchant adds one in Studio. The `newsletter` block's own consent checkbox and rich-text consent
 line are block copy and are not recorded.
 
+The platform's marketing service owns subscribers and this record (the form only submits; the
+SDK and the emailed confirm/unsubscribe links are unchanged).
+
 ## Layout sizing and container queries
 
 Blocks adapt to the width they are given with container queries: every block root is a
