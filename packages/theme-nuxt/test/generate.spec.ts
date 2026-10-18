@@ -604,6 +604,32 @@ describe('theme-nuxt nuxi generate', () => {
     }
   }, 360_000);
 
+  /** The manifest's name falls back to the platform's resolved site name, not the package name. */
+  it('names the manifest from the platform’s resolved site name', async () => {
+    await generateWith({
+      siteIcons: { iconUrl: 'https://media.example.test/public/org-1/assets/asset-1' },
+      seo: {
+        revision: 1,
+        syntax: 1,
+        site: {
+          name: 'Platform Shop',
+          titlePattern: {},
+          description: {},
+          imageAssetId: null,
+          imageUrl: null,
+          twitterHandle: null,
+        },
+        templates: {},
+      },
+    });
+    const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
+      name?: string;
+      short_name?: string;
+    };
+    expect(manifest.name ?? manifest.short_name).toBe('Platform Shop');
+    expect(JSON.stringify(manifest)).not.toContain('eldra-theme-nuxt-fixture');
+  }, 360_000);
+
   /** A malformed answer (iconUrl set, no icons) is treated like a failed read. */
   it('writes no manifest and adds no tags for a malformed site-icons answer', async () => {
     await generateWith({
@@ -732,7 +758,7 @@ describe('theme-nuxt nuxi generate', () => {
     expect(html).toContain('property="og:image" content="https://media.example.test/');
     expect(html).toContain('name="twitter:site" content="@fixture"');
     expect(html).not.toContain('name="robots"');
-    // The platform's resolved site name wins over the theme's app.head.title everywhere.
+    // The platform's resolved site name is the one the page carries.
     expect(html).toContain('property="og:site_name" content="Fixture Shop"');
     // The page's own seo.imageUrl beats the site's default share image.
     expect(html).toContain(

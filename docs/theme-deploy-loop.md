@@ -73,9 +73,10 @@ no JSON-LD (structured data follows `noindex`), loads no analytics tracker, and 
 `robots.txt` `Disallow: /`; without an absolute origin the home page's `Organization`/`WebSite`
 markup and every canonical are omitted. The platform's CI trigger passes only
 `ELDRA_TRIGGER_DEPLOYMENT_ID`, so the variables belong in your pipeline file (the starter's GitHub,
-GitLab and Bitbucket files carry them). The preview host is kept out of indexes by an
-`X-Robots-Tag` header rule the build writes, not by the target
-([details](theme-seo.md#the-preview-host-is-noindexed-by-the-host-not-the-build)).
+GitLab and Bitbucket files carry them). The preview host is kept out of indexes by site-deploy-worker's preview
+router at the edge (`withNoIndex` and `PREVIEW_ROBOTS_TXT` in `src/preview-router.ts`), not by the
+target or the build
+([details](theme-seo.md#the-preview-host-is-protected-by-the-edge-router)).
 
 The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`
 and no sitemap, a production build writes both from the prerendered routes. Without an absolute
