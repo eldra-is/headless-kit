@@ -2,6 +2,7 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { siteOrigin, type ResolvedSeo } from '@eldrajs/theme-core';
 import { useEldraLocale } from '@eldrajs/theme-vue';
 import { useI18n } from 'vue-i18n';
+import { SEEDED_PAGE_SLUGS } from '../seededPages';
 import { categoryHref } from '../utils/links';
 import { useMoney } from '../storefront/money';
 import { pageStructuredData, type PageLdKind } from '../storefront/structuredData';
@@ -12,6 +13,8 @@ const ITEM_LIST_SIZE = 24;
 
 /** The search page the seeded `search` page lives at (`app/templates.ts`): its `SearchAction`. */
 const SEARCH_PATH = '/search';
+/** Advertised only when the theme seeds that page: a `SearchAction` into a 404 is worse than none. */
+const SEARCH_ACTION_PATH = SEEDED_PAGE_SLUGS.includes('search') ? SEARCH_PATH : null;
 
 export interface PageStructuredDataInput {
   catalog: Ref<{ kind: 'product' | 'collection' | 'category'; slug: string; path?: string } | null>;
@@ -101,7 +104,7 @@ export function usePageStructuredData(input: PageStructuredDataInput): void {
           url: url(item.url),
         })),
         profile,
-        searchPath: SEARCH_PATH,
+        searchPath: SEARCH_ACTION_PATH,
       });
     },
     { enabled: () => !input.seo.value.noindex }
