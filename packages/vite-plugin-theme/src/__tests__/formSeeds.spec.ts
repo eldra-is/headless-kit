@@ -127,6 +127,12 @@ describe('validateFormSeeds', () => {
       expect(normalized[0]?.actions.subscribe?.consentText).toEqual(consentText);
     });
 
+    it('checks the trimmed sentence, as Core does: a trailing newline passes, C1 controls pass', () => {
+      const consentText = { 'en-US': 'Hello there\n', 'is-IS': 'Hall\u0085\u009fó' };
+      const { errors } = validate([newsletter(consentText)]);
+      expect(errors).toEqual([]);
+    });
+
     it('leaves it out when the seed does (Core fills in its default)', () => {
       const { normalized, errors } = validate([newsletter()]);
       expect(errors).toEqual([]);

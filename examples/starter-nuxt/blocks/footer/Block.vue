@@ -315,9 +315,17 @@ const showNewsletter = computed(
   () => variant.value === 'default' && (data.value.showNewsletter ?? true)
 );
 // Only a footer that shows the sign-up reads the form's definition (its honeypot and Turnstile).
-const { honeypot, honeypotField, siteKey, turnstileRoot, challenge, signals, reset } = useFormSpam(
-  computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : ''))
-);
+const {
+  honeypot,
+  honeypotField,
+  siteKey,
+  consentSentence,
+  turnstileRoot,
+  challenge,
+  signals,
+  reset,
+} = useFormSpam(computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : '')));
+const consentSentenceId = `footer-consent-sentence-${useUiId()}`;
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -540,9 +548,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               <FormHoneypot v-model="honeypot" :name="honeypotField" />
               <div v-if="siteKey" ref="turnstileRoot" class="w-full" />
               <template #actions>
-                <Button type="submit" variant="primary" :label="t('footer.subscribing')">{{
-                  t('footer.subscribe')
-                }}</Button>
+                <div class="grid w-full gap-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    :label="t('footer.subscribing')"
+                    :aria-describedby="consentSentence ? consentSentenceId : undefined"
+                    >{{ t('footer.subscribe') }}</Button
+                  >
+                  <p
+                    v-if="consentSentence"
+                    :id="consentSentenceId"
+                    data-part="consent-sentence"
+                    class="text-muted text-body-sm"
+                  >
+                    {{ consentSentence }}
+                  </p>
+                </div>
               </template>
             </FormLayout>
           </template>

@@ -319,6 +319,18 @@ describe('footer block', () => {
     expect(label.classes()).toContain('sr-only');
   });
 
+  it('shows the platform consent sentence under the sign-up button, tied to it with aria-describedby', async () => {
+    const wrapper = mountFooter(mock);
+    await flushPromises();
+    const sentence = wrapper.get('[data-part="consent-sentence"]');
+    expect(sentence.text()).toBe(
+      'I want to receive the newsletter from Northwind Goods. I can unsubscribe at any time.'
+    );
+    expect(wrapper.get('button[type="submit"]').attributes('aria-describedby')).toBe(
+      sentence.attributes('id')
+    );
+  });
+
   it('an invalid (malformed) email submit sets aria-invalid, shows the error linked by aria-describedby, and keeps focus in the field', async () => {
     const wrapper = mountFooter(mock);
     const input = wrapper.find('input[type="email"]');

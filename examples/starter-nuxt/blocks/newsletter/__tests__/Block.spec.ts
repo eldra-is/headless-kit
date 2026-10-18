@@ -89,6 +89,19 @@ async function submitValidEmail(
 }
 
 describe('newsletter block', () => {
+  it('shows the platform consent sentence under the button, tied to it with aria-describedby', async () => {
+    const wrapper = mountNewsletter(mock);
+    await flushPromises();
+    const sentence = wrapper.get('[data-part="consent-sentence"]');
+    expect(sentence.text()).toBe(
+      'I want to receive the newsletter from Northwind Goods. I can unsubscribe at any time.'
+    );
+    expect(wrapper.get('button[type="submit"]').attributes('aria-describedby')).toBe(
+      sentence.attributes('id')
+    );
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
   describe('accessibility', () => {
     it('renders the full mock.json content with no axe violations', async () => {
       const wrapper = mountNewsletter(mock);

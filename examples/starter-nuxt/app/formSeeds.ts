@@ -78,7 +78,7 @@ export function starterFormSeeds(): DeclaredFormSeed[] {
           list: 'newsletter',
           consentText: {
             'en-US': 'I want to receive the newsletter from {shop}. I can unsubscribe at any time.',
-            'is-IS': 'Ég vil fá fréttabréf frá {shop}. Ég get afskráð mig hvenær sem er.',
+            'is-IS': 'Ég vil fá fréttabréf frá {shop}. Ég get skráð mig úr áskrift hvenær sem er.',
           },
         },
       },

@@ -381,7 +381,7 @@ function consentSentence(
 ): Record<string, string> | null {
   if (isRecord(value)) {
     for (const [locale, text] of Object.entries(value)) {
-      if (typeof text === 'string' && /[<>\p{Cc}]/u.test(text)) {
+      if (typeof text === 'string' && /[<>\u0000-\u001f\u007f]/.test(text.trim())) {
         errors.push(`${at}.${locale} — must be plain text (no < or > or control characters)`);
         return null;
       }

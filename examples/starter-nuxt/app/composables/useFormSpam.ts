@@ -24,6 +24,8 @@ export function useFormSpam(formKey: Ref<string>) {
   const turnstileRoot = ref<HTMLElement | null>(null);
   const honeypotField = computed(() => definition.data.value?.honeypotField ?? null);
   const siteKey = computed(() => definition.data.value?.turnstileSiteKey ?? null);
+  /** The platform's consent sentence of a subscribing form (`{shop}` filled in, page locale), or ''. */
+  const consentSentence = computed(() => (definition.data.value?.consentText ?? '').trim());
   const turnstile = useTurnstile(siteKey, turnstileRoot);
 
   /** Why the visitor cannot submit yet (Turnstile is on and not passed), or `null`. */
@@ -44,6 +46,7 @@ export function useFormSpam(formKey: Ref<string>) {
     honeypot,
     honeypotField,
     siteKey,
+    consentSentence,
     turnstileRoot,
     challenge,
     signals,

@@ -185,7 +185,7 @@ describe('form block', () => {
           { locale: 'is-IS', submit: ok() }
         );
         expect(wrapper.get('[data-part="consent-sentence"]').text()).toBe(
-          'Ég vil fá fréttabréf frá Northwind Goods. Ég get afskráð mig hvenær sem er.'
+          'Ég vil fá fréttabréf frá Northwind Goods. Ég get skráð mig úr áskrift hvenær sem er.'
         );
       });
 

@@ -36,6 +36,12 @@
  * `text-field-note`/`text-danger`, the 0.3125rem icon gap) since that internal component is not
  * exported from the package.
  *
+ * **The consent sentence.** Pressing Subscribe is the consent, and Core records the form's own
+ * `consentText` (page locale, `{shop}` filled in) with the subscriber. So the block reads it from the
+ * form definition and shows it as escaped plain text under the button, tied to the button with
+ * `aria-describedby`: what the visitor was shown is exactly what is recorded. The optional checkbox
+ * below is only an extra client-side gate; its label is not recorded.
+ *
  * The newsletter posts through `useStorefront().forms.submit(formKey, { values: { email } })` — the
  * platform's own form (`formKey`, `newsletter` by default; the seeded one subscribes the visitor with
  * a double opt-in email) — see
@@ -81,11 +87,20 @@ const isEditing = useEditing();
 const storefront = useStorefront();
 
 const formKey = computed(() => (data.value.formKey ?? '').trim() || 'newsletter');
-const { honeypot, honeypotField, siteKey, turnstileRoot, challenge, signals, reset } =
-  useFormSpam(formKey);
+const {
+  honeypot,
+  honeypotField,
+  siteKey,
+  consentSentence,
+  turnstileRoot,
+  challenge,
+  signals,
+  reset,
+} = useFormSpam(formKey);
 
 const headingId = `newsletter-heading-${useUiId()}`;
 const consentErrorId = `newsletter-consent-error-${useUiId()}`;
+const consentSentenceId = `newsletter-consent-sentence-${useUiId()}`;
 
 type Variant = 'centered' | 'split';
 const variant = computed<Variant>(() => data.value.variant ?? 'centered');
@@ -378,9 +393,20 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
               size="lg"
               class="@two-col:w-auto w-full"
               :label="t('newsletter.subscribing')"
+              :aria-describedby="consentSentence ? consentSentenceId : undefined"
             >
               {{ buttonLabelText }}
             </Button>
+
+            <p
+              v-if="consentSentence"
+              :id="consentSentenceId"
+              data-part="consent-sentence"
+              class="text-body-sm @two-col:col-span-2 order-3"
+              :class="consentToneClass"
+            >
+              {{ consentSentence }}
+            </p>
 
             <div ref="consentRoot" class="@two-col:col-span-2 order-3">
               <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->
