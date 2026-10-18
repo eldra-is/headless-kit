@@ -13,6 +13,7 @@ import {
   type StorefrontPrerenderHandle,
   type StorefrontRuntime,
 } from '../storefront/gateway';
+import { withAnalytics } from '../storefront/analytics';
 import { createVolatileRefresher } from '../storefront/refresh';
 import {
   prerenderThroughAsyncData,
@@ -283,6 +284,14 @@ export default defineNuxtPlugin({
       runtime,
     });
 
-    nuxtApp.vueApp.provide(STOREFRONT_KEY, source);
+    // Commerce events (`app/storefront/analytics.ts`) go through the tracker `@eldrajs/theme-nuxt`
+    // loads on a deployed site; everywhere else (dev, preview, no organisation, opted out)
+    // `enabled` is false and the source is provided untouched. The unwrapped `source` stays the one
+    // the refresher above reads.
+    const analytics = useEldraAnalytics();
+    nuxtApp.vueApp.provide(
+      STOREFRONT_KEY,
+      analytics.enabled ? withAnalytics(source, analytics.track) : source
+    );
   },
 });

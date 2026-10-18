@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`createAnalytics`, `normalizeAnalyticsProps`, `truncateUtf8`.** Framework-free custom-event layer
+  over the Eldra tracker's `window.eldra('event', ...)`: props stringified and cut to the platform's
+  limits, events queued (50) until the script loads, a no-op when disabled, `pageview` rejected.
+  Behind `useEldraAnalytics` in `@eldrajs/theme-nuxt`.
+
 - New framework-free schema.org JSON-LD builders: `buildProductLd` (`Offer`, or `AggregateOffer` for
   variants at different prices; price rounded to the currency's own fraction digits, list price from
   `compareAt`, GTIN only when valid), `buildBreadcrumbLd`, `buildItemListLd`, `buildOrganizationLd`,
