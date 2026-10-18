@@ -444,7 +444,9 @@ types `text`, `email`, `phone`, `textarea`, `select`, `checkbox`, `consent`; `va
 text-like fields; RE2 patterns with no lookaround or backreferences; ids compared ignoring case,
 `all` reserved; lengths up to 8000; a success redirect is a `/` path or an http(s) URL), because
 Core refuses a whole manifest over one bad seed. From code,
-`@eldrajs/sdk`'s `client.forms` (`get`, `submit`, `confirm`, `unsubscribe`) is the same API.
+`@eldrajs/sdk`'s `client.forms` (`get`, `submit`, `confirm`, `unsubscribe`) is the same API. Forms
+are gated by the organisation's `FORMS` feature, not `PAGE_BUILDER`, and a headless app can use them
+with no theme at all (see `getting-started.md`, "Forms without a theme").
 
 ## Layout sizing and container queries
 

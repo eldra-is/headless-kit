@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- **Forms are gated by the `FORMS` feature, and mailed links go to the web gateway (WS-386,
+  contract 4.12.0).** `client.forms` no longer needs `PAGE_BUILDER`: the organisation's new `FORMS`
+  feature switches on form reads and submissions, so a headless app with no theme or page builder
+  can use them (its origin must be a registered storefront origin). The confirm and unsubscribe
+  links in form mails now point at the web gateway's own page rather than the storefront's domain;
+  nothing changes for `confirm(token)` and `unsubscribe(token)`. No SDK code change.
+
 - **`EldraFormFieldType` gains `number` and `url` (WS-386, contract 4.11.0).** The two types Core
   accepts besides the earlier set from contract 4.11.0 on; both carry text the platform validates
   (a finite number, with a decimal comma stored as a point, and an absolute http(s) URL).

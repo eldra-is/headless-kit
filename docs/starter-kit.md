@@ -1207,7 +1207,9 @@ told), and a theme only places and styles them. The API is `GET /site/v1/forms/{
 definition), `POST /site/v1/forms/{key}/submissions` and the two emailed links
 (`subscriptions/confirm`, `subscriptions/unsubscribe`); `@eldrajs/sdk`'s `client.forms` wraps all of
 them, and a `422` comes back as field-keyed messages (`{ status: 'invalid', errors, form }`), not a
-thrown error.
+thrown error. Forms need the organisation's `FORMS` feature (not `PAGE_BUILDER`), and mailed confirm
+and unsubscribe links go to the web gateway's own page, so the storefront needs no route for them;
+see "Forms without a theme" in `getting-started.md`.
 
 - **`useStorefront().forms`** is the starter's view of it: `definition(key)` is a
   `StorefrontResult` of the form with every per-locale text already resolved to the page's content

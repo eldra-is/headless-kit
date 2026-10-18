@@ -595,6 +595,11 @@ export interface EldraFormTokenResult {
   status: 'confirmed' | 'unsubscribed';
 }
 
+/**
+ * The site-forms API. Needs the organisation's `FORMS` feature (not `PAGE_BUILDER`) and a registered
+ * storefront origin in a browser; works with no theme. The mailed confirm and unsubscribe links point
+ * at the web gateway's own page, not the storefront.
+ */
 export interface EldraFormsClient {
   /** `GET /site/v1/forms/{key}`. Rejects with `EldraHttpError` (`404`) for an unknown key. */
   get(key: string, context?: EldraRequestContext): Promise<EldraFormDefinition>;

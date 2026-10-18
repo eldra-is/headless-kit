@@ -78,6 +78,30 @@ settings, _Storefront origins_. Add `http://localhost:3000` (or whichever port) 
 a request from an unregistered origin fails with `ORIGIN_NOT_REGISTERED`. Server-side calls are
 not subject to this.
 
+## Forms without a theme
+
+Site forms work for a headless app that has no theme and no page builder. Three things make them
+work:
+
+- **Switch on the `FORMS` feature.** Forms have their own organisation feature, separate from
+  `PAGE_BUILDER`; a platform admin enables it for the organisation. Without it the form routes
+  (read and submit) answer as if the feature did not exist. The organisation's site, which forms
+  hang off, is created the first time a form is created in Studio.
+- **Register your app's origin** as a storefront origin (Studio, General settings, _Storefront
+  origins_), as above; a browser read or submit from any other origin is refused.
+- **Call the SDK.** `eldra.forms.get(key)` returns the definition to render, and
+  `eldra.forms.submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission
+  (a 422 resolves as field-keyed errors). Render the honeypot field the definition names off-screen
+  and send it as `hp`. When the definition carries a Turnstile site key, your app must render the
+  Cloudflare Turnstile widget and send its token as `turnstileToken`; the SDK does not render it.
+
+`confirm(token)` and `unsubscribe(token)` finish a subscriber's emailed links. You do not need to
+build pages or proxy routes for them: the confirm and unsubscribe links in form mails point straight
+at the web gateway's own page (`<web-gateway origin>/api/site/v1/forms/subscriptions/confirm?token=…`
+and `…/unsubscribe?token=…`), never at your storefront's domain. The page asks the subscriber to press
+a button, which posts the token back, so a mail scanner that prefetches the link changes nothing. Call
+`confirm`/`unsubscribe` yourself only if you want to host that step in your own UI.
+
 ## Analytics tracker
 
 A Nuxt theme on `@eldrajs/theme-nuxt` needs none of this: the module loads the tracker on

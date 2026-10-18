@@ -103,7 +103,11 @@ locale, pagePath, turnstileToken?, hp? })` posts a submission. A `422` is an ans
 inline (`errors` is the shape `@eldrajs/ui`'s `apiErrors` takes), and `{ status: 'ok', pending }` on
 success, where `pending` means a double opt-in email is on its way. A `404` (unknown form), `413`
 (oversize) and `429` (rate limited) reject with `EldraHttpError`. `confirm(token)` and
-`unsubscribe(token)` finish the subscriber's emailed links. The form types are hand-written, like
+`unsubscribe(token)` finish the subscriber's emailed links; those links point at the web gateway's
+own page, so an app needs no route of its own for them. Forms need the organisation's `FORMS`
+feature (not `PAGE_BUILDER`) and work with no theme: the app's origin must be registered as a
+storefront origin in Studio, and when the definition has a Turnstile site key the app renders the
+widget itself and sends the token as `turnstileToken`. The form types are hand-written, like
 `EldraPlatformConfig`: the SDK ships no response types.
 
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
