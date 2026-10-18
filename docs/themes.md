@@ -475,52 +475,49 @@ may change in a minor release.
 ## Site icons
 
 A site's icons are the merchant's brand, not the theme's, so a merchant sets them in Studio (Site
-settings): one square SVG or PNG (at least 512 px), a background colour, an optional theme colour
-and an optional short name. `@eldrajs/theme-nuxt` reads that setting at build time
-(`GET /site/v1/site-icons`, the same fail-soft read as the design tokens) and generates everything
-browsers, iOS and Android want from the one image, using [sharp](https://sharp.pixelplumbing.com):
+settings): one media-library image that is a **raster** (PNG, JPEG or WebP), square and at least
+512 px (SVG is refused: the image transform cannot rasterise it), a background colour, an optional
+theme colour and an optional short name. `@eldrajs/theme-nuxt` reads that setting at build time
+(`GET /site/v1/site-icons`, the same fail-soft read as the design tokens). The answer carries
+`iconUrl` and `icons`, the URLs of five variants that the **media worker** renders on demand (always
+`image/png`) from that one image; Core builds the URLs, so the kit never learns the suffixes:
 
-| File                           | What it is                                                                                                                                           |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `favicon.ico`                  | 16, 32 and 48 px images in one file                                                                                                                  |
-| `favicon-32.png`               | 32 px PNG                                                                                                                                            |
-| `apple-touch-icon.png`         | 180 px, flattened onto the background colour (iOS has no alpha)                                                                                      |
-| `icon-192.png`, `icon-512.png` | transparent PNGs for the web app manifest                                                                                                            |
-| `icon-512-maskable.png`        | artwork at 60% of the side, centred on the background colour, so it survives Android's circle and squircle masks                                     |
-| `site.webmanifest`             | `name`, `short_name`, `icons` (the maskable one with `purpose: "maskable"`), `theme_color`, `background_color`, `display: "standalone"`, `start_url` |
+| Variant         | What it is                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `favicon32`     | 32 px, transparent (`/icon-32`)                                                                       |
+| `appleTouch180` | 180 px flattened onto the background colour (`/icon-180?bg=`; iOS has no alpha)                       |
+| `icon192`       | 192 px, transparent, for the web app manifest                                                         |
+| `icon512`       | 512 px, transparent, for the web app manifest                                                         |
+| `maskable512`   | artwork at 60% of the side, centred on the background colour (`/icon-maskable-512?bg=`), Android-safe |
 
-They are written into the static output (`.output/public`) when the server build is compiled and
-again after prerender, and the module adds `<link rel="icon">` (ico, 32 px png), `<link rel="apple-touch-icon">`,
-`<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head. A tag is only ever
-added for a file that was generated.
+**The build does no image processing.** It writes one file, `site.webmanifest` (same-origin JSON,
+as browsers require: `name`, `short_name`, `icons` with the maskable one marked `purpose:
+"maskable"`, `theme_color`, `background_color`, `display: "standalone"`, `start_url`), to the static
+output (`.output/public`) when the server build is compiled and again after prerender. The module
+adds `<link rel="icon" type="image/png" sizes="32x32">` and `<link rel="apple-touch-icon">` pointing
+at the media URLs, `<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head.
+No `favicon.ico` is generated: the theme's own `public/favicon.ico` stays the root fallback.
 
 Defaults are resolved by the build, not by Core: the theme colour is the primary design token
 (the platform's resolved catalog, else the theme's own `tokens.json`), and the short name is the
 site name (the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
 characters. With no site name known, the manifest simply omits `name`/`short_name`.
 
-**When nothing is generated.** An unset icon, a failed read, an image that cannot be fetched (10 s
-timeout, 10 MB cap, `image/svg+xml` or `image/png` only), is not square, is a PNG under 512 px or is
-not what its content type says all end the same way: one warning, no files, no tags. The theme's own
-`public/` files and head tags are then what ships, so a single-brand theme that keeps its icons in
-`public/` loses nothing. Only a successful generation replaces a same-named file from `public/`.
+**When nothing is written.** An unset icon, a failed read or a response that is not the documented
+shape all end the same way: one warning at most (none for "unset"), no file, no tags. The theme's
+own `public/` files and head tags are then what ships.
 
 **Things a theme should know.**
 
-- When icons are generated they replace the theme's own `icon`/`shortcut icon`/`apple-touch-icon`/
+- When icons are set they replace the theme's own `icon`/`shortcut icon`/`apple-touch-icon`/
   `manifest` links in `app.head` (and its `theme-color` meta), so the merchant's icons never sit
   beside the theme's. Tags a theme adds at runtime with `useHead` are not touched, so keep icon tags
-  in `app.head` or leave the files in `public/` with no tags, as the starter does (browsers and iOS
-  look for `/favicon.ico` and `/apple-touch-icon.png` on their own).
-- An SVG source is rasterised into every size but never published itself: an SVG served from the
-  storefront's own origin could run a script there.
-- `nuxi dev` generates nothing — there is no static output to serve it from. The icons appear in
-  `nuxi generate`/`build` output only.
-- `sharp` is a regular dependency of `@eldrajs/theme-nuxt` and ships prebuilt binaries for
-  macOS and Linux (glibc and musl) through its optional `@img/sharp-*` packages, so no build script
-  runs. A deploy that installs with `--ignore-scripts` or pnpm's `allowBuilds` needs nothing more,
-  but it must not strip optional dependencies (`--no-optional`), or sharp cannot load and the build
-  falls back, with the warning above, to the theme's own files.
+  in `app.head` or leave the files in `public/` with no tags, as the starter does.
+- `nuxi dev` writes nothing — there is no static output to serve it from.
+- The icon images are served by the media CDN, not the storefront's origin, so they are only as
+  available as the CDN. `sharp` was removed from `@eldrajs/theme-nuxt`: native image processing in
+  every theme build was fragile (optional binaries, libc/arch, install scripts) and is unnecessary
+  now that the media worker renders the variants.
 
 ## More
 

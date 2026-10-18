@@ -54,8 +54,7 @@
     "@eldrajs/theme-vue": "workspace:^",
     "@eldrajs/vite-plugin-theme": "workspace:^",
     "@nuxt/kit": "^4.0.0",
-    "defu": "^6.1.4",
-    "sharp": "0.34.5"
+    "defu": "^6.1.4"
   },
   "devDependencies": {
     "@nuxt/module-builder": "^0.8.4",

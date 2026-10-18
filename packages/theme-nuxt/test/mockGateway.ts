@@ -1,40 +1,11 @@
 import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
-import sharp from 'sharp';
 
 /** The id Core gives a node inside an expanded reusable placement: lowercase
  *  `r` plus SHA-256 of the placement id, a NUL, and the component-internal node
  *  id (`docs/theme-reusable-components.md`). */
 const expandedNodeId = (placementId: string, nodeId: string): string =>
   `r${createHash('sha256').update(`${placementId}\0${nodeId}`).digest('hex')}`;
-
-/** A square brand mark: a coloured disc with a transparent margin, so flattening is visible. */
-export const BRAND_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><circle cx="256" cy="256" r="200" fill="#ff6600"/></svg>`;
-
-/** The images `/assets/*` serves — what a real `iconUrl` would point at on the media CDN. */
-async function brandAsset(path: string): Promise<{ type: string; data: Buffer } | null> {
-  const png = (width: number, height: number): Promise<Buffer> =>
-    sharp(Buffer.from(BRAND_SVG), { density: (72 * Math.max(width, height)) / 512 })
-      .resize(width, height, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
-      .toBuffer();
-  switch (path) {
-    case '/assets/brand.svg':
-      return { type: 'image/svg+xml', data: Buffer.from(BRAND_SVG) };
-    case '/assets/brand.png':
-      return { type: 'image/png', data: await png(512, 512) };
-    case '/assets/brand-small.png':
-      return { type: 'image/png', data: await png(256, 256) };
-    case '/assets/brand-wide.png':
-      return { type: 'image/png', data: await png(600, 512) };
-    case '/assets/corrupt.png':
-      return { type: 'image/png', data: Buffer.from('not a png at all') };
-    case '/assets/brand.gif':
-      return { type: 'image/gif', data: Buffer.from('GIF89a') };
-    default:
-      return null;
-  }
-}
 
 const HOME = {
   id: 'p-home',
@@ -423,12 +394,14 @@ export function startMockGateway(
      *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
      *  with no published overrides, proving the build-time read's fail-soft fallback. */
     designTokens?: Record<string, unknown>;
-    /** The setting `/site/v1/site-icons` answers with. `iconPath` is a path on this same mock
-     *  (`brand.svg`, `brand.png`, `brand-small.png`, `brand-wide.png`, `corrupt.png`, `brand.gif`)
-     *  turned into an absolute `iconUrl` from the request's own host; `null` answers "no icon
-     *  set". Absent, the route 404s like a Core that predates the setting. */
+    /** The setting `/site/v1/site-icons` answers with, in the public shape: `iconUrl` is a media
+     *  asset URL, and `icons` the variants Core derives from it (`null` for "no icon set"). Nothing
+     *  is served at those URLs — the build only links to them. Absent, the route 404s like a Core
+     *  that predates the setting. */
     siteIcons?: {
-      iconPath: string | null;
+      iconUrl: string | null;
+      /** Answer `icons: null` although `iconUrl` is set: a malformed response. */
+      malformed?: boolean;
       backgroundColor?: string;
       themeColor?: string | null;
       shortName?: string | null;
@@ -464,19 +437,6 @@ export function startMockGateway(
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
       requests.push(url.pathname + url.search);
-      if (url.pathname.startsWith('/assets/')) {
-        // Public media, like the CDN a real `iconUrl` points at: no org header.
-        void brandAsset(url.pathname).then((asset) => {
-          if (asset === null) {
-            res.statusCode = 404;
-            res.end();
-          } else {
-            res.setHeader('content-type', asset.type);
-            res.end(asset.data);
-          }
-        });
-        return;
-      }
       res.setHeader('content-type', 'application/json');
       if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
         res.statusCode = 400;
@@ -548,14 +508,26 @@ export function startMockGateway(
           res.statusCode = 404;
           res.end('{}');
         } else {
-          const { iconPath } = options.siteIcons;
+          const { iconUrl } = options.siteIcons;
+          const backgroundColor = options.siteIcons.backgroundColor ?? '#ffffff';
+          const bg = backgroundColor.slice(1).toLowerCase();
           res.end(
             JSON.stringify({
               revision: 3,
-              iconUrl: iconPath === null ? null : `http://${req.headers.host}${iconPath}`,
-              backgroundColor: options.siteIcons.backgroundColor ?? '#ffffff',
+              iconUrl,
+              backgroundColor,
               themeColor: options.siteIcons.themeColor ?? null,
               shortName: options.siteIcons.shortName ?? null,
+              icons:
+                iconUrl === null || options.siteIcons.malformed
+                  ? null
+                  : {
+                      favicon32: `${iconUrl}/icon-32`,
+                      appleTouch180: `${iconUrl}/icon-180?bg=${bg}`,
+                      icon192: `${iconUrl}/icon-192`,
+                      icon512: `${iconUrl}/icon-512`,
+                      maskable512: `${iconUrl}/icon-maskable-512?bg=${bg}`,
+                    },
             })
           );
         }

@@ -12,10 +12,17 @@ const reader = (request: SiteIconsReader['request']): SiteIconsReader => ({ requ
 
 const SETTING: SiteIconsSetting = {
   revision: 4,
-  iconUrl: 'https://cdn.example.test/brand.svg',
+  iconUrl: 'https://cdn.example.test/public/org/assets/asset',
   backgroundColor: '#112233',
   themeColor: '#ff6600',
   shortName: 'Sóley',
+  icons: {
+    favicon32: 'https://cdn.example.test/public/org/assets/asset/icon-32',
+    appleTouch180: 'https://cdn.example.test/public/org/assets/asset/icon-180?bg=112233',
+    icon192: 'https://cdn.example.test/public/org/assets/asset/icon-192',
+    icon512: 'https://cdn.example.test/public/org/assets/asset/icon-512',
+    maskable512: 'https://cdn.example.test/public/org/assets/asset/icon-maskable-512?bg=112233',
+  },
 };
 
 afterEach(() => {
@@ -34,7 +41,7 @@ describe('readSiteIcons', () => {
 
   it('treats an unset icon as an answer, not a failure', async () => {
     const warn = vi.fn();
-    const unset = { ...SETTING, iconUrl: null, themeColor: null, shortName: null };
+    const unset = { ...SETTING, iconUrl: null, icons: null, themeColor: null, shortName: null };
 
     await expect(
       readSiteIcons(
@@ -89,6 +96,19 @@ describe('readSiteIcons', () => {
     ['a bad theme colour', { ...SETTING, themeColor: '#fff' }],
     ['a non-string icon url', { ...SETTING, iconUrl: 7 }],
     ['a non-string short name', { ...SETTING, shortName: 7 }],
+    ['no icons field', { ...SETTING, icons: undefined }],
+    ['an icon url but null icons', { ...SETTING, icons: null }],
+    ['icons but no icon url', { ...SETTING, iconUrl: null }],
+    ['an incomplete icons set', { ...SETTING, icons: { ...SETTING.icons, icon512: undefined } }],
+    ['a non-URL icon variant', { ...SETTING, icons: { ...SETTING.icons, icon192: 'nope' } }],
+    [
+      'a plain-http non-loopback icon variant',
+      { ...SETTING, icons: { ...SETTING.icons, icon192: 'http://cdn.example.test/x/icon-192' } },
+    ],
+    [
+      'a javascript: icon variant',
+      { ...SETTING, icons: { ...SETTING.icons, icon192: 'javascript:1' } },
+    ],
   ])('rejects a response with %s as unusable', async (_name, response) => {
     const warn = vi.fn();
 
@@ -129,7 +149,9 @@ describe('readSiteIcons', () => {
 describe('resolveSiteIcons', () => {
   it('answers null — leave the theme alone — when nothing is set', () => {
     expect(resolveSiteIcons(null, { siteName: 'Acme' })).toBeNull();
-    expect(resolveSiteIcons({ ...SETTING, iconUrl: null }, { siteName: 'Acme' })).toBeNull();
+    expect(
+      resolveSiteIcons({ ...SETTING, iconUrl: null, icons: null }, { siteName: 'Acme' })
+    ).toBeNull();
   });
 
   it('keeps the merchant’s own values', () => {

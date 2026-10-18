@@ -8,7 +8,7 @@ import type { EldraClient } from '@eldrajs/sdk';
  */
 export interface SiteIconsSetting {
   revision: number;
-  /** An absolute https URL ending in `.svg` or `.png`, or `null` when no icon is set. */
+  /** The media-library asset URL (`{media}/public/{orgId}/assets/{assetId}`), or `null` when no icon is set. */
   iconUrl: string | null;
   /** `#rrggbb`. Paints the iOS icon and the maskable Android icon, which cannot be transparent. */
   backgroundColor: string;
@@ -16,7 +16,23 @@ export interface SiteIconsSetting {
   themeColor: string | null;
   /** 1–12 characters, or `null` for the site name. */
   shortName: string | null;
+  /**
+   * The rendered variants, built by Core (the only place that knows the media worker's icon
+   * suffixes) — `null` exactly when `iconUrl` is `null`. The build links to these, never renders.
+   */
+  icons: SiteIconUrls | null;
 }
+
+/** Absolute media URLs of the icon variants the media worker renders (always `image/png`). */
+export interface SiteIconUrls {
+  favicon32: string;
+  appleTouch180: string;
+  icon192: string;
+  icon512: string;
+  maskable512: string;
+}
+
+const ICON_URL_KEYS = ['favicon32', 'appleTouch180', 'icon192', 'icon512', 'maskable512'] as const;
 
 /**
  * The slice of an `@eldrajs/sdk` client this read needs — a whole `EldraClient` satisfies it. The
@@ -96,18 +112,52 @@ function toSiteIconsSetting(value: unknown): SiteIconsSetting | null {
     return null;
   }
   if (shortName !== null && typeof shortName !== 'string') return null;
+  const icons = toSiteIconUrls(record.icons);
+  if (icons === undefined) return null;
+  // An icon URL with no variants (or the reverse) is half an answer: treat it as unusable.
+  if ((iconUrl === null || iconUrl === '') !== (icons === null)) return null;
   return {
     revision: record.revision,
     iconUrl: iconUrl === '' ? null : iconUrl,
     backgroundColor: backgroundColor.toLowerCase(),
     themeColor: themeColor === null ? null : themeColor.toLowerCase(),
     shortName: shortName === null ? null : truncateRunes(shortName.trim(), SHORT_NAME_MAX) || null,
+    icons,
   };
+}
+
+/** `null` for "no icons", the URLs for a whole set of https (or loopback http) strings, `undefined` otherwise. */
+function toSiteIconUrls(value: unknown): SiteIconUrls | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'object') return undefined;
+  const record = value as Record<string, unknown>;
+  const urls: Partial<SiteIconUrls> = {};
+  for (const key of ICON_URL_KEYS) {
+    const url = record[key];
+    if (typeof url !== 'string' || !isAbsoluteHttpUrl(url)) return undefined;
+    urls[key] = url;
+  }
+  return urls as SiteIconUrls;
+}
+
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(value);
+    if (protocol === 'https:') return true;
+    // Plain http would be blocked as mixed content on an https storefront; loopback is for dev/mocks.
+    return (
+      protocol === 'http:' &&
+      (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]')
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** The values the generated files and tags are made from, defaults filled in. */
 export interface ResolvedSiteIcons {
   iconUrl: string;
+  icons: SiteIconUrls;
   backgroundColor: string;
   /** `null` when neither the setting nor the theme gives one — the meta tag is then omitted. */
   themeColor: string | null;
@@ -125,12 +175,13 @@ export function resolveSiteIcons(
   setting: SiteIconsSetting | null,
   defaults: { siteName?: string | null; primaryToken?: string | null }
 ): ResolvedSiteIcons | null {
-  if (setting === null || setting.iconUrl === null) return null;
+  if (setting === null || setting.iconUrl === null || setting.icons === null) return null;
   const siteName = defaults.siteName?.trim() || null;
   const primary = defaults.primaryToken ?? null;
   const name = siteName ?? setting.shortName;
   return {
     iconUrl: setting.iconUrl,
+    icons: setting.icons,
     backgroundColor: setting.backgroundColor,
     themeColor:
       setting.themeColor ?? (primary !== null && HEX_COLOR.test(primary) ? primary : null),

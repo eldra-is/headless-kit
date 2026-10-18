@@ -29,7 +29,7 @@ import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
-import { prepareSiteIcons, type GeneratedIconFile } from './runtime/iconGenerate';
+import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -299,10 +299,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     });
 
     /**
-     * The generated icon files (`./runtime/iconGenerate.ts`), filled in by the platform read at
-     * the end of `setup()` and written into the static output by the `prerender:done` hook below.
-     * Empty when no icon is set or generation failed — then nothing is written and no head tag was
-     * added, so the theme's own `public/` files are what ships.
+     * The generated web manifest (`./runtime/siteIconAssets.ts`), filled in by the platform read at
+     * the end of `setup()` and written into the static output by the `compiled` and
+     * `prerender:done` hooks below. Empty when no icon is set or the read failed — then nothing is
+     * written and no head tag was added, so the theme's own `public/` files are what ships.
      */
     let siteIconFiles: GeneratedIconFile[] = [];
 
@@ -314,10 +314,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     (nuxt.hooks.hook as (name: 'nitro:init', callback: (nitro: NitroInitContext) => void) => void)(
       'nitro:init',
       (nitro) => {
-        // Generated icons replace a same-named file from the theme's own `public/`: the
-        // merchant's setting is the more specific one, and the head tags point at these names.
-        // Written on `compiled` too: `prerender:done` never fires for a build with nothing to
-        // prerender, and the head tags must not point at files that were not written.
+        // Only `site.webmanifest` is written, and it replaces a same-named file from the theme's
+        // own `public/`: the merchant's setting is the more specific one. The icon tags point at
+        // media URLs, not files. Written on `compiled` too: `prerender:done` never fires for a
+        // build with nothing to prerender, and the manifest tag must not point at a missing file.
         const writeSiteIconFiles = (publicDir: string) => {
           if (siteIconFiles.length === 0) return;
           mkdirSync(publicDir, { recursive: true });
@@ -397,8 +397,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
-    // Unset (`iconUrl: null`), failed read and failed generation all leave `siteIconFiles` empty
-    // and the head untouched: tags are added only for files that exist.
+    // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
+    // and the head untouched: tags are added only when the platform answered with icons.
     const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
       siteName: siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
       primaryToken:
@@ -407,7 +407,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const siteIcons =
       resolvedSiteIcons === null
         ? null
-        : await prepareSiteIcons(resolvedSiteIcons, { baseURL: nuxt.options.app.baseURL });
+        : buildSiteIconOutput(resolvedSiteIcons, nuxt.options.app.baseURL);
     if (siteIcons !== null) {
       siteIconFiles = siteIcons.files;
       // The merchant's icons replace the theme's configured ones rather than sit beside them:
