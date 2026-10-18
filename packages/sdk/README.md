@@ -94,6 +94,17 @@ Import only the entries you use; each carries its own data. The rules and what i
 | `inventory` | `availability`                                                                                                         |
 | `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                               |
 | `platform`  | `config`                                                                                                               |
+| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                              |
+
+`forms` is the site-forms API: `get(key)` reads a form's definition (fields with a label per locale,
+the honeypot field's name, the Turnstile site key, the success message), and `submit(key, { values,
+locale, pagePath, turnstileToken?, hp? })` posts a submission. A `422` is an answer, not a failure:
+`submit` resolves `{ status: 'invalid', errors, form }` with the field-keyed messages a form shows
+inline (`errors` is the shape `@eldrajs/ui`'s `apiErrors` takes), and `{ status: 'ok', pending }` on
+success, where `pending` means a double opt-in email is on its way. A `404` (unknown form), `413`
+(oversize) and `429` (rate limited) reject with `EldraHttpError`. `confirm(token)` and
+`unsubscribe(token)` finish the subscriber's emailed links. The form types are hand-written, like
+`EldraPlatformConfig`: the SDK ships no response types.
 
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
 checkout page, so the client asks the platform where (`platform.config()`, a public read cached per

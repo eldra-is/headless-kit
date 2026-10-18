@@ -358,6 +358,7 @@ export interface EldraClient {
   cart: EldraCartClient;
   orders: EldraOrdersClient;
   platform: EldraPlatformClient;
+  forms: EldraFormsClient;
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
 }
@@ -501,4 +502,105 @@ export interface EldraInventoryClient {
     items: EldraStockAvailabilityInput[],
     context?: EldraRequestContext
   ): Promise<EldraStockAvailability>;
+}
+
+/**
+ * A localized string as the forms API publishes it: one entry per locale tag the merchant wrote
+ * (`en-US`, `is-IS`). A caller resolves its own locale and falls back; the API never guesses.
+ */
+export type EldraFormLocalized = Record<string, string>;
+
+/** The field types a form definition can carry. */
+export type EldraFormFieldType =
+  | 'text'
+  | 'email'
+  | 'tel'
+  | 'textarea'
+  | 'select'
+  | 'checkbox'
+  | 'number'
+  | 'url';
+
+export interface EldraFormFieldOption {
+  value: string;
+  label: EldraFormLocalized;
+}
+
+export interface EldraFormField {
+  /** Stable id: the key of the field in a submission's `values` and in a 422's `errors`. */
+  id: string;
+  type: EldraFormFieldType;
+  required: boolean;
+  label: EldraFormLocalized;
+  placeholder?: EldraFormLocalized;
+  options?: EldraFormFieldOption[];
+  validation?: { minLength?: number; maxLength?: number; pattern?: string };
+}
+
+/** The actions a submission triggers; the merchant's notify/confirm targets are never published. */
+export type EldraFormActionKind = 'store' | 'notify' | 'confirm' | 'subscribe';
+
+/**
+ * A form definition exactly as `GET /site/v1/forms/{key}` answers it. Hand-written rather than
+ * contract-derived (the SDK ships no response types): the shape is the platform's documented wire
+ * contract, and `@eldrajs/theme-nuxt` validates a build-time read of it before baking it.
+ */
+export interface EldraFormDefinition {
+  key: string;
+  name: string;
+  fields: EldraFormField[];
+  /** The name of a field that must stay empty: render it hidden from people, send it as `hp`. */
+  honeypotField: string;
+  /** Cloudflare Turnstile site key, or `null` when the merchant has not enabled it. */
+  turnstileSiteKey: string | null;
+  success: { message: EldraFormLocalized; redirect?: EldraFormLocalized };
+  kinds: EldraFormActionKind[];
+}
+
+export interface EldraFormSubmitInput {
+  /** `fieldId` to the entered value; a checkbox is a boolean, everything else a string. */
+  values: Record<string, string | boolean>;
+  locale: string;
+  pagePath: string;
+  turnstileToken?: string;
+  /** The honeypot field's value, which a person never fills. */
+  hp?: string;
+}
+
+/**
+ * What a submission resolves to. A `422` is an answer, not a failure — it carries the field-keyed
+ * messages a form shows inline — so it resolves as `status: 'invalid'`. Every other non-2xx
+ * (`404` unknown form, `413` oversize, `429` rate limited) rejects with `EldraHttpError`.
+ */
+export type EldraFormSubmitResult =
+  | {
+      status: 'ok';
+      /** `true` when the form subscribes the visitor and a confirmation email is on its way. */
+      pending: boolean;
+    }
+  | {
+      status: 'invalid';
+      /** `fieldId` to messages, the shape `@eldrajs/ui`'s `apiErrors` expects. */
+      errors: Record<string, string[]>;
+      /** Messages about the form as a whole. */
+      form: string[];
+    };
+
+export interface EldraFormTokenResult {
+  status: 'confirmed' | 'unsubscribed';
+}
+
+export interface EldraFormsClient {
+  /** `GET /site/v1/forms/{key}`. Rejects with `EldraHttpError` (`404`) for an unknown key. */
+  get(key: string, context?: EldraRequestContext): Promise<EldraFormDefinition>;
+  /** `POST /site/v1/forms/{key}/submissions`. See `EldraFormSubmitResult`. */
+  submit(
+    key: string,
+    input: EldraFormSubmitInput,
+    context?: EldraRequestContext
+  ): Promise<EldraFormSubmitResult>;
+  /** Double opt-in: `GET /site/v1/forms/subscriptions/confirm?token=`. */
+  confirm(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
+  /** `GET /site/v1/forms/subscriptions/unsubscribe?token=`. */
+  unsubscribe(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
 }
