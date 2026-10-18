@@ -15,6 +15,15 @@ export default defineNuxtConfig({
   },
   eldra: {
     locale: 'is',
+    // Lets a test switch the structured-data kinds off (`breadcrumb,website`, or `all`).
+    structuredData: process.env.ELDRA_TEST_LD_DISABLE
+      ? {
+          disable:
+            process.env.ELDRA_TEST_LD_DISABLE === 'all'
+              ? true
+              : (process.env.ELDRA_TEST_LD_DISABLE.split(',') as Array<'breadcrumb' | 'website'>),
+        }
+      : undefined,
     // Lets a test lower the sitemap's per-file URL limit to see the index split.
     sitemap: process.env.ELDRA_TEST_SITEMAP_MAX_URLS
       ? { maxUrls: Number(process.env.ELDRA_TEST_SITEMAP_MAX_URLS) }
