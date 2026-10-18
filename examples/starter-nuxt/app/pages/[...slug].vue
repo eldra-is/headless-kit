@@ -67,11 +67,22 @@ const seo = computed(() =>
     formatPrice: money.format,
   })
 );
-useEldraSeo(
+const resolvedSeo = useEldraSeo(
   () => seo.value.context,
   () => seo.value.data,
   () => seo.value.options
 );
+// The schema.org JSON-LD (`Product`, `BreadcrumbList`, `ItemList`, `Organization`, `WebSite`), from
+// the same product, price and stock the page renders; a `noindex` page carries none. See
+// `app/composables/usePageStructuredData.ts` and `docs/theme-seo.md`.
+usePageStructuredData({
+  catalog,
+  isNotFound,
+  isHome: computed(() => seo.value.context === 'home'),
+  seo: resolvedSeo,
+  title: computed(() => String(seo.value.data['page.title'] ?? '')),
+  path: computed(() => route.path),
+});
 
 /**
  * The page's flat block list, cut into the three landmark regions — see

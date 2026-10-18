@@ -30,6 +30,7 @@
     "itemHintHelp": "A quote, the customer's name and location, or pick reviews from the product catalogue."
   },
   "breadcrumbs": {
+    "home": "Home",
     "hintLabel": "Breadcrumbs fill in automatically.",
     "hintHelp": "They appear once this page sits under a parent page."
   },

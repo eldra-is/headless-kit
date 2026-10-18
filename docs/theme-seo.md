@@ -109,6 +109,59 @@ The same origin makes the `<link rel="alternate" hreflang>` set in every page's 
 (relative paths without it). Reading the crawl settings is a fail-soft platform read like the
 others: one warning, and the build goes on with no merchant lines.
 
+## Structured data (JSON-LD)
+
+Pages also carry schema.org JSON-LD, so a search engine can show a product as a product and a
+trail as a trail. The builders are framework-free and live in `@eldrajs/theme-core`
+(`buildProductLd`, `buildBreadcrumbLd`, `buildItemListLd`, `buildOrganizationLd`,
+`buildWebSiteLd`, and `serializeLd`); `@eldrajs/theme-nuxt` writes them into the head with
+`useStructuredData`, and the starter's `usePageStructuredData` says which nodes each page type gets:
+
+| Page                          | Nodes                                                           |
+| ----------------------------- | --------------------------------------------------------------- |
+| Home                          | `Organization`, `WebSite` (with a `SearchAction` to `/search`)  |
+| Product                       | `BreadcrumbList`, `Product`                                     |
+| Category, collection          | `BreadcrumbList`, `ItemList` of the products shown (first page) |
+| Any other page                | `BreadcrumbList`                                                |
+| Not found, any `noindex` page | nothing                                                         |
+
+- **Same data as the page.** The `Product` is built from the product the buy box renders: the
+  variants' prices in the store's currency (rounded to that currency's own fraction digits, so ISK
+  has none), each variant's stock state as `availability`, and the compare-at price as a list price.
+  One variant, or several at one price, is an `Offer`; different prices are an `AggregateOffer` with
+  one `Offer` per variant. A sold-out product keeps its offer, marked `OutOfStock`.
+- **Nothing made up.** A value that is unset is left out, never written empty. `gtin` is written
+  only when the barcode is a valid GTIN-8/12/13/14 (check digit included). There is no
+  `AggregateRating` until real review data exists. `priceValidUntil` is not written until the
+  platform has a sale schedule to give it. `Product.brand` is the product's own `brand`, else the
+  shop's name.
+- **Static HTML is a snapshot.** The markup is in the prerendered file, so `availability` is the
+  stock at build time; it is not rewritten in the browser. Search engines re-crawl.
+- **The shop's profile.** `Organization` takes its name, logo, social profile links (`sameAs`) and
+  contact from the platform's site profile (`GET /site/v1/site-profile`, an eighth fail-soft read:
+  one warning and the build goes on). The name falls back to the site name, the logo to the site
+  icon's 512 px rendering. `Organization` and `WebSite` need an absolute URL, so they are written
+  only when the origin is known (`siteUrl` / `ELDRA_SITE_URL`); the other nodes fall back to
+  relative URLs.
+- **One `BreadcrumbList` per page.** The page-level builder owns it, so `@eldrajs/ui`'s `Breadcrumb`
+  takes `:structured-data="false"` (the starter's `breadcrumbs` block does). Left at its default
+  `true`, the component writes its own, as before.
+- **Escaping.** `serializeLd` writes `<` as a JSON escape, so a product called `</script>` cannot
+  close the tag.
+
+**Opting out and editing.** The module option `eldra.structuredData` takes
+`{ disable: true }` (write none) or `{ disable: ['product', 'breadcrumb', 'itemList',
+'organization', 'website'] }`. It rides in the runtime config, so it cannot hold a function; to
+edit or drop a node call `provideStructuredData((type, node, { path, locale }) => node | null)`
+from a plugin. Both apply to every `useStructuredData` call, so a theme's own pages follow them
+too. Another theme on the same organisation is unaffected: the option is the theme's, the profile
+is the site's.
+
+A theme that writes its own page markup calls `useStructuredData([{ type, node }, ...], { enabled })`
+with nodes from the builders; pass `enabled: !seo.noindex` (from `useEldraSeo`) so a page kept out
+of the index carries no markup. One call per page: the head entry has a fixed key, so a second call
+replaces the first rather than adding a duplicate.
+
 ## Failing soft
 
 The read is one of the build's fail-soft platform reads (`readSeo`): no gateway client, an

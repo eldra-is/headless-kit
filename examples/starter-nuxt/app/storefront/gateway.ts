@@ -189,6 +189,8 @@ interface RawProductOption {
 interface RawProductVariant {
   id: string;
   sku: string;
+  /** Free text; the structured data validates it as a GTIN before it writes one. */
+  barcode?: string | null;
   price: number;
   compareAtPrice?: number;
   status: string;
@@ -223,6 +225,8 @@ interface RawProductDetails {
    * knows the response carries it rather than inferring the catalogue only ever assigns one.
    */
   categoryIds?: string[] | null;
+  /** Per-product brand, for `Product.brand` in the structured data. */
+  brand?: string | null;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -584,6 +588,16 @@ function mapProductDetails(
       ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
       : null,
     stock: variantStock(firstAvailable, stock),
+    brand: raw.brand?.trim() || null,
+    // Each variant's own price and stock state, for the page's structured data: the same
+    // `variantStock` rule the buy box's line uses, so the markup and the page cannot disagree.
+    variants: variants.map((variant) => ({
+      sku: variant.sku,
+      barcode: variant.barcode ?? null,
+      price: variant.price,
+      compareAt: variant.compareAtPrice ?? null,
+      stock: variantStock(variant, stock),
+    })),
     available: raw.status === 'ACTIVE',
     productId: raw.id,
     // The variant an add would send, paired with `productId` above: the cart service looks the two

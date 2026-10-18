@@ -179,6 +179,28 @@ export interface StorefrontProduct extends StorefrontProductListItem {
    */
   inventory: number | null;
   shipsBy?: string | null;
+  /**
+   * The product's brand, when the platform carries one (`brand` on the public product read). Read
+   * by the page's structured data only; the page itself does not show it.
+   */
+  brand?: string | null;
+  /**
+   * **Every variant, with the price and stock the page's own variant resolves from** — what the
+   * page's structured data writes one offer per. Absent from a source that has no variants to
+   * list (the demo), where the structured data falls back to one offer from `price` and `stock`.
+   * `barcode` is the catalog's free text; the structured-data builder validates it as a GTIN.
+   */
+  variants?: StorefrontProductVariant[];
+}
+
+export interface StorefrontProductVariant {
+  sku: string;
+  barcode: string | null;
+  /** Major units, like every amount in this file. */
+  price: number;
+  compareAt: number | null;
+  /** `variantStock`'s four states for this variant: `out` for an unpublished one. */
+  stock: 'in' | 'low' | 'out' | 'preorder';
 }
 
 export interface StorefrontCollectionInfo {
