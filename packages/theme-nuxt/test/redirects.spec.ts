@@ -7,6 +7,7 @@ import {
   REDIRECTS_END,
   REDIRECTS_WARNING,
   buildRedirectsFile,
+  matchesManifestPath,
   readRedirects,
   type RedirectRule,
   type RedirectsReader,
@@ -152,5 +153,42 @@ describe('buildRedirectsFile', () => {
   it('writes the same file twice from the same inputs', () => {
     const a = buildRedirectsFile([rule()], single, '/a /b 301\n');
     expect(buildRedirectsFile([rule()], single, '/a /b 301\n')).toEqual(a);
+  });
+});
+
+describe('manifest-path rules (WS-384)', () => {
+  it.each([
+    '/*',
+    '/.eldra/*',
+    '/.eldra/manifest.json',
+    '/:a/:b',
+    '/.eldra/:file',
+    '/*/manifest.json',
+  ])('matches %s', (source) => expect(matchesManifestPath(source)).toBe(true));
+  it.each(['/old', '/.eldra/other.json', '/:a', '/blog/*', '/x/.eldra/manifest.json'])(
+    'does not match %s',
+    (source) => expect(matchesManifestPath(source)).toBe(false)
+  );
+
+  it('drops a theme catch-all with one warning and keeps the other lines', () => {
+    const built = buildRedirectsFile([rule()], single, '# c\n/a /b 301\n/* /index.html 200\n');
+    expect(built.content).toBe(
+      `${REDIRECTS_BEGIN}\n/old /new 301\n${REDIRECTS_END}\n\n# c\n/a /b 301\n`
+    );
+    expect(built.warnings).toHaveLength(1);
+    expect(built.warnings[0]).toContain('"/*"');
+  });
+
+  it('rewrites the theme file even with no platform rules', () => {
+    const built = buildRedirectsFile([], single, '/a /b 301\n/* /i 200\n');
+    expect(built.content).toBe('/a /b 301\n');
+    expect(built.written).toBe(0);
+    expect(built.warnings).toHaveLength(1);
+  });
+
+  it('drops a platform rule that matches', () => {
+    const built = buildRedirectsFile([rule({ source: '/.eldra/*', destination: '/x' })], single);
+    expect(built.content).toBeNull();
+    expect(built.warnings[0]).toContain('"/.eldra/*"');
   });
 });

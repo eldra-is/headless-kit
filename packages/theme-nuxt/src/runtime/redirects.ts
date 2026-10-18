@@ -132,6 +132,28 @@ function isRuleLine(line: string): boolean {
   return trimmed !== '' && !trimmed.startsWith('#');
 }
 
+/** The path the deploy's post-deploy check fetches; a redirect matching it fails every deploy. */
+export const MANIFEST_URL_PATH = '/.eldra/manifest.json';
+
+/**
+ * Whether a `_redirects` source would match `/.eldra/manifest.json`. Same semantics as the
+ * deploy validator: `*` matches anything, `:name` matches one segment, the rest is literal.
+ */
+export function matchesManifestPath(source: string): boolean {
+  if (!source.startsWith('/')) return false;
+  const pattern = source
+    .split(/(\*|:[A-Za-z_]\w*)/)
+    .map((part) =>
+      part === '*'
+        ? '.*'
+        : /^:[A-Za-z_]/.test(part)
+          ? '[^/]*'
+          : part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    )
+    .join('');
+  return new RegExp(`^${pattern}$`).test(MANIFEST_URL_PATH);
+}
+
 export interface RedirectsFile {
   /** The whole file, ready to write; `null` when there is nothing to write. */
   content: string | null;
@@ -161,6 +183,20 @@ export function buildRedirectsFile(
   themeContent: string | null = null
 ): RedirectsFile {
   const warnings: string[] = [];
+  let themeDropped = false;
+  if (themeContent !== null) {
+    const kept: string[] = [];
+    for (const line of themeContent.split(/\r?\n/)) {
+      const source = isRuleLine(line) ? (line.trim().split(/\s+/)[0] ?? '') : '';
+      if (source !== '' && matchesManifestPath(source)) {
+        themeDropped = true;
+        warnings.push(
+          `[eldra] theme redirect ${JSON.stringify(source)} dropped: it would match ${MANIFEST_URL_PATH}, which the deploy needs`
+        );
+      } else kept.push(line);
+    }
+    if (themeDropped) themeContent = kept.join('\n');
+  }
   const themeLines = (themeContent ?? '').split(/\r?\n/).filter(isRuleLine);
   let staticLeft = MAX_STATIC_REDIRECTS;
   let dynamicLeft = MAX_DYNAMIC_REDIRECTS;
@@ -186,12 +222,25 @@ export function buildRedirectsFile(
       warnings.push(`[eldra] redirect ${JSON.stringify(rule.source)} skipped: not a valid rule`);
       continue;
     }
+    if (matchesManifestPath(rule.source)) {
+      warnings.push(
+        `[eldra] redirect ${JSON.stringify(rule.source)} dropped: it would match ${MANIFEST_URL_PATH}, which the deploy needs`
+      );
+      continue;
+    }
     push(rule);
     if (rule.applyToLocales) {
       for (const locale of routing.prefixed) {
+        const source = localePathFor(rule.source, locale, routing);
+        if (matchesManifestPath(source)) {
+          warnings.push(
+            `[eldra] redirect ${JSON.stringify(source)} dropped: it would match ${MANIFEST_URL_PATH}, which the deploy needs`
+          );
+          continue;
+        }
         push({
           ...rule,
-          source: localePathFor(rule.source, locale, routing),
+          source,
           destination: rule.destination.startsWith('/')
             ? localeHref(rule.destination, locale, routing)
             : rule.destination,
@@ -232,7 +281,12 @@ export function buildRedirectsFile(
     );
   }
 
-  if (lines.length === 0) return { content: null, written: 0, warnings };
+  if (lines.length === 0) {
+    // The theme's own file only needs writing when a rule was stripped from it.
+    const content =
+      themeDropped && themeContent!.trim() !== '' ? `${themeContent!.trimEnd()}\n` : '';
+    return { content: themeDropped ? content : null, written: 0, warnings };
+  }
   const platform = [REDIRECTS_BEGIN, ...lines, REDIRECTS_END].join('\n');
   const theme = themeContent === null ? '' : `\n${themeContent.trimEnd()}\n`;
   return { content: `${platform}\n${theme}`, written: lines.length, warnings };

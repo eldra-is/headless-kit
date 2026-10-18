@@ -171,6 +171,11 @@ rule is the default locale), exact rules before wildcards (longest first). Cloud
 counts, and anything over a cap is dropped with one warning. The read is fail-soft (one warning,
 and the theme's own `_redirects` ships as it is).
 
+A rule, the platform's or the theme's, whose source would match `/.eldra/manifest.json` (a catch-all
+such as `/* /index.html 200`, `/.eldra/*`, `/:a/:b`) is dropped with one warning naming it: the
+deploy validator rejects any artifact whose `_redirects` matches the manifest path, so one such
+line would fail every deploy. The match is the validator's: `*` matches anything, `:name` one segment.
+
 ## 5. Publish-triggered rebuilds
 
 Everything above is what your CI pipeline runs on every push. The loop closes the other way too:

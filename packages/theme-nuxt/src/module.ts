@@ -482,12 +482,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
          * `_redirects`: the platform's rules first, then the theme's own `public/_redirects`
          * (`./runtime/redirects.ts`). Rebuilt from the theme's source file every time, so a
          * second write (both hooks can fire) never doubles the platform block. A failed read or
-         * a site without rules leaves the theme's file, copied by Nitro, exactly as it was.
+         * a site without rules leaves the theme's file, copied by Nitro, exactly as it was unless one of
+         * its rules would match `/.eldra/manifest.json`, which is dropped with a warning.
          */
         const writeRedirects = (publicDir: string) => {
-          if (redirectsSetting === null || redirectsSetting.rules.length === 0) return;
           const built = buildRedirectsFile(
-            redirectsSetting.rules,
+            redirectsSetting?.rules ?? [],
             localeRouting,
             readThemeRedirects(resolve(nuxt.options.rootDir, nuxt.options.dir.public ?? 'public'))
           );

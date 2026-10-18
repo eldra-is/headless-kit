@@ -5,6 +5,9 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`_redirects` rules that would match `/.eldra/manifest.json` are dropped (WS-384).** A theme's own
+  `public/_redirects` catch-all (or a platform rule) used to make every deploy fail the validator's
+  manifest check; the build now drops such a rule with one warning naming it and ships the rest.
 - **Form definitions are read at build time and baked in (WS-386).** The module reads
   `GET /site/v1/forms/{key}` for every key in the new `formSeeds` option (also passed to
   `@eldrajs/vite-plugin-theme`) and the new `forms: string[]` option, once per `nuxi generate`, each key
