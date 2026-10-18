@@ -5,6 +5,15 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`formSeeds`: the forms a site starts with (WS-386).** A new `eldra.formSeeds` option (and
+  `ScanOptions.formSeeds`) declares up to eight forms, `{ key, name, fields, actions, success }`, with a
+  label per locale on every field. `validateFormSeeds` (exported) refuses what Core refuses — a key
+  outside `^[a-z][a-z0-9-]{0,39}$` or the reserved `subscriptions`, duplicate keys or field ids, an
+  unknown field type, a `select` with no options, a bad `pattern`, `confirm`/`subscribe` without an
+  email field, an unknown key at any level — as scan errors. The manifest carries `formSeeds` only when
+  the theme declares some, so a theme that seeds none emits the manifest it always has. New types
+  `ManifestFormSeed`, `ManifestFormSeedField`, `ManifestFormSeedFieldType`, `DeclaredFormSeed`.
+  Needs a Core whose manifest ingest accepts `formSeeds` (contract 4.4.0).
 - **Breaking:** a theme must declare its id in `package.json` under `eldra.themeId`
   (`^[a-z][a-z0-9-]{1,48}$`, `catalog` reserved). The scanner emits it as `manifest.theme.id` and
   `manifestVersion` is now `2` (`ThemeManifest.manifestVersion: 2`, `theme.id: string`). A missing
