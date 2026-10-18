@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.1.1...ui-v0.1.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **theme-cli:** explain a raw 413 from a proxy or CDN in front of the gateway ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+* **theme-cli:** scaffold studioOrigins defaulting to production Studio instead of localhost ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+* **ui:** centre the Lightbox image between equal top and bottom space ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+
 ## [0.1.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.1.0...ui-v0.1.1) (2026-10-12)
 
 
