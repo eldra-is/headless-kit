@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import {
   buildRobots,
   buildSitemap,
-  pickSeoLocale,
   siteOrigin,
   stripStega,
   type SeoEntryValue,
@@ -20,6 +19,8 @@ export interface CrawlRoute {
   lastmod?: unknown;
   /** The entry's or route template's own `seo` field value. */
   seo?: unknown;
+  /** The route template's `seo` field value, when the route renders through one (merged like `resolveSeo`). */
+  templateSeo?: unknown;
   /** A native code route: served at this exact path only, never under a locale prefix. */
   codeOwned?: boolean;
 }
@@ -45,6 +46,7 @@ export function toSitemapPages(
 ): SitemapPage[] {
   return routes.map((route) => {
     const seo = asSeo(route.seo);
+    const templateSeo = asSeo(route.templateSeo);
     const locales = route.codeOwned === true ? [] : routing.supported;
     const variants =
       locales.length === 0
@@ -59,13 +61,15 @@ export function toSitemapPages(
             locale,
             path: localePathFor(route.path, locale, routing),
             isDefault: locale === routing.default,
-            canonical: canonicalFor(seo, locale, routing.default),
+            canonical:
+              canonicalFor(seo, locale, locales.length) ??
+              canonicalFor(templateSeo, locale, locales.length),
           }));
     const lastmod = route.lastmod;
     return {
       variants,
       lastmod: typeof lastmod === 'string' || lastmod instanceof Date ? lastmod : null,
-      noindex: seo?.noindex === true,
+      noindex: seo?.noindex === true || templateSeo?.noindex === true,
     };
   });
 }
@@ -76,13 +80,23 @@ function asSeo(value: unknown): SeoEntryValue | null {
     : null;
 }
 
+/**
+ * A canonical counts only when it is the page's own for that exact locale: a key of the locale
+ * map, or a plain string on a single-locale site. Anything else would give every locale variant
+ * the same `loc` and collapse their hreflang alternates, so the path-derived URL is used instead.
+ */
 function canonicalFor(
   seo: SeoEntryValue | null,
   locale: string,
-  defaultLocale: string | undefined
+  localeCount: number
 ): string | null {
-  if (seo === null) return null;
-  const value = stripStega(pickSeoLocale(seo.canonicalUrl, locale, defaultLocale)).trim();
+  const canonical = seo?.canonicalUrl;
+  let raw: unknown = null;
+  if (typeof canonical === 'string') raw = localeCount === 1 ? canonical : null;
+  else if (typeof canonical === 'object' && canonical !== null && Object.hasOwn(canonical, locale))
+    raw = canonical[locale];
+  if (typeof raw !== 'string') return null;
+  const value = stripStega(raw).trim();
   return value === '' || value.includes('{{') ? null : value;
 }
 

@@ -341,7 +341,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             );
           }
           generated.add(path);
-          addRoute(path, { lastmod: entry.updatedAt, seo: entry.data.seo ?? template.data.seo });
+          addRoute(path, {
+            lastmod: entry.updatedAt,
+            seo: entry.data.seo,
+            templateSeo: template.data.seo,
+          });
         }
       }
       // Code-owned pages are Nuxt's own routes: served at their exact path, in no other locale.

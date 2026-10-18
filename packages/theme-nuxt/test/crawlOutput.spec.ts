@@ -64,6 +64,56 @@ describe('toSitemapPages', () => {
     expect(page!.variants[1]!.canonical).toBeNull();
   });
 
+  it('merges the entry and its route template like resolveSeo', () => {
+    const [noindexed, canon] = toSitemapPages(
+      [
+        { path: '/p/a', seo: { title: 'Own' }, templateSeo: { noindex: true } },
+        {
+          path: '/p/b',
+          seo: { title: 'Own' },
+          templateSeo: {
+            canonicalUrl: { is: 'https://shop.example/t', 'en-US': 'https://shop.example/t-en' },
+          },
+        },
+      ],
+      routing
+    );
+    expect(noindexed!.noindex).toBe(true);
+    expect(canon!.noindex).toBe(false);
+    expect(canon!.variants.map((v) => v.canonical)).toEqual([
+      'https://shop.example/t',
+      'https://shop.example/t-en',
+    ]);
+  });
+
+  it('leaves a template-noindex route with an entry seo out of the sitemap', () => {
+    const files = buildCrawlFiles(
+      input({
+        routes: [
+          { path: '/p/a', seo: { title: 'Own' }, templateSeo: { noindex: true } },
+          { path: '/p/b' },
+        ],
+      })
+    );
+    const xml = files.find((f) => f.name === 'sitemap.xml')!.content;
+    expect(xml).not.toContain('/p/a');
+    expect(xml).toContain('/p/b');
+  });
+
+  it('ignores a plain-string canonical on a multi-locale page so hreflang stays distinct', () => {
+    const [page] = toSitemapPages(
+      [{ path: '/a', seo: { canonicalUrl: 'https://shop.example/canon' } }],
+      routing
+    );
+    expect(page!.variants.map((v) => v.canonical)).toEqual([null, null]);
+    const single = resolveLocaleRouting({ default: 'is', supported: ['is'] });
+    const [one] = toSitemapPages(
+      [{ path: '/a', seo: { canonicalUrl: 'https://shop.example/canon' } }],
+      single
+    );
+    expect(one!.variants[0]!.canonical).toBe('https://shop.example/canon');
+  });
+
   it('tolerates a missing or malformed seo value and lastmod', () => {
     const [page] = toSitemapPages([{ path: '/a', seo: 'x', lastmod: 7 }], routing);
     expect(page!.noindex).toBe(false);
