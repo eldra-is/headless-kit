@@ -75,7 +75,39 @@ A **preview build** is always `noindex`: anything built without `ELDRA_BUILD_TAR
 (the module option `buildTarget`), `nuxi dev`, and any page framed by Studio. A production build
 writes `robots` only for a page that opts out. Set `ELDRA_SITE_URL` (the module option `siteUrl`) to
 the public origin: without it there is no canonical or `og:url`, because both must be absolute and
-a guessed host is worse than none. A relative image or canonical is resolved against it.
+a guessed host is worse than none. A relative image or canonical is resolved against it. When
+`ELDRA_SITE_URL` is unset, a production build reads the site's production URL from the platform
+(`GET /site/v1/crawl`, below).
+
+## sitemap.xml, robots.txt and hreflang
+
+`nuxi generate` writes `robots.txt` and `sitemap.xml` into the static output from the routes it
+prerendered, so neither can list a page that does not exist:
+
+- **Preview build** (the default): `robots.txt` is `User-agent: *` / `Disallow: /` and there is no
+  sitemap, whatever the platform says about the site's URL.
+- **Production build** (`ELDRA_BUILD_TARGET=production`): `robots.txt` is `User-agent: *` /
+  `Allow: /`, then the merchant's own lines (the platform's `robotsExtra`, set in Studio), then
+  `Sitemap: <origin>/sitemap.xml`. `sitemap.xml` lists every prerendered content path once per
+  locale, each with `xhtml:link rel="alternate" hreflang` for every locale and `x-default` (the
+  unprefixed one), and `<lastmod>` where the entry or catalog record has an `updatedAt`.
+- A page whose `seo.noindex` is set is **left out**. Its `seo.canonicalUrl` becomes the `loc` when
+  it is a plain URL on the site's own origin; a canonical on another host, or a `{{pattern}}`, is
+  ignored and the path-derived URL is used.
+- Past 50,000 URLs or 50 MiB per file, `sitemap.xml` becomes a `sitemapindex` over `sitemap-1.xml`,
+  `sitemap-2.xml`, ... (the module option `sitemap: { maxUrls, maxBytes }` lowers the limits;
+  `sitemap: false` turns the sitemap off). Every locale counts, so a store's URL count is its page
+  count times its locales.
+- The origin is `ELDRA_SITE_URL` (the module option `siteUrl`), else the production URL the platform
+  publishes. With neither, a production build writes **neither file** and prints one line saying
+  so: a sitemap of relative URLs is invalid.
+- A `public/robots.txt` or `public/sitemap.xml` of the theme's own is never replaced; the build
+  prints `[eldra] <file> generation skipped: theme ships its own` instead. Do not ship either in a
+  theme that should follow the merchant's settings.
+
+The same origin makes the `<link rel="alternate" hreflang>` set in every page's head absolute
+(relative paths without it). Reading the crawl settings is a fail-soft platform read like the
+others: one warning, and the build goes on with no merchant lines.
 
 ## Failing soft
 

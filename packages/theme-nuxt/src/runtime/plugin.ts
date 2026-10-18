@@ -105,9 +105,18 @@ export default defineNuxtPlugin({
      *
      * One reactive entry, not a snapshot: a client navigation between two locales changes both.
      */
+    // Absolute when the build knows the site's origin (`siteUrl` module option / `ELDRA_SITE_URL`
+    // / the platform's production URL), relative paths otherwise. `''` is how the runtime config
+    // serialises "unset".
+    const seoSiteUrl = (useRuntimeConfig().public.eldraSeo as { siteUrl?: string } | undefined)
+      ?.siteUrl;
     useHead(() => ({
       htmlAttrs: { lang: context.locales?.active ?? undefined },
-      link: localeAlternates(canonicalRoutePath(router()?.currentRoute.value.path ?? '/'), routing),
+      link: localeAlternates(
+        canonicalRoutePath(router()?.currentRoute.value.path ?? '/'),
+        routing,
+        seoSiteUrl
+      ),
     }));
 
     // Read the build's prerendered route list now, so the first client navigation already has it

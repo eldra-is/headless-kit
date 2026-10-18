@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- New framework-free `buildSitemap` (a `urlset`, or a `sitemapindex` with children past the
+  sitemaps.org limits; hreflang `xhtml:link` alternates and `x-default`; noindex pages excluded; a
+  same-origin canonical as `loc`), `buildRobots` (preview: `Disallow: /`; production: `Allow: /`,
+  merchant lines, `Sitemap:`), `buildAlternates` (the head's hreflang set) and their helpers
+  (`siteOrigin`, `sitemapLastmod`, `escapeXml`). `@eldrajs/theme-nuxt` feeds them the prerendered
+  routes. Documented in `docs/theme-seo.md`.
+
 - New framework-free SEO resolver, `resolveSeo` (and `substituteSeoPattern`, `tidySeoTitle`,
   `renderSeoTitle`, `pickSeoLocale`, the `SeoSetting`/`SeoEntryValue`/`ResolvedSeo` types):
   title, description, share image, canonical, `noindex`, `og:type` and Twitter handle for one route

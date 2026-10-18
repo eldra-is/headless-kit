@@ -15,6 +15,10 @@ export default defineNuxtConfig({
   },
   eldra: {
     locale: 'is',
+    // Lets a test lower the sitemap's per-file URL limit to see the index split.
+    sitemap: process.env.ELDRA_TEST_SITEMAP_MAX_URLS
+      ? { maxUrls: Number(process.env.ELDRA_TEST_SITEMAP_MAX_URLS) }
+      : undefined,
     studioOrigins: ['https://acme.eldracms.com', 'https://*.studio.example.test:3000'],
     customPages: [
       {

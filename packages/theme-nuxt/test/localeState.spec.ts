@@ -175,6 +175,18 @@ describe('localeAlternates', () => {
     });
   });
 
+  it('is absolute when the build knows the site’s origin', () => {
+    expect(
+      localeAlternates('/about', resolveLocaleRouting(TWO), 'https://shop.example/').map(
+        (link) => link.href
+      )
+    ).toEqual([
+      'https://shop.example/about',
+      'https://shop.example/is-IS/about',
+      'https://shop.example/about',
+    ]);
+  });
+
   it('emits none for a site with one locale or none', () => {
     // An alternate pointing at the page it is on says nothing.
     expect(localeAlternates('/about', resolveLocaleRouting(null))).toEqual([]);

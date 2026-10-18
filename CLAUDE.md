@@ -312,6 +312,14 @@ with no `ELDRA_GATEWAY_URL`/`ELDRA_ORG_ID` configured still produces the static 
 build is for. See `readStoreCommerce`/`readStoreLocales`/`readThemeMessages`/`readDesignTokens` and
 their own `*_WARNING` constants for the exact wording each prints.
 
+Three more follow the same rule: site icons (`GET /site/v1/site-icons`), the SEO setting
+(`GET /site/v1/seo`) and, on a **production** build only, the crawl settings (`GET /site/v1/crawl`:
+the site's production URL and the merchant's `robots.txt` lines, `readCrawlSettings`). The crawl
+settings feed `robots.txt` and `sitemap.xml`, which `module.ts` writes on nitro's `prerender:done`/
+`compiled` from the routes the `prerender:routes` hook collected (`./runtime/crawlOutput.ts`; pure
+builders in `@eldrajs/theme-core`'s `sitemap.ts`). A preview build writes `Disallow: /` and no
+sitemap; a file of the same name in the theme's own `public/` is never replaced.
+
 ### Virtual modules
 
 `@eldrajs/vite-plugin-theme` resolves seven `virtual:eldra/*` ids

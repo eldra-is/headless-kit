@@ -1,6 +1,6 @@
 import { execa } from 'execa';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -675,5 +675,126 @@ describe('theme-nuxt nuxi generate', () => {
     expect(html).toContain('property="og:image" content="https://media.example.test/');
     expect(html).toContain('name="twitter:site" content="@fixture"');
     expect(html).not.toContain('name="robots"');
+  }, 360_000);
+
+  /**
+   * **A preview build is never crawlable**: no `ELDRA_BUILD_TARGET=production` means `robots.txt`
+   * is `Disallow: /` and there is no sitemap, whatever the platform says about the site's URL.
+   */
+  it('writes a Disallow-all robots.txt and no sitemap for a preview build', async () => {
+    await generateWith({
+      crawl: {
+        revision: 1,
+        siteUrl: 'https://shop.example.test',
+        robotsExtra: '',
+      },
+    });
+
+    expect(readFileSync(output('robots.txt'), 'utf8')).toBe('User-agent: *\nDisallow: /\n');
+    expect(existsSync(output('sitemap.xml'))).toBe(false);
+  }, 360_000);
+
+  /**
+   * The production build: every prerendered content path once per locale with hreflang
+   * alternates, the platform's URL as origin, `lastmod` where the read carried one, the noindex
+   * page left out, the retired product (never prerendered) absent, the code-owned page listed
+   * once, and `robots.txt` with the merchant's lines and the sitemap.
+   */
+  it('writes sitemap.xml and robots.txt from the prerendered routes of a production build', async () => {
+    await generateWith(
+      {
+        crawl: {
+          revision: 3,
+          siteUrl: 'https://shop.example.test/',
+          robotsExtra: 'Disallow: /cart',
+        },
+      },
+      { ELDRA_BUILD_TARGET: 'production' }
+    );
+
+    const xml = readFileSync(output('sitemap.xml'), 'utf8');
+    expect(xml).toContain('<urlset');
+    for (const loc of [
+      'https://shop.example.test/',
+      'https://shop.example.test/en-US',
+      'https://shop.example.test/about',
+      'https://shop.example.test/en-US/about',
+      'https://shop.example.test/articles/hello-dynamic',
+      'https://shop.example.test/en-US/articles/hello-dynamic',
+      'https://shop.example.test/products/merino-crew',
+      'https://shop.example.test/en-US/products/merino-crew',
+      'https://shop.example.test/articles/code-owned',
+    ]) {
+      expect(xml.split(`<loc>${loc}</loc>`).length - 1, loc).toBe(1);
+    }
+    expect(xml).not.toContain('/control');
+    expect(xml).not.toContain('retired-tee');
+    expect(xml).not.toContain('/en-US/articles/code-owned');
+
+    expect(xml).toContain('<lastmod>2026-02-03T04:05:06.000Z</lastmod>');
+    expect(xml).toContain('<lastmod>2026-03-04T05:06:07.000Z</lastmod>');
+    // The alternates name the same pair from both spellings, x-default is the unprefixed one.
+    expect(xml).toContain(
+      '<xhtml:link rel="alternate" hreflang="en-US" href="https://shop.example.test/en-US/about"/>'
+    );
+    expect(xml).toContain(
+      '<xhtml:link rel="alternate" hreflang="x-default" href="https://shop.example.test/about"/>'
+    );
+
+    expect(readFileSync(output('robots.txt'), 'utf8')).toBe(
+      'User-agent: *\nAllow: /\nDisallow: /cart\n\nSitemap: https://shop.example.test/sitemap.xml\n'
+    );
+
+    // The head alternates are absolute now that the origin is known.
+    const about = readFileSync(output('about/index.html'), 'utf8');
+    expect(about).toContain(
+      'rel="alternate" hreflang="en-US" href="https://shop.example.test/en-US/about"'
+    );
+  }, 360_000);
+
+  it('splits the sitemap into an index and children past the limit', async () => {
+    await generateWith(
+      { crawl: { revision: 1, siteUrl: null, robotsExtra: '' } },
+      {
+        ELDRA_BUILD_TARGET: 'production',
+        ELDRA_SITE_URL: 'https://shop.example.test',
+        ELDRA_TEST_SITEMAP_MAX_URLS: '4',
+      }
+    );
+
+    expect(readFileSync(output('sitemap.xml'), 'utf8')).toContain('<sitemapindex');
+    const first = readFileSync(output('sitemap-1.xml'), 'utf8');
+    expect(first.match(/<url>/g)).toHaveLength(4);
+    expect(existsSync(output('sitemap-2.xml'))).toBe(true);
+    expect(readFileSync(output('robots.txt'), 'utf8')).toContain(
+      'Sitemap: https://shop.example.test/sitemap.xml'
+    );
+  }, 360_000);
+
+  it('writes neither file for a production build with no absolute site url', async () => {
+    await generateWith({}, { ELDRA_BUILD_TARGET: 'production' });
+
+    expect(existsSync(output('robots.txt'))).toBe(false);
+    expect(existsSync(output('sitemap.xml'))).toBe(false);
+  }, 360_000);
+
+  it('never replaces a robots.txt or sitemap.xml the theme ships itself', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, 'robots.txt'), 'theme-own-robots\n');
+    writeFileSync(join(publicDir, 'sitemap.xml'), 'theme-own-sitemap\n');
+    try {
+      await generateWith(
+        {},
+        {
+          ELDRA_BUILD_TARGET: 'production',
+          ELDRA_SITE_URL: 'https://shop.example.test',
+        }
+      );
+      expect(readFileSync(output('robots.txt'), 'utf8')).toBe('theme-own-robots\n');
+      expect(readFileSync(output('sitemap.xml'), 'utf8')).toBe('theme-own-sitemap\n');
+    } finally {
+      rmSync(join(publicDir, 'robots.txt'), { force: true });
+      rmSync(join(publicDir, 'sitemap.xml'), { force: true });
+    }
   }, 360_000);
 });

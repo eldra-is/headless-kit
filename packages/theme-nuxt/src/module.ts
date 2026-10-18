@@ -1,5 +1,5 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { addImports, addPlugin, addVitePlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
 import {
@@ -16,6 +16,7 @@ import {
   type EldraRetryOptions,
   type EntryDoc,
   type SeoSetting,
+  type SitemapLimits,
   type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
@@ -27,7 +28,9 @@ import eldraTheme, {
   type ManifestTemplateRoles,
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
-import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
+import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
 import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
@@ -102,6 +105,13 @@ export interface ModuleOptions {
    * `ELDRA_BUILD_TARGET`.
    */
   buildTarget?: 'production' | 'preview';
+  /**
+   * `sitemap.xml` (and `robots.txt`) generation. Both are written into the static output of a
+   * `nuxi generate`/`build` from the prerendered routes; a `public/robots.txt` or
+   * `public/sitemap.xml` of the theme's own is never replaced. `false` turns the sitemap off.
+   * The limits are sitemaps.org's (50,000 URLs, 50 MiB per file) and exist as options for tests.
+   */
+  sitemap?: false | SitemapLimits;
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
@@ -220,6 +230,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
      */
     let localeRouting: EldraLocaleRouting = resolveLocaleRouting(null, options.locale);
 
+    /** Every content path the prerender pass discovered, for `sitemap.xml` (`./runtime/crawlOutput.ts`). */
+    const crawlRoutes: CrawlRoute[] = [];
+    /** The platform's crawl settings (production builds only), filled in at the end of `setup()`. */
+    let crawlSetting: CrawlSetting | null = null;
+    let crawlSiteUrl = options.siteUrl ?? '';
+
     nuxt.hook('prerender:routes', async (ctx) => {
       if (options.gatewayUrl === '' || options.orgId === '') {
         console.warn('[eldra] ELDRA_GATEWAY_URL / ELDRA_ORG_ID not set — prerendering "/" only');
@@ -248,7 +264,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
        * and once more under every other supported locale's prefix. In the **same** pass that
        * discovered the path, so a locale can never be a build behind the pages it serves.
        */
-      const addRoute = (path: string): void => {
+      const addRoute = (path: string, meta: Omit<CrawlRoute, 'path'> = {}): void => {
+        crawlRoutes.push({ path, ...meta });
         ctx.routes.add(path);
         for (const prefixed of localeRouting.prefixed) {
           ctx.routes.add(localePathFor(path, prefixed, localeRouting));
@@ -257,7 +274,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       for (const page of pages) {
         const path = resolvePagePath(page, pages);
         generated.add(path);
-        addRoute(path);
+        addRoute(path, { lastmod: page.updatedAt, seo: page.data.seo });
       }
       const codeOwned = new Set((options.customPages ?? []).map((page) => page.path));
       const entriesBySchema = new Map<string, Promise<EntryDoc[]>>();
@@ -291,14 +308,19 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             catalogPromise = listCatalogDocs(client, catalogKind, locale);
             catalogByKind.set(catalogKind, catalogPromise);
           }
-          for (const path of catalogDocRoutes(catalogKind, await catalogPromise, pattern)) {
+          for (const { path, doc } of catalogDocRouteRefs(
+            catalogKind,
+            await catalogPromise,
+            pattern
+          )) {
             if (codeOwned.has(path)) continue;
             if (generated.has(path)) {
               console.warn(`[eldra] skipped ${path}: another route already generates this path`);
               continue;
             }
             generated.add(path);
-            addRoute(path);
+            // The route template's `seo` is what `useEldraSeo` reads for a catalog route.
+            addRoute(path, { lastmod: doc.updatedAt, seo: template.data.seo });
           }
           continue;
         }
@@ -319,8 +341,13 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             );
           }
           generated.add(path);
-          addRoute(path);
+          addRoute(path, { lastmod: entry.updatedAt, seo: entry.data.seo ?? template.data.seo });
         }
+      }
+      // Code-owned pages are Nuxt's own routes: served at their exact path, in no other locale.
+      for (const page of options.customPages ?? []) {
+        if (/[:*]/.test(page.path) || generated.has(page.path)) continue;
+        crawlRoutes.push({ path: page.path, codeOwned: true });
       }
     });
 
@@ -349,12 +376,42 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           mkdirSync(publicDir, { recursive: true });
           for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
         };
-        nitro.hooks.hook('compiled', () => writeSiteIconFiles(nitro.options.output.publicDir));
+        /**
+         * `robots.txt` and `sitemap.xml`, once per build whichever of the two hooks fires (they
+         * can both), and never over a file of the theme's own `public/` (`buildCrawlFiles`). Like
+         * the icons, written on `compiled` as well: `prerender:done` does not fire for a build
+         * with nothing to prerender.
+         */
+        const crawlLogged = new Set<string>();
+        const writeCrawlFiles = (publicDir: string) => {
+          const files = buildCrawlFiles({
+            target: options.buildTarget === 'production' ? 'production' : 'preview',
+            siteUrl: crawlSiteUrl,
+            robotsExtra: crawlSetting?.robotsExtra,
+            routes: crawlRoutes,
+            routing: localeRouting,
+            sitemap: options.sitemap,
+            themePublicDir: resolve(nuxt.options.rootDir, nuxt.options.dir.public ?? 'public'),
+            log: (message) => {
+              if (crawlLogged.has(message)) return;
+              crawlLogged.add(message);
+              console.warn(message);
+            },
+          });
+          if (files.length === 0) return;
+          mkdirSync(publicDir, { recursive: true });
+          for (const file of files) writeFileSync(join(publicDir, file.name), file.content);
+        };
+        nitro.hooks.hook('compiled', () => {
+          writeSiteIconFiles(nitro.options.output.publicDir);
+          writeCrawlFiles(nitro.options.output.publicDir);
+        });
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
           writeSiteIconFiles(publicDir);
+          writeCrawlFiles(publicDir);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
@@ -416,6 +473,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       platformDesignTokens,
       platformSiteIcons,
       platformSeo,
+      platformCrawl,
     ] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
@@ -423,7 +481,18 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       readDesignTokens(platformClient),
       nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
       nuxt.options.dev ? Promise.resolve(null) : readSeo(platformClient),
+      // The crawl settings matter only to a production build: a preview build writes `Disallow: /`
+      // and no sitemap whatever they say.
+      nuxt.options.dev || options.buildTarget !== 'production'
+        ? Promise.resolve(null)
+        : readCrawlSettings(platformClient),
     ]);
+    crawlSetting = platformCrawl;
+    // `ELDRA_SITE_URL` wins over the platform's production URL, so an operator can override it
+    // for one build. The SEO runtime config follows, so a canonical and the hreflang set agree
+    // with the sitemap on the origin.
+    crawlSiteUrl = options.siteUrl || platformCrawl?.siteUrl || '';
+    (nuxt.options.runtimeConfig.public.eldraSeo as { siteUrl: string }).siteUrl = crawlSiteUrl;
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
