@@ -191,7 +191,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.eldraSeo = {
       setting: null as SeoSetting | null,
       siteUrl: options.siteUrl ?? '',
-      siteName: siteName(nuxt.options.app.head.title, nuxt.options.rootDir) ?? '',
+      siteName: seoSiteName(nuxt.options.app.head.title),
       isPreview: nuxt.options.dev || options.buildTarget !== 'production',
     };
 
@@ -525,6 +525,15 @@ function packageVersion(path: string): string {
   } catch {
     return '0.0.0';
   }
+}
+
+/**
+ * The site name SEO titles fall back to: the theme's `app.head.title` only. Never the npm package
+ * name (`starter-nuxt` is not a shop name); with none, titles are the bare page title and the
+ * platform's own `site.name` (when the merchant or Core sets one) still wins.
+ */
+function seoSiteName(title: unknown): string {
+  return typeof title === 'string' ? title.trim() : '';
 }
 
 function siteName(title: unknown, rootDir: string): string | null {

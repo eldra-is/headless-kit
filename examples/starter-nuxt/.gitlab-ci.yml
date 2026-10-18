@@ -13,4 +13,6 @@ eldra-deploy:
     - pnpm exec nuxi generate
     - pnpm exec eldra-theme deploy
   variables:
+    ELDRA_BUILD_TARGET: production
+    # ELDRA_SITE_URL (the public origin) is a CI/CD variable set on the project.
     ELDRA_TRIGGER_DEPLOYMENT_ID: $ELDRA_TRIGGER_DEPLOYMENT_ID

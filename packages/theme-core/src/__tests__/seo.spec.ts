@@ -126,6 +126,24 @@ describe('resolveSeo', () => {
     );
   });
 
+  it('og title and description fall back to the title and description, entry before template', () => {
+    const plain = resolveSeo({ ...base, context: 'page' });
+    expect(plain.ogTitle).toBe(plain.title);
+    expect(plain.ogDescription).toBe(plain.description);
+    const own = resolveSeo({
+      ...base,
+      context: 'page',
+      entry: { ogTitle: 'Share {{page.title}}', ogDescription: { 'en-US': 'Share text' } },
+      template: { ogTitle: 'Template', ogDescription: 'Template text' },
+    });
+    expect(own.ogTitle).toBe('Share About');
+    expect(own.ogDescription).toBe('Share text');
+    expect(own.title).toBe(plain.title);
+    expect(
+      resolveSeo({ ...base, context: 'page', template: { ogTitle: 'Template' } }).ogTitle
+    ).toBe('Template');
+  });
+
   it('omits canonical and relative images without a site origin', () => {
     const seo = resolveSeo({
       ...base,

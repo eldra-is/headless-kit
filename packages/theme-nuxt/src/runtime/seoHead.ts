@@ -34,16 +34,16 @@ export function buildSeoHead(
   };
 
   name('description', seo.description);
-  property('og:title', seo.title);
-  property('og:description', seo.description);
+  property('og:title', seo.ogTitle);
+  property('og:description', seo.ogDescription);
   property('og:type', seo.ogType);
   property('og:site_name', context.siteName);
   property('og:locale', context.locale === null ? null : context.locale.replace('-', '_'));
   property('og:url', seo.canonical);
   property('og:image', seo.image);
   name('twitter:card', seo.image === null ? 'summary' : 'summary_large_image');
-  name('twitter:title', seo.title);
-  name('twitter:description', seo.description);
+  name('twitter:title', seo.ogTitle);
+  name('twitter:description', seo.ogDescription);
   name('twitter:image', seo.image);
   name('twitter:site', seo.twitterSite);
   if (seo.noindex) name('robots', 'noindex');

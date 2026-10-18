@@ -64,6 +64,11 @@ from the email renderer, which keeps unknown paths and swallows nearby whitespac
 title of every rule above. Core and Studio test against the same file; change a rule by changing
 the vectors first.
 
+A page's or template's own `seo` value may also carry `ogTitle` and `ogDescription` (used for
+`og:*` and `twitter:*` only; each falls back to the page's title and description) and a share
+image: Core serves the resolved `imageUrl` beside `imageAssetId` in the entry read, and the kit
+reads the URL.
+
 ## Which builds are indexed
 
 A **preview build** is always `noindex`: anything built without `ELDRA_BUILD_TARGET=production`
@@ -84,4 +89,5 @@ on with the default pattern. Nothing breaks a deploy.
 Replace the theme's own `useHead({ title })` with `useEldraSeo`, and keep a not-found page out of
 the index by passing `{ entry: { title, noindex: true } }`. The starter's `seoInput()` is a good
 starting point for the data of each context. A theme that sets `app.head.title` has that as the
-default site name; otherwise it is the package name.
+default site name; otherwise there is none (never the package name) and titles are the bare page
+title until the platform's `site.name` is set.

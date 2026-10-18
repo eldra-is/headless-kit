@@ -59,6 +59,13 @@ with the wrong `ELDRA_ORG_ID` still succeeds — it just builds against the wron
 content, locales and overrides, which is the thing to check first when a build "looks right" but
 reads like the wrong store.
 
+A **deploy build is a production build**: set `ELDRA_BUILD_TARGET=production` and `ELDRA_SITE_URL`
+(the public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow and
+GitLab job already do (`ELDRA_SITE_URL` is a repository variable). Without the target every page is
+written `noindex` with no canonical or `og:url`, because the default build is a preview build; see
+[Page titles and SEO](theme-seo.md#which-builds-are-indexed). A site that sets no `app.head.title`
+gets bare page titles until the merchant's SEO site name is set.
+
 `nuxi generate` writes the manifest the scan produced to `.eldra/manifest.json` inside the build
 output — `eldra-theme deploy` reads that exact file, not a fresh scan, so what you deploy is what
 you generated, byte for byte.

@@ -150,6 +150,18 @@ describe('buildSeoHead', () => {
     expect(head.meta).toContainEqual({ name: 'robots', content: 'noindex' });
   });
 
+  it('writes the og and twitter title and description from the og overrides', () => {
+    const head = buildSeoHead(
+      resolveSeo({ ...input, entry: { ogTitle: 'Share me', ogDescription: 'Share text' } }),
+      { locale: 'en-US', siteName: 'Sóley' }
+    );
+    expect(head.title).toBe('Mug');
+    expect(head.meta).toContainEqual({ property: 'og:title', content: 'Share me' });
+    expect(head.meta).toContainEqual({ property: 'og:description', content: 'Share text' });
+    expect(head.meta).toContainEqual({ name: 'twitter:title', content: 'Share me' });
+    expect(head.meta).toContainEqual({ name: 'description', content: 'Handmade ceramics.' });
+  });
+
   it('omits canonical, og:url and the image when nothing absolute is known', () => {
     const head = buildSeoHead(resolveSeo({ ...input, site: null, siteUrl: null }), {
       locale: null,

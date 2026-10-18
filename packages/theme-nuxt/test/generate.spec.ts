@@ -639,7 +639,7 @@ describe('theme-nuxt nuxi generate', () => {
     await generateWith({});
 
     const html = readFileSync(output('about/index.html'), 'utf8');
-    expect(html).toMatch(/<title>About · [^<]+<\/title>/);
+    expect(html).toContain('<title>About</title>');
     expect(html).toContain('name="robots" content="noindex"');
     expect(html).not.toContain('rel="canonical"');
     expect(html).not.toContain('property="og:url"');

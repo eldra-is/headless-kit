@@ -53,9 +53,14 @@ export interface SeoEntryValue {
   title?: string | SeoLocaleMap | null;
   description?: string | SeoLocaleMap | null;
   canonicalUrl?: string | SeoLocaleMap | null;
+  /** Open Graph title and description overrides; each falls back to the page's title and description. */
+  ogTitle?: string | SeoLocaleMap | null;
+  ogDescription?: string | SeoLocaleMap | null;
+  /** The share image's asset id; Core resolves it to `imageUrl` in the public entry read. */
+  imageAssetId?: string | null;
   /**
-   * The share image's media URL. Core stores `imageAssetId` and serves the resolved rendering
-   * beside it (as it does for the site's own image); the resolver reads only the URL.
+   * The share image's media URL: the resolved rendering of `imageAssetId` (as Core serves for the
+   * site's own image). The resolver reads only the URL.
    */
   imageUrl?: string | null;
   noindex?: boolean | null;
@@ -96,6 +101,10 @@ export interface ResolveSeoInput {
 export interface ResolvedSeo {
   title: string;
   description: string;
+  /** The Open Graph title: the entry's or template's `ogTitle`, else `title`. */
+  ogTitle: string;
+  /** The Open Graph description: the entry's or template's `ogDescription`, else `description`. */
+  ogDescription: string;
   /** Absolute image URL, or `null`. */
   image: string | null;
   /** Absolute canonical URL, or `null` when no site origin is known. */
@@ -244,6 +253,10 @@ export function resolveSeo(input: ResolveSeoInput): ResolvedSeo {
     data
   );
 
+  const ogTitle = renderSeoText(pick(entry?.ogTitle) || pick(template?.ogTitle), data) || title;
+  const ogDescription =
+    renderSeoText(pick(entry?.ogDescription) || pick(template?.ogDescription), data) || description;
+
   const image =
     absolute(entry?.imageUrl, origin) ??
     absolute(template?.imageUrl, origin) ??
@@ -267,6 +280,8 @@ export function resolveSeo(input: ResolveSeoInput): ResolvedSeo {
   return {
     title,
     description,
+    ogTitle,
+    ogDescription,
     image,
     canonical,
     noindex: input.isPreview === true || entry?.noindex === true || template?.noindex === true,
