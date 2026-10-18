@@ -13,8 +13,9 @@
  * test, which is the only spec that depends on it.
  */
 export default {
-  manifestVersion: 1,
+  manifestVersion: 2,
   theme: {
+    id: 'test-theme',
     name: '@eldrajs/theme-vue-test',
     version: '0.0.0',
     framework: 'vue',

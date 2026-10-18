@@ -489,6 +489,52 @@ describe('theme-nuxt runtime', () => {
     const actions = result?.data.layout.root.children[0]?.slots?.actions;
     expect(actions).toEqual([{ id: 'cta-placement', type: 'block', entryId: newCtaId }]);
   });
+
+  it("validates slots against bare block ids when the published host's schemaApiId is the wire spelling", () => {
+    // Core spells a theme's block schema `<themeId>:<apiId>`; the slot catalog is keyed by the
+    // bare id block.json declares. The fixture manifest's theme id is `nuxt-fixture`.
+    const hostId = '55555555-5555-4555-8555-555555555555';
+    const newCtaId = '77777777-7777-4777-8777-777777777777';
+    const page = {
+      id: 'page-1',
+      data: {
+        layout: {
+          version: 3,
+          root: {
+            id: 'root-layout',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: 'hero-placement',
+                type: 'block',
+                entryId: hostId,
+                slots: {
+                  actions: [{ id: 'cta-placement', type: 'block', entryId: newCtaId }],
+                },
+              },
+            ],
+          },
+        },
+        blocks: [
+          { id: hostId, schemaApiId: 'nuxt-fixture:hero', data: { heading: 'Published hero' } },
+        ],
+      },
+    };
+
+    // The editor may send either spelling for a draft-only entry.
+    for (const draftSchema of ['cta', 'nuxt-fixture:cta']) {
+      const result = overlayPreviewDrafts(
+        page,
+        { [newCtaId]: { label: 'Dropped CTA' } },
+        { [newCtaId]: draftSchema }
+      );
+      expect(result?.data.blocks).toEqual([
+        { id: hostId, schemaApiId: 'nuxt-fixture:hero', data: { heading: 'Published hero' } },
+        { id: newCtaId, schemaApiId: draftSchema, data: { label: 'Dropped CTA' } },
+      ]);
+    }
+  });
 });
 
 interface EntryDocLike {

@@ -239,8 +239,9 @@ describe('showWhen — not a stored-compatibility key', () => {
    */
   const previous = (fields: BlockField[]): ThemeManifest =>
     ({
-      manifestVersion: 1,
+      manifestVersion: 2,
       theme: {
+        id: 'marketing',
         name: 'marketing-theme',
         version: '1.2.0',
         framework: 'nuxt',

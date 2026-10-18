@@ -1,6 +1,7 @@
 import { setup, type Preview } from '@storybook/vue3-vite';
 import { registerBlockFields } from '@eldrajs/theme-vue';
 import blockFields from 'virtual:eldra/block-fields';
+import manifest from 'virtual:eldra/manifest';
 import '../app/assets/main.css';
 // The theme's own `--eldra-color-*` / `--eldra-container-*` custom properties,
 // generated from tokens.json — normally injected by @eldrajs/theme-nuxt's
@@ -16,7 +17,7 @@ import { NuxtLinkStub } from './nuxt-link-stub';
 // Mirrors the runtime plugin: register block field metadata once so
 // `useEldraBlockField` / `EldraRichText` (the `article` block's rich-text
 // field) resolve a field's `localized` flag the same way a real page does.
-registerBlockFields(blockFields);
+registerBlockFields(blockFields, manifest.theme.id);
 
 setup((app) => {
   // No gateway, no `virtual:eldra/messages` — every block calls `useI18n()` directly, with no

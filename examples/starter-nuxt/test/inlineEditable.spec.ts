@@ -70,7 +70,8 @@ const mockModules = import.meta.glob<{ default: Record<string, unknown> }>(
 registerBlockFields(
   Object.fromEntries(
     manifest.blocks.map((block) => [block.apiId, block.fields])
-  ) as unknown as BlockFieldsMap
+  ) as unknown as BlockFieldsMap,
+  manifest.theme.id
 );
 
 const blocks = Object.entries(blockModules)

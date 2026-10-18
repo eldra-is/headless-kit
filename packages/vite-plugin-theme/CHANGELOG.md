@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Breaking:** a theme must declare its id in `package.json` under `eldra.themeId`
+  (`^[a-z][a-z0-9-]{1,48}$`, `catalog` reserved). The scanner emits it as `manifest.theme.id` and
+  `manifestVersion` is now `2` (`ThemeManifest.manifestVersion: 2`, `theme.id: string`). A missing
+  or invalid id is a scan error, so the plugin build, `eldra-theme validate` and
+  `eldra-theme deploy` fail naming `package.json: eldra.themeId`; there is no derivation from the
+  package name and no v1 manifest is produced. Core stores a theme's block schemas as
+  `<themeId>:<blockApiId>`; block ids in `block.json` and the manifest stay bare.
+  A v1 `.eldra/manifest.json` left on disk from an earlier build is rejected as the previous
+  manifest (`previous manifest: expected manifestVersion 2`): delete it once before the first build
+  after upgrading. See `docs/themes.md`'s "Theme id and schema ownership".
+
 - The scanner now reads a theme's own message catalogue: `i18n/<tag>.json`, siblings of
   `tokens.json`, one file per locale, each a nested JSON object of strings that gets flattened to
   dotted keys (`header.menu`, `cart.empty.title`). It validates key grammar/length, value

@@ -5,6 +5,28 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The runtime registers the theme's own id (`manifest.theme.id`) with `registerBlockFields`, and
+  the draft projection validates slots against bare block ids when a published entry's
+  `schemaApiId` is `<themeId>:<apiId>`. Route-template targets (a merchant's own schema) and
+  `catalog:*` are unchanged. The theme must declare `eldra.themeId` in `package.json` (see the
+  `@eldrajs/vite-plugin-theme` changelog).
+
+- **Site icons, set in Studio and rendered by the media worker.** A fifth fail-soft read, `GET
+  /site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon (a
+  media-library raster, square, at least 512 px), background colour, theme colour, short name and
+  `icons`, the URLs of the variants the media worker renders (`null` when no icon is set). When an
+  icon is set, `nuxi generate` writes only `site.webmanifest` into the static output (on both
+  nitro `compiled` and `prerender:done`) and adds `<link rel="icon" type="image/png"
+  sizes="32x32">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` and `<meta
+  name="theme-color">` to every page; the icon tags point at the media URLs. No image is fetched or
+  processed at build time and no `favicon.ico` is generated (the theme's own `public/favicon.ico`
+  stays the root fallback). The theme colour defaults to the primary design token and the short name
+  to the site name. With no icon set or a failed read, nothing is written or tagged and the theme's
+  `public/` files stay. The icons replace the theme's own icon, manifest and `theme-color` tags in
+  `app.head`. `sharp` was removed (an earlier draft of this feature generated the files with it):
+  native image processing in every theme build was fragile, and the media worker renders the sizes.
+  Documented in `docs/themes.md` (Site icons).
+
 - **The deployed site now carries Studio's design-token overrides, not only the open preview.** A
   fourth fail-soft read, alongside the store's currency, its locales and the theme-message overrides
   — `GET /site/v1/design-tokens`, same client, same retry policy, absent gateway or any error

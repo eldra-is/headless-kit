@@ -29,6 +29,7 @@ import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
+import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -39,6 +40,7 @@ import {
 } from './runtime/locales';
 import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
+import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
 
 export interface ModuleOptions {
   gatewayUrl: string;
@@ -90,7 +92,7 @@ export interface ModuleOptions {
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
 interface NitroInitContext {
-  hooks: { hook: (name: 'prerender:done', callback: () => void) => void };
+  hooks: { hook: (name: 'prerender:done' | 'compiled', callback: () => void) => void };
   options: { output: { publicDir: string } };
 }
 
@@ -296,6 +298,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       }
     });
 
+    /**
+     * The generated web manifest (`./runtime/siteIconAssets.ts`), filled in by the platform read at
+     * the end of `setup()` and written into the static output by the `compiled` and
+     * `prerender:done` hooks below. Empty when no icon is set or the read failed — then nothing is
+     * written and no head tag was added, so the theme's own `public/` files are what ships.
+     */
+    let siteIconFiles: GeneratedIconFile[] = [];
+
     // Nitro's own `nitro:init` hook is real — Nuxt calls it internally — but
     // this version of @nuxt/schema does not declare it on NuxtHooks, so
     // `nuxt.hook` cannot infer a callback type for it. Type only the shape
@@ -304,10 +314,21 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     (nuxt.hooks.hook as (name: 'nitro:init', callback: (nitro: NitroInitContext) => void) => void)(
       'nitro:init',
       (nitro) => {
+        // Only `site.webmanifest` is written, and it replaces a same-named file from the theme's
+        // own `public/`: the merchant's setting is the more specific one. The icon tags point at
+        // media URLs, not files. Written on `compiled` too: `prerender:done` never fires for a
+        // build with nothing to prerender, and the manifest tag must not point at a missing file.
+        const writeSiteIconFiles = (publicDir: string) => {
+          if (siteIconFiles.length === 0) return;
+          mkdirSync(publicDir, { recursive: true });
+          for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
+        };
+        nitro.hooks.hook('compiled', () => writeSiteIconFiles(nitro.options.output.publicDir));
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
+          writeSiteIconFiles(publicDir);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
@@ -357,12 +378,17 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
     // manifest catalogue — a different thing from what this read answers (the platform's
     // overrides), and the two must not share a name across the call below.
-    const [commerce, locales, platformMessages, platformDesignTokens] = await Promise.all([
-      readStoreCommerce(platformClient),
-      readStoreLocales(platformClient),
-      readThemeMessages(platformClient),
-      readDesignTokens(platformClient),
-    ]);
+    //
+    // The site icons are a fifth read on the same terms. Only a static build (`nuxi generate`/
+    // `build`) reads them: `nuxi dev` serves no generated files, so a tag for one would 404.
+    const [commerce, locales, platformMessages, platformDesignTokens, platformSiteIcons] =
+      await Promise.all([
+        readStoreCommerce(platformClient),
+        readStoreLocales(platformClient),
+        readThemeMessages(platformClient),
+        readDesignTokens(platformClient),
+        nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
+      ]);
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
@@ -371,6 +397,38 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
+    // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
+    // and the head untouched: tags are added only when the platform answered with icons.
+    const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
+      siteName: siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
+      primaryToken:
+        platformDesignTokens?.colors.primary?.value ?? themePrimaryToken(nuxt.options.rootDir),
+    });
+    const siteIcons =
+      resolvedSiteIcons === null
+        ? null
+        : buildSiteIconOutput(resolvedSiteIcons, nuxt.options.app.baseURL);
+    if (siteIcons !== null) {
+      siteIconFiles = siteIcons.files;
+      // The merchant's icons replace the theme's configured ones rather than sit beside them:
+      // Unhead keeps links with different hrefs, and a browser would pick between the two.
+      const replacedRels = new Set(['icon', 'shortcut icon', 'apple-touch-icon', 'manifest']);
+      const generatesThemeColor = siteIcons.meta.some((tag) => tag.name === 'theme-color');
+      nuxt.options.app.head.link = [
+        ...(nuxt.options.app.head.link ?? []).filter(
+          (tag) => !replacedRels.has(String((tag as { rel?: unknown }).rel ?? '').toLowerCase())
+        ),
+        ...(siteIcons.link as unknown as NonNullable<typeof nuxt.options.app.head.link>),
+      ];
+      nuxt.options.app.head.meta = [
+        ...(nuxt.options.app.head.meta ?? []).filter(
+          (tag) =>
+            !generatesThemeColor ||
+            String((tag as { name?: unknown }).name ?? '').toLowerCase() !== 'theme-color'
+        ),
+        ...(siteIcons.meta as unknown as NonNullable<typeof nuxt.options.app.head.meta>),
+      ];
+    }
     localeRouting = resolveLocaleRouting(locales, options.locale);
     // Merge over the manifest's own messages (resolved over `locales` — the organisation's own
     // locales, falling back to the theme's own when they are unknown) only now that both reads
@@ -429,6 +487,30 @@ function packageVersion(path: string): string {
     return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
   } catch {
     return '0.0.0';
+  }
+}
+
+function siteName(title: unknown, rootDir: string): string | null {
+  if (typeof title === 'string' && title.trim() !== '') return title;
+  try {
+    const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')) as {
+      name?: unknown;
+    };
+    return typeof pkg.name === 'string' ? pkg.name.replace(/^@[^/]+\//, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The theme's own primary colour, for a build whose platform design-token read failed. */
+function themePrimaryToken(rootDir: string): string | null {
+  try {
+    const tokens = normalizeThemeDesignTokens(
+      JSON.parse(readFileSync(join(rootDir, 'tokens.json'), 'utf8'))
+    );
+    return tokens.colors.primary?.value ?? null;
+  } catch {
+    return null;
   }
 }
 

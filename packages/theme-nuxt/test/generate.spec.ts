@@ -509,4 +509,120 @@ describe('theme-nuxt nuxi generate', () => {
       );
     }
   }, 360_000);
+  /**
+   * Regenerates the fixture against a gateway with the given options. Each call replaces `.output`,
+   * so a test reads what it needs before the next one runs.
+   */
+  async function generateWith(options: Parameters<typeof startMockGateway>[0]): Promise<void> {
+    const scenarioGateway = await startMockGateway(options);
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: scenarioGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        },
+        timeout: 300_000,
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }
+
+  /**
+   * **No icon set** is the default for every site: the fixture theme ships its own
+   * `public/favicon.ico`, and the build must neither overwrite it nor tag anything. (The first
+   * `generate` in this file ran against a gateway that 404s the setting — the fail-soft read.)
+   */
+  it('keeps the theme’s own icon files and head when the platform has no site icons', () => {
+    expect(gateway.requests).toContain('/site/v1/site-icons');
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+    for (const name of ['apple-touch-icon.png', 'site.webmanifest', 'icon-512-maskable.png']) {
+      expect(existsSync(output(name)), name).toBe(false);
+    }
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).toContain('href="/theme-own-icon.svg"');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('name="theme-color"');
+  });
+
+  /**
+   * The setting is on: only `site.webmanifest` is written (replacing nothing of the theme's —
+   * its `favicon.ico` stays the root fallback), and **every** prerendered page — both locales —
+   * links the media worker's variants, with the theme colour defaulted from the primary token.
+   */
+  it('writes the manifest and tags every page when the platform has site icons', async () => {
+    const iconUrl = 'https://media.example.test/public/org-1/assets/asset-1';
+    await generateWith({
+      siteIcons: { iconUrl, backgroundColor: '#112233', shortName: 'Fixture' },
+    });
+
+    expect(existsSync(output('site.webmanifest'))).toBe(true);
+    // No image is generated or copied: the media worker renders them.
+    for (const name of ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'favicon-32.png']) {
+      expect(existsSync(output(name)), name).toBe(false);
+    }
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+
+    const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
+      short_name: string;
+      theme_color: string;
+      background_color: string;
+      icons: { src: string; purpose?: string }[];
+    };
+    expect(manifest).toMatchObject({
+      short_name: 'Fixture',
+      theme_color: '#4f46e5',
+      background_color: '#112233',
+    });
+    expect(manifest.icons.map((icon) => icon.src)).toEqual([
+      `${iconUrl}/icon-192`,
+      `${iconUrl}/icon-512`,
+      `${iconUrl}/icon-maskable-512?bg=112233`,
+    ]);
+    expect(manifest.icons[2]!.purpose).toBe('maskable');
+
+    for (const page of ['index.html', 'about/index.html', 'en-US/index.html']) {
+      const html = readFileSync(output(page), 'utf8');
+      expect(html, page).toContain(`href="${iconUrl}/icon-32"`);
+      expect(html, page).toContain('sizes="32x32"');
+      expect(html, page).toContain(`rel="apple-touch-icon" href="${iconUrl}/icon-180?bg=112233"`);
+      expect(html, page).toContain('rel="manifest" href="/site.webmanifest"');
+      expect(html, page).toContain('name="theme-color" content="#4f46e5"');
+      expect(html, page).not.toContain('theme-own-icon.svg');
+    }
+  }, 360_000);
+
+  /** A malformed answer (iconUrl set, no icons) is treated like a failed read. */
+  it('writes no manifest and adds no tags for a malformed site-icons answer', async () => {
+    await generateWith({
+      siteIcons: {
+        iconUrl: 'https://media.example.test/public/org-1/assets/asset-1',
+        malformed: true,
+      },
+    });
+
+    expect(existsSync(output('site.webmanifest'))).toBe(false);
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('media.example.test');
+  }, 360_000);
+
+  /** An unset icon ends like a failed read: nothing written, nothing tagged, theme files untouched. */
+  it('keeps the theme’s files and emits no tags for an unset icon', async () => {
+    await generateWith({ siteIcons: { iconUrl: null } });
+
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+    expect(existsSync(output('site.webmanifest'))).toBe(false);
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('name="theme-color"');
+  }, 360_000);
 });

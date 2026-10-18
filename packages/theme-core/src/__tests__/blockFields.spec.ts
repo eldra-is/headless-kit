@@ -47,18 +47,18 @@ const FIELDS = {
 };
 
 afterEach(() => {
-  registerBlockFields({});
+  registerBlockFields({}, 'shop');
 });
 
 describe('isBlockFieldLocalized', () => {
   it('reads the manifest flag for a known field', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldLocalized('article', 'title')).toBe(true);
     expect(isBlockFieldLocalized('article', 'body')).toBe(false);
   });
 
   it('is false without an apiId, for an unknown block, and for an unknown field', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldLocalized(undefined, 'title')).toBe(false);
     expect(isBlockFieldLocalized('ghost', 'title')).toBe(false);
     expect(isBlockFieldLocalized('article', 'missing')).toBe(false);
@@ -69,21 +69,21 @@ describe('isBlockFieldLocalized', () => {
   });
 
   it('replaces the registered map on every call (the plugin re-registers on HMR rescan)', () => {
-    registerBlockFields(FIELDS);
-    registerBlockFields({ article: [{ fieldId: 'title', type: 'string' }] });
+    registerBlockFields(FIELDS, 'shop');
+    registerBlockFields({ article: [{ fieldId: 'title', type: 'string' }] }, 'shop');
     expect(isBlockFieldLocalized('article', 'title')).toBe(false);
   });
 });
 
 describe('isBlockFieldSelect', () => {
   it('reads the manifest type for a known field', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect('cta', 'variant')).toBe(true);
     expect(isBlockFieldSelect('cta', 'heading')).toBe(false);
   });
 
   it('is false without an apiId, for an unknown block, and for an unknown field', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect(undefined, 'variant')).toBe(false);
     expect(isBlockFieldSelect('ghost', 'variant')).toBe(false);
     expect(isBlockFieldSelect('cta', 'missing')).toBe(false);
@@ -94,25 +94,25 @@ describe('isBlockFieldSelect', () => {
   });
 
   it('resolves a select field nested inside a list item, skipping the array index segment', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect('cta', 'items.0.variant')).toBe(true);
     expect(isBlockFieldSelect('cta', 'items.3.variant')).toBe(true);
     expect(isBlockFieldSelect('cta', 'items.0.title')).toBe(false);
   });
 
   it('resolves a list whose item is itself a select (not composite-wrapped)', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect('cta', 'tags.0')).toBe(true);
   });
 
   it('is false for a composite whose sub-fields are literally "value"/"label" — that shape alone is not a select', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect('cta', 'metric')).toBe(false);
     expect(isBlockFieldSelect('cta', 'metric.value')).toBe(false);
   });
 
   it('is false for a path that does not resolve (unknown nested field, or descending through a non-list/composite field)', () => {
-    registerBlockFields(FIELDS);
+    registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldSelect('cta', 'items.0.missing')).toBe(false);
     expect(isBlockFieldSelect('cta', 'variant.nested')).toBe(false);
   });

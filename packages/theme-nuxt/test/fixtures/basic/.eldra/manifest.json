@@ -1,6 +1,7 @@
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "theme": {
+    "id": "nuxt-fixture",
     "name": "eldra-theme-nuxt-fixture",
     "version": "1.2.3",
     "framework": "nuxt",

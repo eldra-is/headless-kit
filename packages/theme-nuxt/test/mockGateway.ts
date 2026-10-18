@@ -394,6 +394,18 @@ export function startMockGateway(
      *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
      *  with no published overrides, proving the build-time read's fail-soft fallback. */
     designTokens?: Record<string, unknown>;
+    /** The setting `/site/v1/site-icons` answers with, in the public shape: `iconUrl` is a media
+     *  asset URL, and `icons` the variants Core derives from it (`null` for "no icon set"). Nothing
+     *  is served at those URLs — the build only links to them. Absent, the route 404s like a Core
+     *  that predates the setting. */
+    siteIcons?: {
+      iconUrl: string | null;
+      /** Answer `icons: null` although `iconUrl` is set: a malformed response. */
+      malformed?: boolean;
+      backgroundColor?: string;
+      themeColor?: string | null;
+      shortName?: string | null;
+    };
   } = {}
 ): Promise<{
   server: Server;
@@ -490,6 +502,34 @@ export function startMockGateway(
           res.end('{}');
         } else {
           res.end(JSON.stringify({ revision: 7, resolved: options.designTokens }));
+        }
+      } else if (url.pathname === '/site/v1/site-icons') {
+        if (options.siteIcons === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          const { iconUrl } = options.siteIcons;
+          const backgroundColor = options.siteIcons.backgroundColor ?? '#ffffff';
+          const bg = backgroundColor.slice(1).toLowerCase();
+          res.end(
+            JSON.stringify({
+              revision: 3,
+              iconUrl,
+              backgroundColor,
+              themeColor: options.siteIcons.themeColor ?? null,
+              shortName: options.siteIcons.shortName ?? null,
+              icons:
+                iconUrl === null || options.siteIcons.malformed
+                  ? null
+                  : {
+                      favicon32: `${iconUrl}/icon-32`,
+                      appleTouch180: `${iconUrl}/icon-180?bg=${bg}`,
+                      icon192: `${iconUrl}/icon-192`,
+                      icon512: `${iconUrl}/icon-512`,
+                      maskable512: `${iconUrl}/icon-maskable-512?bg=${bg}`,
+                    },
+            })
+          );
         }
       } else if (url.pathname === '/catalog/v1/products/list') {
         const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');

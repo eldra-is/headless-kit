@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `getBlockSchemaApiId(entry)` returns the **bare** block id for an entry whose `schemaApiId` (or
+  `schema.apiId`) is Core's `<themeId>:<apiId>`, stripping the theme's own id (the manifest's
+  `theme.id`, from `virtual:eldra/manifest`) and nothing else, so `blockImports`,
+  `data-eldra-schema` and the slot catalog stay keyed by the id `block.json` declares. The preview's
+  `editor:content-update` draft schema ids are normalised the same way. `virtual:eldra/manifest`
+  now types `theme.id`; a test mock should carry one.
+
 - `EldraContext` gains `messages` (reactive `{ defaultLocale, locales }`, flat dotted keys): the
   theme's resolved message catalogue, defaulting to the fallback catalogue
   (`{ defaultLocale: 'en-US', locales: {} }`) in `provideEldra()` (a new optional `messages` option

@@ -3,6 +3,8 @@ import eldra from '../../../dist/module.mjs';
 export default defineNuxtConfig({
   modules: [eldra],
   ssr: true,
+  // The theme's own icon tag: kept with no site icons, replaced when the platform generates some.
+  app: { head: { link: [{ rel: 'icon', type: 'image/svg+xml', href: '/theme-own-icon.svg' }] } },
   nitro: {
     prerender: {
       crawlLinks: false,

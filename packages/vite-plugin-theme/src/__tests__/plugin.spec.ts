@@ -541,9 +541,9 @@ describe('migration history in the Vite plugin', () => {
 
   it.each([
     '{broken',
-    '{"manifestVersion":1,"manifestVersion":1,"blocks":[]}',
+    '{"manifestVersion":2,"manifestVersion":2,"blocks":[]}',
     '{"manifestVersion":99,"blocks":[]}',
-    '{"manifestVersion":1,"blocks":[null]}',
+    '{"manifestVersion":2,"blocks":[null]}',
   ])('fails clearly and preserves invalid local history: %s', async (raw) => {
     const root = copyFixture('valid-theme');
     mkdirSync(join(root, '.eldra'), { recursive: true });
@@ -551,6 +551,25 @@ describe('migration history in the Vite plugin', () => {
     writeFileSync(path, raw);
     await expect(buildTheme(root)).rejects.toThrow(/manifest/);
     expect(readFileSync(path, 'utf8')).toBe(raw);
+  });
+
+  it('rejects a v1 manifest left on disk as block history', async () => {
+    const root = copyFixture('valid-theme');
+    await buildTheme(root);
+    const path = join(root, '.eldra/manifest.json');
+    const current = JSON.parse(readFileSync(path, 'utf8')) as { manifestVersion: number };
+    current.manifestVersion = 1;
+    writeFileSync(path, JSON.stringify(current));
+    await expect(buildTheme(root)).rejects.toThrow(/manifest/);
+  });
+
+  it('fails the build when package.json declares no eldra.themeId', async () => {
+    const root = copyFixture('valid-theme');
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({ name: '@acme/Marketing Theme', version: '1.2.0' })
+    );
+    await expect(buildTheme(root)).rejects.toThrow(/eldra\.themeId — required/);
   });
 
   it('checks dev rescans against the last validated local schema', () => {

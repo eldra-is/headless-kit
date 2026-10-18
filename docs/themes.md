@@ -9,6 +9,43 @@ default data Studio shows before a page has real content. The scan output — th
 ingests it to create or update the org's `block`-tagged CMS schemas. Git is version control for the
 theme's code; the manifest is the sync channel, not the other way around.
 
+## Theme id and schema ownership
+
+Every theme declares a stable **theme id** in its `package.json`, beside the keys the scanner
+already reads:
+
+```json
+{
+  "name": "@acme/shop-theme",
+  "version": "1.0.0",
+  "eldra": { "themeId": "shop", "defaultLocale": "en-US" }
+}
+```
+
+- `eldra.themeId` is **required**. It has the block `apiId` grammar (`^[a-z][a-z0-9-]{1,48}$`),
+  and `catalog` is reserved. There is no derivation from the package name: renaming the package
+  must not change who owns the theme's content. A missing or invalid id fails the plugin build,
+  `eldra-theme validate` and `eldra-theme deploy` with `package.json: eldra.themeId — …`.
+- The scanner emits it as `manifest.theme.id`, and `manifestVersion` is `2`. Core rejects a
+  manifest that is not v2 or has no `theme.id`.
+- Core stores the theme's block **schemas** as `<themeId>:<blockApiId>` (`shop:hero`) and stamps
+  every schema and entry the deploy creates with the theme id, so two themes in one organisation
+  never clash (`shop:hero`, `starter:hero`) and Studio can tell a theme's content from the
+  merchant's own.
+- **Everything the theme authors stays bare.** `block.json`, the manifest's block ids, a layout
+  node's `apiId`, a slot's `allowedBlockApiIds`, `data-eldra-schema` and the overlay's
+  `theme:block-clicked` all keep the bare `hero`. Only the wire spelling of an entry's
+  `schemaApiId` (and of `/cms/v1/schema/{schemaApiId}/entry`) carries the prefix.
+- The runtime strips the prefix of **its own** theme (the manifest's `theme.id`, which
+  `virtual:eldra/manifest` carries into the build), never "any prefix": `catalog:product` and
+  another theme's `starter:hero` are not this theme's blocks. `getBlockSchemaApiId(entry)` returns
+  the bare id; `@eldrajs/theme-core` exports the two pure helpers `blockApiIdOf(schemaApiId,
+themeId)` (wire to bare) and `themeSchemaApiId(blockApiId, themeId)` (bare to wire), and
+  `registerBlockFields(fields, themeId)` registers the id for the block-field lookups inside
+  theme-core. `@eldrajs/theme-nuxt` does that for you.
+- Code that reads a block's entries through the SDK passes the **wire** id:
+  `client.getEntries('shop:hero')`. A custom (merchant-owned) schema a route points at stays bare.
+
 ## Package map
 
 ```
@@ -434,6 +471,53 @@ generated stylesheets write them, and the overlay runtime reads them to decide w
 is selected and what is being edited. Everything a theme is expected to set is a documented token
 (see [Design tokens](theme-design-tokens.md)); anything else under those prefixes is internal and
 may change in a minor release.
+
+## Site icons
+
+A site's icons are the merchant's brand, not the theme's, so a merchant sets them in Studio (Site
+settings): one media-library image that is a **raster** (PNG, JPEG or WebP), square and at least
+512 px (SVG is refused: the image transform cannot rasterise it), a background colour, an optional
+theme colour and an optional short name. `@eldrajs/theme-nuxt` reads that setting at build time
+(`GET /site/v1/site-icons`, the same fail-soft read as the design tokens). The answer carries
+`iconUrl` and `icons`, the URLs of five variants that the **media worker** renders on demand (always
+`image/png`) from that one image; Core builds the URLs, so the kit never learns the suffixes:
+
+| Variant         | What it is                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `favicon32`     | 32 px, transparent (`/icon-32`)                                                                       |
+| `appleTouch180` | 180 px flattened onto the background colour (`/icon-180?bg=`; iOS has no alpha)                       |
+| `icon192`       | 192 px, transparent, for the web app manifest                                                         |
+| `icon512`       | 512 px, transparent, for the web app manifest                                                         |
+| `maskable512`   | artwork at 60% of the side, centred on the background colour (`/icon-maskable-512?bg=`), Android-safe |
+
+**The build does no image processing.** It writes one file, `site.webmanifest` (same-origin JSON,
+as browsers require: `name`, `short_name`, `icons` with the maskable one marked `purpose:
+"maskable"`, `theme_color`, `background_color`, `display: "standalone"`, `start_url`), to the static
+output (`.output/public`) when the server build is compiled and again after prerender. The module
+adds `<link rel="icon" type="image/png" sizes="32x32">` and `<link rel="apple-touch-icon">` pointing
+at the media URLs, `<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head.
+No `favicon.ico` is generated: the theme's own `public/favicon.ico` stays the root fallback.
+
+Defaults are resolved by the build, not by Core: the theme colour is the primary design token
+(the platform's resolved catalog, else the theme's own `tokens.json`), and the short name is the
+site name (the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
+characters. With no site name known, the manifest simply omits `name`/`short_name`.
+
+**When nothing is written.** An unset icon, a failed read or a response that is not the documented
+shape all end the same way: one warning at most (none for "unset"), no file, no tags. The theme's
+own `public/` files and head tags are then what ships.
+
+**Things a theme should know.**
+
+- When icons are set they replace the theme's own `icon`/`shortcut icon`/`apple-touch-icon`/
+  `manifest` links in `app.head` (and its `theme-color` meta), so the merchant's icons never sit
+  beside the theme's. Tags a theme adds at runtime with `useHead` are not touched, so keep icon tags
+  in `app.head` or leave the files in `public/` with no tags, as the starter does.
+- `nuxi dev` writes nothing — there is no static output to serve it from.
+- The icon images are served by the media CDN, not the storefront's origin, so they are only as
+  available as the CDN. `sharp` was removed from `@eldrajs/theme-nuxt`: native image processing in
+  every theme build was fragile (optional binaries, libc/arch, install scripts) and is unnecessary
+  now that the media worker renders the variants.
 
 ## More
 

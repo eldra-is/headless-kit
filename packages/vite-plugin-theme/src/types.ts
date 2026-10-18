@@ -321,8 +321,12 @@ export interface BlockDefinition {
 }
 
 export interface ThemeManifest {
-  manifestVersion: 1;
+  /** 2: `theme.id` is required. There is no v1 reader. */
+  manifestVersion: 2;
   theme: {
+    /** The theme's stable id (`package.json` `eldra.themeId`); Core stores the theme's
+     * block schemas as `<id>:<blockApiId>`. Block apiIds in this manifest stay bare. */
+    id: string;
     name: string;
     version: string;
     framework: string;

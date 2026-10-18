@@ -1,6 +1,7 @@
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "theme": {
+    "id": "starter",
     "name": "starter-nuxt",
     "version": "0.1.0",
     "framework": "nuxt",
