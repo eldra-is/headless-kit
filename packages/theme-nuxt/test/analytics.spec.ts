@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   installTrackerScript,
   parseEventOrigin,
   resolveAnalyticsConfig,
+  setupAnalytics,
   shouldReport,
 } from '../src/runtime/analytics';
 
@@ -74,16 +73,39 @@ describe('shouldReport', () => {
   });
 });
 
-describe('the plugin keeps a Studio preview frame out of the tracker', () => {
-  it('gates on isStudioPreviewFrame (framed by an allowed Studio origin) and the build decision', () => {
-    // `window.parent` cannot be redefined in jsdom, so the framed case is covered by
-    // `origins.spec.ts` (`resolveBridgeOrigins`) and `shouldReport` above; this pins the wiring.
-    const plugin = readFileSync(
-      join(__dirname, '..', 'src', 'runtime', 'analyticsPlugin.ts'),
-      'utf8'
-    );
-    expect(plugin).toContain('studioPreviewFrame: isStudioPreviewFrame(cfg.studioOrigins)');
-    expect(plugin).toContain('dev: import.meta.dev');
+describe('setupAnalytics (the plugin body)', () => {
+  afterEach(() => {
+    document.head.innerHTML = '';
+  });
+  const input = {
+    client: true,
+    dev: false,
+    config: { enabled: true, eventOrigin: null },
+    isFrame: false,
+    gatewayUrl: 'https://gw.example',
+    orgId: 'org-1',
+    doc: document,
+  };
+
+  it('installs the tag and sends through the tracker on a production document', () => {
+    const eldra = vi.fn();
+    const analytics = setupAnalytics({ ...input, win: { eldra } });
+    expect(document.head.querySelector('script')).not.toBeNull();
+    analytics.track('x');
+    expect(eldra).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['a Studio preview frame', { isFrame: true }],
+    ['a dev server', { dev: true }],
+    ['a preview build', { config: { enabled: false, eventOrigin: null } }],
+  ])('adds no tag and sends nothing in %s', (_name, patch) => {
+    const eldra = vi.fn();
+    const analytics = setupAnalytics({ ...input, ...patch, win: { eldra } });
+    analytics.track('x');
+    expect(document.head.querySelector('script')).toBeNull();
+    expect(eldra).not.toHaveBeenCalled();
+    expect(analytics.enabled).toBe(false);
   });
 });
 

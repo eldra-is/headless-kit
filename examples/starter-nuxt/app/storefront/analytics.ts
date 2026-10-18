@@ -24,6 +24,10 @@ import type {
  * | `begin_checkout`   | `cart_id`, `item_count`, `value`, `currency`                       |
  * | `search`           | `query` (trimmed, 100 characters), `result_count`                  |
  *
+ * `add_to_cart` / `remove_from_cart` also cover a quantity change (the difference) and an undone
+ * removal (an add). `search` is sent once per settled query across the header panel and the
+ * search page.
+ *
  * `value` is major units with `.` as the decimal separator and `currency` is ISO 4217. `purchase`
  * is never sent from the browser: it belongs to the order module.
  *
@@ -128,6 +132,28 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
       }
       return failure;
     },
+    async setQuantity(lineId, quantity) {
+      const before = source.cart.lines.value.find((l) => l.id === lineId);
+      const failure = await source.cart.setQuantity(lineId, quantity);
+      if (failure === null && before !== undefined) {
+        // The cart's own answer, not the request: the backend may clamp to stock.
+        const after = source.cart.lines.value.find((l) => l.id === lineId);
+        const diff = (after?.quantity ?? 0) - before.quantity;
+        if (diff !== 0) {
+          track(diff > 0 ? 'add_to_cart' : 'remove_from_cart', lineProps(before, Math.abs(diff)));
+        }
+      }
+      return failure;
+    },
+    async undoRemove() {
+      // Undo puts a line back that `remove` already counted as removed, so it is an add.
+      const restored = source.cart.lastRemoved.value?.line;
+      const failure = await source.cart.undoRemove();
+      if (failure === null && restored !== undefined) {
+        track('add_to_cart', lineProps(restored, restored.quantity));
+      }
+      return failure;
+    },
     beginCheckout() {
       source.cart.beginCheckout();
       const totals = source.cart.totals.value;
@@ -140,12 +166,15 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
     },
   };
 
+  // One `search` per settled query per visit, across surfaces: the header panel and the search
+  // page both run a search, and a shopper who presses Enter on "mug" searched once, not twice.
+  // It lives here, on the source, so the page that takes over sees what the panel already sent.
+  let lastSent: string | null = null;
   const search: StorefrontSource['search'] = {
     ...source.search,
     run(query: Ref<string>): StorefrontResult<StorefrontSearchResponse> {
       const result = source.search.run(query);
       let timer: ReturnType<typeof setTimeout> | undefined;
-      let lastSent: string | null = null;
       watch(
         [query, result.data],
         ([text, response]) => {
@@ -155,6 +184,7 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
           if (trimmed === '' || response === null || response === undefined) return;
           if (response.query.trim() !== trimmed || trimmed === lastSent) return;
           timer = setTimeout(() => {
+            if (lastSent === trimmed) return;
             lastSent = trimmed;
             track('search', {
               query: trimmed.slice(0, SEARCH_QUERY_MAX),

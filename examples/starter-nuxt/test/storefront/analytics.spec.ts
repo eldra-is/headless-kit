@@ -45,7 +45,11 @@ function makeSource(overrides: { product?: StorefrontResult<StorefrontProduct> }
   const ops: CartOps = {
     init: () => Promise.resolve({ lines: [], totals: { subtotal: 0, shipping: null, total: 0 } }),
     add: () => Promise.resolve({ lines, totals: { subtotal: 25, shipping: null, total: 25 } }),
-    setQuantity: () => Promise.reject(new Error('unused')),
+    setQuantity: (_id, quantity) =>
+      Promise.resolve({
+        lines: [{ ...line, quantity }],
+        totals: { subtotal: 12.5 * quantity, shipping: null, total: 12.5 * quantity },
+      }),
     remove: () => Promise.resolve({ lines: [], totals: { subtotal: 0, shipping: null, total: 0 } }),
     applyDiscount: () => Promise.reject(new Error('unused')),
     removeDiscount: () => Promise.reject(new Error('unused')),
@@ -115,6 +119,48 @@ describe('withAnalytics', () => {
     await cart.add({ productId: 'p1', variantId: 'v1', quantity: 2 });
     await wrapped.cart.remove('line-1');
     expect(track).toHaveBeenCalledWith('remove_from_cart', {
+      product_id: 'p1',
+      variant_id: 'v1',
+      quantity: 2,
+      value: '25',
+      currency: 'USD',
+    });
+  });
+
+  it('tracks a quantity change as the difference', async () => {
+    const { source, cart } = makeSource();
+    const track = vi.fn();
+    const wrapped = withAnalytics(source, track);
+    await cart.add({ productId: 'p1', variantId: 'v1', quantity: 2 });
+    await wrapped.cart.setQuantity('line-1', 5);
+    expect(track).toHaveBeenLastCalledWith('add_to_cart', {
+      product_id: 'p1',
+      variant_id: 'v1',
+      quantity: 3,
+      value: '37.5',
+      currency: 'USD',
+    });
+    await wrapped.cart.setQuantity('line-1', 4);
+    expect(track).toHaveBeenLastCalledWith('remove_from_cart', {
+      product_id: 'p1',
+      variant_id: 'v1',
+      quantity: 1,
+      value: '12.5',
+      currency: 'USD',
+    });
+    await wrapped.cart.setQuantity('line-1', 4);
+    expect(track).toHaveBeenCalledTimes(2);
+  });
+
+  it('tracks an undone removal as an add', async () => {
+    const { source, cart } = makeSource();
+    const track = vi.fn();
+    const wrapped = withAnalytics(source, track);
+    await cart.add({ productId: 'p1', variantId: 'v1', quantity: 2 });
+    await wrapped.cart.remove('line-1');
+    await wrapped.cart.undoRemove();
+    expect(track).toHaveBeenCalledTimes(2);
+    expect(track).toHaveBeenLastCalledWith('add_to_cart', {
       product_id: 'p1',
       variant_id: 'v1',
       quantity: 2,
@@ -200,6 +246,23 @@ describe('withAnalytics', () => {
     expect(track).toHaveBeenCalledWith('search', { query: 'mug', result_count: 3 });
     // The same settled query is not sent again.
     searchResult.data.value = { query: 'mug', total: 3 } as StorefrontSearchResponse;
+    await nextTick();
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2);
+    expect(track).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends a query once when the header panel and the search page both run it', async () => {
+    const { source, searchResult } = makeSource();
+    const track = vi.fn();
+    const wrapped = withAnalytics(source, track);
+    const panel = ref('mug');
+    wrapped.search.run(panel);
+    searchResult.data.value = { query: 'mug', total: 3 } as StorefrontSearchResponse;
+    await nextTick();
+    vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2);
+    expect(track).toHaveBeenCalledTimes(1);
+    // The results page mounts with the same query.
+    wrapped.search.run(ref('mug'));
     await nextTick();
     vi.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2);
     expect(track).toHaveBeenCalledTimes(1);

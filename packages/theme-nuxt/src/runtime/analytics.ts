@@ -1,4 +1,4 @@
-import type { Analytics, AnalyticsSender } from '@eldrajs/theme-core';
+import { createAnalytics, type Analytics, type AnalyticsSender } from '@eldrajs/theme-core';
 import { analyticsTrackerScript } from '@eldrajs/sdk';
 
 /** What reaches the browser in `runtimeConfig.public.eldra.analytics`. */
@@ -114,3 +114,42 @@ export function trackerGlobal(win: { eldra?: AnalyticsSender }): AnalyticsSender
 
 /** The shape `useEldraAnalytics()` returns. */
 export type EldraAnalytics = Pick<Analytics, 'track' | 'enabled'>;
+
+/**
+ * The plugin's whole decision, apart from Nuxt: builds the analytics object and, when this
+ * document reports, installs the tracker tag. `isFrame` is "this document is a Studio preview
+ * frame" (`isStudioPreviewFrame`), which never reports.
+ */
+export function setupAnalytics(input: {
+  client: boolean;
+  dev: boolean;
+  config: AnalyticsRuntimeConfig | undefined;
+  isFrame: boolean;
+  gatewayUrl: string;
+  orgId: string;
+  doc: Document | undefined;
+  win: { eldra?: AnalyticsSender } | undefined;
+}): Analytics {
+  const active = shouldReport({
+    client: input.client,
+    dev: input.dev,
+    config: input.config,
+    studioPreviewFrame: input.isFrame,
+  });
+  const analytics = createAnalytics({
+    enabled: active,
+    sender: () => (input.win === undefined ? undefined : trackerGlobal(input.win)),
+  });
+  if (active && input.config !== undefined && input.doc !== undefined) {
+    installTrackerScript(
+      input.doc,
+      {
+        gatewayUrl: input.gatewayUrl,
+        orgId: input.orgId,
+        eventOrigin: input.config.eventOrigin,
+      },
+      () => analytics.flush()
+    );
+  }
+  return analytics;
+}

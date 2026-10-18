@@ -1,11 +1,6 @@
-import { createAnalytics, type AnalyticsSender } from '@eldrajs/theme-core';
+import type { AnalyticsSender } from '@eldrajs/theme-core';
 import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app';
-import {
-  installTrackerScript,
-  shouldReport,
-  trackerGlobal,
-  type AnalyticsRuntimeConfig,
-} from './analytics';
+import { setupAnalytics, type AnalyticsRuntimeConfig } from './analytics';
 import { isStudioPreviewFrame } from './origins';
 
 interface RuntimeEldraConfig {
@@ -32,25 +27,16 @@ export default defineNuxtPlugin({
   name: 'eldra-analytics',
   setup(nuxtApp) {
     const cfg = useRuntimeConfig().public.eldra as RuntimeEldraConfig;
-    const config = cfg.analytics;
-    const active = shouldReport({
+    const analytics = setupAnalytics({
       client: import.meta.client,
       dev: import.meta.dev,
-      config,
-      studioPreviewFrame: isStudioPreviewFrame(cfg.studioOrigins),
+      config: cfg.analytics,
+      isFrame: import.meta.client && isStudioPreviewFrame(cfg.studioOrigins),
+      gatewayUrl: cfg.gatewayUrl,
+      orgId: cfg.orgId,
+      doc: import.meta.client ? document : undefined,
+      win: import.meta.client ? (window as { eldra?: AnalyticsSender }) : undefined,
     });
-    const analytics = createAnalytics({
-      enabled: active,
-      sender: () =>
-        import.meta.client ? trackerGlobal(window as { eldra?: AnalyticsSender }) : undefined,
-    });
-    if (active && config !== undefined) {
-      installTrackerScript(
-        document,
-        { gatewayUrl: cfg.gatewayUrl, orgId: cfg.orgId, eventOrigin: config.eventOrigin },
-        () => analytics.flush()
-      );
-    }
     nuxtApp.provide('eldraAnalytics', analytics);
   },
 });

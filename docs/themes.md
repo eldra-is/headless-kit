@@ -557,13 +557,13 @@ The starter theme sends these (`examples/starter-nuxt/app/storefront/analytics.t
 storefront source, so no block sends or forgets one). Values are major units with `.` as the decimal
 separator, `currency` is ISO 4217:
 
-| Event              | Props                                                       | Sent when                                            |
-| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------- |
-| `product_view`     | `product_id`, `handle`, `variant_id`, `value`, `currency`   | The product page's product loads, once per visit     |
-| `add_to_cart`      | `product_id`, `variant_id`, `quantity`, `value`, `currency` | A cart add succeeded                                 |
-| `remove_from_cart` | same                                                        | A cart line removal succeeded                        |
-| `begin_checkout`   | `cart_id`, `item_count`, `value`, `currency`                | The shopper follows the Check out link               |
-| `search`           | `query` (trimmed, 100 characters), `result_count`           | A search result for the typed query settled (800 ms) |
+| Event              | Props                                                       | Sent when                                                                                                        |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `product_view`     | `product_id`, `handle`, `variant_id`, `value`, `currency`   | The product page's product loads, once per visit                                                                 |
+| `add_to_cart`      | `product_id`, `variant_id`, `quantity`, `value`, `currency` | A cart add succeeded, or a quantity went up, or a removal was undone                                             |
+| `remove_from_cart` | same                                                        | A cart line removal succeeded, or a quantity went down                                                           |
+| `begin_checkout`   | `cart_id`, `item_count`, `value`, `currency`                | The shopper follows the Check out link                                                                           |
+| `search`           | `query` (trimmed, 100 characters), `result_count`           | A search result for the typed query settled (800 ms), once per query across the header panel and the search page |
 
 `purchase` is never sent from the browser; it belongs to the order module. The platform stores these events
 but Studio's analytics do not report them yet.
