@@ -110,6 +110,14 @@ storefront origin in Studio, and when the definition has a Turnstile site key th
 widget itself and sends the token as `turnstileToken`. The form types are hand-written, like
 `EldraPlatformConfig`: the SDK ships no response types.
 
+**Proof of consent.** For a form that subscribes the visitor, the platform records what they agreed
+to. The wording comes from the form definition on the server (the label, in the visitor's `locale`,
+of each `consent` field they ticked), never from the client, so an app sends the ticked `consent`
+value and nothing else; there is no consent-text parameter. `pagePath` is stored as the page the
+submission came from, so send the real `location.pathname`; it is client-supplied and informational.
+IP addresses and user agents are not stored. A form with no `consent` field records no wording, so
+add one (required) to a form you subscribe people with.
+
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
 checkout page, so the client asks the platform where (`platform.config()`, a public read cached per
 client instance, sent without the organisation header because the route takes none) and returns

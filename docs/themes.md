@@ -448,6 +448,16 @@ Core refuses a whole manifest over one bad seed. From code,
 are gated by the organisation's `FORMS` feature, not `PAGE_BUILDER`, and a headless app can use them
 with no theme at all (see `getting-started.md`, "Forms without a theme").
 
+**What a subscription records.** A form with a `subscribe` action keeps proof of consent per
+subscriber: the label of each ticked `consent` field in the visitor's locale (read by Core from the
+form definition at submission time, never sent by the client), its SHA-256, the form key and name,
+the `pagePath` the SDK sent (client-supplied, so informational), and when they subscribed, confirmed
+and unsubscribed. IP addresses and user agents are not stored. The seeded `newsletter` form has
+**no** `consent` field, so a subscriber from it has no consent wording on record; a theme that
+subscribes people should seed a required `consent` field (the `form` block renders it) or the
+merchant adds one in Studio. The `newsletter` block's own consent checkbox and rich-text consent
+line are block copy and are not recorded.
+
 ## Layout sizing and container queries
 
 Blocks adapt to the width they are given with container queries: every block root is a
