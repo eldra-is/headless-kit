@@ -374,6 +374,9 @@ describe('theme-nuxt nuxi generate', () => {
     const headers = readFileSync(output('_headers'), 'utf8');
     expect(headers).toContain("frame-ancestors 'self' https://acme.eldracms.com");
     expect(headers).not.toContain('https://*.eldracms.com');
+    // One artifact serves the preview host and the live domain, so noindex is a rule about the
+    // preview hosts, whatever the build target.
+    expect(headers).toContain('https://:org.previews.eldra.dev/*\n  X-Robots-Tag: noindex, nofollow');
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
     expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
@@ -867,6 +870,50 @@ describe('theme-nuxt nuxi generate', () => {
     } finally {
       rmSync(join(publicDir, 'robots.txt'), { force: true });
       rmSync(join(publicDir, 'sitemap.xml'), { force: true });
+    }
+  }, 360_000);
+
+  /**
+   * `_redirects`: the platform's rules between markers, ahead of the theme's own file, which is
+   * kept whole.
+   */
+  it('writes the platform redirects ahead of the theme’s own _redirects', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, '_redirects'), '/theme-old /theme-new 301\n');
+    try {
+      await generateWith({
+        redirects: {
+          revision: 2,
+          rules: [
+            { source: '/blog/*', destination: '/news/:splat', status: 301, applyToLocales: false },
+            { source: '/old', destination: '/new', status: 302, applyToLocales: true },
+          ],
+        },
+      });
+      expect(readFileSync(output('_redirects'), 'utf8')).toBe(
+        [
+          '# BEGIN eldra platform redirects (generated, edit them in Studio)',
+          '/old /new 302',
+          '/blog/* /news/:splat 301',
+          '# END eldra platform redirects',
+          '',
+          '/theme-old /theme-new 301',
+          '',
+        ].join('\n')
+      );
+    } finally {
+      rmSync(join(publicDir, '_redirects'), { force: true });
+    }
+  }, 360_000);
+
+  it('leaves the theme’s own _redirects alone when the platform read fails', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, '_redirects'), '/theme-old /theme-new 301\n');
+    try {
+      await generateWith({});
+      expect(readFileSync(output('_redirects'), 'utf8')).toBe('/theme-old /theme-new 301\n');
+    } finally {
+      rmSync(join(publicDir, '_redirects'), { force: true });
     }
   }, 360_000);
 

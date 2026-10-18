@@ -402,6 +402,9 @@ export function startMockGateway(
     /** The crawl settings `/site/v1/crawl` answers with (`{ revision, siteUrl, robotsExtra }`).
      *  Absent, the route 404s like a Core that predates them. */
     crawl?: Record<string, unknown>;
+    /** The redirect rules `/site/v1/redirects` answers with (`{ revision, rules }`). Absent, the
+     *  route 404s like a Core that predates them. */
+    redirects?: Record<string, unknown>;
     /** The resolved design-token catalog `/site/v1/design-tokens` answers with — the public
      *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
      *  with no published overrides, proving the build-time read's fail-soft fallback. */
@@ -547,6 +550,13 @@ export function startMockGateway(
           res.end('{}');
         } else {
           res.end(JSON.stringify(options.crawl));
+        }
+      } else if (url.pathname === '/site/v1/redirects') {
+        if (options.redirects === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.redirects));
         }
       } else if (url.pathname === '/site/v1/site-icons') {
         if (options.siteIcons === undefined) {

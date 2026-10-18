@@ -34,6 +34,12 @@ import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './r
 import { resolveAnalyticsConfig, type AnalyticsOption } from './runtime/analytics';
 import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
 import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
+import {
+  DEFAULT_PREVIEW_HOST_PATTERNS,
+  previewHostHeadersBlock,
+  stripPreviewHostHeaders,
+} from './runtime/previewHeaders';
+import { buildRedirectsFile, readRedirects, readThemeRedirects, type RedirectsSetting } from './runtime/redirects';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
 import { readFormDefinitions, type FormDefinitions } from './runtime/forms';
@@ -128,6 +134,13 @@ export interface ModuleOptions {
    * `ELDRA_BUILD_TARGET`.
    */
   buildTarget?: 'production' | 'preview';
+  /**
+   * Cloudflare Pages `_headers` URL patterns of the hosts that serve a deployment as a **preview**
+   * (`https://:org.previews.eldra.dev/*`): every page on them is sent `X-Robots-Tag: noindex`,
+   * whatever the build target, because one built artifact is served on the preview host and on the
+   * live domain alike. Defaults to the platform's three preview suffixes; `[]` writes no rule.
+   */
+  previewHosts?: string[];
   /**
    * `sitemap.xml` (and `robots.txt`) generation. Both are written into the static output of a
    * `nuxi generate`/`build` from the prerendered routes; a `public/robots.txt` or
@@ -299,6 +312,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     /** The platform's crawl settings (production builds only), filled in at the end of `setup()`. */
     let crawlSetting: CrawlSetting | null = null;
     let crawlSiteUrl = options.siteUrl ?? '';
+    /** The platform's redirect rules (static builds only), filled in at the end of `setup()`. */
+    let redirectsSetting: RedirectsSetting | null = null;
 
     nuxt.hook('prerender:routes', async (ctx) => {
       if (options.gatewayUrl === '' || options.orgId === '') {
@@ -470,9 +485,32 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           mkdirSync(publicDir, { recursive: true });
           for (const file of files) writeFileSync(join(publicDir, file.name), file.content);
         };
+        /**
+         * `_redirects`: the platform's rules first, then the theme's own `public/_redirects`
+         * (`./runtime/redirects.ts`). Rebuilt from the theme's source file every time, so a
+         * second write (both hooks can fire) never doubles the platform block. A failed read or
+         * a site without rules leaves the theme's file, copied by Nitro, exactly as it was.
+         */
+        const writeRedirects = (publicDir: string) => {
+          if (redirectsSetting === null || redirectsSetting.rules.length === 0) return;
+          const built = buildRedirectsFile(
+            redirectsSetting.rules,
+            localeRouting,
+            readThemeRedirects(resolve(nuxt.options.rootDir, nuxt.options.dir.public ?? 'public'))
+          );
+          for (const warning of built.warnings) {
+            if (crawlLogged.has(warning)) continue;
+            crawlLogged.add(warning);
+            console.warn(warning);
+          }
+          if (built.content === null) return;
+          mkdirSync(publicDir, { recursive: true });
+          writeFileSync(join(publicDir, '_redirects'), built.content);
+        };
         nitro.hooks.hook('compiled', () => {
           writeSiteIconFiles(nitro.options.output.publicDir);
           writeCrawlFiles(nitro.options.output.publicDir);
+          writeRedirects(nitro.options.output.publicDir);
         });
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
@@ -480,18 +518,24 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
           writeSiteIconFiles(publicDir);
           writeCrawlFiles(publicDir);
+          writeRedirects(publicDir);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
           const existing = existsSync(target)
-            ? readFileSync(target, 'utf8')
+            ? stripPreviewHostHeaders(readFileSync(target, 'utf8'))
                 .replace(/^\s*Content-Security-Policy:\s*frame-ancestors[^\r\n]*(?:\r?\n|$)/gim, '')
                 .trimEnd() + '\n\n'
             : '';
           const ancestors = ["'self'", ...studioOrigins].join(' ');
+          const previewBlock = previewHostHeadersBlock(
+            options.previewHosts ?? DEFAULT_PREVIEW_HOST_PATTERNS
+          );
           writeFileSync(
             target,
-            `${existing}/*\n  Content-Security-Policy: frame-ancestors ${ancestors}\n`
+            `${existing}/*\n  Content-Security-Policy: frame-ancestors ${ancestors}\n${
+              previewBlock === '' ? '' : `\n${previewBlock}\n`
+            }`
           );
         });
       }
@@ -544,6 +588,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       platformSiteProfile,
       platformCrawl,
       platformForms,
+      platformRedirects,
     ] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
@@ -566,8 +611,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             ...(options.formSeeds ?? []).map((seed) => seed.key),
             ...(options.forms ?? []),
           ]),
+      // The redirect rules are a tenth read on the same terms (build-only, fail-soft): they become
+      // the platform block of the static output's `_redirects`.
+      nuxt.options.dev ? Promise.resolve(null) : readRedirects(platformClient),
     ]);
     crawlSetting = platformCrawl;
+    redirectsSetting = platformRedirects;
     // `ELDRA_SITE_URL` wins over the platform's production URL, so an operator can override it
     // for one build. The SEO runtime config follows, so a canonical and the hreflang set agree
     // with the sitemap on the origin.
