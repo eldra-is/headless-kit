@@ -521,9 +521,7 @@ export type EldraFormFieldType =
   | 'textarea'
   | 'select'
   | 'checkbox'
-  | 'consent'
-  | 'number'
-  | 'url';
+  | 'consent';
 
 export interface EldraFormFieldOption {
   value: string;

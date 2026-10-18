@@ -111,6 +111,65 @@ describe('validateFormSeeds', () => {
     expect(validate([seed]).errors.join('\n')).toContain('duplicate id "name"');
   });
 
+  describe('Core parity', () => {
+    const withField = (field: Record<string, unknown>) => [
+      { ...contactSeed(), actions: { notify: false, confirm: false }, fields: [{ id: 'x', required: false, label: { 'en-US': 'X' }, ...field }] },
+    ];
+    it.each([
+      ['a number field', { type: 'number' }, '.type'],
+      ['a url field', { type: 'url' }, '.type'],
+      ['the reserved id "all"', { type: 'text', id: 'All' }, 'reserved'],
+      [
+        'validation on a select',
+        {
+          type: 'select',
+          options: [{ value: 'a', label: { 'en-US': 'A' } }],
+          validation: { maxLength: 3 },
+        },
+        'takes no validation',
+      ],
+      ['validation on a consent', { type: 'consent', validation: { maxLength: 3 } }, 'no validation'],
+      ['a length above 8000', { type: 'text', validation: { maxLength: 8001 } }, '0..8000'],
+      ['a lookahead', { type: 'text', validation: { pattern: '^(?=a)a' } }, 'lookaround'],
+      ['a lookbehind', { type: 'text', validation: { pattern: '(?<!a)b' } }, 'lookaround'],
+      ['a backreference', { type: 'text', validation: { pattern: '(a)\\1' } }, 'backreference'],
+    ])('refuses %s', (_name, field, message) => {
+      expect(validate(withField(field)).errors.join('\n')).toContain(message);
+    });
+
+    it('accepts RE2 syntax, including a class holding lookaround characters', () => {
+      const field = { type: 'text', validation: { pattern: '[(?=\\d]+(?:ab|cd)\\d{2}' } };
+      expect(validate(withField(field)).errors).toEqual([]);
+    });
+
+    it('compares field ids ignoring case', () => {
+      const seed = contactSeed();
+      seed.fields.push({ ...seed.fields[0]!, id: 'NAME' });
+      expect(validate([seed]).errors.join('\n')).toContain('duplicate id "NAME"');
+    });
+
+    it('caps a list key at 40 characters', () => {
+      const seed = {
+        ...contactSeed(),
+        actions: { notify: false, confirm: false, subscribe: { list: `a${'b'.repeat(40)}` } },
+      };
+      expect(validate([seed]).errors.join('\n')).toContain('subscribe.list');
+    });
+
+    it('requires a redirect to be a path or an http(s) URL', () => {
+      const redirect = (target: string) => ({
+        ...contactSeed(),
+        success: { message: { 'en-US': 'ok' }, redirect: { 'en-US': target } },
+      });
+      expect(validate([redirect('/thanks')]).errors).toEqual([]);
+      expect(validate([redirect('https://example.com/t')]).errors).toEqual([]);
+      expect(validate([redirect('thanks')]).errors.join('\n')).toContain('success.redirect');
+      expect(validate([redirect('javascript:alert(1)')]).errors.join('\n')).toContain(
+        'success.redirect'
+      );
+    });
+  });
+
   it('refuses more than eight seeds', () => {
     const seeds = Array.from({ length: 9 }, (_, index) => ({
       ...contactSeed(),

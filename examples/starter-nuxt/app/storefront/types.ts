@@ -747,9 +747,7 @@ export type StorefrontFormFieldType =
   | 'textarea'
   | 'select'
   | 'checkbox'
-  | 'consent'
-  | 'number'
-  | 'url';
+  | 'consent';
 
 /**
  * A form field with its text already resolved to the active content locale (`pickLocalized` in

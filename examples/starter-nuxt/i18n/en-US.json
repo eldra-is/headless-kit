@@ -220,8 +220,6 @@
     "required": "{field} is required.",
     "requiredCheckbox": "Tick the box: {field}",
     "invalidEmail": "Enter a full email address, like name{'@'}example.com",
-    "invalidUrl": "Enter a full web address, starting with https://",
-    "invalidNumber": "Enter a number.",
     "tooShort": "Use at least {min} characters.",
     "tooLong": "Use at most {max} characters.",
     "invalidFormat": "Check the format of this answer.",

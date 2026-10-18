@@ -220,8 +220,6 @@
     "required": "{field} er nauðsynlegt.",
     "requiredCheckbox": "Hakaðu í reitinn: {field}",
     "invalidEmail": "Sláðu inn fullt netfang, eins og nafn{'@'}example.is",
-    "invalidUrl": "Sláðu inn fullt veffang sem byrjar á https://",
-    "invalidNumber": "Sláðu inn tölu.",
     "tooShort": "Notaðu að minnsta kosti {min} stafi.",
     "tooLong": "Notaðu í mesta lagi {max} stafi.",
     "invalidFormat": "Athugaðu snið svarsins.",

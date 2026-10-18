@@ -19,7 +19,13 @@ const RESERVED_FORM_KEY = 'subscriptions';
 const FIELD_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
 const OPTION_VALUE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const LOCALE_TAG_PATTERN = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-const LIST_KEY_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
+const LIST_KEY_PATTERN = /^[a-z][a-z0-9-]{0,39}$/;
+/** A field id Core reserves (it names the whole submission in its own routes). */
+const RESERVED_FIELD_ID = 'all';
+/** Core's cap on `minLength` / `maxLength`. */
+const MAX_VALIDATION_LENGTH = 8000;
+/** The field types that take a `validation` block; Core refuses it on the rest. */
+const VALIDATION_TYPES: ReadonlySet<string> = new Set(['text', 'email', 'phone', 'textarea']);
 const FIELD_TYPES: ReadonlySet<string> = new Set<ManifestFormSeedFieldType>([
   'text',
   'email',
@@ -28,8 +34,6 @@ const FIELD_TYPES: ReadonlySet<string> = new Set<ManifestFormSeedFieldType>([
   'select',
   'checkbox',
   'consent',
-  'number',
-  'url',
 ]);
 
 const SEED_KEYS = new Set(['key', 'name', 'fields', 'actions', 'success']);
@@ -84,6 +88,36 @@ function localizedText(
   return out;
 }
 
+/**
+ * Core compiles `pattern` as RE2 (`^(?:pattern)$`), which has no lookaround and no
+ * backreferences; a JS `RegExp` accepts both, so they are refused here by scanning for them
+ * outside character classes and escapes. Returns what was found, or `null`.
+ */
+function nonRe2Construct(pattern: string): string | null {
+  let inClass = false;
+  for (let i = 0; i < pattern.length; i += 1) {
+    const char = pattern[i]!;
+    if (char === '\\') {
+      const next = pattern[i + 1] ?? '';
+      if (!inClass && (/[1-9]/.test(next) || next === 'k')) return 'a backreference';
+      i += 1;
+    } else if (inClass) {
+      if (char === ']') inClass = false;
+    } else if (char === '[') {
+      inClass = true;
+      if (pattern[i + 1] === '^') i += 1;
+      if (pattern[i + 1] === ']') i += 1;
+    } else if (char === '(' && pattern[i + 1] === '?') {
+      const rest = pattern.slice(i + 2, i + 4);
+      if (rest.startsWith('=') || rest.startsWith('!') || rest === '<=' || rest === '<!') {
+        return 'a lookaround';
+      }
+      if (rest.startsWith('>')) return 'an atomic group';
+    }
+  }
+  return null;
+}
+
 function validateField(at: string, entry: unknown, errors: string[]): ManifestFormSeedField | null {
   if (!isRecord(entry)) {
     errors.push(`${at} — must be a field object`);
@@ -91,7 +125,9 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
   }
   unknownKeys(at, entry, FIELD_KEYS, errors);
   const id = typeof entry.id === 'string' ? entry.id : '';
-  if (!FIELD_ID_PATTERN.test(id)) {
+  if (id.toLowerCase() === RESERVED_FIELD_ID) {
+    errors.push(`${at}.id — "${RESERVED_FIELD_ID}" is reserved`);
+  } else if (!FIELD_ID_PATTERN.test(id)) {
     errors.push(
       `${at}.id — invalid id ${JSON.stringify(entry.id)} (expected ${FIELD_ID_PATTERN.source})`
     );
@@ -147,7 +183,9 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
   }
 
   if (entry.validation !== undefined) {
-    if (!isRecord(entry.validation)) {
+    if (!VALIDATION_TYPES.has(type)) {
+      errors.push(`${at}.validation — a ${type || 'this'} field takes no validation`);
+    } else if (!isRecord(entry.validation)) {
       errors.push(`${at}.validation — must be an object`);
     } else {
       const rules = entry.validation;
@@ -156,8 +194,8 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
       for (const key of ['minLength', 'maxLength'] as const) {
         const value = rules[key];
         if (value === undefined) continue;
-        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 8192) {
-          errors.push(`${at}.validation.${key} — must be an integer 0..8192`);
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX_VALIDATION_LENGTH) {
+          errors.push(`${at}.validation.${key} — must be an integer 0..${MAX_VALIDATION_LENGTH}`);
         } else validation[key] = value;
       }
       if (
@@ -175,7 +213,13 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
         } else {
           try {
             new RegExp(rules.pattern);
-            validation.pattern = rules.pattern;
+            const unsupported = nonRe2Construct(rules.pattern);
+            if (unsupported === null) validation.pattern = rules.pattern;
+            else {
+              errors.push(
+                `${at}.validation.pattern — ${unsupported} is not supported (the platform matches with RE2)`
+              );
+            }
           } catch {
             errors.push(`${at}.validation.pattern — not a valid regular expression`);
           }
@@ -190,8 +234,8 @@ function validateField(at: string, entry: unknown, errors: string[]): ManifestFo
 /**
  * Validates the declared `formSeeds`: the forms a site is created with, ingested by Core's
  * `site_forms` seeding. It rejects an unknown key outright and enforces the wire contract
- * agreed for WS-386 (key and field-id grammar, field types, option and length caps). That contract
- * is the kit's reading of the plan: Core's own validation is not yet verified to match it, so a
+ * agreed for WS-386 (key and field-id grammar, field types, option and length caps). It mirrors
+ * Core's `normalizeFormInput` exactly — anything Core refuses fails the whole manifest sync, so a
  * rule changed on the Core side must be changed here too. A merchant-edited form is never
  * overwritten by a later version of a seed (Core's `editedByMerchant` flag).
  *
@@ -241,9 +285,12 @@ export function validateFormSeeds(
     for (const [fieldIndex, rawField] of rawFields.slice(0, MAX_FIELDS).entries()) {
       const field = validateField(`${at}.fields[${fieldIndex}]`, rawField, errors);
       if (field === null) continue;
-      if (ids.has(field.id))
-        errors.push(`${at}.fields[${fieldIndex}].id — duplicate id ${JSON.stringify(field.id)}`);
-      ids.add(field.id);
+      if (ids.has(field.id.toLowerCase())) {
+        errors.push(
+          `${at}.fields[${fieldIndex}].id — duplicate id ${JSON.stringify(field.id)} (ids are compared ignoring case)`
+        );
+      }
+      ids.add(field.id.toLowerCase());
       fields.push(field);
     }
 
@@ -296,6 +343,17 @@ function validateActions(
   return actions;
 }
 
+/** Core's `checkFormRedirect`: a site path, or an absolute http(s) URL. */
+function isFormRedirect(target: string): boolean {
+  if (target.startsWith('/')) return true;
+  try {
+    const url = new URL(target);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function validateSuccess(
   at: string,
   value: unknown,
@@ -310,7 +368,16 @@ function validateSuccess(
   const success: ManifestFormSeed['success'] = { message: message ?? {} };
   if (value.redirect !== undefined) {
     const redirect = localizedText(`${at}.success.redirect`, value.redirect, 500, errors);
-    if (redirect !== null) success.redirect = redirect;
+    if (redirect !== null) {
+      for (const [locale, target] of Object.entries(redirect)) {
+        if (!isFormRedirect(target)) {
+          errors.push(
+            `${at}.success.redirect.${locale} — must be a path starting with "/" or an http(s) URL`
+          );
+        }
+      }
+      success.redirect = redirect;
+    }
   }
   return success;
 }

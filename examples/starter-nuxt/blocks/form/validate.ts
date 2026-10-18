@@ -28,15 +28,6 @@ export function validateField(
   if (text === '') return field.required ? t('form.required', { field: field.label }) : null;
 
   if (field.type === 'email' && !EMAIL_PATTERN.test(text)) return t('form.invalidEmail');
-  if (field.type === 'url') {
-    try {
-      const url = new URL(text);
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') return t('form.invalidUrl');
-    } catch {
-      return t('form.invalidUrl');
-    }
-  }
-  if (field.type === 'number' && !Number.isFinite(Number(text))) return t('form.invalidNumber');
   if (field.type === 'select' && field.options && !field.options.some((o) => o.value === text)) {
     return t('form.required', { field: field.label });
   }
@@ -47,7 +38,7 @@ export function validateField(
   if (maxLength !== undefined && length > maxLength) return t('form.tooLong', { max: maxLength });
   if (pattern !== undefined) {
     try {
-      if (!new RegExp(pattern).test(text)) return t('form.invalidFormat');
+      if (!new RegExp(`^(?:${pattern})$`).test(text)) return t('form.invalidFormat');
     } catch {
       // A pattern this browser cannot compile is the platform's to enforce, not a reason to block.
     }

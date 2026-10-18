@@ -400,7 +400,7 @@ export interface ScanResult {
 
 /**
  * The field types a seeded form field may take: the WS-386 set (`text`, `email`, `phone`,
- * `textarea`, `select`, `checkbox`, `consent`) plus `number` and `url`. `consent` is a checkbox
+ * `textarea`, `select`, `checkbox`, `consent`), exactly what Core accepts. `consent` is a checkbox
  * whose value is a boolean and whose `required` means it must be checked.
  */
 export type ManifestFormSeedFieldType =
@@ -410,9 +410,7 @@ export type ManifestFormSeedFieldType =
   | 'textarea'
   | 'select'
   | 'checkbox'
-  | 'consent'
-  | 'number'
-  | 'url';
+  | 'consent';
 
 export interface ManifestFormSeedField {
   id: string;
