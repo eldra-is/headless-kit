@@ -9,6 +9,12 @@ platform repository.
 
 ## Unreleased
 
+- **`client.forms.confirm(token)` and `unsubscribe(token)` POST (WS-386, contract 4.10.0).** The
+  emailed confirm and unsubscribe links no longer act on a `GET`: Core answers a `GET` with a small
+  HTML page whose button posts the token back, so a mail scanner that prefetches the link confirms
+  and unsubscribes nobody. The two methods now `POST` the same paths with the token in the query and
+  still resolve `{ status }`; confirming or unsubscribing twice is a success. Needs a gateway at
+  contract 4.10.0 or later (the `GET` JSON answer of 4.4.0 to 4.9.0 is gone).
 - **`client.forms`: the site-forms API (WS-386).** `get(key)` reads a form definition,
   `submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission and
   `confirm(token)` / `unsubscribe(token)` finish a subscriber's emailed links. A `422` resolves as

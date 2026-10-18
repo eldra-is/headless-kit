@@ -601,8 +601,8 @@ export interface EldraFormsClient {
     input: EldraFormSubmitInput,
     context?: EldraRequestContext
   ): Promise<EldraFormSubmitResult>;
-  /** Double opt-in: `GET /site/v1/forms/subscriptions/confirm?token=`. */
+  /** Double opt-in: `POST /site/v1/forms/subscriptions/confirm?token=` (a GET of the link is only a page). */
   confirm(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
-  /** `GET /site/v1/forms/subscriptions/unsubscribe?token=`. */
+  /** `POST /site/v1/forms/subscriptions/unsubscribe?token=` (a GET of the link is only a page). */
   unsubscribe(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
 }

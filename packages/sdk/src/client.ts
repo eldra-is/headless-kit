@@ -458,12 +458,14 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       confirm: (token: string, context?: EldraRequestContext) =>
         request<EldraFormTokenResult>({
           ...context,
+          method: 'POST',
           path: '/site/v1/forms/subscriptions/confirm',
           query: { token },
         }),
       unsubscribe: (token: string, context?: EldraRequestContext) =>
         request<EldraFormTokenResult>({
           ...context,
+          method: 'POST',
           path: '/site/v1/forms/subscriptions/unsubscribe',
           query: { token },
         }),

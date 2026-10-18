@@ -115,7 +115,7 @@ describe('eldra sdk forms', () => {
     await expect(client.forms.submit('contact', input)).rejects.toMatchObject({ status });
   });
 
-  it('confirms and unsubscribes with the token in the query', async () => {
+  it('confirms and unsubscribes with a POST and the token in the query', async () => {
     const { client, requests } = recording((request) =>
       request.url.includes('unsubscribe') ? { status: 'unsubscribed' } : { status: 'confirmed' }
     );
@@ -129,5 +129,7 @@ describe('eldra sdk forms', () => {
     expect(requests[1].url).toBe(
       'https://api.example.test/api/site/v1/forms/subscriptions/unsubscribe?token=t+k'
     );
+    // A GET of the link only shows a page (a mail scanner prefetches it); the action is a POST.
+    expect(requests.map((request) => request.method)).toEqual(['POST', 'POST']);
   });
 });
