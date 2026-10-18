@@ -29,7 +29,7 @@ import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
-import { prepareSiteIcons, type GeneratedIconFile } from './runtime/iconGenerate';
+import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -299,7 +299,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     });
 
     /**
-     * The generated icon files (`./runtime/iconGenerate.ts`), filled in by the platform read at
+     * The generated web manifest (`./runtime/siteIconAssets.ts`), filled in by the platform read at
      * the end of `setup()` and written into the static output by the `prerender:done` hook below.
      * Empty when no icon is set or generation failed — then nothing is written and no head tag was
      * added, so the theme's own `public/` files are what ships.
@@ -407,7 +407,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const siteIcons =
       resolvedSiteIcons === null
         ? null
-        : await prepareSiteIcons(resolvedSiteIcons, { baseURL: nuxt.options.app.baseURL });
+        : buildSiteIconOutput(resolvedSiteIcons, nuxt.options.app.baseURL);
     if (siteIcons !== null) {
       siteIconFiles = siteIcons.files;
       // The merchant's icons replace the theme's configured ones rather than sit beside them:
