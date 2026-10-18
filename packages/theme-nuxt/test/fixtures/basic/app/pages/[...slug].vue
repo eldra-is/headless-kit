@@ -3,6 +3,12 @@ import { EldraBlockZone, EldraLayout } from '@eldrajs/theme-vue';
 
 const { page, template, entry, layout, blocks, reusableComponentProjection, pending, error } =
   useEldraPage();
+
+// The SEO head (`useEldraSeo`): the generate test reads the tags it writes.
+useEldraSeo(
+  () => ((page.value?.data?.slug ?? '/') === '/' ? 'home' : 'page'),
+  () => ({ 'page.title': String((template.value ?? page.value)?.data?.title ?? '') })
+);
 </script>
 
 <template>

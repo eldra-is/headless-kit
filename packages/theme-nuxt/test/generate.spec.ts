@@ -513,7 +513,10 @@ describe('theme-nuxt nuxi generate', () => {
    * Regenerates the fixture against a gateway with the given options. Each call replaces `.output`,
    * so a test reads what it needs before the next one runs.
    */
-  async function generateWith(options: Parameters<typeof startMockGateway>[0]): Promise<void> {
+  async function generateWith(
+    options: Parameters<typeof startMockGateway>[0],
+    env: Record<string, string> = {}
+  ): Promise<void> {
     const scenarioGateway = await startMockGateway(options);
     try {
       rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
@@ -523,6 +526,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: scenarioGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ...env,
         },
         timeout: 300_000,
       });
@@ -624,5 +628,52 @@ describe('theme-nuxt nuxi generate', () => {
     expect(html).not.toContain('rel="manifest"');
     expect(html).not.toContain('rel="apple-touch-icon"');
     expect(html).not.toContain('name="theme-color"');
+  }, 360_000);
+
+  /**
+   * **A preview build is never indexed**, whatever the SEO setting says: the default build (no
+   * `ELDRA_BUILD_TARGET=production`) writes `robots: noindex`. With no setting (the mock 404s
+   * the read) the default pattern applies and nothing absolute is written.
+   */
+  it('titles pages with the default pattern and marks a preview build noindex', async () => {
+    await generateWith({});
+
+    const html = readFileSync(output('about/index.html'), 'utf8');
+    expect(html).toMatch(/<title>About · [^<]+<\/title>/);
+    expect(html).toContain('name="robots" content="noindex"');
+    expect(html).not.toContain('rel="canonical"');
+    expect(html).not.toContain('property="og:url"');
+  }, 360_000);
+
+  /** The production build writes the merchant's patterns, the canonical and the share tags. */
+  it('writes the platform’s SEO setting into every page of a production build', async () => {
+    await generateWith(
+      {
+        seo: {
+          revision: 2,
+          syntax: 1,
+          site: {
+            name: 'Fixture Shop',
+            titlePattern: { is: '{{page.title}} | {{site.name}}' },
+            description: { is: 'Fixture description for {{site.name}}.' },
+            imageAssetId: null,
+            imageUrl: 'https://media.example.test/public/org-1/assets/asset-1/og',
+            twitterHandle: 'fixture',
+          },
+          templates: {},
+        },
+      },
+      { ELDRA_BUILD_TARGET: 'production', ELDRA_SITE_URL: 'https://shop.example.test' }
+    );
+
+    const html = readFileSync(output('about/index.html'), 'utf8');
+    expect(html).toContain('<title>About | Fixture Shop</title>');
+    expect(html).toContain('name="description" content="Fixture description for Fixture Shop."');
+    expect(html).toContain('rel="canonical" href="https://shop.example.test/about"');
+    expect(html).toContain('property="og:title" content="About | Fixture Shop"');
+    expect(html).toContain('property="og:url" content="https://shop.example.test/about"');
+    expect(html).toContain('property="og:image" content="https://media.example.test/');
+    expect(html).toContain('name="twitter:site" content="@fixture"');
+    expect(html).not.toContain('name="robots"');
   }, 360_000);
 });

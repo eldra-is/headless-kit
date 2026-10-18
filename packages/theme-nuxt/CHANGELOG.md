@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Page titles and SEO metadata, set in Studio.** A sixth fail-soft read, `GET /site/v1/seo`
+  (`readSeo`, `./runtime/seo.ts`), carries the site's title pattern, description, share image,
+  Twitter handle and per-context patterns (one warning and the default pattern
+  `{{page.title}} · {{site.name}}` when it fails). A new auto-imported composable,
+  `useEldraSeo(context, data, options?)`, sets `<title>`, description, canonical link, `og:*`,
+  `twitter:*` and `robots` through the resolver in `@eldrajs/theme-core`. New module options
+  `siteUrl` (`ELDRA_SITE_URL`; without it no canonical, `og:url` or relative image is written) and
+  `buildTarget` (`ELDRA_BUILD_TARGET`): anything but `production` is a preview build, and a preview
+  build, `nuxi dev` and a page framed by Studio are always `noindex`. The public runtime config
+  gains `eldraSeo`. Documented in `docs/theme-seo.md`.
+
 - The runtime registers the theme's own id (`manifest.theme.id`) with `registerBlockFields`, and
   the draft projection validates slots against bare block ids when a published entry's
   `schemaApiId` is `<themeId>:<apiId>`. Route-template targets (a merchant's own schema) and
