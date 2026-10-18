@@ -84,8 +84,8 @@ Site forms work for a headless app that has no theme and no page builder. Three 
 work:
 
 - **Switch on the `FORMS` feature.** Forms have their own organisation feature, separate from
-  `PAGE_BUILDER`; a platform admin enables it for the organisation. Without it the form routes
-  (read and submit) answer as if the feature did not exist. The organisation's site, which forms
+  `PAGE_BUILDER`; a platform admin enables it for the organisation. Without it the form read and
+  submit answer `403` with `errorId: FEATURE_DISABLED` (an `EldraHttpError`). The organisation's site, which forms
   hang off, is created the first time a form is created in Studio.
 - **Register your app's origin** as a storefront origin (Studio, General settings, _Storefront
   origins_), as above; a browser read or submit from any other origin is refused.
