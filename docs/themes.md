@@ -421,7 +421,7 @@ formSeeds: [
 ```
 
 Field types are `text`, `email`, `phone`, `textarea`, `select` (with `options`), `checkbox`, `consent`
-(a checkbox whose `required` means it must be checked), `number` and `url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
+(a checkbox whose `required` means it must be checked); `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
 email field. Core creates a seeded form only when its key is absent and never over a merchant's edits
 (an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
 `examples/starter-nuxt/app/formSeeds.ts`.
@@ -430,7 +430,7 @@ A seed cannot name an email template: `notify`, `confirm` and `subscribe` are fl
 its own form design (`form_notification`, `form_confirmation`, `form_subscribe_confirm`). A visitor can
 type any address into a form, so Core refuses a form action that would send anything but a form design
 or the organisation's own custom template (`SITE_FORM_TEMPLATE_NOT_ALLOWED`); the plugin refuses a
-`templateRef` on a seed with the same wording before the deploy.
+`templateRef` on a seed before the deploy.
 
 **Place them.** The starter's `form` block renders any form by key. `@eldrajs/theme-nuxt` also reads
 the definition of every seeded key — and every key in its `forms` option, for a merchant-made form a
