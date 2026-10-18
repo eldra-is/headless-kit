@@ -598,6 +598,22 @@ describe('theme-nuxt nuxi generate', () => {
     }
   }, 360_000);
 
+  /** A malformed answer (iconUrl set, no icons) is treated like a failed read. */
+  it('writes no manifest and adds no tags for a malformed site-icons answer', async () => {
+    await generateWith({
+      siteIcons: {
+        iconUrl: 'https://media.example.test/public/org-1/assets/asset-1',
+        malformed: true,
+      },
+    });
+
+    expect(existsSync(output('site.webmanifest'))).toBe(false);
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('media.example.test');
+  }, 360_000);
+
   /** An unset icon ends like a failed read: nothing written, nothing tagged, theme files untouched. */
   it('keeps the theme’s files and emits no tags for an unset icon', async () => {
     await generateWith({ siteIcons: { iconUrl: null } });

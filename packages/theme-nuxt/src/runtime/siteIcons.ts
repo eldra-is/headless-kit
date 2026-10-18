@@ -126,7 +126,7 @@ function toSiteIconsSetting(value: unknown): SiteIconsSetting | null {
   };
 }
 
-/** `null` for "no icons", the URLs for a whole set of https/loopback strings, `undefined` otherwise. */
+/** `null` for "no icons", the URLs for a whole set of https (or loopback http) strings, `undefined` otherwise. */
 function toSiteIconUrls(value: unknown): SiteIconUrls | null | undefined {
   if (value === null) return null;
   if (typeof value !== 'object') return undefined;
@@ -142,8 +142,13 @@ function toSiteIconUrls(value: unknown): SiteIconUrls | null | undefined {
 
 function isAbsoluteHttpUrl(value: string): boolean {
   try {
-    const { protocol } = new URL(value);
-    return protocol === 'https:' || protocol === 'http:';
+    const { protocol, hostname } = new URL(value);
+    if (protocol === 'https:') return true;
+    // Plain http would be blocked as mixed content on an https storefront; loopback is for dev/mocks.
+    return (
+      protocol === 'http:' &&
+      (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]')
+    );
   } catch {
     return false;
   }

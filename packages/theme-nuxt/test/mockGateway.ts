@@ -400,6 +400,8 @@ export function startMockGateway(
      *  that predates the setting. */
     siteIcons?: {
       iconUrl: string | null;
+      /** Answer `icons: null` although `iconUrl` is set: a malformed response. */
+      malformed?: boolean;
       backgroundColor?: string;
       themeColor?: string | null;
       shortName?: string | null;
@@ -517,7 +519,7 @@ export function startMockGateway(
               themeColor: options.siteIcons.themeColor ?? null,
               shortName: options.siteIcons.shortName ?? null,
               icons:
-                iconUrl === null
+                iconUrl === null || options.siteIcons.malformed
                   ? null
                   : {
                       favicon32: `${iconUrl}/icon-32`,

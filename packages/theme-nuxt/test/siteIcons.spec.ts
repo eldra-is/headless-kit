@@ -102,6 +102,10 @@ describe('readSiteIcons', () => {
     ['an incomplete icons set', { ...SETTING, icons: { ...SETTING.icons, icon512: undefined } }],
     ['a non-URL icon variant', { ...SETTING, icons: { ...SETTING.icons, icon192: 'nope' } }],
     [
+      'a plain-http non-loopback icon variant',
+      { ...SETTING, icons: { ...SETTING.icons, icon192: 'http://cdn.example.test/x/icon-192' } },
+    ],
+    [
       'a javascript: icon variant',
       { ...SETTING, icons: { ...SETTING.icons, icon192: 'javascript:1' } },
     ],
