@@ -70,3 +70,4 @@ export {
 } from './themeId';
 export * from './seo';
 export * from './sitemap';
+export * from './structuredData';
