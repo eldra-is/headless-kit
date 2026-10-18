@@ -165,6 +165,17 @@ describe('resolveSeo', () => {
     ).toBeNull();
   });
 
+  it('treats a stored {fieldId} canonical template as no canonical', () => {
+    const own = resolveSeo({
+      ...base,
+      context: 'page',
+      path: '/blog/hello',
+      entry: { canonicalUrl: '/blog/{slug}' },
+    });
+    expect(own.canonical).toBe('https://shop.example/blog/hello');
+    expect(own.canonical).not.toContain('%7B');
+  });
+
   it('noindex comes from the entry, the template, or a preview build', () => {
     expect(resolveSeo({ ...base, context: 'page', entry: { noindex: true } }).noindex).toBe(true);
     expect(resolveSeo({ ...base, context: 'page', template: { noindex: true } }).noindex).toBe(

@@ -64,6 +64,14 @@ describe('toSitemapPages', () => {
     expect(page!.variants[1]!.canonical).toBeNull();
   });
 
+  it('skips a canonical that still holds a {fieldId} template', () => {
+    const [page] = toSitemapPages(
+      [{ path: '/a', seo: { canonicalUrl: { is: '/blog/{slug}', 'en-US': '/blog/{slug}' } } }],
+      routing
+    );
+    expect(page!.variants.map((variant) => variant.canonical)).toEqual([null, null]);
+  });
+
   it('merges the entry and its route template like resolveSeo', () => {
     const [noindexed, canon] = toSitemapPages(
       [

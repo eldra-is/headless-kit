@@ -36,7 +36,7 @@ export interface CrawlFile {
  * page's `noindex` and its canonical for each locale taken from its own `seo` value — the same
  * field shape `useEldraSeo` reads.
  *
- * A canonical that is a `{{pattern}}` is skipped: it is resolved per render with the page's
+ * A canonical that still holds a `{` (a `{{pattern}}`, or a `{fieldId}` template Studio stored) is skipped: it is resolved per render with the page's
  * variables, which the build does not have here, and a half-resolved URL must not reach the
  * sitemap. `noindex` is a plain boolean, so it needs no such care.
  */
@@ -97,7 +97,7 @@ function canonicalFor(
     raw = canonical[locale];
   if (typeof raw !== 'string') return null;
   const value = stripStega(raw).trim();
-  return value === '' || value.includes('{{') ? null : value;
+  return value === '' || value.includes('{') ? null : value;
 }
 
 export interface CrawlOutputInput {

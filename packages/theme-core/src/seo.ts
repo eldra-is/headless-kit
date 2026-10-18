@@ -265,9 +265,16 @@ export function resolveSeo(input: ResolveSeoInput): ResolvedSeo {
 
   let canonical: string | null = null;
   const canonicalPattern = pick(entry?.canonicalUrl) || pick(template?.canonicalUrl);
-  if (canonicalPattern.trim() !== '') {
-    canonical = absolute(renderSeoText(canonicalPattern, data), origin);
-  } else if (origin !== null && input.path !== undefined && input.path !== null) {
+  let useOwnPath = canonicalPattern.trim() === '';
+  if (!useOwnPath) {
+    const rendered = renderSeoText(canonicalPattern, data);
+    // A `{fieldId}` template Studio stored unresolved (the platform's own single-brace syntax, not
+    // a `{{variable}}`) is not a URL: it would become `/blog/%7Bslug%7D`. It counts as no
+    // canonical, and the page's own path stands in below.
+    if (/[{}]/.test(rendered)) useOwnPath = true;
+    else canonical = absolute(rendered, origin);
+  }
+  if (useOwnPath && origin !== null && input.path !== undefined && input.path !== null) {
     try {
       const url = new URL(input.path, origin);
       canonical = `${url.origin}${url.pathname}`;
