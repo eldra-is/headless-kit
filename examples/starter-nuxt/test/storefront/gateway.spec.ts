@@ -976,6 +976,12 @@ describe('createGatewayStorefront', () => {
      * cannot read stock into an error for no reason. One box is sent in the platform's own
      * spelling, which the retired hyphenated one folds into.
      */
+    it('sends the on-sale switch as onSale=true, and nothing for a switch the platform does not name', async () => {
+      expect((await paramsFor({ 'toggle:on_sale': ['1'] })).get('onSale')).toBe('true');
+      expect((await paramsFor({ 'toggle:pre_order': ['1'] })).has('onSale')).toBe(false);
+      expect((await paramsFor({ 'toggle:on_sale': [] })).has('onSale')).toBe(false);
+    });
+
     it('sends one availability value, never both, and never an unknown one', async () => {
       expect((await paramsFor({ availability: ['in_stock'] })).get('availability')).toBe(
         'in_stock'

@@ -17,6 +17,8 @@ import {
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
+
+const TOGGLE_SOURCE_PREFIX = 'toggle:';
 import { optionDisplayType, storefrontOptionKind } from './options';
 import {
   buildCategoryIndex,
@@ -1319,6 +1321,8 @@ interface CatalogFilterQuery {
   collectionId?: string[];
   availability?: string;
   option?: string[];
+  /** `onSale=true`, the one boolean parameter the platform has today (`facets.toggles[]`'s `on_sale`). */
+  onSale?: true;
 }
 
 /**
@@ -1464,6 +1468,11 @@ async function catalogFilterQuery(
       // one — and the platform never spends the cross-service stock read on a filter that excludes
       // nothing.
       if (known.length === 1) query.availability = known[0];
+      continue;
+    }
+    if (source.startsWith(TOGGLE_SOURCE_PREFIX)) {
+      // A toggle is a yes/no switch; only the one the platform has a parameter for (onSale) is sent.
+      if (source.slice(TOGGLE_SOURCE_PREFIX.length) === 'on_sale') query.onSale = true;
       continue;
     }
     if (source === 'category') {
