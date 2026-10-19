@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { pickBuildToken } from '../src/runtime/buildToken';
 import { overlayPreviewDrafts } from '../src/runtime/drafts';
 
 const source = (path: string): string => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -540,3 +541,41 @@ describe('theme-nuxt runtime', () => {
 interface EntryDocLike {
   data: Record<string, unknown>;
 }
+
+/**
+ * WS-403: the deploy token a build sends as `X-Eldra-Build-Token` is a secret. It travels through
+ * private runtime config only; `runtimeConfig.public` is serialised into every page's payload.
+ */
+describe('the build token stays out of the public runtime config and the browser', () => {
+  const moduleSource = source('../src/module.ts');
+
+  it('is written to private runtime config, never into the public object', () => {
+    expect(moduleSource).toContain('nuxt.options.runtimeConfig.eldraBuildToken =');
+    const publicBlock = block(
+      moduleSource,
+      'nuxt.options.runtimeConfig.public.eldra = {',
+      '\n    };'
+    );
+    expect(publicBlock).not.toMatch(/buildToken|deploy.?token/i);
+    expect(publicBlock).not.toContain('ELDRA_DEPLOY_TOKEN');
+    expect(moduleSource).not.toMatch(/runtimeConfig\.public[^\n]*[Bb]uildToken/);
+    expect(moduleSource).not.toMatch(/runtimeConfig\.public\.eldraSeo = \{[^}]*[Tt]oken/);
+  });
+
+  it('is read by a composable that answers only during a server prerender', () => {
+    const composable = source('../src/runtime/composables/useEldraBuildToken.ts');
+    expect(composable).toContain('!import.meta.server || !import.meta.prerender');
+    expect(composable).toContain('return undefined');
+    // The browser-reachable plugin passes the composable's answer, never the config value.
+    expect(source('../src/runtime/plugin.ts')).toContain('buildToken: useEldraBuildToken()');
+    expect(source('../src/runtime/plugin.ts')).not.toContain('eldraBuildToken');
+  });
+
+  it('is picked from the private config key, trimmed, with blank meaning none', () => {
+    expect(pickBuildToken({ eldraBuildToken: ' tok ' })).toBe('tok');
+    expect(pickBuildToken({ eldraBuildToken: '' })).toBeUndefined();
+    expect(pickBuildToken({ eldraBuildToken: '  ' })).toBeUndefined();
+    expect(pickBuildToken({ public: { eldraBuildToken: 'tok' } })).toBeUndefined();
+    expect(pickBuildToken(undefined)).toBeUndefined();
+  });
+});

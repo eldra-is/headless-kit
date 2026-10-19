@@ -215,6 +215,31 @@ describe('createEldraClient', () => {
     expect(init.cache).toBeUndefined();
   });
 
+  it('sends X-Eldra-Build-Token only when buildToken is given', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ id: 'e1', data: {} }));
+    const withToken = createEldraClient({
+      gatewayUrl: GATEWAY,
+      orgId: ORG,
+      fetch: fetchMock as unknown as typeof fetch,
+      buildToken: 'deploy-secret',
+    });
+    await withToken.getEntry('page', 'e1');
+    const sent = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(sent.headers).get('X-Eldra-Build-Token')).toBe('deploy-secret');
+    expect(String(fetchMock.mock.calls[0]![0])).not.toContain('deploy-secret');
+    for (const buildToken of [undefined, '']) {
+      fetchMock.mockClear();
+      await createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        buildToken,
+      }).getEntry('page', 'e1');
+      const init = fetchMock.mock.calls[0]![1] as RequestInit;
+      expect(new Headers(init.headers).has('X-Eldra-Build-Token')).toBe(false);
+    }
+  });
+
   it('never puts the preview token in the URL', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: 'e1', data: {} }));
     const c = client();

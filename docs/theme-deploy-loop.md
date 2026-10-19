@@ -51,6 +51,13 @@ gateway falls back to the bundled list with a warning rather than failing closed
 pnpm generate     # nuxi generate — real static build
 ```
 
+The generate step may carry `ELDRA_DEPLOY_TOKEN` (the same site token `deploy` uses; the starter's
+pipelines pass it). The build sends it only from the server-side prerender, in an
+`X-Eldra-Build-Token` header, and the gateway then gives the build its own rate-limit budget
+instead of counting its hundreds of requests against the machine's IP, which a CI runner or office
+network shares with real visitors. It never reaches `runtimeConfig.public`, the browser bundle, the
+HTML or `_payload.json`. Without it a build counts against its machine's IP like any visitor.
+
 This is where the build-time platform reads happen: commerce settings, content locales,
 theme-message overrides and resolved design tokens, each read once, in parallel, and each
 independently fail-soft (see [How a theme meets the page builder](../CLAUDE.md#build-time-platform-reads)

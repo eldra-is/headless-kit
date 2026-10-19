@@ -9,6 +9,10 @@ platform repository.
 
 ## Unreleased
 
+- **`buildToken` client option (WS-403).** When set (a string or a function returning one), every
+  request carries `X-Eldra-Build-Token`, the site's deploy token, so the gateway can give a theme
+  build's reads their own rate-limit bucket. Server and build only; omitted or empty sends no header.
+
 - **`EldraFormDefinition.consentText` (WS-386, contract 4.13.0).** A form that subscribes the
   visitor now publishes the consent sentence per locale, with the shop name already filled in
   (`consentText?: EldraFormLocalized`, present only when `kinds` contains `subscribe`). Show it

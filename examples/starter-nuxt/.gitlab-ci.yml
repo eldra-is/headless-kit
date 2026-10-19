@@ -10,6 +10,8 @@ eldra-deploy:
     - corepack enable && corepack prepare pnpm@9.15.0 --activate
   script:
     - pnpm install --frozen-lockfile
+    # ELDRA_DEPLOY_TOKEN (a masked CI/CD variable, already read by `eldra-theme deploy`) is also read
+    # by the generate step: it gives the build's gateway reads their own rate-limit bucket.
     - pnpm exec nuxi generate
     - pnpm exec eldra-theme deploy
   variables:

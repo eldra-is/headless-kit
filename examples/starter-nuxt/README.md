@@ -296,7 +296,7 @@ The deploy command uploads the generated static site and exact `.eldra/manifest.
 
 ## Wiring rebuilds
 
-The starter includes GitHub Actions, GitLab CI, and Bitbucket Pipelines examples. All build locally with Node 20 and pnpm, run `nuxi generate`, then push the static output with `eldra-theme deploy`.
+The starter includes GitHub Actions, GitLab CI, and Bitbucket Pipelines examples. All build locally with Node 20 and pnpm, run `nuxi generate` (with `ELDRA_DEPLOY_TOKEN` too, so the build's gateway reads get their own rate-limit budget; it is sent only from the build in `X-Eldra-Build-Token`), then push the static output with `eldra-theme deploy`.
 
 - GitHub: set repository variables `ELDRA_GATEWAY_URL`, `ELDRA_ORG_ID`, `ELDRA_API_URL` and `ELDRA_SITE_URL` (the public origin, for canonical and `og:url`), plus secret `ELDRA_DEPLOY_TOKEN`. In Studio choose the GitHub trigger and configure `https://api.github.com/repos/<owner>/<repo>/dispatches` with a token allowed to dispatch workflows.
 - GitLab: configure those four names as project CI/CD variables, masking `ELDRA_DEPLOY_TOKEN`. In Studio use the project pipeline-trigger URL, trigger token, and branch/tag ref.

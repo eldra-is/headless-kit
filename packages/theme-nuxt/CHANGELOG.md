@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A build sends its deploy token for its own rate-limit bucket (WS-403).** `ELDRA_DEPLOY_TOKEN` is
+  read into private runtime config and sent as `X-Eldra-Build-Token` by the module's build-time
+  reads and by the clients of a `nuxi generate` prerender; never in the browser, `nuxi dev` or a
+  deployed server answering a visitor, and never in `runtimeConfig.public`. New auto-import
+  `useEldraBuildToken()` returns it (prerender only) for a theme's own `@eldrajs/sdk` client.
+
 - **Baked form definitions keep `consentText` (WS-386).** `toFormDefinition` carries a subscribing
   form's consent sentence per locale and refuses a malformed one, like the other localized texts.
 

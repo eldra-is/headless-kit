@@ -9,6 +9,8 @@ definitions:
           - pnpm install --frozen-lockfile
           # A build is production unless ELDRA_BUILD_TARGET=preview (noindex, `Disallow: /`).
           # Set ELDRA_SITE_URL as a repository variable.
+          # ELDRA_DEPLOY_TOKEN (already a secured variable, read by `eldra-theme deploy`) is also read by
+          # the generate step: it gives the build's gateway reads their own rate-limit bucket.
           - ELDRA_SITE_URL="$ELDRA_SITE_URL" pnpm exec nuxi generate
           - pnpm exec eldra-theme deploy
 

@@ -25,6 +25,12 @@ export interface EldraClientOptions {
   fetch?: typeof globalThis.fetch; // injectable for tests/SSR
   retry?: EldraRetryOptions; // see EldraRetryOptions; defaults documented there
   /**
+   * The site's deploy token, sent as `X-Eldra-Build-Token` on every request so the gateway counts a
+   * theme build's reads against the build's own rate-limit budget. Server and build only: never
+   * pass it from browser code or a public config. Omitted or empty sends no header.
+   */
+  buildToken?: string;
+  /**
    * The organisation's default content locale (e.g. `"en-US"`). A `link`
    * field's value is a per-locale record, and this drives a per-field
    * fallback inside it: when the active locale's node leaves a field

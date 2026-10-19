@@ -5,6 +5,9 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`buildToken` client option (WS-403).** `createEldraClient({ buildToken })` sends
+  `X-Eldra-Build-Token` on every read. Server and build only.
+
 - **`createAnalytics`, `normalizeAnalyticsProps`, `truncateUtf8`.** Framework-free custom-event layer
   over the Eldra tracker's `window.eldra('event', ...)`: props stringified and cut to the platform's
   limits, events queued (50) until the script loads, a no-op when disabled, `pageview` rejected.

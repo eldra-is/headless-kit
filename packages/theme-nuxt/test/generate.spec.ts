@@ -521,7 +521,7 @@ describe('theme-nuxt nuxi generate', () => {
   async function generateWith(
     options: Parameters<typeof startMockGateway>[0],
     env: Record<string, string> = {}
-  ): Promise<void> {
+  ): Promise<{ buildTokens: Array<string | null> }> {
     const scenarioGateway = await startMockGateway(options);
     try {
       rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
@@ -536,6 +536,7 @@ describe('theme-nuxt nuxi generate', () => {
         },
         timeout: 300_000,
       });
+      return { buildTokens: [...scenarioGateway.buildTokens] };
     } finally {
       await new Promise<void>((resolve, reject) =>
         scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
@@ -1064,4 +1065,36 @@ describe('theme-nuxt nuxi generate', () => {
     await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'all' });
     expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
   }, 360_000);
+
+  /**
+   * WS-403. A build proves it is a build with the site's deploy token, in `X-Eldra-Build-Token`, so
+   * the gateway can give its reads their own rate-limit bucket. The token is a secret: it must reach
+   * the gateway from the server-side prerender and appear in nothing the build publishes.
+   */
+  it('sends ELDRA_DEPLOY_TOKEN as X-Eldra-Build-Token from the build and leaks it into no output', async () => {
+    const token = 'eldra_site_0b7e8c1a-1111-4222-8333-444455556666_s3cr3t-deploy-token';
+    const { buildTokens } = await generateWith({}, { ELDRA_DEPLOY_TOKEN: token });
+
+    expect(buildTokens.length).toBeGreaterThan(0);
+    // Every gateway read the build made — the module's discovery reads and the runtime plugin's.
+    expect(buildTokens.every((value) => value === token)).toBe(true);
+
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]
+      );
+    const published = walk(output(''));
+    expect(published.length).toBeGreaterThan(0);
+    expect(published.some((file) => file.endsWith('_payload.json'))).toBe(true);
+    for (const file of published) {
+      const text = readFileSync(file, 'latin1');
+      expect(text, file).not.toContain(token);
+      expect(text, file).not.toContain('s3cr3t-deploy-token');
+    }
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when ELDRA_DEPLOY_TOKEN is not set', () => {
+    expect(gateway.requests.length).toBeGreaterThan(0);
+    expect(gateway.buildTokens.every((value) => value === null)).toBe(true);
+  });
 });

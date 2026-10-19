@@ -711,6 +711,10 @@ function createHttpRequest(
   if (previewToken) {
     headers.set('X-Preview-Token', previewToken);
   }
+  const buildToken = resolveRuntimeValue(clientOptions.buildToken);
+  if (buildToken) {
+    headers.set('X-Eldra-Build-Token', buildToken);
+  }
 
   let body: BodyInit | undefined;
   if (requestOptions.body !== undefined) {
