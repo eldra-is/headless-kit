@@ -548,7 +548,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               <FormHoneypot v-model="honeypot" :name="honeypotField" />
               <div v-if="siteKey" ref="turnstileRoot" class="w-full" />
               <template #actions>
-                <div class="grid w-full gap-2">
+                <div class="grid w-full grid-cols-[minmax(0,1fr)] gap-2">
                   <Button
                     type="submit"
                     variant="primary"
