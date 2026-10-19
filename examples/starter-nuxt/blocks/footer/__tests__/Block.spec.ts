@@ -351,7 +351,9 @@ describe('footer block', () => {
     const wrapper = mountFooter(mock, { storefront });
     await flushPromises();
     const input = wrapper.get('input[type="email"]');
-    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('Where should we write?');
+    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe(
+      'Where should we write?'
+    );
   });
 
   it("shows the placeholder the form's email field carries, not its label", async () => {
