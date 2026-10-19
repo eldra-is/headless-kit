@@ -322,10 +322,12 @@ describe('footer block', () => {
   it('keeps the sign-up button and its consent sentence in one column as wide as the form', async () => {
     const wrapper = mountFooter(mock);
     await flushPromises();
-    // An auto column sizes to the sentence's max-content and pushed the button past the footer
-    // column; happy-dom has no layout, so this guards the class that prevents it.
+    // The library's actions row is `shrink-0` and the grid's auto column follows the sentence's
+    // max-content, so both pushed the button past the footer column; happy-dom has no layout,
+    // so this guards the two classes that prevent it.
     const actions = wrapper.get('[data-part="consent-sentence"]').element.parentElement;
     expect(actions?.classList.contains('grid-cols-[minmax(0,1fr)]')).toBe(true);
+    expect(actions?.parentElement?.classList.contains('w-full')).toBe(true);
   });
 
   it('shows the platform consent sentence under the sign-up button, tied to it with aria-describedby', async () => {

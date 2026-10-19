@@ -521,6 +521,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               :heading-level="3"
               :aria-label="data.newsletterTitle ? undefined : t('footer.newsletterAriaLabel')"
               :submitting="newsletterState === 'submitting'"
+              :classes="{ actions: 'w-full' }"
               @submit="onNewsletterSubmit"
               @invalid="onNewsletterInvalid"
             >
