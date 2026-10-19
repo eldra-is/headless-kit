@@ -17,6 +17,7 @@ import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
 import 'virtual:eldra/tokens.css';
+import { useEldraBuildToken } from './composables/useEldraBuildToken';
 import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
@@ -60,6 +61,8 @@ export default defineNuxtPlugin({
       orgId: cfg.orgId,
       stega: true,
       retry: cfg.retry ?? undefined,
+      // Server prerender only; `undefined` in the browser. See `./buildToken.ts`.
+      buildToken: useEldraBuildToken(),
       defaultLocale: storeLocales?.default ?? routing.default ?? null,
     });
     const preview = createEldraPreviewState();

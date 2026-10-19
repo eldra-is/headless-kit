@@ -187,6 +187,9 @@ export default defineNuxtPlugin({
       // @eldrajs/theme-nuxt's, and a rate limit that only one of them waits
       // out still fails the build.
       retry: publicConfig.eldra?.retry ?? undefined,
+      // The read-only build token (`ELDRA_BUILD_TOKEN`), from the build environment and only during a prerender (`undefined` in
+      // the browser): it gives the build its own rate-limit budget at the gateway.
+      buildToken: useEldraBuildToken(),
     });
 
     let source: StorefrontSource | null = null;

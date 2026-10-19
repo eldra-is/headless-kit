@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
@@ -521,7 +521,7 @@ describe('theme-nuxt nuxi generate', () => {
   async function generateWith(
     options: Parameters<typeof startMockGateway>[0],
     env: Record<string, string> = {}
-  ): Promise<void> {
+  ): Promise<{ buildTokens: Array<string | null> }> {
     const scenarioGateway = await startMockGateway(options);
     try {
       rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
@@ -536,6 +536,7 @@ describe('theme-nuxt nuxi generate', () => {
         },
         timeout: 300_000,
       });
+      return { buildTokens: [...scenarioGateway.buildTokens] };
     } finally {
       await new Promise<void>((resolve, reject) =>
         scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
@@ -1064,4 +1065,51 @@ describe('theme-nuxt nuxi generate', () => {
     await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'all' });
     expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
   }, 360_000);
+
+  /**
+   * WS-403/WS-409. A build proves it is a build with the organisation's read-only build token, in `X-Eldra-Build-Token`, so
+   * the gateway can give its reads their own rate-limit bucket. The token is a secret: it must reach
+   * the gateway from the server-side prerender and appear in nothing the build publishes.
+   */
+  it('sends ELDRA_BUILD_TOKEN as X-Eldra-Build-Token from the build and leaks it into no built file', async () => {
+    const token = 'eldra_bld_Zk3p9QxW7mTn2vLc_a1b2c3d4';
+    const { buildTokens } = await generateWith({}, { ELDRA_BUILD_TOKEN: token });
+
+    expect(buildTokens.length).toBeGreaterThan(0);
+    // Every gateway read the build made — the module's discovery reads and the runtime plugin's.
+    expect(buildTokens.every((value) => value === token)).toBe(true);
+
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]
+      );
+    // The whole build: published files, the server bundle and the prerender bundle in `.nuxt`.
+    const published = walk(output(''));
+    expect(published.some((file) => file.endsWith('_payload.json'))).toBe(true);
+    const everything = [
+      ...published,
+      ...walk(join(fixtureDir, '.output')),
+      ...walk(join(fixtureDir, '.nuxt')),
+    ];
+    expect(everything.some((file) => file.includes(`${sep}.nuxt${sep}dist${sep}`))).toBe(true);
+    for (const file of new Set(everything)) {
+      const text = readFileSync(file, 'latin1');
+      expect(text, file).not.toContain(token);
+      expect(text, file).not.toContain('Zk3p9QxW7mTn2vLc');
+    }
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when only ELDRA_DEPLOY_TOKEN is set (the deploy token never rides along)', async () => {
+    const { buildTokens } = await generateWith(
+      {},
+      { ELDRA_DEPLOY_TOKEN: 'eldra_site_0b7e8c1a_s3cr3t-deploy-token', ELDRA_BUILD_TOKEN: '' }
+    );
+    expect(buildTokens.length).toBeGreaterThan(0);
+    expect(buildTokens.every((value) => value === null)).toBe(true);
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when ELDRA_BUILD_TOKEN is not set', () => {
+    expect(gateway.requests.length).toBeGreaterThan(0);
+    expect(gateway.buildTokens.every((value) => value === null)).toBe(true);
+  });
 });

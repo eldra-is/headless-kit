@@ -55,6 +55,7 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     const headers = new Headers(init?.headers);
     headers.set('X-Org-Id', opts.orgId);
     if (previewToken !== null) headers.set('X-Preview-Token', previewToken);
+    if (opts.buildToken) headers.set('X-Eldra-Build-Token', opts.buildToken);
     const merged: RequestInit = { ...init, headers };
     if (previewToken !== null) merged.cache = 'no-store'; // draft responses must never be cached
     // The token this request actually carries. A failure is only reported to

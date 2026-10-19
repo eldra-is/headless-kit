@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A build sends a read-only build token for its own rate-limit bucket (WS-403, WS-409).**
+  `ELDRA_BUILD_TOKEN` (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens) is
+  sent as `X-Eldra-Build-Token` by the module's build-time reads and by the clients of a
+  `nuxi generate` prerender; never in the browser, `nuxi dev` or a deployed server answering a
+  visitor. The site deploy token is never read or sent by the build: keep `ELDRA_DEPLOY_TOKEN` on the
+  `eldra-theme deploy` job only. The starter's GitHub, GitLab and Bitbucket pipelines are split
+  into a build job (with the build token, uploading `.output/public`) and a deploy job (the pinned
+  CLI against that artifact, no project install) so build-time code never sees the deploy token. The token is stored in no runtime config (public or private) and appears in no build output,
+  server bundle included: it is read from the environment at call time. New auto-import
+  `useEldraBuildToken()` returns it (prerender only) for a theme's own `@eldrajs/sdk` client.
+
 - **Baked form definitions keep `consentText` (WS-386).** `toFormDefinition` carries a subscribing
   form's consent sentence per locale and refuses a malformed one, like the other localized texts.
 

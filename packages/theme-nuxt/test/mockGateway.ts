@@ -431,10 +431,13 @@ export function startMockGateway(
   server: Server;
   url: string;
   requests: string[];
+  /** The `X-Eldra-Build-Token` header of every request, `null` where absent. */
+  buildTokens: Array<string | null>;
   servedEntryIds: Set<string>;
 }> {
   return new Promise((resolve) => {
     const requests: string[] = [];
+    const buildTokens: Array<string | null> = [];
     const servedEntryIds = new Set<string>();
 
     function recordServedEntryIds(doc: unknown): void {
@@ -457,6 +460,7 @@ export function startMockGateway(
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
       requests.push(url.pathname + url.search);
+      buildTokens.push(req.headers['x-eldra-build-token']?.toString() ?? null);
       res.setHeader('content-type', 'application/json');
       if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
         res.statusCode = 400;
@@ -634,7 +638,13 @@ export function startMockGateway(
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       if (typeof address === 'object' && address !== null) {
-        resolve({ server, url: `http://127.0.0.1:${address.port}`, requests, servedEntryIds });
+        resolve({
+          server,
+          url: `http://127.0.0.1:${address.port}`,
+          requests,
+          buildTokens,
+          servedEntryIds,
+        });
       }
     });
   });

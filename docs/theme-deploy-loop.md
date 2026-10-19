@@ -51,6 +51,35 @@ gateway falls back to the bundled list with a warning rather than failing closed
 pnpm generate     # nuxi generate — real static build
 ```
 
+The generate step may carry `ELDRA_BUILD_TOKEN`, a read-only **build token** (`eldra_bld_…`).
+Create one in Studio under Settings → Developers → Build tokens (they are per organisation) and
+store it as the `ELDRA_BUILD_TOKEN` CI secret. The build sends it only from the server-side
+prerender, in an `X-Eldra-Build-Token` header, and the gateway then gives the build its own
+rate-limit budget instead of counting its hundreds of requests against the machine's IP, which a CI
+runner or office network shares with real visitors. It is stored in no runtime config and reaches
+no build output (browser bundle, server bundle, HTML or `_payload.json`). Without it a build counts
+against its machine's IP like any visitor.
+
+Do **not** give the build the site deploy token. The deploy token can publish a site, and the
+build runs every npm dependency's code (install scripts, `nuxi generate`) as the same user as the
+job, so no per-command environment trick keeps it out of reach; only a separate job does. The
+starter's pipelines therefore split into a **build job** (checkout, install, `nuxi generate`, with
+`ELDRA_BUILD_TOKEN`, uploading `.output/public` as an artifact) and a **deploy job** (downloads the
+artifact and runs `eldra-theme deploy` with `ELDRA_DEPLOY_TOKEN`). The deploy job installs none of
+the project's dependencies: it runs the pinned CLI (`npx @eldrajs/theme-cli@<version> deploy`, with
+install scripts disabled) against the artifact. Where the deploy token lives:
+
+- GitHub Actions: repository secrets, referenced only in the `deploy` job's step `env`.
+- GitLab CI: a masked, protected CI/CD variable scoped to the `production` environment; the deploy
+  job declares `environment: production`, so the build job never receives it.
+- Bitbucket Pipelines: a deployment variable of the Production environment (not a repository
+  variable); the deploy step declares `deployment: production`.
+
+Headless / SDK use: a theme's own client can pass the same build token as `buildToken` to
+`createEldraClient`, from server-side code only (never a browser bundle or public config). Mind
+the SSR caveat: a server that sends it on every visitor request makes all of that traffic share
+the organisation's build budget, so use it for builds and prerenders, not for live SSR.
+
 This is where the build-time platform reads happen: commerce settings, content locales,
 theme-message overrides and resolved design tokens, each read once, in parallel, and each
 independently fail-soft (see [How a theme meets the page builder](../CLAUDE.md#build-time-platform-reads)
@@ -156,7 +185,7 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
 - **`manifest exceeds the 2 MiB limit`** — reduce block metadata and mock content (most often an
   oversized `mock.json`), then rebuild and redeploy.
 - **`token invalid or revoked`** — generate a fresh deploy token in Studio (Settings → Site → Deploy
-  token); a token is site-scoped and revocable independently of any other credential.
+  token). A rejected build token is replaced under Settings → Developers → Build tokens; a token is site-scoped and revocable independently of any other credential.
 - **`deploy rate limit hit`** — wait and retry; this is a platform-side throttle, not a build defect.
 
 ### Redirects
@@ -191,7 +220,8 @@ correct").
 Wiring that dispatch is a one-time setup per site, documented with worked examples for GitHub
 Actions, GitLab CI and Bitbucket Pipelines in [the starter's own
 README](../examples/starter-nuxt/README.md#wiring-rebuilds): a pipeline that checks out the theme,
-runs `nuxi generate` and `eldra-theme deploy` with the four environment values above, triggered
+builds with `nuxi generate` and, in a separate job that alone holds the deploy token, runs
+`eldra-theme deploy` with the four environment values above, triggered
 either by your own push or by the platform's dispatch. A triggered rebuild passes
 `ELDRA_TRIGGER_DEPLOYMENT_ID`, which `deploy` forwards as `triggerDeploymentId` so the platform
 completes the deployment it already created rather than opening a duplicate.

@@ -60,6 +60,14 @@ export interface EldraClientOptions {
   orgId?: RuntimeValue<string>;
   /** Sends X-Preview-Token on requests, overriding the same header in headers/context. */
   previewToken?: RuntimeValue<string>;
+  /**
+   * Sends X-Eldra-Build-Token on every request: a read-only build token (`eldra_bld_…`, Studio → Settings → Developers → Build tokens), proving the request comes
+   * from a theme build so the gateway counts it against the build's own rate-limit budget instead
+   * of the machine's IP. **Server and build only** — never pass it from code that runs in a
+   * browser, and never put it in a public config. Never pass a site deploy token here.
+   * An SSR server that sends it on every visitor request shares the organisation's build budget. Omitted or empty sends no header.
+   */
+  buildToken?: RuntimeValue<string>;
   env?: RuntimeValue<RuntimeEnv>;
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;

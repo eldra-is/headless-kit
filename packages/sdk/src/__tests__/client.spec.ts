@@ -81,6 +81,45 @@ describe('eldra sdk client', () => {
     }
   });
 
+  it('sends X-Eldra-Build-Token on every request when buildToken is set, never in the URL', async () => {
+    const requests: EldraHttpRequest[] = [];
+    const client = createEldraClient({
+      orgId: 'org-123',
+      buildToken: 'eldra_deploy_secret',
+      httpClient: stubHttpClient(async (request) => {
+        requests.push(request);
+        return {};
+      }),
+    });
+
+    await client.cms.list('blog-post');
+    await client.cms.get('blog-post', 'entry-1');
+
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request.headers.get('X-Eldra-Build-Token')).toBe('eldra_deploy_secret');
+      expect(request.url).not.toContain('eldra_deploy_secret');
+    }
+  });
+
+  it.each([undefined, '', () => undefined])(
+    'sends no X-Eldra-Build-Token when buildToken is %s',
+    async (buildToken) => {
+      const requests: EldraHttpRequest[] = [];
+      const client = createEldraClient({
+        buildToken,
+        httpClient: stubHttpClient(async (request) => {
+          requests.push(request);
+          return {};
+        }),
+      });
+
+      await client.cms.list('blog-post');
+
+      expect(requests[0]?.headers.has('X-Eldra-Build-Token')).toBe(false);
+    }
+  );
+
   it('resolves the preview token for each request and allows returning to published reads', async () => {
     const requests: EldraHttpRequest[] = [];
     let previewToken: string | undefined = 'first-token';

@@ -265,9 +265,19 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       isPreview: nuxt.options.dev || buildTarget !== 'production',
     };
 
+    // The read-only build token (never the deploy token) a build sends as `X-Eldra-Build-Token` (its own rate-limit bucket). Kept out
+    // of runtime config entirely: Nitro inlines private defaults into the server build. The module's
+    // own build-time clients read `process.env`; `useEldraBuildToken` reads it at call time, during
+    // a prerender only. See `./runtime/buildToken.ts`.
+    const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
+
     addPlugin(resolver.resolve('./runtime/plugin'));
     addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
     addImports([
+      {
+        name: 'useEldraBuildToken',
+        from: resolver.resolve('./runtime/composables/useEldraBuildToken'),
+      },
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
       { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
       {
@@ -321,6 +331,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         gatewayUrl: options.gatewayUrl,
         orgId: options.orgId,
         retry: options.retry,
+        buildToken: buildToken || undefined,
       });
       // The *reading* locale, which is the override and nothing else: path segments are not
       // translated in v1, so one pass over the default locale's documents produces the path list
@@ -558,6 +569,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             apiBaseUrl: options.gatewayUrl,
             orgId: options.orgId,
             retry: options.retry,
+            // Not for `nuxi dev`: only a build claims the build bucket.
+            buildToken: nuxt.options.dev ? undefined : buildToken || undefined,
           });
     // Named `platformMessages`, not `themeMessages`: `resolveSiteMessages`'s own first parameter
     // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
