@@ -5,7 +5,9 @@ on:
   repository_dispatch:
     types: [eldra.rebuild]
 jobs:
-  deploy:
+  # The build runs every npm dependency's code (install scripts, the Nuxt build), so it never gets
+  # the deploy token. Only the build token, which is read-only.
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,10 +19,35 @@ jobs:
         env:
           ELDRA_GATEWAY_URL: ${{ vars.ELDRA_GATEWAY_URL }}
           ELDRA_ORG_ID: ${{ vars.ELDRA_ORG_ID }}
+          # Read-only build token (Studio → Settings → Developers → Build tokens): gives the build's
+          # gateway reads their own rate-limit bucket.
+          ELDRA_BUILD_TOKEN: ${{ secrets.ELDRA_BUILD_TOKEN }}
           # A build is production unless ELDRA_BUILD_TARGET=preview, so none is set here.
           ELDRA_SITE_URL: ${{ vars.ELDRA_SITE_URL }}
-      - run: pnpm exec eldra-theme deploy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eldra-build
+          path: .output/public
+          # The manifest lives in .output/public/.eldra, a hidden directory.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+  # The deploy job has the deploy token (it can publish the site) and runs none of the project's
+  # code: no checkout, no `pnpm install`, only the pinned CLI, installed with scripts disabled.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/download-artifact@v4
+        with:
+          name: eldra-build
+          path: .output/public
+      # Keep this version in step with @eldrajs/theme-cli in package.json.
+      - run: npx --yes @eldrajs/theme-cli@0.2.1 deploy
         env:
+          npm_config_ignore_scripts: 'true'
           ELDRA_API_URL: ${{ vars.ELDRA_API_URL }}
           ELDRA_DEPLOY_TOKEN: ${{ secrets.ELDRA_DEPLOY_TOKEN }}
           ELDRA_TRIGGER_DEPLOYMENT_ID: ${{ github.event.client_payload.deploymentId }}
