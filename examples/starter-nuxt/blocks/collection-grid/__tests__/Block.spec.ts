@@ -96,6 +96,8 @@ interface Stub {
   revalidating: Ref<ReadonlySet<VolatileKey>>;
   /** Set by a test to fail the read *after* it has already answered once. */
   error: Ref<string | null>;
+  /** Flipped by a test to hold the drawer's count read (`pageSize: 1`) unanswered: `data` is null. */
+  holdCountReads: Ref<boolean>;
   /** Every `collectionProducts` request, newest last — the grid's and the drawer's pending count. */
   requests: Array<{ pageSize: number; sort?: string; filters?: Record<string, string[]> }>;
 }
@@ -128,6 +130,7 @@ function createStub(
   const loading = ref(false);
   const revalidating = ref<ReadonlySet<VolatileKey>>(new Set());
   const error = ref<string | null>(null);
+  const holdCountReads = ref(false);
   const requests: Stub['requests'] = [];
   const filteredCount = options.filteredCount ?? 0;
   const catalog: StorefrontCatalog = {
@@ -136,6 +139,7 @@ function createStub(
       watch(opts, (value) => requests.push({ ...value }), { deep: true });
       const data = computed(() => {
         if (collection.value === null) return null;
+        if (opts.value.pageSize === 1 && holdCountReads.value) return null;
         const filtered = opts.value.filters !== undefined;
         return {
           items: filtered ? items.slice(0, filteredCount) : items.slice(0, opts.value.pageSize),
@@ -157,7 +161,15 @@ function createStub(
       } as unknown as StorefrontResult<StorefrontCollectionProducts>;
     },
   };
-  return { source: { ...base, catalog }, pending, loading, revalidating, error, requests };
+  return {
+    source: { ...base, catalog },
+    pending,
+    loading,
+    revalidating,
+    error,
+    holdCountReads,
+    requests,
+  };
 }
 
 /** A storefront whose collection read is still on its very first load: `pending`, and no data at
@@ -937,6 +949,108 @@ describe('collection-grid block', () => {
       expect(countReads()).toBe(before + 1);
       // And the page itself is untouched until "Show N products" is pressed.
       expect(countLine(wrapper).text()).toBe('12 products');
+    });
+  });
+
+  describe('the drawer’s facets follow the pending selection', () => {
+    /** The page narrowed by Size M answers facets with no Colour group; the unfiltered answer (what
+     *  the drawer's own count read gets once Size is unticked inside it) lists Colour, counted 77. */
+    const withoutColour: CatalogFacets = {
+      ...FACETS,
+      options: FACETS.options.filter((option) => option.key !== 'colour'),
+    };
+    const withColour: CatalogFacets = {
+      ...FACETS,
+      options: FACETS.options.map((option) =>
+        option.key === 'colour'
+          ? { ...option, values: option.values.map((value) => ({ ...value, count: 77 })) }
+          : option
+      ),
+    };
+    const legends = (wrapper: VueWrapper, root: 'aside' | 'dialog') =>
+      wrapper
+        .get(root)
+        .findAll('legend')
+        .map((legend) => legend.text());
+
+    async function narrowThenOpenDrawer(stub: Stub) {
+      useFilterTimers();
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      await panelFor(wrapper, enUS.grid.legendSize)
+        .panel.findAll('input[type="checkbox"]')[2]!
+        .setValue(true);
+      await settleFilterDebounce(wrapper);
+      expect(legends(wrapper, 'aside')).not.toContain(enUS.grid.legendColour);
+
+      await filterButton(wrapper).trigger('click');
+      await wrapper.vm.$nextTick();
+      return wrapper;
+    }
+
+    /** The drawer's own Size group: the tick that narrowed the page, now pending. */
+    const untickSizeInDrawer = async (wrapper: VueWrapper) => {
+      useFilterTimers();
+      const sizes = wrapper
+        .get('dialog')
+        .findAll('fieldset')
+        .find((group) => group.get('legend').text() === enUS.grid.legendSize)!;
+      await sizes.findAll('input[type="checkbox"]')[2]!.setValue(false);
+      await settleFilterDebounce(wrapper);
+      await flushPromises();
+    };
+
+    it('brings back a group the applied facets lack, counted from the pending read', async () => {
+      const stub = createStub(PRODUCTS, {
+        filteredCount: 4,
+        filteredFacets: withoutColour,
+        facets: withColour,
+      });
+      const wrapper = await narrowThenOpenDrawer(stub);
+      // Nothing pending differs yet, so the drawer describes the same narrowed result.
+      expect(legends(wrapper, 'dialog')).not.toContain(enUS.grid.legendColour);
+
+      await untickSizeInDrawer(wrapper);
+
+      expect(legends(wrapper, 'dialog')).toContain(enUS.grid.legendColour);
+      expect(wrapper.get('dialog').text()).toContain('77');
+      // The page behind it is untouched, and its sidebar still reads the applied facets.
+      expect(legends(wrapper, 'aside')).not.toContain(enUS.grid.legendColour);
+      expect(countLine(wrapper).text()).toBe('4 products');
+    });
+
+    it('keeps a group the pending selection holds even when the pending facets stop listing it', async () => {
+      useFilterTimers();
+      const stub = createStub(PRODUCTS, { filteredCount: 4, filteredFacets: withoutColour });
+      const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      await panelFor(wrapper, enUS.grid.legendColour)
+        .panel.get('input[type="checkbox"]')
+        .setValue(true);
+      await settleFilterDebounce(wrapper);
+
+      await filterButton(wrapper).trigger('click');
+      await flushPromises();
+
+      expect(legends(wrapper, 'dialog')).toContain(enUS.grid.legendColour);
+    });
+
+    it('shows the applied facets until the pending read has answered', async () => {
+      const stub = createStub(PRODUCTS, {
+        filteredCount: 4,
+        filteredFacets: withoutColour,
+        facets: withColour,
+      });
+      stub.holdCountReads.value = true;
+      const wrapper = await narrowThenOpenDrawer(stub);
+      expect(legends(wrapper, 'dialog')).toContain(enUS.grid.legendSize);
+
+      await untickSizeInDrawer(wrapper);
+      expect(legends(wrapper, 'dialog')).not.toContain(enUS.grid.legendColour);
+
+      stub.holdCountReads.value = false;
+      await flushPromises();
+      expect(legends(wrapper, 'dialog')).toContain(enUS.grid.legendColour);
     });
   });
 
