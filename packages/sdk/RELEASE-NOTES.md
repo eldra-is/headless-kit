@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.0...sdk-v0.3.1) (2026-10-19)
+
+
+### Features
+
+* **sdk:** send a read-only build token from theme builds, never the deploy token (WS-403, WS-409) ([#68](https://github.com/eldra-is/headless-kit/issues/68)) ([f5b1cfa](https://github.com/eldra-is/headless-kit/commit/f5b1cfab30f867f187346af422e865a46212cfe9))
+
 ## [0.3.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.9...sdk-v0.3.0) (2026-10-18)
 
 

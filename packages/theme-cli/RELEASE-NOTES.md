@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.1...theme-cli-v0.2.2) (2026-10-19)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.1
+    * @eldrajs/vite-plugin-theme bumped to 0.3.1
+
 ## [0.2.1](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.0...theme-cli-v0.2.1) (2026-10-18)
 
 
