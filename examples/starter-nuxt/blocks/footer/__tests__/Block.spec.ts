@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { computed } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
@@ -11,6 +12,7 @@ import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
   StorefrontCommerce,
   StorefrontFormSubmitResult,
+  StorefrontSource,
   StorefrontForms,
 } from '../../../app/storefront/types';
 import { createDemoStorefront } from '../../../app/storefront/demo';
@@ -79,6 +81,8 @@ function mountFooter(
   options: {
     failForms?: boolean;
     subscribe?: StorefrontForms['submit'];
+    /** A whole storefront, for a spec that needs a form definition the demo does not have. */
+    storefront?: StorefrontSource;
     /** Turn Cloudflare Turnstile on for the sign-up form (with `subscribe` as its submit). */
     turnstile?: boolean;
     /** Studio's edit mode — what `useEditing()` reads, and the only state that shows hints. */
@@ -113,14 +117,15 @@ function mountFooter(
     context.preview.mode = 'edit';
   }
   const storefront =
-    options.subscribe && options.turnstile
+    options.storefront ??
+    (options.subscribe && options.turnstile
       ? storefrontWithTurnstile(options.subscribe)
       : options.subscribe
         ? (() => {
             const demo = createDemoStorefront();
             return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
           })()
-        : undefined;
+        : undefined);
   return mount(Block, {
     ...base,
     // Real focus tracking (`document.activeElement`, and `Select`'s own focus-return behaviour)
@@ -316,7 +321,37 @@ describe('footer block', () => {
     const label = wrapper.find(`label[for="${id}"]`);
     expect(label.exists()).toBe(true);
     expect(label.text()).toBe(enUS.footer.emailLabel);
-    expect(label.classes()).toContain('sr-only');
+    expect(label.classes()).not.toContain('sr-only');
+  });
+
+  it("labels the email field with the form definition's own label", async () => {
+    const demo = createDemoStorefront();
+    const storefront = {
+      ...demo,
+      forms: {
+        ...demo.forms,
+        definition: (key: string) => {
+          const result = demo.forms.definition(key);
+          return {
+            ...result,
+            data: computed(() =>
+              result.data.value === null
+                ? null
+                : {
+                    ...result.data.value,
+                    fields: result.data.value.fields.map((field) =>
+                      field.type === 'email' ? { ...field, label: 'Where should we write?' } : field
+                    ),
+                  }
+            ) as typeof result.data,
+          };
+        },
+      },
+    };
+    const wrapper = mountFooter(mock, { storefront });
+    await flushPromises();
+    const input = wrapper.get('input[type="email"]');
+    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('Where should we write?');
   });
 
   it("shows the placeholder the form's email field carries, not its label", async () => {

@@ -327,12 +327,11 @@ const {
   reset,
 } = useFormSpam(computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : '')));
 const consentSentenceId = `footer-consent-sentence-${useUiId()}`;
-// The placeholder the merchant wrote on the form's email field; the field's label stands in until there is one.
-const emailPlaceholder = computed(
-  () =>
-    definition.value?.fields.find((field) => field.type === 'email')?.placeholder ||
-    t('footer.emailLabel')
-);
+// The merchant's own label and placeholder on the form's email field; the theme's wording stands in until the
+// definition has loaded.
+const emailField = computed(() => definition.value?.fields.find((field) => field.type === 'email'));
+const emailLabel = computed(() => emailField.value?.label || t('footer.emailLabel'));
+const emailPlaceholder = computed(() => emailField.value?.placeholder || undefined);
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -540,9 +539,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               </p>
               <div ref="emailFieldRoot" class="contents">
                 <FieldWrapper
-                  :label="t('footer.emailLabel')"
+                  :label="emailLabel"
                   :error="emailError ?? undefined"
-                  :classes="{ label: 'sr-only', root: 'block w-full' }"
+                  :classes="{ root: 'block w-full' }"
                 >
                   <Input
                     v-model="email"
