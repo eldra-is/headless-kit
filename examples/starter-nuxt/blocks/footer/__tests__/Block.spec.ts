@@ -328,6 +328,8 @@ describe('footer block', () => {
     const actions = wrapper.get('[data-part="consent-sentence"]').element.parentElement;
     expect(actions?.classList.contains('grid-cols-[minmax(0,1fr)]')).toBe(true);
     expect(actions?.parentElement?.classList.contains('w-full')).toBe(true);
+    // The form's own 0.25rem row gap leaves the button touching the field; the row adds the rest.
+    expect(actions?.parentElement?.classList.contains('mt-3')).toBe(true);
   });
 
   it('shows the platform consent sentence under the sign-up button, tied to it with aria-describedby', async () => {
