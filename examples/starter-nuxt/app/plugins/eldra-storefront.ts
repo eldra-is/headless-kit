@@ -187,7 +187,7 @@ export default defineNuxtPlugin({
       // @eldrajs/theme-nuxt's, and a rate limit that only one of them waits
       // out still fails the build.
       retry: publicConfig.eldra?.retry ?? undefined,
-      // The deploy token, from private runtime config and only during a prerender (`undefined` in
+      // The deploy token, from the build environment and only during a prerender (`undefined` in
       // the browser): it gives the build its own rate-limit budget at the gateway.
       buildToken: useEldraBuildToken(),
     });

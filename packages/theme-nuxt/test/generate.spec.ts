@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
@@ -1071,7 +1071,7 @@ describe('theme-nuxt nuxi generate', () => {
    * the gateway can give its reads their own rate-limit bucket. The token is a secret: it must reach
    * the gateway from the server-side prerender and appear in nothing the build publishes.
    */
-  it('sends ELDRA_DEPLOY_TOKEN as X-Eldra-Build-Token from the build and leaks it into no output', async () => {
+  it('sends ELDRA_DEPLOY_TOKEN as X-Eldra-Build-Token from the build and leaks it into no built file', async () => {
     const token = 'eldra_site_0b7e8c1a-1111-4222-8333-444455556666_s3cr3t-deploy-token';
     const { buildTokens } = await generateWith({}, { ELDRA_DEPLOY_TOKEN: token });
 
@@ -1083,10 +1083,16 @@ describe('theme-nuxt nuxi generate', () => {
       readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
         entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]
       );
+    // The whole build: published files, the server bundle and the prerender bundle in `.nuxt`.
     const published = walk(output(''));
-    expect(published.length).toBeGreaterThan(0);
     expect(published.some((file) => file.endsWith('_payload.json'))).toBe(true);
-    for (const file of published) {
+    const everything = [
+      ...published,
+      ...walk(join(fixtureDir, '.output')),
+      ...walk(join(fixtureDir, '.nuxt')),
+    ];
+    expect(everything.some((file) => file.includes(`${sep}.nuxt${sep}dist${sep}`))).toBe(true);
+    for (const file of new Set(everything)) {
       const text = readFileSync(file, 'latin1');
       expect(text, file).not.toContain(token);
       expect(text, file).not.toContain('s3cr3t-deploy-token');
