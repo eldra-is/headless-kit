@@ -316,6 +316,7 @@ const showNewsletter = computed(
 );
 // Only a footer that shows the sign-up reads the form's definition (its honeypot and Turnstile).
 const {
+  definition,
   honeypot,
   honeypotField,
   siteKey,
@@ -326,6 +327,12 @@ const {
   reset,
 } = useFormSpam(computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : '')));
 const consentSentenceId = `footer-consent-sentence-${useUiId()}`;
+// The placeholder the merchant wrote on the form's email field; the field's label stands in until there is one.
+const emailPlaceholder = computed(
+  () =>
+    definition.value?.fields.find((field) => field.type === 'email')?.placeholder ||
+    t('footer.emailLabel')
+);
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -535,14 +542,14 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 <FieldWrapper
                   :label="t('footer.emailLabel')"
                   :error="emailError ?? undefined"
-                  :classes="{ label: 'sr-only' }"
+                  :classes="{ label: 'sr-only', root: 'block w-full' }"
                 >
                   <Input
                     v-model="email"
                     type="email"
                     name="email"
                     autocomplete="email"
-                    :placeholder="t('footer.emailLabel')"
+                    :placeholder="emailPlaceholder"
                   />
                 </FieldWrapper>
               </div>

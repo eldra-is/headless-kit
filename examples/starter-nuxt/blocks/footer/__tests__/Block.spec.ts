@@ -319,6 +319,21 @@ describe('footer block', () => {
     expect(label.classes()).toContain('sr-only');
   });
 
+  it("shows the placeholder the form's email field carries, not its label", async () => {
+    const wrapper = mountFooter(mock);
+    await flushPromises();
+    expect(wrapper.get('input[type="email"]').attributes('placeholder')).toBe('name@example.com');
+  });
+
+  it('keeps the email error in the field cell, directly under the input', async () => {
+    const wrapper = mountFooter(mock);
+    await flushPromises();
+    // The field wrapper is `display: contents` by default, which turns its error into a flex item of
+    // its own that lands after the button row; a real block keeps the two together.
+    const cell = wrapper.get('input[type="email"]').element.closest('.content-start');
+    expect(cell?.parentElement?.classList.contains('block')).toBe(true);
+  });
+
   it('keeps the sign-up button and its consent sentence in one column as wide as the form', async () => {
     const wrapper = mountFooter(mock);
     await flushPromises();
