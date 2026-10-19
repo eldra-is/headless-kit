@@ -43,6 +43,7 @@ export function useFormSpam(formKey: Ref<string>) {
   }
 
   return {
+    definition: definition.data,
     honeypot,
     honeypotField,
     siteKey,

@@ -316,6 +316,7 @@ const showNewsletter = computed(
 );
 // Only a footer that shows the sign-up reads the form's definition (its honeypot and Turnstile).
 const {
+  definition,
   honeypot,
   honeypotField,
   siteKey,
@@ -326,6 +327,11 @@ const {
   reset,
 } = useFormSpam(computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : '')));
 const consentSentenceId = `footer-consent-sentence-${useUiId()}`;
+// The merchant's own label and placeholder on the form's email field; the theme's wording stands in until the
+// definition has loaded.
+const emailField = computed(() => definition.value?.fields.find((field) => field.type === 'email'));
+const emailLabel = computed(() => emailField.value?.label || t('footer.emailLabel'));
+const emailPlaceholder = computed(() => emailField.value?.placeholder || undefined);
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -521,6 +527,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               :heading-level="3"
               :aria-label="data.newsletterTitle ? undefined : t('footer.newsletterAriaLabel')"
               :submitting="newsletterState === 'submitting'"
+              :classes="{ actions: 'w-full mt-3' }"
               @submit="onNewsletterSubmit"
               @invalid="onNewsletterInvalid"
             >
@@ -532,23 +539,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               </p>
               <div ref="emailFieldRoot" class="contents">
                 <FieldWrapper
-                  :label="t('footer.emailLabel')"
+                  :label="emailLabel"
                   :error="emailError ?? undefined"
-                  :classes="{ label: 'sr-only' }"
+                  :classes="{ root: 'block w-full' }"
                 >
                   <Input
                     v-model="email"
                     type="email"
                     name="email"
                     autocomplete="email"
-                    :placeholder="t('footer.emailLabel')"
+                    :placeholder="emailPlaceholder"
                   />
                 </FieldWrapper>
               </div>
               <FormHoneypot v-model="honeypot" :name="honeypotField" />
               <div v-if="siteKey" ref="turnstileRoot" class="w-full" />
               <template #actions>
-                <div class="grid w-full gap-2">
+                <div class="grid w-full grid-cols-[minmax(0,1fr)] gap-2">
                   <Button
                     type="submit"
                     variant="primary"
