@@ -25,7 +25,8 @@ export interface EldraClientOptions {
   fetch?: typeof globalThis.fetch; // injectable for tests/SSR
   retry?: EldraRetryOptions; // see EldraRetryOptions; defaults documented there
   /**
-   * The site's deploy token, sent as `X-Eldra-Build-Token` on every request so the gateway counts a
+   * The organisation's read-only build token (`eldra_bld_…`, Studio → Settings → Developers →
+   * Build tokens), sent as `X-Eldra-Build-Token` on every request so the gateway counts a
    * theme build's reads against the build's own rate-limit budget. Server and build only: never
    * pass it from browser code or a public config. Omitted or empty sends no header.
    */

@@ -10,9 +10,12 @@ eldra-deploy:
     - corepack enable && corepack prepare pnpm@9.15.0 --activate
   script:
     - pnpm install --frozen-lockfile
-    # ELDRA_DEPLOY_TOKEN (a masked CI/CD variable, already read by `eldra-theme deploy`) is also read
-    # by the generate step: it gives the build's gateway reads their own rate-limit bucket.
-    - pnpm exec nuxi generate
+    # ELDRA_BUILD_TOKEN (a masked CI/CD variable: Studio → Settings → Developers → Build tokens) is
+    # read by the generate step; it gives the build's gateway reads their own rate-limit bucket.
+    # ELDRA_DEPLOY_TOKEN (also masked) is needed only by `eldra-theme deploy`. GitLab CI/CD variables
+    # are job-wide, so the generate command removes it from its own environment (`env -u`), which
+    # keeps it from the build's npm dependencies.
+    - env -u ELDRA_DEPLOY_TOKEN pnpm exec nuxi generate
     - pnpm exec eldra-theme deploy
   variables:
     # A build is production unless ELDRA_BUILD_TARGET=preview, so none is set here.

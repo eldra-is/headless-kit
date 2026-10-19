@@ -265,11 +265,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       isPreview: nuxt.options.dev || buildTarget !== 'production',
     };
 
-    // The deploy token a build sends as `X-Eldra-Build-Token` (its own rate-limit bucket). Kept out
+    // The read-only build token (never the deploy token) a build sends as `X-Eldra-Build-Token` (its own rate-limit bucket). Kept out
     // of runtime config entirely: Nitro inlines private defaults into the server build. The module's
     // own build-time clients read `process.env`; `useEldraBuildToken` reads it at call time, during
     // a prerender only. See `./runtime/buildToken.ts`.
-    const buildToken = (process.env.ELDRA_DEPLOY_TOKEN ?? '').trim();
+    const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
 
     addPlugin(resolver.resolve('./runtime/plugin'));
     addPlugin(resolver.resolve('./runtime/analyticsPlugin'));

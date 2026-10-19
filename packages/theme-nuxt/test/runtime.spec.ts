@@ -543,7 +543,7 @@ interface EntryDocLike {
 }
 
 /**
- * WS-403: the deploy token a build sends as `X-Eldra-Build-Token` is a secret. It is stored in no
+ * WS-403/WS-409: the read-only build token a build sends as `X-Eldra-Build-Token` is a secret. It is stored in no
  * runtime config (public is serialised into every payload; private defaults are inlined into the
  * server build by Nitro) and is read from `process.env` at call time during a prerender only.
  */
@@ -552,14 +552,14 @@ describe('the build token stays out of runtime config, the build output and the 
 
   it('is written to no runtime config', () => {
     expect(moduleSource).not.toMatch(/runtimeConfig[^\n]*[Bb]uildToken/);
-    expect(moduleSource).not.toMatch(/runtimeConfig[^\n]*DEPLOY_TOKEN/);
+    expect(moduleSource).not.toMatch(/runtimeConfig[^\n]*(DEPLOY|BUILD)_TOKEN/);
     const publicBlock = block(
       moduleSource,
       'nuxt.options.runtimeConfig.public.eldra = {',
       '\n    };'
     );
     expect(publicBlock).not.toMatch(/buildToken|deploy.?token/i);
-    expect(publicBlock).not.toContain('ELDRA_DEPLOY_TOKEN');
+    expect(publicBlock).not.toContain('ELDRA_BUILD_TOKEN');
     expect(moduleSource).not.toMatch(/runtimeConfig\.public\.eldraSeo = \{[^}]*[Tt]oken/);
   });
 
@@ -568,17 +568,24 @@ describe('the build token stays out of runtime config, the build output and the 
     expect(composable).toContain('!import.meta.server || !import.meta.prerender');
     expect(composable).toContain('return undefined');
     expect(composable).not.toContain('useRuntimeConfig');
-    // No literal `process.env.ELDRA_DEPLOY_TOKEN`, which a bundler may inline.
-    expect(composable).not.toMatch(/process\.env\.ELDRA_DEPLOY_TOKEN/);
+    // No literal `process.env.ELDRA_BUILD_TOKEN`, which a bundler may inline.
+    expect(composable).not.toMatch(/process\.env\.ELDRA_BUILD_TOKEN/);
+    expect(composable).not.toContain('DEPLOY_TOKEN');
     // The browser-reachable plugin passes the composable's answer, never an env or config value.
     expect(source('../src/runtime/plugin.ts')).toContain('buildToken: useEldraBuildToken()');
     expect(source('../src/runtime/plugin.ts')).not.toContain('eldraBuildToken');
   });
 
   it('is picked from the environment, trimmed, with blank meaning none', () => {
-    expect(pickBuildToken({ ELDRA_DEPLOY_TOKEN: ' tok ' })).toBe('tok');
-    expect(pickBuildToken({ ELDRA_DEPLOY_TOKEN: '' })).toBeUndefined();
-    expect(pickBuildToken({ ELDRA_DEPLOY_TOKEN: '  ' })).toBeUndefined();
+    expect(pickBuildToken({ ELDRA_BUILD_TOKEN: ' eldra_bld_abc123_9f8e7d ' })).toBe(
+      'eldra_bld_abc123_9f8e7d'
+    );
+    expect(pickBuildToken({ ELDRA_BUILD_TOKEN: '' })).toBeUndefined();
+    expect(pickBuildToken({ ELDRA_BUILD_TOKEN: '  ' })).toBeUndefined();
+    // The deploy token never rides along, not even as a fallback.
+    expect(
+      pickBuildToken({ ELDRA_DEPLOY_TOKEN: 'eldra_site_0b7e8c1a_deploy-secret' })
+    ).toBeUndefined();
     expect(pickBuildToken({ OTHER: 'tok' })).toBeUndefined();
     expect(pickBuildToken(undefined)).toBeUndefined();
   });

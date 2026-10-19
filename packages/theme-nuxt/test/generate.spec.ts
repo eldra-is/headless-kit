@@ -1067,13 +1067,13 @@ describe('theme-nuxt nuxi generate', () => {
   }, 360_000);
 
   /**
-   * WS-403. A build proves it is a build with the site's deploy token, in `X-Eldra-Build-Token`, so
+   * WS-403/WS-409. A build proves it is a build with the organisation's read-only build token, in `X-Eldra-Build-Token`, so
    * the gateway can give its reads their own rate-limit bucket. The token is a secret: it must reach
    * the gateway from the server-side prerender and appear in nothing the build publishes.
    */
-  it('sends ELDRA_DEPLOY_TOKEN as X-Eldra-Build-Token from the build and leaks it into no built file', async () => {
-    const token = 'eldra_site_0b7e8c1a-1111-4222-8333-444455556666_s3cr3t-deploy-token';
-    const { buildTokens } = await generateWith({}, { ELDRA_DEPLOY_TOKEN: token });
+  it('sends ELDRA_BUILD_TOKEN as X-Eldra-Build-Token from the build and leaks it into no built file', async () => {
+    const token = 'eldra_bld_Zk3p9QxW7mTn2vLc_a1b2c3d4';
+    const { buildTokens } = await generateWith({}, { ELDRA_BUILD_TOKEN: token });
 
     expect(buildTokens.length).toBeGreaterThan(0);
     // Every gateway read the build made — the module's discovery reads and the runtime plugin's.
@@ -1095,11 +1095,20 @@ describe('theme-nuxt nuxi generate', () => {
     for (const file of new Set(everything)) {
       const text = readFileSync(file, 'latin1');
       expect(text, file).not.toContain(token);
-      expect(text, file).not.toContain('s3cr3t-deploy-token');
+      expect(text, file).not.toContain('Zk3p9QxW7mTn2vLc');
     }
   }, 360_000);
 
-  it('sends no X-Eldra-Build-Token when ELDRA_DEPLOY_TOKEN is not set', () => {
+  it('sends no X-Eldra-Build-Token when only ELDRA_DEPLOY_TOKEN is set (the deploy token never rides along)', async () => {
+    const { buildTokens } = await generateWith(
+      {},
+      { ELDRA_DEPLOY_TOKEN: 'eldra_site_0b7e8c1a_s3cr3t-deploy-token', ELDRA_BUILD_TOKEN: '' }
+    );
+    expect(buildTokens.length).toBeGreaterThan(0);
+    expect(buildTokens.every((value) => value === null)).toBe(true);
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when ELDRA_BUILD_TOKEN is not set', () => {
     expect(gateway.requests.length).toBeGreaterThan(0);
     expect(gateway.buildTokens.every((value) => value === null)).toBe(true);
   });

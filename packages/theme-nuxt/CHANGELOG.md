@@ -5,10 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
-- **A build sends its deploy token for its own rate-limit bucket (WS-403).** `ELDRA_DEPLOY_TOKEN` is
+- **A build sends a read-only build token for its own rate-limit bucket (WS-403, WS-409).**
+  `ELDRA_BUILD_TOKEN` (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens) is
   sent as `X-Eldra-Build-Token` by the module's build-time reads and by the clients of a
   `nuxi generate` prerender; never in the browser, `nuxi dev` or a deployed server answering a
-  visitor. It is stored in no runtime config (public or private) and appears in no build output,
+  visitor. The site deploy token is never read or sent by the build: keep `ELDRA_DEPLOY_TOKEN` on the
+  `eldra-theme deploy` step only. The token is stored in no runtime config (public or private) and appears in no build output,
   server bundle included: it is read from the environment at call time. New auto-import
   `useEldraBuildToken()` returns it (prerender only) for a theme's own `@eldrajs/sdk` client.
 

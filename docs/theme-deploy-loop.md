@@ -51,12 +51,23 @@ gateway falls back to the bundled list with a warning rather than failing closed
 pnpm generate     # nuxi generate — real static build
 ```
 
-The generate step may carry `ELDRA_DEPLOY_TOKEN` (the same site token `deploy` uses; the starter's
-pipelines pass it). The build sends it only from the server-side prerender, in an
-`X-Eldra-Build-Token` header, and the gateway then gives the build its own rate-limit budget
-instead of counting its hundreds of requests against the machine's IP, which a CI runner or office
-network shares with real visitors. It is stored in no runtime config and reaches no build output (browser bundle, server bundle,
-HTML or `_payload.json`). Without it a build counts against its machine's IP like any visitor.
+The generate step may carry `ELDRA_BUILD_TOKEN`, a read-only **build token** (`eldra_bld_…`).
+Create one in Studio under Settings → Developers → Build tokens (they are per organisation) and
+store it as the `ELDRA_BUILD_TOKEN` CI secret. The build sends it only from the server-side
+prerender, in an `X-Eldra-Build-Token` header, and the gateway then gives the build its own
+rate-limit budget instead of counting its hundreds of requests against the machine's IP, which a CI
+runner or office network shares with real visitors. It is stored in no runtime config and reaches
+no build output (browser bundle, server bundle, HTML or `_payload.json`). Without it a build counts
+against its machine's IP like any visitor.
+
+Do **not** give the generate step the site deploy token. The deploy token can publish a site, and
+`nuxi generate` runs every npm dependency's code; the build never reads `ELDRA_DEPLOY_TOKEN`. Only
+the `deploy` step (section 4) needs it.
+
+Headless / SDK use: a theme's own client can pass the same build token as `buildToken` to
+`createEldraClient`, from server-side code only (never a browser bundle or public config). Mind
+the SSR caveat: a server that sends it on every visitor request makes all of that traffic share
+the organisation's build budget, so use it for builds and prerenders, not for live SSR.
 
 This is where the build-time platform reads happen: commerce settings, content locales,
 theme-message overrides and resolved design tokens, each read once, in parallel, and each
@@ -163,7 +174,7 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
 - **`manifest exceeds the 2 MiB limit`** — reduce block metadata and mock content (most often an
   oversized `mock.json`), then rebuild and redeploy.
 - **`token invalid or revoked`** — generate a fresh deploy token in Studio (Settings → Site → Deploy
-  token); a token is site-scoped and revocable independently of any other credential.
+  token). A rejected build token is replaced under Settings → Developers → Build tokens; a token is site-scoped and revocable independently of any other credential.
 - **`deploy rate limit hit`** — wait and retry; this is a platform-side throttle, not a build defect.
 
 ### Redirects
