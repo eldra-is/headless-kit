@@ -60,9 +60,20 @@ runner or office network shares with real visitors. It is stored in no runtime c
 no build output (browser bundle, server bundle, HTML or `_payload.json`). Without it a build counts
 against its machine's IP like any visitor.
 
-Do **not** give the generate step the site deploy token. The deploy token can publish a site, and
-`nuxi generate` runs every npm dependency's code; the build never reads `ELDRA_DEPLOY_TOKEN`. Only
-the `deploy` step (section 4) needs it.
+Do **not** give the build the site deploy token. The deploy token can publish a site, and the
+build runs every npm dependency's code (install scripts, `nuxi generate`) as the same user as the
+job, so no per-command environment trick keeps it out of reach; only a separate job does. The
+starter's pipelines therefore split into a **build job** (checkout, install, `nuxi generate`, with
+`ELDRA_BUILD_TOKEN`, uploading `.output/public` as an artifact) and a **deploy job** (downloads the
+artifact and runs `eldra-theme deploy` with `ELDRA_DEPLOY_TOKEN`). The deploy job installs none of
+the project's dependencies: it runs the pinned CLI (`npx @eldrajs/theme-cli@<version> deploy`, with
+install scripts disabled) against the artifact. Where the deploy token lives:
+
+- GitHub Actions: repository secrets, referenced only in the `deploy` job's step `env`.
+- GitLab CI: a masked, protected CI/CD variable scoped to the `production` environment; the deploy
+  job declares `environment: production`, so the build job never receives it.
+- Bitbucket Pipelines: a deployment variable of the Production environment (not a repository
+  variable); the deploy step declares `deployment: production`.
 
 Headless / SDK use: a theme's own client can pass the same build token as `buildToken` to
 `createEldraClient`, from server-side code only (never a browser bundle or public config). Mind
@@ -209,7 +220,8 @@ correct").
 Wiring that dispatch is a one-time setup per site, documented with worked examples for GitHub
 Actions, GitLab CI and Bitbucket Pipelines in [the starter's own
 README](../examples/starter-nuxt/README.md#wiring-rebuilds): a pipeline that checks out the theme,
-runs `nuxi generate` and `eldra-theme deploy` with the four environment values above, triggered
+builds with `nuxi generate` and, in a separate job that alone holds the deploy token, runs
+`eldra-theme deploy` with the four environment values above, triggered
 either by your own push or by the platform's dispatch. A triggered rebuild passes
 `ELDRA_TRIGGER_DEPLOYMENT_ID`, which `deploy` forwards as `triggerDeploymentId` so the platform
 completes the deployment it already created rather than opening a duplicate.
