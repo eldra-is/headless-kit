@@ -93,9 +93,8 @@ describe('FilterPanel — structure, roles and names', () => {
 
   /**
    * Spec → Sizes, Trigger row: "0.9375rem weight 600, left-aligned." `text-control` alone would
-   * render the facet name at the body weight (400) — `font`'s shorthand bakes that in — so the
-   * label carries the dedicated `text-filter-trigger` utility instead; see its comment in
-   * `tailwind.css`.
+   * render the facet name at the body weight (400), so the label carries the dedicated
+   * `text-filter-trigger` utility instead; see its comment in `tailwind.css`.
    */
   it('renders the facet name at weight 600, not the body weight', () => {
     const wrapper = mountWith(FilterPanel, { props: { facets: ALL_FACETS, currency: 'USD' } });

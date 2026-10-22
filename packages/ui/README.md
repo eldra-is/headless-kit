@@ -47,6 +47,15 @@ delivery shape.
   @import '@eldrajs/ui/tailwind.css';
   ```
 
+  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
+  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
+  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
+  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
+  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
+  Line height and tracking are plain longhands on purpose: the starter's own base rule
+  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
+  style.
+
 - **`@eldrajs/ui/style.css`** — the package's own compiled build of `tailwind.css` plus every
   component's utilities, for a consumer with no Tailwind build of their own:
 
@@ -199,7 +208,10 @@ Every component supports all five of these; none hard-codes anything a store mig
    `<Name>Part` type and its Storybook docs page for the exact list). Values merge onto that part's
    own classes with `tailwind-merge` (via this package's own `cx`, also exported for a consumer
    composing a wrapper the same way), so `classes.root: 'rounded-full'` replaces
-   `eldra-button-radius` instead of landing beside it.
+   `eldra-button-radius` instead of landing beside it. The `@theme` keys that are not t-shirt sizes
+   (`shadow-float`, the `narrow`/`content`/`wide`/`tablet`/`two-col` container widths) merge the
+   same way, and a weight is never a conflict with a type style: `classes.label: 'font-bold'` keeps
+   `text-body-sm` and changes only the weight.
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered _root_ element (`Button`,

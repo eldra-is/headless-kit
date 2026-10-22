@@ -61,7 +61,7 @@ const buttonClass = computed(() =>
   partClass(
     cx(
       'relative inline-flex items-center justify-center control-h gap-2 rounded-md border px-4.5',
-      'border-border-strong bg-background text-text text-button-md font-medium cursor-pointer',
+      'border-border-strong bg-background text-text text-button-md cursor-pointer',
       'eldra-focus hover:border-text hover:bg-surface',
       'active:scale-[0.98] motion-reduce:active:scale-100'
     ),

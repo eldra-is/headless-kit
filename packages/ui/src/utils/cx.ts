@@ -67,6 +67,11 @@ const twMerge = extendTailwindMerge<
   | 'eldra-nav-menu-dropdown'
 >({
   extend: {
+    // tailwind.css `@theme` keys that are not t-shirt sizes, so `shadow-float`/`w-narrow` merge too.
+    theme: {
+      shadow: ['float'],
+      container: ['narrow', 'content', 'wide', 'tablet', 'two-col'],
+    },
     classGroups: {
       // Type styles (tailwind.css "Type styles" + "Button type"): all `text-*` utilities, so a
       // consumer's `text-lg` replaces `text-button-md` instead of landing beside it.
@@ -216,23 +221,9 @@ const twMerge = extendTailwindMerge<
       // shorthand, the same technique `eldra-drawer-width` uses for its own viewport exception, in
       // Tailwind's own `m` group so a consumer's `classes.root: 'm-0'` replaces it outright.
       m: ['eldra-search-modal-position'],
-      // `max-w-narrow`/`-content`/`-wide` (tailwind.css's `@theme` block, "Container and section"):
-      // Tailwind generates these from the `--container-*` theme namespace, not from an `@utility`
-      // this package writes, so `custom-utility-coverage.spec.ts`'s scan (which only reads
-      // `@utility` names) cannot catch a missing entry here the way it does for the rest of this
-      // file — proven by mutation: without this line, `cx('max-w-narrow', 'max-w-full')` keeps
-      // both instead of letting `Container`'s own `full` (or a consumer's `classes.root`) win.
-      // `eldra-container-narrow`/`-content`/`-wide` (tailwind.css, "Container's own max-width
-      // utilities") are `Container`'s actual width utilities — real `@utility` declarations, so
-      // `custom-utility-coverage.spec.ts` does catch a missing entry for these on its own — but they
-      // still belong in this same group: they are mutually exclusive with each other, with the
-      // three stock ones above, with `max-w-none` (`Container`'s own `full`), and with a consumer's
-      // `classes.root` override.
+      // `Container`'s widths: one group with the `container` scale's `max-w-*` and `max-w-none`.
       'max-w': [
         'eldra-select-panel-width',
-        'max-w-narrow',
-        'max-w-content',
-        'max-w-wide',
         'eldra-container-narrow',
         'eldra-container-content',
         'eldra-container-wide',
