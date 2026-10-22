@@ -101,8 +101,8 @@ const image = responsiveImage(product.thumbnail, {
 
 It returns `undefined` when there is no URL, and only `src` (plus `width`/`height`) for an image it
 cannot resize. When the source carries the `width` and `height` the API gives (below), the
-`srcset` stops at the original's width and the attributes are the image's own proportions, with no
-option at all. A framework-free renderer is in
+`srcset` stops at the original's width (or ends with the original, when it is wider than `full`)
+and the attributes are the image's own proportions, with no option at all. A framework-free renderer is in
 [examples/node-script/images.ts](../examples/node-script/images.ts).
 
 The pieces are exported on their own too:
@@ -214,17 +214,56 @@ never produces `…/md/lg`.
 ## The original width
 
 A variant wider than the original is the same pixels at another URL, so the `srcset` stops at the
-original's width, with the last entry described at its true width. The original's width is the
-`width` the API gives the image; pass `originalWidth` to override it, or for a bare URL string,
-which carries none:
+original's width, with the last entry described at its true width. An original wider than `full`
+is the last entry itself, at its true width, so a screen that needs more than 2560 px (a zoomed
+crop, [below](#an-art-directed-crop)) gets every pixel there is. The original is the file as
+uploaded, not re-encoded to AVIF or WebP, so the browser fetches it only when no variant is wide
+enough. The original's width is the `width` the API gives the image; pass `originalWidth` to
+override it, or for a bare URL string, which carries none:
 
 ```ts
 imageSrcset(hero.image); // hero.image.width is 1856
 imageSrcset(heroUrl, { originalWidth: 1856 });
 // both '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1856w'
+
+imageSrcset(photo); // photo.width is 5504
+// '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w, …/original 5504w'
 ```
 
-Without either nothing breaks; the browser may just fetch `full` where `xl` was the same picture.
+Without either nothing breaks; the browser may fetch `full` where `xl` was the same picture, and
+never gets more than 2560 px. A HEIC original is never listed: the host converts HEIC when it
+resizes, but most browsers cannot show the file as uploaded.
+
+## An art-directed crop
+
+A crop that shows part of a large photo — a focal point and a zoom of 3 in a small frame — draws
+the image three times wider than its frame, so a `srcset` picked for the frame's width is soft.
+Give `@eldrajs/ui`'s `Image` the output of `responsiveImage()` as `media`, with `focal` and `zoom`,
+and write `sizes` for the frame as in [choosing `sizes`](#choosing-sizes):
+
+```vue
+<script setup lang="ts">
+import { responsiveImage } from '@eldrajs/sdk';
+import { Image } from '@eldrajs/ui';
+</script>
+
+<template>
+  <Image
+    :media="responsiveImage(story.photo, { sizes: '(min-width: 1024px) 400px, 100vw' })"
+    :alt="story.photo.altText ?? ''"
+    ratio="1x1"
+    :focal="{ x: 62, y: 40 }"
+    :zoom="3"
+  />
+</template>
+```
+
+`Image` multiplies every length in `sizes` by the zoom, here to
+`(min-width: 1024px) calc(400px * 3), calc(100vw * 3)`, so the browser fetches a variant wide
+enough for the magnified crop, and the original when it needs more than 2560 px. With
+`fit="contain"` or a zoom of 1 `sizes` is used as given. `sizes="auto"` cannot be scaled (it is the
+frame's laid-out width), so give lengths. A renderer of your own gets the same rule from
+`zoomSizes(sizes, zoom)`, exported by `@eldrajs/ui`.
 
 ## Rich text
 

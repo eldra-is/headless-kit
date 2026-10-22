@@ -504,6 +504,8 @@ export { filterNumericBeforeInput, type NumericInputFilterOptions } from './util
 // `aspect-ratio` value it resolves to was not — a consumer accepting an `ImageRatio` of their own
 // could not honour it without this. Shared by `Image` and `Skeleton`'s `media` variant.
 export { frameAspectRatio } from './utils/ratio';
+// What `Image` does to `sizes` under a zoom, for a renderer that draws its own zoomed crop.
+export { zoomSizes } from './utils/sizes';
 // Never throws (see its own comment) — a consumer rendering its own `<time>` from a CMS date gets
 // the same guard `ContentCard` uses, rather than reimplementing the ISO-parsing/invalid-date rules.
 // `FormatDateOptions` is the `Intl.DateTimeFormatOptions` subset its third argument accepts (a

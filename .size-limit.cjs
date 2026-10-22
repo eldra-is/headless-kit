@@ -91,7 +91,8 @@ module.exports = [
     path: 'packages/vue/dist/index.js',
     import: '{ EldraImage }',
     ignore: ['vue'],
-    limit: '1 kB',
+    // 1 kB before `imageSrcset` listed an original wider than `full`: +0.05 kB on 0.95 kB used.
+    limit: '1.1 kB',
   },
   {
     name: '@eldrajs/theme-core — everything',

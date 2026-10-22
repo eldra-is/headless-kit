@@ -105,15 +105,21 @@ export function imageVariantFor(width: number, density = 1): EldraSizedImageVari
 
 export interface EldraImageSrcsetOptions {
   /**
-   * The original's width in pixels, by default the source's `width`. Variants wider than it would be
-   * the same pixels at a new URL, so they are dropped, and the last one is described at its true width.
+   * The original's width in pixels, by default the source's `width`. Wider variants are dropped and
+   * the last is described at its true width; an original wider than `full` is listed itself, last.
    */
   originalWidth?: number;
 }
 
+// HEIC is converted when resized, but the original is served as uploaded, which only Safari shows.
+function originalDisplays(source: EldraImageSource): boolean {
+  const contentType = typeof source === 'object' ? source?.contentType?.toLowerCase() : undefined;
+  return contentType !== 'image/heic' && contentType !== 'image/heif';
+}
+
 /**
- * A `srcset` over the resized variants of an Eldra media asset, each described by its width. Returns
- * `undefined` for anything else, so `<img :srcset>` simply drops the attribute.
+ * A `srcset` over the resized variants of an Eldra media asset, and the original when it is wider.
+ * Returns `undefined` for anything else, so `<img :srcset>` simply drops the attribute.
  */
 export function imageSrcset(
   source: EldraImageSource,
@@ -127,9 +133,16 @@ export function imageSrcset(
     const width = ELDRA_IMAGE_VARIANT_WIDTHS[variant];
     if (originalWidth !== undefined && originalWidth > 0 && width >= originalWidth) {
       candidates.push(`${base}/${variant} ${Math.round(originalWidth)}w`);
-      break;
+      return candidates.join(', ');
     }
     candidates.push(`${base}/${variant} ${width}w`);
+  }
+  if (
+    isSide(originalWidth) &&
+    Math.round(originalWidth) > ELDRA_IMAGE_VARIANT_WIDTHS.full &&
+    originalDisplays(source)
+  ) {
+    candidates.push(`${base}/original ${Math.round(originalWidth)}w`);
   }
   return candidates.join(', ');
 }

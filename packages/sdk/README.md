@@ -45,7 +45,8 @@ precedence.
 ## Images
 
 A media URL from the API serves an 800 px copy. Build a `srcset` over the sizes the media host
-serves (400 to 2560 px) so the browser picks one that is sharp on the screen in front of it:
+serves (400 to 2560 px, then the original when it is wider) so the browser picks one that is sharp
+on the screen in front of it:
 
 ```ts
 import { responsiveImage } from '@eldrajs/sdk';

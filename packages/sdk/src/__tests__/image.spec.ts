@@ -106,6 +106,23 @@ describe('imageSrcset', () => {
     expect(imageSrcset(ASSET, { originalWidth: 300 })).toBe(`${ASSET}/sm 300w`);
   });
 
+  it('ends with the original at its true width when it is wider than full', () => {
+    expect(imageSrcset(ASSET, { originalWidth: 5504 })).toBe(
+      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1920w, ` +
+        `${ASSET}/full 2560w, ${ASSET}/original 5504w`
+    );
+    expect(imageSrcset(ASSET, { originalWidth: 2560 })).toBe(imageSrcset(ASSET));
+    expect(imageSrcset(ASSET, { originalWidth: 2560.4 })).toBe(imageSrcset(ASSET));
+  });
+
+  it('never lists the original of a HEIC, which only Safari can show', () => {
+    for (const contentType of ['image/heic', 'IMAGE/HEIF']) {
+      expect(imageSrcset({ url: ASSET, contentType }, { originalWidth: 4032 })).toBe(
+        imageSrcset(ASSET)
+      );
+    }
+  });
+
   it('builds from the asset base when given a variant url', () => {
     expect(imageSrcset(`${ASSET}/md`)?.startsWith(`${ASSET}/sm 400w`)).toBe(true);
   });
@@ -187,6 +204,19 @@ describe('the size the API gives an image', () => {
     expect(imageSrcset(photo, { originalWidth: 1200 })).toBe(
       `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w`
     );
+  });
+
+  it('ends the srcset with the original when the photo is wider than full', () => {
+    const large = { url: ASSET, contentType: 'image/jpeg', width: 5504, height: 3096 };
+    expect(imageSrcset(large)?.split(', ').slice(-2)).toEqual([
+      `${ASSET}/full 2560w`,
+      `${ASSET}/original 5504w`,
+    ]);
+    expect(responsiveImage(large, { sizes: '100vw' })).toMatchObject({
+      src: `${ASSET}/md`,
+      width: 800,
+      height: 450,
+    });
   });
 
   it('ignores a size that is missing, null or not positive', () => {

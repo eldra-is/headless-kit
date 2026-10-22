@@ -14,6 +14,12 @@ describe('public util exports', () => {
     expect(ui.frameAspectRatio('16x9', null)).toBe('16 / 9');
   });
 
+  it('exports zoomSizes, and it scales a sizes list by the zoom', () => {
+    expect(ui.zoomSizes('(min-width: 1024px) 50vw, 100vw', 3)).toBe(
+      '(min-width: 1024px) calc(50vw * 3), calc(100vw * 3)'
+    );
+  });
+
   it('exports formatDate, and it never throws on a malformed date', () => {
     expect(ui.formatDate('not-a-date', 'en-US')).toBeNull();
     expect(typeof ui.formatDate('2026-09-12', 'en-US')).toBe('string');
