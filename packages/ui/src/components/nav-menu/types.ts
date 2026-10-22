@@ -45,6 +45,43 @@ export type NavMenuCollapse =
 /** `ghost` fills an entry on hover, as `Button`'s ghost variant does; `muted` is `Link`'s muted tone. */
 export type NavMenuVariant = 'ghost' | 'muted';
 
+/** `accordion` folds each panel into a row that opens; `sections` lists every panel's links open under its heading. */
+export type NavMenuDrawerLayout = 'accordion' | 'sections';
+
+/** Where a panel's content is drawn: under the bar, or in the narrow-screen drawer. */
+export type NavMenuPlacement = 'bar' | 'drawer';
+
+/** The parts of a panel's content; in the drawer each one is named with a `drawer` prefix. */
+export type NavMenuPanelPart =
+  | 'overview'
+  | 'columns'
+  | 'group'
+  | 'groupHeading'
+  | 'panelList'
+  | 'panelItem'
+  | 'panelLink'
+  | 'panelLabel'
+  | 'description'
+  | 'badge';
+
+/** A panel part as the drawer names it: `panelLink` is `drawerPanelLink`. */
+export type NavMenuDrawerPanelPart = `drawer${Capitalize<NavMenuPanelPart>}`;
+
+/** What the `panelItem` slot is handed: the entry, the item whose panel holds it, and where it is drawn. */
+export interface NavMenuPanelItemSlotProps {
+  link: NavMenuLink;
+  item: NavMenuItem;
+  placement: NavMenuPlacement;
+}
+
+/** What the `groupHeading` slot is handed: the heading, its entries, their item, and where it is drawn. */
+export interface NavMenuGroupHeadingSlotProps {
+  group: string;
+  links: NavMenuLink[];
+  item: NavMenuItem;
+  placement: NavMenuPlacement;
+}
+
 /** The parts a consumer can restyle through `classes`. */
 export type NavMenuPart =
   | 'root'
@@ -56,25 +93,22 @@ export type NavMenuPart =
   | 'triggerIcon'
   | 'panel'
   | 'content'
-  | 'overview'
-  | 'columns'
-  | 'group'
-  | 'groupHeading'
-  | 'panelList'
-  | 'panelItem'
-  | 'panelLink'
-  | 'panelLabel'
-  | 'description'
-  | 'badge'
+  | NavMenuPanelPart
   | 'footer'
   | 'toggle'
   | 'toggleIcon'
+  | 'drawerRoot'
   | 'drawer'
+  | 'drawerHeader'
+  | 'drawerClose'
+  | 'drawerBody'
   | 'drawerList'
   | 'drawerItem'
   | 'drawerLink'
   | 'drawerTrigger'
   | 'drawerPanel'
+  | 'drawerSectionHeading'
+  | NavMenuDrawerPanelPart
   | 'drawerFooter';
 
 export interface NavMenuProps {
@@ -92,6 +126,10 @@ export interface NavMenuProps {
   collapseBelow?: NavMenuCollapse;
   /** The edge the drawer slides in from. Default `left`. */
   drawerSide?: DrawerSide;
+  /** How the drawer shows a panel: `accordion` (default) rows that open, or `sections` listed open. */
+  drawerLayout?: NavMenuDrawerLayout;
+  /** The drawer's entries when they differ from the bar's. Defaults to `items`. */
+  drawerItems?: readonly NavMenuItem[];
   /** Also open a panel when a mouse pointer rests 150ms on its trigger; leaving closes it again. */
   openOnHover?: boolean;
   /**

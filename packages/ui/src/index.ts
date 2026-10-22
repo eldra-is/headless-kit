@@ -175,7 +175,13 @@ export type {
   FormLayoutVariant,
 } from './components/form-layout/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
-export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
+export type {
+  ImageCrop,
+  ImageMedia,
+  ImagePart,
+  ImageProps,
+  ImageRatio,
+} from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LightboxImage, LightboxPart, LightboxProps } from './components/lightbox/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
@@ -192,10 +198,16 @@ export type {
 } from './components/select/types';
 export type {
   NavMenuCollapse,
+  NavMenuDrawerLayout,
+  NavMenuDrawerPanelPart,
+  NavMenuGroupHeadingSlotProps,
   NavMenuItem,
   NavMenuLink,
+  NavMenuPanelItemSlotProps,
   NavMenuPanelLayout,
+  NavMenuPanelPart,
   NavMenuPart,
+  NavMenuPlacement,
   NavMenuProps,
   NavMenuVariant,
 } from './components/nav-menu/types';

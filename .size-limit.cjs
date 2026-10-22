@@ -150,11 +150,12 @@ module.exports = [
   // Raised from 88 kB for `@eldrajs/sdk/format`'s Icelandic and English data (~59 kB), which Chrome and Workers lack.
   // Raised from 150 kB for `NavMenu` (148.4 kB without it, 150.9 kB with it).
   // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
+  // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
   {
     name: '@eldrajs/ui — everything, without vue',
     path: 'packages/ui/dist/index.js',
     ignore: ['vue'],
-    limit: '153 kB',
+    limit: '154 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

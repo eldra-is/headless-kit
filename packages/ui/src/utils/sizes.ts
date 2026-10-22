@@ -6,6 +6,32 @@ export function zoomSizes(sizes: string, zoom: number): string {
     .join(', ');
 }
 
+/** Puts every entry of an `<img sizes>` list under `condition` as well as its own condition. */
+export function scopeSizes(sizes: string, condition: string): string {
+  return topLevelEntries(sizes)
+    .map((entry) => {
+      const trimmed = entry.trim();
+      const start = sizeValueStart(trimmed);
+      const own = start > 0 ? trimmed.slice(0, start).trim() : '';
+      const value = start >= 0 ? trimmed.slice(start) : trimmed;
+      return `${own ? `${inParens(condition)} and ${inParens(own)}` : condition} ${value}`;
+    })
+    .join(', ');
+}
+
+/** The condition as one parenthesised group, so `and` can join it to another. */
+function inParens(condition: string): string {
+  let depth = 0;
+  for (let i = 0; i < condition.length && condition.startsWith('('); i++) {
+    if (condition[i] === '(') depth++;
+    else if (condition[i] === ')' && --depth === 0) {
+      if (i === condition.length - 1) return condition;
+      break;
+    }
+  }
+  return `(${condition})`;
+}
+
 function topLevelEntries(list: string): string[] {
   const entries: string[] = [];
   let depth = 0;
