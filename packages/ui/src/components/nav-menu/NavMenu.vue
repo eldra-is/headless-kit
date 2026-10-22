@@ -17,6 +17,7 @@ import AccordionItem from '../accordion/AccordionItem.vue';
 import Drawer from '../drawer/Drawer.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import NavMenuPanel from './NavMenuPanel.vue';
+import { useNavMenuKeys } from './navMenuKeys';
 import {
   CURRENT_PAGE,
   containsCurrent,
@@ -93,8 +94,11 @@ function panelId(index: number): string {
   return `${baseId.value}-panel-${index}`;
 }
 
+const drawerId = computed(() => `${baseId.value}-drawer`);
+
 const triggerEls: Array<HTMLElement | null> = [];
 const panelEls: Array<HTMLElement | null> = [];
+const listEl = ref<HTMLElement | null>(null);
 
 function elementOf(value: Element | ComponentPublicInstance | null): HTMLElement | null {
   return value instanceof HTMLElement ? value : null;
@@ -113,12 +117,28 @@ watch(
   { immediate: true }
 );
 
+/** How long a mouse pointer rests before a panel opens, and may stray before one closes. */
+const HOVER_INTENT_MS = 150;
+let hoverOpenTimer: ReturnType<typeof setTimeout> | undefined;
+let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+function clearHoverTimers(): void {
+  clearTimeout(hoverOpenTimer);
+  clearTimeout(hoverCloseTimer);
+  hoverOpenTimer = undefined;
+  hoverCloseTimer = undefined;
+}
+
 function openPanel(index: number, byHover = false): void {
+  clearHoverTimers();
   openedByHover = byHover;
+  // Set before focus moves, so the overlay's focusout check already sees the new panel as inside.
+  lastIndex = index;
   openIndex.value = index;
 }
 
 function closePanel(): void {
+  clearHoverTimers();
   openedByHover = false;
   if (openIndex.value !== null) openIndex.value = null;
 }
@@ -143,17 +163,40 @@ function onTriggerClick(index: number): void {
 }
 
 function onTriggerPointerEnter(index: number, event: PointerEvent): void {
-  if (!props.openOnHover || event.pointerType !== 'mouse' || openIndex.value === index) return;
-  openPanel(index, true);
+  if (!props.openOnHover || event.pointerType !== 'mouse') return;
+  clearTimeout(hoverOpenTimer);
+  if (openIndex.value === index) return;
+  hoverOpenTimer = setTimeout(() => openPanel(index, true), HOVER_INTENT_MS);
+}
+
+function onTriggerPointerLeave(event: PointerEvent): void {
+  if (event.pointerType === 'mouse') clearTimeout(hoverOpenTimer);
+}
+
+function onRootPointerEnter(event: PointerEvent): void {
+  if (event.pointerType === 'mouse') clearTimeout(hoverCloseTimer);
 }
 
 function onRootPointerLeave(event: PointerEvent): void {
-  if (!props.openOnHover || event.pointerType !== 'mouse' || !openedByHover) return;
-  // Keyboard focus inside the panel outranks the pointer leaving it.
-  const panel = lastIndex === null ? null : panelEls[lastIndex];
-  if (panel?.contains(document.activeElement) === true) return;
-  closePanel();
+  if (!props.openOnHover || event.pointerType !== 'mouse') return;
+  clearTimeout(hoverOpenTimer);
+  if (!openedByHover) return;
+  hoverCloseTimer = setTimeout(() => {
+    // Keyboard focus inside the panel outranks the pointer leaving it.
+    const panel = lastIndex === null ? null : panelEls[lastIndex];
+    if (panel?.contains(document.activeElement) === true) return;
+    if (openedByHover) closePanel();
+  }, HOVER_INTENT_MS);
 }
+
+const onBarKeydown = useNavMenuKeys({
+  list: listEl,
+  indexAt: (position) => entries.value[position]?.index ?? -1,
+  panel: (index) => panelEls[index] ?? null,
+  openIndex,
+  open: (index) => openPanel(index),
+  close: closePanel,
+});
 
 function onPanelClick(event: MouseEvent): void {
   if ((event.target as Element | null)?.closest('a') != null) closePanel();
@@ -176,7 +219,10 @@ watch(drawerOpen, (open) => {
   else window.removeEventListener('resize', closeDrawerOnWideScreen);
 });
 
-onBeforeUnmount(() => window.removeEventListener('resize', closeDrawerOnWideScreen));
+onBeforeUnmount(() => {
+  clearHoverTimers();
+  window.removeEventListener('resize', closeDrawerOnWideScreen);
+});
 
 function onDrawerClick(event: MouseEvent): void {
   if ((event.target as Element | null)?.closest('a') != null) closeDrawer();
@@ -191,16 +237,32 @@ function close(): void {
 defineExpose({ close });
 
 // Static strings, so Tailwind's source scan sees every variant.
-const BAR_DISPLAY: Record<NavMenuCollapse, string> = {
+const BAR_DISPLAY: Record<Exclude<NavMenuCollapse, 'always'>, string> = {
   md: 'hidden md:block',
   lg: 'hidden lg:block',
   xl: 'hidden xl:block',
+  '@tablet': 'hidden @tablet:block',
+  '@content': 'hidden @content:block',
+  '@wide': 'hidden @wide:block',
   never: 'block',
 };
 const TOGGLE_DISPLAY: Record<Exclude<NavMenuCollapse, 'never'>, string> = {
   md: 'md:hidden',
   lg: 'lg:hidden',
   xl: 'xl:hidden',
+  '@tablet': '@tablet:hidden',
+  '@content': '@content:hidden',
+  '@wide': '@wide:hidden',
+  always: '',
+};
+
+const PANEL_TRANSITION = {
+  enterFromClass: '',
+  enterActiveClass: '',
+  enterToClass: '',
+  leaveFromClass: '',
+  leaveActiveClass: 'pointer-events-none transition-opacity duration-fast ease-in',
+  leaveToClass: 'opacity-0',
 };
 
 const HOVER_FILL = 'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
@@ -217,7 +279,13 @@ const ENTRY_VARIANT: Record<NavMenuVariant, string> = {
 
 const rootClass = computed(() => partClass('relative flex items-center', props.classes, 'root'));
 
-const navClass = computed(() => partClass(BAR_DISPLAY[props.collapseBelow], props.classes, 'nav'));
+const navClass = computed(() =>
+  partClass(
+    props.collapseBelow === 'always' ? '' : BAR_DISPLAY[props.collapseBelow],
+    props.classes,
+    'nav'
+  )
+);
 
 const listClass = computed(() =>
   partClass('flex flex-wrap items-center gap-1', props.classes, 'list')
@@ -286,7 +354,8 @@ function contentClass(item: NavMenuItem): string {
 
 const footerClass = computed(() =>
   partClass(
-    'mt-4 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-border pt-4',
+    'mt-4 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-border pt-4 ' +
+      'empty:hidden',
     props.classes,
     'footer'
   )
@@ -339,9 +408,21 @@ const accordionClasses = computed(() => ({
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" @pointerleave="onRootPointerLeave">
-    <nav data-part="nav" :class="navClass" :aria-label="navLabel">
-      <ul data-part="list" :class="listClass">
+  <div
+    data-eldra-ui
+    data-part="root"
+    :class="rootClass"
+    @pointerenter="onRootPointerEnter"
+    @pointerleave="onRootPointerLeave"
+  >
+    <nav
+      v-if="collapseBelow !== 'always' && entries.length > 0"
+      data-part="nav"
+      :class="navClass"
+      :aria-label="navLabel"
+      @keydown="onBarKeydown"
+    >
+      <ul ref="listEl" data-part="list" :class="listClass">
         <li
           v-for="{ item, index } in entries"
           :key="index"
@@ -359,6 +440,7 @@ const accordionClasses = computed(() => ({
               :data-current="containsCurrent(item) ? '' : undefined"
               @click="onTriggerClick(index)"
               @pointerenter="onTriggerPointerEnter(index, $event)"
+              @pointerleave="onTriggerPointerLeave"
             >
               <span>{{ item.label }}</span>
               <!-- Tabler's `chevron-down`. -->
@@ -377,36 +459,38 @@ const accordionClasses = computed(() => ({
                 <path d="M6 9l6 6l6 -6" />
               </svg>
             </button>
-            <div
-              v-show="openIndex === index"
-              :id="panelId(index)"
-              :ref="(el) => (panelEls[index] = elementOf(el))"
-              data-part="panel"
-              :class="panelClass(item)"
-              @click="onPanelClick"
-            >
-              <div data-part="content" :class="contentClass(item)">
-                <NavMenuPanel
-                  :item="item"
-                  :id-prefix="panelId(index)"
-                  placement="bar"
-                  :variant="variant"
-                  :messages="m"
-                  :link-as="linkAs"
-                  :classes="classes"
-                >
-                  <template v-if="slots.panelItem" #panelItem="scope">
-                    <slot name="panelItem" v-bind="scope" />
-                  </template>
-                  <template v-if="slots.groupHeading" #groupHeading="scope">
-                    <slot name="groupHeading" v-bind="scope" />
-                  </template>
-                </NavMenuPanel>
-                <div v-if="slots.panelFooter" data-part="footer" :class="footerClass">
-                  <slot name="panelFooter" :item="item" :index="index" :close="closePanel" />
+            <Transition v-bind="PANEL_TRANSITION">
+              <div
+                v-show="openIndex === index"
+                :id="panelId(index)"
+                :ref="(el) => (panelEls[index] = elementOf(el))"
+                data-part="panel"
+                :class="panelClass(item)"
+                @click="onPanelClick"
+              >
+                <div data-part="content" :class="contentClass(item)">
+                  <NavMenuPanel
+                    :item="item"
+                    :id-prefix="panelId(index)"
+                    placement="bar"
+                    :variant="variant"
+                    :messages="m"
+                    :link-as="linkAs"
+                    :classes="classes"
+                  >
+                    <template v-if="slots.panelItem" #panelItem="scope">
+                      <slot name="panelItem" v-bind="scope" />
+                    </template>
+                    <template v-if="slots.groupHeading" #groupHeading="scope">
+                      <slot name="groupHeading" v-bind="scope" />
+                    </template>
+                  </NavMenuPanel>
+                  <div v-if="slots.panelFooter" data-part="footer" :class="footerClass">
+                    <slot name="panelFooter" :item="item" :index="index" :close="closePanel" />
+                  </div>
                 </div>
               </div>
-            </div>
+            </Transition>
           </template>
           <component
             :is="navLinkTag(item, linkAs)"
@@ -433,6 +517,7 @@ const accordionClasses = computed(() => ({
         :aria-label="m.navMenuOpen"
         aria-haspopup="dialog"
         :aria-expanded="drawerOpen ? 'true' : 'false'"
+        :aria-controls="drawerId"
         @click="drawerOpen = true"
       >
         <slot name="toggle" :open="drawerOpen">
@@ -457,13 +542,14 @@ const accordionClasses = computed(() => ({
       </button>
 
       <Drawer
+        :id="drawerId"
         v-model="drawerOpen"
         :side="drawerSide"
-        :aria-label="m.navMenuOpen"
+        :aria-label="m.navMenuDrawer"
         :messages="messages"
         :classes="drawerClasses"
       >
-        <nav :aria-label="navLabel" @click="onDrawerClick">
+        <nav v-if="entries.length > 0" :aria-label="navLabel" @click="onDrawerClick">
           <ul data-part="drawerList" :class="drawerListClass">
             <li
               v-for="{ item, index } in entries"

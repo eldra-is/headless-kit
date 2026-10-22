@@ -24,7 +24,8 @@ const items = [
   { label: 'Journal', children: [{ label: 'Stories', href: '#stories' }] },
   { label: 'About', href: '#about' },
 ];
-createApp({ render: () => h(NavMenu, { items }) }).mount('#app');
+const panelFooter = ({ index }) => (index === 1 ? h('a', { href: '#all' }, 'All') : undefined);
+createApp({ render: () => h(NavMenu, { items }, { panelFooter }) }).mount('#app');
 `;
 
 /** The real component, compiled with Vue into one script the page can run. */
@@ -131,20 +132,41 @@ describe('NavMenu in a browser', () => {
     async () => {
       const page = await open();
       const box = (selector: string) => page.locator(selector).first().boundingBox();
+      const content = async (label: string) => {
+        const id = await page.getByRole('button', { name: label }).getAttribute('aria-controls');
+        return box(`[id="${id}"] [data-part="content"]`);
+      };
       await page.getByRole('button', { name: 'Shop' }).click();
       const root = (await box('[data-part="root"]'))!;
-      const mega = (await box('[data-part="panel"]:visible [data-part="content"]'))!;
+      const mega = (await content('Shop'))!;
       expect(mega.x).toBeCloseTo(root.x, 0);
       expect(mega.width).toBeCloseTo(root.width, 0);
       expect(mega.y).toBeGreaterThanOrEqual(root.y + root.height);
       await page.getByRole('button', { name: 'Journal' }).click();
       const item = (await box('[data-part="item"]:nth-child(2)'))!;
-      const dropdown = (await box('[data-part="panel"]:visible [data-part="content"]'))!;
+      const dropdown = (await content('Journal'))!;
       expect(dropdown.x).toBeCloseTo(item.x, 0);
       expect(dropdown.y).toBeGreaterThanOrEqual(item.y + item.height);
       await page.close();
     }
   );
+
+  it.runIf(built)('takes no room for a panel footer the slot leaves empty', async () => {
+    const page = await open();
+    const footer = (label: string) =>
+      page.evaluate(async (name) => {
+        const trigger = [...document.querySelectorAll('[data-part="trigger"]')].find(
+          (el) => el.textContent?.trim() === name
+        ) as HTMLElement;
+        trigger.click();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const panel = document.getElementById(trigger.getAttribute('aria-controls')!)!;
+        return getComputedStyle(panel.querySelector('[data-part="footer"]')!).display;
+      }, label);
+    expect(await footer('Journal')).not.toBe('none');
+    expect(await footer('Shop')).toBe('none');
+    await page.close();
+  });
 
   it.runIf(built)('turns into a menu button and a drawer on a narrow screen', async () => {
     const page = await open(375);

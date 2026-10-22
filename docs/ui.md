@@ -122,8 +122,9 @@ table and Storybook for the full contract of each).
   model is applied after mount, so a server-rendered page carries the pre-enhancement shape until
   then. See `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
 - `NavMenu` — a site header's navigation: links, and buttons opening a dropdown or a mega panel of
-  columns (descriptions, badges), as a disclosure pattern (`Tab` walks through, `Escape` returns
-  focus, one panel open); a menu button and a `Drawer` on narrow screens. `variant` is `ghost`
+  columns (descriptions, badges), as a disclosure pattern (`Tab` walks through, the arrow keys
+  move along the bar and through a panel, `Escape` returns focus, one panel open); a menu button
+  and a `Drawer` below a viewport or container breakpoint. `variant` is `ghost`
   (default, a fill on hover) or `muted` (quiet text links). A resolved Studio link tree fits its
   `items` as it is.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind

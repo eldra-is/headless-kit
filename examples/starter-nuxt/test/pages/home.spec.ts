@@ -84,7 +84,7 @@ describe('home page (pages/home.page.json)', () => {
     expect(announcement.textContent).toContain('Free shipping on orders over $80');
 
     expect(header.tagName).toBe('HEADER');
-    expect(header.querySelector('nav')).not.toBeNull();
+    expect(header.querySelector('[data-eldra-header-focus]')).not.toBeNull();
 
     expect(hero.querySelector('h1')?.textContent).toBe('Made slowly, used daily');
 

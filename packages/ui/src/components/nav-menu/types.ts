@@ -31,8 +31,16 @@ export interface NavMenuItem extends NavMenuLink {
   layout?: NavMenuPanelLayout;
 }
 
-/** Below which viewport breakpoint the bar turns into a menu button and a `Drawer`. */
-export type NavMenuCollapse = 'md' | 'lg' | 'xl' | 'never';
+/** Below which viewport (`md`…) or nearest-container (`@tablet`…) breakpoint the bar becomes a menu button. */
+export type NavMenuCollapse =
+  | 'md'
+  | 'lg'
+  | 'xl'
+  | '@tablet'
+  | '@content'
+  | '@wide'
+  | 'never'
+  | 'always';
 
 /** `ghost` fills an entry on hover, as `Button`'s ghost variant does; `muted` is `Link`'s muted tone. */
 export type NavMenuVariant = 'ghost' | 'muted';
@@ -72,12 +80,7 @@ export type NavMenuPart =
 export interface NavMenuProps {
   /** The top-level entries, in order. */
   items: readonly NavMenuItem[];
-  /**
-   * How the bar's entries and its panels' links look. `ghost` (default): text colour, a light fill
-   * on hover and while open. `muted`: muted text turning the text colour on hover, while open and
-   * on the current page, with no fill. Neither changes the weight. The drawer's rows are the same
-   * under both.
-   */
+  /** The bar's and its panels' look: `ghost` (default) fills on hover and while open, `muted` is quiet text. */
   variant?: NavMenuVariant;
   /** The open panel's index in `items` (two-way); `null` when none is open. */
   modelValue?: number | null;
@@ -85,11 +88,11 @@ export interface NavMenuProps {
   drawerOpen?: boolean;
   /** The navigation landmark's accessible name. Defaults to `messages.navMenuLabel`. */
   ariaLabel?: string;
-  /** Below this viewport breakpoint the bar collapses into the drawer. Default `lg`. */
+  /** Below this breakpoint the bar collapses into the drawer. Default `lg`. */
   collapseBelow?: NavMenuCollapse;
   /** The edge the drawer slides in from. Default `left`. */
   drawerSide?: DrawerSide;
-  /** Also open a panel when a mouse pointer rests on its trigger; leaving closes it again. */
+  /** Also open a panel when a mouse pointer rests 150ms on its trigger; leaving closes it again. */
   openOnHover?: boolean;
   /**
    * Render every link as a different tag or component, such as a router link. A string is used as

@@ -115,12 +115,13 @@ every overlay and navigation primitive come from the package, not from copied so
 `ButtonGroup`, `Link`, `Container`, `Section`, `Input`, `Textarea`, `FieldWrapper`, `FormLayout`,
 `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `Select`, `MultiSelect`, `QuantityStepper`,
 `VariantPicker`, `SearchBar`, `Icon`, `VisuallyHidden`, `Badge`/`StockBadge`, `Price`, `Rating`, and
-now `Accordion`/`AccordionItem`, `Drawer`, `Carousel` and `Lightbox` (the starter's own `UiAccordion`/
+now `Accordion`/`AccordionItem`, `Drawer`, `NavMenu`, `Carousel` and `Lightbox` (the starter's own `UiAccordion`/
 `UiAccordionItem`, `UiDialog`, `UiDrawer`, `UiTabs`/`UiTab`/`UiTabPanel` and `app/composables/
 useCarousel.ts` are gone): `faq` renders its questions through `Accordion`/`AccordionItem`
-(`multiple` is the block's own `single` field, inverted); `navigation`'s mobile menu is a `Drawer`
-with `side="left"` (the package's own convention for a menu drawer — a cart/filters/quick-view sheet
-is `right`, the default); `gallery`'s lightbox is `Lightbox` and its `carousel` variant (along with
+(`multiple` is the block's own `single` field, inverted); `navigation`'s links, mega-menus and
+mobile menu are `NavMenu`, whose drawer is a `Drawer` with `side="left"` (the package's own
+convention for a menu drawer — a cart/filters/quick-view sheet is `right`, the default) — see [The
+header](#the-header); `gallery`'s lightbox is `Lightbox` and its `carousel` variant (along with
 `testimonials`' own `carousel` variant) is `Carousel`. No block in this starter has a search trigger
 or toast-like feedback, so `SearchModal` and `Toaster` have nothing to wire in yet, and no block
 ever used `Tabs` or `Dialog` directly — only their now-deleted starter equivalents existed, unused.
@@ -174,6 +175,32 @@ The ten pre-existing blocks (`navigation`, `footer`, `hero`, `cta`, `feature-gri
 `testimonials`, `gallery`, `image`, `article`) were rebuilt in place, not renamed; every other
 block is new. Each is a self-contained `blocks/<apiId>/` directory — see §3 for the contract.
 
+### The header
+
+`blocks/navigation` keeps the brand, search, wishlist, cart, call to action, sticky bar and the
+Studio link tree, and hands the links, their mega-menus and the narrow-screen drawer to
+`@eldrajs/ui`'s `NavMenu`, so the kit has one mega-menu. What the block sets on it:
+
+- **Cells of the header's grid.** `classes.root: 'static contents'` makes the menu's `<nav>` and its
+  Menu button cells of the bar's four-column grid (`auto minmax(0,1fr) auto auto`): the button
+  takes the first column below `@content`, the brand the second, and the links sit beside the brand
+  from `@content` up. The grid is `relative`, so it is the box a panel spans: the brand's left edge
+  to the actions' right edge. The DOM order is brand, links, Menu button, search, actions, so on a
+  narrow screen the button is drawn before the brand but reached after it.
+- **Measured on the header.** `collapseBelow: '@content'`, 64rem of the block's own width like every
+  other breakpoint in it; `minimal` uses `'always'`.
+- **One sheet per parent.** Every parent opens a `mega` panel flush under the bar (`classes.panel:
+'pt-0'`), painted with the bar's own `--eldra-header-surface`, its groups three columns each of a
+  12-column grid. A parent is a disclosure, so its own destination moves from the trigger to a
+  "View all" row in `panelFooter`; a `kind: "none"` heading has none, and the empty footer takes no
+  room. Children sharing a `group` form one column even when the author split them.
+- **Routing.** `linkAs` is `parts/MenuLink.vue`: `EldraRouterLink` for a same-site destination, a
+  plain anchor for anything else. A link's `openInNewTab` is honoured.
+- **The rest is `NavMenu`'s**: the 150ms hover rest, the arrow keys, `Escape`, focus leaving,
+  current-page marking (from `window.location`, the router being off limits), the drawer and its
+  accordion rows. The block's texts reach it through `ariaLabel` (`header.primary`) and `messages`
+  (`header.openMenu` for the button, `header.menu` for the drawer).
+
 ### The one primitive left in `app/components/ui/`: `UiImage`
 
 Every other hand-rolled primitive that used to live here — `UiDialog`, `UiDrawer`, `UiAccordion`/
@@ -204,7 +231,7 @@ One component sits outside both groups: `app/components/EldraIcon.vue` resolves 
 _name_ — what a CMS field holds — to markup through `useEldraIcon` and hands it to `@eldrajs/ui`'s
 `Icon`, which owns the size, stroke weight and ARIA state. The package takes an icon _component_,
 which is what keeps an icon library out of its dependencies. Most blocks with a decorative or
-labelled icon field (`navigation`'s mega-menu triggers, `footer`'s social links, `trust-strip`'s
+labelled icon field (`navigation`'s Menu button, `footer`'s social links, `trust-strip`'s
 payment marks and delivery promises, `feature-grid`'s per-item icon, `faq`'s disclosure chevrons,
 `product-detail`'s stock/perk rows, and more) render it through `EldraIcon`, never a hand-rolled
 `<svg>` or a direct `Icon` call with a hard-coded component.

@@ -408,8 +408,10 @@ export const enUS = {
   showMoreLevels: (n: number) => (n === 1 ? 'Show 1 more level' : `Show ${n} more levels`),
   /** `NavMenu`'s landmark name, the default for its `ariaLabel` prop. */
   navMenuLabel: 'Main',
-  /** `NavMenu`'s narrow-screen menu button, and the name of the drawer it opens. */
+  /** `NavMenu`'s narrow-screen menu button. */
   navMenuOpen: 'Menu',
+  /** The name of the drawer `NavMenu`'s menu button opens. */
+  navMenuDrawer: 'Menu',
   /** The link to a top-level entry's own page, first in its panel. */
   navMenuOverview: (label: string) => `${label}: overview`,
   /** `Pagination`'s `<nav>` accessible name (spec "Pagination" → Accessibility:

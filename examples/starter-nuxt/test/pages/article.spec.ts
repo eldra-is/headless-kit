@@ -31,7 +31,7 @@ describe('article sample page', () => {
 
     // Tag + landmark identity, in document order.
     expect(headerEl!.tagName).toBe('HEADER');
-    expect(headerEl!.querySelector('nav')).not.toBeNull();
+    expect(headerEl!.querySelector('[data-eldra-header-focus]')).not.toBeNull();
     expect(breadcrumbsEl!.tagName).toBe('DIV');
     expect(breadcrumbsEl!.querySelector('nav[aria-label]')).not.toBeNull();
     expect(articleEl!.querySelector('article')).not.toBeNull();

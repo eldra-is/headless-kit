@@ -1,69 +1,35 @@
 <script setup lang="ts">
-/**
- * Header (design spec 2, lines 76-238). apiId stays `navigation` (renaming it
- * would orphan every Studio page that uses it); `Header` is only the display name.
- *
- * Layout: a 4-column grid (`auto minmax(0,1fr) auto auto`) whose DOM order is always
- * `menuButton, brand, links, search, actions` (the menu button only while the drawer has something
- * to show — see `drawerHasContent`) — the same "DOM order stays sensible for screen
- * readers, CSS reorders visually" approach the pre-rebuild block used for its `centered` variant
- * (see its own comment, now generalised). Hiding the menu button at `@content:` (64rem of *block*
- * width, not viewport — every breakpoint here is a `@container` variant measured against
- * `Section`'s own `@container` root, which `as="header"` keeps) or hiding the links list below it
- * lets the grid's implicit auto-placement
- * produce the right column order for `default`/`minimal` with no explicit `col-start` at all;
- * `centered` needs explicit placement because its visual order (search, brand, actions, with links
- * on a second row) differs from DOM order.
- *
- * Mega-menus are theme-drawn disclosures (`<button aria-expanded aria-controls>` + a panel placed
- * right after the trigger in the DOM), not a package component — the design spec is explicit that
- * they are "non-modal disclosures, never dialogs" and the plan's "Uses" list for this block never
- * names a popover/select primitive. A link's own `children` are its mega-menu, and consecutive
- * children sharing a `group` become one column, in order.
- *
- * An open panel spans the header's own content container rather than hanging under the trigger at
- * some width of its own: it is positioned against the `<nav>`, which *is* that container (the box
- * inside `Container`'s max-width and gutters), so `left-0 right-0` lands its edges exactly on the
- * brand's left edge and the actions' right edge whichever item opened it — the same box on every
- * variant, since each one lays its bar out inside the same `Container`. Its columns are a plain
- * 12-column grid, three columns per group, so four groups fill the row and one to three sit
- * left-aligned at the same width instead of stretching to fill — inset from the panel's own edges
- * rather than flush against them, so the first group's text and the trailing "View all" each keep
- * a 32px margin from the edge the panel shares with the brand and the actions above it (24px on a
- * narrower container).
- *
- * Every destination is a `link` value — a collection, product, page or entry the platform knows,
- * or an external URL — resolved to an href by `useEldraLink()`. A row whose target has been
- * deleted, or that the site has no route for, resolves to no href and renders its label as plain
- * text rather than a dead anchor; a row with no label at all renders nothing.
- */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue';
+/** Header (design spec 2); apiId stays `navigation`. Layout: docs/starter-kit.md, "The header". */
+import { computed, onMounted, ref, watchEffect } from 'vue';
 import { useEldraLink, useEldraLocale } from '@eldrajs/theme-vue';
-import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Badge,
   Button,
   Container,
-  Drawer,
   EditorPlaceholder,
   Link,
+  NavMenu,
   SearchBar,
   SearchModal,
 } from '@eldrajs/ui';
-import type { SearchResultItem, SearchResults } from '@eldrajs/ui';
+import type {
+  NavMenuItem,
+  NavMenuPart,
+  SearchResultItem,
+  SearchResults,
+  UiMessages,
+} from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useWishlist } from '../../app/composables/useWishlist';
 import { useI18n } from 'vue-i18n';
-import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, SEARCH_PATH } from '../../app/utils/links';
-import { focusRing } from '../../app/utils/classes';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
-import { useMegaMenuKeys } from './useMegaMenuKeys';
+import MenuLink from './parts/MenuLink.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -90,192 +56,46 @@ function toLinkAs(href: string | undefined): typeof EldraRouterLink | undefined 
   return href !== undefined && isInternalHref(href) ? EldraRouterLink : undefined;
 }
 
-interface NavRow {
-  label: string;
-  href: string | undefined;
-  as?: typeof EldraRouterLink;
-}
-
-/** Resolved links. A row with no label has nothing to show and is dropped; a row whose target no
- *  longer exists keeps its label and loses its `href`, and the template renders it as plain text.
- *  A link with children never navigates itself (spec: the trigger is a disclosure, not a link), so
- *  its own href never sits on the trigger — a parent that *has* a destination (anything but a
- *  `kind: "none"` heading, which resolves to no href at all) offers it inside the panel instead, as
- *  the "View all" row. */
+/** A row with no label has nothing to show; one whose target is gone keeps its label as text. */
 const links = computed(() =>
   rawLinks.value.flatMap((item) => {
     const resolved = resolveLink(item);
-    if (resolved === null || resolved.label === null) return [];
-    return [{ ...toRow(resolved), groups: groupChildren(resolved.children) }];
+    return resolved === null || resolved.label === null ? [] : [resolved];
   })
 );
 
-interface MenuGroup {
-  title?: string;
-  links: NavRow[];
-}
-
-function toRow(resolved: ResolvedLink): NavRow {
-  const href = resolved.href ?? undefined;
-  return { label: resolved.label ?? '', href, as: toLinkAs(href) };
-}
-
-/** Consecutive children that share a `group` become one column, in the order they were authored —
- *  the field's own rule (block.json `links` help text). */
-function groupChildren(children: ResolvedLink[]): MenuGroup[] {
-  const groups: MenuGroup[] = [];
-  for (const child of children) {
-    if (child.label === null) continue;
-    const title = child.group ?? undefined;
-    const last = groups[groups.length - 1];
-    if (last !== undefined && last.title === title) {
-      last.links.push(toRow(child));
-    } else {
-      groups.push({ title, links: [toRow(child)] });
+/** A parent with children is a disclosure, so its own destination moves to the panel's "View all". */
+const navItems = computed<NavMenuItem[]>(() =>
+  links.value.map((link) => {
+    const children = link.children.filter((child) => child.label !== null);
+    if (children.length === 0) {
+      return {
+        label: link.label,
+        href: link.href,
+        newTab: link.newTab,
+        current: isCurrent(link.href),
+      };
     }
-  }
-  return groups;
+    return {
+      label: link.label,
+      layout: 'mega',
+      children: children.map((child) => ({
+        label: child.label,
+        href: child.href,
+        newTab: child.newTab,
+        group: child.group,
+        current: isCurrent(child.href),
+      })),
+    };
+  })
+);
+
+function viewAllHref(index: number): string | undefined {
+  return links.value[index]?.href ?? undefined;
 }
-
-const hasMegaMenu = (index: number): boolean => links.value[index]!.groups.length > 0;
-
-// --- mega-menu open state (bar) -------------------------------------------------------------
 
 const openMenuIndex = ref<number | null>(null);
-const menuIds = computed(() =>
-  links.value.map((_, index) => ({
-    trigger: `${uid}-trigger-${index}`,
-    panel: `${uid}-panel-${index}`,
-  }))
-);
-const uid = useUiId();
-/** The bar's own `<ul>`: the element `useMegaMenuKeys` walks to find the top-level items and the
- *  panels, so the keyboard model never keeps a second list of its own to fall out of step. */
-const barLinkList = ref<HTMLElement | null>(null);
-
-let hoverTimer: ReturnType<typeof setTimeout> | undefined;
-/** Whether the open panel was opened by hover (then leaving it closes it) rather than by a click,
- *  Enter or Space (then only Esc, another trigger or an outside interaction closes it). */
-let openedByHover = false;
-function clearHoverTimer(): void {
-  if (hoverTimer !== undefined) clearTimeout(hoverTimer);
-  hoverTimer = undefined;
-}
-/** Opens one panel (closing any other) as a keyboard-owned one: hover never closes what a key
- *  opened. Every keyboard path into a panel goes through here. */
-function openMenu(index: number): void {
-  clearHoverTimer();
-  openedByHover = false;
-  openMenuIndex.value = index;
-}
-function toggleMenu(index: number): void {
-  if (openMenuIndex.value === index) {
-    closeMenu();
-    return;
-  }
-  openMenu(index);
-}
-function closeMenu(): void {
-  clearHoverTimer();
-  openedByHover = false;
-  openMenuIndex.value = null;
-}
-/** "Hover may open a panel after 150ms" — never immediately, so a bare pointer pass-over never
- *  opens anything (spec: "nothing opens on hover alone"). */
-function onTriggerMouseEnter(index: number): void {
-  clearHoverTimer();
-  if (openMenuIndex.value === index) return;
-  hoverTimer = setTimeout(() => {
-    openMenuIndex.value = index;
-    openedByHover = true;
-    hoverTimer = undefined;
-  }, 150);
-}
-/** True while focus sits on the item's trigger or anywhere inside its panel. */
-function focusWithinMenu(index: number): boolean {
-  if (typeof document === 'undefined') return false;
-  const active = document.activeElement;
-  const ids = menuIds.value[index];
-  if (active === null || ids === undefined) return false;
-  return (
-    document.getElementById(ids.trigger)?.contains(active) === true ||
-    document.getElementById(ids.panel)?.contains(active) === true
-  );
-}
-/** Leaving the trigger or its panel: a pending hover-open is dropped, and a panel that hover opened
- *  closes after the same 150ms grace — long enough to cross the gap from the trigger into the
- *  panel (entering either clears the timer) but short enough that the panel never lingers once the
- *  pointer has moved on. A hover-opened panel that focus has since moved into is keyboard-owned
- *  from then on: closing it as the pointer wanders off would strand that focus on a hidden link,
- *  so the pointer's own grace period gives way and `onNavItemFocusOut` closes it instead. */
-function onTriggerMouseLeave(): void {
-  clearHoverTimer();
-  if (openMenuIndex.value === null || !openedByHover) return;
-  hoverTimer = setTimeout(() => {
-    hoverTimer = undefined;
-    const index = openMenuIndex.value;
-    if (index === null || !openedByHover) return;
-    if (focusWithinMenu(index)) return;
-    closeMenu();
-  }, 150);
-}
-/**
- * A disclosure closes as soon as focus leaves the trigger-and-panel pair, which is what the pattern
- * asks for and the one thing this block used to get wrong: `Tab` past the panel's last link,
- * `Shift+Tab` back before the trigger, or a click anywhere else all left the panel hanging open
- * under a bar whose focus had moved on. The `<li>` *is* the pair (the trigger, or plain link, and
- * that item's panel are its only children), so one `focusout` on it answers all three: a
- * `relatedTarget` still inside the `<li>` is movement within the menu, anything else — including
- * `null`, which is what a click on non-focusable page furniture gives — has left it. Focus itself is
- * never moved here; only the panel closes.
- *
- * `closeMenu()` also drops any pending hover-open, deliberately: focus leaving the header's menus is
- * the visitor saying they are done with them, so a panel the pointer happens to be resting over must
- * not spring open a moment later behind the keyboard's back. The pointer reopens it by moving.
- */
-function onNavItemFocusOut(index: number, event: FocusEvent): void {
-  if (openMenuIndex.value !== index) return;
-  const pair = event.currentTarget;
-  const next = event.relatedTarget;
-  if (!(pair instanceof HTMLElement)) return;
-  if (next instanceof Node && pair.contains(next)) return;
-  closeMenu();
-}
-function closeMenuAndFocusTrigger(index: number): void {
-  closeMenu();
-  void nextTick(() => {
-    document.getElementById(menuIds.value[index]!.trigger)?.focus();
-  });
-}
-/** Arrow keys, Home/End, Enter/Space and Escape across the bar and its panels — the APG's
- *  disclosure-navigation pattern, in `useMegaMenuKeys.ts` with the reasoning for each key. */
-const { onTriggerKeydown, onPanelKeydown, onBarLinkKeydown } = useMegaMenuKeys({
-  list: barLinkList,
-  openIndex: openMenuIndex,
-  hasPanel: hasMegaMenu,
-  open: openMenu,
-  toggle: toggleMenu,
-  close: closeMenu,
-  closeAndFocusTrigger: closeMenuAndFocusTrigger,
-});
-
-onBeforeUnmount(clearHoverTimer);
-
-// --- drawer (mobile menu) --------------------------------------------------------------------
-
 const drawerOpen = ref(false);
-const drawerId = `${uid}-drawer`;
-const drawerExpanded = ref<Set<number>>(new Set());
-function toggleDrawerGroup(index: number): void {
-  const next = new Set(drawerExpanded.value);
-  if (next.has(index)) next.delete(index);
-  else next.add(index);
-  drawerExpanded.value = next;
-}
-
-function onMenuButtonClick(): void {
-  drawerOpen.value = true;
-}
 
 // --- call to action ----------------------------------------------------------------------------
 
@@ -541,8 +361,8 @@ watchEffect((onCleanup) => {
   window.addEventListener('popstate', onPopState);
   onCleanup(() => window.removeEventListener('popstate', onPopState));
 });
-function isCurrent(href: string | undefined): boolean {
-  return href !== undefined && href === currentPath.value;
+function isCurrent(href: string | null | undefined): boolean {
+  return typeof href === 'string' && href === currentPath.value;
 }
 
 // --- sticky, scroll padding and scrolled shadow -----------------------------------------------
@@ -577,7 +397,7 @@ const hiddenByScroll = ref(false);
  */
 const focusWithinBar = ref(false);
 /**
- * The bar's height, named once: the bar sets it on its own `<nav>` and the spacer reserves the very
+ * The bar's height, named once: the bar sets it on its own grid and the spacer reserves the very
  * same box. Two literals would drift the first time a breakpoint moved, and a spacer that drifts
  * from the bar is a page that jumps. `@content:` is a container query, so it is only ever as true
  * as the container it is measured in — which is why both boxes sit inside an `@container` of the
@@ -726,31 +546,6 @@ const isTransparent = computed(
  */
 const HEADER_SURFACE_VAR = '--eldra-header-surface';
 const barSurfaceStyle = { [HEADER_SURFACE_VAR]: 'var(--color-background)' };
-const panelSurfaceStyle = { background: `var(${HEADER_SURFACE_VAR})` };
-
-/**
- * A panel eases in and out rather than appearing and vanishing: opacity 0→1 with a 4px rise over
- * 150ms on the way in, and the same 4px back out over a slightly quicker 120ms on the way out, so
- * closing never feels slower than opening. A Vue `<Transition>` rather than a CSS class on the panel
- * itself, because only a `<Transition>` holds the element long enough for the leave half to play at
- * all — `v-show` alone would cut it to `display: none` in the same frame the panel closed.
- *
- * The panel stays mounted either way (`v-show`, never `v-if`): `aria-expanded` and the panel's
- * presence must never disagree, and nothing here delays the element past the attribute flip.
- * `pointer-events-none` while it leaves keeps a pointer crossing the fading panel from clearing the
- * close timer and pulling it back open.
- *
- * Under `prefers-reduced-motion: reduce` the rise is dropped — `motion-safe:` carries it — and only
- * the fade is left.
- */
-const panelTransition = {
-  enterFromClass: 'opacity-0 motion-safe:-translate-y-1',
-  enterActiveClass: 'transition-[opacity,transform] duration-[150ms] ease-out',
-  enterToClass: 'opacity-100',
-  leaveFromClass: 'opacity-100',
-  leaveActiveClass: 'pointer-events-none transition-[opacity,transform] duration-[120ms] ease-in',
-  leaveToClass: 'opacity-0 motion-safe:-translate-y-1',
-};
 
 /**
  * `@eldrajs/ui`'s `classes` prop takes a plain string per part (`Partial<Record<Part, string>>`),
@@ -804,7 +599,7 @@ const barRootClasses = computed(() =>
  * the spacer is the bar's measured height to the pixel, whatever either box's width does.
  *
  * The two boxes mirror the bar's own two: the outer one carries the hairline, as the `<header>`
- * carries `border-b`, and the inner one the height, as the `<nav>` does. Which is also the only way
+ * carries `border-b`, and the inner one the height, as the bar's grid does. Which is also the only way
  * the pixel lands: everything here is `border-box`, so a border on the box that *has* the height
  * eats into it rather than adding to it. `border-transparent` contributes nothing but that pixel,
  * and only while the bar has it — the solid bar draws `border-b` and the transparent-over-hero bar
@@ -821,29 +616,32 @@ const hairlineClass = computed(() =>
   isTransparent.value ? 'border-primary-contrast/24' : 'border-border'
 );
 
-// --- menu button visibility ----------------------------------------------------------------------
+// --- the menu in the bar -----------------------------------------------------------------------
 
-const menuButtonHiddenClass = computed(() =>
-  variant.value === 'minimal' ? '' : '@content:hidden'
-);
-const linksVisible = computed(() => variant.value !== 'minimal' && links.value.length > 0);
-/**
- * The drawer holds the links and the call to action — nothing else. A header with neither (the
- * shape this theme seeds a fresh store with) therefore has an empty drawer, and a Menu button that
- * opens one is a control that does nothing: the bar renders brand and actions only, and the button
- * goes with the drawer it has nothing to show from.
- */
+/** The drawer holds the links and the call to action; with neither there is no Menu button either. */
 const drawerHasContent = computed(() => links.value.length > 0 || hasCta.value);
-
-const brandPositionClass = computed(() =>
-  variant.value === 'centered'
-    ? '@content:col-start-2 @content:row-start-1 @content:justify-self-center'
-    : ''
+const showLinksPlaceholder = computed(
+  () => isEditing.value && variant.value !== 'minimal' && links.value.length === 0
 );
+
+const navMenuMessages = computed<Partial<UiMessages>>(() => ({
+  navMenuOpen: t('header.openMenu'),
+  navMenuDrawer: t('header.menu'),
+}));
+
+/** Below `@content` the Menu button holds the first column, so the brand takes the second. */
+const brandPositionClass = computed(() => {
+  const besideToggle = drawerHasContent.value ? 'col-start-2 row-start-1' : '';
+  if (variant.value === 'minimal') return besideToggle;
+  if (variant.value === 'centered') {
+    return `${besideToggle} @content:col-start-2 @content:row-start-1 @content:justify-self-center`;
+  }
+  return drawerHasContent.value ? `${besideToggle} @content:col-start-1` : '';
+});
 const linksPositionClass = computed(() =>
   variant.value === 'centered'
-    ? `hidden @content:flex @content:col-start-1 @content:col-span-4 @content:row-start-2 @content:justify-center @content:border-t ${hairlineClass.value} @content:pt-3 @content:mt-1`
-    : 'hidden @content:flex @content:col-start-2 @content:row-start-1'
+    ? `@content:col-start-1 @content:col-span-4 @content:row-start-2 @content:justify-center @content:border-t ${hairlineClass.value} @content:pt-3 @content:mt-1`
+    : '@content:col-start-2 @content:row-start-1'
 );
 const searchPositionClass = computed(() =>
   variant.value === 'centered' ? '@content:col-start-1 @content:row-start-1' : ''
@@ -851,6 +649,28 @@ const searchPositionClass = computed(() =>
 const actionsPositionClass = computed(() =>
   variant.value === 'centered' ? '@content:col-start-4 @content:row-start-1' : ''
 );
+
+/** What this header draws differently from `NavMenu`'s own look, part by part. */
+const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
+  // `contents`: the bar and the Menu button become cells of the grid, which then positions panels.
+  root: 'static contents',
+  nav: `self-stretch ${linksPositionClass.value}`,
+  list: variant.value === 'centered' ? 'h-full flex-nowrap justify-center' : 'h-full flex-nowrap',
+  link: 'text-sm',
+  trigger: 'text-sm',
+  toggle:
+    variant.value === 'minimal'
+      ? 'col-start-1 row-start-1 size-auto min-h-10 max-md:size-auto max-md:min-h-11 gap-2 px-3 text-sm font-medium'
+      : 'col-start-1 row-start-1',
+  panel: 'pt-0',
+  content:
+    'rounded-none rounded-b-lg border-t-0 bg-(--eldra-header-surface) shadow-(--eldra-shadow-float) @wide:p-8',
+  columns: 'grid-cols-12 gap-6',
+  group: 'col-span-3',
+  footer: 'justify-end',
+  drawerLink: 'font-heading text-xl font-semibold',
+  drawerTrigger: 'font-heading text-xl font-semibold',
+}));
 </script>
 
 <template>
@@ -863,45 +683,15 @@ const actionsPositionClass = computed(() =>
     @focusout="onBarFocusOut"
   >
     <Container width="wide">
-      <!-- `relative` is what an open mega-menu panel measures itself against: this element is the
-           header's content box (inside `Container`'s max-width and gutters), so a panel pinned to
-           `left-0 right-0` here spans exactly the bar's own container.
-
-           One `gap-1` (0.25rem) at every width — spec "Header" -> Layout gives that number for the
-           mobile grid's column gap and repeats it for the actions row, and never states a larger
-           one for any breakpoint in between, including the gap between this grid's search and
-           actions columns. A `@tablet:gap-4` lived here before (paired with the tablet height
-           tweak, with no basis in the spec text) and was the actual source of the uneven header: a
-           1rem gap between the search icon and the wishlist/cart cluster against the 0.25rem the
-           actions row's own `gap-1` puts between the heart and the bag, so the three icon buttons
-           read as two pairs rather than one evenly spaced row. The call to action's own closer
-           distance ("sits 0.75rem after the cart") is set on the button itself, not here — see its
-           `@content:ml-2` below. -->
-      <nav
-        :aria-label="t('header.primary')"
+      <!-- One `gap-1` at every width (spec "Header" -> Layout); the call to action adds its own
+           margin below. -->
+      <div
+        data-eldra-header-bar
         :class="[
           BAR_HEIGHT_CLASS,
           'relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1',
         ]"
       >
-        <Button
-          v-if="drawerHasContent"
-          :classes="{ container: menuButtonHiddenClass }"
-          variant="ghost"
-          size="sm"
-          :icon-only="variant !== 'minimal'"
-          :label="t('header.openMenu')"
-          aria-haspopup="dialog"
-          :aria-expanded="drawerOpen ? 'true' : 'false'"
-          :aria-controls="drawerId"
-          @click="onMenuButtonClick"
-        >
-          <template #leadingIcon>
-            <EldraIcon name="menu-2" size="md" />
-          </template>
-          <template v-if="variant === 'minimal'">{{ t('header.menu') }}</template>
-        </Button>
-
         <Link
           :href="brandHref"
           :as="EldraRouterLink"
@@ -930,157 +720,47 @@ const actionsPositionClass = computed(() =>
           }}</span>
         </Link>
 
-        <ul
-          v-if="linksVisible"
-          ref="barLinkList"
-          :class="['list-none items-center gap-1', linksPositionClass]"
+        <NavMenu
+          v-if="drawerHasContent"
+          v-model="openMenuIndex"
+          v-model:drawer-open="drawerOpen"
+          :items="navItems"
+          :aria-label="t('header.primary')"
+          :collapse-below="variant === 'minimal' ? 'always' : '@content'"
+          open-on-hover
+          :link-as="MenuLink"
+          :messages="navMenuMessages"
+          :classes="navMenuClasses"
         >
-          <!-- One `<li>` per link, trigger (or plain link) then that item's panel: the pair the
-               disclosure pattern closes on focus leaving, and the reading order the arrow keys
-               walk. -->
-          <li
-            v-for="(link, index) in links"
-            :key="index"
-            @focusout="onNavItemFocusOut(index, $event)"
-          >
-            <button
-              v-if="hasMegaMenu(index)"
-              :id="menuIds[index]!.trigger"
-              type="button"
-              :class="[
-                focusRing,
-                'inline-flex h-10 items-center gap-1 rounded-sm px-3 text-sm font-medium',
-                openMenuIndex === index ? 'font-semibold underline underline-offset-4' : '',
-              ]"
-              :aria-expanded="openMenuIndex === index ? 'true' : 'false'"
-              :aria-controls="menuIds[index]!.panel"
-              @click="toggleMenu(index)"
-              @keydown="onTriggerKeydown(index, $event)"
-              @mouseenter="onTriggerMouseEnter(index)"
-              @mouseleave="onTriggerMouseLeave"
-            >
-              {{ link.label }}
-              <EldraIcon
-                name="chevron-down"
-                size="sm"
-                class="transition-transform motion-reduce:transition-none"
-                :class="openMenuIndex === index ? 'rotate-180' : ''"
-              />
-            </button>
+          <template #toggle>
+            <EldraIcon name="menu-2" size="md" />
+            <span v-if="variant === 'minimal'">{{ t('header.menu') }}</span>
+          </template>
+          <template #panelFooter="{ item, index }">
             <Link
-              v-else-if="link.href"
-              :href="link.href"
-              :as="link.as"
+              v-if="viewAllHref(index)"
+              :href="viewAllHref(index)"
+              :as="toLinkAs(viewAllHref(index))"
               variant="standalone"
-              :underline="false"
-              :aria-current="isCurrent(link.href) ? 'page' : undefined"
-              :classes="{
-                root: `inline-flex h-10 items-center px-3 text-sm font-medium ${isCurrent(link.href) ? 'font-semibold underline underline-offset-4' : ''}`,
-              }"
-              @keydown="onBarLinkKeydown(index, $event)"
+              arrow
+              data-eldra-mega-view-all
+              :aria-label="t('header.viewAllOf', { label: item.label ?? '' })"
+              :classes="{ root: 'text-sm' }"
             >
-              {{ link.label }}
+              {{ t('header.viewAll') }}
             </Link>
-            <span v-else class="inline-flex h-10 items-center px-3 text-sm font-medium">
-              {{ link.label }}
-            </span>
-
-            <!-- The panel spans the bar's own container (`left-0 right-0` against the `relative`
-                 `<nav>` above) and sits directly under it. The hairline along its top edge is the
-                 bar's own full-bleed `border-b` — the bar is never transparent while a panel is
-                 open — so the panel takes no top border of its own (`border-t-0`); the other three
-                 sides carry the border token and the bottom corners are rounded, which is what
-                 makes the open panel read as a sheet hanging off the bar rather than as a slab of
-                 background with content loose on it. Its columns are a 12-column grid at three
-                 columns each: four groups fill the row, fewer stay left-aligned at that same width
-                 rather than stretching, and a fifth group wraps to a second row — all of it inset
-                 from the panel's edges (32px, 24px below the `wide` container edge), so no text
-                 ever sits flush against the panel's own boundary. `rounded-b-lg` is this theme's
-                 12px step: `radius-lg` is 0.75rem here, `radius-xl` 1rem.
-
-                 Its ground is the bar's own, read from the variable the bar publishes rather than
-                 named again here, and it eases in and out — see `barSurfaceStyle` and
-                 `panelTransition` above. -->
-            <Transition v-bind="panelTransition">
-              <div
-                v-if="hasMegaMenu(index)"
-                v-show="openMenuIndex === index"
-                :id="menuIds[index]!.panel"
-                data-eldra-mega-panel
-                class="border-border shadow-float @wide:p-8 absolute top-full right-0 left-0 z-30 grid grid-cols-12 gap-6 rounded-b-lg border border-t-0 p-6"
-                :style="panelSurfaceStyle"
-                @keydown="onPanelKeydown(index, $event)"
-                @mouseenter="clearHoverTimer"
-                @mouseleave="onTriggerMouseLeave"
-              >
-                <div
-                  v-for="(group, groupIndex) in link.groups"
-                  :key="groupIndex"
-                  class="col-span-3"
-                >
-                  <p
-                    :id="`${menuIds[index]!.panel}-g${groupIndex}`"
-                    class="text-muted mb-3 text-[11px] font-semibold tracking-wide uppercase"
-                  >
-                    {{ group.title }}
-                  </p>
-                  <ul
-                    :aria-labelledby="`${menuIds[index]!.panel}-g${groupIndex}`"
-                    class="flex list-none flex-col"
-                  >
-                    <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
-                      <Link
-                        v-if="row.href"
-                        :href="row.href"
-                        :as="row.as"
-                        variant="standalone"
-                        :underline="false"
-                        :classes="{
-                          root: 'text-text flex min-h-9 items-center text-[15px] font-medium hover:underline-offset-4',
-                        }"
-                      >
-                        {{ row.label }}
-                      </Link>
-                      <span
-                        v-else
-                        class="text-text flex min-h-9 items-center text-[15px] font-medium"
-                      >
-                        {{ row.label }}
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-                <!-- The parent's own destination, which the trigger gave up when it became a
-                     disclosure. A `kind: "none"` heading resolves to no href and therefore offers
-                     nothing here. A rule across the full content width separates it from the groups,
-                     and `arrow` gives it the same trailing arrow-right every other "view all" in the
-                     theme carries — the package draws it outside the label, so the underline runs
-                     under the words only. -->
-                <div
-                  v-if="link.href"
-                  class="border-border col-span-12 flex justify-end border-t pt-4"
-                >
-                  <Link
-                    :href="link.href"
-                    :as="link.as"
-                    variant="standalone"
-                    arrow
-                    data-eldra-mega-view-all
-                    :aria-label="t('header.viewAllOf', { label: link.label })"
-                    :classes="{ root: 'text-sm' }"
-                  >
-                    {{ t('header.viewAll') }}
-                  </Link>
-                </div>
-              </div>
-            </Transition>
-          </li>
-        </ul>
+          </template>
+          <template v-if="hasCta" #drawerFooter="{ close }">
+            <Button variant="primary" block :href="ctaHref" :as="ctaLinkAs" @click="close">
+              {{ ctaLabel }}
+            </Button>
+          </template>
+        </NavMenu>
         <EditorPlaceholder
-          v-else-if="isEditing && variant !== 'minimal' && links.length === 0"
+          v-if="showLinksPlaceholder"
           inline
           :label="t('editor.addLink')"
-          :classes="{ root: linksPositionClass }"
+          :classes="{ root: `hidden @content:flex ${linksPositionClass}` }"
         />
 
         <!-- `justify-end` matters in exactly one case and is inert in every other: with no Menu
@@ -1225,104 +905,8 @@ const actionsPositionClass = computed(() =>
             {{ ctaLabel }}
           </Button>
         </div>
-      </nav>
-    </Container>
-
-    <Drawer
-      v-if="drawerHasContent"
-      :id="drawerId"
-      v-model="drawerOpen"
-      side="left"
-      :aria-label="t('header.menu')"
-    >
-      <div>
-        <ul class="list-none">
-          <li v-for="(link, index) in links" :key="index" class="border-border border-b">
-            <button
-              v-if="hasMegaMenu(index)"
-              type="button"
-              :class="[
-                focusRing,
-                'font-heading flex min-h-14 w-full items-center justify-between text-xl font-semibold',
-              ]"
-              :aria-expanded="drawerExpanded.has(index) ? 'true' : 'false'"
-              :aria-controls="`${uid}-drawer-panel-${index}`"
-              @click="toggleDrawerGroup(index)"
-            >
-              {{ link.label }}
-              <EldraIcon
-                name="chevron-down"
-                size="sm"
-                class="transition-transform motion-reduce:transition-none"
-                :class="drawerExpanded.has(index) ? 'rotate-180' : ''"
-              />
-            </button>
-            <Link
-              v-else-if="link.href"
-              :href="link.href"
-              :as="link.as"
-              variant="standalone"
-              :underline="false"
-              :aria-current="isCurrent(link.href) ? 'page' : undefined"
-              :classes="{
-                root: 'flex min-h-14 w-full items-center font-heading text-xl font-semibold',
-              }"
-              @click="drawerOpen = false"
-            >
-              {{ link.label }}
-            </Link>
-            <span
-              v-else
-              class="font-heading flex min-h-14 w-full items-center text-xl font-semibold"
-            >
-              {{ link.label }}
-            </span>
-
-            <div
-              v-if="hasMegaMenu(index)"
-              v-show="drawerExpanded.has(index)"
-              :id="`${uid}-drawer-panel-${index}`"
-              class="grid gap-5 pb-5"
-            >
-              <div v-for="(group, groupIndex) in link.groups" :key="groupIndex">
-                <p class="text-muted mb-1 text-xs font-semibold tracking-[0.12em] uppercase">
-                  {{ group.title }}
-                </p>
-                <ul class="list-none">
-                  <li v-for="(row, rowIndex) in group.links" :key="rowIndex">
-                    <Link
-                      v-if="row.href"
-                      :href="row.href"
-                      :as="row.as"
-                      variant="standalone"
-                      :underline="false"
-                      :classes="{ root: 'flex min-h-11 items-center text-sm' }"
-                      @click="drawerOpen = false"
-                    >
-                      {{ row.label }}
-                    </Link>
-                    <span v-else class="flex min-h-11 items-center text-sm">{{ row.label }}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </li>
-        </ul>
       </div>
-
-      <template #footer>
-        <Button
-          v-if="hasCta"
-          variant="primary"
-          block
-          :href="ctaHref"
-          :as="ctaLinkAs"
-          @click="drawerOpen = false"
-        >
-          {{ ctaLabel }}
-        </Button>
-      </template>
-    </Drawer>
+    </Container>
 
     <SearchModal
       v-model="searchOpen"
@@ -1335,7 +919,7 @@ const actionsPositionClass = computed(() =>
   <!-- The flow the fixed bar left behind — see `barSpacerClasses`. Empty and unlabelled: it is
        layout, with nothing in it for a screen reader or the tab order to reach. The outer box is the
        `<header>`'s counterpart (the `@container` the height is measured in, and the hairline) and the
-       inner one the `<nav>`'s (the height itself). -->
+       inner one the bar grid's (the height itself). -->
   <div
     v-if="sticky"
     data-eldra-header-spacer

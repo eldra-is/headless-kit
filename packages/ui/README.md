@@ -1244,11 +1244,21 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   children is a `<button aria-expanded aria-controls>` and its panel follows it in the DOM, so `Tab`
   walks straight into the panel and on to the next entry, the panel closes when focus or a pointer
   press lands outside it (`useOverlay`, unchanged), `Escape` closes it and returns focus to the
-  button, following a link closes it, and one panel is open at a time. Panels are never teleported:
+  button, following a link closes it, and one panel is open at a time. On top of that it takes the
+  APG pattern's optional arrow keys, ported from the starter's header: `←`/`→` move along the bar
+  (landing on another trigger carries an open panel over to it), `Home`/`End` jump to its ends,
+  `↓`/`↑` on a trigger open its panel at the first or last link, and inside a panel `↓`/`↑` step
+  through its links and `Home`/`End` reach its ends. Nothing wraps, every link stays in the `Tab`
+  order, and a modified key or a key typed into a field is left alone. `Enter`/`Space` stay the
+  button's own. Panels are never teleported:
   a `dropdown` hangs under its own item, a `mega` panel spans the menu's root, and a site whose
   header should be the panel's width makes the root `static` (`classes.root`) and its header
-  `relative`. `openOnHover` adds a resting mouse pointer to the ways of opening; leaving the menu
-  closes a hover-opened panel, a click keeps it, and touch never hovers.
+  `relative` (or `contents`, which makes the bar and the menu button cells of the header's own
+  grid). A closing panel fades out over `--eldra-duration-fast`, unclickable while it does.
+  `openOnHover` adds a resting mouse pointer to the ways of opening: a panel opens after the
+  pointer rests 150ms on its trigger, so passing over one opens nothing; leaving the menu closes a
+  hover-opened panel 150ms later unless the pointer comes back or focus is inside it; a click keeps
+  it, and touch never hovers.
 
   **Data.** `items` takes `{ label, href?, newTab?, description?, badge?, group?, current?,
 children?, layout? }`, one level of children. Children sharing a `group` form a column under that
@@ -1257,13 +1267,18 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   may be `null`, a heading with no `href` opens a panel and links nowhere, an entry without a label
   is skipped — so a resolved tree is passed in as it is, with no dependency on the theme packages
   (`navLinks.spec.ts` asserts the assignability). A top-level entry with both `href` and children
-  gets its own page as the panel's first link ("Journal: overview").
+  gets its own page as the panel's first link ("Journal: overview"). A `panelFooter` that renders
+  nothing for a panel takes no room in it (`empty:hidden`), and a menu with no entry to show draws
+  no empty `<nav>`.
 
-  **Narrow screens.** Below `collapseBelow` (`md`, `lg` (default), `xl` or `never`, a **viewport**
-  breakpoint, since the menu's own width says nothing about how crowded the header is) the bar is
-  hidden and a menu button opens a left `Drawer` named "Menu", each panel an `AccordionItem` and
-  each plain entry a row. `v-model` is the open panel's index and `v-model:drawerOpen` the drawer;
-  `close()` (exposed) closes both, for a router's navigation hook.
+  **Narrow screens.** Below `collapseBelow` the bar is hidden and a menu button
+  (`aria-controls` the drawer) opens a left `Drawer`, each panel an `AccordionItem` and each plain
+  entry a row. `md`, `lg` (default) and `xl` are **viewport** breakpoints, since the menu's own width
+  says nothing about how crowded the header is; `@tablet`, `@content` and `@wide` measure the nearest
+  `@container` instead, for a header block whose own width is the measure; `never` keeps the bar and
+  `always` shows only the button. The button is named by `messages.navMenuOpen` and the drawer by
+  `messages.navMenuDrawer` (both "Menu"). `v-model` is the open panel's index and
+  `v-model:drawerOpen` the drawer; `close()` (exposed) closes both, for a router's navigation hook.
 
   **Variants.** `variant` names the two common looks, each after the component that already has
   it: `ghost` (default) is `Button`'s ghost — text colour, the same 6% text fill on hover and while

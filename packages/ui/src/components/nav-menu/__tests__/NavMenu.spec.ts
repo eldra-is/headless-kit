@@ -1,5 +1,5 @@
 import type { VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
@@ -215,6 +215,28 @@ describe('NavMenu — panels', () => {
     wrapper.unmount();
   });
 
+  it('fades a closing panel out, unclickable, rather than cutting it', async () => {
+    const wrapper = mountWith(NavMenu, {
+      props: { items: ITEMS },
+      global: { stubs: { transition: false } },
+    }) as Wrapper;
+    const [shop] = triggers(wrapper);
+    shop!.click();
+    await nextTick();
+    shop!.click();
+    await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    expect([...panel(wrapper, 0).classList]).toEqual(
+      expect.arrayContaining([
+        'pointer-events-none',
+        'transition-opacity',
+        'duration-fast',
+        'ease-in',
+      ])
+    );
+    wrapper.unmount();
+  });
+
   it('closes the panel and the drawer through the exposed close()', async () => {
     const wrapper = mount({ modelValue: 0, drawerOpen: true });
     (wrapper.vm as unknown as { close: () => void }).close();
@@ -288,6 +310,22 @@ describe('NavMenu — panel content', () => {
     wrapper.unmount();
   });
 
+  it('takes no room for a panel footer the slot leaves empty for that panel', async () => {
+    const wrapper = mount(
+      {},
+      {
+        panelFooter: ({ index }: { index: number }) =>
+          index === 0 ? h('a', { href: '/all' }, 'All') : undefined,
+      }
+    );
+    const footer = (index: number): HTMLElement =>
+      panel(wrapper, index).querySelector('[data-part="footer"]')!;
+    expect(footer(0).classList).toContain('empty:hidden');
+    expect(footer(0).matches(':empty')).toBe(false);
+    expect(footer(1).matches(':empty')).toBe(true);
+    wrapper.unmount();
+  });
+
   it('renders the slots with their scope', async () => {
     const wrapper = mount(
       {},
@@ -309,27 +347,200 @@ describe('NavMenu — panel content', () => {
   });
 });
 
+describe('NavMenu — arrow keys', () => {
+  function press(target: Element, name: string, init: KeyboardEventInit = {}): boolean {
+    const event = new KeyboardEvent('keydown', {
+      key: name,
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  function attached(props: Record<string, unknown> = {}): Wrapper {
+    return mountWith(NavMenu, {
+      props: { items: ITEMS, ...props },
+      attachTo: document.body,
+    }) as Wrapper;
+  }
+
+  const about = (wrapper: Wrapper): HTMLElement =>
+    wrapper.get('[data-part="link"]').element as HTMLElement;
+  const panelLinks = (wrapper: Wrapper, index: number): HTMLElement[] => [
+    ...panel(wrapper, index).querySelectorAll<HTMLElement>('a[href]'),
+  ];
+
+  it('ArrowDown on a trigger opens its panel and focuses the first link once it is shown', async () => {
+    const wrapper = attached();
+    const [shop] = triggers(wrapper);
+    shop!.focus();
+    expect(press(shop!, 'ArrowDown')).toBe(true);
+    expect(document.activeElement).toBe(shop);
+    await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(panelLinks(wrapper, 0)[0]);
+    wrapper.unmount();
+  });
+
+  it('ArrowUp on a trigger opens its panel at the last link', async () => {
+    const wrapper = attached();
+    const [, journal] = triggers(wrapper);
+    journal!.focus();
+    press(journal!, 'ArrowUp');
+    await nextTick();
+    expect(document.activeElement).toBe(panelLinks(wrapper, 1).at(-1));
+    wrapper.unmount();
+  });
+
+  it('ArrowDown/ArrowUp walk the panel and clamp; Home/End jump to its ends', async () => {
+    const wrapper = attached({ modelValue: 0 });
+    const links = panelLinks(wrapper, 0);
+    expect(links).toHaveLength(3);
+    links[0]!.focus();
+    press(links[0]!, 'ArrowDown');
+    expect(document.activeElement).toBe(links[1]);
+    press(links[1]!, 'ArrowUp');
+    press(links[0]!, 'ArrowUp');
+    expect(document.activeElement).toBe(links[0]);
+    press(links[0]!, 'End');
+    await nextTick();
+    expect(document.activeElement).toBe(links[2]);
+    press(links[2]!, 'ArrowDown');
+    expect(document.activeElement).toBe(links[2]);
+    press(links[2]!, 'Home');
+    await nextTick();
+    expect(document.activeElement).toBe(links[0]);
+    wrapper.unmount();
+  });
+
+  it('ArrowRight/ArrowLeft move along the bar, carrying an open panel, and clamp at the ends', async () => {
+    const wrapper = attached();
+    const [shop, journal] = triggers(wrapper);
+    shop!.focus();
+    press(shop!, 'ArrowRight');
+    await nextTick();
+    expect(document.activeElement).toBe(journal);
+    expect(journal!.getAttribute('aria-expanded')).toBe('false');
+
+    journal!.click();
+    await nextTick();
+    press(journal!, 'ArrowLeft');
+    await nextTick();
+    expect(document.activeElement).toBe(shop);
+    expect(shop!.getAttribute('aria-expanded')).toBe('true');
+    expect(journal!.getAttribute('aria-expanded')).toBe('false');
+
+    press(shop!, 'ArrowLeft');
+    expect(document.activeElement).toBe(shop);
+    press(shop!, 'End');
+    await nextTick();
+    expect(document.activeElement).toBe(about(wrapper));
+    expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    press(about(wrapper), 'ArrowRight');
+    expect(document.activeElement).toBe(about(wrapper));
+    press(about(wrapper), 'Home');
+    expect(document.activeElement).toBe(shop);
+    wrapper.unmount();
+  });
+
+  it('ArrowRight from inside a panel lands on the next entry itself, its panel open', async () => {
+    const wrapper = attached();
+    const [shop, journal] = triggers(wrapper);
+    shop!.click();
+    await nextTick();
+    const first = panelLinks(wrapper, 0)[0]!;
+    first.focus();
+    press(first, 'ArrowRight');
+    await nextTick();
+    expect(document.activeElement).toBe(journal);
+    expect(journal!.getAttribute('aria-expanded')).toBe('true');
+    expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    wrapper.unmount();
+  });
+
+  it('leaves every other key, a modified arrow and a typing field to the page', async () => {
+    const wrapper = attached({ modelValue: 0 });
+    const [shop] = triggers(wrapper);
+    for (const name of ['Tab', 'PageDown', 'a', 'Enter']) {
+      expect(press(shop!, name), name).toBe(false);
+      expect(press(about(wrapper), name), name).toBe(false);
+    }
+    expect(press(about(wrapper), 'ArrowDown')).toBe(false);
+    expect(press(shop!, 'ArrowRight', { altKey: true })).toBe(false);
+    const input = document.createElement('input');
+    panel(wrapper, 0).querySelector('[data-part="content"]')!.append(input);
+    expect(press(input, 'ArrowLeft')).toBe(false);
+    wrapper.unmount();
+  });
+});
+
 describe('NavMenu — hover', () => {
-  it('opens for a resting mouse and closes when it leaves the menu', async () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const root = (wrapper: Wrapper): Element => wrapper.get('[data-part="root"]').element;
+
+  it('opens once a mouse rests on a trigger, and closes a moment after it leaves the menu', async () => {
     const wrapper = mount({ openOnHover: true });
     const [shop] = triggers(wrapper);
     pointer(shop!, 'pointerenter');
     await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    vi.advanceTimersByTime(150);
+    await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('true');
-    pointer(wrapper.get('[data-part="root"]').element, 'pointerleave');
+    pointer(root(wrapper), 'pointerleave');
+    vi.advanceTimersByTime(100);
+    await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('true');
+    vi.advanceTimersByTime(50);
     await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    wrapper.unmount();
+  });
+
+  it('opens nothing for a pointer passing over a trigger', async () => {
+    const wrapper = mount({ openOnHover: true });
+    const [shop] = triggers(wrapper);
+    pointer(shop!, 'pointerenter');
+    vi.advanceTimersByTime(100);
+    pointer(shop!, 'pointerleave');
+    vi.advanceTimersByTime(300);
+    await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('false');
+    wrapper.unmount();
+  });
+
+  it('stays open when the pointer comes back within the grace period', async () => {
+    const wrapper = mount({ openOnHover: true });
+    const [shop] = triggers(wrapper);
+    pointer(shop!, 'pointerenter');
+    vi.advanceTimersByTime(150);
+    pointer(root(wrapper), 'pointerleave');
+    vi.advanceTimersByTime(100);
+    pointer(root(wrapper), 'pointerenter');
+    vi.advanceTimersByTime(300);
+    await nextTick();
+    expect(shop!.getAttribute('aria-expanded')).toBe('true');
     wrapper.unmount();
   });
 
   it('ignores touch, and stays off unless asked for', async () => {
     const touch = mount({ openOnHover: true });
     pointer(triggers(touch)[0]!, 'pointerenter', 'touch');
+    vi.advanceTimersByTime(300);
     await nextTick();
     expect(triggers(touch)[0]!.getAttribute('aria-expanded')).toBe('false');
     touch.unmount();
     const off = mount();
     pointer(triggers(off)[0]!, 'pointerenter');
+    vi.advanceTimersByTime(300);
     await nextTick();
     expect(triggers(off)[0]!.getAttribute('aria-expanded')).toBe('false');
     off.unmount();
@@ -339,11 +550,13 @@ describe('NavMenu — hover', () => {
     const wrapper = mount({ openOnHover: true });
     const [shop] = triggers(wrapper);
     pointer(shop!, 'pointerenter');
+    vi.advanceTimersByTime(150);
     await nextTick();
     shop!.click();
     await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('true');
-    pointer(wrapper.get('[data-part="root"]').element, 'pointerleave');
+    pointer(root(wrapper), 'pointerleave');
+    vi.advanceTimersByTime(300);
     await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('true');
     wrapper.unmount();
@@ -353,9 +566,11 @@ describe('NavMenu — hover', () => {
     const wrapper = mount({ openOnHover: true });
     const [shop] = triggers(wrapper);
     pointer(shop!, 'pointerenter');
+    vi.advanceTimersByTime(150);
     await nextTick();
     panel(wrapper, 0).querySelector('a')!.focus();
-    pointer(wrapper.get('[data-part="root"]').element, 'pointerleave');
+    pointer(root(wrapper), 'pointerleave');
+    vi.advanceTimersByTime(300);
     await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('true');
     wrapper.unmount();
@@ -366,9 +581,23 @@ describe('NavMenu — hover', () => {
     const [shop] = triggers(wrapper);
     shop!.click();
     await nextTick();
-    pointer(wrapper.get('[data-part="root"]').element, 'pointerleave');
+    pointer(root(wrapper), 'pointerleave');
+    vi.advanceTimersByTime(300);
     await nextTick();
     expect(shop!.getAttribute('aria-expanded')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('drops a pending hover open once the panel closes another way', async () => {
+    const wrapper = mount({ openOnHover: true });
+    const [shop, journal] = triggers(wrapper);
+    shop!.click();
+    await nextTick();
+    pointer(journal!, 'pointerenter');
+    (wrapper.vm as unknown as { close: () => void }).close();
+    vi.advanceTimersByTime(300);
+    await nextTick();
+    expect(journal!.getAttribute('aria-expanded')).toBe('false');
     wrapper.unmount();
   });
 });
@@ -392,6 +621,44 @@ describe('NavMenu — narrow screens', () => {
     expect(wrapper.get('[data-part="nav"]').classes()).toEqual(['block']);
     expect(wrapper.find('[data-part="toggle"]').exists()).toBe(false);
     expect(wrapper.find('dialog').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('collapses against the nearest container with an @ breakpoint', () => {
+    const wrapper = mount({ collapseBelow: '@content' });
+    expect(wrapper.get('[data-part="nav"]').classes()).toEqual(['hidden', '@content:block']);
+    const toggle = wrapper.get('[data-part="toggle"]').classes();
+    expect(toggle).toContain('@content:hidden');
+    expect(toggle.some((token) => /^(md|lg|xl):/.test(token))).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows only the menu button with collapseBelow="always"', () => {
+    const wrapper = mount({ collapseBelow: 'always' });
+    expect(wrapper.find('[data-part="nav"]').exists()).toBe(false);
+    const toggle = wrapper.get('[data-part="toggle"]').classes();
+    expect(toggle.some((token) => token.endsWith(':hidden'))).toBe(false);
+    expect(wrapper.get('dialog').findAll('[data-part="drawerItem"]')).toHaveLength(3);
+    wrapper.unmount();
+  });
+
+  it('draws no empty navigation landmark when no entry has a label', () => {
+    const wrapper = mount(
+      { items: [{ label: null, href: '/x' }] },
+      { drawerFooter: () => h('a', { href: '/contact' }, 'Contact') }
+    );
+    expect(wrapper.findAll('nav')).toHaveLength(0);
+    expect(wrapper.find('[data-part="toggle"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('points the menu button at the drawer, named by its own message', () => {
+    const wrapper = mount({ messages: { navMenuOpen: 'Open menu', navMenuDrawer: 'Site menu' } });
+    const toggle = wrapper.get('[data-part="toggle"]');
+    const dialog = wrapper.get('dialog');
+    expect(toggle.attributes('aria-label')).toBe('Open menu');
+    expect(toggle.attributes('aria-controls')).toBe(dialog.attributes('id'));
+    expect(dialog.attributes('aria-label')).toBe('Site menu');
     wrapper.unmount();
   });
 

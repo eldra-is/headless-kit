@@ -70,7 +70,8 @@ const meta = {
           'The site header navigation: top-level links, and buttons that open a panel of links.',
           'A disclosure pattern, not an ARIA menu: `Enter`/`Space` open, `Tab` walks through the',
           'panel, `Escape` closes it and returns focus to its button, and a click outside or focus',
-          'leaving closes it. One panel is open at a time.',
+          'leaving closes it. One panel is open at a time. The arrow keys move along the bar and',
+          'through a panel (`↓` on a button opens it), `Home`/`End` reach the ends, nothing wraps.',
           '',
           '**Data**: `items`, one level of `children`. Children sharing a `group` form a column',
           'under that heading, and grouped children make a `mega` panel spanning the menu; plain',
@@ -89,8 +90,9 @@ const meta = {
           '`drawerLink`, `drawerTrigger`, `drawerPanel`, `drawerFooter`. **Slots**: `panelItem`,',
           '`groupHeading`, `panelFooter`, `toggle`, `drawerFooter`.',
           '',
-          '**Narrow screens**: below `collapseBelow` (default `lg`) the bar becomes a menu button',
-          'opening a `Drawer`, panels becoming accordion rows. **CSS variables**:',
+          '**Narrow screens**: below `collapseBelow` (default `lg`; `@content` and the other `@`',
+          'values measure the nearest container; `always` shows only the button) the bar becomes a',
+          'menu button opening a `Drawer`, panels becoming accordion rows. **CSS variables**:',
           '`--eldra-nav-menu-offset`, `--eldra-nav-menu-dropdown-min`/`-max`,',
           '`--eldra-nav-menu-column-min`.',
         ].join('\n'),
@@ -227,11 +229,7 @@ const AREA_PAGES: Record<string, string> = {
   Peningarnir: '#peningarnir',
 };
 
-/**
- * The reference header: the `muted` variant, a static root so the «Kerfið» panel spans the header,
- * five columns, a rule under each column heading, linked headings through the `groupHeading` slot
- * and a panel foot through `panelFooter`.
- */
+/** The eldra.is header: `muted`, plus a static root, five columns and ruled, linked column headings. */
 export const EldraIsHeader: Story = {
   args: {
     items: ELDRA_IS,

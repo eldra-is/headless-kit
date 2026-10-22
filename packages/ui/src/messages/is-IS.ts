@@ -161,6 +161,7 @@ export const isIS: UiMessages = {
   showMoreLevels: (n: number) => `Sýna ${n} þrep í viðbót`,
   navMenuLabel: 'Aðalvalmynd',
   navMenuOpen: 'Valmynd',
+  navMenuDrawer: 'Valmynd',
   // A colon rather than a preposition, so the label never has to be declined.
   navMenuOverview: (label: string) => `${label}: yfirlit`,
   pagination: 'Síðuskipting',
