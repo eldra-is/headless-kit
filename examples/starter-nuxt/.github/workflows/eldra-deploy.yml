@@ -18,8 +18,6 @@ jobs:
       - run: pnpm exec nuxi generate
         env:
           ELDRA_GATEWAY_URL: ${{ vars.ELDRA_GATEWAY_URL }}
-          # Optional: the edge host the visitor's browser should call (blank = ELDRA_GATEWAY_URL).
-          ELDRA_PUBLIC_API_URL: ${{ vars.ELDRA_PUBLIC_API_URL }}
           ELDRA_ORG_ID: ${{ vars.ELDRA_ORG_ID }}
           # Read-only build token (Studio → Settings → Developers → Build tokens): gives the build's
           # gateway reads their own rate-limit bucket.

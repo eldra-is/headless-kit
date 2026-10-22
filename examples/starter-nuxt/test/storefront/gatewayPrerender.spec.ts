@@ -6,7 +6,7 @@ import {
   type GatewayStorefrontOptions,
   type StorefrontPrerenderHandle,
 } from '../../app/storefront/gateway';
-import { CATEGORIES_MEMO_NAME } from '../../app/storefront/apiAccess';
+import { CATEGORIES_MEMO_NAME } from '../../app/storefront/sharedRead';
 import { createVolatileRefresher, type VolatileRefresher } from '../../app/storefront/refresh';
 import {
   prerenderThroughAsyncData,

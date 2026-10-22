@@ -13,7 +13,7 @@ import {
   type StorefrontPrerenderHandle,
   type StorefrontRuntime,
 } from '../storefront/gateway';
-import { createStorefrontApiAccess } from '../storefront/apiAccess';
+import { createSharedRead } from '../storefront/sharedRead';
 import { withAnalytics } from '../storefront/analytics';
 import { createVolatileRefresher } from '../storefront/refresh';
 import {
@@ -171,7 +171,6 @@ export default defineNuxtPlugin({
     const publicConfig = useRuntimeConfig().public as unknown as {
       eldra?: {
         gatewayUrl?: string;
-        publicApiUrl?: string;
         orgId?: string;
         commerce?: unknown;
         retry?: EldraRetryOptions | null;
@@ -180,14 +179,10 @@ export default defineNuxtPlugin({
       formsEndpoint?: string;
     };
 
-    // The browser talks to the edge host when the site sets `ELDRA_PUBLIC_API_URL` (WS-407); the
-    // server, and so every build-time and prerender read, stays on the origin `gatewayUrl`.
-    const { apiBaseUrl, shared } = createStorefrontApiAccess(
-      publicConfig.eldra,
-      import.meta.client
-    );
+    // Build-wide reads (the category tree) are shared across the routes of a prerender (WS-406).
+    const shared = createSharedRead(publicConfig.eldra);
     const client = createEldraClient({
-      apiBaseUrl,
+      apiBaseUrl: publicConfig.eldra?.gatewayUrl || undefined,
       orgId: publicConfig.eldra?.orgId || undefined,
       // The theme's own retry policy, set once in `nuxt.config.ts`'s `eldra`
       // block and carried here in the runtime config: a prerender of this site

@@ -24,33 +24,16 @@ export default defineNuxtConfig({
 });
 ```
 
-Environment: `ELDRA_GATEWAY_URL` (the origin gateway: build-time reads, prerender and any server render,
-with the build token) and `ELDRA_ORG_ID` are required for a real build. `ELDRA_PUBLIC_API_URL`
-(`publicApiUrl`) is optional: the API base the **browser** uses, normally the edge host, so a
-visitor's requests are edge-signed and receive the edge visitor token. Blank, the browser uses
-`gatewayUrl`, exactly as before. Set it for preview and production deploys that should go through
-the edge. Override at runtime on an SSR host with `NUXT_PUBLIC_ELDRA_PUBLIC_API_URL`.
+Environment: `ELDRA_GATEWAY_URL` and `ELDRA_ORG_ID` are required for a real build. Point
+`ELDRA_GATEWAY_URL` at the **edge API host**: the edge recognises the build token
+(`X-Eldra-Build-Token`, its own rate bucket), so the build's reads and the visitor's browser both
+go through the same host.
 
 During a prerender the page list, route-template list and category list are read once per build
 (and locale), not once per route (`@eldrajs/theme-nuxt/prerender`); request-time rendering never
 shares reads. One process is one build: the shared reads live for the length of one `nuxi generate`
 and are cleared when a prerender starts. The build logs one line with the counts
 (`[eldra] prerender shared reads: N made, M avoided`).
-
-## Deploying: where `ELDRA_PUBLIC_API_URL` points
-
-`ELDRA_PUBLIC_API_URL` must be the **edge API host** that fronts the same gateway as
-`ELDRA_GATEWAY_URL`, including the same path prefix the gateway base carries. Only the visitor's
-browser uses it; the build, the prerender and any server render keep `ELDRA_GATEWAY_URL` and the
-build token, which is never sent to the public base. Before setting it for a preview or production
-site, check the edge side:
-
-- its CORS allows the site's origin (for previews, the preview origins) and the headers the browser
-  sends (`X-Org-Id`, `X-Preview-Token` from a Studio frame);
-- it never caches a response to a request carrying `X-Preview-Token` (the edge already bypasses
-  the cache for these);
-- it forwards the analytics and platform routes the browser calls (`/js/script.js`, event posts,
-  `/platform/v1/config`).
 
 ```vue
 <script setup lang="ts">

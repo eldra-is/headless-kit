@@ -1,38 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { createStorefrontApiAccess } from '../../app/storefront/apiAccess';
+import { createSharedRead } from '../../app/storefront/sharedRead';
 
 const CONFIG = {
   gatewayUrl: 'https://origin.example/api',
-  publicApiUrl: 'https://edge.example/api',
   orgId: 'org-1',
 };
-
-describe('storefront API access (WS-407)', () => {
-  it('the server and the build use ELDRA_GATEWAY_URL, so the build token never reaches the public base', () => {
-    expect(createStorefrontApiAccess(CONFIG, false).apiBaseUrl).toBe(CONFIG.gatewayUrl);
-  });
-
-  it('the browser uses ELDRA_PUBLIC_API_URL when it is set', () => {
-    expect(createStorefrontApiAccess(CONFIG, true).apiBaseUrl).toBe(CONFIG.publicApiUrl);
-  });
-
-  it('the browser falls back to ELDRA_GATEWAY_URL when it is unset or blank', () => {
-    for (const publicApiUrl of [undefined, '', '  ']) {
-      expect(createStorefrontApiAccess({ ...CONFIG, publicApiUrl }, true).apiBaseUrl).toBe(
-        CONFIG.gatewayUrl
-      );
-    }
-  });
-
-  it('has no base at all for a site without credentials', () => {
-    expect(createStorefrontApiAccess(undefined, true).apiBaseUrl).toBeUndefined();
-  });
-});
 
 describe('storefront shared reads (WS-406)', () => {
   function keys(config: typeof CONFIG, name: string, locale: string | undefined) {
     const seen: Array<string | null> = [];
-    const { shared } = createStorefrontApiAccess(config, false, (scope, _name, load) => {
+    const shared = createSharedRead(config, (scope, _name, load) => {
       seen.push(scope === null ? null : `${scope}|${_name}`);
       return load();
     });
@@ -56,7 +33,7 @@ describe('storefront shared reads (WS-406)', () => {
 
   it('keys by the origin gateway, not the browser base', () => {
     const seen: Array<string | null> = [];
-    const { shared } = createStorefrontApiAccess(CONFIG, true, (scope, _name, load) => {
+    const shared = createSharedRead(CONFIG, (scope, _name, load) => {
       seen.push(scope);
       return load();
     });

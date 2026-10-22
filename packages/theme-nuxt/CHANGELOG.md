@@ -12,15 +12,9 @@ Release-please writes the generated notes from commit messages and does not repl
   a failed read is not remembered. SSR requests and the browser are unchanged and never share
   reads. New subpath `@eldrajs/theme-nuxt/prerender` (`memoizeForPrerender`, `prerenderMemoScope`,
   `prerenderMemoStats`) for a theme's own build-wide reads; the build logs the counts once, and the
-  starter shares its category read with the module's (one read per locale). New subpath
-  `@eldrajs/theme-nuxt/api-base` (`resolveApiBase`).
-
-- **A separate API base for the browser (WS-407).** New `publicApiUrl` option /
-  `ELDRA_PUBLIC_API_URL`, exposed as `runtimeConfig.public.eldra.publicApiUrl`: the host the
-  visitor's browser calls (the edge host), while build-time and prerender reads keep using
-  `gatewayUrl` (`ELDRA_GATEWAY_URL`, the origin). Blank by default, which keeps the browser on
-  `gatewayUrl` as before. The starter's pipelines pass it through; a preview deploy that should
-  go through the edge must set it.
+  starter shares its category read with the module's (one read per locale).
+  `ELDRA_GATEWAY_URL` should be the edge API host: the edge recognises the build token, so builds
+  and browsers use the same base.
 
 - **A build sends a read-only build token for its own rate-limit bucket (WS-403, WS-409).**
   `ELDRA_BUILD_TOKEN` (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens) is

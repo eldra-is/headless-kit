@@ -4,8 +4,7 @@ definitions:
   steps:
     # The build runs every npm dependency's code (install scripts, the Nuxt build), so it must never
     # receive the deploy token. Define these variables:
-    #   ELDRA_BUILD_TOKEN, ELDRA_GATEWAY_URL, ELDRA_ORG_ID, ELDRA_SITE_URL (the public origin), plus optional
-    #     ELDRA_PUBLIC_API_URL (the edge host the visitor's browser calls; blank = ELDRA_GATEWAY_URL):
+    #   ELDRA_BUILD_TOKEN, ELDRA_GATEWAY_URL, ELDRA_ORG_ID, ELDRA_SITE_URL (the public origin):
     #     repository variables. ELDRA_BUILD_TOKEN is secured (a read-only build token: Studio →
     #     Settings → Developers → Build tokens).
     #   ELDRA_DEPLOY_TOKEN and ELDRA_API_URL: deployment variables of the Production environment

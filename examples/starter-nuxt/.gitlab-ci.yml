@@ -8,8 +8,7 @@ stages: [build, deploy]
 #                       the site; scoped like this only the deploy job (environment: production, on
 #                       a protected branch) receives it, never the build job.
 #   ELDRA_GATEWAY_URL, ELDRA_ORG_ID, ELDRA_SITE_URL (the public origin) and ELDRA_API_URL: plain
-#                       variables. ELDRA_PUBLIC_API_URL (optional, the edge host the browser calls)
-#                       is a plain variable too.
+#                       variables.
 # A build is production unless ELDRA_BUILD_TARGET=preview, so none is set here.
 # The platform's trigger passes ELDRA_TRIGGER_DEPLOYMENT_ID as a pipeline variable.
 

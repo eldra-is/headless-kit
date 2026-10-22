@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EldraClientError, type CatalogDoc, type EldraClient } from '@eldrajs/theme-core';
-import { resolveApiBase } from '../src/runtime/apiBase';
 import { clearPrerenderMemo, forcePrerenderMemoForTests } from '../src/runtime/prerenderMemoState';
 import {
   memoizeForPrerender,
@@ -151,20 +150,5 @@ describe('WS-406 prerender memo', () => {
     expect(await memoizeForPrerender(scope, 'x', load)).toBe(1);
     clearPrerenderMemo();
     expect(await memoizeForPrerender(scope, 'x', load)).toBe(2);
-  });
-});
-
-describe('WS-407 resolveApiBase', () => {
-  it('sends the browser to publicApiUrl and the server to gatewayUrl', () => {
-    const cfg = { gatewayUrl: 'https://origin/api', publicApiUrl: 'https://edge/api' };
-    expect(resolveApiBase(cfg, true)).toBe('https://edge/api');
-    expect(resolveApiBase(cfg, false)).toBe('https://origin/api');
-  });
-
-  it('keeps the browser on gatewayUrl when publicApiUrl is unset or blank', () => {
-    expect(resolveApiBase({ gatewayUrl: 'https://origin/api' }, true)).toBe('https://origin/api');
-    expect(resolveApiBase({ gatewayUrl: 'https://origin/api', publicApiUrl: '  ' }, true)).toBe(
-      'https://origin/api'
-    );
   });
 });

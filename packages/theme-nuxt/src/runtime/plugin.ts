@@ -17,7 +17,6 @@ import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
 import 'virtual:eldra/tokens.css';
-import { resolveApiBase } from './apiBase';
 import { useEldraBuildToken } from './composables/useEldraBuildToken';
 import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
@@ -28,8 +27,6 @@ import { primePrerenderedRoutes } from './staticRoutes';
 
 interface RuntimeEldraConfig {
   gatewayUrl: string;
-  /** The browser's API base (WS-407); blank means `gatewayUrl`. */
-  publicApiUrl?: string;
   orgId: string;
   studioOrigins: string[];
   pageSchema: string;
@@ -60,8 +57,7 @@ export default defineNuxtPlugin({
     const storeLocales = resolveStoreLocales(cfg.locales);
     const routing = resolveLocaleRouting(storeLocales, cfg.locale);
     const client = createEldraClient({
-      // The browser goes to the edge host when the site sets one (WS-407); the server keeps the origin.
-      gatewayUrl: resolveApiBase(cfg, import.meta.client),
+      gatewayUrl: cfg.gatewayUrl,
       orgId: cfg.orgId,
       stega: true,
       retry: cfg.retry ?? undefined,
