@@ -341,7 +341,7 @@ const structuredDataJson = computed(() =>
 </script>
 
 <template>
-  <nav data-part="root" :aria-label="m.breadcrumbLabel" :class="rootClass">
+  <nav data-eldra-ui data-part="root" :aria-label="m.breadcrumbLabel" :class="rootClass">
     <ol data-part="list" :class="listClass">
       <li
         v-for="(item, index) in startItems"

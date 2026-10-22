@@ -1,5 +1,34 @@
+import { readFileSync } from 'node:fs';
+// happy-dom's global `URL` refuses the `file:` scheme; Node's own resolves it.
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { withoutPreflight } from '../components-css.mjs';
+
+const RESET = fileURLToPath(new NodeURL('../../src/styles/components-reset.css', import.meta.url));
+const SCOPE = ':where([data-eldra-ui], [data-eldra-ui] [data-part])';
+
+function selectors(css: string): string[] {
+  const lists = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{/g)];
+  return lists.flatMap(([, list]) => {
+    const out = [''];
+    let depth = 0;
+    for (const char of list!) {
+      depth += char === '(' ? 1 : char === ')' ? -1 : 0;
+      if (char === ',' && depth === 0) out.push('');
+      else out[out.length - 1] += char;
+    }
+    return out.map((selector) => selector.trim());
+  });
+}
+
+function withoutParentheses(text: string): string {
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/\([^()]*\)/g, '');
+  } while (text !== previous);
+  return text;
+}
 
 const STYLE = [
   '@layer theme {',
@@ -51,6 +80,17 @@ describe('withoutPreflight', () => {
     expect(() => withoutPreflight(STYLE.replace('@layer base {', '@layer other {'), '')).toThrow(
       /exactly one top-level `@layer base`/
     );
+  });
+
+  it("scopes every rule of the reset to Eldra's components and nothing beside them", () => {
+    const all = selectors(readFileSync(RESET, 'utf8'));
+    expect(all.length).toBeGreaterThan(20);
+    const unscoped = all.filter(
+      (selector) =>
+        !selector.startsWith(SCOPE) ||
+        /[\s>+~]/.test(withoutParentheses(selector.slice(SCOPE.length)))
+    );
+    expect(unscoped).toEqual([]);
   });
 
   it('fails loudly when the base layer appears twice', () => {

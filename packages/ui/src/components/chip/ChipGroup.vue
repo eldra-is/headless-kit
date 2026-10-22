@@ -52,6 +52,7 @@ const rootClass = computed(() => partClass(cx('flex flex-wrap gap-2'), props.cla
 
 <template>
   <div
+    data-eldra-ui
     data-part="root"
     role="group"
     :aria-label="ariaLabel"

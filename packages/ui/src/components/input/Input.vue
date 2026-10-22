@@ -228,7 +228,7 @@ function onClear(): void {
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <span v-if="hasLeading" data-part="leadingIcon" :class="leadingIconClass">
       <slot name="leadingIcon">
         <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />

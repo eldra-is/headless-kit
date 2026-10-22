@@ -1,41 +1,56 @@
-/* Tailwind's preflight narrowed to the components' own `data-part` elements: `@layer base` of dist/components.css. */
-:where([data-part]),
-:where([data-part])::before,
-:where([data-part])::after,
-:where([data-part])::backdrop,
-:where([data-part])::file-selector-button {
+/* Tailwind's preflight narrowed to Eldra's components (`data-eldra-ui` roots and their `data-part` elements): `@layer base` of dist/components.css. */
+:where([data-eldra-ui], [data-eldra-ui] [data-part]),
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::before,
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::after,
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::backdrop,
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::file-selector-button {
   box-sizing: border-box;
   border: 0 solid;
   margin: 0;
   padding: 0;
 }
 
-:where([data-part]):where(h1, h2, h3, h4, h5, h6) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(h1, h2, h3, h4, h5, h6) {
   font-size: inherit;
   font-weight: inherit;
 }
 
-:where([data-part]):where(a) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(a) {
   color: inherit;
   text-decoration: inherit;
 }
 
-:where([data-part]):where(ol, ul, menu) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(ol, ul, menu) {
   list-style: none;
 }
 
-:where([data-part]):where(img, svg, video, canvas, audio, iframe, embed, object) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(
+  img,
+  svg,
+  video,
+  canvas,
+  audio,
+  iframe,
+  embed,
+  object
+) {
   display: block;
   vertical-align: middle;
 }
 
-:where([data-part]):where(img, video) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(img, video) {
   max-width: 100%;
   height: auto;
 }
 
-:where([data-part]):where(button, input, select, optgroup, textarea),
-:where([data-part])::file-selector-button {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(
+  button,
+  input,
+  select,
+  optgroup,
+  textarea
+),
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::file-selector-button {
   font: inherit;
   font-feature-settings: inherit;
   font-variation-settings: inherit;
@@ -46,43 +61,46 @@
   opacity: 1;
 }
 
-:where([data-part])::placeholder {
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::placeholder {
   opacity: 1;
   color: color-mix(in oklab, currentcolor 50%, transparent);
 }
 
-:where([data-part]):where(textarea) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(textarea) {
   resize: vertical;
 }
 
-:where([data-part]):where(button, input:where([type='button'], [type='reset'], [type='submit'])),
-:where([data-part])::file-selector-button {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(
+  button,
+  input:where([type='button'], [type='reset'], [type='submit'])
+),
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::file-selector-button {
   appearance: button;
 }
 
-:where([data-part])::-webkit-search-decoration {
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::-webkit-search-decoration {
   -webkit-appearance: none;
 }
 
-:where([data-part])::-webkit-inner-spin-button,
-:where([data-part])::-webkit-outer-spin-button {
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::-webkit-inner-spin-button,
+:where([data-eldra-ui], [data-eldra-ui] [data-part])::-webkit-outer-spin-button {
   height: auto;
 }
 
-:where([data-part]):-moz-ui-invalid {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):-moz-ui-invalid {
   box-shadow: none;
 }
 
-:where([data-part]):where(summary) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(summary) {
   display: list-item;
 }
 
-:where([data-part]):where(table) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part]):where(table) {
   text-indent: 0;
   border-color: inherit;
   border-collapse: collapse;
 }
 
-:where([data-part])[hidden]:where(:not([hidden='until-found'])) {
+:where([data-eldra-ui], [data-eldra-ui] [data-part])[hidden]:where(:not([hidden='until-found'])) {
   display: none !important;
 }

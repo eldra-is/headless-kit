@@ -369,6 +369,7 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
 
 <template>
   <p
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :lang="lang ?? undefined"

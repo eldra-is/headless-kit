@@ -138,6 +138,7 @@ const closeClass = computed(() =>
 
 <template>
   <div
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :role="variant === 'danger' ? 'alert' : undefined"

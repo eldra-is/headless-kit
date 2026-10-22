@@ -214,6 +214,7 @@ function onSubmit(event: Event): void {
 
 <template>
   <form
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :action="action"

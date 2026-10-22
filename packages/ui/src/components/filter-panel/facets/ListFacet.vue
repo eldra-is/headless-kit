@@ -135,7 +135,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
 </script>
 
 <template>
-  <div class="min-w-0">
+  <div data-eldra-ui class="min-w-0">
     <!-- Spec → Accessibility, Long lists: `<input type="search">` labelled "Search material
          values", placeholder "Search material", `aria-controls` pointing at the list. `Input`
          gives a `type="search"` field its clear button on its own. -->

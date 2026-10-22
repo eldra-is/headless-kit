@@ -396,6 +396,7 @@ const linkTabindex = computed(() => (isLink.value && isDisabled.value ? '-1' : u
 <template>
   <component
     :is="rootTag"
+    data-eldra-ui
     data-part="container"
     :class="containerClass"
     :type="isLink ? undefined : type"

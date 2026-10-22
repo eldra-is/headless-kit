@@ -115,6 +115,7 @@ const rootClass = computed(() =>
 <template>
   <component
     :is="rootTag"
+    data-eldra-ui
     data-part="root"
     :data-section-bg="background"
     :data-section="inverts ? background : undefined"

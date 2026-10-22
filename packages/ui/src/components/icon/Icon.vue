@@ -38,6 +38,7 @@ const rootClass = computed(() =>
 <template>
   <component
     :is="icon"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :stroke-width="STROKE_WIDTH"

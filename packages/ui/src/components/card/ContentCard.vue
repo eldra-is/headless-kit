@@ -219,6 +219,7 @@ const arrowClass = CUE_ARROW_CLASS;
 <template>
   <div
     v-if="loading"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     role="group"
@@ -233,7 +234,7 @@ const arrowClass = CUE_ARROW_CLASS;
     </div>
   </div>
 
-  <article v-else data-part="root" :class="rootClass">
+  <article v-else data-eldra-ui data-part="root" :class="rootClass">
     <!-- Spec → Anatomy, part 1: "Media (optional)". `alt` is left to `Image`'s own default
          (the media's own `alt`, then `""`) rather than forced here, so a card whose image adds
          real information can still describe it (spec → Accessibility, 1.1.1). -->

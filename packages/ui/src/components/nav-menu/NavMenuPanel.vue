@@ -113,6 +113,7 @@ const badgeClasses = computed(() =>
   <component
     :is="navLinkTag(item, linkAs)"
     v-if="hasHref(item)"
+    data-eldra-ui
     data-part="overview"
     :class="overviewClass"
     v-bind="navLinkAttrs(item, linkAs)"
@@ -121,7 +122,7 @@ const badgeClasses = computed(() =>
     <VisuallyHidden v-if="item.newTab">{{ messages.opensInNewTab }}</VisuallyHidden>
   </component>
 
-  <div data-part="columns" :class="columnsClass">
+  <div data-eldra-ui data-part="columns" :class="columnsClass">
     <div v-for="(group, index) in groups" :key="index" data-part="group" :class="groupClass">
       <span
         v-if="group.group !== null"

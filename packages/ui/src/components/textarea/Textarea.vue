@@ -257,7 +257,7 @@ function onChange(event: Event): void {
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <textarea
       ref="controlRef"
       v-bind="$attrs"

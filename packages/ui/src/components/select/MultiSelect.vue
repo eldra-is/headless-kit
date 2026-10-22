@@ -573,7 +573,7 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <!-- The trigger and its clear button share a positioning context of their own: the root also
          holds the tag list, and a clear button positioned against *that* would drift down the
          control as tags wrap onto a second line. -->

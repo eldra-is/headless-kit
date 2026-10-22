@@ -195,7 +195,7 @@ const valuesClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="values" :class="valuesClass">
+  <div data-eldra-ui data-part="values" :class="valuesClass">
     <label
       v-for="value in values"
       :key="value.value"

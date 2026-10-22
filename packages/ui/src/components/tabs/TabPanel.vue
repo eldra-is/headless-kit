@@ -57,6 +57,7 @@ const panelClass = computed(() =>
     :id="context.panelId(value)"
     ref="el"
     role="tabpanel"
+    data-eldra-ui
     data-part="panel"
     :aria-labelledby="context.tabId(value)"
     :hidden="!isSelected"

@@ -275,7 +275,7 @@ const panelClass = computed(() =>
 </script>
 
 <template>
-  <a v-if="isLinkRow" data-part="root" :class="rootClass" :href="href">
+  <a v-if="isLinkRow" data-eldra-ui data-part="root" :class="rootClass" :href="href">
     <span class="min-w-0 flex-1">
       <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
       <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
@@ -284,6 +284,7 @@ const panelClass = computed(() =>
   <details
     v-else
     ref="detailsRef"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :name="detailsName"

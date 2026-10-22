@@ -235,6 +235,7 @@ const counterClass = computed(() =>
   <component
     :is="group ? 'fieldset' : 'div'"
     :id="group ? controlId : undefined"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :tabindex="group ? -1 : undefined"

@@ -128,6 +128,7 @@ const emptyClass = computed(() => partClass('text-body-sm text-muted', props.cla
 
 <template>
   <span
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     v-bind="!isLinked && !isEmpty ? { role: 'img', 'aria-label': ratingSentence } : {}"

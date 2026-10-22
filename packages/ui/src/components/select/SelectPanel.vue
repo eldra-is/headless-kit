@@ -179,6 +179,7 @@ function onPanelMouseDown(event: MouseEvent): void {
   <div
     ref="root"
     :id="panelId"
+    data-eldra-ui
     data-part="panel"
     :data-eldra-overlay-owner="panelId"
     :class="panelClasses"

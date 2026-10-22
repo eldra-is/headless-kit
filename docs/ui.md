@@ -243,6 +243,13 @@ Pick one of four CSS entries, depending on how the consuming project builds CSS:
   @import '@eldrajs/ui/components.css';
   ```
 
+  Its reset reaches only elements inside a component: each component's outermost element, and
+  every panel, bubble or toast region it renders outside it, carries `data-eldra-ui`, and the reset
+  applies to those and to the `data-part` elements within them. A site's own `data-part` elements,
+  Ark UI and Zag included, keep their defaults. `data-eldra-ui` is public, so a site can use it as a
+  hook. The one exception: an element with its own `data-part` passed into a component's slot is
+  inside the scope and gets the reset too.
+
 ## Forms
 
 The form components are validation-agnostic: `FieldWrapper` takes an `error` string, `Input` takes

@@ -70,11 +70,24 @@ delivery shape.
   It sits in `@layer base`, so a site's own rules still win where they exist, but anything the site
   left to the browser — rich text from the CMS, most often — loses its defaults. `components.css`
   carries the same theme and the same utilities, byte for byte, and narrows the reset to the
-  elements the components render themselves (each carries `data-part`), so the site's own elements
-  keep the browser's defaults and anything passed into a component's slot keeps the site's styling.
-  Use `style.css` when the page is built from this package; use `components.css` when the page is
-  the site's own. `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component
-  family under both and requires identical pixels.
+  elements the components render themselves, so the site's own elements keep the browser's
+  defaults and anything passed into a component's slot keeps the site's styling. Use `style.css`
+  when the page is built from this package; use `components.css` when the page is the site's own.
+  `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component family under both,
+  the overlays open, and requires identical pixels.
+
+  **The `data-eldra-ui` marker.** Every component's outermost element carries `data-eldra-ui`, and
+  so does every element a component renders outside it: a `Select` or `MultiSelect` panel, a
+  `SearchBar` results panel, a `Popover` panel, a `Tooltip` bubble and the `Toaster` region, each
+  teleported out of its component. The reset reaches exactly those elements and the `data-part`
+  elements inside them, `:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero
+  specificity. `data-part` alone is not enough, because it is not this package's name: a site's
+  own `<h2 data-part="title">`, or any Ark UI or Zag component (which put `data-part` on every
+  element they render), keeps the browser's defaults. The attribute is public and stable, so a
+  site can use it as a hook too (`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global
+  link rule out of the components). One case stays inside the scope: an element carrying its own
+  `data-part` that the site passes into a component's slot (an Ark UI widget inside a `Dialog`,
+  say) is a `data-part` element inside a marked root, so it gets the reset as well.
 
   Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
   regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS

@@ -55,5 +55,5 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <component :is="as" data-part="root" :class="rootClass"><slot /></component>
+  <component :is="as" data-eldra-ui data-part="root" :class="rootClass"><slot /></component>
 </template>

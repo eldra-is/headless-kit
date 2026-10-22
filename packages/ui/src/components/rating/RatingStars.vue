@@ -61,7 +61,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
 </script>
 
 <template>
-  <span data-part="stars" :class="starsClass" aria-hidden="true">
+  <span data-eldra-ui data-part="stars" :class="starsClass" aria-hidden="true">
     <span v-for="(state, index) in starStates" :key="index" data-part="star" :class="starClass">
       <!--
         Empty star (spec "Rating" → States, "Empty star (and empty half)" row): `border-strong`

@@ -297,7 +297,7 @@ const accordionClasses = computed(() => ({
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" @pointerleave="onRootPointerLeave">
+  <div data-eldra-ui data-part="root" :class="rootClass" @pointerleave="onRootPointerLeave">
     <nav data-part="nav" :class="navClass" :aria-label="navLabel">
       <ul data-part="list" :class="listClass">
         <li

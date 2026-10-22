@@ -128,7 +128,12 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
 </script>
 
 <template>
-  <span data-part="root" :class="rootClass" :aria-busy="revalidating ? 'true' : undefined">
+  <span
+    data-eldra-ui
+    data-part="root"
+    :class="rootClass"
+    :aria-busy="revalidating ? 'true' : undefined"
+  >
     <svg
       data-part="icon"
       :class="iconClass"

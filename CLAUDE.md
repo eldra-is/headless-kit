@@ -121,8 +121,9 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   own Tailwind build reads them, with `@source './'` resolving against `dist/`), `./style.css`
   (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
   entry, with Tailwind's page-wide preflight) and `./components.css` (the same without it: its
-  reset touches only the components' own `data-part` elements, derived by
-  `scripts/components-css.mjs`). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
+  `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
+  enforced by `src/__tests__/eldraUiMarker.spec.ts`). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
