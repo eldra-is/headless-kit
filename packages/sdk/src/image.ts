@@ -21,11 +21,16 @@ const SIZED_VARIANTS = Object.keys(ELDRA_IMAGE_VARIANT_WIDTHS) as EldraSizedImag
 /**
  * A media URL as the API returns it, or any object carrying one (`thumbnail`, `mediaLinks[]`, a
  * CMS media item). `contentType`, when present, keeps formats the host does not resize out of
- * `srcset`.
+ * `srcset`; `width` and `height`, when present, are the displayed pixel size (docs/images.md).
  */
 export type EldraImageSource =
   | string
-  | { url?: string | null; contentType?: string | null }
+  | {
+      url?: string | null;
+      contentType?: string | null;
+      width?: number | null;
+      height?: number | null;
+    }
   | null
   | undefined;
 
@@ -50,6 +55,16 @@ const RESIZABLE_CONTENT_TYPES = new Set([
 function sourceUrl(source: EldraImageSource): string | undefined {
   const url = typeof source === 'string' ? source : source?.url;
   return url ? url : undefined;
+}
+
+const isSide = (n: unknown): n is number => typeof n === 'number' && n > 0 && n < Infinity;
+
+/** The size the API gave the image, when it gave both sides. */
+function sourceSize(source: EldraImageSource): { width: number; height: number } | undefined {
+  const s = typeof source === 'object' ? source : undefined;
+  return s && isSide(s.width) && isSide(s.height)
+    ? { width: s.width, height: s.height }
+    : undefined;
 }
 
 function resizableAssetBase(source: EldraImageSource): string | undefined {
@@ -90,8 +105,8 @@ export function imageVariantFor(width: number, density = 1): EldraSizedImageVari
 
 export interface EldraImageSrcsetOptions {
   /**
-   * The original's width in pixels, when you know it. Variants wider than it would be the same
-   * pixels at a new URL, so they are dropped, and the last one is described at its true width.
+   * The original's width in pixels, by default the source's `width`. Variants wider than it would be
+   * the same pixels at a new URL, so they are dropped, and the last one is described at its true width.
    */
   originalWidth?: number;
 }
@@ -106,7 +121,7 @@ export function imageSrcset(
 ): string | undefined {
   const base = resizableAssetBase(source);
   if (!base) return undefined;
-  const { originalWidth } = options;
+  const originalWidth = options.originalWidth ?? sourceSize(source)?.width;
   const candidates: string[] = [];
   for (const variant of SIZED_VARIANTS) {
     const width = ELDRA_IMAGE_VARIANT_WIDTHS[variant];
@@ -129,10 +144,10 @@ export interface EldraResponsiveImageOptions extends EldraImageSrcsetOptions {
   variant?: EldraSizedImageVariant;
   /**
    * The width-to-height ratio of the box the image fills, such as `4 / 5`. It becomes `width` and
-   * `height` attributes, which reserve the space before the image loads.
+   * `height` attributes, which reserve the space before the image loads, in place of the source's size.
    */
   aspectRatio?: number;
-  /** Explicit `width` and `height` attributes; they take precedence over `aspectRatio`. */
+  /** Explicit `width` and `height` attributes; they take precedence over everything else. */
   width?: number;
   height?: number;
 }
@@ -163,12 +178,16 @@ export function responsiveImage(
     image.srcset = srcset;
     image.sizes = options.sizes;
   }
+  const size = sourceSize(source);
   if (options.width !== undefined && options.height !== undefined) {
     image.width = options.width;
     image.height = options.height;
   } else if (options.aspectRatio !== undefined && options.aspectRatio > 0) {
     image.width = ELDRA_IMAGE_VARIANT_WIDTHS[variant];
     image.height = Math.round(image.width / options.aspectRatio);
+  } else if (size) {
+    image.width = srcset ? Math.min(ELDRA_IMAGE_VARIANT_WIDTHS[variant], size.width) : size.width;
+    image.height = Math.round((image.width * size.height) / size.width) || 1;
   }
   return image;
 }

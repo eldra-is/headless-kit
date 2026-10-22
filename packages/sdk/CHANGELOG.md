@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- **Images use the size the API gives them (contract 4.14.0).** `EldraImageSource` accepts the
+  `width` and `height` an image object now carries (its pixels as displayed). `imageSrcset` stops at
+  that width unless `originalWidth` is passed, and `responsiveImage` sets `width`/`height` to the
+  `src` variant's own size (the original scaled to the variant, never enlarged) when neither
+  `width`/`height` nor `aspectRatio` is given; both of those still win. An image without them
+  behaves as before.
+
 - **`buildToken` client option (WS-403).** When set (a string or a function returning one), every
   request carries `X-Eldra-Build-Token`, a read-only build token (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens),
   so the gateway can give a theme build's reads their own rate-limit bucket. Server and build only;

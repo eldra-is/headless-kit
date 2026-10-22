@@ -24,7 +24,9 @@ module.exports = [
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '4.5 kB',
+    // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
+    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used.
+    limit: '4.6 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
