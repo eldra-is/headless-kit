@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.1...sdk-v0.3.2) (2026-10-22)
+
+
+### Features
+
+* **sdk,ui:** size images from the API's width and height, and keep zoomed crops sharp ([#74](https://github.com/eldra-is/headless-kit/issues/74)) ([a9ceef9](https://github.com/eldra-is/headless-kit/commit/a9ceef93ba8865518ed928cea51210947e2599b5))
+
 ## [0.3.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.0...sdk-v0.3.1) (2026-10-19)
 
 

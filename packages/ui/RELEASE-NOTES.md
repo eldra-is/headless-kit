@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.1...ui-v0.2.2) (2026-10-22)
+
+
+### Features
+
+* **sdk,ui:** size images from the API's width and height, and keep zoomed crops sharp ([#74](https://github.com/eldra-is/headless-kit/issues/74)) ([a9ceef9](https://github.com/eldra-is/headless-kit/commit/a9ceef93ba8865518ed928cea51210947e2599b5))
+* **ui:** NavMenu and components.css ([#73](https://github.com/eldra-is/headless-kit/issues/73)) ([b8429aa](https://github.com/eldra-is/headless-kit/commit/b8429aa5e2cf5e634c552435a57817e8dacbf091))
+
+
+### Bug Fixes
+
+* **ui:** let weight utilities win over type styles, and merge the kit's shadow and container scales in cx ([#76](https://github.com/eldra-is/headless-kit/issues/76)) ([13d17c6](https://github.com/eldra-is/headless-kit/commit/13d17c6eb632cfdf519a8163914ff43d5214efd2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.2
+
 ## [0.2.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.0...ui-v0.2.1) (2026-10-19)
 
 
