@@ -33,6 +33,10 @@
       "types": "./dist/runtime/commerce.d.ts",
       "import": "./dist/runtime/commerce.js"
     },
+    "./prerender": {
+      "types": "./dist/runtime/prerenderMemo.d.ts",
+      "import": "./dist/runtime/prerenderMemo.js"
+    },
     "./locales": {
       "types": "./dist/runtime/locales.d.ts",
       "import": "./dist/runtime/locales.js"

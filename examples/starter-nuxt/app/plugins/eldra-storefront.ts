@@ -1,5 +1,6 @@
 import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
+import { memoizeForPrerender } from '@eldrajs/theme-nuxt/prerender';
 import { createEldraClient, type EldraFormDefinition, type EldraRetryOptions } from '@eldrajs/sdk';
 import {
   STOREFRONT_KEY,
@@ -170,6 +171,7 @@ export default defineNuxtPlugin({
     const publicConfig = useRuntimeConfig().public as unknown as {
       eldra?: {
         gatewayUrl?: string;
+        publicApiUrl?: string;
         orgId?: string;
         commerce?: unknown;
         retry?: EldraRetryOptions | null;
@@ -178,8 +180,14 @@ export default defineNuxtPlugin({
       formsEndpoint?: string;
     };
 
+    // The browser talks to the edge host when the site sets `ELDRA_PUBLIC_API_URL` (WS-407); the
+    // server, and so every build-time and prerender read, stays on the origin `gatewayUrl`.
+    const apiBaseUrl =
+      (import.meta.client ? publicConfig.eldra?.publicApiUrl?.trim() : '') ||
+      publicConfig.eldra?.gatewayUrl ||
+      undefined;
     const client = createEldraClient({
-      apiBaseUrl: publicConfig.eldra?.gatewayUrl || undefined,
+      apiBaseUrl,
       orgId: publicConfig.eldra?.orgId || undefined,
       // The theme's own retry policy, set once in `nuxt.config.ts`'s `eldra`
       // block and carried here in the runtime config: a prerender of this site
@@ -265,6 +273,15 @@ export default defineNuxtPlugin({
 
     source = createGatewayStorefront(client, {
       route,
+      // Build-wide reads (the category tree) are made once per prerender, not once per route.
+      shared: (name, load) =>
+        memoizeForPrerender(
+          apiBaseUrl && publicConfig.eldra?.orgId
+            ? `${apiBaseUrl}|${publicConfig.eldra.orgId}`
+            : null,
+          name,
+          load
+        ),
       // What the store sells in, as the platform published it — the module read it once during the
       // build (`@eldrajs/theme-nuxt`), so a prerendered page already has it. `app/plugins/
       // eldra-ui-messages.ts` provides the currency half to `@eldrajs/ui`; this puts the whole

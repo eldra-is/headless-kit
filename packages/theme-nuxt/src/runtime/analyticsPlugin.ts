@@ -1,10 +1,12 @@
 import type { AnalyticsSender } from '@eldrajs/theme-core';
 import { defineNuxtPlugin, useRuntimeConfig } from 'nuxt/app';
+import { resolveApiBase } from './apiBase';
 import { setupAnalytics, type AnalyticsRuntimeConfig } from './analytics';
 import { isStudioPreviewFrame } from './origins';
 
 interface RuntimeEldraConfig {
   gatewayUrl: string;
+  publicApiUrl?: string;
   orgId: string;
   studioOrigins: string[];
   analytics?: AnalyticsRuntimeConfig;
@@ -32,7 +34,7 @@ export default defineNuxtPlugin({
       dev: import.meta.dev,
       config: cfg.analytics,
       isFrame: import.meta.client && isStudioPreviewFrame(cfg.studioOrigins),
-      gatewayUrl: cfg.gatewayUrl,
+      gatewayUrl: resolveApiBase(cfg, import.meta.client),
       orgId: cfg.orgId,
       hostname: import.meta.client ? window.location.hostname : undefined,
       doc: import.meta.client ? document : undefined,

@@ -1905,6 +1905,14 @@ async function detailSnapshots(
 export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
   /**
+   * Shares a build-wide read between the storefronts of a prerender (WS-406): `nuxi generate`
+   * creates one storefront per route, so a read that never changes during a build (the category
+   * tree) would otherwise go out once per route. The app layer binds it to the site and passes
+   * `@eldrajs/theme-nuxt/prerender`'s `memoizeForPrerender`, which runs `load` every time outside a
+   * prerender. Omitted — Storybook, a spec — every storefront reads for itself.
+   */
+  shared?: <T>(name: string, load: () => Promise<T>) => Promise<T>;
+  /**
    * Overrides where form submissions go (`forms.submit`); see `postToFormsEndpoint`. Form
    * definitions still come from the platform. Also the endpoint `catalog.notifyBackInStock` posts to.
    */
@@ -2013,7 +2021,10 @@ export function createGatewayStorefront(
    */
   let categories: Promise<CategoryIndex> | null = null;
   const categoriesOnce = (): Promise<CategoryIndex> => {
-    categories ??= readCategories(client).catch((caught: unknown) => {
+    const read = (): Promise<CategoryIndex> => readCategories(client);
+    categories ??= (
+      options.shared === undefined ? read() : options.shared(`categories|${locale?.() ?? ''}`, read)
+    ).catch((caught: unknown) => {
       categories = null;
       throw caught;
     });

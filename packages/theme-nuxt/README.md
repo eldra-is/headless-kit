@@ -24,6 +24,17 @@ export default defineNuxtConfig({
 });
 ```
 
+Environment: `ELDRA_GATEWAY_URL` (the origin gateway: build-time reads, prerender and any server render,
+with the build token) and `ELDRA_ORG_ID` are required for a real build. `ELDRA_PUBLIC_API_URL`
+(`publicApiUrl`) is optional: the API base the **browser** uses, normally the edge host, so a
+visitor's requests are edge-signed and receive the edge visitor token. Blank, the browser uses
+`gatewayUrl`, exactly as before. Set it for preview and production deploys that should go through
+the edge. Override at runtime on an SSR host with `NUXT_PUBLIC_ELDRA_PUBLIC_API_URL`.
+
+During a prerender the page list, route-template list and category list are read once per build
+(and locale), not once per route (`@eldrajs/theme-nuxt/prerender`); request-time rendering never
+shares reads.
+
 ```vue
 <script setup lang="ts">
 import { EldraLayout } from '@eldrajs/theme-vue';

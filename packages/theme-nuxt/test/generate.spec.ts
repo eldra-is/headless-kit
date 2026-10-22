@@ -51,6 +51,23 @@ describe('theme-nuxt nuxi generate', () => {
   });
 
   /**
+   * **WS-406: a shared list is read once per locale for the whole build, not once per route.** The
+   * fixture prerenders many routes (each path in two locales, plus every `_payload.json`), and each
+   * resolves against the page and route-template lists; those reads used to repeat per route.
+   */
+  it('reads the page and route-template lists once per locale, not once per route', () => {
+    const listReads = (schema: string) =>
+      gateway.requests.filter(
+        (request) =>
+          request.startsWith(`/cms/v1/schema/${schema}/entry?`) &&
+          request.includes('pageSize=100') &&
+          request.includes('depth=0')
+      );
+    expect(listReads('page').length).toBeLessThanOrEqual(3);
+    expect(listReads('route-template').length).toBeLessThanOrEqual(3);
+  });
+
+  /**
    * **Every content path, once per locale.** The organisation serves `is` at `/` and `en-US` under
    * a prefix (`test/mockGateway.ts`), so each path the discovery pass found has to exist twice —
    * static pages, the dynamic article, and the catalog-backed product alike. If the fan-out ever

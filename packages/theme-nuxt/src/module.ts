@@ -65,6 +65,13 @@ import {
 
 export interface ModuleOptions {
   gatewayUrl: string;
+  /**
+   * The API base the **browser** talks to (WS-407): the edge host of a deployed site, so its calls
+   * carry the edge-signed client IP and receive the edge visitor token. Build-time and prerender
+   * reads keep using `gatewayUrl` (the origin gateway, with the build token). Blank (the default,
+   * `ELDRA_PUBLIC_API_URL`) means the browser uses `gatewayUrl`.
+   */
+  publicApiUrl?: string;
   orgId: string;
   studioOrigins: string[];
   pageSchema: string;
@@ -168,6 +175,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   },
   defaults: {
     gatewayUrl: process.env.ELDRA_GATEWAY_URL ?? '',
+    publicApiUrl: process.env.ELDRA_PUBLIC_API_URL ?? '',
     orgId: process.env.ELDRA_ORG_ID ?? '',
     locale: process.env.ELDRA_LOCALE ?? undefined,
     // A preview bridge must be explicitly scoped by the consuming theme.
@@ -212,6 +220,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     nuxt.options.runtimeConfig.public.eldra = {
       ...existingRuntimeConfig,
       gatewayUrl: options.gatewayUrl,
+      publicApiUrl: options.publicApiUrl ?? '',
       orgId: options.orgId,
       studioOrigins: [...studioOrigins],
       pageSchema: options.pageSchema,
