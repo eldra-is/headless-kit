@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.3...ui-v0.2.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ui:** Textarea hydrates without a mismatch ([#79](https://github.com/eldra-is/headless-kit/issues/79)) ([b423d8f](https://github.com/eldra-is/headless-kit/commit/b423d8f17ef984a58c8f053172f200c83473c853))
+
 ## [0.2.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.2...ui-v0.2.3) (2026-10-22)
 
 
