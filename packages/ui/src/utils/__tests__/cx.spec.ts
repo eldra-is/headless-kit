@@ -125,6 +125,31 @@ describe('cx — custom @utility class groups', () => {
     expect(cx('text-variant-legend', 'text-lg')).toBe('text-lg');
     expect(cx('text-variant-pill', 'text-lg')).toBe('text-lg');
   });
+
+  it('keeps a weight utility beside a type style, which it adjusts rather than replaces', () => {
+    expect(cx('text-body', 'font-medium')).toBe('text-body font-medium');
+    expect(cx('font-semibold', 'text-body-sm')).toBe('font-semibold text-body-sm');
+  });
+});
+
+describe('cx — the theme scales tailwind.css declares', () => {
+  it('lets one kit shadow replace another', () => {
+    expect(cx('shadow-md', 'shadow-float')).toBe('shadow-float');
+    expect(cx('shadow-float', 'shadow-sm')).toBe('shadow-sm');
+    expect(cx('shadow-float', 'shadow-none')).toBe('shadow-none');
+  });
+
+  it('lets one kit container width replace another, in every sizing group', () => {
+    expect(cx('max-w-narrow', 'max-w-wide')).toBe('max-w-wide');
+    expect(cx('w-content', 'w-full')).toBe('w-full');
+    expect(cx('min-w-0', 'min-w-tablet')).toBe('min-w-tablet');
+    expect(cx('basis-two-col', 'basis-1/2')).toBe('basis-1/2');
+  });
+
+  it('keeps a shadow beside an unrelated ring or inset shadow', () => {
+    expect(cx('shadow-float', 'ring-1')).toBe('shadow-float ring-1');
+    expect(cx('shadow-float', 'inset-shadow-sm')).toBe('shadow-float inset-shadow-sm');
+  });
 });
 
 describe('partClass', () => {
