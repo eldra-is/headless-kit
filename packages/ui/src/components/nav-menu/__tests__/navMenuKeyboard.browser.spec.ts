@@ -25,7 +25,12 @@ const items = [
   { label: 'About', href: '#about' },
 ];
 const panelFooter = ({ index }) => (index === 1 ? h('a', { href: '#all' }, 'All') : undefined);
-createApp({ render: () => h(NavMenu, { items }, { panelFooter }) }).mount('#app');
+const options = window.navMenuOptions ?? {};
+const slots = { panelFooter };
+if (options.drawerHeader) {
+  slots.drawerHeader = ({ close }) => h('a', { href: '#home', onClick: close }, 'Home');
+}
+createApp({ render: () => h(NavMenu, { items, ...options.props }, slots) }).mount('#app');
 `;
 
 /** The real component, compiled with Vue into one script the page can run. */
@@ -68,12 +73,20 @@ afterAll(async () => {
   await browser?.close();
 });
 
-async function open(width = 1280): Promise<Page> {
+interface MenuOptions {
+  props?: Record<string, unknown>;
+  drawerHeader?: boolean;
+}
+
+async function open(width = 1280, options: MenuOptions = {}): Promise<Page> {
   const page = await browser.newPage({ viewport: { width, height: 800 }, reducedMotion: 'reduce' });
   await page.setContent(
     `<style>${css}</style><button id="before">Before</button>` +
       `<div id="app" style="margin:0 40px"></div><button id="after">After</button>`
   );
+  await page.evaluate((value) => {
+    (window as unknown as { navMenuOptions: MenuOptions }).navMenuOptions = value;
+  }, options);
   await page.addScriptTag({ content: script });
   await page.waitForSelector('[data-part="trigger"]', { state: 'attached' });
   return page;
@@ -200,6 +213,55 @@ describe('NavMenu in a browser', () => {
     expect(await expanded(page, 'Shop')).toBe('true');
     await page.close();
   });
+
+  it.runIf(built)(
+    'walks a sections drawer from its header through every link, all shown open',
+    async () => {
+      const page = await open(375, { props: { drawerLayout: 'sections' }, drawerHeader: true });
+      const toggle = page.getByRole('button', { name: 'Menu', exact: true });
+      await toggle.click();
+      const dialog = page.locator('dialog');
+      for (const name of ['Sweaters', 'Cardigans', 'Mugs', 'Stories', 'About']) {
+        expect(await dialog.getByRole('link', { name }).isVisible(), name).toBe(true);
+      }
+      expect(await dialog.locator('details').count()).toBe(0);
+      expect(await focused(page)).toBe('A:Home');
+      const order: string[] = [];
+      for (let i = 0; i < 6; i++) {
+        await page.keyboard.press('Tab');
+        order.push(await focused(page));
+      }
+      expect(order).toEqual([
+        'close:',
+        'drawerPanelLink:Sweaters',
+        'drawerPanelLink:Cardigans',
+        'drawerPanelLink:Mugs',
+        'drawerPanelLink:Stories',
+        'drawerLink:About',
+      ]);
+      await page.keyboard.press('Escape');
+      expect(await dialog.evaluate((element: HTMLDialogElement) => element.open)).toBe(false);
+      expect(await focused(page)).toBe('toggle:');
+      await page.close();
+    }
+  );
+
+  it.runIf(built)(
+    'closes a sections drawer when a link or the header link is followed',
+    async () => {
+      const page = await open(375, { props: { drawerLayout: 'sections' }, drawerHeader: true });
+      const toggle = page.getByRole('button', { name: 'Menu', exact: true });
+      const dialog = page.locator('dialog');
+      const isOpen = () => dialog.evaluate((element: HTMLDialogElement) => element.open);
+      await toggle.click();
+      await dialog.getByRole('link', { name: 'Mugs' }).click();
+      expect(await isOpen()).toBe(false);
+      await toggle.click();
+      await dialog.getByRole('link', { name: 'Home' }).click();
+      expect(await isOpen()).toBe(false);
+      await page.close();
+    }
+  );
 
   itFailsWithoutDist(built);
 });

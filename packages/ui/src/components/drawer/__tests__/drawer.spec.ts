@@ -77,6 +77,19 @@ describe('Drawer — element and parts', () => {
     wrapper.unmount();
   });
 
+  it('puts the header slot in the header row, after the title and before the close button', () => {
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: { header: '<a class="logo" href="/">Home</a>' },
+    });
+    const header = wrapper.find('[data-part="header"]').element;
+    const logo = header.querySelector('.logo')!;
+    expect(
+      logo.compareDocumentPosition(closeButton(wrapper)) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    wrapper.unmount();
+  });
+
   it('renders no footer part without a footer slot', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     expect(wrapper.find('[data-part="footer"]').exists()).toBe(false);
@@ -546,6 +559,18 @@ describe('Drawer — accessibility', () => {
       slots: {
         default: '<nav aria-label="Main"><a href="#">Shop all</a></nav>',
         footer: '<button type="button">Sign in</button>',
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('is axe-clean open with a header slot holding a logo and a call to action', async () => {
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        header: '<a href="/">Home</a><a href="#contact">Contact us</a>',
+        default: '<nav aria-label="Main"><a href="#">Shop all</a></nav>',
       },
     });
     expect(await axe(wrapper.element)).toHaveNoViolations();

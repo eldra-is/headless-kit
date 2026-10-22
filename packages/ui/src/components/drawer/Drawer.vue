@@ -256,6 +256,7 @@ const footerClass = computed(() =>
             {{ title }}
             <span v-if="count != null" data-part="count" :class="countClass">({{ count }})</span>
           </h2>
+          <slot name="header" />
         </div>
         <button
           ref="closeButtonEl"

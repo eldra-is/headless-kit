@@ -76,6 +76,14 @@ const meta = {
           '`sizes` is multiplied by the zoom (`zoomSizes`), so the browser fetches a variant sharp',
           'enough for the magnified crop.',
           '',
+          "**`zoomOrigin`** (default `'band'`) keeps that origin inside the band the page builder's",
+          "framing uses, so a stored framing renders as Studio previews it. `'focal'` zooms around",
+          'the focal point itself, which reaches every crop of the picture, edges included.',
+          '',
+          '**`crops`** art-directs one `<img>`: each `{ media, ratio, focal, zoom, sizes }` replaces',
+          "the instance's values where its media condition matches, first match first, in CSS and",
+          'in `sizes` alike, so a phone gets its own crop without a second download.',
+          '',
           '**With no `media`**, the live site shows a hatched placeholder (`eldra-image-placeholder-',
           'hatch`) with a photo icon and "No image", `role="img"`/`aria-label="No image available"`',
           'unless `decorative` is set. In development, a console warning fires whenever `media` is',
@@ -191,6 +199,37 @@ export const Zoom: Story = {
       </div>
     `,
   }),
+};
+
+/** At zoom 3 the light is outside the band: `'band'` pulls the crop inward, `'focal'` keeps it. */
+export const ZoomOrigin: Story = {
+  render: () => ({
+    components: { Image },
+    setup: () => ({ media: MEDIA }),
+    template: `
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <Image :media="media" ratio="1x1" :focal="{ x: 19, y: 20 }" :zoom="3" />
+          <p class="text-caption text-muted">band (default)</p>
+        </div>
+        <div class="flex flex-col gap-1">
+          <Image :media="media" ratio="1x1" :focal="{ x: 19, y: 20 }" :zoom="3" zoom-origin="focal" />
+          <p class="text-caption text-muted">focal</p>
+        </div>
+      </div>
+    `,
+  }),
+};
+
+/** One `<img>`, two crops: the bowl at 4:3, the light at 16:9 below 641 px (narrow the viewport). */
+export const Crops: Story = {
+  args: {
+    ratio: '4x3',
+    focal: { x: 78, y: 78 },
+    zoom: 1.5,
+    zoomOrigin: 'focal',
+    crops: [{ media: '(width < 641px)', ratio: '16x9', focal: { x: 19, y: 20 }, zoom: 2.5 }],
+  },
 };
 
 /** Frame corner radius: `none` (default), `lg` (`radius-lg`), `xl` (`radius-xl`). */

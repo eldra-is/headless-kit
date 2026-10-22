@@ -1208,6 +1208,19 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   is drawn that many times wider than the frame `sizes` describes, and a `srcset` candidate chosen
   for the frame is soft. A zoom of 1 or less, `auto` and a size-less media condition are left as
   given. See [An art-directed crop](../../docs/images.md#an-art-directed-crop).
+- **`Image`'s `zoomOrigin`, `crops` and a numeric `ratio`** — `zoomOrigin: 'focal'` zooms around the
+  focal point itself; the default `'band'` keeps the origin inside the band
+  `@eldrajs/theme-core`'s image framing clamps to, so a page-builder framing renders exactly as
+  Studio previews it. The band is not needed to keep the frame covered (a zoom of 1 or more around
+  any point of the frame covers it), only for that parity. Under `'focal'` the zoom sizes the media
+  rather than scaling it with a transform, because the browser rounds the cover's offset to a pixel
+  first and a transform would multiply the rounding by the zoom. `crops` art-directs the one
+  `<img>`: each `ImageCrop` (`media`, and any of `ratio`, `focal`, `zoom`, `sizes`) replaces the
+  instance's values where its media condition matches, first match first, written as a `<style>`
+  scoped to the instance and as `sizes` entries scoped to the condition. A condition with any character
+  but letters, digits, `_`, spaces and `().:<>=/+*-`, or with `/*` or `</`, is refused with a dev
+  warning. `ratio` also takes a number, width ÷ height. See
+  [An exact crop](../../docs/images.md#an-exact-crop).
 - **`formatDate`** (`src/utils/date.ts`) — the ISO-date formatter behind `ContentCard`'s `date` prop.
   Never throws: a malformed, empty or calendar-invalid value (`'2026-02-30'`) returns `null` rather
   than a fabricated date or a thrown `RangeError`, warning once per bad value in dev.
@@ -1291,13 +1304,28 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   no empty `<nav>`.
 
   **Narrow screens.** Below `collapseBelow` the bar is hidden and a menu button
-  (`aria-controls` the drawer) opens a left `Drawer`, each panel an `AccordionItem` and each plain
-  entry a row. `md`, `lg` (default) and `xl` are **viewport** breakpoints, since the menu's own width
-  says nothing about how crowded the header is; `@tablet`, `@content` and `@wide` measure the nearest
-  `@container` instead, for a header block whose own width is the measure; `never` keeps the bar and
-  `always` shows only the button. The button is named by `messages.navMenuOpen` and the drawer by
-  `messages.navMenuDrawer` (both "Menu"). `v-model` is the open panel's index and
-  `v-model:drawerOpen` the drawer; `close()` (exposed) closes both, for a router's navigation hook.
+  (`aria-controls` the drawer) opens a left `Drawer`. `md`, `lg` (default) and `xl` are **viewport**
+  breakpoints, since the menu's own width says nothing about how crowded the header is; `@tablet`,
+  `@content` and `@wide` measure the nearest `@container` instead, for a header block whose own
+  width is the measure; `never` keeps the bar and `always` shows only the button. The button is
+  named by `messages.navMenuOpen` and the drawer by `messages.navMenuDrawer` (both "Menu").
+  `v-model` is the open panel's index and `v-model:drawerOpen` the drawer; `close()` (exposed)
+  closes both, for a router's navigation hook.
+
+  **The phone menu.** `drawerLayout` picks how the drawer shows a panel: `accordion` (default)
+  folds each into an `AccordionItem` row, `sections` lists each open under its label (the
+  `drawerSectionHeading` part, which names the section's list), keeping a panel's group headings
+  when it has them and drawing none when it has not; plain entries are rows in both. A phone menu
+  rarely wants the bar's exact entries — a mega panel's sixteen links may be five area pages on a
+  phone, and the links in a bar panel's footer still need a row somewhere — so `drawerItems`, when
+  given, is what the drawer draws instead of `items` (same shape, same rules; the bar keeps
+  `items`). The `drawerHeader` slot fills the drawer's header row before its close button — a logo
+  and a call to action, so the open menu keeps the header's own row — and is handed `close`, since
+  only the menu's own links close the drawer when followed. The drawer focuses its first control
+  when it opens, which is the header's first link when the slot holds one. `panelItem` and
+  `groupHeading` are handed `placement` (`bar` or `drawer`), for content that differs between the
+  two, and `triggerIcon` replaces the panel buttons' chevron inside the `triggerIcon` part, which
+  keeps its size and turns over while its panel is open.
 
   **Variants.** `variant` names the two common looks, each after the component that already has
   it: `ghost` (default) is `Button`'s ghost — text colour, the same 6% text fill on hover and while
@@ -1307,8 +1335,16 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   current page keeps its underline in both, since colour alone cannot mark it. The drawer's rows
   are the same under either. Spacing, size and type are left to `classes`.
 
-  `classes.badge`, `drawer`, `drawerTrigger`, `drawerPanel` and `drawerFooter` restyle the composed
-  `Badge`, `Drawer` and `AccordionItem`, which keep their own `data-part` names.
+  The drawer draws a panel's content with the same parts as the bar, each named with a `drawer`
+  prefix (`drawerPanelLink`, `drawerGroupHeading`, `drawerPanelLabel`…, `NavMenuDrawerPanelPart`),
+  so a bar panel's classes never reach the drawer's rows. `classes.badge`/`drawerBadge`,
+  `drawerRoot` (the `<dialog>`, its backdrop and entrance), `drawer`, `drawerHeader`, `drawerClose`,
+  `drawerBody`, `drawerFooter`, `drawerTrigger` and `drawerPanel` restyle the composed `Badge`,
+  `Drawer` and `AccordionItem`, which keep their own `data-part` names.
+
+- **`Drawer`'s `header` slot** — content for the header row, after the title and before the close
+  button: the logo and call to action a menu drawer repeats from the page header it covers
+  (`NavMenu`'s `drawerHeader`). The spec's anatomy gives the row a title and the close button only.
 
 - **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
   default, the same default `CurrencyInput` carries, so every currency this package renders is

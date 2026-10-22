@@ -19,7 +19,8 @@ const RATIO_VALUES: Record<Exclude<ImageRatio, 'auto'>, string> = {
  * The frame's `aspect-ratio` CSS value (spec "Image" → Properties, `ratio` row: "`auto` uses the
  * image's own ratio, or 4:3 when empty").
  *
- * - A fixed preset always wins outright — its own literal `w / h` ratio, whatever `media` is.
+ * - A fixed preset always wins outright — its own literal `w / h` ratio, whatever `media` is; so
+ *   does a number, which is the width ÷ height itself.
  * - `auto` with a `media.width`/`height` pair uses the image's own intrinsic ratio, computed here
  *   rather than left to the browser's native `aspect-ratio: auto` resolution: that keyword only
  *   sizes a *replaced* element (the `<img>` itself) from its intrinsic size, but the frame that
@@ -32,9 +33,10 @@ const RATIO_VALUES: Record<Exclude<ImageRatio, 'auto'>, string> = {
  * - `auto` with no `media` at all falls back to 4:3 (the spec's own fallback for an empty frame).
  */
 export function frameAspectRatio(
-  ratio: ImageRatio,
+  ratio: ImageRatio | number,
   media: Pick<ImageMedia, 'width' | 'height'> | null | undefined
 ): string {
+  if (typeof ratio === 'number') return `${ratio}`;
   if (ratio !== 'auto') return RATIO_VALUES[ratio];
   if (media?.width && media?.height) return `${media.width} / ${media.height}`;
   if (!media) return RATIO_VALUES['4x3'];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { zoomSizes } from '../sizes';
+import { scopeSizes, zoomSizes } from '../sizes';
 
 describe('zoomSizes', () => {
   it.each([
@@ -48,4 +48,29 @@ describe('zoomSizes', () => {
       expect(zoomSizes(sizes, zoom)).toBe(sizes);
     }
   );
+});
+
+describe('scopeSizes', () => {
+  it.each([
+    ['100vw', '(max-width: 640px)', '(max-width: 640px) 100vw'],
+    [
+      '(min-width: 1024px) calc(50vw * 3), calc(100vw * 3)',
+      '(max-width: 1100px)',
+      '(max-width: 1100px) and (min-width: 1024px) calc(50vw * 3), (max-width: 1100px) calc(100vw * 3)',
+    ],
+    [
+      '(min-width: 640px) and (max-width: 1023px) 50vw, 100vw',
+      'not (min-width: 641px)',
+      '(not (min-width: 641px)) and ((min-width: 640px) and (max-width: 1023px)) 50vw, ' +
+        'not (min-width: 641px) 100vw',
+    ],
+    [
+      '(min-width: 1024px) 50vw, 100vw',
+      '(width < 641px) or (orientation: portrait)',
+      '((width < 641px) or (orientation: portrait)) and (min-width: 1024px) 50vw, ' +
+        '(width < 641px) or (orientation: portrait) 100vw',
+    ],
+  ])('puts %s under %s', (sizes, condition, expected) => {
+    expect(scopeSizes(sizes, condition)).toBe(expected);
+  });
 });
