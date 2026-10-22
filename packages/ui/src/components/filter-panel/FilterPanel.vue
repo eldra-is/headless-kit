@@ -288,6 +288,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
        submits.' `novalidate` as well as the prevented submit: nothing here is a field a browser
        should validate, and a native validation bubble over a filter would be nonsense. -->
   <form
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-label="label ?? m.filterPanelLabel"

@@ -121,6 +121,12 @@ table and Storybook for the full contract of each).
   nothing focusable at all keeps the track itself as the one stop with `←`/`→` stepping it. The
   model is applied after mount, so a server-rendered page carries the pre-enhancement shape until
   then. See `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
+- `NavMenu` — a site header's navigation: links, and buttons opening a dropdown or a mega panel of
+  columns (descriptions, badges), as a disclosure pattern (`Tab` walks through, the arrow keys
+  move along the bar and through a panel, `Escape` returns focus, one panel open); a menu button
+  and a `Drawer` below a viewport or container breakpoint. `variant` is `ghost`
+  (default, a fill on hover) or `muted` (quiet text links). A resolved Studio link tree fits its
+  `items` as it is.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 - `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on
@@ -213,7 +219,7 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of three CSS entries, depending on how the consuming project builds CSS:
+Pick one of four CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
 - `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
@@ -230,6 +236,21 @@ Pick one of three CSS entries, depending on how the consuming project builds CSS
   ```css
   @import '@eldrajs/ui/style.css';
   ```
+
+- `@eldrajs/ui/components.css` — the same stylesheet without Tailwind's page-wide reset, for a site
+  with its own CSS that adds a few components: its own headings, lists and links keep their
+  browser defaults.
+
+  ```css
+  @import '@eldrajs/ui/components.css';
+  ```
+
+  Its reset reaches only elements inside a component: each component's outermost element, and
+  every panel, bubble or toast region it renders outside it, carries `data-eldra-ui`, and the reset
+  applies to those and to the `data-part` elements within them. A site's own `data-part` elements,
+  Ark UI and Zag included, keep their defaults. `data-eldra-ui` is public, so a site can use it as a
+  hook. The one exception: an element with its own `data-part` passed into a component's slot is
+  inside the scope and gets the reset too.
 
 ## Forms
 

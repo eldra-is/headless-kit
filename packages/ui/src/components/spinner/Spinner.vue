@@ -19,6 +19,7 @@
 -->
 <template>
   <svg
+    data-eldra-ui
     class="animate-eldra-spin motion-reduce:animate-eldra-pulse"
     viewBox="0 0 18 18"
     fill="none"

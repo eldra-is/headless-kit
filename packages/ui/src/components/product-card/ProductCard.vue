@@ -289,6 +289,7 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
 <template>
   <div
     v-if="loading"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     role="group"
@@ -306,7 +307,7 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
     </div>
   </div>
 
-  <article v-else data-part="root" :class="rootClass">
+  <article v-else data-eldra-ui data-part="root" :class="rootClass">
     <div data-part="media" :class="mediaClass">
       <Image
         :media="product.featuredImage"

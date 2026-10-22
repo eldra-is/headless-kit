@@ -99,7 +99,7 @@ const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText')
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" role="group" :aria-labelledby="srTextId">
+  <div data-eldra-ui data-part="root" :class="rootClass" role="group" :aria-labelledby="srTextId">
     <span
       v-for="(person, index) in visiblePeople"
       :key="`${person.name}-${index}`"

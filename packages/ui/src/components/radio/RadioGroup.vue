@@ -265,6 +265,7 @@ function metaClass(option: RadioGroupOption): string {
 
 <template>
   <fieldset
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-describedby="describedBy"

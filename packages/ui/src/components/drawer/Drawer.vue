@@ -242,6 +242,7 @@ const footerClass = computed(() =>
 <template>
   <dialog
     ref="dialogEl"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-labelledby="title ? titleId : undefined"

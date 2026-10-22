@@ -808,7 +808,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <!-- Spec → Accessibility: "A search landmark: … `<form role="search" action="/search">`". -->
     <form
       data-part="form"

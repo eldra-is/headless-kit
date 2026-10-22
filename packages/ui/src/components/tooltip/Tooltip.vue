@@ -453,6 +453,7 @@ const arrowStyle = computed<Record<string, string>>(() => ({
 <template>
   <span
     ref="rootRef"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     @mouseenter="onRootMouseEnter"
@@ -470,6 +471,7 @@ const arrowStyle = computed<Record<string, string>>(() => ({
         :id="bubbleId"
         ref="bubbleRef"
         role="tooltip"
+        data-eldra-ui
         data-part="bubble"
         :data-placement="resolvedPlacement"
         :class="bubbleClass"

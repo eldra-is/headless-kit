@@ -36,7 +36,7 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <slot />
   </div>
 </template>

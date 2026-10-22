@@ -631,7 +631,7 @@ const inputClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <span v-if="label" :id="labelId" data-part="label" :class="labelClass">{{ label }}</span>
 
     <!-- The pair is one control, announced before either end is read (spec → Accessibility). -->

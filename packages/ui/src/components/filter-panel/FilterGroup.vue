@@ -156,7 +156,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
 </script>
 
 <template>
-  <div data-part="group" :data-facet="facet.id" :class="groupClass">
+  <div data-eldra-ui data-part="group" :data-facet="facet.id" :class="groupClass">
     <!-- The heading level is fixed at `h3` by the spec: the panel's own title is the `h2`. -->
     <h3 class="m-0">
       <button

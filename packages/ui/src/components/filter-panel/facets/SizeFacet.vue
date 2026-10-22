@@ -127,7 +127,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
 </script>
 
 <template>
-  <div class="min-w-0">
+  <div data-eldra-ui class="min-w-0">
     <template v-for="(group, index) in groups" :key="group.key ?? ''">
       <!-- Only a system that has a name gets a heading. A `<p>` rather than a heading element: it
            labels a grid inside a `<fieldset>` the group's own `<legend>` already names, and a

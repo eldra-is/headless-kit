@@ -140,7 +140,7 @@ const externalIconClass = computed(() =>
 </script>
 
 <template>
-  <component :is="tag" data-part="root" :class="rootClass" v-bind="rootAttrs">
+  <component :is="tag" data-eldra-ui data-part="root" :class="rootClass" v-bind="rootAttrs">
     <span data-part="label" :class="labelClass"><slot /></span>
     <svg
       v-if="showArrow"

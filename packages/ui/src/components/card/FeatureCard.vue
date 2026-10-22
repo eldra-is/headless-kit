@@ -140,7 +140,7 @@ const arrowClass = CUE_ARROW_CLASS;
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <!-- Spec → Accessibility: "Icons are `aria-hidden="true"`; the title carries the meaning." -->
     <span data-part="iconTile" :class="iconTileClass" aria-hidden="true">
       <Icon :icon="icon" size="lg" />

@@ -79,7 +79,7 @@ function barClass(bar: Bar): string {
 </script>
 
 <template>
-  <div data-part="histogram" :class="rootClass" aria-hidden="true">
+  <div data-eldra-ui data-part="histogram" :class="rootClass" aria-hidden="true">
     <span
       v-for="bar in drawn"
       :key="bar.index"

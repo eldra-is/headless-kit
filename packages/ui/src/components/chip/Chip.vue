@@ -299,6 +299,7 @@ const removeButtonClass = computed(() =>
 <template>
   <component
     :is="rootTag"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :type="isInteractiveRoot ? 'button' : undefined"

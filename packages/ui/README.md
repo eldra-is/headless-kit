@@ -27,7 +27,7 @@ entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
-Three CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
+Four CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
 starts from the same `--eldra-*` variables, so nothing here is a different theme, only a different
 delivery shape.
 
@@ -56,6 +56,43 @@ delivery shape.
 
   This is also what a project whose own Tailwind build cannot share this package's utility prefix
   (a `ui:`-prefixed theme, for example) reaches for.
+
+- **`@eldrajs/ui/components.css`** — `style.css` without Tailwind's preflight, for a site that has
+  its own stylesheet and adds a few components (a header menu, a cart drawer) to it:
+
+  ```css
+  @import '@eldrajs/ui/components.css';
+  ```
+
+  Preflight is a reset for the **whole page**: `style.css` sets every `h1`–`h6` to the surrounding
+  size and weight, every `ul`/`ol` to no bullets and no indent, every `a` to the surrounding colour
+  with no underline, every `p` and heading to no margin, and every `button` to no border or fill.
+  It sits in `@layer base`, so a site's own rules still win where they exist, but anything the site
+  left to the browser — rich text from the CMS, most often — loses its defaults. `components.css`
+  carries the same theme and the same utilities, byte for byte, and narrows the reset to the
+  elements the components render themselves, so the site's own elements keep the browser's
+  defaults and anything passed into a component's slot keeps the site's styling. Use `style.css`
+  when the page is built from this package; use `components.css` when the page is the site's own.
+  `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component family under both,
+  the overlays open, and requires identical pixels.
+
+  **The `data-eldra-ui` marker.** Every component's outermost element carries `data-eldra-ui`, and
+  so does every element a component renders outside it: a `Select` or `MultiSelect` panel, a
+  `SearchBar` results panel, a `Popover` panel, a `Tooltip` bubble and the `Toaster` region, each
+  teleported out of its component. The reset reaches exactly those elements and the `data-part`
+  elements inside them, `:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero
+  specificity. `data-part` alone is not enough, because it is not this package's name: a site's
+  own `<h2 data-part="title">`, or any Ark UI or Zag component (which put `data-part` on every
+  element they render), keeps the browser's defaults. The attribute is public and stable, so a
+  site can use it as a hook too (`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global
+  link rule out of the components). One case stays inside the scope: an element carrying its own
+  `data-part` that the site passes into a component's slot (an Ark UI widget inside a `Dialog`,
+  say) is a `data-part` element inside a marked root, so it gets the reset as well.
+
+  Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
+  regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS
+  restyles those elements inside the components too. Scope such rules (`.prose a`) or put the
+  site's stylesheet in a layer declared before the package's.
 
 ## Fonts
 
@@ -115,6 +152,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LoadMore`          | none — the status/meter/button sizes all reuse shared tokens (`text-body-sm`, `control-h`, `text-button-md`), no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+   | `NavMenu`           | `--eldra-nav-menu-offset` (default `var(--eldra-space-2)`) — the gap between the bar and a panel, drawn as the panel's own top padding so a hovering pointer never leaves the menu; `--eldra-nav-menu-dropdown-min`/`-max` (defaults `14rem`/`24rem`, capped at `100vw - 2rem`) — a dropdown panel's width; `--eldra-nav-menu-column-min` (default `12rem`) — the narrowest a mega panel's column gets before the grid wraps (`classes.columns: 'grid-cols-5'` fixes the count instead). The drawer, its accordion rows and the badges are `Drawer`, `AccordionItem` and `Badge`, each restyled through its own row                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `MultiSelect`       | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `Pagination`        | none — every size (the 2.5rem page link/`control-h` previous-next, the `target-touch` compact arrows, the 0.9375rem `text-control` compact status) reuses a shared token or a shared arbitrary spacing multiple, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Popover`           | `--eldra-z-popover` (default `30`), shared with the other popover panels — no per-component variable of its own: it has no fixed size to clamp, unlike `Select`'s panel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -170,7 +208,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    to `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is
    named (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no
    name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`/
-   `Breadcrumb`/`Pagination`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
+   `Breadcrumb`/`Pagination`/`NavMenu`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
    `linkAs` instead picks the element for a _nested_ part — the stretched title link on the cards,
    every level's link on `Breadcrumb`, a page/previous/next control on `Pagination` — so the name
    never collides with the root-tag meaning `as` carries everywhere else (a string still takes
@@ -1198,6 +1236,60 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Popover` makes the same `focusOnOpen: false` choice, for the same reason: it has no idea what is
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
+
+- **`NavMenu`** — a site header's navigation (2026-10-22), because every Eldra site was
+  hand-building its header and dropdowns. Spec 1 names mega-menus only to say they are non-modal
+  popups, not dialogs, and puts the mobile menu in a left `Drawer` with accordion rows; this
+  follows both. It is the disclosure-navigation pattern, not an ARIA menu: a top-level entry with
+  children is a `<button aria-expanded aria-controls>` and its panel follows it in the DOM, so `Tab`
+  walks straight into the panel and on to the next entry, the panel closes when focus or a pointer
+  press lands outside it (`useOverlay`, unchanged), `Escape` closes it and returns focus to the
+  button, following a link closes it, and one panel is open at a time. On top of that it takes the
+  APG pattern's optional arrow keys, ported from the starter's header: `←`/`→` move along the bar
+  (landing on another trigger carries an open panel over to it), `Home`/`End` jump to its ends,
+  `↓`/`↑` on a trigger open its panel at the first or last link, and inside a panel `↓`/`↑` step
+  through its links and `Home`/`End` reach its ends. Nothing wraps, every link stays in the `Tab`
+  order, and a modified key or a key typed into a field is left alone. `Enter`/`Space` stay the
+  button's own. Panels are never teleported:
+  a `dropdown` hangs under its own item, a `mega` panel spans the menu's root, and a site whose
+  header should be the panel's width makes the root `static` (`classes.root`) and its header
+  `relative` (or `contents`, which makes the bar and the menu button cells of the header's own
+  grid). A closing panel fades out over `--eldra-duration-fast`, unclickable while it does.
+  `openOnHover` adds a resting mouse pointer to the ways of opening: a panel opens after the
+  pointer rests 150ms on its trigger, so passing over one opens nothing; leaving the menu closes a
+  hover-opened panel 150ms later unless the pointer comes back or focus is inside it; a click keeps
+  it, and touch never hovers.
+
+  **Data.** `items` takes `{ label, href?, newTab?, description?, badge?, group?, current?,
+children?, layout? }`, one level of children. Children sharing a `group` form a column under that
+  heading, and grouped children default the panel to `mega`. The shape is the one
+  `@eldrajs/theme-core`'s `resolveLink` returns for a Studio link tree — `href`, `label` and `group`
+  may be `null`, a heading with no `href` opens a panel and links nowhere, an entry without a label
+  is skipped — so a resolved tree is passed in as it is, with no dependency on the theme packages
+  (`navLinks.spec.ts` asserts the assignability). A top-level entry with both `href` and children
+  gets its own page as the panel's first link ("Journal: overview"). A `panelFooter` that renders
+  nothing for a panel takes no room in it (`empty:hidden`), and a menu with no entry to show draws
+  no empty `<nav>`.
+
+  **Narrow screens.** Below `collapseBelow` the bar is hidden and a menu button
+  (`aria-controls` the drawer) opens a left `Drawer`, each panel an `AccordionItem` and each plain
+  entry a row. `md`, `lg` (default) and `xl` are **viewport** breakpoints, since the menu's own width
+  says nothing about how crowded the header is; `@tablet`, `@content` and `@wide` measure the nearest
+  `@container` instead, for a header block whose own width is the measure; `never` keeps the bar and
+  `always` shows only the button. The button is named by `messages.navMenuOpen` and the drawer by
+  `messages.navMenuDrawer` (both "Menu"). `v-model` is the open panel's index and
+  `v-model:drawerOpen` the drawer; `close()` (exposed) closes both, for a router's navigation hook.
+
+  **Variants.** `variant` names the two common looks, each after the component that already has
+  it: `ghost` (default) is `Button`'s ghost — text colour, the same 6% text fill on hover and while
+  a panel is open — and `muted` is `Link`'s muted tone — muted text turning the text colour on
+  hover, while open and on the current page, with no fill, for a header of quiet text links. Both
+  reach the panels' links; neither changes the weight, so nothing shifts as a panel opens; the
+  current page keeps its underline in both, since colour alone cannot mark it. The drawer's rows
+  are the same under either. Spacing, size and type are left to `classes`.
+
+  `classes.badge`, `drawer`, `drawerTrigger`, `drawerPanel` and `drawerFooter` restyle the composed
+  `Badge`, `Drawer` and `AccordionItem`, which keep their own `data-part` names.
 
 - **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
   default, the same default `CurrencyInput` carries, so every currency this package renders is

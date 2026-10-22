@@ -38,6 +38,7 @@ export { default as Link } from './components/link/Link.vue';
 export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
+export { default as NavMenu } from './components/nav-menu/NavMenu.vue';
 export { default as Pagination } from './components/pagination/Pagination.vue';
 export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
@@ -189,6 +190,15 @@ export type {
   SelectProps,
   SelectSize,
 } from './components/select/types';
+export type {
+  NavMenuCollapse,
+  NavMenuItem,
+  NavMenuLink,
+  NavMenuPanelLayout,
+  NavMenuPart,
+  NavMenuProps,
+  NavMenuVariant,
+} from './components/nav-menu/types';
 export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';

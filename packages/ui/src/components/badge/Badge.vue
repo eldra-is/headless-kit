@@ -96,7 +96,7 @@ if (import.meta.env?.DEV) {
 </script>
 
 <template>
-  <component :is="as ?? 'span'" data-part="root" :class="rootClass">
+  <component :is="as ?? 'span'" data-eldra-ui data-part="root" :class="rootClass">
     <component
       :is="icon"
       v-if="icon"

@@ -208,6 +208,7 @@ const descriptionClass = computed(() =>
   <button
     type="button"
     role="switch"
+    data-eldra-ui
     data-part="root"
     v-bind="$attrs"
     :id="controlId"
@@ -247,6 +248,7 @@ const descriptionClass = computed(() =>
     </span>
   </button>
   <input
+    data-eldra-ui
     type="checkbox"
     hidden
     tabindex="-1"

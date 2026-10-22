@@ -247,7 +247,7 @@ const panelClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <component :is="Trigger" />
 
     <Teleport :to="teleportTo" :disabled="teleportDisabled">
@@ -255,6 +255,7 @@ const panelClass = computed(() =>
         v-if="isOpen"
         :id="panelId"
         ref="panelEl"
+        data-eldra-ui
         data-part="panel"
         :data-eldra-overlay-owner="panelId"
         :class="panelClass"

@@ -109,7 +109,7 @@ describe('collection sample page', () => {
     const [navEl, breadcrumbsEl, headerEl, gridEl, ctaEl, footerEl] = children;
 
     expect(navEl!.tagName).toBe('HEADER');
-    expect(navEl!.querySelector('nav')).not.toBeNull();
+    expect(navEl!.querySelector('[data-eldra-header-focus]')).not.toBeNull();
     expect(breadcrumbsEl!.tagName).toBe('DIV');
     expect(breadcrumbsEl!.querySelector('nav[aria-label]')).not.toBeNull();
     expect(headerEl!.tagName).toBe('HEADER');

@@ -49,7 +49,7 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" :role="attached ? 'group' : undefined">
+  <div data-eldra-ui data-part="root" :class="rootClass" :role="attached ? 'group' : undefined">
     <slot />
   </div>
 </template>

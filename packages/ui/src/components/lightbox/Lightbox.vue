@@ -417,6 +417,7 @@ const thumbnailClass = computed(() =>
 <template>
   <dialog
     ref="dialogEl"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-label="ariaLabel"

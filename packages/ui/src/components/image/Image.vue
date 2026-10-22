@@ -173,6 +173,7 @@ const skeletonClass = computed(() =>
 <template>
   <component
     :is="hasCaption ? 'figure' : 'div'"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :style="rootStyle"

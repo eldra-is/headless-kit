@@ -780,7 +780,7 @@ defineExpose({ formatValue });
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <label v-if="showOwnLabel" data-part="label" :for="controlId" :class="labelClass">
       {{ label }}
     </label>

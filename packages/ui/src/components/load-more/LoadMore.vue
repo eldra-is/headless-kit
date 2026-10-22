@@ -72,7 +72,7 @@ const buttonClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <p :id="statusId" data-part="status" :class="statusClass" role="status" aria-live="polite">
       {{ m.showingOf(shown, total, noun) }}
     </p>

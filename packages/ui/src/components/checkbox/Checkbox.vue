@@ -253,7 +253,12 @@ function onChange(event: Event): void {
 </script>
 
 <template>
-  <component :is="isNamedByField ? 'span' : 'label'" data-part="root" :class="rootClass">
+  <component
+    :is="isNamedByField ? 'span' : 'label'"
+    data-eldra-ui
+    data-part="root"
+    :class="rootClass"
+  >
     <span data-part="box" :class="boxClass">
       <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
            which is its appearance. -->

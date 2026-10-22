@@ -265,6 +265,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
 <template>
   <section
     ref="rootRef"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     aria-roledescription="carousel"
