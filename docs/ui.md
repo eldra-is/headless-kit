@@ -217,7 +217,7 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of three CSS entries, depending on how the consuming project builds CSS:
+Pick one of four CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
 - `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
@@ -233,6 +233,14 @@ Pick one of three CSS entries, depending on how the consuming project builds CSS
 
   ```css
   @import '@eldrajs/ui/style.css';
+  ```
+
+- `@eldrajs/ui/components.css` — the same stylesheet without Tailwind's page-wide reset, for a site
+  with its own CSS that adds a few components: its own headings, lists and links keep their
+  browser defaults.
+
+  ```css
+  @import '@eldrajs/ui/components.css';
   ```
 
 ## Forms

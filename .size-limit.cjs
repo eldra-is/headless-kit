@@ -172,6 +172,11 @@ module.exports = [
     limit: '14.5 kB',
   },
   {
+    name: '@eldrajs/ui — components.css',
+    path: 'packages/ui/dist/components.css',
+    limit: '14.5 kB',
+  },
+  {
     name: '@eldrajs/theme-vue — everything, without vue',
     path: 'packages/theme-vue/dist/index.js',
     ignore: ['vue', 'virtual:eldra/blocks', 'virtual:eldra/manifest', 'virtual:eldra/breakpoints'],

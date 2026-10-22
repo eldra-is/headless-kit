@@ -91,7 +91,7 @@ const consumers = {
     `,
   },
   '@eldrajs/ui': {
-    // Proves the package resolves, that the three CSS entries are in the tarball, that a
+    // Proves the package resolves, that the four CSS entries are in the tarball, that a
     // component really is a component on the other side of the build (a Vue SFC that failed to
     // compile still imports fine as a plain object, so the render function is what is asserted),
     // that `./resolver` resolves the `Eldra` prefix, and that `./messages/is-IS` is reachable.
@@ -116,7 +116,7 @@ const consumers = {
       assert(isIS && typeof isIS === 'object', '@eldrajs/ui/messages/is-IS exports isIS');
       assert.equal(typeof isIS.close, 'string', 'isIS carries the message catalogue');
       const resolve = createRequire(import.meta.url).resolve;
-      for (const css of ['tokens.css', 'tailwind.css', 'style.css']) {
+      for (const css of ['tokens.css', 'tailwind.css', 'style.css', 'components.css']) {
         assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
       }
       // The optional entry: it resolves, its components really are components, and — the point of

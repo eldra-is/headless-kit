@@ -111,7 +111,8 @@ const ROW_DISABLED = 'cursor-not-allowed';
  * is picked. No explicit size — the shape wraps the disc inside it, which is what keeps the two
  * layouts' different swatch sizes (1.5rem and 2.25rem) to one declaration each.
  */
-const RING_BASE = 'relative inline-flex shrink-0 rounded-full p-0.5 eldra-filter-swatch-ring';
+const RING_BASE =
+  'relative inline-flex shrink-0 rounded-full border-solid p-0.5 eldra-filter-swatch-ring';
 const RING_REST = 'border-transparent';
 /** Spec → States, "Swatch, checked": "2px `background` gap + 1.5px `text` ring". */
 const RING_SELECTED = 'border-text';

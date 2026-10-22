@@ -47,6 +47,7 @@
     "./tokens.css": "./dist/tokens.css",
     "./tailwind.css": "./dist/tailwind.css",
     "./style.css": "./dist/style.css",
+    "./components.css": "./dist/components.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {

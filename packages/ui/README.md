@@ -27,7 +27,7 @@ entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
-Three CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
+Four CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
 starts from the same `--eldra-*` variables, so nothing here is a different theme, only a different
 delivery shape.
 
@@ -56,6 +56,30 @@ delivery shape.
 
   This is also what a project whose own Tailwind build cannot share this package's utility prefix
   (a `ui:`-prefixed theme, for example) reaches for.
+
+- **`@eldrajs/ui/components.css`** — `style.css` without Tailwind's preflight, for a site that has
+  its own stylesheet and adds a few components (a header menu, a cart drawer) to it:
+
+  ```css
+  @import '@eldrajs/ui/components.css';
+  ```
+
+  Preflight is a reset for the **whole page**: `style.css` sets every `h1`–`h6` to the surrounding
+  size and weight, every `ul`/`ol` to no bullets and no indent, every `a` to the surrounding colour
+  with no underline, every `p` and heading to no margin, and every `button` to no border or fill.
+  It sits in `@layer base`, so a site's own rules still win where they exist, but anything the site
+  left to the browser — rich text from the CMS, most often — loses its defaults. `components.css`
+  carries the same theme and the same utilities, byte for byte, and narrows the reset to the
+  elements the components render themselves (each carries `data-part`), so the site's own elements
+  keep the browser's defaults and anything passed into a component's slot keeps the site's styling.
+  Use `style.css` when the page is built from this package; use `components.css` when the page is
+  the site's own. `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component
+  family under both and requires identical pixels.
+
+  Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
+  regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS
+  restyles those elements inside the components too. Scope such rules (`.prose a`) or put the
+  site's stylesheet in a layer declared before the package's.
 
 ## Fonts
 
@@ -115,6 +139,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LoadMore`          | none — the status/meter/button sizes all reuse shared tokens (`text-body-sm`, `control-h`, `text-button-md`), no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+   | `NavMenu`           | `--eldra-nav-menu-offset` (default `var(--eldra-space-2)`) — the gap between the bar and a panel, drawn as the panel's own top padding so a hovering pointer never leaves the menu; `--eldra-nav-menu-dropdown-min`/`-max` (defaults `14rem`/`24rem`, capped at `100vw - 2rem`) — a dropdown panel's width; `--eldra-nav-menu-column-min` (default `12rem`) — the narrowest a mega panel's column gets before the grid wraps (`classes.columns: 'grid-cols-5'` fixes the count instead). The drawer, its accordion rows and the badges are `Drawer`, `AccordionItem` and `Badge`, each restyled through its own row                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `MultiSelect`       | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `Pagination`        | none — every size (the 2.5rem page link/`control-h` previous-next, the `target-touch` compact arrows, the 0.9375rem `text-control` compact status) reuses a shared token or a shared arbitrary spacing multiple, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Popover`           | `--eldra-z-popover` (default `30`), shared with the other popover panels — no per-component variable of its own: it has no fixed size to clamp, unlike `Select`'s panel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -139,7 +164,6 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Toaster`           | `--eldra-toast-width` (default `24rem`) — the fixed region's own width, always capped at `100vw - 2rem` inside the utility itself, the same shape as `Dialog`'s own width variables                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `Tooltip`           | `--eldra-tooltip-arrow-size` (default `0.3125rem`) — the arrow's side length, no token of its own; `--eldra-z-popover` (default `30`), shared with the popover panels                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
    | `UnitInput`         | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-   | `NavMenu`           | `--eldra-nav-menu-offset` (default `var(--eldra-space-2)`) — the gap between the bar and a panel, drawn as the panel's own top padding so a hovering pointer never leaves the menu; `--eldra-nav-menu-dropdown-min`/`-max` (defaults `14rem`/`24rem`, capped at `100vw - 2rem`) — a dropdown panel's width; `--eldra-nav-menu-column-min` (default `12rem`) — the narrowest a mega panel's column gets before the grid wraps (`classes.columns: 'grid-cols-5'` fixes the count instead). The drawer, its accordion rows and the badges are `Drawer`, `AccordionItem` and `Badge`, each restyled through its own row                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `VariantPicker`     | `--eldra-variant-legend-line` (default `1.4`), `--eldra-variant-pill-border-width` (default `1px`), `--eldra-variant-pill-selected-color` (default `var(--eldra-color-text)`), `--eldra-variant-pill-radius` (default `var(--eldra-radius-md)`), `--eldra-variant-swatch-ring-width` (default `2px`), `--eldra-variant-swatch-edge-width` (default `1px`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
    | `VisuallyHidden`    | none — reads only the shared tokens from layer 1 (it renders no visible box at all)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -1200,30 +1224,6 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
 
-- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
-  default, the same default `CurrencyInput` carries, so every currency this package renders is
-  written with the currency's **wide** sign: `"ISK 2,800"` under `en-US`/`ISK`, not `"kr 2,800"`,
-  the form every Eldra surface writes (`docs/icelandic-formatting.md`). Set it to `true` for the narrow sign; a locale whose two signs
-  are identical (`is-IS` writes `kr.` either way) is unaffected either way. **`ProductCard`'s price
-  follows the same default and has no opt-out** — the prop is `Price`'s alone, not forwarded
-  through the card, so a consumer who needs the narrow sign inside a card reaches for `Price`
-  directly.
-
-  `Price` formats every amount through that ported `formatCurrency`, passing
-  `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
-  digits. The maximum keeps a zero-decimal currency integral (`"ISK 2,800"`, never `"ISK 2,800.4"`)
-  and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
-  the same formatter gives a currency _field_, which pads nothing because a field shows what
-  someone typed. One formatter, two rules, and the caller says which.
-
-- **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
-  a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`
-  row does not cover. It exists for prerendered storefronts: a statically built product page or
-  collection grid paints the price and the stock line from build-time data, then refreshes only
-  those values after load, and the visitor must keep reading the value it already has rather than
-  watch it turn back into a skeleton. So the two states are opposites, not degrees of one thing —
-  `loading` means _there is no value yet_ (skeleton, nothing to read), `revalidating` means _this
-  value is real but may be a moment old_ — and `loading` wins when both are set.
 - **`NavMenu`** — a site header's navigation (2026-10-22), because every Eldra site was
   hand-building its header and dropdowns. Spec 1 names mega-menus only to say they are non-modal
   popups, not dialogs, and puts the mobile menu in a left `Drawer` with accordion rows; this
@@ -1255,6 +1255,30 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   `classes.badge`, `drawer`, `drawerTrigger`, `drawerPanel` and `drawerFooter` restyle the composed
   `Badge`, `Drawer` and `AccordionItem`, which keep their own `data-part` names.
 
+- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
+  default, the same default `CurrencyInput` carries, so every currency this package renders is
+  written with the currency's **wide** sign: `"ISK 2,800"` under `en-US`/`ISK`, not `"kr 2,800"`,
+  the form every Eldra surface writes (`docs/icelandic-formatting.md`). Set it to `true` for the narrow sign; a locale whose two signs
+  are identical (`is-IS` writes `kr.` either way) is unaffected either way. **`ProductCard`'s price
+  follows the same default and has no opt-out** — the prop is `Price`'s alone, not forwarded
+  through the card, so a consumer who needs the narrow sign inside a card reaches for `Price`
+  directly.
+
+  `Price` formats every amount through that ported `formatCurrency`, passing
+  `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
+  digits. The maximum keeps a zero-decimal currency integral (`"ISK 2,800"`, never `"ISK 2,800.4"`)
+  and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
+  the same formatter gives a currency _field_, which pads nothing because a field shows what
+  someone typed. One formatter, two rules, and the caller says which.
+
+- **`revalidating` on `Price`, `StockBadge` and `ProductCard`** — a second, distinct busy state for
+  a value that is _already on screen_ while a fresher one is fetched, which the spec's own `loading`
+  row does not cover. It exists for prerendered storefronts: a statically built product page or
+  collection grid paints the price and the stock line from build-time data, then refreshes only
+  those values after load, and the visitor must keep reading the value it already has rather than
+  watch it turn back into a skeleton. So the two states are opposites, not degrees of one thing —
+  `loading` means _there is no value yet_ (skeleton, nothing to read), `revalidating` means _this
+  value is real but may be a moment old_ — and `loading` wins when both are set.
 
   While it is on, the value keeps its text and its place, dimmed to `--eldra-revalidating-opacity`
   (a shared token, default `0.75`, applied through the `eldra-revalidating` utility — per value part,
