@@ -213,11 +213,15 @@ function closeDrawerOnWideScreen(): void {
   if (toggleEl.value && getComputedStyle(toggleEl.value).display === 'none') closeDrawer();
 }
 
-watch(drawerOpen, (open) => {
-  if (typeof window === 'undefined') return;
-  if (open) window.addEventListener('resize', closeDrawerOnWideScreen);
-  else window.removeEventListener('resize', closeDrawerOnWideScreen);
-});
+watch(
+  drawerOpen,
+  (open) => {
+    if (typeof window === 'undefined') return;
+    if (open) window.addEventListener('resize', closeDrawerOnWideScreen);
+    else window.removeEventListener('resize', closeDrawerOnWideScreen);
+  },
+  { immediate: true }
+);
 
 onBeforeUnmount(() => {
   clearHoverTimers();

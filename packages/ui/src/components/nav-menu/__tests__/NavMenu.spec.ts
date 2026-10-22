@@ -245,6 +245,19 @@ describe('NavMenu — panels', () => {
     expect(wrapper.emitted('update:drawerOpen')?.at(-1)).toEqual([false]);
     wrapper.unmount();
   });
+
+  it('closes a drawer that was already open at mount once the screen is wide', async () => {
+    const wrapper = mount({ drawerOpen: true });
+    expect(wrapper.emitted('update:drawerOpen')).toBeUndefined();
+    const style = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockReturnValue({ display: 'none' } as CSSStyleDeclaration);
+    window.dispatchEvent(new Event('resize'));
+    style.mockRestore();
+    await nextTick();
+    expect(wrapper.emitted('update:drawerOpen')?.at(-1)).toEqual([false]);
+    wrapper.unmount();
+  });
 });
 
 describe('NavMenu — panel content', () => {
