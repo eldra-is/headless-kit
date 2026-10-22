@@ -164,5 +164,20 @@ describe('NavMenu in a browser', () => {
     await page.close();
   });
 
+  it.runIf(built)('closes the drawer when the screen widens past the breakpoint', async () => {
+    const page = await open(375);
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    expect(await page.locator('dialog').evaluate((dialog: HTMLDialogElement) => dialog.open)).toBe(
+      true
+    );
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect
+      .poll(() => page.locator('dialog').evaluate((dialog: HTMLDialogElement) => dialog.open))
+      .toBe(false);
+    await page.getByRole('button', { name: 'Shop' }).click();
+    expect(await expanded(page, 'Shop')).toBe('true');
+    await page.close();
+  });
+
   itFailsWithoutDist(built);
 });

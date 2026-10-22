@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, toRef, useSlots, watch, type ComponentPublicInstance } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  ref,
+  toRef,
+  useSlots,
+  watch,
+  type ComponentPublicInstance,
+} from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useOverlay } from '../../composables/useOverlay';
@@ -147,6 +155,21 @@ function onPanelClick(event: MouseEvent): void {
 function closeDrawer(): void {
   if (drawerOpen.value) drawerOpen.value = false;
 }
+
+// A modal drawer left open while the screen widens past collapseBelow keeps the now visible bar inert.
+const toggleEl = ref<HTMLButtonElement | null>(null);
+
+function closeDrawerOnWideScreen(): void {
+  if (toggleEl.value && getComputedStyle(toggleEl.value).display === 'none') closeDrawer();
+}
+
+watch(drawerOpen, (open) => {
+  if (typeof window === 'undefined') return;
+  if (open) window.addEventListener('resize', closeDrawerOnWideScreen);
+  else window.removeEventListener('resize', closeDrawerOnWideScreen);
+});
+
+onBeforeUnmount(() => window.removeEventListener('resize', closeDrawerOnWideScreen));
 
 function onDrawerClick(event: MouseEvent): void {
   if ((event.target as Element | null)?.closest('a') != null) closeDrawer();
@@ -383,6 +406,7 @@ const accordionClasses = computed(() => ({
 
     <template v-if="collapseBelow !== 'never'">
       <button
+        ref="toggleEl"
         type="button"
         data-part="toggle"
         :class="toggleClass"
