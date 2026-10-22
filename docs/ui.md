@@ -51,7 +51,8 @@ table and Storybook for the full contract of each).
   wrapper every block is built from.
 - `Image` — the responsive media frame every card and block builds on (fixed aspect ratio, focal
   point, zoom, a live "no image" placeholder). A zoomed crop multiplies `sizes` by the zoom, so it
-  stays sharp ([An art-directed crop](images.md#an-art-directed-crop)).
+  stays sharp ([An art-directed crop](images.md#an-art-directed-crop)); `zoomOrigin="focal"` and
+  `crops` give exact crops, one per media condition ([An exact crop](images.md#an-exact-crop)).
 - `Badge` / `StockBadge` — a small status/count pill, and an icon-plus-word inventory status line
   (in stock, low stock, preorder, out of stock).
 - `Price` — a formatted amount, with an automatic sale/compare-at state.
@@ -125,7 +126,9 @@ table and Storybook for the full contract of each).
 - `NavMenu` — a site header's navigation: links, and buttons opening a dropdown or a mega panel of
   columns (descriptions, badges), as a disclosure pattern (`Tab` walks through, the arrow keys
   move along the bar and through a panel, `Escape` returns focus, one panel open); a menu button
-  and a `Drawer` below a viewport or container breakpoint. `variant` is `ghost`
+  and a `Drawer` below a viewport or container breakpoint, its panels as accordion rows or as
+  sections listed open (`drawerLayout`), with entries of its own (`drawerItems`) and a header row
+  for a logo and a call to action (`drawerHeader`). `variant` is `ghost`
   (default, a fill on hover) or `muted` (quiet text links). A resolved Studio link tree fits its
   `items` as it is.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind

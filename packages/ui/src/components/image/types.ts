@@ -29,6 +29,17 @@ export interface ImageMedia {
   type?: 'image' | 'video';
 }
 
+/** One art-directed crop: where `media` matches, its fields replace the instance's own. */
+export interface ImageCrop {
+  /** A media condition, as in `sizes`: `(max-width: 640px)`. The first crop that matches wins. */
+  media: string;
+  ratio?: ImageRatio | number;
+  focal?: { x: number; y: number };
+  zoom?: number;
+  /** `sizes` for the frame under this condition, scaled by this crop's zoom like the instance's. */
+  sizes?: string;
+}
+
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type ImagePart = 'root' | 'frame' | 'media' | 'placeholder' | 'caption' | 'skeleton';
 
@@ -43,9 +54,9 @@ export interface ImageProps {
   /** Renders `alt=""` (and hides the live placeholder from assistive technology) regardless of
    * `alt`/`media.alt`. */
   decorative?: boolean;
-  /** The frame's aspect preset. See `ImageRatio`. Defaults to `'4x3'` — a product-card caller
-   * passes `'4x5'` itself, per the spec's own per-context default. */
-  ratio?: ImageRatio;
+  /** The frame's aspect preset, or its width ÷ height (`6 / 5`). See `ImageRatio`. Defaults to
+   * `'4x3'` — a product-card caller passes `'4x5'` itself, per the spec's own per-context default. */
+  ratio?: ImageRatio | number;
   /**
    * How the media fills its frame: `'cover'` (default) crops to fill, matching the spec's own
    * "the frame always crops; it never stretches" rule for every card/grid context this component
@@ -64,6 +75,10 @@ export interface ImageProps {
   /** Static crop scale (≥ 1) around `focal`, applied as `transform: scale(zoom)`. Never animated —
    * a static crop, not a hover effect (spec "Image" → Behaviour & motion). Defaults to `1`. */
   zoom?: number;
+  /** Where `zoom` scales from: `'band'` (default) as the page builder frames, `'focal'` exactly. */
+  zoomOrigin?: 'band' | 'focal';
+  /** Art direction: a ratio, focal point, zoom and `sizes` per media condition, on one `<img>`. */
+  crops?: ImageCrop[];
   /** Frame corner radius: `none` (default), `lg` (`radius-lg`) or `xl` (`radius-xl`). */
   rounded?: 'none' | 'lg' | 'xl';
   /** Renders a `<figcaption>` under the frame and makes the root a `<figure>`. `null`/omitted

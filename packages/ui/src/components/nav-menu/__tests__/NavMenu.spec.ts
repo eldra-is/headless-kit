@@ -702,6 +702,200 @@ describe('NavMenu — narrow screens', () => {
   });
 });
 
+describe('NavMenu — drawer layouts and entries', () => {
+  async function openDrawer(
+    props: Record<string, unknown> = {},
+    slots: Record<string, unknown> = {}
+  ): Promise<{ wrapper: Wrapper; dialog: HTMLDialogElement }> {
+    const wrapper = mount({ drawerOpen: true, ...props }, slots);
+    await nextTick();
+    return { wrapper, dialog: wrapper.get('dialog').element as HTMLDialogElement };
+  }
+
+  const texts = (root: ParentNode, selector: string): string[] =>
+    [...root.querySelectorAll(selector)].map((el) => el.textContent!.trim());
+
+  it('defaults to accordion rows, each panel folded into a disclosure', async () => {
+    const { wrapper, dialog } = await openDrawer();
+    expect(dialog.querySelectorAll('details')).toHaveLength(2);
+    expect(dialog.querySelector('[data-part="drawerSectionHeading"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('sections: lists every panel open under its heading, the heading naming its list', async () => {
+    const { wrapper, dialog } = await openDrawer({ drawerLayout: 'sections' });
+    expect(dialog.querySelectorAll('details')).toHaveLength(0);
+    expect(texts(dialog, '[data-part="drawerSectionHeading"]')).toEqual(['Shop', 'Journal']);
+    const journal = dialog.querySelectorAll('[data-part="drawerItem"]')[1]!;
+    const heading = journal.querySelector('[data-part="drawerSectionHeading"]')!;
+    const list = journal.querySelector('[data-part="drawerPanelList"]')!;
+    expect(list.getAttribute('aria-labelledby')).toBe(heading.id);
+    expect(texts(journal, 'a')).toEqual([
+      'Journal: overview',
+      'Stories',
+      'Makers (opens in a new tab)',
+    ]);
+    expect(dialog.querySelector('[data-part="drawerLink"]')!.getAttribute('href')).toBe('/about');
+    wrapper.unmount();
+  });
+
+  it('sections: keeps group headings when a panel has them, and draws none when it has not', async () => {
+    const { wrapper, dialog } = await openDrawer({ drawerLayout: 'sections' });
+    const [shop, journal] = dialog.querySelectorAll('[data-part="drawerItem"]');
+    expect(texts(shop!, '[data-part="drawerGroupHeading"]')).toEqual(['Knitwear', 'Ceramics']);
+    const lists = shop!.querySelectorAll('[data-part="drawerPanelList"]');
+    const headings = shop!.querySelectorAll('[data-part="drawerGroupHeading"]');
+    expect(lists[0]!.getAttribute('aria-labelledby')).toBe(headings[0]!.id);
+    expect(journal!.querySelector('[data-part="drawerGroupHeading"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('draws drawerItems in the drawer, leaving the bar on items', async () => {
+    const drawerItems: NavMenuItem[] = [
+      { label: 'Areas', children: [{ label: 'Sales', href: '/sales', current: true }] },
+      { label: 'Developers', href: '/developers' },
+      { label: '', href: '/skipped' },
+    ];
+    const { wrapper, dialog } = await openDrawer({ drawerItems, drawerLayout: 'sections' });
+    expect(texts(dialog, '[data-part="drawerSectionHeading"]')).toEqual(['Areas']);
+    expect(texts(dialog, '[data-part="drawerLink"]')).toEqual(['Developers']);
+    expect(dialog.querySelector('a[href="/sales"]')!.getAttribute('aria-current')).toBe('page');
+    expect(dialog.querySelector('a[href="/skipped"]')).toBeNull();
+    expect(texts(wrapper.get('[data-part="list"]').element, '[data-part="trigger"]')).toEqual([
+      'Shop',
+      'Journal',
+    ]);
+    wrapper.unmount();
+  });
+
+  it('draws no drawer landmark when no drawer entry has a label, whatever the bar holds', async () => {
+    const { wrapper, dialog } = await openDrawer({ drawerItems: [{ label: null, href: '/x' }] });
+    expect(dialog.querySelector('nav')).toBeNull();
+    expect(wrapper.find('[data-part="nav"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("names the drawer's copies of the panel parts with a drawer prefix, styled apart from the bar", async () => {
+    const { wrapper, dialog } = await openDrawer({ modelValue: 0, drawerLayout: 'sections' }, {});
+    await wrapper.setProps({
+      classes: { panelLink: 'bar-link', drawerPanelLink: 'drawer-link', groupHeading: 'bar-head' },
+    });
+    const bar = panel(wrapper, 0);
+    expect(bar.querySelector('[data-part="panelLink"]')!.classList).toContain('bar-link');
+    expect(bar.querySelector('[data-part="drawerPanelLink"]')).toBeNull();
+    expect(dialog.querySelector('[data-part="panelLink"]')).toBeNull();
+    const drawerLink = dialog.querySelector('[data-part="drawerPanelLink"]')!;
+    expect(drawerLink.classList).toContain('drawer-link');
+    expect(drawerLink.classList).not.toContain('bar-link');
+    expect(dialog.querySelector('.bar-head')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('puts the drawerHeader slot in the header row, before the close button, and hands it close', async () => {
+    const { wrapper, dialog } = await openDrawer(
+      {},
+      {
+        drawerHeader: ({ close }: { close: () => void }) =>
+          h('button', { type: 'button', class: 'cta', onClick: close }, 'Contact'),
+      }
+    );
+    const header = dialog.querySelector('[data-part="header"]')!;
+    const cta = header.querySelector('.cta') as HTMLButtonElement;
+    const closeButton = header.querySelector('[data-part="close"]')!;
+    expect(
+      cta.compareDocumentPosition(closeButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    cta.click();
+    await nextTick();
+    expect(wrapper.emitted('update:drawerOpen')?.at(-1)).toEqual([false]);
+    wrapper.unmount();
+  });
+
+  it("restyles the drawer's dialog, header, close button and body through classes", async () => {
+    const { wrapper, dialog } = await openDrawer({
+      classes: {
+        drawerRoot: 'backdrop:bg-transparent',
+        drawer: 'h-auto',
+        drawerHeader: 'min-h-0',
+        drawerClose: 'size-8',
+        drawerBody: 'p-4',
+        drawerSectionHeading: 'pt-5',
+      },
+      drawerLayout: 'sections',
+    });
+    const classesOf = (part: string) => [
+      ...dialog.querySelector(`[data-part="${part}"]`)!.classList,
+    ];
+    expect([...dialog.classList]).toContain('backdrop:bg-transparent');
+    expect([...dialog.classList]).not.toContain('backdrop:bg-overlay');
+    expect(classesOf('panel')).toContain('h-auto');
+    expect(classesOf('panel')).not.toContain('h-full');
+    expect(classesOf('header')).toContain('min-h-0');
+    expect(classesOf('header')).not.toContain('min-h-16');
+    expect(classesOf('close')).toContain('size-8');
+    expect(classesOf('close')).not.toContain('size-10');
+    expect(classesOf('body')).toContain('p-4');
+    expect(classesOf('body')).not.toContain('p-6');
+    expect(classesOf('drawerSectionHeading')).toContain('pt-5');
+    wrapper.unmount();
+  });
+});
+
+describe('NavMenu — slots that know where they render', () => {
+  it('hands panelItem and groupHeading the placement, bar or drawer', async () => {
+    const seen = new Set<string>();
+    const wrapper = mount(
+      { modelValue: 0, drawerOpen: true, drawerLayout: 'sections' },
+      {
+        panelItem: ({ link, placement }: { link: NavMenuItem; placement: string }) => {
+          seen.add(`item:${placement}`);
+          return h('em', `${placement}:${link.label}`);
+        },
+        groupHeading: ({ group, placement }: { group: string; placement: string }) => {
+          seen.add(`heading:${placement}`);
+          return h('strong', `${placement}:${group}`);
+        },
+      }
+    );
+    await nextTick();
+    expect(panel(wrapper, 0).querySelector('em')!.textContent).toBe('bar:Sweaters');
+    expect(panel(wrapper, 0).querySelector('strong')!.textContent).toBe('bar:Knitwear');
+    const dialog = wrapper.get('dialog').element;
+    expect(dialog.querySelector('em')!.textContent).toBe('drawer:Sweaters');
+    expect(dialog.querySelector('strong')!.textContent).toBe('drawer:Knitwear');
+    expect([...seen].sort()).toEqual(['heading:bar', 'heading:drawer', 'item:bar', 'item:drawer']);
+    wrapper.unmount();
+  });
+
+  it('replaces the chevron with the triggerIcon slot, which turns over with its panel', async () => {
+    const wrapper = mount(
+      {},
+      {
+        triggerIcon: ({ item, open }: { item: NavMenuItem; open: boolean }) =>
+          h('i', { class: 'arrow' }, `${item.label}:${open}`),
+      }
+    );
+    const icon = () => wrapper.get('[data-part="trigger"] [data-part="triggerIcon"]');
+    expect(icon().element.querySelector('svg')).toBeNull();
+    expect(icon().text()).toBe('Shop:false');
+    expect(icon().attributes('aria-hidden')).toBe('true');
+    expect(icon().classes()).not.toContain('rotate-180');
+    triggers(wrapper)[0]!.click();
+    await nextTick();
+    expect(icon().text()).toBe('Shop:true');
+    expect(icon().classes()).toContain('rotate-180');
+    expect(triggers(wrapper)[0]!.textContent!.trim()).toBe('ShopShop:true');
+    wrapper.unmount();
+  });
+
+  it('keeps the chevron without the slot', () => {
+    const wrapper = mount();
+    const icon = wrapper.get('[data-part="triggerIcon"]');
+    expect(icon.element.querySelector('svg path')!.getAttribute('d')).toBe('M6 9l6 6l6 -6');
+    wrapper.unmount();
+  });
+});
+
 describe('NavMenu — customisation', () => {
   it('merges classes onto their parts, replacing what they conflict with', () => {
     const wrapper = mount({
@@ -806,13 +1000,15 @@ describe('NavMenu — variants', () => {
       const wrapper = mount({ variant, drawerOpen: true });
       await nextTick();
       const dialog = wrapper.get('dialog').element;
-      const classes = ['drawerLink', 'panelLink', 'overview'].map((part) =>
+      const classes = ['drawerLink', 'drawerPanelLink', 'drawerOverview'].map((part) =>
         partClasses(dialog, part).join(' ')
       );
       wrapper.unmount();
       return classes;
     };
-    expect(await drawerClasses('muted')).toEqual(await drawerClasses('ghost'));
+    const muted = await drawerClasses('muted');
+    expect(muted.every((classes) => classes !== '')).toBe(true);
+    expect(muted).toEqual(await drawerClasses('ghost'));
   });
 
   it('lets classes override what the variant sets', () => {
@@ -838,6 +1034,28 @@ describe('NavMenu — variants', () => {
 });
 
 describe('NavMenu — accessibility', () => {
+  it('has no axe violations with the drawer open in either layout, with a header and other entries', async () => {
+    const drawerHeader = () => [
+      h('a', { href: '/' }, 'Home'),
+      h('a', { href: '/contact' }, 'Contact us'),
+    ];
+    const drawerItems: NavMenuItem[] = [
+      { label: 'Areas', children: [{ label: 'Sales', href: '/sales' }] },
+      { label: 'Contact', href: '/contact' },
+    ];
+    for (const drawerLayout of ['accordion', 'sections']) {
+      for (const items of [undefined, drawerItems]) {
+        const wrapper = mount(
+          { drawerOpen: true, drawerLayout, ...(items ? { drawerItems: items } : {}) },
+          { drawerHeader }
+        );
+        await nextTick();
+        expect(await axe(wrapper.get('dialog').element), drawerLayout).toHaveNoViolations();
+        wrapper.unmount();
+      }
+    }
+  });
+
   it('has no axe violations closed, with a panel open, and with the drawer open', async () => {
     const closed = mount();
     expect(await axe(closed.element)).toHaveNoViolations();

@@ -265,6 +265,58 @@ enough for the magnified crop, and the original when it needs more than 2560 px.
 frame's laid-out width), so give lengths. A renderer of your own gets the same rule from
 `zoomSizes(sizes, zoom)`, exported by `@eldrajs/ui`.
 
+## An exact crop
+
+A designed crop, such as one room of a large picture, has to show the same part of the picture at
+every size, phones included. `Image` does it with `zoomOrigin="focal"` and, where the crop changes
+at a breakpoint, `crops`:
+
+```vue
+<Image
+  :media="responsiveImage(house, { sizes: '(min-width: 960px) 48vw, 100vw' })"
+  alt="The shop"
+  :ratio="6 / 5"
+  :focal="{ x: 37.6, y: 65.3 }"
+  :zoom="2.88"
+  zoom-origin="focal"
+  :crops="[
+    {
+      media: '(width < 641px)',
+      ratio: 16 / 9,
+      focal: { x: 37.9, y: 62.8 },
+      zoom: 4.56,
+      sizes: '100vw',
+    },
+  ]"
+/>
+```
+
+- **What `focal` and `zoom` mean.** `zoom` 1 is the picture covering the frame; `zoom` 2 shows half
+  of that in each direction. Under `zoomOrigin="focal"` the picture's focal point stays at the
+  same point of the frame at every zoom, as `object-position` and `background-position` do: with
+  `w` and `h` the visible share of the picture's width and height, the crop starts `focal.x`
+  percent of `1 − w` across and `focal.y` percent of `1 − h` down. Any crop that fits the picture
+  can be reached, its edges included.
+- **Why it is not the default.** The default, `zoomOrigin="band"`, keeps the zoom's origin inside
+  the band `@eldrajs/theme-core`'s image framing clamps to, `(1 − 1/zoom) / 2` in from each edge.
+  The page builder stores a framing as that module draws it, Studio previews it with the same
+  module, and the starter's `UiImage` (copied into each theme, so never updated by a release)
+  renders it through `Image`'s default; changing the default would move every stored framing whose
+  point lies outside the band away from what Studio showed. The band is not needed to keep the
+  frame covered: a zoom of 1 or more around any point of the frame covers it.
+- **One crop per media condition.** Each `crops` entry takes a media condition, as in `sizes`, and
+  any of `ratio`, `focal`, `zoom` and `sizes`; the rest come from the instance. The first entry
+  that matches wins, in the frame's CSS (a `<style>` scoped to the instance) and in `sizes` alike,
+  so there is still one `<img>` and one download, of the variant that crop needs.
+- **`sizes` under crops.** `Image` multiplies each crop's `sizes` (its own, or the instance's)
+  by that crop's zoom and puts it under the crop's condition, before the instance's own:
+  `(width < 641px) calc(100vw * 4.56), (min-width: 960px) calc(48vw * 2.88), calc(100vw * 2.88)`.
+  Describe the frame, not the picture, but remember that `cover` draws a picture wider than a
+  frame of narrower ratio: a 16:9 picture in a 6:5 frame is drawn 1.49 frames wide before any
+  zoom, so say `calc(48vw * 1.49)` (or `zoomSizes(sizes, 1.49)`).
+- **The ceiling.** Until the asset carries its width, the `srcset` stops at `full`, 2560 px. A
+  crop drawn wider than that on a 2x screen is upscaled; see [the original width](#the-original-width).
+
 ## Rich text
 
 `RichText` from `@eldrajs/vue` adds the `srcset` to images inside CMS rich text, with

@@ -30,8 +30,9 @@ import {
 } from './navLinks';
 import type {
   NavMenuCollapse,
+  NavMenuGroupHeadingSlotProps,
   NavMenuItem,
-  NavMenuLink,
+  NavMenuPanelItemSlotProps,
   NavMenuProps,
   NavMenuVariant,
 } from './types';
@@ -43,6 +44,8 @@ const props = withDefaults(defineProps<NavMenuProps>(), {
   ariaLabel: undefined,
   collapseBelow: 'lg',
   drawerSide: 'left',
+  drawerLayout: 'accordion',
+  drawerItems: undefined,
   openOnHover: false,
   linkAs: undefined,
   messages: undefined,
@@ -55,14 +58,18 @@ const emit = defineEmits<{
 }>();
 
 defineSlots<{
-  /** The inside of one panel entry; the link around it stays the menu's. */
-  panelItem?: (props: { link: NavMenuLink; item: NavMenuItem }) => unknown;
-  /** A column heading's text. */
-  groupHeading?: (props: { group: string; links: NavMenuLink[]; item: NavMenuItem }) => unknown;
+  /** The inside of one panel entry, in the bar or the drawer; the link around it stays the menu's. */
+  panelItem?: (props: NavMenuPanelItemSlotProps) => unknown;
+  /** A column heading's text, in the bar or the drawer. */
+  groupHeading?: (props: NavMenuGroupHeadingSlotProps) => unknown;
   /** Extra content at the foot of every panel. */
   panelFooter?: (props: { item: NavMenuItem; index: number; close: () => void }) => unknown;
+  /** A panel button's icon, replacing the chevron; it turns over while the panel is open. */
+  triggerIcon?: (props: { item: NavMenuItem; open: boolean }) => unknown;
   /** The menu button's inside, replacing the icon. */
   toggle?: (props: { open: boolean }) => unknown;
+  /** The drawer's header row, before its close button: a logo, a call to action. */
+  drawerHeader?: (props: { close: () => void }) => unknown;
   /** The drawer's fixed footer. */
   drawerFooter?: (props: { close: () => void }) => unknown;
 }>();
@@ -84,11 +91,14 @@ const drawerOpen = useControllableModel<boolean>(
 const baseId = useUiId('nav-menu');
 const navLabel = computed(() => props.ariaLabel ?? m.value.navMenuLabel);
 
-const entries = computed(() =>
-  props.items
+function renderableEntries(items: readonly NavMenuItem[]): { item: NavMenuItem; index: number }[] {
+  return items
     .map((item, index) => ({ item, index }))
-    .filter((entry) => isRenderableLink(entry.item))
-);
+    .filter((entry) => isRenderableLink(entry.item));
+}
+
+const entries = computed(() => renderableEntries(props.items));
+const drawerEntries = computed(() => renderableEntries(props.drawerItems ?? props.items));
 
 function panelId(index: number): string {
   return `${baseId.value}-panel-${index}`;
@@ -326,7 +336,8 @@ const triggerClass = computed(() =>
 function triggerIconClass(open: boolean): string {
   return partClass(
     cx(
-      'size-4 shrink-0 transition-[rotate] duration-fast ease-out motion-reduce:transition-none',
+      'inline-flex size-4 shrink-0 items-center justify-center',
+      'transition-[rotate] duration-fast ease-out motion-reduce:transition-none',
       open && 'rotate-180'
     ),
     props.classes,
@@ -381,17 +392,29 @@ const toggleClass = computed(() =>
 const toggleIconClass = computed(() => partClass('size-5', props.classes, 'toggleIcon'));
 
 const drawerClasses = computed(() => ({
+  root: props.classes?.drawerRoot,
   panel: props.classes?.drawer,
+  header: props.classes?.drawerHeader,
+  close: props.classes?.drawerClose,
+  body: props.classes?.drawerBody,
   footer: props.classes?.drawerFooter,
 }));
+
+const sections = computed(() => props.drawerLayout === 'sections');
 
 const drawerListClass = computed(() =>
   partClass('flex flex-col border-t border-border', props.classes, 'drawerList')
 );
 
 function drawerItemClass(item: NavMenuItem): string {
-  return partClass(hasPanel(item) ? '' : 'border-b border-border', props.classes, 'drawerItem');
+  if (!hasPanel(item)) return partClass('border-b border-border', props.classes, 'drawerItem');
+  const section = sections.value ? 'flex flex-col border-b border-border pt-4 pb-2' : '';
+  return partClass(section, props.classes, 'drawerItem');
 }
+
+const drawerSectionHeadingClass = computed(() =>
+  partClass('pb-1 text-overline text-muted', props.classes, 'drawerSectionHeading')
+);
 
 const drawerLinkClass = computed(() =>
   partClass(
@@ -447,21 +470,27 @@ const accordionClasses = computed(() => ({
               @pointerleave="onTriggerPointerLeave"
             >
               <span>{{ item.label }}</span>
-              <!-- Tabler's `chevron-down`. -->
-              <svg
+              <span
                 data-part="triggerIcon"
                 :class="triggerIconClass(openIndex === index)"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
                 aria-hidden="true"
-                focusable="false"
               >
-                <path d="M6 9l6 6l6 -6" />
-              </svg>
+                <slot name="triggerIcon" :item="item" :open="openIndex === index">
+                  <!-- Tabler's `chevron-down`. -->
+                  <svg
+                    class="size-full"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    focusable="false"
+                  >
+                    <path d="M6 9l6 6l6 -6" />
+                  </svg>
+                </slot>
+              </span>
             </button>
             <Transition v-bind="PANEL_TRANSITION">
               <div
@@ -553,16 +582,44 @@ const accordionClasses = computed(() => ({
         :messages="messages"
         :classes="drawerClasses"
       >
-        <nav v-if="entries.length > 0" :aria-label="navLabel" @click="onDrawerClick">
+        <template v-if="slots.drawerHeader" #header>
+          <slot name="drawerHeader" :close="closeDrawer" />
+        </template>
+        <nav v-if="drawerEntries.length > 0" :aria-label="navLabel" @click="onDrawerClick">
           <ul data-part="drawerList" :class="drawerListClass">
             <li
-              v-for="{ item, index } in entries"
+              v-for="{ item, index } in drawerEntries"
               :key="index"
               data-part="drawerItem"
               :class="drawerItemClass(item)"
             >
+              <template v-if="hasPanel(item) && sections">
+                <span
+                  :id="`${panelId(index)}-drawer-heading`"
+                  data-part="drawerSectionHeading"
+                  :class="drawerSectionHeadingClass"
+                  >{{ item.label }}</span
+                >
+                <NavMenuPanel
+                  :item="item"
+                  :id-prefix="`${panelId(index)}-drawer`"
+                  placement="drawer"
+                  :variant="variant"
+                  :messages="m"
+                  :link-as="linkAs"
+                  :classes="classes"
+                  :labelled-by="`${panelId(index)}-drawer-heading`"
+                >
+                  <template v-if="slots.panelItem" #panelItem="scope">
+                    <slot name="panelItem" v-bind="scope" />
+                  </template>
+                  <template v-if="slots.groupHeading" #groupHeading="scope">
+                    <slot name="groupHeading" v-bind="scope" />
+                  </template>
+                </NavMenuPanel>
+              </template>
               <AccordionItem
-                v-if="hasPanel(item)"
+                v-else-if="hasPanel(item)"
                 :title="item.label ?? ''"
                 :classes="accordionClasses"
               >
