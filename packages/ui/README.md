@@ -139,6 +139,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Toaster`           | `--eldra-toast-width` (default `24rem`) — the fixed region's own width, always capped at `100vw - 2rem` inside the utility itself, the same shape as `Dialog`'s own width variables                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `Tooltip`           | `--eldra-tooltip-arrow-size` (default `0.3125rem`) — the arrow's side length, no token of its own; `--eldra-z-popover` (default `30`), shared with the popover panels                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
    | `UnitInput`         | `Input`'s exactly, because it draws `Input`'s box: `--eldra-input-radius`, `--eldra-control-font-size`, `--eldra-control-font-size-mobile`, `--eldra-control-line-height`, `--eldra-field-border-width` (`CurrencyInput` is a `UnitInput`, so the same)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+   | `NavMenu`           | `--eldra-nav-menu-offset` (default `var(--eldra-space-2)`) — the gap between the bar and a panel, drawn as the panel's own top padding so a hovering pointer never leaves the menu; `--eldra-nav-menu-dropdown-min`/`-max` (defaults `14rem`/`24rem`, capped at `100vw - 2rem`) — a dropdown panel's width; `--eldra-nav-menu-column-min` (default `12rem`) — the narrowest a mega panel's column gets before the grid wraps (`classes.columns: 'grid-cols-5'` fixes the count instead). The drawer, its accordion rows and the badges are `Drawer`, `AccordionItem` and `Badge`, each restyled through its own row                                                                                                                                                                                                                                                                                                                                                                                                                                     |
    | `VariantPicker`     | `--eldra-variant-legend-line` (default `1.4`), `--eldra-variant-pill-border-width` (default `1px`), `--eldra-variant-pill-selected-color` (default `var(--eldra-color-text)`), `--eldra-variant-pill-radius` (default `var(--eldra-radius-md)`), `--eldra-variant-swatch-ring-width` (default `2px`), `--eldra-variant-swatch-edge-width` (default `1px`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
    | `VisuallyHidden`    | none — reads only the shared tokens from layer 1 (it renders no visible box at all)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -170,7 +171,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    to `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is
    named (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no
    name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`/
-   `Breadcrumb`/`Pagination`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
+   `Breadcrumb`/`Pagination`/`NavMenu`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
    `linkAs` instead picks the element for a _nested_ part — the stretched title link on the cards,
    every level's link on `Breadcrumb`, a page/previous/next control on `Pagination` — so the name
    never collides with the root-tag meaning `as` carries everywhere else (a string still takes
@@ -1223,6 +1224,37 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   watch it turn back into a skeleton. So the two states are opposites, not degrees of one thing —
   `loading` means _there is no value yet_ (skeleton, nothing to read), `revalidating` means _this
   value is real but may be a moment old_ — and `loading` wins when both are set.
+- **`NavMenu`** — a site header's navigation (2026-10-22), because every Eldra site was
+  hand-building its header and dropdowns. Spec 1 names mega-menus only to say they are non-modal
+  popups, not dialogs, and puts the mobile menu in a left `Drawer` with accordion rows; this
+  follows both. It is the disclosure-navigation pattern, not an ARIA menu: a top-level entry with
+  children is a `<button aria-expanded aria-controls>` and its panel follows it in the DOM, so `Tab`
+  walks straight into the panel and on to the next entry, the panel closes when focus or a pointer
+  press lands outside it (`useOverlay`, unchanged), `Escape` closes it and returns focus to the
+  button, following a link closes it, and one panel is open at a time. Panels are never teleported:
+  a `dropdown` hangs under its own item, a `mega` panel spans the menu's root, and a site whose
+  header should be the panel's width makes the root `static` (`classes.root`) and its header
+  `relative`. `openOnHover` adds a resting mouse pointer to the ways of opening; leaving the menu
+  closes a hover-opened panel, a click keeps it, and touch never hovers.
+
+  **Data.** `items` takes `{ label, href?, newTab?, description?, badge?, group?, current?,
+children?, layout? }`, one level of children. Children sharing a `group` form a column under that
+  heading, and grouped children default the panel to `mega`. The shape is the one
+  `@eldrajs/theme-core`'s `resolveLink` returns for a Studio link tree — `href`, `label` and `group`
+  may be `null`, a heading with no `href` opens a panel and links nowhere, an entry without a label
+  is skipped — so a resolved tree is passed in as it is, with no dependency on the theme packages
+  (`navLinks.spec.ts` asserts the assignability). A top-level entry with both `href` and children
+  gets its own page as the panel's first link ("Journal: overview").
+
+  **Narrow screens.** Below `collapseBelow` (`md`, `lg` (default), `xl` or `never`, a **viewport**
+  breakpoint, since the menu's own width says nothing about how crowded the header is) the bar is
+  hidden and a menu button opens a left `Drawer` named "Menu", each panel an `AccordionItem` and
+  each plain entry a row. `v-model` is the open panel's index and `v-model:drawerOpen` the drawer;
+  `close()` (exposed) closes both, for a router's navigation hook.
+
+  `classes.badge`, `drawer`, `drawerTrigger`, `drawerPanel` and `drawerFooter` restyle the composed
+  `Badge`, `Drawer` and `AccordionItem`, which keep their own `data-part` names.
+
 
   While it is on, the value keeps its text and its place, dimmed to `--eldra-revalidating-opacity`
   (a shared token, default `0.75`, applied through the `eldra-revalidating` utility — per value part,

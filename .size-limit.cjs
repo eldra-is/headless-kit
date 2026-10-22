@@ -145,11 +145,12 @@ module.exports = [
   // The same check is what the next jump close to this ceiling should start with, before any
   // further raise.
   // Raised from 88 kB for `@eldrajs/sdk/format`'s Icelandic and English data (~59 kB), which Chrome and Workers lack.
+  // Raised from 150 kB for `NavMenu` (148.4 kB without it, 150.9 kB with it).
   {
     name: '@eldrajs/ui — everything, without vue',
     path: 'packages/ui/dist/index.js',
     ignore: ['vue'],
-    limit: '150 kB',
+    limit: '152 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

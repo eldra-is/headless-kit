@@ -2055,3 +2055,23 @@
   border-start-start-radius: var(--eldra-filter-histogram-bar-radius, 1px);
   border-start-end-radius: var(--eldra-filter-histogram-bar-radius, 1px);
 }
+
+/* --- Nav menu --------------------------------------------------------------------------------- */
+
+/* The gap under the bar is the panel's own padding, so a hovering pointer never leaves the menu. */
+@utility eldra-nav-menu-panel {
+  padding-top: var(--eldra-nav-menu-offset, var(--eldra-space-2));
+}
+
+@utility eldra-nav-menu-dropdown {
+  width: max-content;
+  min-width: var(--eldra-nav-menu-dropdown-min, 14rem);
+  max-width: min(var(--eldra-nav-menu-dropdown-max, 24rem), calc(100vw - 2rem));
+}
+
+@utility eldra-nav-menu-columns {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--eldra-nav-menu-column-min, 12rem)), 1fr)
+  );
+}

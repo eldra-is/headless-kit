@@ -48,6 +48,7 @@ export const componentNames = [
   'LoadMore',
   'LogoItem',
   'MultiSelect',
+  'NavMenu',
   'Pagination',
   'Popover',
   'Price',

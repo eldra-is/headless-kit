@@ -64,6 +64,7 @@ const twMerge = extendTailwindMerge<
   | 'eldra-range-thumb'
   | 'eldra-filter-swatch-edge'
   | 'eldra-filter-histogram-bar'
+  | 'eldra-nav-menu-dropdown'
 >({
   extend: {
     classGroups: {
@@ -327,6 +328,10 @@ const twMerge = extendTailwindMerge<
       // A histogram bar's minimum height and its two top corners (tailwind.css "Filter panel"):
       // a bundled rule with no stock Tailwind equivalent, so it gets its own group.
       'eldra-filter-histogram-bar': ['eldra-filter-histogram-bar'],
+      // Nav menu: the panel gap and column grid join stock groups so `pt-0`/`grid-cols-5` win.
+      pt: ['eldra-nav-menu-panel'],
+      'grid-cols': ['eldra-nav-menu-columns'],
+      'eldra-nav-menu-dropdown': ['eldra-nav-menu-dropdown'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

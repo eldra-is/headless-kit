@@ -159,6 +159,10 @@ export const isIS: UiMessages = {
   // "þrep" (a rung/step) does not change form between one and many, so — unlike `formErrors` or
   // `resultsCount` above — this needs no singular/plural branch of its own.
   showMoreLevels: (n: number) => `Sýna ${n} þrep í viðbót`,
+  navMenuLabel: 'Aðalvalmynd',
+  navMenuOpen: 'Valmynd',
+  // A colon rather than a preposition, so the label never has to be declined.
+  navMenuOverview: (label: string) => `${label}: yfirlit`,
   pagination: 'Síðuskipting',
   previousPage: 'Fyrri síða',
   nextPage: 'Næsta síða',

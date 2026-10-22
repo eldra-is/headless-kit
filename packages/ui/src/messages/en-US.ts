@@ -406,6 +406,12 @@ export const enUS = {
    * hidden level rather than the spec's own three-level example.
    */
   showMoreLevels: (n: number) => (n === 1 ? 'Show 1 more level' : `Show ${n} more levels`),
+  /** `NavMenu`'s landmark name, the default for its `ariaLabel` prop. */
+  navMenuLabel: 'Main',
+  /** `NavMenu`'s narrow-screen menu button, and the name of the drawer it opens. */
+  navMenuOpen: 'Menu',
+  /** The link to a top-level entry's own page, first in its panel. */
+  navMenuOverview: (label: string) => `${label}: overview`,
   /** `Pagination`'s `<nav>` accessible name (spec "Pagination" → Accessibility:
    *  `<nav aria-label="Pagination">`), the default for its `ariaLabel` prop. */
   pagination: 'Pagination',
