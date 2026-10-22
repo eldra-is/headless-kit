@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `EldraImage` uses the `width` and `height` the API gives an image (contract 4.14.0): the `srcset`
+  stops at the original's width, or ends with the original itself when it is wider than `full`
+  (2560 px), and the `<img>` gets `width`/`height` attributes with the image's own proportions, so
+  the space is reserved before it loads. The `width`, `height`, `aspectRatio` and `originalWidth`
+  props still win.
 - `EldraImage`: an `<img>` with a `srcset` over the media host's variants, a required `sizes` and
   `alt`, and `width`/`height` from `aspectRatio`. Lazy by default. A source outside `http`, `https`,
   `data:image/` and relative paths renders nothing, as in `RichText`.

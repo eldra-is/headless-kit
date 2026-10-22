@@ -50,7 +50,8 @@ table and Storybook for the full contract of each).
 - `Container` / `Section` — the max-width/gutter wrapper and the vertical-spacing/background
   wrapper every block is built from.
 - `Image` — the responsive media frame every card and block builds on (fixed aspect ratio, focal
-  point, zoom, a live "no image" placeholder).
+  point, zoom, a live "no image" placeholder). A zoomed crop multiplies `sizes` by the zoom, so it
+  stays sharp ([An art-directed crop](images.md#an-art-directed-crop)).
 - `Badge` / `StockBadge` — a small status/count pill, and an icon-plus-word inventory status line
   (in stock, low stock, preorder, out of stock).
 - `Price` — a formatted amount, with an automatic sale/compare-at state.

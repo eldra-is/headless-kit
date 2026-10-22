@@ -3,6 +3,7 @@ import { computed, useAttrs, watchEffect, type StyleValue } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass, type ClassValue } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
+import { zoomSizes } from '../../utils/sizes';
 import type { ImageProps } from './types';
 
 defineOptions({ inheritAttrs: false });
@@ -68,7 +69,10 @@ const resolvedAlt = computed(() => {
   return props.alt ?? props.media?.alt ?? '';
 });
 
-const resolvedSizes = computed(() => props.sizes ?? props.media?.sizes);
+const resolvedSizes = computed(() => {
+  const sizes = props.sizes ?? props.media?.sizes;
+  return sizes && props.fit === 'cover' ? zoomSizes(sizes, props.zoom) : sizes;
+});
 
 /** Spec "Image" → Behaviour & motion: eager + high priority for the first hero image, lazy
  * everywhere else. `decoding="async"` never blocks the first paint on the decode. */

@@ -57,16 +57,16 @@ import { EldraImage } from '@eldrajs/vue';
 </template>
 ```
 
-| Prop             | Default  | What it does                                                                                  |
-| ---------------- | -------- | --------------------------------------------------------------------------------------------- |
-| `src`            | required | The URL, or the object carrying it (`thumbnail`, a `mediaLinks` item, …)                      |
-| `alt`            | required | Alternative text; `''` for a purely decorative image                                          |
-| `sizes`          | required | How wide the image is drawn — see [choosing `sizes`](#choosing-sizes)                         |
-| `aspectRatio`    | —        | Width ÷ height of the box, to reserve its space — see [layout shift](#reserving-the-space)    |
-| `width`/`height` | —        | Explicit attributes instead of `aspectRatio`                                                  |
-| `variant`        | `md`     | The variant in `src`, for the rare browser that ignores `srcset`                              |
-| `originalWidth`  | —        | The original's pixel width, when you know it — see [below](#when-you-know-the-original-width) |
-| `loading`        | `lazy`   | `eager` for an image above the fold                                                           |
+| Prop             | Default  | What it does                                                                                         |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `src`            | required | The URL, or the object carrying it (`thumbnail`, a `mediaLinks` item, …)                             |
+| `alt`            | required | Alternative text; `''` for a purely decorative image                                                 |
+| `sizes`          | required | How wide the image is drawn — see [choosing `sizes`](#choosing-sizes)                                |
+| `aspectRatio`    | —        | Width ÷ height of the box, to reserve its space — see [layout shift](#reserving-the-space)           |
+| `width`/`height` | —        | Explicit attributes instead of `aspectRatio` or the image's own size                                 |
+| `variant`        | `md`     | The variant in `src`, for the rare browser that ignores `srcset`                                     |
+| `originalWidth`  | —        | The original's pixel width; defaults to the `width` the API gives — see [below](#the-original-width) |
+| `loading`        | `lazy`   | `eager` for an image above the fold                                                                  |
 
 Anything else — `class`, `style`, `fetchpriority` — goes onto the `<img>`. It renders nothing when
 there is no URL or the URL is not `http`, `https`, `data:image/` or relative (the rule `RichText`
@@ -100,7 +100,9 @@ const image = responsiveImage(product.thumbnail, {
 ```
 
 It returns `undefined` when there is no URL, and only `src` (plus `width`/`height`) for an image it
-cannot resize. A framework-free renderer is in
+cannot resize. When the source carries the `width` and `height` the API gives (below), the
+`srcset` stops at the original's width (or ends with the original, when it is wider than `full`)
+and the attributes are the image's own proportions, with no option at all. A framework-free renderer is in
 [examples/node-script/images.ts](../examples/node-script/images.ts).
 
 The pieces are exported on their own too:
@@ -142,10 +144,20 @@ soft. Two things catch people out:
 
 ## Reserving the space
 
-The API does not return an image's dimensions, so the browser does not know how tall an image is
-until it arrives, and the page jumps when it does. Give it the shape of the box instead:
-`aspectRatio: 4 / 5` becomes `width="800" height="1000"`. Browsers use those two attributes for the
-ratio only, so pair them with CSS that sets the real size:
+A browser does not know how tall an image is until it arrives, and the page jumps when it does,
+unless the `<img>` carries `width` and `height`. Every image object the API returns (`thumbnail`,
+`mediaLinks[]`, variant `media`, a collection's `image`, a cart line's `thumbnail`, a CMS media
+field) has `width` and `height` when the platform knows the image's size: its pixels as displayed,
+a portrait phone photo taller than wide (contract 4.14.0). `responsiveImage` and `EldraImage` use
+them when you give neither `width`/`height` nor `aspectRatio`: the attributes are the size of the
+`src` variant, so a 1856 × 1392 photo at `md` gets `width="800" height="600"`.
+
+They are absent for a file the platform cannot measure for certain (SVG, AVIF, HEIC, a document)
+and for an image stored before the platform measured them, so keep a fallback where the layout
+depends on it. Never infer a size from the URL. A product grid of mixed photos usually wants a
+fixed box anyway: `aspectRatio: 4 / 5` becomes `width="800" height="1000"` and wins over the
+image's own size. Browsers use those two attributes for the ratio only, so pair them with CSS that
+sets the real size:
 
 ```css
 img {
@@ -199,18 +211,59 @@ const download = imageUrl(image, 'original');
 `imageUrl` accepts a URL that already names a variant and switches it, so `imageUrl(url, 'lg')`
 never produces `…/md/lg`.
 
-## When you know the original width
+## The original width
 
-A variant wider than the original is the same pixels at another URL. If you know the original's
-width — your own hero uploaded at 1856 px, say — pass it and the `srcset` stops there, with the last
-entry described at its true width:
+A variant wider than the original is the same pixels at another URL, so the `srcset` stops at the
+original's width, with the last entry described at its true width. An original wider than `full`
+is the last entry itself, at its true width, so a screen that needs more than 2560 px (a zoomed
+crop, [below](#an-art-directed-crop)) gets every pixel there is. The original is the file as
+uploaded, not re-encoded to AVIF or WebP, so the browser fetches it only when no variant is wide
+enough. The original's width is the `width` the API gives the image; pass `originalWidth` to
+override it, or for a bare URL string, which carries none:
 
 ```ts
-imageSrcset(hero.image, { originalWidth: 1856 });
-// '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1856w'
+imageSrcset(hero.image); // hero.image.width is 1856
+imageSrcset(heroUrl, { originalWidth: 1856 });
+// both '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1856w'
+
+imageSrcset(photo); // photo.width is 5504
+// '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w, …/original 5504w'
 ```
 
-Without it nothing breaks; the browser may just fetch `full` where `xl` was the same picture.
+Without either nothing breaks; the browser may fetch `full` where `xl` was the same picture, and
+never gets more than 2560 px. A HEIC original is never listed: the host converts HEIC when it
+resizes, but most browsers cannot show the file as uploaded.
+
+## An art-directed crop
+
+A crop that shows part of a large photo — a focal point and a zoom of 3 in a small frame — draws
+the image three times wider than its frame, so a `srcset` picked for the frame's width is soft.
+Give `@eldrajs/ui`'s `Image` the output of `responsiveImage()` as `media`, with `focal` and `zoom`,
+and write `sizes` for the frame as in [choosing `sizes`](#choosing-sizes):
+
+```vue
+<script setup lang="ts">
+import { responsiveImage } from '@eldrajs/sdk';
+import { Image } from '@eldrajs/ui';
+</script>
+
+<template>
+  <Image
+    :media="responsiveImage(story.photo, { sizes: '(min-width: 1024px) 400px, 100vw' })"
+    :alt="story.photo.altText ?? ''"
+    ratio="1x1"
+    :focal="{ x: 62, y: 40 }"
+    :zoom="3"
+  />
+</template>
+```
+
+`Image` multiplies every length in `sizes` by the zoom, here to
+`(min-width: 1024px) calc(400px * 3), calc(100vw * 3)`, so the browser fetches a variant wide
+enough for the magnified crop, and the original when it needs more than 2560 px. With
+`fit="contain"` or a zoom of 1 `sizes` is used as given. `sizes="auto"` cannot be scaled (it is the
+frame's laid-out width), so give lengths. A renderer of your own gets the same rule from
+`zoomSizes(sizes, zoom)`, exported by `@eldrajs/ui`.
 
 ## Rich text
 

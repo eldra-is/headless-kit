@@ -106,6 +106,23 @@ describe('imageSrcset', () => {
     expect(imageSrcset(ASSET, { originalWidth: 300 })).toBe(`${ASSET}/sm 300w`);
   });
 
+  it('ends with the original at its true width when it is wider than full', () => {
+    expect(imageSrcset(ASSET, { originalWidth: 5504 })).toBe(
+      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1920w, ` +
+        `${ASSET}/full 2560w, ${ASSET}/original 5504w`
+    );
+    expect(imageSrcset(ASSET, { originalWidth: 2560 })).toBe(imageSrcset(ASSET));
+    expect(imageSrcset(ASSET, { originalWidth: 2560.4 })).toBe(imageSrcset(ASSET));
+  });
+
+  it('never lists the original of a HEIC, which only Safari can show', () => {
+    for (const contentType of ['image/heic', 'IMAGE/HEIF']) {
+      expect(imageSrcset({ url: ASSET, contentType }, { originalWidth: 4032 })).toBe(
+        imageSrcset(ASSET)
+      );
+    }
+  });
+
   it('builds from the asset base when given a variant url', () => {
     expect(imageSrcset(`${ASSET}/md`)?.startsWith(`${ASSET}/sm 400w`)).toBe(true);
   });
@@ -161,5 +178,98 @@ describe('responsiveImage', () => {
 
   it('is undefined with no url', () => {
     expect(responsiveImage({ url: null }, { sizes: '100vw' })).toBeUndefined();
+  });
+});
+
+describe('the size the API gives an image', () => {
+  const photo = { url: ASSET, contentType: 'image/jpeg', width: 1856, height: 1392 };
+
+  it('accepts the shape the contract gives a thumbnail', () => {
+    expectTypeOf<{
+      assetId: string;
+      url: string;
+      altText?: string;
+      width?: number;
+      height?: number;
+    }>().toExtend<EldraImageSource>();
+  });
+
+  it('stops the srcset at the original width', () => {
+    expect(imageSrcset(photo)).toBe(
+      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1856w`
+    );
+  });
+
+  it('lets an explicit originalWidth win', () => {
+    expect(imageSrcset(photo, { originalWidth: 1200 })).toBe(
+      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w`
+    );
+  });
+
+  it('ends the srcset with the original when the photo is wider than full', () => {
+    const large = { url: ASSET, contentType: 'image/jpeg', width: 5504, height: 3096 };
+    expect(imageSrcset(large)?.split(', ').slice(-2)).toEqual([
+      `${ASSET}/full 2560w`,
+      `${ASSET}/original 5504w`,
+    ]);
+    expect(responsiveImage(large, { sizes: '100vw' })).toMatchObject({
+      src: `${ASSET}/md`,
+      width: 800,
+      height: 450,
+    });
+  });
+
+  it('ignores a size that is missing, null or not positive', () => {
+    for (const size of [
+      {},
+      { width: null, height: null },
+      { width: 0, height: 0 },
+      { width: -5 },
+    ]) {
+      expect(imageSrcset({ url: ASSET, ...size })).toBe(imageSrcset(ASSET));
+      expect(responsiveImage({ url: ASSET, ...size }, { sizes: '100vw' })).not.toHaveProperty(
+        'width'
+      );
+    }
+    expect(responsiveImage({ url: ASSET, width: 1200 }, { sizes: '100vw' })).not.toHaveProperty(
+      'width'
+    );
+  });
+
+  it('describes the src variant: the original scaled to its width, never enlarged', () => {
+    expect(responsiveImage(photo, { sizes: '100vw' })).toEqual({
+      src: `${ASSET}/md`,
+      srcset: `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1856w`,
+      sizes: '100vw',
+      width: 800,
+      height: 600,
+    });
+    expect(responsiveImage(photo, { sizes: '100vw', variant: 'full' })).toMatchObject({
+      width: 1856,
+      height: 1392,
+    });
+    expect(
+      responsiveImage({ url: ASSET, width: 300, height: 450 }, { sizes: '100vw' })
+    ).toMatchObject({ width: 300, height: 450 });
+  });
+
+  it('gives an image served as uploaded its own size', () => {
+    expect(
+      responsiveImage(
+        { url: ASSET, contentType: 'image/gif', width: 120, height: 90 },
+        { sizes: '96px' }
+      )
+    ).toEqual({ src: ASSET, width: 120, height: 90 });
+  });
+
+  it('lets explicit width and height, then aspectRatio, win over the size', () => {
+    expect(responsiveImage(photo, { sizes: '100vw', width: 10, height: 20 })).toMatchObject({
+      width: 10,
+      height: 20,
+    });
+    expect(responsiveImage(photo, { sizes: '100vw', aspectRatio: 4 / 5 })).toMatchObject({
+      width: 800,
+      height: 1000,
+    });
   });
 });

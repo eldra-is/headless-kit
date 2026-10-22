@@ -61,7 +61,7 @@ export interface ImageProps {
    * `zoom` is above 1, the scale's `transform-origin`. Defaults to centred (`{ x: 50, y: 50 }`).
    */
   focal?: { x: number; y: number };
-  /** Static crop scale (1–2) around `focal`, applied as `transform: scale(zoom)`. Never animated —
+  /** Static crop scale (≥ 1) around `focal`, applied as `transform: scale(zoom)`. Never animated —
    * a static crop, not a hover effect (spec "Image" → Behaviour & motion). Defaults to `1`. */
   zoom?: number;
   /** Frame corner radius: `none` (default), `lg` (`radius-lg`) or `xl` (`radius-xl`). */
@@ -69,7 +69,7 @@ export interface ImageProps {
   /** Renders a `<figcaption>` under the frame and makes the root a `<figure>`. `null`/omitted
    * renders neither. */
   caption?: string | null;
-  /** Responsive `sizes` for the `srcset`. Overrides `media.sizes` when both are given. */
+  /** Responsive `sizes` for the frame, scaled by `zoom` under `cover`. Overrides `media.sizes`. */
   sizes?: string;
   /** The first hero image: `loading="eager"` + `fetchpriority="high"`. Every other image is
    * `loading="lazy"` (the default). */

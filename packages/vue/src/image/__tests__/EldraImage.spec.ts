@@ -66,6 +66,38 @@ describe('EldraImage', () => {
     }
   });
 
+  it('sizes the img from the width and height the API gives the image', () => {
+    const img = mount(EldraImage, {
+      props: {
+        src: { url: ASSET, contentType: 'image/jpeg', width: 1856, height: 1392 },
+        alt: 'Mat sling',
+        sizes: '100vw',
+      },
+    }).find('img');
+    expect(img.attributes()).toMatchObject({
+      src: `${ASSET}/md`,
+      srcset: `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1856w`,
+      width: '800',
+      height: '600',
+    });
+  });
+
+  it('lets its own width, height, aspectRatio and originalWidth win over the API size', () => {
+    const src = { url: ASSET, contentType: 'image/jpeg', width: 1856, height: 1392 };
+    const explicit = mount(EldraImage, {
+      props: { src, alt: '', sizes: '100vw', width: 640, height: 640, originalWidth: 1200 },
+    }).find('img');
+    expect(explicit.attributes()).toMatchObject({
+      width: '640',
+      height: '640',
+      srcset: `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w`,
+    });
+    const boxed = mount(EldraImage, {
+      props: { src, alt: '', sizes: '100vw', aspectRatio: 4 / 5 },
+    }).find('img');
+    expect(boxed.attributes()).toMatchObject({ width: '800', height: '1000' });
+  });
+
   it('renders nothing without a url', () => {
     const wrapper = mount(EldraImage, { props: { src: null, alt: 'Missing', sizes: '100vw' } });
     expect(wrapper.find('img').exists()).toBe(false);

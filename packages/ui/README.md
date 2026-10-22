@@ -1189,6 +1189,13 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 - **`frameAspectRatio`** (`src/utils/ratio.ts`) — turns an `ImageRatio` preset into the CSS
   `aspect-ratio` value `Image`'s frame and `Skeleton`'s `media` variant both resolve it to; exported
   so a consumer accepting an `ImageRatio` of their own (`ImageRatio` itself is public) can honour it.
+- **`zoomSizes(sizes, zoom)`** (`src/utils/sizes.ts`) — multiplies every length in an `<img sizes>`
+  list by `zoom`, keeping its media conditions: `(min-width: 1024px) 50vw, 100vw` at zoom 3 becomes
+  `(min-width: 1024px) calc(50vw * 3), calc(100vw * 3)`. `Image` applies it to its effective `sizes`
+  whenever `fit` is `cover` and `zoom` is above 1, because a crop scaled by `transform: scale(zoom)`
+  is drawn that many times wider than the frame `sizes` describes, and a `srcset` candidate chosen
+  for the frame is soft. A zoom of 1 or less, `auto` and a size-less media condition are left as
+  given. See [An art-directed crop](../../docs/images.md#an-art-directed-crop).
 - **`formatDate`** (`src/utils/date.ts`) — the ISO-date formatter behind `ContentCard`'s `date` prop.
   Never throws: a malformed, empty or calendar-invalid value (`'2026-02-30'`) returns `null` rather
   than a fabricated date or a thrown `RangeError`, warning once per bad value in dev.

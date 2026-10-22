@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { responsiveImage, type EldraResponsiveImage } from '@eldrajs/sdk';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { isIS } from '../../../messages/is-IS';
 import { MESSAGES_KEY } from '../../../composables/useMessages';
 import { axe } from '../../../test/axe';
@@ -162,6 +163,55 @@ describe('Image — focal point and zoom', () => {
     });
     const style = wrapper.get('[data-part="media"]').attributes('style') ?? '';
     expect(style).toContain('transform-origin: 50% 50%');
+    wrapper.unmount();
+  });
+});
+
+describe('Image — sizes under a zoom', () => {
+  const FRAME_SIZES = '(min-width: 1024px) 400px, 100vw';
+  const sizesOf = (props: Record<string, unknown>) => {
+    const wrapper = mountWith(Image, { props: { media: MEDIA, ...props } });
+    const sizes = wrapper.get('[data-part="media"]').attributes('sizes');
+    wrapper.unmount();
+    return sizes;
+  };
+
+  it('passes sizes through unchanged at zoom 1', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES })).toBe(FRAME_SIZES);
+  });
+
+  it('multiplies every length by the zoom when the media covers the frame', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES, zoom: 3 })).toBe(
+      '(min-width: 1024px) calc(400px * 3), calc(100vw * 3)'
+    );
+  });
+
+  it('scales media.sizes the same way when there is no sizes prop', () => {
+    expect(sizesOf({ media: { ...MEDIA, sizes: '50vw' }, zoom: 2.5 })).toBe('calc(50vw * 2.5)');
+  });
+
+  it('leaves sizes alone under contain, where the whole image is shown', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES, zoom: 3, fit: 'contain' })).toBe(FRAME_SIZES);
+  });
+
+  it('renders no sizes when none is given, zoomed or not', () => {
+    expect(sizesOf({ zoom: 3 })).toBeUndefined();
+  });
+
+  it('takes responsiveImage() output as its media, srcset untouched', () => {
+    expectTypeOf<EldraResponsiveImage>().toExtend<ImageMedia>();
+    const asset =
+      'https://media.eldra.app/public/6ace9a70-fb78-43f3-87a8-c8adffadcf36/assets/52a99a52-50a2-4e0f-ba14-d0a769e7eede';
+    const media = responsiveImage(
+      { url: asset, contentType: 'image/jpeg', width: 5504, height: 3096 },
+      { sizes: '100vw' }
+    );
+    const wrapper = mountWith(Image, {
+      props: { media, alt: 'A close crop', ratio: '1x1', focal: { x: 62, y: 40 }, zoom: 3 },
+    });
+    const img = wrapper.get('[data-part="media"]');
+    expect(img.attributes('srcset')).toBe(media?.srcset);
+    expect(img.attributes('sizes')).toBe('calc(100vw * 3)');
     wrapper.unmount();
   });
 });
