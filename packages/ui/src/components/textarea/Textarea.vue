@@ -93,8 +93,8 @@ const MAX_ROWS = 10;
 
 const fieldSizingSupported = supportsFieldSizing();
 
-/** `undefined` when `field-sizing` is supported: the browser grows the box, `rows` is untouched. */
-const rowsFallback = ref<number | undefined>(fieldSizingSupported ? undefined : MIN_ROWS);
+/** The same `rows` on the server and in every browser, so hydration matches; `field-sizing: content` ignores it. */
+const rowsFallback = ref(MIN_ROWS);
 
 /**
  * The measured fallback (spec "Textarea" → Variants): "Elsewhere, set the height to the scroll
