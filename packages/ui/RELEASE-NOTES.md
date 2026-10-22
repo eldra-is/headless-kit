@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.2...ui-v0.2.3) (2026-10-22)
+
+
+### Features
+
+* **ui:** NavMenu phone menu and exact Image crops ([#77](https://github.com/eldra-is/headless-kit/issues/77)) ([b094fdd](https://github.com/eldra-is/headless-kit/commit/b094fdddbf8db03687ed2131e98a7c31e886a44f))
+
 ## [0.2.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.1...ui-v0.2.2) (2026-10-22)
 
 
