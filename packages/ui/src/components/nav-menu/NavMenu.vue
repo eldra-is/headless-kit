@@ -27,9 +27,16 @@ import {
   navLinkTag,
   panelLayout,
 } from './navLinks';
-import type { NavMenuCollapse, NavMenuItem, NavMenuLink, NavMenuProps } from './types';
+import type {
+  NavMenuCollapse,
+  NavMenuItem,
+  NavMenuLink,
+  NavMenuProps,
+  NavMenuVariant,
+} from './types';
 
 const props = withDefaults(defineProps<NavMenuProps>(), {
+  variant: 'ghost',
   modelValue: undefined,
   drawerOpen: undefined,
   ariaLabel: undefined,
@@ -196,7 +203,17 @@ const TOGGLE_DISPLAY: Record<Exclude<NavMenuCollapse, 'never'>, string> = {
   xl: 'xl:hidden',
 };
 
-const QUIET_FILL = 'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+const HOVER_FILL = 'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+
+/** A top-level entry's colours at rest, hovered, open (`aria-expanded`) and current. */
+const ENTRY_VARIANT: Record<NavMenuVariant, string> = {
+  ghost:
+    'text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
+    'aria-expanded:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  muted:
+    'text-muted hover:text-text aria-expanded:text-text aria-[current=page]:text-text ' +
+    'data-[current]:text-text',
+};
 
 const rootClass = computed(() => partClass('relative flex items-center', props.classes, 'root'));
 
@@ -216,15 +233,17 @@ function itemClass(item: NavMenuItem): string {
 
 const TOP_LEVEL =
   'inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-md px-3 text-body font-medium ' +
-  `text-text eldra-focus ${QUIET_FILL}`;
+  'eldra-focus';
 
-const linkClass = computed(() => partClass(cx(TOP_LEVEL, CURRENT_PAGE), props.classes, 'link'));
+const linkClass = computed(() =>
+  partClass(cx(TOP_LEVEL, ENTRY_VARIANT[props.variant], CURRENT_PAGE), props.classes, 'link')
+);
 
 const triggerClass = computed(() =>
   partClass(
     cx(
       TOP_LEVEL,
-      'aria-expanded:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+      ENTRY_VARIANT[props.variant],
       'data-[current]:underline data-[current]:decoration-2 data-[current]:underline-offset-[0.2em]'
     ),
     props.classes,
@@ -278,7 +297,7 @@ const toggleClass = computed(() =>
     cx(
       'inline-flex size-10 max-md:size-11 shrink-0 cursor-pointer items-center justify-center',
       'rounded-md text-text eldra-focus',
-      QUIET_FILL,
+      HOVER_FILL,
       props.collapseBelow === 'never' ? '' : TOGGLE_DISPLAY[props.collapseBelow]
     ),
     props.classes,
@@ -370,7 +389,8 @@ const accordionClasses = computed(() => ({
                 <NavMenuPanel
                   :item="item"
                   :id-prefix="panelId(index)"
-                  variant="bar"
+                  placement="bar"
+                  :variant="variant"
                   :messages="m"
                   :link-as="linkAs"
                   :classes="classes"
@@ -459,7 +479,8 @@ const accordionClasses = computed(() => ({
                 <NavMenuPanel
                   :item="item"
                   :id-prefix="`${panelId(index)}-drawer`"
-                  variant="drawer"
+                  placement="drawer"
+                  :variant="variant"
                   :messages="m"
                   :link-as="linkAs"
                   :classes="classes"

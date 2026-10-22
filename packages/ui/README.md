@@ -1265,6 +1265,14 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   each plain entry a row. `v-model` is the open panel's index and `v-model:drawerOpen` the drawer;
   `close()` (exposed) closes both, for a router's navigation hook.
 
+  **Variants.** `variant` names the two common looks, each after the component that already has
+  it: `ghost` (default) is `Button`'s ghost — text colour, the same 6% text fill on hover and while
+  a panel is open — and `muted` is `Link`'s muted tone — muted text turning the text colour on
+  hover, while open and on the current page, with no fill, for a header of quiet text links. Both
+  reach the panels' links; neither changes the weight, so nothing shifts as a panel opens; the
+  current page keeps its underline in both, since colour alone cannot mark it. The drawer's rows
+  are the same under either. Spacing, size and type are left to `classes`.
+
   `classes.badge`, `drawer`, `drawerTrigger`, `drawerPanel` and `drawerFooter` restyle the composed
   `Badge`, `Drawer` and `AccordionItem`, which keep their own `data-part` names.
 

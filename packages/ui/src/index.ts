@@ -197,6 +197,7 @@ export type {
   NavMenuPanelLayout,
   NavMenuPart,
   NavMenuProps,
+  NavMenuVariant,
 } from './components/nav-menu/types';
 export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';

@@ -78,6 +78,10 @@ const meta = {
           '`current` and `newTab`; an entry without `href` is text. A resolved Studio link tree',
           'fits as it is.',
           '',
+          "**Variants**: `ghost` (default) fills an entry on hover and while open, as `Button`'s",
+          'ghost does; `muted` is muted text turning the text colour on hover, while open and on the',
+          "current page, with no fill, as `Link`'s muted tone. The drawer looks the same in both.",
+          '',
           '**Parts** (`data-part`, and the keys of `classes`): `root`, `nav`, `list`, `item`,',
           '`link`, `trigger`, `triggerIcon`, `panel`, `content`, `overview`, `columns`, `group`,',
           '`groupHeading`, `panelList`, `panelItem`, `panelLink`, `panelLabel`, `description`,',
@@ -118,6 +122,18 @@ export const MegaOpen: Story = {
 /** The plain panel, open under its button, led by the item's own page. */
 export const DropdownOpen: Story = {
   args: { modelValue: 1 },
+  render: Default.render,
+};
+
+/** `variant="muted"`: header text links, muted until hovered, open or current. */
+export const Muted: Story = {
+  args: { variant: 'muted' },
+  render: Default.render,
+};
+
+/** The muted variant with the grouped panel open: its links are quiet too, with no fill. */
+export const MutedOpen: Story = {
+  args: { variant: 'muted', modelValue: 0 },
   render: Default.render,
 };
 
@@ -212,27 +228,22 @@ const AREA_PAGES: Record<string, string> = {
 };
 
 /**
- * The reference header, restyled through tokens and `classes` only: the menu's root is static so
- * the «Kerfið» panel spans the header, five columns, quiet text links, linked column headings
- * through the `groupHeading` slot and a panel foot through `panelFooter`.
+ * The reference header: the `muted` variant, a static root so the «Kerfið» panel spans the header,
+ * five columns, a rule under each column heading, linked headings through the `groupHeading` slot
+ * and a panel foot through `panelFooter`.
  */
 export const EldraIsHeader: Story = {
   args: {
     items: ELDRA_IS,
+    variant: 'muted',
     messages: isIS,
     openOnHover: true,
     modelValue: 0,
     classes: {
       root: 'static flex-1 justify-end',
       columns: 'grid-cols-5',
-      trigger:
-        'px-2 font-normal text-muted hover:bg-transparent hover:text-text aria-expanded:bg-transparent aria-expanded:text-text',
-      link: 'px-2 font-normal text-muted no-underline hover:bg-transparent hover:text-text',
       content: 'rounded-xl',
-      groupHeading: 'mb-2 border-b border-border px-0 pb-2 text-body text-text',
-      panelLink: 'px-0 py-1 text-muted hover:bg-transparent hover:text-text',
-      panelLabel: 'font-normal',
-      badge: 'uppercase tracking-wide',
+      groupHeading: 'mb-2 border-b border-border pb-2 text-body text-text',
     },
   },
   render: (args) => ({

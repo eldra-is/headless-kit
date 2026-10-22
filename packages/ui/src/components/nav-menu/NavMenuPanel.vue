@@ -13,12 +13,13 @@ import {
   panelLayout,
   panelLinks,
 } from './navLinks';
-import type { NavMenuItem, NavMenuLink, NavMenuPart } from './types';
+import type { NavMenuItem, NavMenuLink, NavMenuPart, NavMenuVariant } from './types';
 
 const props = defineProps<{
   item: NavMenuItem;
   idPrefix: string;
-  variant: 'bar' | 'drawer';
+  placement: 'bar' | 'drawer';
+  variant: NavMenuVariant;
   messages: UiMessages;
   linkAs?: string | Component;
   classes?: Partial<Record<NavMenuPart, string>>;
@@ -32,8 +33,18 @@ defineSlots<{
 const links = computed(() => panelLinks(props.item));
 const groups = computed(() => groupLinks(links.value));
 const grouped = computed(() => groups.value.some((group) => group.group !== null));
-const mega = computed(() => props.variant === 'bar' && panelLayout(props.item) === 'mega');
-const bar = computed(() => props.variant === 'bar');
+const mega = computed(() => props.placement === 'bar' && panelLayout(props.item) === 'mega');
+const bar = computed(() => props.placement === 'bar');
+
+/** A bar entry's colour at rest, and what a link adds on hover and as the current page. */
+const BAR_ENTRY: Record<NavMenuVariant, string> = {
+  ghost: 'text-text',
+  muted: 'text-muted',
+};
+const BAR_LINK: Record<NavMenuVariant, string> = {
+  ghost: 'hover:bg-surface',
+  muted: 'hover:text-text aria-[current=page]:text-text',
+};
 
 function headingId(index: number): string {
   return `${props.idPrefix}-group-${index}`;
@@ -42,8 +53,10 @@ function headingId(index: number): string {
 const overviewClass = computed(() =>
   partClass(
     cx(
-      'flex rounded-md text-body font-semibold text-text eldra-focus',
-      bar.value ? 'mb-2 px-3 py-2 hover:bg-surface' : 'py-2.5',
+      'flex rounded-md text-body font-semibold eldra-focus',
+      bar.value
+        ? cx('mb-2 px-3 py-2', BAR_ENTRY[props.variant], BAR_LINK[props.variant])
+        : 'py-2.5 text-text',
       CURRENT_PAGE
     ),
     props.classes,
@@ -81,10 +94,10 @@ const panelItemClass = computed(() => partClass('', props.classes, 'panelItem'))
 function panelLinkClass(link: NavMenuLink): string {
   return partClass(
     cx(
-      'flex flex-col gap-0.5 rounded-md text-text',
-      bar.value ? 'px-3 py-2' : 'py-2.5',
+      'flex flex-col gap-0.5 rounded-md',
+      bar.value ? cx('px-3 py-2', BAR_ENTRY[props.variant]) : 'py-2.5 text-text',
       hasHref(link) && 'eldra-focus',
-      hasHref(link) && bar.value && 'hover:bg-surface',
+      hasHref(link) && bar.value && BAR_LINK[props.variant],
       CURRENT_PAGE
     ),
     props.classes,

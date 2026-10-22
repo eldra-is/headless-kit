@@ -34,6 +34,9 @@ export interface NavMenuItem extends NavMenuLink {
 /** Below which viewport breakpoint the bar turns into a menu button and a `Drawer`. */
 export type NavMenuCollapse = 'md' | 'lg' | 'xl' | 'never';
 
+/** `ghost` fills an entry on hover, as `Button`'s ghost variant does; `muted` is `Link`'s muted tone. */
+export type NavMenuVariant = 'ghost' | 'muted';
+
 /** The parts a consumer can restyle through `classes`. */
 export type NavMenuPart =
   | 'root'
@@ -69,6 +72,13 @@ export type NavMenuPart =
 export interface NavMenuProps {
   /** The top-level entries, in order. */
   items: readonly NavMenuItem[];
+  /**
+   * How the bar's entries and its panels' links look. `ghost` (default): text colour, a light fill
+   * on hover and while open. `muted`: muted text turning the text colour on hover, while open and
+   * on the current page, with no fill. Neither changes the weight. The drawer's rows are the same
+   * under both.
+   */
+  variant?: NavMenuVariant;
   /** The open panel's index in `items` (two-way); `null` when none is open. */
   modelValue?: number | null;
   /** Whether the narrow-screen drawer is open (two-way, `update:drawerOpen`). */

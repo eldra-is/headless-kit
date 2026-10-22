@@ -440,6 +440,123 @@ describe('NavMenu — customisation', () => {
   });
 });
 
+describe('NavMenu — variants', () => {
+  const FILL = '[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+
+  function partClasses(root: ParentNode, part: string): string[] {
+    return [...root.querySelectorAll(`[data-part="${part}"]`)].flatMap((el) => [...el.classList]);
+  }
+
+  /** A class that changes weight in some state but not at rest would shift the text. */
+  const STATE_WEIGHT = /^(hover|aria-expanded|aria-\[current=page\]|data-\[current\]):font-/;
+
+  it('defaults to ghost: text colour, filled on hover and while open', () => {
+    const wrapper = mount({ modelValue: 0 });
+    for (const part of ['trigger', 'link']) {
+      const classes = wrapper.get(`[data-part="${part}"]`).classes();
+      expect(classes, part).toEqual(
+        expect.arrayContaining(['text-text', `hover:bg-${FILL}`, `aria-expanded:bg-${FILL}`])
+      );
+      expect(classes, part).not.toContain('text-muted');
+    }
+    const panelLinks = panel(wrapper, 0).querySelectorAll('a[data-part="panelLink"]');
+    for (const link of panelLinks) {
+      expect([...link.classList]).toEqual(
+        expect.arrayContaining(['text-text', 'hover:bg-surface'])
+      );
+    }
+    wrapper.unmount();
+  });
+
+  it('muted: muted text turning the text colour on hover, open and current, with no fill', () => {
+    const wrapper = mount({ variant: 'muted', modelValue: 0 });
+    const trigger = wrapper.get('[data-part="trigger"]').classes();
+    expect(trigger).toEqual(
+      expect.arrayContaining([
+        'text-muted',
+        'hover:text-text',
+        'aria-expanded:text-text',
+        'data-[current]:text-text',
+      ])
+    );
+    const link = wrapper.get('[data-part="link"]').classes();
+    expect(link).toEqual(
+      expect.arrayContaining(['text-muted', 'hover:text-text', 'aria-[current=page]:text-text'])
+    );
+    // The current page keeps its underline: colour alone is not enough to mark it.
+    expect(link).toContain('aria-[current=page]:underline');
+
+    const bar = wrapper.get('[data-part="nav"]').element;
+    for (const token of [...partClasses(bar, 'trigger'), ...partClasses(bar, 'link')]) {
+      expect(token).not.toMatch(/^(hover|aria-expanded):bg-/);
+      expect(token).not.toMatch(STATE_WEIGHT);
+    }
+    wrapper.unmount();
+  });
+
+  it('muted: the panel links are quiet too, and an entry without a destination never lights up', async () => {
+    const wrapper = mount({ variant: 'muted', modelValue: 0 });
+    const links = [...panel(wrapper, 0).querySelectorAll<HTMLElement>('[data-part="panelLink"]')];
+    for (const link of links.filter((el) => el.tagName === 'A')) {
+      expect([...link.classList]).toEqual(
+        expect.arrayContaining(['text-muted', 'hover:text-text', 'aria-[current=page]:text-text'])
+      );
+    }
+    const glass = links.find((el) => el.tagName === 'SPAN')!;
+    expect([...glass.classList]).toContain('text-muted');
+    expect([...glass.classList]).not.toContain('hover:text-text');
+
+    await wrapper.setProps({ modelValue: 1 });
+    const overview = wrapper.get('[data-part="overview"]').classes();
+    expect(overview).toEqual(expect.arrayContaining(['text-muted', 'hover:text-text']));
+
+    for (const token of [
+      ...partClasses(panel(wrapper, 0), 'panelLink'),
+      ...partClasses(panel(wrapper, 1), 'panelLink'),
+      ...overview,
+    ]) {
+      expect(token).not.toMatch(/^hover:bg-/);
+      expect(token).not.toMatch(STATE_WEIGHT);
+    }
+    wrapper.unmount();
+  });
+
+  it('leaves the drawer rows as they are under either variant', async () => {
+    const drawerClasses = async (variant: 'ghost' | 'muted'): Promise<string[]> => {
+      const wrapper = mount({ variant, drawerOpen: true });
+      await nextTick();
+      const dialog = wrapper.get('dialog').element;
+      const classes = ['drawerLink', 'panelLink', 'overview'].map((part) =>
+        partClasses(dialog, part).join(' ')
+      );
+      wrapper.unmount();
+      return classes;
+    };
+    expect(await drawerClasses('muted')).toEqual(await drawerClasses('ghost'));
+  });
+
+  it('lets classes override what the variant sets', () => {
+    const wrapper = mount({ variant: 'muted', classes: { link: 'text-primary' } });
+    const link = wrapper.get('[data-part="link"]').classes();
+    expect(link).toContain('text-primary');
+    expect(link).not.toContain('text-muted');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations in the muted variant, closed, open and with the drawer open', async () => {
+    const closed = mount({ variant: 'muted' });
+    expect(await axe(closed.element)).toHaveNoViolations();
+    closed.unmount();
+    const open = mount({ variant: 'muted', modelValue: 0 });
+    expect(await axe(open.element)).toHaveNoViolations();
+    open.unmount();
+    const drawer = mount({ variant: 'muted', drawerOpen: true });
+    await nextTick();
+    expect(await axe(drawer.get('dialog').element)).toHaveNoViolations();
+    drawer.unmount();
+  });
+});
+
 describe('NavMenu — accessibility', () => {
   it('has no axe violations closed, with a panel open, and with the drawer open', async () => {
     const closed = mount();
