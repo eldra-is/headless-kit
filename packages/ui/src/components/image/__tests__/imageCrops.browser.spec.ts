@@ -128,14 +128,35 @@ const pixelsDiffering = (a: Pixels, b: Pixels) => {
   return count;
 };
 
-const magentaPixels = (shot: Pixels) => {
-  let count = 0;
-  for (let i = 0; i < shot.data.length; i += 4) {
-    const [r, g, b] = [shot.data[i]!, shot.data[i + 1]!, shot.data[i + 2]!];
-    if (r > 200 && g < 60 && b > 200) count++;
-  }
-  return count;
-};
+/** Magenta pixels inside each frame, counted in the browser from one screenshot of the page. */
+async function magentaPerFrame(page: Page) {
+  const boxes = await page.locator('[data-part="frame"]').evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return [r.left + scrollX, r.top + scrollY, r.right + scrollX, r.bottom + scrollY].map(
+        (edge, i) => (i < 2 ? Math.ceil(edge) : Math.floor(edge))
+      );
+    })
+  );
+  const png = await page.screenshot({ fullPage: true, animations: 'disabled' });
+  return lab.evaluate(
+    async ([data, boxes]) => {
+      const bitmap = await createImageBitmap(
+        await (await fetch(`data:image/png;base64,${data}`)).blob()
+      );
+      const ctx = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0);
+      return boxes.map(([x0, y0, x1, y1]) => {
+        const { data: rgba } = ctx.getImageData(x0!, y0!, x1! - x0!, y1! - y0!);
+        let count = 0;
+        for (let i = 0; i < rgba.length; i += 4)
+          if (rgba[i]! > 200 && rgba[i + 1]! < 60 && rgba[i + 2]! > 200) count++;
+        return count;
+      });
+    },
+    [png.toString('base64'), boxes] as const
+  );
+}
 
 /** Where the picture's blue marker is drawn in the frame, as fractions of the frame. */
 const markerAt = (shot: Pixels) => {
@@ -170,7 +191,10 @@ describe('Image crops in a real browser', () => {
           ] as const)
             cases.push({ media, alt: '', ratio, zoom, focal: { x, y }, zoomOrigin: 'focal' });
       const { page } = await render(1440, cases);
-      const counts = (await frames(page)).map(magentaPixels);
+      await page.addStyleTag({
+        content: `.col{display:inline-block;vertical-align:top} [data-part="frame"]{background:rgb(${MAGENTA})}`,
+      });
+      const counts = await magentaPerFrame(page);
       await page.close();
       expect(counts).toEqual(cases.map(() => 0));
     },
