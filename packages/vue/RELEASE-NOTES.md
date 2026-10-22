@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.6...vue-v0.1.7) (2026-10-22)
+
+
+### Features
+
+* **sdk,ui:** size images from the API's width and height, and keep zoomed crops sharp ([#74](https://github.com/eldra-is/headless-kit/issues/74)) ([a9ceef9](https://github.com/eldra-is/headless-kit/commit/a9ceef93ba8865518ed928cea51210947e2599b5))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.2
+
 ## [0.1.6](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.5...vue-v0.1.6) (2026-10-19)
 
 
