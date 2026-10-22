@@ -55,6 +55,8 @@ import {
 } from './runtime/locales';
 import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
+import { prerenderMemoStats } from './runtime/prerenderMemo';
+import { clearPrerenderMemo } from './runtime/prerenderMemoState';
 import { readSeo } from './runtime/seo';
 import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
 import {
@@ -163,7 +165,9 @@ export interface ModuleOptions {
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
 interface NitroInitContext {
-  hooks: { hook: (name: 'prerender:done' | 'compiled', callback: () => void) => void };
+  hooks: {
+    hook: (name: 'prerender:init' | 'prerender:done' | 'compiled', callback: () => void) => void;
+  };
   options: { output: { publicDir: string } };
 }
 
@@ -523,10 +527,18 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
           writeFileSync(join(publicDir, '_redirects'), built.content);
         };
         nitro.hooks.hook('compiled', () => {
+          const { loads, hits } = prerenderMemoStats();
+          if (loads + hits > 0) {
+            // oxlint-disable-next-line no-console -- the build's one-line read count, no data
+            console.info(`[eldra] prerender shared reads: ${loads} made, ${hits} avoided`);
+          }
           writeSiteIconFiles(nitro.options.output.publicDir);
           writeCrawlFiles(nitro.options.output.publicDir);
           writeRedirects(nitro.options.output.publicDir);
         });
+        // One process is one build: start every prerender with an empty shared-read memo, and report
+        // at its end how many reads it shared (counts only, no URL or content).
+        nitro.hooks.hook('prerender:init', () => clearPrerenderMemo());
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });

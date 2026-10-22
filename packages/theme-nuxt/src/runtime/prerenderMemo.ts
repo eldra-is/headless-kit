@@ -19,14 +19,11 @@
  *   process; {@link clearPrerenderMemo} empties it for anything that outlives one (tests).
  */
 
-const memo = new Map<string, Promise<unknown>>();
-let loads = 0;
-let hits = 0;
-let forced: boolean | undefined;
+import { counters, isPrerender, memo } from './prerenderMemoState';
 
-function isPrerender(): boolean {
-  return forced ?? (import.meta.server === true && import.meta.prerender === true);
-}
+/** The memo name the kit reads the whole category list under; a theme that reads the same list
+ * (the gateway serves the tree as a whole) uses it too, so the build makes one read, not two. */
+export const CATEGORIES_MEMO_NAME = 'categories';
 
 /** The memo scope for one site and locale, or `null` when the caller has no credentials to key on
  * (such a read is never shared). */
@@ -52,10 +49,10 @@ export function memoizeForPrerender<T>(
   const key = `${scope}|${name}`;
   const existing = memo.get(key);
   if (existing !== undefined) {
-    hits += 1;
+    counters.hits += 1;
     return existing as Promise<T>;
   }
-  loads += 1;
+  counters.loads += 1;
   const pending = load().catch((cause: unknown) => {
     // Only drop our own entry: a newer read may already have replaced it.
     if (memo.get(key) === pending) memo.delete(key);
@@ -65,20 +62,7 @@ export function memoizeForPrerender<T>(
   return pending;
 }
 
-/** How many reads the memo ran (`loads`) and how many it answered from a shared one (`hits`) —
- * the measure WS-406 asks a build to be able to report. */
+/** How many reads the memo ran (`loads`) and how many it answered from a shared one (`hits`). */
 export function prerenderMemoStats(): { loads: number; hits: number } {
-  return { loads, hits };
-}
-
-/** Empty the memo and its counters. */
-export function clearPrerenderMemo(): void {
-  memo.clear();
-  loads = 0;
-  hits = 0;
-}
-
-/** Test seam: `true`/`false` overrides the prerender check, `undefined` restores it. */
-export function forcePrerenderMemoForTests(value: boolean | undefined): void {
-  forced = value;
+  return { loads: counters.loads, hits: counters.hits };
 }

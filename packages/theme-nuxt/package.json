@@ -37,6 +37,10 @@
       "types": "./dist/runtime/prerenderMemo.d.ts",
       "import": "./dist/runtime/prerenderMemo.js"
     },
+    "./api-base": {
+      "types": "./dist/runtime/apiBase.d.ts",
+      "import": "./dist/runtime/apiBase.js"
+    },
     "./locales": {
       "types": "./dist/runtime/locales.d.ts",
       "import": "./dist/runtime/locales.js"

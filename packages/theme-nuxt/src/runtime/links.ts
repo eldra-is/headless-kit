@@ -2,7 +2,7 @@ import type { CatalogDoc, EldraClient, EntryDoc } from '@eldrajs/theme-core';
 import type { LinkTargetInfo } from '@eldrajs/theme-core/links';
 import { buildCategoryTree } from './catalog';
 import { localeQuery } from './locale';
-import { memoizeForPrerender } from './prerenderMemo';
+import { CATEGORIES_MEMO_NAME, memoizeForPrerender } from './prerenderMemo';
 
 /** One `id:in:` token stays well inside a URL length the gateway accepts and
  * keeps one response small — the same chunk the storefront's own batched reads
@@ -228,7 +228,7 @@ async function readCategoriesInto(
   const ids = new Set(wanted);
   let docs: CatalogDoc[];
   try {
-    docs = await memoizeForPrerender(memoScope, 'categories', async () => {
+    docs = await memoizeForPrerender(memoScope, CATEGORIES_MEMO_NAME, async () => {
       const all: CatalogDoc[] = [];
       for (let page = 1; page <= MAX_PAGES; page += 1) {
         const list = await listCategories({ ...localeQuery(locale), page, pageSize: PAGE_SIZE });

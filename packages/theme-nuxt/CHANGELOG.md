@@ -10,8 +10,10 @@ Release-please writes the generated notes from commit messages and does not repl
   were read once per route (the category list about 136 times in one staging build). During a
   prerender they are now read once per gateway, organisation and locale and shared across routes;
   a failed read is not remembered. SSR requests and the browser are unchanged and never share
-  reads. New subpath `@eldrajs/theme-nuxt/prerender` (`memoizeForPrerender`) for a theme's own
-  build-wide reads, with `prerenderMemoStats()` to count them.
+  reads. New subpath `@eldrajs/theme-nuxt/prerender` (`memoizeForPrerender`, `prerenderMemoScope`,
+  `prerenderMemoStats`) for a theme's own build-wide reads; the build logs the counts once, and the
+  starter shares its category read with the module's (one read per locale). New subpath
+  `@eldrajs/theme-nuxt/api-base` (`resolveApiBase`).
 
 - **A separate API base for the browser (WS-407).** New `publicApiUrl` option /
   `ELDRA_PUBLIC_API_URL`, exposed as `runtimeConfig.public.eldra.publicApiUrl`: the host the

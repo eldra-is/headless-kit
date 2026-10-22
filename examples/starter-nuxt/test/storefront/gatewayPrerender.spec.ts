@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { createEldraClient, type EldraClient, type EldraHttpRequest } from '@eldrajs/sdk';
 import {
   createGatewayStorefront,
+  type GatewayStorefrontOptions,
   type StorefrontPrerenderHandle,
 } from '../../app/storefront/gateway';
+import { CATEGORIES_MEMO_NAME } from '../../app/storefront/apiAccess';
 import { createVolatileRefresher, type VolatileRefresher } from '../../app/storefront/refresh';
 import {
   prerenderThroughAsyncData,
@@ -171,7 +173,8 @@ function asyncDataStub(payload: Record<string, unknown> = {}) {
 function wire(
   client: EldraClient,
   prerender?: <T>(key: string, load: () => Promise<T | null>) => StorefrontPrerenderHandle<T>,
-  locale?: () => string | undefined
+  locale?: () => string | undefined,
+  shared?: GatewayStorefrontOptions['shared']
 ): { storefront: StorefrontSource; refresher: VolatileRefresher } {
   // The refresh runs when this spec says so, not on a schedule of its own. It reaches the
   // storefront declared below through the closure, exactly as the plugin's does.
@@ -183,6 +186,7 @@ function wire(
     route: fakeRoute(),
     runtime: { prerender, register: refresher.register },
     locale,
+    shared,
   });
   return { storefront, refresher };
 }
@@ -1033,5 +1037,26 @@ describe('gateway storefront — `loading`, and who is allowed to write', () => 
 
     expect(grid.data.value?.items[0]?.price.amount).toBe(120);
     expect(grid.loading.value).toBe(false);
+  });
+});
+
+describe('gateway storefront — the shared category read (WS-406)', () => {
+  it('asks for the category rows under the kit name and the page locale', async () => {
+    const asked: Array<{ name: string; locale: string | undefined }> = [];
+    const shared: GatewayStorefrontOptions['shared'] = (name, load, locale) => {
+      asked.push({ name, locale });
+      return load();
+    };
+    for (const locale of [undefined, 'is-IS']) {
+      const ssr = asyncDataStub();
+      wire(fakeClient().client, ssr.prerender, () => locale, shared).storefront.catalog.product(
+        ref('merino-crew-sweater')
+      );
+      await ssr.settleAll();
+    }
+    expect(asked).toEqual([
+      { name: CATEGORIES_MEMO_NAME, locale: undefined },
+      { name: CATEGORIES_MEMO_NAME, locale: 'is-IS' },
+    ]);
   });
 });

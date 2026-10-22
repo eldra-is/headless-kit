@@ -1,6 +1,5 @@
 import { defineNuxtPlugin, useAsyncData, useRouter, useRuntimeConfig } from 'nuxt/app';
 import { getCurrentInstance, nextTick, reactive, watchEffect } from 'vue';
-import { memoizeForPrerender } from '@eldrajs/theme-nuxt/prerender';
 import { createEldraClient, type EldraFormDefinition, type EldraRetryOptions } from '@eldrajs/sdk';
 import {
   STOREFRONT_KEY,
@@ -14,6 +13,7 @@ import {
   type StorefrontPrerenderHandle,
   type StorefrontRuntime,
 } from '../storefront/gateway';
+import { createStorefrontApiAccess } from '../storefront/apiAccess';
 import { withAnalytics } from '../storefront/analytics';
 import { createVolatileRefresher } from '../storefront/refresh';
 import {
@@ -182,10 +182,10 @@ export default defineNuxtPlugin({
 
     // The browser talks to the edge host when the site sets `ELDRA_PUBLIC_API_URL` (WS-407); the
     // server, and so every build-time and prerender read, stays on the origin `gatewayUrl`.
-    const apiBaseUrl =
-      (import.meta.client ? publicConfig.eldra?.publicApiUrl?.trim() : '') ||
-      publicConfig.eldra?.gatewayUrl ||
-      undefined;
+    const { apiBaseUrl, shared } = createStorefrontApiAccess(
+      publicConfig.eldra,
+      import.meta.client
+    );
     const client = createEldraClient({
       apiBaseUrl,
       orgId: publicConfig.eldra?.orgId || undefined,
@@ -274,14 +274,7 @@ export default defineNuxtPlugin({
     source = createGatewayStorefront(client, {
       route,
       // Build-wide reads (the category tree) are made once per prerender, not once per route.
-      shared: (name, load) =>
-        memoizeForPrerender(
-          apiBaseUrl && publicConfig.eldra?.orgId
-            ? `${apiBaseUrl}|${publicConfig.eldra.orgId}`
-            : null,
-          name,
-          load
-        ),
+      shared,
       // What the store sells in, as the platform published it — the module read it once during the
       // build (`@eldrajs/theme-nuxt`), so a prerendered page already has it. `app/plugins/
       // eldra-ui-messages.ts` provides the currency half to `@eldrajs/ui`; this puts the whole

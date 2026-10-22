@@ -1299,7 +1299,7 @@ const GATEWAY_UNSORTABLE: readonly string[] = ['best-selling'];
  * - **`category` is a slug in the URL and a uuid in the request.** The block's values are the facet
  *   terms' slugs (a filtered view has to stay linkable and readable), while `categoryId` takes
  *   catalog ids, so the slugs are resolved through the store's own category list — see
- *   `readCategories`.
+ *   `readCategoryRows`.
  * - **`availability` is one value, not a set.** Both boxes ticked is every product, which is no
  *   filter at all, so nothing is sent; one box is sent as the platform's own
  *   `in_stock`/`out_of_stock` spelling, which `canonicalAvailabilityValues` also folds the retired
@@ -1400,9 +1400,8 @@ function priceParam(raw: string | undefined, currency: string | undefined): numb
  * URL and the active-filter row all say is applied is a lie, so that one fails the collection read,
  * which the block already draws as an error over the last good page.
  */
-async function readCategories(client: EldraClient): Promise<CategoryIndex> {
-  const rows = (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
-  return buildCategoryIndex(rows);
+async function readCategoryRows(client: EldraClient): Promise<RawCategory[] | null> {
+  return (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
 }
 
 /**
@@ -1911,7 +1910,7 @@ export interface GatewayStorefrontOptions {
    * `@eldrajs/theme-nuxt/prerender`'s `memoizeForPrerender`, which runs `load` every time outside a
    * prerender. Omitted — Storybook, a spec — every storefront reads for itself.
    */
-  shared?: <T>(name: string, load: () => Promise<T>) => Promise<T>;
+  shared?: <T>(name: string, load: () => Promise<T>, locale: string | undefined) => Promise<T>;
   /**
    * Overrides where form submissions go (`forms.submit`); see `postToFormsEndpoint`. Form
    * definitions still come from the platform. Also the endpoint `catalog.notifyBackInStock` posts to.
@@ -2009,11 +2008,11 @@ export function createGatewayStorefront(
   /**
    * The store's category tree, read at most once for the life of this storefront and only when
    * something actually needs it: a category filter to resolve, a product page's breadcrumb trail, or
-   * a category facet the platform could not place its own terms in (`readCategories`).
+   * a category facet the platform could not place its own terms in (`readCategoryRows`).
    *
    * The in-flight read is what is cached, so a product page and a grid asking at once share one
    * request; a failure drops the cache so the next read tries again rather than inheriting the first
-   * one's error. Which callers swallow that failure and which let it through is on `readCategories`.
+   * one's error. Which callers swallow that failure and which let it through is on `readCategoryRows`.
    *
    * It is read on the **server** during a prerender, inside the same `useAsyncData` the product or
    * collection read runs under, so a generated product page carries its trail in the page payload
@@ -2021,13 +2020,17 @@ export function createGatewayStorefront(
    */
   let categories: Promise<CategoryIndex> | null = null;
   const categoriesOnce = (): Promise<CategoryIndex> => {
-    const read = (): Promise<CategoryIndex> => readCategories(client);
+    // The rows, not the index, are what a build shares: the same list `@eldrajs/theme-nuxt` reads
+    // for link targets, under the same memo name and key, so a build reads it once per locale.
+    const read = (): Promise<RawCategory[] | null> => readCategoryRows(client);
     categories ??= (
-      options.shared === undefined ? read() : options.shared(`categories|${locale?.() ?? ''}`, read)
-    ).catch((caught: unknown) => {
-      categories = null;
-      throw caught;
-    });
+      options.shared === undefined ? read() : options.shared('categories', read, locale?.())
+    )
+      .then((rows) => buildCategoryIndex(rows))
+      .catch((caught: unknown) => {
+        categories = null;
+        throw caught;
+      });
     return categories;
   };
 
@@ -2159,7 +2162,7 @@ export function createGatewayStorefront(
           // add a serial round trip to every product page. The tree's failure is swallowed here — a
           // product page without a category crumb is a product page, while a product page that 500s
           // because the category list was unreachable is not — which is the opposite of what the
-          // `category` *filter* does with the same read (`readCategories`).
+          // `category` *filter* does with the same read (`readCategoryRows`).
           const [stock, tree] = await Promise.all([
             readStock(client, raw, signal),
             categoriesOnce().catch(() => null),

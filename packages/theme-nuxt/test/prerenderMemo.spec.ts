@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EldraClientError, type CatalogDoc, type EldraClient } from '@eldrajs/theme-core';
 import { resolveApiBase } from '../src/runtime/apiBase';
+import { clearPrerenderMemo, forcePrerenderMemoForTests } from '../src/runtime/prerenderMemoState';
 import {
-  clearPrerenderMemo,
-  forcePrerenderMemoForTests,
   memoizeForPrerender,
   prerenderMemoScope,
   prerenderMemoStats,
