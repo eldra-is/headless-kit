@@ -66,6 +66,7 @@ export const componentNames = [
   'Switch',
   'Tab',
   'TabPanel',
+  'TablerIcon',
   'Tabs',
   'Textarea',
   'Toast',

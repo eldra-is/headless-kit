@@ -37,6 +37,10 @@ export default defineConfig({
       output: {
         assetFileNames: (info) =>
           info.names?.[0]?.endsWith('.css') ? 'style.css' : '[name][extname]',
+        chunkFileNames: (chunk) =>
+          chunk.facadeModuleId?.includes('/tabler-icon/data/')
+            ? 'tabler-icons/[name].js'
+            : '[name]-[hash].js',
       },
     },
   },

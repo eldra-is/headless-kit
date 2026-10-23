@@ -56,6 +56,7 @@ export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Tab } from './components/tabs/Tab.vue';
 export { default as TabPanel } from './components/tabs/TabPanel.vue';
+export { default as TablerIcon } from './components/tabler-icon/TablerIcon.vue';
 export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as Toast } from './components/toast/Toast.vue';
@@ -273,6 +274,7 @@ export type {
   TabsProps,
   TabsVariant,
 } from './components/tabs/types';
+export type { TablerIconPart, TablerIconProps } from './components/tabler-icon/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type {
   ToastAction,
@@ -323,6 +325,9 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
+// `TablerIcon`'s name rule and loader, for a page that warms its icons before it renders in the browser.
+export { preloadTablerIcons } from './components/tabler-icon/registry';
+export { tablerIconName } from './components/tabler-icon/tablerIconName';
 // The modal stack every modal surface in this package shares (`Dialog`, `Drawer`, `Lightbox` and
 // `SearchModal`) — nested modals are allowed; `Esc`/a backdrop click act only on the topmost one
 // (operator override, see the README's Deviations entry). `TOAST_HOST_KEY` is the hand-off a

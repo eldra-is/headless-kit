@@ -119,6 +119,20 @@ module.exports = [
     path: 'packages/theme-core/dist/links.js',
     limit: '3 kB',
   },
+  // The icon data must stay lazy: one static import on this path ships all 6,287 icons (275 kB brotlied).
+  {
+    name: '@eldrajs/ui — TablerIcon, without vue, tailwind-merge or its lazy chunks',
+    path: 'packages/ui/dist/index.js',
+    import: '{ TablerIcon }',
+    ignore: ['vue', 'tailwind-merge', './tablerIconData-*'],
+    limit: '3.25 kB',
+  },
+  {
+    name: "@eldrajs/ui — TablerIcon's lazy index, without the data files",
+    path: 'packages/ui/dist/tablerIconData-*.js',
+    ignore: ['./tabler-icons/*'],
+    limit: '2 kB',
+  },
   {
     name: '@eldrajs/ui — Button, without vue or tailwind-merge',
     path: 'packages/ui/dist/index.js',
@@ -151,11 +165,12 @@ module.exports = [
   // Raised from 150 kB for `NavMenu` (148.4 kB without it, 150.9 kB with it).
   // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
   // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
+  // Raised from 154 kB for `TablerIcon` (154.19 kB with it, 2.74 kB alone); its icon data stays lazy, so is ignored here.
   {
-    name: '@eldrajs/ui — everything, without vue',
+    name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
-    ignore: ['vue'],
-    limit: '154 kB',
+    ignore: ['vue', './tablerIconData-*'],
+    limit: '155 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

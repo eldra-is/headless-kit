@@ -110,7 +110,10 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   consumer restyles by setting variables. `scripts/build-tokens.mjs` generates
   `src/styles/tokens.css` from `eldra-starter-spec/tokens.json` (checked in; `pnpm --filter
 @eldrajs/ui check:tokens` runs in the root `lint:check` and fails on drift — regenerate with
-  `build-tokens`, never hand-edit). The Storybook screenshot harness
+  `build-tokens`, never hand-edit). `TablerIcon`'s data, `src/components/tabler-icon/data/*.json`, is
+  generated the same way from the pinned `@tabler/icons-vue` (`build-tabler-icons`, `check:tabler-icons`
+  in `lint:check`); bump it to at least Studio's picker version, never below, and when a bump drops a
+  name the generator fails until `RETIRED` maps it. The Storybook screenshot harness
   (`pnpm --filter @eldrajs/ui screenshots`, baselines in `packages/ui/__screenshots__`) is
   **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story

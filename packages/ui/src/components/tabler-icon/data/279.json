@@ -1,0 +1,14 @@
+{
+  "IconArrowsLeftDown": "<path d=\"M7 3l-4 4l4 4\"/><path d=\"M3 7h11a3 3 0 0 1 3 3v11\"/><path d=\"M13 17l4 4l4 -4\"/>",
+  "IconBrandCodepen": "<path d=\"M3 15l9 6l9 -6l-9 -6l-9 6\"/><path d=\"M3 9l9 6l9 -6l-9 -6l-9 6\"/><path d=\"M3 9l0 6\"/><path d=\"M21 9l0 6\"/><path d=\"M12 3l0 6\"/><path d=\"M12 15l0 6\"/>",
+  "IconClipboardTypography": "<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\"/><path d=\"M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2\"/><path d=\"M9 12v-1h6v1\"/><path d=\"M12 11v6\"/><path d=\"M11 17h2\"/>",
+  "IconCrop32Filled": "<path d=\"M18 6a3 3 0 0 1 3 3v6a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-6a3 3 0 0 1 3 -3z\"/>",
+  "IconDeviceDesktopOff": "<path d=\"M8 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1m-4 0h-12a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1\"/><path d=\"M7 20h10\"/><path d=\"M9 16v4\"/><path d=\"M15 16v4\"/><path d=\"M3 3l18 18\"/>",
+  "IconLockSearch": "<path d=\"M11.5 21h-4.5a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2h10\"/><path d=\"M8 11v-4a4 4 0 1 1 8 0v4\"/><path d=\"M15 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M20.2 20.2l1.8 1.8\"/>",
+  "IconMail": "<path d=\"M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10\"/><path d=\"M3 7l9 6l9 -6\"/>",
+  "IconNumber65Small": "<path d=\"M14 15a1 1 0 0 0 1 1h2a1 1 0 0 0 1 -1v-2a1 1 0 0 0 -1 -1h-3v-4h4\"/><path d=\"M10 9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v6a1 1 0 0 0 1 1h2a1 1 0 0 0 1 -1v-2a1 1 0 0 0 -1 -1h-3\"/>",
+  "IconSeparator": "<path d=\"M3 12l0 .01\"/><path d=\"M7 12l10 0\"/><path d=\"M21 12l0 .01\"/>",
+  "IconSofa": "<path d=\"M4 11a2 2 0 0 1 2 2v1h12v-1a2 2 0 1 1 4 0v5a1 1 0 0 1 -1 1h-18a1 1 0 0 1 -1 -1v-5a2 2 0 0 1 2 -2\"/><path d=\"M4 11v-3a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v3\"/><path d=\"M12 5v9\"/>",
+  "IconSquareRoundedLetterA": "<path d=\"M10 16v-6a2 2 0 1 1 4 0v6\"/><path d=\"M10 13h4\"/><path d=\"M12 3c7.2 0 9 1.8 9 9c0 7.2 -1.8 9 -9 9c-7.2 0 -9 -1.8 -9 -9c0 -7.2 1.8 -9 9 -9\"/>",
+  "IconZoomQuestionFilled": "<path d=\"M14 3.072a8 8 0 0 1 2.32 11.834l5.387 5.387a1 1 0 0 1 -1.414 1.414l-5.388 -5.387a8 8 0 0 1 -12.905 -6.32l.005 -.285a8 8 0 0 1 11.995 -6.643m-4 8.928a1 1 0 0 0 -.993 .883l-.007 .127a1 1 0 0 0 1.993 .117l.007 -.127a1 1 0 0 0 -1 -1m-1.9 -5.123a1 1 0 0 0 1.433 1.389l.088 -.09a.5 .5 0 1 1 .379 .824a1 1 0 0 0 -.002 2a2.5 2.5 0 1 0 -1.9 -4.123\"/>"
+}
