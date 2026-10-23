@@ -461,6 +461,24 @@ describe('SiteForm: sending', () => {
     expect(wrapper.find('[data-part="success"]').exists()).toBe(true);
   });
 
+  it('drops the answer to a form that was replaced while it was being sent', async () => {
+    let release: (value: EldraFormSubmitResult) => void = () => {};
+    const { client } = fakeClient(
+      () => new Promise<EldraFormSubmitResult>((resolve) => (release = resolve))
+    );
+    const wrapper = mountForm({ definition: CONTACT, client });
+    await fillContact(wrapper);
+    await submit(wrapper);
+    await wrapper.setProps({ definition: NEWSLETTER } as never);
+    release({ status: 'ok', pending: false });
+    await flush();
+
+    expect(wrapper.find('[data-part="success"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="consentText"]').exists()).toBe(true);
+    expect(wrapper.find('button[type="submit"]').attributes('aria-busy')).toBeUndefined();
+    expect(wrapper.emitted('success')).toBeUndefined();
+  });
+
   it('defaults the page to the current path', async () => {
     window.history.replaceState(null, '', '/samband');
     const { client, forms } = fakeClient();

@@ -138,6 +138,7 @@ export function useSiteForm(options: UseSiteFormOptions): UseSiteFormReturn {
   const honeypot = ref('');
   const submitting = ref(false);
   const success = ref<SiteFormSuccess | null>(null);
+  let submissionId = 0;
   const turnstileRoot = ref<HTMLElement | null>(null);
 
   const turnstileKey = computed(() =>
@@ -146,6 +147,8 @@ export function useSiteForm(options: UseSiteFormOptions): UseSiteFormReturn {
   const turnstile = useTurnstile(turnstileKey, turnstileRoot);
 
   function clear(): void {
+    submissionId += 1;
+    submitting.value = false;
     for (const id of Object.keys(values)) delete values[id];
     for (const id of Object.keys(errors)) delete errors[id];
     formErrors.value = [];
@@ -221,6 +224,7 @@ export function useSiteForm(options: UseSiteFormOptions): UseSiteFormReturn {
     const pagePath =
       toValue(options.pagePath) ?? (typeof window === 'undefined' ? '/' : window.location.pathname);
 
+    const id = ++submissionId;
     submitting.value = true;
     let answer: Awaited<ReturnType<SiteFormClient['forms']['submit']>>;
     try {
@@ -232,6 +236,7 @@ export function useSiteForm(options: UseSiteFormOptions): UseSiteFormReturn {
         ...(honeypot.value ? { hp: honeypot.value } : {}),
       });
     } catch (cause) {
+      if (id !== submissionId) return { kind: 'ignored' };
       submitting.value = false;
       turnstile.reset();
       const reason = failureReason(cause);
@@ -244,6 +249,7 @@ export function useSiteForm(options: UseSiteFormOptions): UseSiteFormReturn {
       ];
       return { kind: 'failed', failure: { reason, cause } };
     }
+    if (id !== submissionId) return { kind: 'ignored' };
     submitting.value = false;
 
     if (answer.status === 'ok') {
