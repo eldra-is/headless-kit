@@ -1,0 +1,9 @@
+{
+  "IconBellPause": "<path d=\"M13 17h-9a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6a2 2 0 1 1 4 0a7 7 0 0 1 4 6v2\"/><path d=\"M9 17v1a3 3 0 0 0 4.022 2.821\"/><path d=\"M17 17v5\"/><path d=\"M21 17v5\"/>",
+  "IconBlur": "<path d=\"M12 21a9.01 9.01 0 0 0 2.32 -.302a9 9 0 0 0 1.74 -16.733a9 9 0 1 0 -4.06 17.035\"/><path d=\"M12 3v17\"/><path d=\"M12 12h9\"/><path d=\"M12 9h8\"/><path d=\"M12 6h6\"/><path d=\"M12 18h6\"/><path d=\"M12 15h8\"/>",
+  "IconBrandSafari": "<path d=\"M8 16l2 -6l6 -2l-2 6l-6 2\"/><path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>",
+  "IconBriefcaseOff": "<path d=\"M11 7h8a2 2 0 0 1 2 2v8m-1.166 2.818a1.993 1.993 0 0 1 -.834 .182h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2h2\"/><path d=\"M8.185 4.158a2 2 0 0 1 1.815 -1.158h4a2 2 0 0 1 2 2v2\"/><path d=\"M12 12v.01\"/><path d=\"M3 13a20 20 0 0 0 11.905 1.928m3.263 -.763a20 20 0 0 0 2.832 -1.165\"/><path d=\"M3 3l18 18\"/>",
+  "IconLadderOff": "<path d=\"M8 3v1m0 4v13\"/><path d=\"M16 3v9m0 4v5\"/><path d=\"M8 14h6\"/><path d=\"M8 10h2m4 0h2\"/><path d=\"M10 6h6\"/><path d=\"M8 18h8\"/><path d=\"M3 3l18 18\"/>",
+  "IconNumber41Small": "<path d=\"M15 8h1v8\"/><path d=\"M6 8v3a1 1 0 0 0 1 1h3\"/><path d=\"M10 8v8\"/>",
+  "IconWashDryclean": "<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>"
+}

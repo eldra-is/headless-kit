@@ -180,6 +180,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Switch`            | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
    | `Tab`               | none — reads only the shared tokens from layer 1, plus `VariantPicker`'s `text-variant-pill` type style (no per-component variable of its own; see that component's row)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
    | `TabPanel`          | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+   | `TablerIcon`        | none — reads only the shared tokens from layer 1, the same as `Icon`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Tabs`              | none — reads only the shared tokens from layer 1; the `eldra-scrollbar-hide` utility the tab list uses has no variable of its own. The pills list's own padding, the negative margin that cancels it and its scroll padding are all `calc(var(--eldra-focus-offset) + var(--eldra-focus-width))` — the focus ring's own reach, so raising either ring token widens the room the scrolling list keeps for a focused pill's ring instead of letting it clip (the underline variant reserves nothing: its tabs ring _inside_ their own box, per the design spec, and padding that list vertically would push its hairline off the tabs). Set a gutter through `classes.list` only if it is wider than that reach — a `px-*`/`-mx-*`/`scroll-px-*` utility of your own replaces the reservation on that axis rather than composing with it, the way `--eldra-carousel-bleed` does for the carousel                                                                                                                                                          |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Toast`             | `--eldra-toast-title-size` (default `0.9375rem`), `--eldra-toast-title-line` (default `1.4`) — the title's own size/line, sitting between two type-scale steps with no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -1467,6 +1468,47 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   because `LoadMore` already owns a visible `status` part and a collection page renders both — plus
   the fade's own value spans, `currentValue`/`compareAtValue` on `Price` and `labelValue` on
   `StockBadge`.
+
+- **`TablerIcon`** — any [Tabler](https://tabler.io/icons) icon by the name a `tabler-icon` CMS
+  field holds, for a value an editor picks in Studio rather than an icon the code knows. It takes
+  the export name Studio's picker stores (`IconCashRegister`) or Tabler's kebab-case name
+  (`cash-register`, what hand-written and MCP-written content holds), and tolerates the stega
+  payload Studio's preview appends. `size`, `label` and `classes` are `Icon`'s, with `Icon`'s
+  decorative-by-default ARIA; `strokeWidth` (default the spec's 1.75) is for a site whose own
+  design draws another weight; a filled icon (`IconHeartFilled`, `heart-filled`) is filled with no
+  stroke. It is the one icon component here that takes a name rather than a component, because a
+  CMS field can only hold a name.
+
+  **Only the icons a page draws reach the browser.** The icons (every `@tabler/icons-vue` export,
+  aliases included) ship as data in 512 small files of about 12 icons each, which a bundler emits
+  as lazy chunks; the component loads the one file holding its icon. Rendered on the server
+  (`onServerPrefetch`), the `<svg>` and its paths are in the HTML, stamped
+  `data-tabler-icon="<export name>"`, and hydration keeps them and loads nothing when the stamp is
+  the client's name, so a server-rendered or prerendered page downloads no icon code at all (a
+  client rendering another name draws its own; an icon the server failed to load is unstamped, so
+  the browser loads it). A page rendered in the browser (a client-side navigation, Studio's live
+  preview) loads the index chunk (about 5.5 kB gzipped, once) and one file per icon it does not
+  have yet (1 to 1.7 kB gzipped); until it arrives the box is drawn empty at its full size, so
+  nothing moves. The server bundle
+  carries every icon (about 1.8 MB, 450 kB gzipped), since any name can be asked for.
+  `preloadTablerIcons(names)` loads a page's icons ahead of render, for a site that wants a
+  client-side navigation to draw them in its first frame (await it where the page's data loads).
+  One file per icon was measured and rejected: Nuxt keeps a manifest entry for every client chunk
+  in its server bundle, and 6,300 of them added 3.7 MB to a Cloudflare Worker and doubled the
+  build.
+
+  **An unknown name never throws.** A name Tabler does not have renders the empty box and warns
+  once; a value that cannot be a name (`Cash Register`) renders nothing and warns once; an empty
+  value renders nothing. A failed chunk load warns, draws the empty box and is retried on the next
+  mount. `preloadTablerIcons` takes one name or any iterable of them.
+
+  **The data follows Studio's picker.** It is generated from the `@tabler/icons-vue` version this
+  package pins (`pnpm --filter @eldrajs/ui build-tabler-icons`, checked by `check:tabler-icons`),
+  which must be at least the version Studio's picker uses, so every name the picker offers
+  resolves. A name never disappears: the generator fails when a new version drops one the data
+  held, and `RETIRED` in `scripts/build-tabler-icons.mjs` maps it to its successor
+  (`IconMoodConfuzedFilled`, offered by Studio up to 3.44 and gone from 3.48 without an alias).
+  The markup comes only from that data; a field value is only ever a lookup key.
 
 ## Deviations
 

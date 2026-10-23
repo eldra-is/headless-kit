@@ -1,0 +1,13 @@
+{
+  "IconArrowBarRight": "<path d=\"M20 12l-10 0\"/><path d=\"M20 12l-4 4\"/><path d=\"M20 12l-4 -4\"/><path d=\"M4 4l0 16\"/>",
+  "IconBellShare": "<path d=\"M12.5 17h-8.5a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6a2 2 0 1 1 4 0a7 7 0 0 1 4 6v2\"/><path d=\"M9 17v1a3 3 0 0 0 3 3\"/><path d=\"M16 22l5 -5\"/><path d=\"M21 21.5v-4.5h-4.5\"/>",
+  "IconBorderCornerRounded": "<path d=\"M4 20v-10a6 6 0 0 1 6 -6h10\"/>",
+  "IconCarrotOff": "<path d=\"M8.868 8.846c-2.756 3.382 -5.868 12.154 -5.868 12.154s8.75 -3.104 12.134 -5.85m1.667 -2.342a4.486 4.486 0 0 0 -5.589 -5.615\"/><path d=\"M9 13l-1.5 -1.5\"/><path d=\"M22 8s-1.14 -2 -3 -2c-1.406 0 -3 2 -3 2s1.14 2 3 2s3 -2 3 -2\"/><path d=\"M16 2s-2 1.14 -2 3s2 3 2 3s2 -1.577 2 -3c0 -1.86 -2 -3 -2 -3\"/><path d=\"M3 3l18 18\"/>",
+  "IconClearAll": "<path d=\"M8 6h12\"/><path d=\"M6 12h12\"/><path d=\"M4 18h12\"/>",
+  "IconFileUnknown": "<path d=\"M14 3v4a1 1 0 0 0 1 1h4\"/><path d=\"M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2\"/><path d=\"M12 17v.01\"/><path d=\"M12 14a1.5 1.5 0 1 0 -1.14 -2.474\"/>",
+  "IconImageInPicture": "<path d=\"M13 15c-2 0 -5 1 -5 5\"/><path d=\"M4 13a2 2 0 0 1 2 -2h5a2 2 0 0 1 2 2v5a2 2 0 0 1 -2 2h-5a2 2 0 0 1 -2 -2l0 -5\"/><path d=\"M4 7v-2a1 1 0 0 1 1 -1h2\"/><path d=\"M11 4h2\"/><path d=\"M17 4h2a1 1 0 0 1 1 1v2\"/><path d=\"M20 11v2\"/><path d=\"M20 17v2a1 1 0 0 1 -1 1h-2\"/>",
+  "IconMoodSurprised": "<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/><path d=\"M9 9l.01 0\"/><path d=\"M15 9l.01 0\"/><path d=\"M10 15a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/>",
+  "IconRepeatOff": "<path d=\"M4 12v-3c0 -1.336 .873 -2.468 2.08 -2.856m3.92 -.144h10m-3 -3l3 3l-3 3\"/><path d=\"M20 12v3a3 3 0 0 1 -.133 .886m-1.99 1.984a3 3 0 0 1 -.877 .13h-13m3 3l-3 -3l3 -3\"/><path d=\"M3 3l18 18\"/>",
+  "IconStepInto": "<path d=\"M12 3l0 12\"/><path d=\"M16 11l-4 4\"/><path d=\"M8 11l4 4\"/><path d=\"M11 20a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>",
+  "IconTemperatureFahrenheit": "<path d=\"M4 8a2 2 0 1 0 4 0a2 2 0 1 0 -4 0\"/><path d=\"M13 12l5 0\"/><path d=\"M20 6h-6a1 1 0 0 0 -1 1v11\"/>"
+}

@@ -1,0 +1,14 @@
+{
+  "IconArrowRightTail": "<path d=\"M18 15l3 -3l-3 -3\"/><path d=\"M3 15l3 -3l-3 -3\"/><path d=\"M6 12l15 0\"/>",
+  "IconCodeAi": "<path d=\"M7 8l-4 4l4 4\"/><path d=\"M17 8l3.111 3.111\"/><path d=\"M14 4l-2.175 8.7\"/><path d=\"M14 21v-4a2 2 0 1 1 4 0v4\"/><path d=\"M14 19h4\"/><path d=\"M21 15v6\"/>",
+  "IconCopyCheck": "<path d=\"M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667l0 -8.666\"/><path d=\"M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\"/><path d=\"M11 14l2 2l4 -4\"/>",
+  "IconCurrencyLeu": "<path d=\"M17 18h-7a3 3 0 0 1 -3 -3v-10\"/>",
+  "IconDeviceIpadHorizontalUp": "<path d=\"M12 20h-7a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v6.5\"/><path d=\"M9 17h3.5\"/><path d=\"M19 22v-6\"/><path d=\"M22 19l-3 -3l-3 3\"/>",
+  "IconFileShredder": "<path d=\"M14 3v4a1 1 0 0 0 1 1h4\"/><path d=\"M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4\"/><path d=\"M3 12l18 0\"/><path d=\"M6 16l0 2\"/><path d=\"M10 16l0 6\"/><path d=\"M14 16l0 2\"/><path d=\"M18 16l0 4\"/>",
+  "IconFold": "<path d=\"M12 3v6l3 -3m-6 0l3 3\"/><path d=\"M12 21v-6l3 3m-6 0l3 -3\"/><path d=\"M4 12l1 0\"/><path d=\"M9 12l1 0\"/><path d=\"M14 12l1 0\"/><path d=\"M19 12l1 0\"/>",
+  "IconMessage2Search": "<path d=\"M8 9h8\"/><path d=\"M8 13h5\"/><path d=\"M12 21l-.5 -.5l-2.5 -2.5h-3a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v4.5\"/><path d=\"M15 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0\"/><path d=\"M20.2 20.2l1.8 1.8\"/>",
+  "IconPencilAi": "<path d=\"M17.013 10.987l1.487 -1.487a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4h4l2 -2\"/><path d=\"M13.5 6.5l4 4\"/><path d=\"M14 21v-4a2 2 0 1 1 4 0v4\"/><path d=\"M14 19h4\"/><path d=\"M21 15v6\"/>",
+  "IconRouteX": "<path d=\"M3 17l4 4\"/><path d=\"M7 17l-4 4\"/><path d=\"M17 3l4 4\"/><path d=\"M21 3l-4 4\"/><path d=\"M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5\"/>",
+  "IconSquareRoundedLetterI": "<path d=\"M12 8v8\"/><path d=\"M12 3c7.2 0 9 1.8 9 9c0 7.2 -1.8 9 -9 9c-7.2 0 -9 -1.8 -9 -9c0 -7.2 1.8 -9 9 -9\"/>",
+  "IconZzzOff": "<path d=\"M4 12h6l-6 8h6\"/><path d=\"M14 4h6l-5.146 6.862m1.146 1.138h4\"/><path d=\"M3 3l18 18\"/>"
+}
