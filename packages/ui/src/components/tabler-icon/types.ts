@@ -4,7 +4,7 @@ import type { IconSize } from '../icon/types';
 export type TablerIconPart = 'root';
 
 export interface TablerIconProps {
-  /** A `tabler-icon` field value: the export name Studio's picker stores (`IconCashRegister`) or Tabler's kebab-case name (`cash-register`). Empty renders nothing. */
+  /** A `tabler-icon` field value: Tabler's kebab-case name (`cash-register`), which Studio and the MCP store, or the older export name (`IconCashRegister`) that content saved before 17 Oct 2026 may hold. Empty renders nothing. */
   name?: string | null;
   /** One of `Icon`'s four sizes. Defaults to `md` (1.25rem). */
   size?: IconSize;

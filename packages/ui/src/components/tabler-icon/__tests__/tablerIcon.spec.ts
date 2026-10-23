@@ -31,7 +31,7 @@ function quietWarnings() {
 }
 
 describe('TablerIcon', () => {
-  it('draws the icon Studio stores by export name', async () => {
+  it('draws the icon by the export name older content holds', async () => {
     const wrapper = mountWith(TablerIcon, { props: { name: 'IconCashRegister' } });
     expect(wrapper.element.tagName.toLowerCase()).toBe('svg');
     await drawn(wrapper.element, 'IconCashRegister');
