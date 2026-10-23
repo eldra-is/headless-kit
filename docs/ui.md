@@ -42,6 +42,9 @@ table and Storybook for the full contract of each).
   conventions.
 - `FieldWrapper` — the label/help/error layout every form control renders inside.
 - `FormLayout` — the form shell: heading, fields, a status region and an actions row.
+- `SiteForm`: any form built in Studio, drawn from its definition and submitted through the SDK,
+  with the platform's own checks, the honeypot and Turnstile (`useSiteForm` for markup of your own;
+  see `packages/ui/README.md`, "Site forms").
 - `Icon` — the shared icon frame the rest of the package draws its icons through.
 - `TablerIcon` — any Tabler icon by the name a `tabler-icon` CMS field holds (`IconCashRegister`
   or `cash-register`), drawn into the server HTML; only the icons a page draws reach the browser.

@@ -175,6 +175,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `SearchModal`       | `--eldra-search-modal-width` (default `40rem`), `--eldra-search-modal-max-height` (default `40rem`) — both clamped to the viewport inside their own utility, which also carries the full-screen-below-a-48rem-_viewport_ media query; `--eldra-search-modal-field-size` (default `1.0625rem`), `--eldra-search-modal-foot-size`/`-line` (defaults `0.75rem`/`1.4`), `--eldra-search-modal-kbd-size` (default `0.6875rem`) — none with a token of their own; plus everything `SearchBar`'s reused `SearchResultsPanel` reads (`--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-control-line-height`)                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Section`           | none — the vertical rhythm (`--eldra-section-{sm,md,lg}`) and the gutters it shares with `Container` are shared tokens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
    | `Select`            | `--eldra-select-panel-max-height` (default `20rem`), `--eldra-select-panel-max-width` (default `22rem`, clamped to `90vw`), `--eldra-z-popover` (default `30`), `--eldra-field-radius`, `--eldra-field-border-width`, `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge`, the `--eldra-select-match-*` trio, and `--eldra-popover-origin` (`top left` / `bottom left`, set by the panel from the placement it resolved to)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+   | `SiteForm`          | none of its own: it composes `FormLayout`, `FieldWrapper`, `Input`, `Textarea`, `Select`, `Checkbox` and `Button`, each restyled through its own row; its `classes` reach their parts (see [Site forms](#site-forms))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
    | `Skeleton`          | none — `width` sets an inline style directly (see the Deviations entry), no CSS variable involved                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
    | `StockBadge`        | `--eldra-stock-status-line` (default `1.4`) — the status line text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Switch`            | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -313,6 +314,91 @@ import { isIS } from '@eldrajs/ui/messages/is-IS';
 
 app.provide(MESSAGES_KEY, isIS);
 ```
+
+## Site forms
+
+`SiteForm` draws any form a merchant builds in Studio (Settings › Forms) from its public definition,
+and submits it through the SDK. It is the form; the page around it (heading copy, card, image) is
+yours.
+
+```vue
+<script setup lang="ts">
+import { createEldraClient } from '@eldrajs/sdk';
+import { SiteForm } from '@eldrajs/ui';
+import { isIS } from '@eldrajs/ui/messages/is-IS';
+
+const eldra = createEldraClient({ orgId: useRuntimeConfig().public.eldraOrgId });
+const { data: contact } = await useAsyncData('form:contact', () => eldra.forms.get('contact'));
+</script>
+
+<template>
+  <SiteForm :definition="contact" :client="eldra" locale="is-IS" :messages="isIS" />
+</template>
+```
+
+- **Definition or key.** Pass `definition` (read in your data loader, so the form is in the
+  server-rendered HTML), or only `formKey`, and the form reads it with `client.forms.get` in the
+  browser, showing `formLoading` until it arrives and `formLoadFailed` (`role="alert"`) if it
+  cannot. A definition with a field type this version does not know is refused whole, with the
+  same notice, rather than drawn with the wrong control. A `null` definition with no `formKey`
+  reads as a form that cannot be shown, so with a loader that is still reading
+  (`useLazyAsyncData`) render `SiteForm` once the definition is there (`v-if`). `client` is
+  anything with the SDK's `forms.get` and `forms.submit` (`SiteFormClient`).
+- **Fields.** `text`, `email`, `phone` (`type="tel"`), `number` (a text field with the decimal
+  keypad, so a decimal comma survives), `url`, `textarea`, `select` (`Select`, clearable when
+  optional), `checkbox` and `consent` (`Checkbox`; a required one must be ticked). Labels,
+  placeholders and option labels are picked for `locale`: the exact tag, then the same language,
+  then the first tag, as the platform picks them. Every required field carries native `required`,
+  and a required field with a label of its own (not a box) the `*` mark; in a form of more than
+  one field the optional ones say "(optional)".
+- **Checks.** On submit every field is checked by the platform's own rules in the platform's order
+  (required; the per-type length ceiling, 254 for an email, 50 for a phone, 8000 for a textarea
+  and 500 otherwise, lowered by `maxLength`; the email, number, URL and option shape; `minLength`;
+  `pattern` against the whole value, an email lowercased and a number with a decimal point, as
+  the platform matches it), on the value the platform will see (control characters dropped, Go's
+  whitespace collapsed outside a textarea, trimmed), with the platform's wording, except that a
+  required box says `formRequiredCheckbox`. A pattern that does not compile as a `u` RegExp, and a
+  value holding a character RE2 and JavaScript read differently, are left to the platform rather
+  than guessed at. Nothing is sent while any field fails; focus moves to the first failing field.
+  A field's message clears when its value changes.
+- **Spam.** The honeypot the definition names is rendered visually hidden, `inert`,
+  `aria-hidden` and out of the tab order, and sent as `hp` only when something filled it. When
+  the definition carries a `turnstileSiteKey`, Cloudflare's script is loaded (once per page) and
+  the widget rendered under the fields; the token is sent as `turnstileToken`, and a fresh one is
+  asked for after every refused submission because a token is single-use. A form without a site
+  key loads nothing third-party.
+- **Answers.** A `422`'s field messages go under their fields (`aria-invalid`, first in
+  `aria-describedby`); its form messages, and a message for a field the form does not draw, go in
+  the error summary above the fields (`role="alert"`). A `429`, a `413` and anything else (the
+  network included) are the `formRateLimited`, `formTooLarge` and `formUnavailable` messages in the
+  same summary, and the visitor can send again. `error` is emitted with `{ reason, cause? }`
+  (`refused`, `rate-limited`, `too-large`, `unavailable`).
+- **Success.** The form is replaced by a `role="status"` panel that takes focus: `formSuccessTitle`
+  and the merchant's message, or for a subscribing form (`pending`) `formPendingTitle` and the
+  merchant's message or `formPendingMessage`. A merchant redirect is followed instead: a site path
+  (`/takk`) through `navigate` when you pass one (your router's, to stay in the app), an absolute
+  http(s) address, and a path with no `navigate`, through `location.assign`; anything else the
+  platform sent is dropped. `success` is emitted first with `{ pending, redirect }`.
+- **Consent.** A subscribing form's `consentText` is shown as plain text under the button, which
+  it describes (`aria-describedby`): pressing the button is the consent.
+- **Layout.** `layout` is `FormLayout`'s: `single`, `two`, or `inline` for a sign-up, which applies
+  only to a form of one text-like field and falls back to `single` otherwise. `heading` and
+  `headingLevel` give it a visible title; without one it is named by the definition's `name`.
+- **Styling.** `classes` takes the parts in `SiteFormPart`: `root`, `notice`, `success`,
+  `successTitle`, `successMessage`, `consentText` and `turnstile` are its own; `form`, `heading`,
+  `errorSummary`, `fields` and `actions` reach `FormLayout`; `field`, `label`, `requiredMark`,
+  `optionalText` and `error` reach every field's `FieldWrapper`; `control` reaches each `Input` and
+  `Textarea` element and the `Select` trigger; `checkbox` each `Checkbox`; `submit` the `Button`.
+  Slots: `submit` (`{ label, submitting, describedBy }`, a `type="submit"` control of your own;
+  bind `describedBy` to its `aria-describedby`, the consent sentence when there is one), `success`
+  (`{ pending, title, message, reset }`, where `reset` empties the form and focuses its first
+  field), `loading` and `failed`.
+- **Strings.** Every string is a `form*` message (English built in, Icelandic in
+  `@eldrajs/ui/messages/is-IS`), set app-wide or through the `messages` prop, which `SiteForm`
+  also passes down to the controls inside it. `submitLabel` overrides the button's text.
+
+`useSiteForm(options)` is the state the component is drawn from (the localized definition, values,
+errors, honeypot, Turnstile element, `submit()` and `reset()`), for a form with markup of your own.
 
 ## Composables
 
@@ -1071,6 +1157,10 @@ during development, outside this repository's own history.
 Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
 comparing the package against the spec can tell an addition from a drift.
 
+- **`SiteForm` and `useSiteForm`**: a form from the platform's Forms API, drawn from its public
+  definition with this package's own controls, checked by the platform's rules and submitted
+  through `@eldrajs/sdk`. The spec has form controls and a form layout but no platform form; see
+  [Site forms](#site-forms).
 - **`Chip` and `ChipGroup`** — an operator addition (2026-09-25) for the private component
   library's `FilterChip`, which a store migrating onto this package needs an equivalent of. There
   is no spec 1 "Chip" section; the visual language is derived from two sections that do exist:
