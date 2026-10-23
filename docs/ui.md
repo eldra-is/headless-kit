@@ -46,8 +46,9 @@ table and Storybook for the full contract of each).
   with the platform's own checks, the honeypot and Turnstile (`useSiteForm` for markup of your own;
   see `packages/ui/README.md`, "Site forms").
 - `Icon` — the shared icon frame the rest of the package draws its icons through.
-- `TablerIcon` — any Tabler icon by the name a `tabler-icon` CMS field holds (`IconCashRegister`
-  or `cash-register`), drawn into the server HTML; only the icons a page draws reach the browser.
+- `TablerIcon` — any Tabler icon by the name a `tabler-icon` CMS field holds (`cash-register`, or
+  the older `IconCashRegister` that content saved before 17 Oct 2026 may hold), drawn into the
+  server HTML; only the icons a page draws reach the browser.
 - `VisuallyHidden` — text present for assistive technology only.
 
 **Display, commerce and layout**

@@ -4,7 +4,7 @@ import TablerIcon from './TablerIcon.vue';
 const meta = {
   title: 'Foundations/TablerIcon',
   component: TablerIcon,
-  args: { name: 'IconCashRegister', size: 'md' },
+  args: { name: 'cash-register', size: 'md' },
   argTypes: {
     name: { control: 'text' },
     size: { control: 'inline-radio', options: ['sm', 'md', 'lg', 'xl'] },
@@ -15,9 +15,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Any Tabler icon by the name a `tabler-icon` CMS field holds: the export name Studio stores ' +
-          '(`IconCashRegister`) or the kebab-case name (`cash-register`). `Icon`’s sizes, stroke and ' +
-          'ARIA; only the icons a page draws are loaded. An unknown name keeps an empty box and warns once.',
+          'Any Tabler icon by the name a `tabler-icon` CMS field holds: Tabler’s kebab-case name ' +
+          '(`cash-register`), which Studio stores, or the older export name (`IconCashRegister`) that ' +
+          'content saved before 17 Oct 2026 may hold. `Icon`’s sizes, stroke and ARIA; only the icons ' +
+          'a page draws are loaded. An unknown name keeps an empty box and warns once.',
       },
     },
   },
@@ -29,11 +30,11 @@ type Story = StoryObj<typeof meta>;
 /** The value Studio's picker stores. */
 export const Default: Story = {};
 
-/** Tabler's kebab-case name draws the same icon. */
-export const KebabCaseName: Story = { args: { name: 'cash-register' } };
+/** The older export name, which content saved before 17 Oct 2026 may hold, draws the same icon. */
+export const LegacyExportName: Story = { args: { name: 'IconCashRegister' } };
 
 /** A filled icon is filled in the current colour, with no stroke. */
-export const Filled: Story = { args: { name: 'IconHeartFilled', size: 'lg' } };
+export const Filled: Story = { args: { name: 'heart-filled', size: 'lg' } };
 
 /** Every size beside the others. */
 export const AllSizes: Story = {
@@ -49,10 +50,10 @@ export const AllSizes: Story = {
 };
 
 /** A site's own stroke weight. */
-export const StrokeWidth: Story = { args: { name: 'IconCalendar', size: 'xl', strokeWidth: 1.25 } };
+export const StrokeWidth: Story = { args: { name: 'calendar', size: 'xl', strokeWidth: 1.25 } };
 
 /** An icon that carries meaning nothing else on screen carries. */
-export const Labelled: Story = { args: { name: 'IconTrash', label: 'Delete', size: 'lg' } };
+export const Labelled: Story = { args: { name: 'trash', label: 'Delete', size: 'lg' } };
 
 /** A name Tabler does not have keeps its box, so nothing around it moves. */
 export const UnknownName: Story = {
@@ -60,14 +61,14 @@ export const UnknownName: Story = {
     components: { TablerIcon },
     template: `
       <p class="text-body flex items-center gap-2">
-        <TablerIcon name="IconNoSuchIcon" class="border border-dashed border-border" />
+        <TablerIcon name="no-such-icon" class="border border-dashed border-border" />
         <span>An unknown name renders an empty box</span>
       </p>
     `,
   }),
 };
 
-/** The kind of row a CMS feature list renders, each icon an editor's pick. */
+/** The kind of row a CMS feature list renders, each icon an editor's pick; older content may still hold export names. */
 export const FromContent: Story = {
   render: () => ({
     components: { TablerIcon },
