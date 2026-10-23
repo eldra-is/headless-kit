@@ -61,6 +61,7 @@ export const componentNames = [
   'SearchModal',
   'Section',
   'Select',
+  'SiteForm',
   'Skeleton',
   'StockBadge',
   'Switch',

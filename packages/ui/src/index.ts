@@ -51,6 +51,7 @@ export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as SearchModal } from './components/search-modal/SearchModal.vue';
 export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
+export { default as SiteForm } from './components/site-form/SiteForm.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
@@ -261,6 +262,20 @@ export type {
   SectionProps,
   SectionSpacing,
 } from './components/section/types';
+export type {
+  SiteFormClient,
+  SiteFormDefinition,
+  SiteFormFailure,
+  SiteFormFailureReason,
+  SiteFormField,
+  SiteFormLayout,
+  SiteFormPart,
+  SiteFormProps,
+  SiteFormStatus,
+  SiteFormSubmitOutcome,
+  SiteFormSuccess,
+  SiteFormValue,
+} from './components/site-form/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type {
@@ -381,6 +396,12 @@ export {
   type UsePopoverOptions,
   type UsePopoverReturn,
 } from './components/select/usePopover';
+// An Eldra form's state, checks, honeypot, Turnstile and submission; `SiteForm` is drawn from it.
+export {
+  useSiteForm,
+  type UseSiteFormOptions,
+  type UseSiteFormReturn,
+} from './components/site-form/useSiteForm';
 // Reactive slot presence: every component in this package that branches on a slot uses it instead
 // of a plain `$slots.x !== undefined` (slots are not reactive on their own — see its own comment)
 // — exported so a consumer's own wrapper composing this package's parts gets the same behaviour.

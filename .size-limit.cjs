@@ -165,12 +165,12 @@ module.exports = [
   // Raised from 150 kB for `NavMenu` (148.4 kB without it, 150.9 kB with it).
   // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
   // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
-  // Raised from 154 kB for `TablerIcon` (154.19 kB with it, 2.74 kB alone); its icon data stays lazy, so is ignored here.
+  // Raised from 154 kB for `TablerIcon` (its icon data stays lazy, so is ignored here) and `SiteForm` with its `form*` messages.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '155 kB',
+    limit: '160 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

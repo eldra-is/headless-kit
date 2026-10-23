@@ -80,8 +80,7 @@ not subject to this.
 
 ## Forms without a theme
 
-Site forms work for a headless app that has no theme and no page builder. Three things make them
-work:
+Site forms work for a headless app that has no theme and no page builder:
 
 - **Switch on the `FORMS` feature.** Forms have their own organisation feature, separate from
   `PAGE_BUILDER`; a platform admin enables it for the organisation. Without it the form read and
@@ -89,6 +88,10 @@ work:
   hang off, is created the first time a form is created in Studio.
 - **Register your app's origin** as a storefront origin (Studio, General settings, _Storefront
   origins_), as above; a browser read or submit from any other origin is refused.
+- **Render it with `SiteForm`.** `@eldrajs/ui`'s `SiteForm` draws any definition and does
+  everything below for you: `<SiteForm :definition="form" :client="eldra" locale="is-IS" />`
+  (see `packages/ui/README.md`, "Site forms"). The rest of this list is what it does, for an app
+  that draws its own.
 - **Call the SDK.** `eldra.forms.get(key)` returns the definition to render, and
   `eldra.forms.submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission
   (a 422 resolves as field-keyed errors). Render the honeypot field the definition names off-screen

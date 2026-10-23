@@ -196,6 +196,31 @@ export const isIS: UiMessages = {
   filterPanelOrMore: ' eða meira',
   filterPanelShowResults: (n: number) => `Sýna ${n} ${productsWord(n)}`,
   filterPanelShowProducts: 'Sýna vörur',
+
+  formSubmit: 'Senda',
+  formSubmitting: 'Sendi',
+  formLoading: 'Hleð eyðublaðinu…',
+  formLoadFailed: 'Ekki er hægt að sýna þetta eyðublað núna.',
+  formRequired: 'Þennan reit þarf að fylla út.',
+  formRequiredCheckbox: 'Hakaðu í reitinn til að halda áfram.',
+  formInvalidEmail: 'Sláðu inn gilt netfang.',
+  formInvalidNumber: 'Sláðu inn tölu, til dæmis 12 eða 3,5.',
+  formInvalidUrl: 'Sláðu inn fullt veffang sem byrjar á http:// eða https://.',
+  formInvalidOption: 'Veldu einn af valkostunum.',
+  formInvalidFormat: 'Athugaðu snið þessa gildis.',
+  formTooShort: (min: number) =>
+    `Þetta er of stutt (að minnsta kosti ${min} ${singular(min) ? 'stafur' : 'stafir'}).`,
+  formTooLong: (max: number) =>
+    `Þetta er of langt (í mesta lagi ${max} ${singular(max) ? 'stafur' : 'stafir'}).`,
+  formRefused: 'Athugaðu svörin og reyndu aftur.',
+  formRateLimited: 'Of margar tilraunir. Bíddu í eina mínútu og reyndu aftur.',
+  formTooLarge: 'Þetta er meira en eyðublaðið tekur við. Styttu svörin og reyndu aftur.',
+  formUnavailable: 'Ekki tókst að senda eyðublaðið núna. Reyndu aftur eftir smá stund.',
+  formSpamCheckRequired: 'Kláraðu ruslvörnina og reyndu aftur.',
+  formSpamCheckFailed: 'Ekki tókst að hlaða ruslvörninni. Endurnýjaðu síðuna og reyndu aftur.',
+  formSuccessTitle: 'Takk fyrir',
+  formPendingTitle: 'Kíktu í pósthólfið',
+  formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
 };
 
 export default isIS;
