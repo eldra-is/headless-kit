@@ -13,6 +13,7 @@ import {
   type StorefrontPrerenderHandle,
   type StorefrontRuntime,
 } from '../storefront/gateway';
+import { createSharedRead } from '../storefront/sharedRead';
 import { withAnalytics } from '../storefront/analytics';
 import { createVolatileRefresher } from '../storefront/refresh';
 import {
@@ -178,6 +179,8 @@ export default defineNuxtPlugin({
       formsEndpoint?: string;
     };
 
+    // Build-wide reads (the category tree) are shared across the routes of a prerender (WS-406).
+    const shared = createSharedRead(publicConfig.eldra);
     const client = createEldraClient({
       apiBaseUrl: publicConfig.eldra?.gatewayUrl || undefined,
       orgId: publicConfig.eldra?.orgId || undefined,
@@ -265,6 +268,8 @@ export default defineNuxtPlugin({
 
     source = createGatewayStorefront(client, {
       route,
+      // Build-wide reads (the category tree) are made once per prerender, not once per route.
+      shared,
       // What the store sells in, as the platform published it — the module read it once during the
       // build (`@eldrajs/theme-nuxt`), so a prerendered page already has it. `app/plugins/
       // eldra-ui-messages.ts` provides the currency half to `@eldrajs/ui`; this puts the whole

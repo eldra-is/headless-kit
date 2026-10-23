@@ -10,6 +10,7 @@ import { linkTargetKeys, type LinkTargetInfo } from '@eldrajs/theme-core/links';
 import { loadCatalogEntry, type CatalogRouteRef } from './catalog';
 import { collectLinkTargets } from './links';
 import { localeQuery } from './locale';
+import { memoizeForPrerender, prerenderMemoScope } from './prerenderMemo';
 
 export interface ResolvedEldraRoute {
   page: EntryDoc | null;
@@ -59,6 +60,13 @@ export const EMPTY_ELDRA_ROUTE: ResolvedEldraRoute = {
 export interface EldraRouteSchemas {
   pageSchema: string;
   routeTemplateSchema: string;
+  /**
+   * The site's gateway and organisation. When both are given, the page and route-template lists
+   * (and the category list behind link resolution) are read once per build during a prerender
+   * instead of once per route (WS-406, see `./prerenderMemo.ts`). Without them nothing is shared.
+   */
+  gatewayUrl?: string;
+  orgId?: string;
 }
 
 /**
@@ -81,9 +89,14 @@ export async function resolveEldraRoute(
   locale?: string
 ): Promise<ResolvedEldraRoute> {
   try {
+    const scope = prerenderMemoScope(schemas.gatewayUrl, schemas.orgId, locale);
     const [pages, templates] = await Promise.all([
-      listAllEntries(client, schemas.pageSchema, locale),
-      listRouteTemplates(client, schemas.routeTemplateSchema, locale),
+      memoizeForPrerender(scope, `entries:${schemas.pageSchema}`, () =>
+        listAllEntries(client, schemas.pageSchema, locale)
+      ),
+      memoizeForPrerender(scope, `entries:${schemas.routeTemplateSchema}`, () =>
+        listRouteTemplates(client, schemas.routeTemplateSchema, locale)
+      ),
     ]);
     const match = resolveRoute(path, { pages, templates });
     if (match === null) return EMPTY_ELDRA_ROUTE;
@@ -97,7 +110,7 @@ export async function resolveEldraRoute(
         template: null,
         entry: null,
         catalog: null,
-        links: await linkState(client, pages, templates, page, locale),
+        links: await linkState(client, pages, templates, page, locale, scope),
       };
     }
     const schemaApiId = plainString(match.template.data.schemaApiId);
@@ -132,7 +145,7 @@ export async function resolveEldraRoute(
                 path: plainString(entry.data.path),
               }
             : { kind: catalogKind, slug: slugValue },
-        links: await linkState(client, pages, templates, template, locale),
+        links: await linkState(client, pages, templates, template, locale, scope),
       };
     }
     const [template, entry] = await Promise.all([
@@ -147,7 +160,7 @@ export async function resolveEldraRoute(
       template,
       entry,
       catalog: null,
-      links: await linkState(client, pages, templates, template, locale),
+      links: await linkState(client, pages, templates, template, locale, scope),
     };
   } catch (cause) {
     if (cause instanceof EldraClientError && cause.status === 404) return EMPTY_ELDRA_ROUTE;
@@ -171,7 +184,8 @@ async function linkState(
   pages: EntryDoc[],
   templates: EntryDoc[],
   document: EntryDoc | null,
-  locale?: string
+  locale: string | undefined,
+  memoScope: string | null
 ): Promise<ResolvedEldraRoute['links']> {
   const keys = collectDocumentTargetKeys(document);
   const targets =
@@ -180,6 +194,7 @@ async function linkState(
       : await collectLinkTargets(client, keys, locale, {
           entrySchemaApiIds: entryTemplateSchemas(templates),
           pages,
+          memoScope,
         });
   return { pages, templates, targets };
 }

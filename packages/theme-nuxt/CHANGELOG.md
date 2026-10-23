@@ -5,6 +5,17 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Prerender reads shared lists once per build (WS-406).** `nuxi generate` created a client per
+  route, so the page list, the route-template list and the category list behind link resolution
+  were read once per route (the category list about 136 times in one staging build). During a
+  prerender they are now read once per gateway, organisation and locale and shared across routes;
+  a failed read is not remembered. SSR requests and the browser are unchanged and never share
+  reads. New subpath `@eldrajs/theme-nuxt/prerender` (`memoizeForPrerender`, `prerenderMemoScope`,
+  `prerenderMemoStats`) for a theme's own build-wide reads; the build logs the counts once, and the
+  starter shares its category read with the module's (one read per locale).
+  `ELDRA_GATEWAY_URL` should be the edge API host: the edge recognises the build token, so builds
+  and browsers use the same base.
+
 - **A build sends a read-only build token for its own rate-limit bucket (WS-403, WS-409).**
   `ELDRA_BUILD_TOKEN` (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens) is
   sent as `X-Eldra-Build-Token` by the module's build-time reads and by the clients of a

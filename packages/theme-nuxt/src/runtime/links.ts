@@ -2,6 +2,7 @@ import type { CatalogDoc, EldraClient, EntryDoc } from '@eldrajs/theme-core';
 import type { LinkTargetInfo } from '@eldrajs/theme-core/links';
 import { buildCategoryTree } from './catalog';
 import { localeQuery } from './locale';
+import { CATEGORIES_MEMO_NAME, memoizeForPrerender } from './prerenderMemo';
 
 /** One `id:in:` token stays well inside a URL length the gateway accepts and
  * keeps one response small — the same chunk the storefront's own batched reads
@@ -29,6 +30,12 @@ export interface LinkTargetSources {
    * the title a blank label falls back to — no extra read.
    */
   pages?: readonly EntryDoc[];
+  /**
+   * The prerender memo scope (`prerenderMemoScope`) for this site and locale. When set, the whole
+   * category list is read once per build instead of once per route (WS-406); `null` or omitted
+   * reads it every time, which is what a request-time render does regardless.
+   */
+  memoScope?: string | null;
 }
 
 /**
@@ -83,7 +90,15 @@ export async function collectLinkTargets(
   const listCategories = client.catalog.listCategories?.bind(client.catalog);
   const wantedCategories = byType.get('category') ?? [];
   if (listCategories !== undefined && wantedCategories.length > 0) {
-    reads.push(readCategoriesInto(targets, wantedCategories, listCategories, locale));
+    reads.push(
+      readCategoriesInto(
+        targets,
+        wantedCategories,
+        listCategories,
+        locale,
+        sources.memoScope ?? null
+      )
+    );
   }
   if ((byType.get('entry') ?? []).length > 0) {
     for (const schemaApiId of sources.entrySchemaApiIds ?? []) {
@@ -207,16 +222,21 @@ async function readCategoriesInto(
   into: Map<string, LinkTargetInfo>,
   wanted: readonly string[],
   listCategories: NonNullable<EldraClient['catalog']['listCategories']>,
-  locale?: string
+  locale: string | undefined,
+  memoScope: string | null
 ): Promise<void> {
   const ids = new Set(wanted);
-  const docs: CatalogDoc[] = [];
+  let docs: CatalogDoc[];
   try {
-    for (let page = 1; page <= MAX_PAGES; page += 1) {
-      const list = await listCategories({ ...localeQuery(locale), page, pageSize: PAGE_SIZE });
-      docs.push(...list.data);
-      if (list.meta?.hasNext !== true || list.data.length === 0) break;
-    }
+    docs = await memoizeForPrerender(memoScope, CATEGORIES_MEMO_NAME, async () => {
+      const all: CatalogDoc[] = [];
+      for (let page = 1; page <= MAX_PAGES; page += 1) {
+        const list = await listCategories({ ...localeQuery(locale), page, pageSize: PAGE_SIZE });
+        all.push(...list.data);
+        if (list.meta?.hasNext !== true || list.data.length === 0) break;
+      }
+      return all;
+    });
   } catch {
     // Left unknown on purpose: the links pointing here render unlinked.
     return;

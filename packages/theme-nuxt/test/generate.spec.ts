@@ -14,13 +14,14 @@ const moduleVersion = (
   }
 ).version;
 let gateway: Awaited<ReturnType<typeof startMockGateway>>;
+let buildOutput = '';
 
 describe('theme-nuxt nuxi generate', () => {
   beforeAll(async () => {
     gateway = await startMockGateway();
     rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
     rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
-    await execa(nuxi, ['generate'], {
+    const built = await execa(nuxi, ['generate'], {
       cwd: fixtureDir,
       env: {
         ELDRA_GATEWAY_URL: gateway.url,
@@ -28,7 +29,9 @@ describe('theme-nuxt nuxi generate', () => {
         ELDRA_BUILD_TARGET: 'preview',
       },
       timeout: 300_000,
+      all: true,
     });
+    buildOutput = built.all ?? '';
   }, 360_000);
 
   afterAll(async () => {
@@ -48,6 +51,33 @@ describe('theme-nuxt nuxi generate', () => {
     expect(existsSync(output('articles/hello-dynamic/index.html'))).toBe(true);
     expect(existsSync(output('articles/code-owned/index.html'))).toBe(true);
     expect(gateway.requests.some((request) => request.includes('pageSize=100'))).toBe(true);
+  });
+
+  /**
+   * **WS-406: a shared list is read once per locale for the whole build, not once per route.** The
+   * fixture prerenders many routes (each path in two locales, plus every `_payload.json`), and each
+   * resolves against the page and route-template lists; those reads used to repeat per route.
+   */
+  it('reads the page and route-template lists once per locale, not once per route', () => {
+    const listReads = (schema: string) =>
+      gateway.requests
+        .filter(
+          (request) =>
+            request.startsWith(`/cms/v1/schema/${schema}/entry?`) &&
+            request.includes('pageSize=100') &&
+            request.includes('depth=0')
+        )
+        .map((request) => new URL(request, 'http://gateway.test').searchParams.get('locale') ?? '');
+    // The module's own route discovery reads the page list once (default locale); the prerender
+    // then reads each list exactly once per locale served (`is` at `/`, `en-US` under a prefix).
+    expect(listReads('page').sort()).toEqual(['en-US', 'is', 'is']);
+    expect(listReads('route-template').sort()).toEqual(['en-US', 'is', 'is']);
+  });
+
+  it('logs the shared-read counts once at the end of the prerender', () => {
+    const lines = buildOutput.split('\n').filter((line) => line.includes('prerender shared reads'));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/: \d+ made, \d+ avoided$/);
   });
 
   /**
