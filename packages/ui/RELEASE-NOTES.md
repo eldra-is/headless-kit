@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.4...ui-v0.2.5) (2026-10-23)
+
+
+### Features
+
+* **ui:** SiteForm renders any Eldra Studio form ([#85](https://github.com/eldra-is/headless-kit/issues/85)) ([a300d8e](https://github.com/eldra-is/headless-kit/commit/a300d8e1c7ea21b8745ec2c065c44703020103a6))
+* **ui:** TablerIcon draws any Tabler icon by name ([#86](https://github.com/eldra-is/headless-kit/issues/86)) ([00a8261](https://github.com/eldra-is/headless-kit/commit/00a82612b6ff8fffeb0957915fe4acd8a97cd48f))
+
 ## [0.2.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.3...ui-v0.2.4) (2026-10-22)
 
 

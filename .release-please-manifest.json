@@ -6,6 +6,6 @@
   "packages/theme-vue": "0.2.2",
   "packages/vite-plugin-theme": "0.3.1",
   "packages/theme-cli": "0.2.2",
-  "packages/theme-nuxt": "0.3.2",
-  "packages/ui": "0.2.4"
+  "packages/theme-nuxt": "0.3.3",
+  "packages/ui": "0.2.5"
 }

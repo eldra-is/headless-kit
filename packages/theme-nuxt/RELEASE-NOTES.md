@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.2...theme-nuxt-v0.3.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **theme-nuxt:** WS-406 read shared lists once per prerender build ([#81](https://github.com/eldra-is/headless-kit/issues/81)) ([c5a2116](https://github.com/eldra-is/headless-kit/commit/c5a21164f33926c97bbf191b055cc78c0d5a2269))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.1...theme-nuxt-v0.3.2) (2026-10-22)
 
 
