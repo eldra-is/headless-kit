@@ -1665,6 +1665,34 @@
   }
 }
 
+/* Drawer: the side gutter and the header row's least height from their variables, and the edge paddings, each with
+   the device's safe area added (zero unless the page sets `viewport-fit=cover`). One property per utility, so a
+   consumer's `px-*`, `pt-*`, `pb-*` or `min-h-*` replaces exactly the one it names. */
+@utility eldra-drawer-gutter {
+  padding-inline: calc(
+    var(--eldra-drawer-gutter, var(--eldra-space-6)) +
+      max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px))
+  );
+}
+
+@utility eldra-drawer-header-height {
+  min-height: calc(
+    var(--eldra-drawer-header-height, var(--eldra-space-16)) + env(safe-area-inset-top, 0px)
+  );
+}
+
+@utility eldra-drawer-header-top {
+  padding-top: calc(var(--eldra-space-4) + env(safe-area-inset-top, 0px));
+}
+
+@utility eldra-drawer-body-bottom {
+  padding-bottom: calc(var(--eldra-space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+@utility eldra-drawer-footer-bottom {
+  padding-bottom: calc(var(--eldra-space-5) + env(safe-area-inset-bottom, 0px));
+}
+
 /* The drawer's own entrance (spec "Drawer" → Behaviour & motion): "Enter: slides in from its edge
    (translateX(100%) -> 0 for right, -100% -> 0 for left), duration-slow (250ms) ease-out. Exit:
    instant." Applied to the `<dialog>` root itself (`Drawer.vue`: `animate-eldra-drawer-in-{side}
@@ -2158,4 +2186,13 @@
     auto-fit,
     minmax(min(100%, var(--eldra-nav-menu-column-min, 12rem)), 1fr)
   );
+}
+
+/* NavMenu's phone menu: every top-level row's least height, and a panel's links indented beneath their row. */
+@utility eldra-nav-menu-drawer-row {
+  min-height: var(--eldra-nav-menu-drawer-row-height, calc(var(--spacing) * 14));
+}
+
+@utility eldra-nav-menu-drawer-nest {
+  padding-inline-start: var(--eldra-nav-menu-drawer-indent, var(--eldra-space-4));
 }

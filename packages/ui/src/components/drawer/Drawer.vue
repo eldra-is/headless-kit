@@ -185,7 +185,10 @@ const panelStyle = computed(() =>
 
 const headerClass = computed(() =>
   partClass(
-    'flex min-h-16 shrink-0 items-center gap-4 border-b border-border px-6 py-4',
+    cx(
+      'flex shrink-0 items-center gap-4 border-b border-border',
+      'eldra-drawer-header-height eldra-drawer-gutter eldra-drawer-header-top pb-4'
+    ),
     props.classes,
     'header'
   )
@@ -227,12 +230,19 @@ const closeClass = computed(() =>
 );
 
 const bodyClass = computed(() =>
-  partClass('min-h-0 flex-1 overflow-y-auto p-6', props.classes, 'body')
+  partClass(
+    cx('min-h-0 flex-1 overflow-y-auto pt-6 eldra-drawer-gutter eldra-drawer-body-bottom'),
+    props.classes,
+    'body'
+  )
 );
 
 const footerClass = computed(() =>
   partClass(
-    'flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-background px-6 py-5',
+    cx(
+      'flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-background pt-5',
+      'eldra-drawer-gutter eldra-drawer-footer-bottom'
+    ),
     props.classes,
     'footer'
   )

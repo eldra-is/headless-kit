@@ -202,6 +202,7 @@ export type {
   NavMenuCollapse,
   NavMenuDrawerLayout,
   NavMenuDrawerPanelPart,
+  NavMenuGroup,
   NavMenuGroupHeadingSlotProps,
   NavMenuItem,
   NavMenuLink,

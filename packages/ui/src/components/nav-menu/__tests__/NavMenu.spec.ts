@@ -702,6 +702,42 @@ describe('NavMenu — narrow screens', () => {
   });
 });
 
+describe('NavMenu — linked column headings', () => {
+  const linked: NavMenuItem[] = [
+    { ...ITEMS[0]!, groups: [{ label: 'Knitwear', href: '/knitwear' }, { label: 'Ceramics' }] },
+    ...ITEMS.slice(1),
+  ];
+
+  it('makes a heading with a page a link in the bar, and leaves one without as text', async () => {
+    const wrapper = mount({ items: linked, modelValue: 0 });
+    await nextTick();
+    const headings = panel(wrapper, 0).querySelectorAll('[data-part="groupHeading"]');
+    const link = headings[0]!.querySelector('[data-part="groupLink"]')!;
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('/knitwear');
+    expect(headings[1]!.querySelector('[data-part="groupLink"]')).toBeNull();
+    expect(headings[1]!.textContent!.trim()).toBe('Ceramics');
+    wrapper.unmount();
+  });
+
+  it('makes the same heading a link in the drawer', async () => {
+    const wrapper = mount({ items: linked, drawerOpen: true, drawerLayout: 'sections' });
+    await nextTick();
+    const link = wrapper.get('dialog').element.querySelector('[data-part="drawerGroupLink"]')!;
+    expect(link.getAttribute('href')).toBe('/knitwear');
+    wrapper.unmount();
+  });
+
+  it('still names its list by the heading, link or not', async () => {
+    const wrapper = mount({ items: linked, modelValue: 0 });
+    await nextTick();
+    const heading = panel(wrapper, 0).querySelector('[data-part="groupHeading"]')!;
+    const list = panel(wrapper, 0).querySelector('[data-part="panelList"]')!;
+    expect(list.getAttribute('aria-labelledby')).toBe(heading.id);
+    wrapper.unmount();
+  });
+});
+
 describe('NavMenu — drawer layouts and entries', () => {
   async function openDrawer(
     props: Record<string, unknown> = {},
@@ -730,12 +766,37 @@ describe('NavMenu — drawer layouts and entries', () => {
     const heading = journal.querySelector('[data-part="drawerSectionHeading"]')!;
     const list = journal.querySelector('[data-part="drawerPanelList"]')!;
     expect(list.getAttribute('aria-labelledby')).toBe(heading.id);
-    expect(texts(journal, 'a')).toEqual([
-      'Journal: overview',
-      'Stories',
-      'Makers (opens in a new tab)',
-    ]);
+    expect(texts(journal, 'a')).toEqual(['Journal', 'Stories', 'Makers (opens in a new tab)']);
     expect(dialog.querySelector('[data-part="drawerLink"]')!.getAttribute('href')).toBe('/about');
+    wrapper.unmount();
+  });
+
+  it('sections: a heading whose entry has a page is that link, with no overview row; one without is text', async () => {
+    const { wrapper, dialog } = await openDrawer({ drawerLayout: 'sections' });
+    const [shop, journal] = dialog.querySelectorAll('[data-part="drawerSectionHeading"]');
+    expect(journal!.tagName).toBe('A');
+    expect(journal!.getAttribute('href')).toBe('/journal');
+    expect(dialog.querySelector('[data-part="drawerOverview"]')).toBeNull();
+    expect(shop!.tagName).toBe('SPAN');
+    wrapper.unmount();
+  });
+
+  it('indents every panel beneath its row, in both layouts', async () => {
+    for (const drawerLayout of ['accordion', 'sections']) {
+      const { wrapper, dialog } = await openDrawer({ drawerLayout });
+      const nests = dialog.querySelectorAll('[data-part="drawerNest"]');
+      expect(nests, drawerLayout).toHaveLength(2);
+      expect(nests[1]!.querySelector('[data-part="drawerPanelList"]'), drawerLayout).not.toBeNull();
+      wrapper.unmount();
+    }
+  });
+
+  it('accordion: keeps the overview row inside the indent', async () => {
+    const { wrapper, dialog } = await openDrawer();
+    const journal = dialog.querySelectorAll('[data-part="drawerNest"]')[1]!;
+    expect(journal.querySelector('[data-part="drawerOverview"]')!.textContent!.trim()).toBe(
+      'Journal: overview'
+    );
     wrapper.unmount();
   });
 

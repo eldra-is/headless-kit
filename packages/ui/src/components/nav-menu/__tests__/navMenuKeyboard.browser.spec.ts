@@ -102,6 +102,38 @@ const expanded = (page: Page, label: string) =>
   page.getByRole('button', { name: label }).getAttribute('aria-expanded');
 
 describe('NavMenu in a browser', () => {
+  it.runIf(built)(
+    'restyles the phone menu through its CSS variables, with defaults when none is set',
+    async () => {
+      const measure = async (page: Page) => {
+        await page.getByRole('button', { name: 'Menu', exact: true }).click();
+        return page.evaluate(() => {
+          const dialog = document.querySelector('dialog[open]')!;
+          const px = (el: Element | null, property: string) =>
+            parseFloat(getComputedStyle(el!).getPropertyValue(property));
+          return {
+            gutter: px(dialog.querySelector('[data-part="header"]'), 'padding-left'),
+            header: dialog.querySelector('[data-part="header"]')!.getBoundingClientRect().height,
+            row: dialog.querySelector('[data-part="drawerLink"]')!.getBoundingClientRect().height,
+            indent: px(dialog.querySelector('[data-part="drawerNest"]'), 'padding-inline-start'),
+          };
+        });
+      };
+      const plain = await open(375, { props: { drawerLayout: 'sections' } });
+      expect(await measure(plain)).toEqual({ gutter: 24, header: 77, row: 56, indent: 16 });
+      await plain.close();
+
+      const styled = await open(375, { props: { drawerLayout: 'sections' } });
+      await styled.addStyleTag({
+        content:
+          ':root { --eldra-drawer-gutter: 40px; --eldra-drawer-header-height: 90px; ' +
+          '--eldra-nav-menu-drawer-row-height: 80px; --eldra-nav-menu-drawer-indent: 32px; }',
+      });
+      expect(await measure(styled)).toEqual({ gutter: 40, header: 90, row: 80, indent: 32 });
+      await styled.close();
+    }
+  );
+
   it.runIf(built)('opens with Enter, walks into the panel with Tab, closes on Escape', async () => {
     const page = await open();
     await page.keyboard.press('Tab');
