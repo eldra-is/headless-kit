@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.5...ui-v0.2.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ui:** plain Icelandic in the default is-IS messages ([#88](https://github.com/eldra-is/headless-kit/issues/88)) ([0a63f6b](https://github.com/eldra-is/headless-kit/commit/0a63f6b18d5ff091caab8821cf1de38f49227005))
+
 ## [0.2.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.4...ui-v0.2.5) (2026-10-23)
 
 
