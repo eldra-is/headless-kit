@@ -457,6 +457,23 @@ describe('Dialog — initial focus', () => {
     document.dispatchEvent(new Event('keydown'));
   });
 
+  it('focuses a control marked autofocus before an earlier button, opened by a tap or the keyboard', async () => {
+    for (const input of ['pointerdown', 'keydown']) {
+      document.dispatchEvent(new Event(input));
+      const wrapper = mountWith(Dialog, {
+        props: { title: 'Notify me', modelValue: true },
+        slots: {
+          default: '<button type="button">Help</button><input data-testid="email" autofocus />',
+        },
+      });
+      await nextTick();
+      await nextTick();
+      expect(document.activeElement, input).toBe(wrapper.find('[data-testid="email"]').element);
+      wrapper.unmount();
+    }
+    document.dispatchEvent(new Event('keydown'));
+  });
+
   it('opened by a tap with only buttons inside, focuses the dialog itself', async () => {
     document.dispatchEvent(new Event('pointerdown'));
     const wrapper = mountWith(Dialog, {

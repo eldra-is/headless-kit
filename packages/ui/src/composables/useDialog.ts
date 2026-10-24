@@ -21,7 +21,10 @@ export interface UseDialogOptions {
   dialog: Ref<HTMLDialogElement | null>;
   /** Whether a backdrop click closes the dialog. `Esc` and `close()` always do. Default `true`. */
   dismissable?: MaybeRefOrGetter<boolean>;
-  /** Focused once the dialog opens, instead of the first meaningful control. */
+  /**
+   * Focused when the dialog opens from the keyboard, instead of the first meaningful control. After a tap or click
+   * it is focused only when it is a text field or marked `autofocus`; otherwise the dialog itself takes focus.
+   */
   initialFocus?: Ref<HTMLElement | null>;
   /** Ran when `Esc` is pressed (the native `cancel` event), before the dialog actually closes. */
   onCancel?: () => void;
@@ -91,6 +94,10 @@ function focusSurface(dialog: HTMLDialogElement): void {
   dialog.focus({ preventScroll: true });
 }
 
+function autofocusControl(root: HTMLElement): HTMLElement | undefined {
+  return [...root.querySelectorAll<HTMLElement>('[autofocus]')].find(isReachable);
+}
+
 function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
     (element) => isReachable(element) && element.closest('[data-part="close"]') === null
@@ -121,9 +128,11 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
  *   composable): the page behind does not scroll while the stack is non-empty (released only once
  *   every open modal has closed), and `TOAST_HOST_KEY` tracks the **topmost** dialog a `Toaster`
  *   should render into.
- * - **Initial focus**: `initialFocus`, else the first meaningful control (never the close button —
- *   see `firstMeaningfulControl` above), else the close button itself as a last resort, else
- *   whatever the platform already focused. Applied a tick after `showModal()`, so slot content that
+ * - **Initial focus**: `initialFocus`, else a reachable control marked `autofocus`, else the first
+ *   meaningful control (never the close button — see `firstMeaningfulControl` above), else the close
+ *   button itself as a last resort, else whatever the platform already focused. Opened by a tap or
+ *   click, the dialog focuses itself instead unless that target is a text field or marked
+ *   `autofocus`, because Safari rings a control script focuses after a tap. Applied a tick after `showModal()`, so slot content that
  *   mounts alongside the dialog (a form's first field) already exists in the DOM to focus.
  * - **Focus return**: whatever had focus immediately before `showModal()` gets it back the moment
  *   the dialog actually closes, by any route — the page's own opener for the bottom of the stack,
@@ -167,6 +176,7 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
     if (el === null) return;
     const target =
       options.initialFocus?.value ??
+      autofocusControl(el) ??
       firstMeaningfulControl(el) ??
       el.querySelector<HTMLElement>('[data-part="close"]');
     if (lastInputWasPointer && !takesFocusOnTap(target)) {

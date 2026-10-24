@@ -564,11 +564,13 @@ spec's own non-negotiable 2):
   tree, and `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared
   reference both sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()`
   already uses to teleport a panel into a dialog it did not render;
-- **initial focus** — `initialFocus`, else the first focusable that is not `[data-part="close"]`
+- **initial focus** — `initialFocus`, else a reachable `[autofocus]` control, else the first focusable that is not `[data-part="close"]`
   (this package's own "every part carries `data-part`" convention doubling as the composable's
   exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
   else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
-  the dialog (a form's first field) already exists to focus;
+  the dialog (a form's first field) already exists to focus; opened by a tap or click, the dialog
+  focuses itself instead unless that target is a text field or marked `autofocus`, so Safari draws
+  no focus ring on a control the visitor did not reach with the keyboard;
 - **focus return** — whatever had focus immediately before `showModal()`, refocused the moment the
   dialog actually closes, by any route — the page's own opener at the bottom of the stack, or,
   for a modal opened from inside another one, whichever control still had focus in the modal
