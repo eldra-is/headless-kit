@@ -147,10 +147,10 @@ const twMerge = extendTailwindMerge<
       // The Range slider rail's own touch band (tailwind.css "Range slider"): a `min-height` with
       // a container-query step, in Tailwind's own `min-h` group so a consumer's `min-h-0` on the
       // rail replaces it rather than landing beside it.
-      'min-h': ['eldra-range-rail'],
+      'min-h': ['eldra-range-rail', 'eldra-drawer-header-height', 'eldra-nav-menu-drawer-row'],
       // The gutter that keeps a thumb inside the control (tailwind.css "Range slider"): a
       // `padding-inline` in Tailwind's own `px` group, so `classes.group: 'px-0'` replaces it.
-      px: ['eldra-range-gutter', 'eldra-range-gutter-thumb'],
+      px: ['eldra-range-gutter', 'eldra-range-gutter-thumb', 'eldra-drawer-gutter'],
       // The Dialog panel's own width (tailwind.css "Dialog"): whole class names rather than a
       // `w-*` suffix, but Tailwind's own "w" group, so a consumer's `classes.panel: 'w-full'`
       // replaces the clamp instead of landing beside it. The two are mutually exclusive (`size`
@@ -320,9 +320,13 @@ const twMerge = extendTailwindMerge<
       // a bundled rule with no stock Tailwind equivalent, so it gets its own group.
       'eldra-filter-histogram-bar': ['eldra-filter-histogram-bar'],
       // Nav menu: the panel gap and column grid join stock groups so `pt-0`/`grid-cols-5` win.
-      pt: ['eldra-nav-menu-panel'],
+      pt: ['eldra-nav-menu-panel', 'eldra-drawer-header-top'],
       'grid-cols': ['eldra-nav-menu-columns'],
       'eldra-nav-menu-dropdown': ['eldra-nav-menu-dropdown'],
+      // The phone menu's indent and the drawer's bottom paddings join their stock groups (the drawer's gutter,
+      // header top and both least heights sit in `px`, `pt` and `min-h` above), so a consumer class replaces each.
+      ps: ['eldra-nav-menu-drawer-nest'],
+      pb: ['eldra-drawer-header-bottom', 'eldra-drawer-body-bottom', 'eldra-drawer-footer-bottom'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

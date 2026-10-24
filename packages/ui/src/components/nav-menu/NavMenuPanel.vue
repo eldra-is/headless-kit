@@ -14,6 +14,7 @@ import {
   panelLinks,
 } from './navLinks';
 import type {
+  NavMenuGroup,
   NavMenuGroupHeadingSlotProps,
   NavMenuItem,
   NavMenuLink,
@@ -34,6 +35,8 @@ const props = defineProps<{
   classes?: Partial<Record<NavMenuPart, string>>;
   /** Names a list that has no group heading of its own, such as a drawer section's. */
   labelledBy?: string;
+  /** Leaves out the link to the item's own page, when its drawer heading already is that link. */
+  omitOverview?: boolean;
 }>();
 
 defineSlots<{
@@ -93,6 +96,14 @@ const columnsClass = computed(() => {
   );
 });
 
+function groupMeta(name: string | null): NavMenuGroup | undefined {
+  return name === null ? undefined : props.item.groups?.find((group) => group.label === name);
+}
+
+const groupLinkClass = computed(() =>
+  panelPartClass(cx('rounded-sm eldra-focus hover:text-text', CURRENT_PAGE), 'groupLink')
+);
+
 const groupClass = computed(() => panelPartClass('flex min-w-0 flex-col', 'group'));
 
 const groupHeadingClass = computed(() =>
@@ -142,7 +153,7 @@ function listLabel(group: string | null, index: number): string | undefined {
 <template>
   <component
     :is="navLinkTag(item, linkAs)"
-    v-if="hasHref(item)"
+    v-if="hasHref(item) && !omitOverview"
     data-eldra-ui
     :data-part="part('overview')"
     :class="overviewClass"
@@ -172,7 +183,19 @@ function listLabel(group: string | null, index: number): string | undefined {
           :item="item"
           :placement="placement"
         >
-          {{ group.group }}
+          <component
+            :is="navLinkTag(groupMeta(group.group)!, linkAs)"
+            v-if="groupMeta(group.group) && hasHref(groupMeta(group.group)!)"
+            :data-part="part('groupLink')"
+            :class="groupLinkClass"
+            v-bind="navLinkAttrs(groupMeta(group.group)!, linkAs)"
+          >
+            {{ group.group }}
+            <VisuallyHidden v-if="groupMeta(group.group)!.newTab">{{
+              messages.opensInNewTab
+            }}</VisuallyHidden>
+          </component>
+          <template v-else>{{ group.group }}</template>
         </slot>
       </span>
       <ul

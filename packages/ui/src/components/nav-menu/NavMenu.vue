@@ -402,24 +402,34 @@ const drawerClasses = computed(() => ({
 
 const sections = computed(() => props.drawerLayout === 'sections');
 
-const drawerListClass = computed(() =>
-  partClass('flex flex-col border-t border-border', props.classes, 'drawerList')
-);
+const drawerListClass = computed(() => partClass('flex flex-col', props.classes, 'drawerList'));
+
+// Every top-level row in the drawer, link, accordion row or section heading, is this tall.
+const DRAWER_ROW = 'eldra-nav-menu-drawer-row';
 
 function drawerItemClass(item: NavMenuItem): string {
   if (!hasPanel(item)) return partClass('border-b border-border', props.classes, 'drawerItem');
-  const section = sections.value ? 'flex flex-col border-b border-border pt-4 pb-2' : '';
+  const section = sections.value ? 'flex flex-col border-b border-border pb-4' : '';
   return partClass(section, props.classes, 'drawerItem');
 }
 
-const drawerSectionHeadingClass = computed(() =>
-  partClass('pb-1 text-overline text-muted', props.classes, 'drawerSectionHeading')
-);
+function drawerSectionHeadingClass(item: NavMenuItem): string {
+  return partClass(
+    cx(
+      DRAWER_ROW,
+      'flex w-full items-center rounded-sm py-4 text-accordion-title text-text',
+      hasHref(item) && cx('eldra-focus', CURRENT_PAGE)
+    ),
+    props.classes,
+    'drawerSectionHeading'
+  );
+}
 
 const drawerLinkClass = computed(() =>
   partClass(
     cx(
-      'flex min-h-14 w-full items-center rounded-sm py-4',
+      DRAWER_ROW,
+      'flex w-full items-center rounded-sm py-4',
       'text-accordion-title text-text eldra-focus',
       CURRENT_PAGE
     ),
@@ -428,8 +438,16 @@ const drawerLinkClass = computed(() =>
   )
 );
 
+const drawerNestClass = computed(() =>
+  partClass(
+    'flex flex-col ms-1 border-s border-border eldra-nav-menu-drawer-nest',
+    props.classes,
+    'drawerNest'
+  )
+);
+
 const accordionClasses = computed(() => ({
-  summary: props.classes?.drawerTrigger,
+  summary: cx(DRAWER_ROW, props.classes?.drawerTrigger),
   panel: cx('max-w-none pb-4 text-text', props.classes?.drawerPanel),
 }));
 </script>
@@ -594,51 +612,62 @@ const accordionClasses = computed(() => ({
               :class="drawerItemClass(item)"
             >
               <template v-if="hasPanel(item) && sections">
-                <span
+                <component
+                  :is="navLinkTag(item, linkAs)"
                   :id="`${panelId(index)}-drawer-heading`"
                   data-part="drawerSectionHeading"
-                  :class="drawerSectionHeadingClass"
-                  >{{ item.label }}</span
+                  :class="drawerSectionHeadingClass(item)"
+                  v-bind="navLinkAttrs(item, linkAs)"
                 >
-                <NavMenuPanel
-                  :item="item"
-                  :id-prefix="`${panelId(index)}-drawer`"
-                  placement="drawer"
-                  :variant="variant"
-                  :messages="m"
-                  :link-as="linkAs"
-                  :classes="classes"
-                  :labelled-by="`${panelId(index)}-drawer-heading`"
-                >
-                  <template v-if="slots.panelItem" #panelItem="scope">
-                    <slot name="panelItem" v-bind="scope" />
-                  </template>
-                  <template v-if="slots.groupHeading" #groupHeading="scope">
-                    <slot name="groupHeading" v-bind="scope" />
-                  </template>
-                </NavMenuPanel>
+                  {{ item.label }}
+                  <VisuallyHidden v-if="item.newTab && hasHref(item)">{{
+                    m.opensInNewTab
+                  }}</VisuallyHidden>
+                </component>
+                <div data-part="drawerNest" :class="drawerNestClass">
+                  <NavMenuPanel
+                    :item="item"
+                    :id-prefix="`${panelId(index)}-drawer`"
+                    placement="drawer"
+                    :variant="variant"
+                    :messages="m"
+                    :link-as="linkAs"
+                    :classes="classes"
+                    :labelled-by="`${panelId(index)}-drawer-heading`"
+                    :omit-overview="hasHref(item)"
+                  >
+                    <template v-if="slots.panelItem" #panelItem="scope">
+                      <slot name="panelItem" v-bind="scope" />
+                    </template>
+                    <template v-if="slots.groupHeading" #groupHeading="scope">
+                      <slot name="groupHeading" v-bind="scope" />
+                    </template>
+                  </NavMenuPanel>
+                </div>
               </template>
               <AccordionItem
                 v-else-if="hasPanel(item)"
                 :title="item.label ?? ''"
                 :classes="accordionClasses"
               >
-                <NavMenuPanel
-                  :item="item"
-                  :id-prefix="`${panelId(index)}-drawer`"
-                  placement="drawer"
-                  :variant="variant"
-                  :messages="m"
-                  :link-as="linkAs"
-                  :classes="classes"
-                >
-                  <template v-if="slots.panelItem" #panelItem="scope">
-                    <slot name="panelItem" v-bind="scope" />
-                  </template>
-                  <template v-if="slots.groupHeading" #groupHeading="scope">
-                    <slot name="groupHeading" v-bind="scope" />
-                  </template>
-                </NavMenuPanel>
+                <div data-part="drawerNest" :class="drawerNestClass">
+                  <NavMenuPanel
+                    :item="item"
+                    :id-prefix="`${panelId(index)}-drawer`"
+                    placement="drawer"
+                    :variant="variant"
+                    :messages="m"
+                    :link-as="linkAs"
+                    :classes="classes"
+                  >
+                    <template v-if="slots.panelItem" #panelItem="scope">
+                      <slot name="panelItem" v-bind="scope" />
+                    </template>
+                    <template v-if="slots.groupHeading" #groupHeading="scope">
+                      <slot name="groupHeading" v-bind="scope" />
+                    </template>
+                  </NavMenuPanel>
+                </div>
               </AccordionItem>
               <component
                 :is="navLinkTag(item, linkAs)"

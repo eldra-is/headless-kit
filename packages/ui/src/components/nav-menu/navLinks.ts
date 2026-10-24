@@ -6,7 +6,7 @@ export const CURRENT_PAGE =
   'aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[0.2em]';
 
 /** A run of panel entries under one column heading; `group` is `null` for entries without one. */
-export interface NavMenuGroup {
+export interface NavMenuLinkRun {
   group: string | null;
   links: NavMenuLink[];
 }
@@ -27,9 +27,9 @@ export function hasPanel(item: NavMenuItem): boolean {
 }
 
 /** Groups entries by their `group`, keeping the order each group first appears in. */
-export function groupLinks(links: readonly NavMenuLink[]): NavMenuGroup[] {
-  const groups: NavMenuGroup[] = [];
-  const byName = new Map<string | null, NavMenuGroup>();
+export function groupLinks(links: readonly NavMenuLink[]): NavMenuLinkRun[] {
+  const groups: NavMenuLinkRun[] = [];
+  const byName = new Map<string | null, NavMenuLinkRun>();
   for (const link of links) {
     const name = typeof link.group === 'string' && link.group.trim() !== '' ? link.group : null;
     let group = byName.get(name);
@@ -53,7 +53,11 @@ export function panelLayout(item: NavMenuItem): NavMenuPanelLayout {
 
 /** Whether the item, or an entry in its panel, is the page the visitor is on. */
 export function containsCurrent(item: NavMenuItem): boolean {
-  return item.current === true || panelLinks(item).some((link) => link.current === true);
+  return (
+    item.current === true ||
+    panelLinks(item).some((link) => link.current === true) ||
+    (item.groups ?? []).some((group) => group.current === true)
+  );
 }
 
 /** Whether an entry goes somewhere; one without a destination renders as plain text. */

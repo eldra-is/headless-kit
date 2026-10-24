@@ -23,10 +23,24 @@ export interface NavMenuLink {
 /** `dropdown` hangs a compact panel under its trigger; `mega` spans the menu's positioning box. */
 export type NavMenuPanelLayout = 'dropdown' | 'mega';
 
+/** A column heading in a panel, matched to its entries by `label`; with an `href` it links to its own page. */
+export interface NavMenuGroup {
+  /** The heading, as the entries' `group` names it. */
+  label: string;
+  /** The heading's own page. Without one the heading is plain text. */
+  href?: string | null;
+  /** Opens in a new tab, with the hidden "opens in a new tab" text. */
+  newTab?: boolean;
+  /** Marks the page the visitor is on (`aria-current="page"`). */
+  current?: boolean;
+}
+
 /** One top-level entry: a link when it has no children, a button opening a panel when it has. */
 export interface NavMenuItem extends NavMenuLink {
   /** The panel's entries, one level deep. */
   children?: readonly NavMenuLink[];
+  /** The panel's column headings, for those that link to a page of their own. */
+  groups?: readonly NavMenuGroup[];
   /** Default `mega` when any child has a `group`, else `dropdown`. */
   layout?: NavMenuPanelLayout;
 }
@@ -45,7 +59,10 @@ export type NavMenuCollapse =
 /** `ghost` fills an entry on hover, as `Button`'s ghost variant does; `muted` is `Link`'s muted tone. */
 export type NavMenuVariant = 'ghost' | 'muted';
 
-/** `accordion` folds each panel into a row that opens; `sections` lists every panel's links open under its heading. */
+/**
+ * `accordion` folds each panel into a row that opens, its links indented beneath; `sections` lists every panel
+ * open under a heading row (a link when the entry has a page), its links indented beneath.
+ */
 export type NavMenuDrawerLayout = 'accordion' | 'sections';
 
 /** Where a panel's content is drawn: under the bar, or in the narrow-screen drawer. */
@@ -59,6 +76,7 @@ export type NavMenuPanelPart =
   | 'groupHeading'
   | 'panelList'
   | 'panelItem'
+  | 'groupLink'
   | 'panelLink'
   | 'panelLabel'
   | 'description'
@@ -108,6 +126,7 @@ export type NavMenuPart =
   | 'drawerTrigger'
   | 'drawerPanel'
   | 'drawerSectionHeading'
+  | 'drawerNest'
   | NavMenuDrawerPanelPart
   | 'drawerFooter';
 

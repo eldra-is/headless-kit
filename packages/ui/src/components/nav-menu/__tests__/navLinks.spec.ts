@@ -96,6 +96,13 @@ describe('containsCurrent', () => {
     expect(containsCurrent({ label: 'A', current: true })).toBe(true);
     expect(containsCurrent({ label: 'A', children: [{ label: 'B', current: true }] })).toBe(true);
     expect(containsCurrent({ label: 'A', children: [{ label: 'B' }] })).toBe(false);
+    expect(
+      containsCurrent({
+        label: 'A',
+        children: [{ label: 'B', group: 'G' }],
+        groups: [{ label: 'G', href: '/g', current: true }],
+      })
+    ).toBe(true);
   });
 });
 

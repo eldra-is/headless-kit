@@ -115,6 +115,16 @@ describe('Drawer — side classes', () => {
     expect(panel(wrapper).className).toContain('border-r');
     wrapper.unmount();
   });
+
+  it('drops the inner border below 48rem, where the sheet covers the screen', () => {
+    for (const side of ['left', 'right'] as const) {
+      const wrapper = mountWith(Drawer, { props: { ariaLabel: 'Menu', side, modelValue: true } });
+      expect(panel(wrapper).className).toContain(
+        side === 'left' ? 'max-md:border-r-0' : 'max-md:border-l-0'
+      );
+      wrapper.unmount();
+    }
+  });
 });
 
 describe('Drawer — title vs label naming', () => {

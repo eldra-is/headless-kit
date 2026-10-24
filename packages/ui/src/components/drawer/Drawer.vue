@@ -163,14 +163,17 @@ const rootClass = computed(() =>
  * variable clamp (`eldra-drawer-width`, which also carries the full-screen-below-48rem-viewport
  * media query — see its own comment in `tailwind.css`), radius none, `shadow-md`, and a 1px
  * `border` on the *inner* edge only — the left edge for a right drawer, the right edge for a left
- * one, since the outer edge is the viewport boundary itself.
+ * one, since the outer edge is the viewport boundary itself — and none below 48rem, where the
+ * sheet covers the screen and that edge is the viewport's too.
  */
 const panelClass = computed(() =>
   partClass(
     cx(
       'flex h-full max-h-full min-w-0 flex-col bg-background text-text shadow-md',
       'eldra-drawer-width',
-      props.side === 'left' ? 'border-r border-border' : 'border-l border-border'
+      props.side === 'left'
+        ? 'border-r border-border max-md:border-r-0'
+        : 'border-l border-border max-md:border-l-0'
     ),
     props.classes,
     'panel'
@@ -185,7 +188,10 @@ const panelStyle = computed(() =>
 
 const headerClass = computed(() =>
   partClass(
-    'flex min-h-16 shrink-0 items-center gap-4 border-b border-border px-6 py-4',
+    cx(
+      'flex shrink-0 items-center gap-4 border-b border-border',
+      'eldra-drawer-header-height eldra-drawer-gutter eldra-drawer-header-top eldra-drawer-header-bottom'
+    ),
     props.classes,
     'header'
   )
@@ -227,12 +233,19 @@ const closeClass = computed(() =>
 );
 
 const bodyClass = computed(() =>
-  partClass('min-h-0 flex-1 overflow-y-auto p-6', props.classes, 'body')
+  partClass(
+    cx('min-h-0 flex-1 overflow-y-auto pt-6 eldra-drawer-gutter eldra-drawer-body-bottom'),
+    props.classes,
+    'body'
+  )
 );
 
 const footerClass = computed(() =>
   partClass(
-    'flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-background px-6 py-5',
+    cx(
+      'flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-background pt-5',
+      'eldra-drawer-gutter eldra-drawer-footer-bottom'
+    ),
     props.classes,
     'footer'
   )
