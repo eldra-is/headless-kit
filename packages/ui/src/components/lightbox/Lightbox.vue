@@ -226,7 +226,7 @@ const rootClass = computed(() =>
       // costs nothing and keeps every modal root that never needed `flex` on the same, proven-safe
       // choice rather than two different justifications for the same fix).
       'hidden open:block fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-background',
-      'backdrop:bg-overlay',
+      'backdrop:bg-overlay focus:outline-none',
       'animate-eldra-lightbox-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     props.classes,

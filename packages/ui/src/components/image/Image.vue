@@ -119,7 +119,8 @@ function cropStyle(focal: { x: number; y: number }, zoom: number, rule = false) 
     if (zoom <= 1 && !rule) return style;
     const scale = Math.max(1, zoom);
     return Object.assign(style, {
-      position: 'relative',
+      // Absolute, so the percentages resolve against the frame: older Safari ignores a relative child's `top` % in an aspect-ratio box.
+      position: 'absolute',
       left: percent(focal.x * (1 - scale)),
       top: percent(focal.y * (1 - scale)),
       width: percent(scale * 100),

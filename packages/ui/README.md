@@ -564,11 +564,13 @@ spec's own non-negotiable 2):
   tree, and `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared
   reference both sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()`
   already uses to teleport a panel into a dialog it did not render;
-- **initial focus** — `initialFocus`, else the first focusable that is not `[data-part="close"]`
+- **initial focus** — `initialFocus`, else a reachable `[autofocus]` control, else the first focusable that is not `[data-part="close"]`
   (this package's own "every part carries `data-part`" convention doubling as the composable's
   exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
   else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
-  the dialog (a form's first field) already exists to focus;
+  the dialog (a form's first field) already exists to focus; opened by a tap or click, the dialog
+  focuses itself instead unless that target is a text field or marked `autofocus`, so Safari draws
+  no focus ring on a control the visitor did not reach with the keyboard;
 - **focus return** — whatever had focus immediately before `showModal()`, refocused the moment the
   dialog actually closes, by any route — the page's own opener at the bottom of the stack, or,
   for a modal opened from inside another one, whichever control still had focus in the modal
@@ -1412,8 +1414,9 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   given, is what the drawer draws instead of `items` (same shape, same rules; the bar keeps
   `items`). The `drawerHeader` slot fills the drawer's header row before its close button — a logo
   and a call to action, so the open menu keeps the header's own row — and is handed `close`, since
-  only the menu's own links close the drawer when followed. The drawer focuses its first control
-  when it opens, which is the header's first link when the slot holds one. `panelItem` and
+  only the menu's own links close the drawer when followed. Opened from the keyboard, the drawer
+  focuses its first control, the header's first link when the slot holds one; opened by a tap or
+  click it focuses itself, so no control shows a focus ring. `panelItem` and
   `groupHeading` are handed `placement` (`bar` or `drawer`), for content that differs between the
   two, and `triggerIcon` replaces the panel buttons' chevron inside the `triggerIcon` part, which
   keeps its size and turns over while its panel is open.

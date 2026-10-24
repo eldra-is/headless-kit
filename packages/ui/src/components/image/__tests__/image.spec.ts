@@ -220,7 +220,7 @@ describe('Image — zoomOrigin', () => {
   it("'focal' zooms around the focal point itself, outside the band too, by sizing the media", () => {
     const style = styleOf({ focal: { x: 5, y: 95 }, zoom: 4, zoomOrigin: 'focal' });
     expect(style).toBe(
-      'object-position: 5% 95%; position: relative; left: -15%; top: -285%; width: 400%; ' +
+      'object-position: 5% 95%; position: absolute; left: -15%; top: -285%; width: 400%; ' +
         'height: 400%; max-width: none;'
     );
   });
@@ -284,7 +284,7 @@ describe('Image — crops', () => {
     expect(css).toContain('>[data-part=frame]{aspect-ratio:16 / 9!important}');
     expect(css).toContain(
       '>[data-part=frame]>[data-part=media]{object-position:20% 70%!important;' +
-        'position:relative!important;left:-40%!important;top:-140%!important;' +
+        'position:absolute!important;left:-40%!important;top:-140%!important;' +
         'width:300%!important;height:300%!important;max-width:none!important}'
     );
     expect(wrapper.find('img').attributes('style')).toContain('object-position: 60% 40%');
