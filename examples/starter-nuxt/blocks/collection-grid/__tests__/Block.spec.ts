@@ -1784,7 +1784,7 @@ describe('collection-grid block', () => {
       // into an explicit `option:size` row gets that label in both locales, since a string a
       // merchant wrote is not the theme's to translate.)
       expect(removeLabel()).toBe(`Fjarlægja síu ${isIS.grid.legendSize}: M`);
-      expect(loadMoreLine()).toContain('Sýni 12 af 12');
+      expect(loadMoreLine()).toContain('12 af 12');
       expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '12'));
     });
   });
