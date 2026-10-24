@@ -1412,8 +1412,9 @@ children?, layout? }`, one level of children. Children sharing a `group` form a 
   given, is what the drawer draws instead of `items` (same shape, same rules; the bar keeps
   `items`). The `drawerHeader` slot fills the drawer's header row before its close button — a logo
   and a call to action, so the open menu keeps the header's own row — and is handed `close`, since
-  only the menu's own links close the drawer when followed. The drawer focuses its first control
-  when it opens, which is the header's first link when the slot holds one. `panelItem` and
+  only the menu's own links close the drawer when followed. Opened from the keyboard, the drawer
+  focuses its first control, the header's first link when the slot holds one; opened by a tap or
+  click it focuses itself, so no control shows a focus ring. `panelItem` and
   `groupHeading` are handed `placement` (`bar` or `drawer`), for content that differs between the
   two, and `triggerIcon` replaces the panel buttons' chevron inside the `triggerIcon` part, which
   keeps its size and turns over while its panel is open.
