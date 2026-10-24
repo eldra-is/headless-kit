@@ -1682,7 +1682,13 @@
 }
 
 @utility eldra-drawer-header-top {
-  padding-top: calc(var(--eldra-space-4) + env(safe-area-inset-top, 0px));
+  padding-top: calc(
+    var(--eldra-drawer-header-padding, var(--eldra-space-4)) + env(safe-area-inset-top, 0px)
+  );
+}
+
+@utility eldra-drawer-header-bottom {
+  padding-bottom: var(--eldra-drawer-header-padding, var(--eldra-space-4));
 }
 
 @utility eldra-drawer-body-bottom {

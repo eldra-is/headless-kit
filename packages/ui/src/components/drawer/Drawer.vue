@@ -190,7 +190,7 @@ const headerClass = computed(() =>
   partClass(
     cx(
       'flex shrink-0 items-center gap-4 border-b border-border',
-      'eldra-drawer-header-height eldra-drawer-gutter eldra-drawer-header-top pb-4'
+      'eldra-drawer-header-height eldra-drawer-gutter eldra-drawer-header-top eldra-drawer-header-bottom'
     ),
     props.classes,
     'header'

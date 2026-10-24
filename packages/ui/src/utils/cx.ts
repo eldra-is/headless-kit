@@ -326,7 +326,7 @@ const twMerge = extendTailwindMerge<
       // The phone menu's indent and the drawer's bottom paddings join their stock groups (the drawer's gutter,
       // header top and both least heights sit in `px`, `pt` and `min-h` above), so a consumer class replaces each.
       ps: ['eldra-nav-menu-drawer-nest'],
-      pb: ['eldra-drawer-body-bottom', 'eldra-drawer-footer-bottom'],
+      pb: ['eldra-drawer-header-bottom', 'eldra-drawer-body-bottom', 'eldra-drawer-footer-bottom'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

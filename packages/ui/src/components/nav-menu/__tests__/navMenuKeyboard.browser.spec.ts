@@ -131,6 +131,14 @@ describe('NavMenu in a browser', () => {
       });
       expect(await measure(styled)).toEqual({ gutter: 40, header: 90, row: 80, indent: 32 });
       await styled.close();
+
+      const flush = await open(375, { props: { drawerLayout: 'sections' } });
+      await flush.addStyleTag({
+        content:
+          ':root { --eldra-drawer-header-height: 58px; --eldra-drawer-header-padding: 0px; }',
+      });
+      expect((await measure(flush)).header).toBe(58);
+      await flush.close();
     }
   );
 
