@@ -53,7 +53,11 @@ export function panelLayout(item: NavMenuItem): NavMenuPanelLayout {
 
 /** Whether the item, or an entry in its panel, is the page the visitor is on. */
 export function containsCurrent(item: NavMenuItem): boolean {
-  return item.current === true || panelLinks(item).some((link) => link.current === true);
+  return (
+    item.current === true ||
+    panelLinks(item).some((link) => link.current === true) ||
+    (item.groups ?? []).some((group) => group.current === true)
+  );
 }
 
 /** Whether an entry goes somewhere; one without a destination renders as plain text. */
