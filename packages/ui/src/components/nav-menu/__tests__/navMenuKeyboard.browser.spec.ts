@@ -185,7 +185,8 @@ describe('NavMenu in a browser', () => {
     const page = await open(375);
     expect(await page.locator('[data-part="nav"]').first().isVisible()).toBe(false);
     const toggle = page.getByRole('button', { name: 'Menu', exact: true });
-    await toggle.click();
+    await toggle.focus();
+    await page.keyboard.press('Enter');
     expect(await page.locator('dialog').evaluate((dialog: HTMLDialogElement) => dialog.open)).toBe(
       true
     );
@@ -196,6 +197,16 @@ describe('NavMenu in a browser', () => {
       false
     );
     expect(await focused(page)).toBe('toggle:');
+    await page.close();
+  });
+
+  it.runIf(built)('opened by a click, focuses the drawer and rings nothing', async () => {
+    const page = await open(375, { props: { drawerLayout: 'sections' }, drawerHeader: true });
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('DIALOG');
+    expect(await page.evaluate(() => document.querySelectorAll(':focus-visible').length)).toBe(0);
+    await page.keyboard.press('Tab');
+    expect(await focused(page)).toBe('A:Home');
     await page.close();
   });
 
@@ -219,7 +230,8 @@ describe('NavMenu in a browser', () => {
     async () => {
       const page = await open(375, { props: { drawerLayout: 'sections' }, drawerHeader: true });
       const toggle = page.getByRole('button', { name: 'Menu', exact: true });
-      await toggle.click();
+      await toggle.focus();
+      await page.keyboard.press('Enter');
       const dialog = page.locator('dialog');
       for (const name of ['Sweaters', 'Cardigans', 'Mugs', 'Stories', 'About']) {
         expect(await dialog.getByRole('link', { name }).isVisible(), name).toBe(true);

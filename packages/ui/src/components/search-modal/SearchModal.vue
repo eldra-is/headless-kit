@@ -725,7 +725,7 @@ const rootClass = computed(() =>
       'max-md:h-screen',
       'rounded-lg border border-border shadow-md',
       'max-md:rounded-none max-md:border-0 max-md:shadow-none',
-      'backdrop:bg-overlay',
+      'backdrop:bg-overlay focus:outline-none',
       'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     'root'

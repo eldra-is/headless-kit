@@ -67,6 +67,30 @@ function isReachable(element: HTMLElement): boolean {
  * (`Dialog` today; `Drawer`/`Lightbox`/`SearchModal` next) names its own close button the same way,
  * so this exclusion works for all of them without a second constant to keep in sync.
  */
+// Safari and Chrome ring a control that script focuses after a tap, so a tap-opened dialog focuses itself instead.
+let lastInputWasPointer = false;
+let trackingInput = false;
+
+function trackInputModality(): void {
+  if (trackingInput || typeof document === 'undefined') return;
+  trackingInput = true;
+  document.addEventListener('pointerdown', () => (lastInputWasPointer = true), true);
+  document.addEventListener('keydown', () => (lastInputWasPointer = false), true);
+}
+trackInputModality();
+
+const TEXT_ENTRY =
+  'input:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"]), textarea, [contenteditable]:not([contenteditable="false"])';
+
+function takesFocusOnTap(element: HTMLElement | null | undefined): boolean {
+  return element != null && (element.hasAttribute('autofocus') || element.matches(TEXT_ENTRY));
+}
+
+function focusSurface(dialog: HTMLDialogElement): void {
+  if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+  dialog.focus({ preventScroll: true });
+}
+
 function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
     (element) => isReachable(element) && element.closest('[data-part="close"]') === null
@@ -141,13 +165,14 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
   function focusInitial(): void {
     const el = dialog.value;
     if (el === null) return;
-    const explicit = options.initialFocus?.value;
-    if (explicit != null) {
-      explicit.focus();
+    const target =
+      options.initialFocus?.value ??
+      firstMeaningfulControl(el) ??
+      el.querySelector<HTMLElement>('[data-part="close"]');
+    if (lastInputWasPointer && !takesFocusOnTap(target)) {
+      focusSurface(el);
       return;
     }
-    const target =
-      firstMeaningfulControl(el) ?? el.querySelector<HTMLElement>('[data-part="close"]');
     target?.focus();
   }
 

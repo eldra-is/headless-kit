@@ -481,6 +481,49 @@ describe('Drawer — initial focus', () => {
     wrapper.unmount();
   });
 
+  it('left side opened by a tap: focuses the drawer itself, so no link shows a focus ring', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        default: '<nav aria-label="Main"><a href="#" data-testid="first-link">Shop all</a></nav>',
+      },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(root(wrapper));
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
+  it('opened by a tap, a text field marked autofocus still takes focus', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Filters', modelValue: true },
+      slots: { default: '<input data-testid="query" autofocus />' },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-testid="query"]').element);
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
+  it('opened from the keyboard after a tap: focuses the first link again', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    document.dispatchEvent(new Event('keydown'));
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        default: '<nav aria-label="Main"><a href="#" data-testid="first-link">Shop all</a></nav>',
+      },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-testid="first-link"]').element);
+    wrapper.unmount();
+  });
+
   it('returns focus to the opener once the drawer closes', async () => {
     const opener = document.createElement('button');
     opener.textContent = 'Open cart';

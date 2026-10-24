@@ -148,7 +148,7 @@ const rootClass = computed(() =>
       // undershoots in a desktop browser's device emulation and left a strip of page below the foot.
       'fixed inset-0 m-0 hidden open:flex h-auto max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
       props.side === 'left' ? 'justify-start' : 'justify-end',
-      'backdrop:bg-overlay',
+      'backdrop:bg-overlay focus:outline-none',
       props.side === 'left'
         ? 'animate-eldra-drawer-in-left motion-reduce:animate-eldra-dialog-in-reduced'
         : 'animate-eldra-drawer-in-right motion-reduce:animate-eldra-dialog-in-reduced'

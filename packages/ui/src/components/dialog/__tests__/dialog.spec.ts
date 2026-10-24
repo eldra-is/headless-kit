@@ -444,6 +444,36 @@ describe('Dialog — initial focus', () => {
     wrapper.unmount();
   });
 
+  it('opened by a tap, still focuses a text field (typing is why it opened)', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true },
+      slots: { default: '<input data-testid="email" />' },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-testid="email"]').element);
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
+  it('opened by a tap with only buttons inside, focuses the dialog itself', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Remove from cart?',
+        description: 'This cannot be undone.',
+        modelValue: true,
+      },
+      slots: { footer: '<button type="button" data-testid="keep">Keep it</button>' },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-part="root"]').element);
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
   it('focuses the first footer action when the body has no focusable control', async () => {
     const wrapper = mountWith(Dialog, {
       props: {
