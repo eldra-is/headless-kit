@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.6...ui-v0.2.7) (2026-10-24)
+
+
+### Features
+
+* **ui:** NavMenu phone menu with two clear levels, linked column headings and drawer variables ([#91](https://github.com/eldra-is/headless-kit/issues/91)) ([9b480b0](https://github.com/eldra-is/headless-kit/commit/9b480b05131cbdfc8abcfb39a5343c101b26549a))
+
+
+### Bug Fixes
+
+* **ui:** tap-opened dialogs focus themselves; Image crops survive older Safari ([#90](https://github.com/eldra-is/headless-kit/issues/90)) ([d0b452d](https://github.com/eldra-is/headless-kit/commit/d0b452deba65f40400df8a3b40e97bd1d6b72e3a))
+
 ## [0.2.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.5...ui-v0.2.6) (2026-10-24)
 
 
