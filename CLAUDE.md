@@ -9,10 +9,10 @@ registry. Read this before changing anything.
   never a reusable workflow from another Eldra repository — those target self-hosted runners and
   a private registry. A fork pull request on a self-hosted runner executes a stranger's code on
   private infrastructure.
-- **No secret is readable from a job that runs pull request code.** `ci.yml` and `commit-check.yml`
-  use `pull_request`, never `pull_request_target`, and carry no secrets. Secrets exist only in
-  `release.yml` (push to main) and `publish.yml` (release published), which fork code cannot
-  trigger.
+- **No secret is readable from a job that runs pull request code.** `ci.yml`, `commit-check.yml` and
+  `secret-scan.yml` use `pull_request`, never `pull_request_target`, and carry no secrets. Secrets
+  exist only in `release.yml` (push to main) and `publish.yml` (release published), which fork code
+  cannot trigger.
 - **No `NPM_TOKEN` anywhere.** Publishing is npm trusted publishing over OIDC with provenance, to
   npmjs only. The scope is the audience: `@eldrajs/*` is public, on npmjs, needs no token;
   `@eldra-is/*` is Eldra's private UI library on GitHub Packages. They are different scopes on
@@ -22,6 +22,9 @@ registry. Read this before changing anything.
 - The `main — checks` ruleset requires the CI job by its **name** (`Lint, types, tests, build,
 package checks`) and the commit check by its job id (`check`). Rename either and every pull
   request waits forever for a status that never comes; update the ruleset in the same change.
+- The organisation ruleset `Secret scan required` requires `Secret scan / betterleaks` by name.
+  `secret-scan.yml` is an inline copy of the `scan` job in `eldra-is/.github`, whose reusable
+  workflow runs on self-hosted runners; keep its steps identical to that file and its job name as is.
 - **Public packages never import a private one.** `@eldrajs/sdk` and `@eldrajs/rich-text` import
   nothing at all outside their own folder. Framework wrappers import only their framework and the
   core packages.
