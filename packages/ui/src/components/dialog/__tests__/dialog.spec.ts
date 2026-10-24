@@ -474,6 +474,19 @@ describe('Dialog — initial focus', () => {
     document.dispatchEvent(new Event('keydown'));
   });
 
+  it('focuses the dialog itself when the chosen control cannot take focus', async () => {
+    const focus = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true },
+      slots: { default: '<input data-testid="email" autofocus />' },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-part="root"]').element);
+    focus.mockRestore();
+    wrapper.unmount();
+  });
+
   it('opened by a tap with only buttons inside, focuses the dialog itself', async () => {
     document.dispatchEvent(new Event('pointerdown'));
     const wrapper = mountWith(Dialog, {

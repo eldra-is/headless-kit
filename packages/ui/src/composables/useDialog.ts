@@ -184,6 +184,8 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
       return;
     }
     target?.focus();
+    // A control the browser cannot focus (hidden by CSS, say) leaves the dialog itself focused, never nothing.
+    if (target != null && document.activeElement !== target) focusSurface(el);
   }
 
   function show(): void {
