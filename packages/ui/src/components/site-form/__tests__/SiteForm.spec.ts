@@ -378,7 +378,7 @@ describe('SiteForm: sending', () => {
     const { client } = fakeClient(async () => ({
       status: 'invalid',
       errors: { email: ['Sláðu inn gilt netfang.'], retired: ['Gamall reitur.'] },
-      form: ['Ruslvörnin mistókst. Reyndu aftur.'],
+      form: ['Öryggisathugunin mistókst. Reyndu aftur.'],
     }));
     const wrapper = mountForm({ definition: CONTACT, client });
     await fillContact(wrapper);
@@ -392,7 +392,7 @@ describe('SiteForm: sending', () => {
 
     const summary = wrapper.find('[data-part="errorSummary"]');
     expect(summary.attributes('role')).toBe('alert');
-    expect(summary.text()).toContain('Ruslvörnin mistókst. Reyndu aftur.');
+    expect(summary.text()).toContain('Öryggisathugunin mistókst. Reyndu aftur.');
     expect(summary.text()).toContain('Gamall reitur.');
     expect(wrapper.emitted('error')).toEqual([[{ reason: 'refused' }]]);
   });
