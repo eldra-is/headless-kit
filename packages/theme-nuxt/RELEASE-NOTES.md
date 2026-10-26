@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.4](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.3...theme-nuxt-v0.3.4) (2026-10-26)
+
+
+### Features
+
+* **theme:** company facts in Organization from the site profile ([#94](https://github.com/eldra-is/headless-kit/issues/94)) ([3867c49](https://github.com/eldra-is/headless-kit/commit/3867c4985a8d92ad4cce43b42f9f33d3e7d1f419))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.2
+    * @eldrajs/theme-vue bumped to 0.2.3
+    * @eldrajs/vite-plugin-theme bumped to 0.3.2
+
 ## [0.3.3](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.2...theme-nuxt-v0.3.3) (2026-10-23)
 
 

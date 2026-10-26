@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.3.1...theme-core-v0.3.2) (2026-10-26)
+
+
+### Features
+
+* **theme:** company facts in Organization from the site profile ([#94](https://github.com/eldra-is/headless-kit/issues/94)) ([3867c49](https://github.com/eldra-is/headless-kit/commit/3867c4985a8d92ad4cce43b42f9f33d3e7d1f419))
+
 ## [0.3.1](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.3.0...theme-core-v0.3.1) (2026-10-19)
 
 
