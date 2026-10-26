@@ -242,9 +242,22 @@ export function buildItemListLd(items: readonly { url: string; name: string }[])
   });
 }
 
+export interface PostalAddressLdInput {
+  streetAddress?: string | null;
+  postalCode?: string | null;
+  addressLocality?: string | null;
+  /** ISO 3166-1 alpha-2, e.g. `IS`. */
+  addressCountry?: string | null;
+}
+
 export interface OrganizationLdInput {
   name: string;
   url: string;
+  /** The registered name, e.g. `Eldra Tech ehf.`, when it differs from `name`. */
+  legalName?: string | null;
+  /** The company's registration or tax number; in Iceland the kennitala. */
+  taxID?: string | null;
+  address?: PostalAddressLdInput | null;
   logo?: string | null;
   sameAs?: readonly string[];
   contact?: { email?: string | null; telephone?: string | null } | null;
@@ -252,9 +265,13 @@ export interface OrganizationLdInput {
 
 export function buildOrganizationLd(input: OrganizationLdInput): JsonLd {
   const contact = input.contact;
+  const address = clean({ ...input.address });
   return node('Organization', {
     name: input.name,
+    legalName: input.legalName,
     url: input.url,
+    taxID: input.taxID,
+    address: address ? { '@type': 'PostalAddress', ...address } : undefined,
     logo: input.logo,
     sameAs: input.sameAs,
     contactPoint:
@@ -271,6 +288,8 @@ export function buildOrganizationLd(input: OrganizationLdInput): JsonLd {
 
 export interface WebSiteLdInput {
   name: string;
+  /** Other names people know the site by, e.g. its domain; Google weighs them when picking a site name. */
+  alternateName?: readonly string[];
   url: string;
   /** The site's search page path (`/search`), or `null`/absent when there is none. A SearchAction
    *  pointing at a page that does not exist is worse than none. It is queried with `?q=`. */
@@ -281,6 +300,7 @@ export function buildWebSiteLd(input: WebSiteLdInput): JsonLd {
   const search = (input.searchPath ?? '').trim();
   return node('WebSite', {
     name: input.name,
+    alternateName: input.alternateName,
     url: input.url,
     potentialAction:
       search === ''

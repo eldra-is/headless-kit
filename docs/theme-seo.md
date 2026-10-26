@@ -175,7 +175,9 @@ trail as a trail. The builders are framework-free and live in `@eldrajs/theme-co
   one warning and the build goes on). The name falls back to the site name, the logo to the site
   icon's 512 px rendering. `Organization` and `WebSite` need an absolute URL, so they are written
   only when the origin is known (`siteUrl` / `ELDRA_SITE_URL`); the other nodes fall back to
-  relative URLs.
+  relative URLs. `buildOrganizationLd` also takes `legalName`, `taxID` (the kennitala) and an
+  `address`, and `buildWebSiteLd` an `alternateName` list; the site profile does not carry them,
+  so a site that has them passes them itself.
 - **One `BreadcrumbList` per page.** The page-level builder owns it, so `@eldrajs/ui`'s `Breadcrumb`
   takes `:structured-data="false"` (the starter's `breadcrumbs` block does). Left at its default
   `true`, the component writes its own, as before.
