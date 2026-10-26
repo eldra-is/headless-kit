@@ -39,6 +39,7 @@ const parts = (over: Partial<PageLdParts> = {}): PageLdParts => ({
     logoUrl: 'https://media.test/icon-512',
     sameAs: [],
     contact: { email: null, telephone: null },
+    legal: null,
   },
   searchPath: '/search',
   ...over,
@@ -61,6 +62,36 @@ describe('pageStructuredData', () => {
       { name: 'Home', item: `${ORIGIN}/` },
       { name: 'About', item: `${ORIGIN}/about` },
     ]);
+  });
+
+  it('writes the registered company on the home Organization', () => {
+    const legal = {
+      name: 'Eldra Tech ehf.',
+      kennitala: '500826-1770',
+      streetAddress: null,
+      postalCode: '101',
+      city: 'Reykjavík',
+      countryCode: 'IS',
+    };
+    const [organization] = pageStructuredData(
+      parts({ kind: 'home', profile: { ...parts().profile, legal } })
+    );
+    expect(organization!.node).toMatchObject({
+      legalName: 'Eldra Tech ehf.',
+      taxID: '500826-1770',
+      address: {
+        '@type': 'PostalAddress',
+        postalCode: '101',
+        addressLocality: 'Reykjavík',
+        addressCountry: 'IS',
+      },
+    });
+    expect(organization!.node).not.toHaveProperty('address.streetAddress');
+
+    const [bare] = pageStructuredData(parts({ kind: 'home' }));
+    expect(bare!.node).not.toHaveProperty('legalName');
+    expect(bare!.node).not.toHaveProperty('taxID');
+    expect(bare!.node).not.toHaveProperty('address');
   });
 
   it('writes nothing for the not-found shell', () => {

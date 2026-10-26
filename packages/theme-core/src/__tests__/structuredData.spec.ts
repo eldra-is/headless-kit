@@ -203,6 +203,39 @@ describe('other builders', () => {
     expect(Object.keys(bare).sort()).toEqual(['@context', '@type', 'name', 'url']);
   });
 
+  it('writes the legal name, tax ID and address, and no address when it is all empty', () => {
+    const org = buildOrganizationLd({
+      name: 'Eldra',
+      url: 'https://eldra.is',
+      legalName: 'Eldra Tech ehf.',
+      taxID: '500826-1770',
+      address: { addressLocality: 'Reykjavík', addressCountry: 'IS', streetAddress: ' ' },
+    });
+    expect(org).toMatchObject({ legalName: 'Eldra Tech ehf.', taxID: '500826-1770' });
+    expect(org.address).toEqual({
+      '@type': 'PostalAddress',
+      addressLocality: 'Reykjavík',
+      addressCountry: 'IS',
+    });
+    const blank = buildOrganizationLd({
+      name: 'Eldra',
+      url: 'https://eldra.is',
+      legalName: '',
+      address: { streetAddress: null, postalCode: '' },
+    });
+    expect(Object.keys(blank).sort()).toEqual(['@context', '@type', 'name', 'url']);
+  });
+
+  it('writes a WebSite alternate name only when given one', () => {
+    expect(
+      buildWebSiteLd({ name: 'Eldra', alternateName: ['eldra.is'], url: 'https://eldra.is' })
+        .alternateName
+    ).toEqual(['eldra.is']);
+    expect(
+      buildWebSiteLd({ name: 'Eldra', alternateName: [], url: 'https://eldra.is' }).alternateName
+    ).toBeUndefined();
+  });
+
   it('writes a SearchAction only when a search page exists', () => {
     const withSearch = buildWebSiteLd({
       name: 'Acme',

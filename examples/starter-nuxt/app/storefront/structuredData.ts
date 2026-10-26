@@ -58,6 +58,15 @@ export interface PageLdParts {
     logoUrl: string | null;
     sameAs: readonly string[];
     contact: { email: string | null; telephone: string | null };
+    /** The registered company (`useSiteProfile().legal`), or `null`. */
+    legal: {
+      name: string | null;
+      kennitala: string;
+      streetAddress: string | null;
+      postalCode: string | null;
+      city: string | null;
+      countryCode: string | null;
+    } | null;
   };
   /** The site's search page path (`/search`, unprefixed: it follows the home URL), or `null` when
    *  the site has none. */
@@ -109,6 +118,14 @@ export function pageStructuredData(parts: PageLdParts): StructuredDataEntry[] {
           logo: parts.profile.logoUrl,
           sameAs: parts.profile.sameAs,
           contact: parts.profile.contact,
+          legalName: parts.profile.legal?.name,
+          taxID: parts.profile.legal?.kennitala,
+          address: parts.profile.legal && {
+            streetAddress: parts.profile.legal.streetAddress,
+            postalCode: parts.profile.legal.postalCode,
+            addressLocality: parts.profile.legal.city,
+            addressCountry: parts.profile.legal.countryCode,
+          },
         }),
       },
       {

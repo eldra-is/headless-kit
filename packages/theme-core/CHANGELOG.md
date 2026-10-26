@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Company facts in `Organization`, alternate names in `WebSite`.** `buildOrganizationLd` takes
+  optional `legalName`, `taxID` (the kennitala in Iceland) and `address` (written as a
+  `PostalAddress`, left out when every part is empty); `buildWebSiteLd` takes an optional
+  `alternateName` list, which Google weighs when it picks a site name.
+
 - **`buildToken` client option (WS-403).** `createEldraClient({ buildToken })` sends
   `X-Eldra-Build-Token` on every read; pass a read-only build token (`eldra_bld_…`, Studio →
   Settings → Developers → Build tokens), never the deploy token. Server and build only.

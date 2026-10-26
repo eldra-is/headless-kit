@@ -16,6 +16,14 @@ const SETTING: SiteProfileSetting = {
   logoUrl: 'https://media.example.test/logo.png',
   sameAs: ['https://social.example.test/acme'],
   contact: { email: 'hi@acme.test', telephone: '+3545551234' },
+  legal: {
+    name: 'Acme ehf.',
+    kennitala: '500826-1770',
+    streetAddress: 'Laugavegur 1',
+    postalCode: '101',
+    city: 'Reykjavík',
+    countryCode: 'IS',
+  },
 };
 
 afterEach(() => {
@@ -42,6 +50,7 @@ describe('readSiteProfile', () => {
       logoUrl: null,
       sameAs: [],
       contact: { email: null, telephone: null },
+      legal: null,
     };
 
     await expect(
@@ -51,6 +60,39 @@ describe('readSiteProfile', () => {
       )
     ).resolves.toEqual(empty);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('reads a profile without legal, from a platform before 5.1.0, as no legal details', async () => {
+    const { legal: _, ...older } = SETTING;
+    await expect(readSiteProfile(reader(async () => older))).resolves.toEqual({
+      ...SETTING,
+      legal: null,
+    });
+  });
+
+  it('trims the legal details and reads a blank part as null', async () => {
+    const result = await readSiteProfile(
+      reader(async () => ({
+        ...SETTING,
+        legal: { ...SETTING.legal, name: '  Acme ehf. ', streetAddress: '  ', city: undefined },
+      }))
+    );
+    expect(result?.legal).toEqual({ ...SETTING.legal, streetAddress: null, city: null });
+  });
+
+  it.each([
+    ['not an object', 'Acme ehf.'],
+    ['no kennitala', { ...SETTING.legal, kennitala: '' }],
+    ['a part that is not text', { ...SETTING.legal, postalCode: 101 }],
+  ])('refuses the whole answer when legal has %s', async (_, legal) => {
+    const warn = vi.fn();
+    await expect(
+      readSiteProfile(
+        reader(async () => ({ ...SETTING, legal })),
+        warn
+      )
+    ).resolves.toBe(null);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('drops a non-https link and logo instead of writing it, and trims text', async () => {
@@ -114,6 +156,7 @@ describe('resolveSiteProfile', () => {
       logoUrl: 'https://media.example.test/logo.png',
       sameAs: ['https://social.example.test/acme'],
       contact: { email: 'hi@acme.test', telephone: '+3545551234' },
+      legal: SETTING.legal,
     });
   });
 
@@ -127,6 +170,7 @@ describe('resolveSiteProfile', () => {
       logoUrl: 'https://media.example.test/icon-512',
       sameAs: [],
       contact: { email: null, telephone: null },
+      legal: null,
     });
   });
 });

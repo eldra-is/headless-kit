@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The site profile carries the registered company.** `readSiteProfile`, `resolveSiteProfile` and
+  `useSiteProfile()` gain `legal` (`{name, kennitala, streetAddress, postalCode, city,
+  countryCode}` or `null`), from `GET /site/v1/site-profile` since public contract 5.1.0; a
+  platform before that reads as `null`. The starter writes it on the home `Organization` as
+  `legalName`, `taxID` and `address`.
+
 - **Prerender reads shared lists once per build (WS-406).** `nuxi generate` created a client per
   route, so the page list, the route-template list and the category list behind link resolution
   were read once per route (the category list about 136 times in one staging build). During a

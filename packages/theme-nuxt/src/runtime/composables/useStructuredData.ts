@@ -82,7 +82,7 @@ function readDisable(value: unknown): StructuredDataPolicy['disable'] {
 }
 
 /**
- * The shop's profile for an `Organization` node (name, logo, social links, contact), with the
+ * The shop's profile for an `Organization` node (name, logo, social links, contact, legal details), with the
  * site name and the site icon filling what the merchant left unset, plus the site's origin.
  * `siteUrl` is `''` when the build does not know it; the page then has no absolute URL to write,
  * and should write no node that needs one.
@@ -100,6 +100,7 @@ export function useSiteProfile(): ResolvedSiteProfile & { siteUrl: string } {
       email: resolved?.contact?.email || null,
       telephone: resolved?.contact?.telephone || null,
     },
+    legal: resolved?.legal ?? null,
     siteUrl: seo.siteUrl ?? '',
   };
 }
