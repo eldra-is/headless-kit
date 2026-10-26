@@ -14,6 +14,20 @@ export interface SiteProfileSetting {
   /** Social profile URLs (https). */
   sameAs: string[];
   contact: { email: string | null; telephone: string | null };
+  /** The registered company, or `null` for a sole trader, no legal details, or a platform before 5.1.0. */
+  legal: SiteProfileLegal | null;
+}
+
+/** The registered company behind the site, from the organisation's legal details in Studio. */
+export interface SiteProfileLegal {
+  name: string | null;
+  /** As people write it, `dddddd-dddd`. */
+  kennitala: string;
+  streetAddress: string | null;
+  postalCode: string | null;
+  city: string | null;
+  /** ISO 3166-1 alpha-2. */
+  countryCode: string | null;
 }
 
 /** What a page's `Organization` is written from: gaps already filled, `name` never empty. */
@@ -22,6 +36,7 @@ export interface ResolvedSiteProfile {
   logoUrl: string | null;
   sameAs: string[];
   contact: { email: string | null; telephone: string | null };
+  legal: SiteProfileLegal | null;
 }
 
 /**
@@ -95,6 +110,8 @@ function toSiteProfile(value: unknown): SiteProfileSetting | null {
   const { email, telephone } = contact as Record<string, unknown>;
   if (email !== null && typeof email !== 'string') return null;
   if (telephone !== null && typeof telephone !== 'string') return null;
+  const legal = toLegal(record.legal);
+  if (legal === undefined) return null;
   return {
     revision: record.revision,
     name: name === null ? null : name.trim() || null,
@@ -103,7 +120,31 @@ function toSiteProfile(value: unknown): SiteProfileSetting | null {
     // identity the shop may not hold.
     sameAs: (sameAs as string[]).map((url) => url.trim()).filter(isHttpsUrl),
     contact: { email: email?.trim() || null, telephone: telephone?.trim() || null },
+    legal,
   };
+}
+
+/** `undefined` for an unusable value; an absent `legal` (a platform before 5.1.0) is `null`. */
+function toLegal(value: unknown): SiteProfileLegal | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object') return undefined;
+  const { kennitala, ...parts } = value as Record<string, unknown>;
+  if (typeof kennitala !== 'string' || kennitala.trim() === '') return undefined;
+  const text = (part: unknown): string | null | undefined =>
+    part === undefined || part === null
+      ? null
+      : typeof part === 'string'
+        ? part.trim() || null
+        : undefined;
+  const legal = {
+    name: text(parts.name),
+    kennitala: kennitala.trim(),
+    streetAddress: text(parts.streetAddress),
+    postalCode: text(parts.postalCode),
+    city: text(parts.city),
+    countryCode: text(parts.countryCode),
+  };
+  return Object.values(legal).includes(undefined) ? undefined : (legal as SiteProfileLegal);
 }
 
 function isHttpsUrl(value: string): boolean {
@@ -128,5 +169,6 @@ export function resolveSiteProfile(
     logoUrl: setting?.logoUrl ?? defaults.iconLogoUrl,
     sameAs: setting?.sameAs ?? [],
     contact: setting?.contact ?? { email: null, telephone: null },
+    legal: setting?.legal ?? null,
   };
 }

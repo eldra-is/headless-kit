@@ -170,14 +170,15 @@ trail as a trail. The builders are framework-free and live in `@eldrajs/theme-co
   shop's name.
 - **Static HTML is a snapshot.** The markup is in the prerendered file, so `availability` is the
   stock at build time; it is not rewritten in the browser. Search engines re-crawl.
-- **The shop's profile.** `Organization` takes its name, logo, social profile links (`sameAs`) and
-  contact from the platform's site profile (`GET /site/v1/site-profile`, an eighth fail-soft read:
+- **The shop's profile.** `Organization` takes its name, logo, social profile links (`sameAs`),
+  contact and registered company (`legal`) from the platform's site profile (`GET /site/v1/site-profile`, an eighth fail-soft read:
   one warning and the build goes on). The name falls back to the site name, the logo to the site
   icon's 512 px rendering. `Organization` and `WebSite` need an absolute URL, so they are written
   only when the origin is known (`siteUrl` / `ELDRA_SITE_URL`); the other nodes fall back to
-  relative URLs. `buildOrganizationLd` also takes `legalName`, `taxID` (the kennitala) and an
-  `address`, and `buildWebSiteLd` an `alternateName` list; the site profile does not carry them,
-  so a site that has them passes them itself.
+  relative URLs. `legal` is the organisation's legal details from Studio, present only for a
+  company kennitala (a sole trader's are personal data), and absent from a platform before public
+  contract 5.1.0, which reads as `null`; the starter writes it as `legalName`, `taxID` and
+  `address`. `buildWebSiteLd` also takes an `alternateName` list, which no platform read carries.
 - **One `BreadcrumbList` per page.** The page-level builder owns it, so `@eldrajs/ui`'s `Breadcrumb`
   takes `:structured-data="false"` (the starter's `breadcrumbs` block does). Left at its default
   `true`, the component writes its own, as before.
