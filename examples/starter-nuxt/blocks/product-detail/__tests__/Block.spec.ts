@@ -495,29 +495,26 @@ describe('product-detail block', () => {
   });
 
   /**
-   * The same store on an **English** page, which is the one case where the sign is a choice: the
-   * narrow sign for krónur is `kr`, the wide one is the code itself. The button's label and the
-   * `<Price>` above it must agree on it, and `kr 2,800` is what the operator's own back office
-   * writes — an `ISK 2,800` here beside a `kr 2,800` in a currency field was the defect.
+   * The same store on an **English** page: the button's label and the `<Price>` above it both write `ISK 2,800`.
    */
-  it('writes the store currency’s narrow sign on a page in another locale', async () => {
+  it('writes the store currency’s wide sign on a page in another locale', async () => {
     const wrapper = await mountReady(mock, {
       locale: 'en-US',
       commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
       storefront: storefrontWith({ price: { amount: 2800, compareAt: null } }),
     });
 
-    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('kr\u00a02,800');
+    expect(formatMoney(2800, 'ISK', 'en-US')).toBe('ISK\u00a02,800');
     expect(addToCart(wrapper).text()).toContain(
-      enUS.product.addToCart.replace('{price}', 'kr\u00a02,800')
+      enUS.product.addToCart.replace('{price}', 'ISK\u00a02,800')
     );
     const rendered = wrapper.findAll('[data-part="current"]').map((part) => part.text());
     expect(rendered.length).toBeGreaterThan(0);
     for (const amount of rendered) {
-      expect(amount).toBe('kr\u00a02,800');
+      expect(amount).toBe('ISK\u00a02,800');
     }
-    // Not the wide sign, in either half.
-    expect(wrapper.text()).not.toContain('ISK\u00a02,800');
+    // Not the narrow sign, in either half.
+    expect(wrapper.text()).not.toContain('kr\u00a02,800');
   });
 
   /**

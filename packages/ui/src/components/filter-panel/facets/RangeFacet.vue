@@ -128,7 +128,7 @@ function onCommit(range: [number, number]): void {
  */
 function formatValue(amount: number, end?: RangeSliderEnd): string {
   const text = isMoney.value
-    ? formatCurrency(amount, locale.value, currency.value, true, 0)
+    ? formatCurrency(amount, locale.value, currency.value, false, 0)
     : formatNumber(amount, { locale: locale.value, maxFraction: 0, minFraction: 0 });
   const atMax = end === 1 && amount >= limits.value[1];
   return atMax ? `${text}${m.value.filterPanelOrMore}` : text;
@@ -214,7 +214,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
 </script>
 
 <template>
-  <div data-part="range" :class="rangeClass">
+  <div data-eldra-ui data-part="range" :class="rangeClass">
     <!-- No visible `label` on the slider: the group's own trigger and its hidden `<legend>`
          already say "Price", and a third copy inside the body would be read as a second field
          name. The two thumbs are named explicitly instead, which is what the spec asks for

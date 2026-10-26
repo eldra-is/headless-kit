@@ -57,7 +57,7 @@ describe('createEldraClient', () => {
     fetchMock = vi.fn();
   });
   afterEach(() => {
-    registerBlockFields({});
+    registerBlockFields({}, 'starter');
   });
 
   function client(stega = false) {
@@ -213,6 +213,31 @@ describe('createEldraClient', () => {
     init = fetchMock.mock.calls[1]![1] as RequestInit;
     expect(new Headers(init.headers).get('X-Preview-Token')).toBeNull();
     expect(init.cache).toBeUndefined();
+  });
+
+  it('sends X-Eldra-Build-Token only when buildToken is given', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ id: 'e1', data: {} }));
+    const withToken = createEldraClient({
+      gatewayUrl: GATEWAY,
+      orgId: ORG,
+      fetch: fetchMock as unknown as typeof fetch,
+      buildToken: 'deploy-secret',
+    });
+    await withToken.getEntry('page', 'e1');
+    const sent = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(new Headers(sent.headers).get('X-Eldra-Build-Token')).toBe('deploy-secret');
+    expect(String(fetchMock.mock.calls[0]![0])).not.toContain('deploy-secret');
+    for (const buildToken of [undefined, '']) {
+      fetchMock.mockClear();
+      await createEldraClient({
+        gatewayUrl: GATEWAY,
+        orgId: ORG,
+        fetch: fetchMock as unknown as typeof fetch,
+        buildToken,
+      }).getEntry('page', 'e1');
+      const init = fetchMock.mock.calls[0]![1] as RequestInit;
+      expect(new Headers(init.headers).has('X-Eldra-Build-Token')).toBe(false);
+    }
   });
 
   it('never puts the preview token in the URL', async () => {
@@ -497,7 +522,7 @@ describe('createEldraClient', () => {
     // bare string or every variant-switch silently renders as the default.
     // Gated on the registered field type, not the shape alone — see the
     // "does not unwrap" tests below.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const doc = {
       id: 'e1',
       schemaApiId: 'cta',
@@ -514,9 +539,12 @@ describe('createEldraClient', () => {
   });
 
   it('unwraps a resolved multi-select field (array of {value,label}) into plain values', async () => {
-    registerBlockFields({
-      product: [{ fieldId: 'tags', type: 'select', metadata: { multiple: true } }],
-    });
+    registerBlockFields(
+      {
+        product: [{ fieldId: 'tags', type: 'select', metadata: { multiple: true } }],
+      },
+      'starter'
+    );
     const doc = {
       id: 'e1',
       schemaApiId: 'product',
@@ -533,7 +561,7 @@ describe('createEldraClient', () => {
   });
 
   it('leaves an ordinary two-string-field composite alone (not a select wrapper)', async () => {
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const doc = {
       id: 'e1',
       schemaApiId: 'cta',
@@ -549,7 +577,7 @@ describe('createEldraClient', () => {
     // Same two-string-key shape resolveSelectLabels produces for a real
     // select, but 'metric' is registered as type "composite", not "select" —
     // the unwrap must be gated on the registered type, not the key names.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const doc = {
       id: 'e1',
       schemaApiId: 'cta',
@@ -576,7 +604,7 @@ describe('createEldraClient', () => {
   });
 
   it('does not unwrap a {value,label} shape when the entry doc carries no schemaApiId at all', async () => {
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const doc = { id: 'e1', data: { variant: { value: 'subtle', label: 'Subtle' } } };
     fetchMock.mockResolvedValue(jsonResponse(doc));
     const entry = await client().getEntry('cta', 'e1', { locale: 'en-US' });
@@ -606,7 +634,7 @@ describe('createEldraClient', () => {
     // false for every nested path and the block's variant stays wrapped
     // forever, exactly the case the previous test guards for the *page*
     // itself but not for a block it embeds.
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'starter');
     const doc = {
       id: 'page-1',
       schemaApiId: 'page',

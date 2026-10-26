@@ -270,6 +270,7 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
       block
       :href="checkoutHref"
       :as="checkoutAs"
+      @click="cart.beginCheckout()"
     >
       <template #leadingIcon>
         <EldraIcon name="lock" size="sm" />

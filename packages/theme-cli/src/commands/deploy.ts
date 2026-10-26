@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
+import { RESERVED_THEME_IDS, THEME_ID_PATTERN } from '@eldrajs/theme-core';
 import * as tar from 'tar';
 import { fieldMigrationLines, type FieldMigrationReport } from '../deployReport';
 import { stripTrailingSlashes } from '../urls';
@@ -61,6 +62,35 @@ export function detectCommitSha(env: {
   return env.GITHUB_SHA ?? env.CI_COMMIT_SHA ?? env.BITBUCKET_COMMIT ?? null;
 }
 
+/**
+ * Refuses a build whose manifest does not declare a theme id before anything is
+ * uploaded: Core rejects it too, but this names the file and the fix. A stale
+ * build from before manifest v2 reads as "rebuild", not as a server error.
+ */
+async function assertManifestIdentity(manifestPath: string, cwd: string): Promise<void> {
+  const file = relative(cwd, manifestPath);
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  } catch {
+    throw new DeployError(`deploy: ${file} is not valid JSON — rebuild the theme`);
+  }
+  const record = (value: unknown): Record<string, unknown> =>
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const root = record(manifest);
+  if (root.manifestVersion !== 2) {
+    throw new DeployError(
+      `deploy: ${file} has manifestVersion ${JSON.stringify(root.manifestVersion)}; this kit emits manifestVersion 2 — rebuild the theme with the current @eldrajs/vite-plugin-theme`
+    );
+  }
+  const id = record(root.theme).id;
+  if (typeof id !== 'string' || !THEME_ID_PATTERN.test(id) || RESERVED_THEME_IDS.includes(id)) {
+    throw new DeployError(
+      `deploy: ${file} theme.id is missing or invalid (got ${JSON.stringify(id)}); declare "eldra": { "themeId": "<id>" } in package.json and rebuild`
+    );
+  }
+}
+
 export async function deployTheme(opts: DeployOptions): Promise<DeployResult> {
   const cwd = opts.cwd ?? process.cwd();
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
@@ -74,6 +104,7 @@ export async function deployTheme(opts: DeployOptions): Promise<DeployResult> {
     throw new DeployError(
       `deploy: ${relative(cwd, manifestPath)} not found — run your build (e.g. \`nuxi generate\`) first; the Eldra vite plugin emits the manifest into the build output`
     );
+  await assertManifestIdentity(manifestPath, cwd);
   preflight(dir, cwd);
   const tmp = await mkdtemp(join(tmpdir(), 'eldra-deploy-'));
   const tarPath = join(tmp, 'artifact.tar.gz');
@@ -223,9 +254,12 @@ interface DeployErrorBody {
 
 async function toDeployError(res: Response): Promise<DeployError> {
   let body: DeployErrorBody | null = null;
+  let bodyUnparseable = false;
   try {
     body = (await res.json()) as DeployErrorBody;
-  } catch {}
+  } catch {
+    bodyUnparseable = true;
+  }
   const detail = body?.detail ?? null;
   // A version-bump refusal (spec: manifest-field-retire) carries the human
   // `detail` plus a structured `errors.activationRefusal.locations` array —
@@ -259,6 +293,19 @@ async function toDeployError(res: Response): Promise<DeployError> {
       'manifest exceeds the 2 MiB limit — reduce block metadata and mock content, rebuild, and redeploy',
     SITE_DEPLOY_RATE_LIMITED: 'deploy rate limit hit — wait a few minutes, then retry',
   };
+  // BUGS.md A11: a 413 whose body is not JSON (res.json() above threw) most
+  // likely came from a proxy/CDN in front of the gateway, which answers with
+  // its own HTML page and no `detail` to look up above. The app's own limits
+  // are documented in SITE_ARTIFACT_TOO_LARGE's message; name both
+  // possibilities rather than leaving a bare status code.
+  if (res.status === 413 && bodyUnparseable) {
+    return new DeployError(
+      'deploy: gateway responded 413 (payload too large) with no error body — ' +
+        "a proxy/CDN in front of it may have a smaller limit than the app's own " +
+        '(≤ 20,000 files, ≤ 25 MiB/file, ≤ 500 MiB unpacked, ≤ 200 MiB compressed), or the request ' +
+        'exceeds one of those; check the artifact size, and if it is within them ask infra about the proxy limit'
+    );
+  }
   return new DeployError(
     `deploy: ${messages[detail ?? ''] ?? `gateway responded ${res.status}${detail ? ` (${detail})` : ''}`}`,
     detail

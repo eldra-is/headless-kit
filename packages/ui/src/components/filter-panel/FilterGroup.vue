@@ -96,11 +96,6 @@ const TRIGGER_BASE =
 
 /**
  * Spec → Sizes, Trigger row: "0.9375rem weight 600"; → States, hover: "name underlined 1px".
- *
- * `text-filter-trigger`, not `text-control font-semibold`: `text-control`'s `font` shorthand bakes
- * in `--eldra-text-body-weight` (400), so a trailing `font-semibold` is order-dependent rather than
- * reliable (`tailwind.css`'s comment on `text-stepper-value` explains the same bug on a different
- * component) — it rendered the facet name at weight 400 live and in every committed baseline.
  */
 const LABEL_BASE =
   'min-w-0 shrink-0 text-filter-trigger text-text ' +
@@ -156,7 +151,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
 </script>
 
 <template>
-  <div data-part="group" :data-facet="facet.id" :class="groupClass">
+  <div data-eldra-ui data-part="group" :data-facet="facet.id" :class="groupClass">
     <!-- The heading level is fixed at `h3` by the spec: the panel's own title is the `h2`. -->
     <h3 class="m-0">
       <button

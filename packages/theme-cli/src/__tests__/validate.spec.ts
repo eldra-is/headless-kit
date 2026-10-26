@@ -7,7 +7,7 @@ import { validateTheme } from '../commands/validate';
 function makeMinimalTheme(root: string): void {
   writeFileSync(
     join(root, 'package.json'),
-    JSON.stringify({ name: 'tmp-theme', version: '0.0.1' })
+    JSON.stringify({ name: 'tmp-theme', version: '0.0.1', eldra: { themeId: 'tmp-theme' } })
   );
   mkdirSync(join(root, 'blocks'), { recursive: true });
 }

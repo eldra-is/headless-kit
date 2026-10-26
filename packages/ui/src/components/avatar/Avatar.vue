@@ -120,7 +120,7 @@ const iconClass = computed(() =>
 </script>
 
 <template>
-  <span data-part="root" :class="rootClass" v-bind="rootAria">
+  <span data-eldra-ui data-part="root" :class="rootClass" v-bind="rootAria">
     <img
       v-if="showImage"
       data-part="image"

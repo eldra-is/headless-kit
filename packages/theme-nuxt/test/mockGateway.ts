@@ -96,9 +96,12 @@ const HOME = {
 };
 const ABOUT = {
   id: 'p-about',
+  updatedAt: '2026-02-03T04:05:06Z',
   data: {
     slug: 'about',
     title: 'About',
+    // The page's own share image: wins over the site's default (generate.spec).
+    seo: { imageUrl: 'https://media.example.test/public/org-1/assets/entry-og/og' },
     layout: {
       version: 1,
       root: {
@@ -172,6 +175,7 @@ const CONTROL = {
   data: {
     slug: 'control',
     title: 'Control',
+    seo: { noindex: true },
     layout: {
       version: 3,
       root: {
@@ -333,6 +337,7 @@ const CATALOG_ROUTE_TEMPLATE = {
 const PRODUCTS = [
   {
     id: 'prod-merino',
+    updatedAt: '2026-03-04T05:06:07Z',
     slug: 'merino-crew',
     title: 'Merino crew',
     status: 'ACTIVE',
@@ -390,19 +395,49 @@ const listResponse = (data: unknown[]) => ({
 export function startMockGateway(
   options: {
     missingRouteTemplateSchema?: boolean;
+    /** The SEO setting `/site/v1/seo` answers with, in the public shape. Absent, the route 404s
+     *  like a Core that predates the setting (the build's fail-soft default pattern). */
+    seo?: Record<string, unknown>;
+    /** The form definitions `/site/v1/forms/{key}` answers with, by key, in the public shape. A key
+     *  not listed 404s like a form the platform does not have (or a Core that predates forms). */
+    forms?: Record<string, Record<string, unknown>>;
+    /** The crawl settings `/site/v1/crawl` answers with (`{ revision, siteUrl, robotsExtra }`).
+     *  Absent, the route 404s like a Core that predates them. */
+    crawl?: Record<string, unknown>;
+    /** The redirect rules `/site/v1/redirects` answers with (`{ revision, rules }`). Absent, the
+     *  route 404s like a Core that predates them. */
+    redirects?: Record<string, unknown>;
     /** The resolved design-token catalog `/site/v1/design-tokens` answers with — the public
      *  contract shape's `resolved` field — or absent, which 404s the route exactly like a site
      *  with no published overrides, proving the build-time read's fail-soft fallback. */
     designTokens?: Record<string, unknown>;
+    /** The profile `/site/v1/site-profile` answers with, in the public shape. Absent, the route
+     *  404s like a Core that predates it (the build's fail-soft Organization). */
+    siteProfile?: Record<string, unknown>;
+    /** The setting `/site/v1/site-icons` answers with, in the public shape: `iconUrl` is a media
+     *  asset URL, and `icons` the variants Core derives from it (`null` for "no icon set"). Nothing
+     *  is served at those URLs — the build only links to them. Absent, the route 404s like a Core
+     *  that predates the setting. */
+    siteIcons?: {
+      iconUrl: string | null;
+      /** Answer `icons: null` although `iconUrl` is set: a malformed response. */
+      malformed?: boolean;
+      backgroundColor?: string;
+      themeColor?: string | null;
+      shortName?: string | null;
+    };
   } = {}
 ): Promise<{
   server: Server;
   url: string;
   requests: string[];
+  /** The `X-Eldra-Build-Token` header of every request, `null` where absent. */
+  buildTokens: Array<string | null>;
   servedEntryIds: Set<string>;
 }> {
   return new Promise((resolve) => {
     const requests: string[] = [];
+    const buildTokens: Array<string | null> = [];
     const servedEntryIds = new Set<string>();
 
     function recordServedEntryIds(doc: unknown): void {
@@ -425,6 +460,7 @@ export function startMockGateway(
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
       requests.push(url.pathname + url.search);
+      buildTokens.push(req.headers['x-eldra-build-token']?.toString() ?? null);
       res.setHeader('content-type', 'application/json');
       if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
         res.statusCode = 400;
@@ -491,6 +527,71 @@ export function startMockGateway(
         } else {
           res.end(JSON.stringify({ revision: 7, resolved: options.designTokens }));
         }
+      } else if (url.pathname.startsWith('/site/v1/forms/')) {
+        const form =
+          options.forms?.[decodeURIComponent(url.pathname.slice('/site/v1/forms/'.length))];
+        if (form === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(form));
+        }
+      } else if (url.pathname === '/site/v1/seo') {
+        if (options.seo === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.seo));
+        }
+      } else if (url.pathname === '/site/v1/site-profile') {
+        if (options.siteProfile === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.siteProfile));
+        }
+      } else if (url.pathname === '/site/v1/crawl') {
+        if (options.crawl === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.crawl));
+        }
+      } else if (url.pathname === '/site/v1/redirects') {
+        if (options.redirects === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          res.end(JSON.stringify(options.redirects));
+        }
+      } else if (url.pathname === '/site/v1/site-icons') {
+        if (options.siteIcons === undefined) {
+          res.statusCode = 404;
+          res.end('{}');
+        } else {
+          const { iconUrl } = options.siteIcons;
+          const backgroundColor = options.siteIcons.backgroundColor ?? '#ffffff';
+          const bg = backgroundColor.slice(1).toLowerCase();
+          res.end(
+            JSON.stringify({
+              revision: 3,
+              iconUrl,
+              backgroundColor,
+              themeColor: options.siteIcons.themeColor ?? null,
+              shortName: options.siteIcons.shortName ?? null,
+              icons:
+                iconUrl === null || options.siteIcons.malformed
+                  ? null
+                  : {
+                      favicon32: `${iconUrl}/icon-32`,
+                      appleTouch180: `${iconUrl}/icon-180?bg=${bg}`,
+                      icon192: `${iconUrl}/icon-192`,
+                      icon512: `${iconUrl}/icon-512`,
+                      maskable512: `${iconUrl}/icon-maskable-512?bg=${bg}`,
+                    },
+            })
+          );
+        }
       } else if (url.pathname === '/catalog/v1/products/list') {
         const active = url.searchParams.getAll('filter').includes('status:eq:ACTIVE');
         res.end(
@@ -537,7 +638,13 @@ export function startMockGateway(
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       if (typeof address === 'object' && address !== null) {
-        resolve({ server, url: `http://127.0.0.1:${address.port}`, requests, servedEntryIds });
+        resolve({
+          server,
+          url: `http://127.0.0.1:${address.port}`,
+          requests,
+          buildTokens,
+          servedEntryIds,
+        });
       }
     });
   });

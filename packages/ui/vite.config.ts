@@ -27,10 +27,20 @@ export default defineConfig({
       fileName: (_format, name) => `${name}.js`,
     },
     rolldownOptions: {
-      external: ['vue', 'vee-validate', '@floating-ui/vue', 'tailwind-merge'],
+      external: [
+        'vue',
+        'vee-validate',
+        '@floating-ui/vue',
+        'tailwind-merge',
+        /^@eldrajs\/sdk(\/|$)/,
+      ],
       output: {
         assetFileNames: (info) =>
           info.names?.[0]?.endsWith('.css') ? 'style.css' : '[name][extname]',
+        chunkFileNames: (chunk) =>
+          chunk.facadeModuleId?.includes('/tabler-icon/data/')
+            ? 'tabler-icons/[name].js'
+            : '[name]-[hash].js',
       },
     },
   },

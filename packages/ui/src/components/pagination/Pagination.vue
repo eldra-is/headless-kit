@@ -199,7 +199,7 @@ const compactStatusParts = computed(() =>
 </script>
 
 <template>
-  <nav v-if="visible" data-part="root" :class="rootClass" :aria-label="navLabel">
+  <nav v-if="visible" data-eldra-ui data-part="root" :class="rootClass" :aria-label="navLabel">
     <ul v-if="!compact" data-part="list" :class="numberedListClass">
       <li data-part="item" :class="itemClass">
         <span

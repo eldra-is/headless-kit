@@ -51,6 +51,35 @@ gateway falls back to the bundled list with a warning rather than failing closed
 pnpm generate     # nuxi generate — real static build
 ```
 
+The generate step may carry `ELDRA_BUILD_TOKEN`, a read-only **build token** (`eldra_bld_…`).
+Create one in Studio under Settings → Developers → Build tokens (they are per organisation) and
+store it as the `ELDRA_BUILD_TOKEN` CI secret. The build sends it only from the server-side
+prerender, in an `X-Eldra-Build-Token` header, and the gateway then gives the build its own
+rate-limit budget instead of counting its hundreds of requests against the machine's IP, which a CI
+runner or office network shares with real visitors. It is stored in no runtime config and reaches
+no build output (browser bundle, server bundle, HTML or `_payload.json`). Without it a build counts
+against its machine's IP like any visitor.
+
+Do **not** give the build the site deploy token. The deploy token can publish a site, and the
+build runs every npm dependency's code (install scripts, `nuxi generate`) as the same user as the
+job, so no per-command environment trick keeps it out of reach; only a separate job does. The
+starter's pipelines therefore split into a **build job** (checkout, install, `nuxi generate`, with
+`ELDRA_BUILD_TOKEN`, uploading `.output/public` as an artifact) and a **deploy job** (downloads the
+artifact and runs `eldra-theme deploy` with `ELDRA_DEPLOY_TOKEN`). The deploy job installs none of
+the project's dependencies: it runs the pinned CLI (`npx @eldrajs/theme-cli@<version> deploy`, with
+install scripts disabled) against the artifact. Where the deploy token lives:
+
+- GitHub Actions: repository secrets, referenced only in the `deploy` job's step `env`.
+- GitLab CI: a masked, protected CI/CD variable scoped to the `production` environment; the deploy
+  job declares `environment: production`, so the build job never receives it.
+- Bitbucket Pipelines: a deployment variable of the Production environment (not a repository
+  variable); the deploy step declares `deployment: production`.
+
+Headless / SDK use: a theme's own client can pass the same build token as `buildToken` to
+`createEldraClient`, from server-side code only (never a browser bundle or public config). Mind
+the SSR caveat: a server that sends it on every visitor request makes all of that traffic share
+the organisation's build budget, so use it for builds and prerenders, not for live SSR.
+
 This is where the build-time platform reads happen: commerce settings, content locales,
 theme-message overrides and resolved design tokens, each read once, in parallel, and each
 independently fail-soft (see [How a theme meets the page builder](../CLAUDE.md#build-time-platform-reads)
@@ -58,6 +87,31 @@ in this repository's own agent context, or `@eldrajs/theme-nuxt`'s module direct
 with the wrong `ELDRA_ORG_ID` still succeeds — it just builds against the wrong organisation's
 content, locales and overrides, which is the thing to check first when a build "looks right" but
 reads like the wrong store.
+
+A **deploy build is a production build**, and production is the default: set `ELDRA_SITE_URL` (the
+public origin, `https://shop.example`) on the generate step. The starter's GitHub workflow, GitLab
+job and Bitbucket pipeline already do (`ELDRA_SITE_URL` is a repository variable). Only
+`ELDRA_BUILD_TARGET=preview` makes a build `noindex` with no canonical or `og:url`; `nuxi dev` is
+always a preview. A local `nuxi generate` (or `nuxi build` with `nuxi preview`) is production too unless you set `ELDRA_BUILD_TARGET=preview`; the analytics tracker never loads on `localhost` or the `*.previews.eldra.dev` host either way. See [Page titles and SEO](theme-seo.md#which-builds-are-indexed). The platform's resolved site name is used first; `app.head.title` is only the fallback, and a site with neither
+gets bare page titles.
+
+**Deploy prerequisite.** A pipeline needs `ELDRA_SITE_URL` when the production URL set in Studio is
+not the origin that deploy serves; without an absolute origin the home page's `Organization`/`WebSite`
+markup and every canonical are omitted. A build is production unless `ELDRA_BUILD_TARGET=preview`;
+a preview build is `noindex`, writes no JSON-LD (structured data follows `noindex`), loads no
+analytics tracker, and writes `robots.txt` `Disallow: /`. The platform's CI trigger passes only
+`ELDRA_TRIGGER_DEPLOYMENT_ID`, so the variables belong in your pipeline file (the starter's GitHub,
+GitLab and Bitbucket files carry `ELDRA_SITE_URL`). The preview host is kept out of indexes by site-deploy-worker's preview
+router at the edge (`withNoIndex` and `PREVIEW_ROBOTS_TXT` in `src/preview-router.ts`), not by the
+build target
+([details](theme-seo.md#the-preview-host-is-protected-by-the-edge-router)).
+
+The same two variables decide `robots.txt` and `sitemap.xml`: a preview build writes `Disallow: /`
+and no sitemap, a production build writes both from the prerendered routes. Without an absolute
+site URL (`ELDRA_SITE_URL`, else the production URL set on the site in Studio) a production build
+writes neither and prints one line. A `public/robots.txt` or `public/sitemap.xml` in the theme is
+kept and the generated one skipped. See [sitemap.xml, robots.txt and
+hreflang](theme-seo.md#sitemapxml-robotstxt-and-hreflang).
 
 `nuxi generate` writes the manifest the scan produced to `.eldra/manifest.json` inside the build
 output — `eldra-theme deploy` reads that exact file, not a fresh scan, so what you deploy is what
@@ -131,8 +185,24 @@ A deploy can fail before a deployment ever starts, with a message naming the rea
 - **`manifest exceeds the 2 MiB limit`** — reduce block metadata and mock content (most often an
   oversized `mock.json`), then rebuild and redeploy.
 - **`token invalid or revoked`** — generate a fresh deploy token in Studio (Settings → Site → Deploy
-  token); a token is site-scoped and revocable independently of any other credential.
+  token). A rejected build token is replaced under Settings → Developers → Build tokens; a token is site-scoped and revocable independently of any other credential.
 - **`deploy rate limit hit`** — wait and retry; this is a platform-side throttle, not a build defect.
+
+### Redirects
+
+`nuxi generate` also reads the site's redirect rules (`GET /site/v1/redirects`, managed in Studio)
+and writes them into the static output's `_redirects`: the platform's rules first, between
+`# BEGIN/END eldra platform redirects` markers, then the theme's own `public/_redirects` (minus any rule matching the manifest path, see below).
+A rule with `applyToLocales` is expanded here into one rule per prefixed locale (the unprefixed
+rule is the default locale), exact rules before wildcards (longest first). Cloudflare Pages allows
+2,000 static and 100 wildcard rules per site; the theme's own count first, the locale expansion
+counts, and anything over a cap is dropped with one warning. The read is fail-soft (one warning,
+and the theme's own `_redirects` ships as it is, apart from that drop).
+
+A rule, the platform's or the theme's, whose source would match `/.eldra/manifest.json` (a catch-all
+such as `/* /index.html 200`, `/.eldra/*`, `/:a/:b`) is dropped with one warning naming it: the
+deploy validator rejects any artifact whose `_redirects` matches the manifest path, so one such
+line would fail every deploy. The match is the validator's: `*` matches anything, `:name` one segment.
 
 ## 5. Publish-triggered rebuilds
 
@@ -150,7 +220,8 @@ correct").
 Wiring that dispatch is a one-time setup per site, documented with worked examples for GitHub
 Actions, GitLab CI and Bitbucket Pipelines in [the starter's own
 README](../examples/starter-nuxt/README.md#wiring-rebuilds): a pipeline that checks out the theme,
-runs `nuxi generate` and `eldra-theme deploy` with the four environment values above, triggered
+builds with `nuxi generate` and, in a separate job that alone holds the deploy token, runs
+`eldra-theme deploy` with the four environment values above, triggered
 either by your own push or by the platform's dispatch. A triggered rebuild passes
 `ELDRA_TRIGGER_DEPLOYMENT_ID`, which `deploy` forwards as `triggerDeploymentId` so the platform
 completes the deployment it already created rather than opening a duplicate.
@@ -165,4 +236,6 @@ completes the deployment it already created rather than opening a duplicate.
   "theme content compatibility requires confirmation".
 - [Design tokens](theme-design-tokens.md) and [Theme texts](theme-texts.md) — what Studio can
   override and how an override reaches a deployed (not just previewed) site.
+- [Page titles and SEO metadata](theme-seo.md) — `useEldraSeo`, the title patterns and which builds are
+  indexed.
 - `packages/theme-cli/README.md` — the CLI's own command summary.

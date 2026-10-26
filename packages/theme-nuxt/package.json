@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/theme-nuxt",
-  "version": "0.1.0",
+  "version": "0.3.4",
   "description": "Nuxt module for Eldra themes: wires @eldrajs/vite-plugin-theme, the gateway client, draft overlays and the Studio preview bridge into a Nuxt 4 site.",
   "keywords": [
     "cms",
@@ -33,6 +33,10 @@
       "types": "./dist/runtime/commerce.d.ts",
       "import": "./dist/runtime/commerce.js"
     },
+    "./prerender": {
+      "types": "./dist/runtime/prerenderMemo.d.ts",
+      "import": "./dist/runtime/prerenderMemo.js"
+    },
     "./locales": {
       "types": "./dist/runtime/locales.d.ts",
       "import": "./dist/runtime/locales.js"
@@ -61,6 +65,7 @@
     "@nuxt/schema": "^4.0.0",
     "@playwright/test": "1.62.1",
     "execa": "^9.5.2",
+    "jsdom": "30.1.0",
     "nuxt": "^4.0.0"
   },
   "engines": {

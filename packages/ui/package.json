@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/ui",
-  "version": "0.1.0",
+  "version": "0.2.7",
   "description": "Accessible Vue 3 core components for Eldra storefronts: buttons, forms, selects, cards, overlays and navigation, themed through CSS design tokens.",
   "keywords": [
     "accessible",
@@ -21,7 +21,8 @@
   "files": [
     "dist",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "LICENSE-tabler-icons"
   ],
   "type": "module",
   "sideEffects": [
@@ -47,6 +48,7 @@
     "./tokens.css": "./dist/tokens.css",
     "./tailwind.css": "./dist/tailwind.css",
     "./style.css": "./dist/style.css",
+    "./components.css": "./dist/components.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -57,6 +59,8 @@
     "build": "node scripts/build-tokens.mjs && vite build && node scripts/fix-dts.mjs && node scripts/copy-css.mjs",
     "build-tokens": "node scripts/build-tokens.mjs",
     "check:tokens": "node scripts/build-tokens.mjs --check",
+    "build-tabler-icons": "node scripts/build-tabler-icons.mjs",
+    "check:tabler-icons": "node scripts/build-tabler-icons.mjs --check",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
     "lint": "oxlint src scripts",
     "test": "vitest run",
@@ -66,6 +70,7 @@
     "drag-smoke": "node scripts/drag-smoke.mjs"
   },
   "dependencies": {
+    "@eldrajs/sdk": "workspace:^",
     "@floating-ui/vue": "^1.1.5",
     "tailwind-merge": "^3.0.0"
   },
@@ -74,7 +79,7 @@
     "@storybook/addon-a11y": "^10.2.19",
     "@storybook/addon-docs": "^10.2.19",
     "@storybook/vue3-vite": "^10.2.19",
-    "@tabler/icons-vue": "^3.41.0",
+    "@tabler/icons-vue": "3.48.0",
     "@tailwindcss/node": "^4.1.14",
     "@tailwindcss/oxide": "^4.1.14",
     "@tailwindcss/vite": "^4.1.14",

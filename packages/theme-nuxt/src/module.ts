@@ -1,5 +1,5 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { addImports, addPlugin, addVitePlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
 import {
@@ -15,10 +15,14 @@ import {
   type EldraClient,
   type EldraRetryOptions,
   type EntryDoc,
+  type SeoSetting,
+  type StructuredDataType,
+  type SitemapLimits,
   type ThemeDesignTokens,
 } from '@eldrajs/theme-core';
 import { createEldraClient as createEldraCommerceClient } from '@eldrajs/sdk';
 import eldraTheme, {
+  type DeclaredFormSeed,
   type DeclaredSeed,
   type DeclaredThemeCodePage,
   type EldraThemeOptions,
@@ -26,9 +30,21 @@ import eldraTheme, {
   type ManifestTemplateRoles,
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
-import { catalogDocRoutes, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
+import { resolveBuildTarget } from './buildTarget';
+import { resolveAnalyticsConfig, type AnalyticsOption } from './runtime/analytics';
+import { readCrawlSettings, type CrawlSetting } from './runtime/crawl';
+import { buildCrawlFiles, type CrawlRoute } from './runtime/crawlOutput';
+import {
+  buildRedirectsFile,
+  readRedirects,
+  readThemeRedirects,
+  type RedirectsSetting,
+} from './runtime/redirects';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readDesignTokens } from './runtime/designTokens';
+import { readFormDefinitions, type FormDefinitions } from './runtime/forms';
+import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
 import { normalizeLocale } from './runtime/locale';
 import {
   localePathFor,
@@ -39,6 +55,15 @@ import {
 } from './runtime/locales';
 import { readThemeMessages, resolveSiteMessages } from './runtime/messages';
 import { listAllEntries } from './runtime/resolveRoute';
+import { prerenderMemoStats } from './runtime/prerenderMemo';
+import { clearPrerenderMemo } from './runtime/prerenderMemoState';
+import { readSeo } from './runtime/seo';
+import { readSiteIcons, resolveSiteIcons } from './runtime/siteIcons';
+import {
+  readSiteProfile,
+  resolveSiteProfile,
+  type ResolvedSiteProfile,
+} from './runtime/siteProfile';
 
 export interface ModuleOptions {
   gatewayUrl: string;
@@ -59,6 +84,13 @@ export interface ModuleOptions {
    * `templates` layouts may reference. See that package's changelog for the
    * validation rules. */
   templateRoles?: ManifestTemplateRoles;
+  /** The forms a site is created with on its first deploy (at most 8). The build also reads each
+   * one's definition from the platform and bakes it into the site, so a form renders with no
+   * request in the visitor's browser. Never overwrites a form the merchant has edited. */
+  formSeeds?: DeclaredFormSeed[];
+  /** Further form keys to bake at build time, for forms a theme references that it does not seed
+   * (a merchant-made form a block names by default). Each read is independently fail-soft. */
+  forms?: string[];
   tailwind?: boolean;
   /** The theme's own tablet/normal layout breakpoints (min-width px), so
    * Studio's UI can react to the theme's actual ranges (its side panels
@@ -86,11 +118,49 @@ export interface ModuleOptions {
    * storefront building its own commerce client reads the same policy.
    */
   retry?: EldraRetryOptions;
+  /**
+   * The site's public origin (`https://shop.example`), used for canonical URLs and absolute share
+   * images. Defaults to `ELDRA_SITE_URL`. Without it no canonical or `og:url` is written, because
+   * both must be absolute and a guessed host is worse than none.
+   */
+  siteUrl?: string;
+  /**
+   * Which schema.org JSON-LD a page may write (`useStructuredData`): `disable` is `true` for none,
+   * or the node kinds to leave out (`'product' | 'breadcrumb' | 'itemList' | 'organization' |
+   * 'website'`). A function cannot be serialised into the runtime config, so editing a node is
+   * `provideStructuredData(extend)` at runtime instead.
+   */
+  structuredData?: { disable?: StructuredDataType[] | boolean };
+  /**
+   * `'production'` for the build that serves the public site (the default); `'preview'` is a preview
+   * build, which is always `noindex`. Defaults to `ELDRA_BUILD_TARGET`: production unless that is
+   * `preview`.
+   */
+  buildTarget?: 'production' | 'preview';
+  /**
+   * `sitemap.xml` (and `robots.txt`) generation. Both are written into the static output of a
+   * `nuxi generate`/`build` from the prerendered routes; a `public/robots.txt` or
+   * `public/sitemap.xml` of the theme's own is never replaced. `false` turns the sitemap off.
+   * The limits are sitemaps.org's (50,000 URLs, 50 MiB per file) and exist as options for tests.
+   */
+  sitemap?: false | SitemapLimits;
+  /**
+   * Built-in analytics on the deployed site: the Eldra tracker (`@eldrajs/sdk`'s
+   * `analyticsTrackerScript`) is loaded on **production** builds that have an organisation id —
+   * never under `nuxi dev`, in a preview build, in a Studio preview frame or without credentials —
+   * and `useEldraAnalytics().track()` sends custom events. `false` (or `{ enabled: false }`, or
+   * `ELDRA_ANALYTICS=off`) opts out. `eventOrigin` (or `ELDRA_ANALYTICS_ORIGIN`) is a first-party
+   * origin (`https://shop.example`, no path) that receives events instead of the gateway, for a
+   * proxy on the site's own domain. No cookie or storage identifier is written.
+   */
+  analytics?: AnalyticsOption;
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
 interface NitroInitContext {
-  hooks: { hook: (name: 'prerender:done', callback: () => void) => void };
+  hooks: {
+    hook: (name: 'prerender:init' | 'prerender:done' | 'compiled', callback: () => void) => void;
+  };
   options: { output: { publicDir: string } };
 }
 
@@ -110,10 +180,13 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     pageSchema: 'page',
     routeTemplateSchema: 'route-template',
     tailwind: false,
+    siteUrl: process.env.ELDRA_SITE_URL ?? '',
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url);
     const studioOrigins = validateStudioOrigins(options.studioOrigins);
+    // Resolved here, not in `defaults`, so a mistyped ELDRA_BUILD_TARGET warns once, in context.
+    const buildTarget = options.buildTarget ?? resolveBuildTarget(process.env.ELDRA_BUILD_TARGET);
 
     // A named, mutable object — not an inline literal — because `resolveMessages` below is set
     // only after this module's own platform read settles, near the end of `setup()`. `eldraTheme`
@@ -125,6 +198,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       customPages: options.customPages,
       templates: options.templates,
       templateRoles: options.templateRoles,
+      formSeeds: options.formSeeds,
       themeDir: nuxt.options.rootDir,
       tailwind: options.tailwind,
       breakpoints: options.breakpoints,
@@ -166,13 +240,63 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // storefront's own client (`examples/starter-nuxt`'s storefront plugin)
       // reads the same policy the module's reads use.
       retry: options.retry ?? null,
+      // Which structured-data nodes pages may write; `useStructuredData` reads it. `false` rather
+      // than `undefined`: the key has to survive the payload.
+      structuredData: { disable: options.structuredData?.disable ?? false },
+      // The `Organization` node's inputs (name, logo, social links, contact), filled in below once
+      // the platform read settles. Written here first for the same reason `commerce` is.
+      siteProfile: null as ResolvedSiteProfile | null,
+      // The form definitions the build baked (`./runtime/forms.ts`), filled in below once the
+      // platform read settles. Written here first for the same reason `commerce` is.
+      forms: {} as FormDefinitions,
+      // Whether the deployed site reports to the Eldra tracker, and to which origin; see
+      // `./runtime/analytics.ts` and the `analytics` option.
+      analytics: resolveAnalyticsConfig({
+        option: options.analytics,
+        env: process.env,
+        dev: nuxt.options.dev,
+        production: buildTarget === 'production',
+        orgId: options.orgId,
+      }),
+    };
+    // The page-title and SEO inputs `useEldraSeo` reads (`./runtime/composables/useEldraSeo.ts`):
+    // the platform's SEO setting (filled in below once the read settles), the site's origin and
+    // name, and whether this is a preview build, which is always `noindex`.
+    nuxt.options.runtimeConfig.public.eldraSeo = {
+      setting: null as SeoSetting | null,
+      siteUrl: options.siteUrl ?? '',
+      siteName: seoSiteName(nuxt.options.app.head.title),
+      isPreview: nuxt.options.dev || buildTarget !== 'production',
     };
 
+    // The read-only build token (never the deploy token) a build sends as `X-Eldra-Build-Token` (its own rate-limit bucket). Kept out
+    // of runtime config entirely: Nitro inlines private defaults into the server build. The module's
+    // own build-time clients read `process.env`; `useEldraBuildToken` reads it at call time, during
+    // a prerender only. See `./runtime/buildToken.ts`.
+    const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
+
     addPlugin(resolver.resolve('./runtime/plugin'));
+    addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
     addImports([
+      {
+        name: 'useEldraBuildToken',
+        from: resolver.resolve('./runtime/composables/useEldraBuildToken'),
+      },
       { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
+      { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
+      {
+        name: 'useEldraAnalytics',
+        from: resolver.resolve('./runtime/composables/useEldraAnalytics'),
+      },
+      // schema.org JSON-LD: write a page's nodes (opt-out per kind via the `structuredData` option,
+      // runtime edits via `provideStructuredData`) and read the shop's profile for `Organization`.
+      ...['useStructuredData', 'provideStructuredData', 'useSiteProfile'].map((name) => ({
+        name,
+        from: resolver.resolve('./runtime/composables/useStructuredData'),
+      })),
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
+      { name: 'useEldraForms', from: resolver.resolve('./runtime/composables/useEldraForms') },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
       // The active content locale and the path helpers around it. Re-exported from theme-vue
       // rather than defined here: the state lives on the theme context so a **block** can read it
@@ -192,6 +316,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
      */
     let localeRouting: EldraLocaleRouting = resolveLocaleRouting(null, options.locale);
 
+    /** Every content path the prerender pass discovered, for `sitemap.xml` (`./runtime/crawlOutput.ts`). */
+    const crawlRoutes: CrawlRoute[] = [];
+    /** The platform's crawl settings (production builds only), filled in at the end of `setup()`. */
+    let crawlSetting: CrawlSetting | null = null;
+    let crawlSiteUrl = options.siteUrl ?? '';
+    /** The platform's redirect rules (static builds only), filled in at the end of `setup()`. */
+    let redirectsSetting: RedirectsSetting | null = null;
+
     nuxt.hook('prerender:routes', async (ctx) => {
       if (options.gatewayUrl === '' || options.orgId === '') {
         console.warn('[eldra] ELDRA_GATEWAY_URL / ELDRA_ORG_ID not set — prerendering "/" only');
@@ -203,6 +335,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         gatewayUrl: options.gatewayUrl,
         orgId: options.orgId,
         retry: options.retry,
+        buildToken: buildToken || undefined,
       });
       // The *reading* locale, which is the override and nothing else: path segments are not
       // translated in v1, so one pass over the default locale's documents produces the path list
@@ -220,7 +353,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
        * and once more under every other supported locale's prefix. In the **same** pass that
        * discovered the path, so a locale can never be a build behind the pages it serves.
        */
-      const addRoute = (path: string): void => {
+      const addRoute = (path: string, meta: Omit<CrawlRoute, 'path'> = {}): void => {
+        crawlRoutes.push({ path, ...meta });
         ctx.routes.add(path);
         for (const prefixed of localeRouting.prefixed) {
           ctx.routes.add(localePathFor(path, prefixed, localeRouting));
@@ -229,7 +363,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       for (const page of pages) {
         const path = resolvePagePath(page, pages);
         generated.add(path);
-        addRoute(path);
+        addRoute(path, { lastmod: page.updatedAt, seo: page.data.seo });
       }
       const codeOwned = new Set((options.customPages ?? []).map((page) => page.path));
       const entriesBySchema = new Map<string, Promise<EntryDoc[]>>();
@@ -263,14 +397,19 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             catalogPromise = listCatalogDocs(client, catalogKind, locale);
             catalogByKind.set(catalogKind, catalogPromise);
           }
-          for (const path of catalogDocRoutes(catalogKind, await catalogPromise, pattern)) {
+          for (const { path, doc } of catalogDocRouteRefs(
+            catalogKind,
+            await catalogPromise,
+            pattern
+          )) {
             if (codeOwned.has(path)) continue;
             if (generated.has(path)) {
               console.warn(`[eldra] skipped ${path}: another route already generates this path`);
               continue;
             }
             generated.add(path);
-            addRoute(path);
+            // The route template's `seo` is what `useEldraSeo` reads for a catalog route.
+            addRoute(path, { lastmod: doc.updatedAt, seo: template.data.seo });
           }
           continue;
         }
@@ -291,10 +430,27 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             );
           }
           generated.add(path);
-          addRoute(path);
+          addRoute(path, {
+            lastmod: entry.updatedAt,
+            seo: entry.data.seo,
+            templateSeo: template.data.seo,
+          });
         }
       }
+      // Code-owned pages are Nuxt's own routes: served at their exact path, in no other locale.
+      for (const page of options.customPages ?? []) {
+        if (/[:*]/.test(page.path) || generated.has(page.path)) continue;
+        crawlRoutes.push({ path: page.path, codeOwned: true });
+      }
     });
+
+    /**
+     * The generated web manifest (`./runtime/siteIconAssets.ts`), filled in by the platform read at
+     * the end of `setup()` and written into the static output by the `compiled` and
+     * `prerender:done` hooks below. Empty when no icon is set or the read failed — then nothing is
+     * written and no head tag was added, so the theme's own `public/` files are what ships.
+     */
+    let siteIconFiles: GeneratedIconFile[] = [];
 
     // Nitro's own `nitro:init` hook is real — Nuxt calls it internally — but
     // this version of @nuxt/schema does not declare it on NuxtHooks, so
@@ -304,10 +460,83 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     (nuxt.hooks.hook as (name: 'nitro:init', callback: (nitro: NitroInitContext) => void) => void)(
       'nitro:init',
       (nitro) => {
+        // Only `site.webmanifest` is written, and it replaces a same-named file from the theme's
+        // own `public/`: the merchant's setting is the more specific one. The icon tags point at
+        // media URLs, not files. Written on `compiled` too: `prerender:done` never fires for a
+        // build with nothing to prerender, and the manifest tag must not point at a missing file.
+        const writeSiteIconFiles = (publicDir: string) => {
+          if (siteIconFiles.length === 0) return;
+          mkdirSync(publicDir, { recursive: true });
+          for (const file of siteIconFiles) writeFileSync(join(publicDir, file.name), file.data);
+        };
+        /**
+         * `robots.txt` and `sitemap.xml`, once per build whichever of the two hooks fires (they
+         * can both), and never over a file of the theme's own `public/` (`buildCrawlFiles`). Like
+         * the icons, written on `compiled` as well: `prerender:done` does not fire for a build
+         * with nothing to prerender.
+         */
+        const crawlLogged = new Set<string>();
+        const writeCrawlFiles = (publicDir: string) => {
+          const files = buildCrawlFiles({
+            target: buildTarget === 'production' ? 'production' : 'preview',
+            siteUrl: crawlSiteUrl,
+            robotsExtra: crawlSetting?.robotsExtra,
+            routes: crawlRoutes,
+            routing: localeRouting,
+            sitemap: options.sitemap,
+            themePublicDir: resolve(nuxt.options.rootDir, nuxt.options.dir.public ?? 'public'),
+            log: (message) => {
+              if (crawlLogged.has(message)) return;
+              crawlLogged.add(message);
+              console.warn(message);
+            },
+          });
+          if (files.length === 0) return;
+          mkdirSync(publicDir, { recursive: true });
+          for (const file of files) writeFileSync(join(publicDir, file.name), file.content);
+        };
+        /**
+         * `_redirects`: the platform's rules first, then the theme's own `public/_redirects`
+         * (`./runtime/redirects.ts`). Rebuilt from the theme's source file every time, so a
+         * second write (both hooks can fire) never doubles the platform block. A failed read or
+         * a site without rules leaves the theme's file, copied by Nitro, exactly as it was unless one of
+         * its rules would match `/.eldra/manifest.json`, which is dropped with a warning.
+         */
+        const writeRedirects = (publicDir: string) => {
+          const built = buildRedirectsFile(
+            redirectsSetting?.rules ?? [],
+            localeRouting,
+            readThemeRedirects(resolve(nuxt.options.rootDir, nuxt.options.dir.public ?? 'public'))
+          );
+          for (const warning of built.warnings) {
+            if (crawlLogged.has(warning)) continue;
+            crawlLogged.add(warning);
+            console.warn(warning);
+          }
+          if (built.content === null) return;
+          mkdirSync(publicDir, { recursive: true });
+          writeFileSync(join(publicDir, '_redirects'), built.content);
+        };
+        nitro.hooks.hook('compiled', () => {
+          const { loads, hits } = prerenderMemoStats();
+          if (loads + hits > 0) {
+            // oxlint-disable-next-line no-console -- the build's one-line read count, no data
+            console.info(`[eldra] prerender shared reads: ${loads} made, ${hits} avoided`);
+          }
+          writeSiteIconFiles(nitro.options.output.publicDir);
+          writeCrawlFiles(nitro.options.output.publicDir);
+          writeRedirects(nitro.options.output.publicDir);
+        });
+        // One process is one build: start every prerender with an empty shared-read memo, and report
+        // at its end how many reads it shared (counts only, no URL or content).
+        nitro.hooks.hook('prerender:init', () => clearPrerenderMemo());
         nitro.hooks.hook('prerender:done', () => {
           const publicDir = nitro.options.output.publicDir;
           mkdirSync(publicDir, { recursive: true });
           copyGeneratedManifest(nuxt.options.rootDir, publicDir);
+          writeSiteIconFiles(publicDir);
+          writeCrawlFiles(publicDir);
+          writeRedirects(publicDir);
           const target = join(publicDir, '_headers');
           // Re-generation can retain the prior static output. Replace a previous
           // Eldra frame-ancestors value instead of leaving a second, stale policy.
@@ -352,25 +581,115 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
             apiBaseUrl: options.gatewayUrl,
             orgId: options.orgId,
             retry: options.retry,
+            // Not for `nuxi dev`: only a build claims the build bucket.
+            buildToken: nuxt.options.dev ? undefined : buildToken || undefined,
           });
     // Named `platformMessages`, not `themeMessages`: `resolveSiteMessages`'s own first parameter
     // (one file over, in `./runtime/messages.ts`) is named `themeMessages` for the theme's own
     // manifest catalogue — a different thing from what this read answers (the platform's
     // overrides), and the two must not share a name across the call below.
-    const [commerce, locales, platformMessages, platformDesignTokens] = await Promise.all([
+    //
+    // The site icons are a fifth read on the same terms. Only a static build (`nuxi generate`/
+    // `build`) reads them: `nuxi dev` serves no generated files, so a tag for one would 404.
+    //
+    // The SEO setting is a sixth, also build-only (`nuxi dev` writes no head a crawler reads).
+    const [
+      commerce,
+      locales,
+      platformMessages,
+      platformDesignTokens,
+      platformSiteIcons,
+      platformSeo,
+      platformSiteProfile,
+      platformCrawl,
+      platformForms,
+      platformRedirects,
+    ] = await Promise.all([
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
       readThemeMessages(platformClient),
       readDesignTokens(platformClient),
+      nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
+      nuxt.options.dev ? Promise.resolve(null) : readSeo(platformClient),
+      // The site profile is the eighth read, on the same terms (build-only, fail-soft).
+      nuxt.options.dev ? Promise.resolve(null) : readSiteProfile(platformClient),
+      // The crawl settings matter only to a production build: a preview build writes `Disallow: /`
+      // and no sitemap whatever they say.
+      nuxt.options.dev || buildTarget !== 'production'
+        ? Promise.resolve(null)
+        : readCrawlSettings(platformClient),
+      // The form definitions the theme seeds or names, one independently fail-soft read each.
+      // Build-only: `nuxi dev` has nothing to bake, and the storefront fetches them live there.
+      nuxt.options.dev
+        ? Promise.resolve({} as FormDefinitions)
+        : readFormDefinitions(platformClient, [
+            ...(options.formSeeds ?? []).map((seed) => seed.key),
+            ...(options.forms ?? []),
+          ]),
+      // The redirect rules are a tenth read on the same terms (build-only, fail-soft): they become
+      // the platform block of the static output's `_redirects`.
+      nuxt.options.dev ? Promise.resolve(null) : readRedirects(platformClient),
     ]);
+    crawlSetting = platformCrawl;
+    redirectsSetting = platformRedirects;
+    // `ELDRA_SITE_URL` wins over the platform's production URL, so an operator can override it
+    // for one build. The SEO runtime config follows, so a canonical and the hreflang set agree
+    // with the sitemap on the origin.
+    crawlSiteUrl = options.siteUrl || platformCrawl?.siteUrl || '';
+    (nuxt.options.runtimeConfig.public.eldraSeo as { siteUrl: string }).siteUrl = crawlSiteUrl;
     const runtimeEldra = nuxt.options.runtimeConfig.public.eldra as {
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
       designTokens: ThemeDesignTokens | null;
+      siteProfile: ResolvedSiteProfile | null;
+      forms: FormDefinitions;
     };
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.designTokens = platformDesignTokens;
+    runtimeEldra.forms = platformForms;
+    (nuxt.options.runtimeConfig.public.eldraSeo as { setting: SeoSetting | null }).setting =
+      platformSeo;
+    // The merchant's profile with its gaps filled: the site name, and the site icon's 512 px
+    // rendering for the logo. Resolved (always an object), so a build whose read failed still
+    // writes an `Organization` from what it knows.
+    runtimeEldra.siteProfile = resolveSiteProfile(platformSiteProfile, {
+      siteName: platformSeoName(platformSeo) || seoSiteName(nuxt.options.app.head.title) || '',
+      iconLogoUrl: platformSiteIcons?.icons?.icon512 ?? null,
+    });
+    // Unset (`iconUrl: null`) and a failed read both leave `siteIconFiles` empty
+    // and the head untouched: tags are added only when the platform answered with icons.
+    const resolvedSiteIcons = resolveSiteIcons(platformSiteIcons, {
+      siteName:
+        platformSeoName(platformSeo) || siteName(nuxt.options.app.head.title, nuxt.options.rootDir),
+      primaryToken:
+        platformDesignTokens?.colors.primary?.value ?? themePrimaryToken(nuxt.options.rootDir),
+    });
+    const siteIcons =
+      resolvedSiteIcons === null
+        ? null
+        : buildSiteIconOutput(resolvedSiteIcons, nuxt.options.app.baseURL);
+    if (siteIcons !== null) {
+      siteIconFiles = siteIcons.files;
+      // The merchant's icons replace the theme's configured ones rather than sit beside them:
+      // Unhead keeps links with different hrefs, and a browser would pick between the two.
+      const replacedRels = new Set(['icon', 'shortcut icon', 'apple-touch-icon', 'manifest']);
+      const generatesThemeColor = siteIcons.meta.some((tag) => tag.name === 'theme-color');
+      nuxt.options.app.head.link = [
+        ...(nuxt.options.app.head.link ?? []).filter(
+          (tag) => !replacedRels.has(String((tag as { rel?: unknown }).rel ?? '').toLowerCase())
+        ),
+        ...(siteIcons.link as unknown as NonNullable<typeof nuxt.options.app.head.link>),
+      ];
+      nuxt.options.app.head.meta = [
+        ...(nuxt.options.app.head.meta ?? []).filter(
+          (tag) =>
+            !generatesThemeColor ||
+            String((tag as { name?: unknown }).name ?? '').toLowerCase() !== 'theme-color'
+        ),
+        ...(siteIcons.meta as unknown as NonNullable<typeof nuxt.options.app.head.meta>),
+      ];
+    }
     localeRouting = resolveLocaleRouting(locales, options.locale);
     // Merge over the manifest's own messages (resolved over `locales` — the organisation's own
     // locales, falling back to the theme's own when they are unknown) only now that both reads
@@ -429,6 +748,43 @@ function packageVersion(path: string): string {
     return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
   } catch {
     return '0.0.0';
+  }
+}
+
+/**
+ * The site name SEO titles fall back to: the theme's `app.head.title` only. Never the npm package
+ * name (`starter-nuxt` is not a shop name); with none, titles are the bare page title and the
+ * platform's own `site.name` (when the merchant or Core sets one) still wins.
+ */
+function platformSeoName(setting: SeoSetting | null): string {
+  return setting?.site.name?.trim() ?? '';
+}
+
+function seoSiteName(title: unknown): string {
+  return typeof title === 'string' ? title.trim() : '';
+}
+
+function siteName(title: unknown, rootDir: string): string | null {
+  if (typeof title === 'string' && title.trim() !== '') return title;
+  try {
+    const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')) as {
+      name?: unknown;
+    };
+    return typeof pkg.name === 'string' ? pkg.name.replace(/^@[^/]+\//, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The theme's own primary colour, for a build whose platform design-token read failed. */
+function themePrimaryToken(rootDir: string): string | null {
+  try {
+    const tokens = normalizeThemeDesignTokens(
+      JSON.parse(readFileSync(join(rootDir, 'tokens.json'), 'utf8'))
+    );
+    return tokens.colors.primary?.value ?? null;
+  } catch {
+    return null;
   }
 }
 

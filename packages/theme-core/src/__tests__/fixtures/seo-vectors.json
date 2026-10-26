@@ -1,0 +1,100 @@
+{
+  "syntax": 1,
+  "note": "Shared by Core, Studio and the kit: every consumer must produce `expected` from `pattern` and `data` (one-pass substitution, unknown or empty variable becomes empty, then the title tidy). `context` names the registry context the pattern is valid in.",
+  "vectors": [
+    {
+      "name": "default pattern on a page",
+      "pattern": "{{page.title}} · {{site.name}}",
+      "context": "page",
+      "data": { "page": { "title": "About us" }, "site": { "name": "Sóley" } },
+      "expected": "About us · Sóley"
+    },
+    {
+      "name": "product with brand and price",
+      "pattern": "{{product.name}} - {{product.brand}} | {{site.name}}",
+      "context": "catalog:product",
+      "data": {
+        "product": { "name": "Ash glaze mug", "brand": "Kiln", "price": "2.800 kr." },
+        "site": { "name": "Sóley" }
+      },
+      "expected": "Ash glaze mug - Kiln | Sóley"
+    },
+    {
+      "name": "empty trailing variable drops the separator",
+      "pattern": "{{page.title}} · {{site.name}}",
+      "context": "page",
+      "data": { "page": { "title": "About us" }, "site": { "name": "" } },
+      "expected": "About us"
+    },
+    {
+      "name": "empty leading variable drops the separator",
+      "pattern": "{{page.title}} · {{site.name}}",
+      "context": "page",
+      "data": { "page": { "title": "" }, "site": { "name": "Sóley" } },
+      "expected": "Sóley"
+    },
+    {
+      "name": "empty middle variable collapses doubled separators",
+      "pattern": "{{product.name}} | {{product.brand}} | {{site.name}}",
+      "context": "catalog:product",
+      "data": { "product": { "name": "Mug", "brand": "" }, "site": { "name": "Sóley" } },
+      "expected": "Mug | Sóley"
+    },
+    {
+      "name": "unknown variable becomes empty, not literal",
+      "pattern": "{{page.title}} {{nope.nothing}} · {{site.name}}",
+      "context": "page",
+      "data": { "page": { "title": "Shop" }, "site": { "name": "Sóley" } },
+      "expected": "Shop · Sóley"
+    },
+    {
+      "name": "a hyphen inside a word is not a separator",
+      "pattern": "{{product.name}} · {{site.name}}",
+      "context": "catalog:product",
+      "data": { "product": { "name": "T-shirt" }, "site": { "name": "" } },
+      "expected": "T-shirt"
+    },
+    {
+      "name": "substitution is a single pass",
+      "pattern": "{{product.name}} · {{site.name}}",
+      "context": "catalog:product",
+      "data": { "product": { "name": "{{site.name}}" }, "site": { "name": "Sóley" } },
+      "expected": "{{site.name}} · Sóley"
+    },
+    {
+      "name": "whitespace inside the braces and around is normalised",
+      "pattern": "  {{ page.title }}   ·   {{ site.name }}  ",
+      "context": "page",
+      "data": { "page": { "title": "Home" }, "site": { "name": "Sóley" } },
+      "expected": "Home · Sóley"
+    },
+    {
+      "name": "numbers are scalars",
+      "pattern": "{{collection.name}} ({{collection.productCount}})",
+      "context": "catalog:collection",
+      "data": { "collection": { "name": "Mugs", "productCount": 12 } },
+      "expected": "Mugs (12)"
+    },
+    {
+      "name": "everything empty gives an empty title",
+      "pattern": "{{page.title}} · {{site.name}}",
+      "context": "page",
+      "data": {},
+      "expected": ""
+    },
+    {
+      "name": "flat keys work as well as nested ones",
+      "pattern": "{{category.name}} · {{site.name}}",
+      "context": "catalog:category",
+      "data": { "category.name": "Chairs", "site.name": "Sóley" },
+      "expected": "Chairs · Sóley"
+    },
+    {
+      "name": "en dash and em dash separators",
+      "pattern": "{{page.title}} – {{page.slug}} — {{site.name}}",
+      "context": "page",
+      "data": { "page": { "title": "A", "slug": "" }, "site": { "name": "B" } },
+      "expected": "A – B"
+    }
+  ]
+}

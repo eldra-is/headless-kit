@@ -2,18 +2,40 @@ image: node:20
 
 definitions:
   steps:
-    - step: &eldra-deploy
-        name: Build and deploy to Eldra
+    # The build runs every npm dependency's code (install scripts, the Nuxt build), so it must never
+    # receive the deploy token. Define these variables:
+    #   ELDRA_BUILD_TOKEN, ELDRA_GATEWAY_URL, ELDRA_ORG_ID, ELDRA_SITE_URL (the public origin):
+    #     repository variables. ELDRA_BUILD_TOKEN is secured (a read-only build token: Studio →
+    #     Settings → Developers → Build tokens).
+    #   ELDRA_DEPLOY_TOKEN and ELDRA_API_URL: deployment variables of the Production environment
+    #     (Repository settings → Deployments), NOT repository variables. The deploy token can
+    #     publish the site; as a deployment variable only the deploy step receives it.
+    # A build is production unless ELDRA_BUILD_TARGET=preview (noindex, `Disallow: /`).
+    - step: &eldra-build
+        name: Build the theme
         script:
           - corepack enable && corepack prepare pnpm@9.15.0 --activate
           - pnpm install --frozen-lockfile
           - pnpm exec nuxi generate
-          - pnpm exec eldra-theme deploy
+        artifacts:
+          # The manifest is in .output/public/.eldra, a hidden directory: listed explicitly.
+          - .output/public/**
+          - .output/public/.eldra/**
+    # Runs none of the project's code: no `pnpm install`, only the pinned CLI, installed with
+    # scripts disabled. Keep the version in step with @eldrajs/theme-cli in package.json.
+    - step: &eldra-deploy
+        name: Deploy to Eldra
+        deployment: production
+        script:
+          - export npm_config_ignore_scripts=true
+          - npx --yes @eldrajs/theme-cli@0.2.1 deploy
 
 pipelines:
   branches:
     main:
+      - step: *eldra-build
       - step: *eldra-deploy
   custom:
     eldra-rebuild:
+      - step: *eldra-build
       - step: *eldra-deploy

@@ -61,7 +61,7 @@ const buttonClass = computed(() =>
   partClass(
     cx(
       'relative inline-flex items-center justify-center control-h gap-2 rounded-md border px-4.5',
-      'border-border-strong bg-background text-text text-button-md font-medium cursor-pointer',
+      'border-border-strong bg-background text-text text-button-md cursor-pointer',
       'eldra-focus hover:border-text hover:bg-surface',
       'active:scale-[0.98] motion-reduce:active:scale-100'
     ),
@@ -72,7 +72,7 @@ const buttonClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <p :id="statusId" data-part="status" :class="statusClass" role="status" aria-live="polite">
       {{ m.showingOf(shown, total, noun) }}
     </p>

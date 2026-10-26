@@ -52,11 +52,11 @@ function context(): EldraContext {
 
 describe('projectDrafts', () => {
   afterEach(() => {
-    registerBlockFields({});
+    registerBlockFields({}, 'shop');
   });
 
   it("unwraps a draft's own top-level select field, not just one nested in an embedded block", () => {
-    registerBlockFields(CTA_FIELDS);
+    registerBlockFields(CTA_FIELDS, 'shop');
     const target = context();
     target.preview.sourceDrafts.e1 = {
       heading: 'Shop now',

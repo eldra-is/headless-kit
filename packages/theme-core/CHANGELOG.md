@@ -5,6 +5,53 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Company facts in `Organization`, alternate names in `WebSite`.** `buildOrganizationLd` takes
+  optional `legalName`, `taxID` (the kennitala in Iceland) and `address` (written as a
+  `PostalAddress`, left out when every part is empty); `buildWebSiteLd` takes an optional
+  `alternateName` list, which Google weighs when it picks a site name.
+
+- **`buildToken` client option (WS-403).** `createEldraClient({ buildToken })` sends
+  `X-Eldra-Build-Token` on every read; pass a read-only build token (`eldra_bld_…`, Studio →
+  Settings → Developers → Build tokens), never the deploy token. Server and build only.
+
+- **`createAnalytics`, `normalizeAnalyticsProps`, `truncateUtf8`.** Framework-free custom-event layer
+  over the Eldra tracker's `window.eldra('event', ...)`: props stringified and cut to the platform's
+  limits, events queued (50) until the script loads, a no-op when disabled, `pageview` rejected.
+  Behind `useEldraAnalytics` in `@eldrajs/theme-nuxt`.
+
+- New framework-free schema.org JSON-LD builders: `buildProductLd` (`Offer`, or `AggregateOffer` for
+  variants at different prices; price rounded to the currency's own fraction digits, list price from
+  `compareAt`, GTIN only when valid), `buildBreadcrumbLd`, `buildItemListLd`, `buildOrganizationLd`,
+  `buildWebSiteLd` (with a `SearchAction` when given a search path) and `serializeLd` (escapes `<`
+  and the two line separators so a value cannot close the script tag), plus `validGtin`, `ldPrice`,
+  `ldPlainText` and `applyStructuredDataPolicy` (the opt-out and extender `@eldrajs/theme-nuxt`
+  applies). Empty values are omitted, never written. Documented in `docs/theme-seo.md`.
+- New framework-free `buildSitemap` (a `urlset`, or a `sitemapindex` with children past the
+  sitemaps.org limits; hreflang `xhtml:link` alternates and `x-default`; noindex pages excluded; a
+  same-origin canonical as `loc`), `buildRobots` (preview: `Disallow: /`; production: `Allow: /`,
+  merchant lines, `Sitemap:`), `buildAlternates` (the head's hreflang set) and their helpers
+  (`siteOrigin`, `sitemapLastmod`, `escapeXml`). `@eldrajs/theme-nuxt` feeds them the prerendered
+  routes. Documented in `docs/theme-seo.md`.
+
+- New framework-free SEO resolver, `resolveSeo` (and `substituteSeoPattern`, `tidySeoTitle`,
+  `renderSeoTitle`, `pickSeoLocale`, the `SeoSetting`/`SeoEntryValue`/`ResolvedSeo` types):
+  title, description, share image, canonical, `noindex`, `og:type` and Twitter handle for one route
+  from the entry's own `seo` value, the route template's pattern, the site's pattern and the page's
+  own title, in that order. `{{dot.path}}` substitution is a single pass, an unknown or empty
+  variable becomes empty (never literal braces), and a separator left dangling by an empty variable
+  is dropped. Studio's previews run the same function; `src/__tests__/fixtures/seo-vectors.json`
+  is the vector file shared with Core and Studio. Documented in `docs/theme-seo.md`.
+
+- New `themeId` helpers, framework-free: `blockApiIdOf(schemaApiId, themeId)` (the wire spelling
+  `<themeId>:<apiId>` to the bare block id, stripping only the given theme's own prefix, so
+  `catalog:product` and another theme's `starter:hero` pass through) and
+  `themeSchemaApiId(blockApiId, themeId)` (the reverse, idempotent), plus `THEME_ID_PATTERN`,
+  `RESERVED_THEME_IDS`, `registerThemeId`/`getRegisteredThemeId`. **Breaking:** `registerBlockFields(fields,
+  themeId)` now requires the theme's own id and registers it, so `isBlockFieldLocalized`,
+  `isBlockFieldSelect` (and the select unwrap and stega skip that use it) and a template block's
+  entry/placement match resolve a block entry whose `schemaApiId` is `<themeId>:<apiId>`. Bare ids
+  keep working. The bridge's `theme:ready` reports `manifestVersion: 2`.
+
 - New subpath, `@eldrajs/theme-core/i18n`, framework-free: `flattenMessages`/`unflattenMessages`
   (nested vue-i18n JSON ↔ the manifest's own flat dotted keys), `mergeMessageCatalogues(themeDefaults,
   platform)` (the platform's theme-message overrides win per key; a locale the theme never shipped

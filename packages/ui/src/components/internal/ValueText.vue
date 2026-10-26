@@ -69,5 +69,5 @@ watch(
 </script>
 
 <template>
-  <span ref="spanRef">{{ text }}</span>
+  <span data-eldra-ui ref="spanRef">{{ text }}</span>
 </template>

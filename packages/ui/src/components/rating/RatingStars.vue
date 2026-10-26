@@ -61,7 +61,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
 </script>
 
 <template>
-  <span data-part="stars" :class="starsClass" aria-hidden="true">
+  <span data-eldra-ui data-part="stars" :class="starsClass" aria-hidden="true">
     <span v-for="(state, index) in starStates" :key="index" data-part="star" :class="starClass">
       <!--
         Empty star (spec "Rating" → States, "Empty star (and empty half)" row): `border-strong`
@@ -71,7 +71,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
       -->
       <svg
         v-if="state !== 'full'"
-        :class="cx('text-border-strong size-full', SECTION_EMPTY)"
+        :class="cx('text-border-strong block size-full', SECTION_EMPTY)"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -91,7 +91,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
         v-if="state !== 'empty'"
         :class="
           cx(
-            'text-text',
+            'text-text block',
             SECTION_FILLED,
             state === 'half' ? 'eldra-rating-half absolute inset-0 size-full' : 'size-full'
           )

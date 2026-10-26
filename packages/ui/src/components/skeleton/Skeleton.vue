@@ -130,7 +130,7 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" :style="rootStyle" v-bind="rootAria">
+  <div data-eldra-ui data-part="root" :class="rootClass" :style="rootStyle" v-bind="rootAria">
     <div
       v-for="line in lines"
       :key="line.key"

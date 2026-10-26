@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/sdk",
-  "version": "0.2.8",
+  "version": "0.3.2",
   "description": "Framework-free client for the Eldra Web Studio public storefront API: CMS, catalog, cart, checkout handoff, orders, inventory. Types generated from your gateway's OpenAPI document and CMS schemas at build time.",
   "keywords": [
     "cms",
@@ -21,7 +21,8 @@
   "files": [
     "dist",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "type": "module",
   "sideEffects": false,
@@ -34,6 +35,26 @@
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js"
     },
+    "./format": {
+      "types": "./dist/format.d.ts",
+      "import": "./dist/format.js"
+    },
+    "./format/date": {
+      "types": "./dist/format/date.d.ts",
+      "import": "./dist/format/date.js"
+    },
+    "./format/list": {
+      "types": "./dist/format/list.d.ts",
+      "import": "./dist/format/list.js"
+    },
+    "./format/relative-time": {
+      "types": "./dist/format/relative-time.d.ts",
+      "import": "./dist/format/relative-time.js"
+    },
+    "./format/display-names": {
+      "types": "./dist/format/display-names.d.ts",
+      "import": "./dist/format/display-names.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -44,12 +65,20 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.generated.json",
     "test": "vitest run",
-    "fixture": "node scripts/fixture.mjs"
+    "fixture": "node scripts/fixture.mjs",
+    "format-data": "node scripts/extract-format-data.mjs",
+    "check:format-data": "node scripts/extract-format-data.mjs --check"
   },
   "dependencies": {
     "openapi-typescript": "^7.13.0"
   },
   "devDependencies": {
+    "@formatjs/intl-datetimeformat": "7.8.1",
+    "@formatjs/intl-displaynames": "7.3.15",
+    "@formatjs/intl-listformat": "8.3.15",
+    "@formatjs/intl-numberformat": "9.4.3",
+    "@formatjs/intl-relativetimeformat": "12.3.15",
+    "@playwright/test": "1.62.1",
     "vite": "^8.0.8"
   },
   "peerDependencies": {

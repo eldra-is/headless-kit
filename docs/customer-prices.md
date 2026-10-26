@@ -1,7 +1,7 @@
 # Customer prices
 
 A signed-in business customer (see [business-login.md](business-login.md)) can get their own
-prices from the same catalog and cart calls. The types come from the generated contract (3.15.0):
+prices from the same catalog and cart calls. The types come from the generated contract (5.3.0):
 priced variants add an optional `listPrice`, and list items carry the customer's `minPrice` and
 `maxPrice` plus `listPrice`, the list price of the variant `minPrice` came from.
 

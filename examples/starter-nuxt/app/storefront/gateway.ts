@@ -1,11 +1,24 @@
 import { onWatcherCleanup, ref, watch, type Ref } from 'vue';
-import { createCartSession, EldraHttpError, type EldraClient } from '@eldrajs/sdk';
+import {
+  createCartSession,
+  EldraHttpError,
+  type EldraClient,
+  type EldraFormDefinition,
+} from '@eldrajs/sdk';
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createHistoryStore, createWishlistStore } from './history';
+import {
+  localizeFormDefinition,
+  postToFormsEndpoint,
+  submitFailure,
+  toSubmitResult,
+} from './forms';
 import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
+
+const TOGGLE_SOURCE_PREFIX = 'toggle:';
 import { optionDisplayType, storefrontOptionKind } from './options';
 import {
   buildCategoryIndex,
@@ -51,9 +64,10 @@ import type {
  * generated *test* fixture never imported here) — the same thing a real customer theme has to do
  * before its own `eldra()` Vite plugin has generated a contract against their tenant.
  *
- * `forms.subscribe`/`forms.sendMessage`/`catalog.notifyBackInStock` have no gateway endpoint
- * today: this posts to `options.formsEndpoint` when the plugin configured one, and resolves
- * `{ ok: false, reason: 'unsupported' }` otherwise.
+ * `catalog.notifyBackInStock` has no gateway endpoint today: this posts to `options.formsEndpoint`
+ * when the plugin configured one, and resolves `{ ok: false, reason: 'unsupported' }` otherwise.
+ * Forms are the platform's own (`client.forms`, `GET /site/v1/forms/{key}`); `formsEndpoint` only
+ * overrides where a *submission* goes.
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -189,6 +203,8 @@ interface RawProductOption {
 interface RawProductVariant {
   id: string;
   sku: string;
+  /** Free text; the structured data validates it as a GTIN before it writes one. */
+  barcode?: string | null;
   price: number;
   compareAtPrice?: number;
   status: string;
@@ -223,6 +239,8 @@ interface RawProductDetails {
    * knows the response carries it rather than inferring the catalogue only ever assigns one.
    */
   categoryIds?: string[] | null;
+  /** Per-product brand, for `Product.brand` in the structured data. */
+  brand?: string | null;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -584,6 +602,16 @@ function mapProductDetails(
       ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
       : null,
     stock: variantStock(firstAvailable, stock),
+    brand: raw.brand?.trim() || null,
+    // Each variant's own price and stock state, for the page's structured data: the same
+    // `variantStock` rule the buy box's line uses, so the markup and the page cannot disagree.
+    variants: variants.map((variant) => ({
+      sku: variant.sku,
+      barcode: variant.barcode ?? null,
+      price: variant.price,
+      compareAt: variant.compareAtPrice ?? null,
+      stock: variantStock(variant, stock),
+    })),
     available: raw.status === 'ACTIVE',
     productId: raw.id,
     // The variant an add would send, paired with `productId` above: the cart service looks the two
@@ -1271,7 +1299,7 @@ const GATEWAY_UNSORTABLE: readonly string[] = ['best-selling'];
  * - **`category` is a slug in the URL and a uuid in the request.** The block's values are the facet
  *   terms' slugs (a filtered view has to stay linkable and readable), while `categoryId` takes
  *   catalog ids, so the slugs are resolved through the store's own category list — see
- *   `readCategories`.
+ *   `readCategoryRows`.
  * - **`availability` is one value, not a set.** Both boxes ticked is every product, which is no
  *   filter at all, so nothing is sent; one box is sent as the platform's own
  *   `in_stock`/`out_of_stock` spelling, which `canonicalAvailabilityValues` also folds the retired
@@ -1293,6 +1321,8 @@ interface CatalogFilterQuery {
   collectionId?: string[];
   availability?: string;
   option?: string[];
+  /** `onSale=true`, the one boolean parameter the platform has today (`facets.toggles[]`'s `on_sale`). */
+  onSale?: true;
 }
 
 /**
@@ -1370,9 +1400,8 @@ function priceParam(raw: string | undefined, currency: string | undefined): numb
  * URL and the active-filter row all say is applied is a lie, so that one fails the collection read,
  * which the block already draws as an error over the last good page.
  */
-async function readCategories(client: EldraClient): Promise<CategoryIndex> {
-  const rows = (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
-  return buildCategoryIndex(rows);
+async function readCategoryRows(client: EldraClient): Promise<RawCategory[] | null> {
+  return (await client.catalog.listCategories({})) as unknown as RawCategory[] | null;
 }
 
 /**
@@ -1438,6 +1467,11 @@ async function catalogFilterQuery(
       // one — and the platform never spends the cross-service stock read on a filter that excludes
       // nothing.
       if (known.length === 1) query.availability = known[0];
+      continue;
+    }
+    if (source.startsWith(TOGGLE_SOURCE_PREFIX)) {
+      // A toggle is a yes/no switch; only the one the platform has a parameter for (onSale) is sent.
+      if (source.slice(TOGGLE_SOURCE_PREFIX.length) === 'on_sale') query.onSale = true;
       continue;
     }
     if (source === 'category') {
@@ -1869,7 +1903,32 @@ async function detailSnapshots(
 
 export interface GatewayStorefrontOptions {
   route: StorefrontRoute;
+  /**
+   * Shares a build-wide read between the storefronts of a prerender (WS-406): `nuxi generate`
+   * creates one storefront per route, so a read that never changes during a build (the category
+   * tree) would otherwise go out once per route. The app layer binds it to the site and passes
+   * `@eldrajs/theme-nuxt/prerender`'s `memoizeForPrerender`, which runs `load` every time outside a
+   * prerender. Omitted — Storybook, a spec — every storefront reads for itself.
+   */
+  shared?: <T>(name: string, load: () => Promise<T>, locale: string | undefined) => Promise<T>;
+  /**
+   * Overrides where form submissions go (`forms.submit`); see `postToFormsEndpoint`. Form
+   * definitions still come from the platform. Also the endpoint `catalog.notifyBackInStock` posts to.
+   */
   formsEndpoint?: string;
+  /**
+   * The form definitions the build baked (`@eldrajs/theme-nuxt`, `eldra.forms` in the runtime
+   * config), by form key. A key found here is the first paint (and the prerendered HTML); the
+   * browser then re-reads it live, because the platform serves definitions with no rebuild. Any
+   * other key is fetched.
+   */
+  formDefinitions?: Record<string, EldraFormDefinition>;
+  /**
+   * The locale a submission reports and a definition's text resolves to: the page's active content
+   * locale, the default locale included (unlike `locale`, which is `undefined` there so reads keep
+   * their pre-locale keys). Omitted — a story, a spec — `en-US`.
+   */
+  formLocale?: () => string | undefined;
   /**
    * What the store sells in (`StorefrontCommerce`) — the platform's own answer, which only the app
    * layer can read (`app/plugins/eldra-storefront.ts`, off the runtime config). Omitted — a
@@ -1949,11 +2008,11 @@ export function createGatewayStorefront(
   /**
    * The store's category tree, read at most once for the life of this storefront and only when
    * something actually needs it: a category filter to resolve, a product page's breadcrumb trail, or
-   * a category facet the platform could not place its own terms in (`readCategories`).
+   * a category facet the platform could not place its own terms in (`readCategoryRows`).
    *
    * The in-flight read is what is cached, so a product page and a grid asking at once share one
    * request; a failure drops the cache so the next read tries again rather than inheriting the first
-   * one's error. Which callers swallow that failure and which let it through is on `readCategories`.
+   * one's error. Which callers swallow that failure and which let it through is on `readCategoryRows`.
    *
    * It is read on the **server** during a prerender, inside the same `useAsyncData` the product or
    * collection read runs under, so a generated product page carries its trail in the page payload
@@ -1961,10 +2020,17 @@ export function createGatewayStorefront(
    */
   let categories: Promise<CategoryIndex> | null = null;
   const categoriesOnce = (): Promise<CategoryIndex> => {
-    categories ??= readCategories(client).catch((caught: unknown) => {
-      categories = null;
-      throw caught;
-    });
+    // The rows, not the index, are what a build shares: the same list `@eldrajs/theme-nuxt` reads
+    // for link targets, under the same memo name and key, so a build reads it once per locale.
+    const read = (): Promise<RawCategory[] | null> => readCategoryRows(client);
+    categories ??= (
+      options.shared === undefined ? read() : options.shared('categories', read, locale?.())
+    )
+      .then((rows) => buildCategoryIndex(rows))
+      .catch((caught: unknown) => {
+        categories = null;
+        throw caught;
+      });
     return categories;
   };
 
@@ -2096,7 +2162,7 @@ export function createGatewayStorefront(
           // add a serial round trip to every product page. The tree's failure is swallowed here — a
           // product page without a category crumb is a product page, while a product page that 500s
           // because the category list was unreachable is not — which is the opposite of what the
-          // `category` *filter* does with the same read (`readCategories`).
+          // `category` *filter* does with the same read (`readCategoryRows`).
           const [stock, tree] = await Promise.all([
             readStock(client, raw, signal),
             categoriesOnce().catch(() => null),
@@ -2235,10 +2301,73 @@ export function createGatewayStorefront(
       ),
   };
 
+  const formLocale = (): string => options.formLocale?.() ?? locale?.() ?? 'en-US';
   const forms: StorefrontForms = {
-    subscribe: (input) => postToEndpoint(options.formsEndpoint, { kind: 'subscribe', ...input }),
-    sendMessage: (input) =>
-      postToEndpoint(options.formsEndpoint, { kind: 'sendMessage', ...input }),
+    definition: (key) => {
+      const result = createGatewayResult(
+        [key],
+        async (signal) => {
+          // Re-resolved against the page's locale on every read, so a language switch relabels a
+          // baked definition too: only the platform's per-locale maps are baked, never one language.
+          if (key.value === '') return null;
+          const raw =
+            options.formDefinitions?.[key.value] ??
+            (await rawClient.forms.get(key.value, { signal }));
+          return localizeFormDefinition(raw, formLocale());
+        },
+        { method: 'forms.definition', runtime, locale: () => formLocale() }
+      );
+      // The platform serves a definition live (`GET /site/v1/forms/{key}`, no rebuild when a
+      // merchant edits a form), so the baked copy is only the first paint: once the page is open
+      // in a browser the live definition replaces it, which is what makes a field added in Studio
+      // render, and what turns the spam-check widget on when Turnstile was enabled after the
+      // build. A failed read keeps the baked definition on screen.
+      if (typeof window !== 'undefined' && options.formDefinitions !== undefined) {
+        let generation = 0;
+        const revalidate = async (): Promise<void> => {
+          const requested = key.value;
+          if (requested === '' || options.formDefinitions?.[requested] === undefined) return;
+          generation += 1;
+          const mine = generation;
+          try {
+            const raw = await rawClient.forms.get(requested);
+            if (mine !== generation || key.value !== requested) return;
+            result.data.value = localizeFormDefinition(raw, formLocale());
+          } catch {
+            // Offline, a transient 5xx, or a type this theme cannot render: keep what is shown.
+          }
+        };
+        void revalidate();
+        watch(key, () => void revalidate());
+      }
+      return result;
+    },
+    submit: async (key, input) => {
+      const pagePath = typeof location === 'undefined' ? '/' : location.pathname;
+      if (options.formsEndpoint) {
+        return postToFormsEndpoint(options.formsEndpoint, {
+          key,
+          values: input.values,
+          locale: formLocale(),
+          pagePath,
+          ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+          ...(input.hp ? { hp: input.hp } : {}),
+        });
+      }
+      try {
+        return toSubmitResult(
+          await rawClient.forms.submit(key, {
+            values: input.values,
+            locale: formLocale(),
+            pagePath,
+            ...(input.turnstileToken ? { turnstileToken: input.turnstileToken } : {}),
+            ...(input.hp ? { hp: input.hp } : {}),
+          })
+        );
+      } catch (error) {
+        return submitFailure(error);
+      }
+    },
   };
 
   return {

@@ -55,7 +55,7 @@ const countClass = computed(() => partClass(FACET_COUNT, props.classes, 'count')
 </script>
 
 <template>
-  <div data-part="values" :class="valuesClass">
+  <div data-eldra-ui data-part="values" :class="valuesClass">
     <div
       v-for="value in values"
       :key="value.value"

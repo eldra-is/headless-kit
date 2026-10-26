@@ -17,6 +17,7 @@ import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
 import 'virtual:eldra/tokens.css';
+import { useEldraBuildToken } from './composables/useEldraBuildToken';
 import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
@@ -44,8 +45,10 @@ export default defineNuxtPlugin({
     // Block field metadata: lets theme-core's `isBlockFieldLocalized` (and
     // theme-vue's `useEldraBlockField` wrapper) resolve a field's `localized`
     // flag without the SDK packages importing the virtual module id
-    // themselves — they can't, at their own package build time.
-    registerBlockFields(blockFields);
+    // themselves — they can't, at their own package build time. The theme's own
+    // id rides along: Core spells a block entry's schema `<themeId>:<apiId>`
+    // and these lookups are keyed by the bare apiId.
+    registerBlockFields(blockFields, manifest.theme.id);
     const cfg = useRuntimeConfig().public.eldra as RuntimeEldraConfig;
     // Resolved before the client so its organisation default locale — the
     // store's own `locales.default`, falling back to the routing default for
@@ -58,6 +61,8 @@ export default defineNuxtPlugin({
       orgId: cfg.orgId,
       stega: true,
       retry: cfg.retry ?? undefined,
+      // Server prerender only; `undefined` in the browser. See `./buildToken.ts`.
+      buildToken: useEldraBuildToken(),
       defaultLocale: storeLocales?.default ?? routing.default ?? null,
     });
     const preview = createEldraPreviewState();
@@ -103,9 +108,18 @@ export default defineNuxtPlugin({
      *
      * One reactive entry, not a snapshot: a client navigation between two locales changes both.
      */
+    // Absolute when the build knows the site's origin (`siteUrl` module option / `ELDRA_SITE_URL`
+    // / the platform's production URL), relative paths otherwise. `''` is how the runtime config
+    // serialises "unset".
+    const seoSiteUrl = (useRuntimeConfig().public.eldraSeo as { siteUrl?: string } | undefined)
+      ?.siteUrl;
     useHead(() => ({
       htmlAttrs: { lang: context.locales?.active ?? undefined },
-      link: localeAlternates(canonicalRoutePath(router()?.currentRoute.value.path ?? '/'), routing),
+      link: localeAlternates(
+        canonicalRoutePath(router()?.currentRoute.value.path ?? '/'),
+        routing,
+        seoSiteUrl
+      ),
     }));
 
     // Read the build's prerendered route list now, so the first client navigation already has it

@@ -10,6 +10,7 @@ import {
   type LayoutRenderNode,
   type LayoutStyle,
 } from './layout';
+import { registeredBlockApiId } from './themeId';
 import {
   decorateReusableIdentity,
   expandReusablePlacements,
@@ -254,7 +255,7 @@ function transformNode(
     if (entryId !== undefined && baseEntry === undefined)
       fail(`${path}/entryId`, 'BLOCK_NOT_FOUND');
     const schemaApiId = baseEntry?.schemaApiId;
-    if (typeof schemaApiId === 'string' && schemaApiId !== value.apiId) {
+    if (typeof schemaApiId === 'string' && registeredBlockApiId(schemaApiId) !== value.apiId) {
       fail(`${path}/entryId`, 'BLOCK_NOT_FOUND');
     }
     const data = baseEntry === undefined ? {} : cloneContentRecord(baseEntry.data);

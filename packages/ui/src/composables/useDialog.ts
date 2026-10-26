@@ -21,7 +21,10 @@ export interface UseDialogOptions {
   dialog: Ref<HTMLDialogElement | null>;
   /** Whether a backdrop click closes the dialog. `Esc` and `close()` always do. Default `true`. */
   dismissable?: MaybeRefOrGetter<boolean>;
-  /** Focused once the dialog opens, instead of the first meaningful control. */
+  /**
+   * Focused when the dialog opens from the keyboard, instead of the first meaningful control. After a tap or click
+   * it is focused only when it is a text field or marked `autofocus`; otherwise the dialog itself takes focus.
+   */
   initialFocus?: Ref<HTMLElement | null>;
   /** Ran when `Esc` is pressed (the native `cancel` event), before the dialog actually closes. */
   onCancel?: () => void;
@@ -67,6 +70,34 @@ function isReachable(element: HTMLElement): boolean {
  * (`Dialog` today; `Drawer`/`Lightbox`/`SearchModal` next) names its own close button the same way,
  * so this exclusion works for all of them without a second constant to keep in sync.
  */
+// Safari and Chrome ring a control that script focuses after a tap, so a tap-opened dialog focuses itself instead.
+let lastInputWasPointer = false;
+let trackingInput = false;
+
+function trackInputModality(): void {
+  if (trackingInput || typeof document === 'undefined') return;
+  trackingInput = true;
+  document.addEventListener('pointerdown', () => (lastInputWasPointer = true), true);
+  document.addEventListener('keydown', () => (lastInputWasPointer = false), true);
+}
+trackInputModality();
+
+const TEXT_ENTRY =
+  'input:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"]), textarea, [contenteditable]:not([contenteditable="false"])';
+
+function takesFocusOnTap(element: HTMLElement | null | undefined): boolean {
+  return element != null && (element.hasAttribute('autofocus') || element.matches(TEXT_ENTRY));
+}
+
+function focusSurface(dialog: HTMLDialogElement): void {
+  if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1');
+  dialog.focus({ preventScroll: true });
+}
+
+function autofocusControl(root: HTMLElement): HTMLElement | undefined {
+  return [...root.querySelectorAll<HTMLElement>('[autofocus]')].find(isReachable);
+}
+
 function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].find(
     (element) => isReachable(element) && element.closest('[data-part="close"]') === null
@@ -97,9 +128,11 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
  *   composable): the page behind does not scroll while the stack is non-empty (released only once
  *   every open modal has closed), and `TOAST_HOST_KEY` tracks the **topmost** dialog a `Toaster`
  *   should render into.
- * - **Initial focus**: `initialFocus`, else the first meaningful control (never the close button —
- *   see `firstMeaningfulControl` above), else the close button itself as a last resort, else
- *   whatever the platform already focused. Applied a tick after `showModal()`, so slot content that
+ * - **Initial focus**: `initialFocus`, else a reachable control marked `autofocus`, else the first
+ *   meaningful control (never the close button — see `firstMeaningfulControl` above), else the close
+ *   button itself as a last resort, else whatever the platform already focused. Opened by a tap or
+ *   click, the dialog focuses itself instead unless that target is a text field or marked
+ *   `autofocus`, because Safari rings a control script focuses after a tap. Applied a tick after `showModal()`, so slot content that
  *   mounts alongside the dialog (a form's first field) already exists in the DOM to focus.
  * - **Focus return**: whatever had focus immediately before `showModal()` gets it back the moment
  *   the dialog actually closes, by any route — the page's own opener for the bottom of the stack,
@@ -141,14 +174,18 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
   function focusInitial(): void {
     const el = dialog.value;
     if (el === null) return;
-    const explicit = options.initialFocus?.value;
-    if (explicit != null) {
-      explicit.focus();
+    const target =
+      options.initialFocus?.value ??
+      autofocusControl(el) ??
+      firstMeaningfulControl(el) ??
+      el.querySelector<HTMLElement>('[data-part="close"]');
+    if (lastInputWasPointer && !takesFocusOnTap(target)) {
+      focusSurface(el);
       return;
     }
-    const target =
-      firstMeaningfulControl(el) ?? el.querySelector<HTMLElement>('[data-part="close"]');
     target?.focus();
+    // A control the browser cannot focus (hidden by CSS, say) leaves the dialog itself focused, never nothing.
+    if (target != null && document.activeElement !== target) focusSurface(el);
   }
 
   function show(): void {

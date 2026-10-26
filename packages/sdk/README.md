@@ -45,7 +45,8 @@ precedence.
 ## Images
 
 A media URL from the API serves an 800 px copy. Build a `srcset` over the sizes the media host
-serves (400 to 2560 px) so the browser picks one that is sharp on the screen in front of it:
+serves (400 to 2560 px, then the original when it is wider) so the browser picks one that is sharp
+on the screen in front of it:
 
 ```ts
 import { responsiveImage } from '@eldrajs/sdk';
@@ -61,6 +62,27 @@ const image = responsiveImage(product.thumbnail, {
 parts on their own. Anything that is not an Eldra media asset comes back unchanged. The variants,
 choosing `sizes`, and avoiding layout shift are in [docs/images.md](../../docs/images.md).
 
+## Icelandic formatting
+
+Chrome, Edge and Cloudflare Workers ship without Icelandic locale data, and `Intl` then prints
+English without an error (`ISK 1,234,567` for `1.234.567 kr.`), which also breaks hydration. The
+`./format` entries print Icelandic and English the same on every runtime:
+
+```ts
+import { comparator, formatPrice, numberFormat } from '@eldrajs/sdk/format';
+import { dateTimeFormat } from '@eldrajs/sdk/format/date';
+
+formatPrice(12900, 'ISK', 'is-IS'); // "12.900 kr."
+formatPrice(12900, 'ISK', 'en-US'); // "ISK 12,900"
+dateTimeFormat('is-IS', { dateStyle: 'long' }).format(date); // "12. október 2026"
+towns.sort(comparator('is-IS')); // Akureyri, Ísafjörður, Þórshöfn, Ölfus
+```
+
+Each takes the options of the `Intl` constructor it is named after and returns an object with the
+same methods. `./format/list`, `./format/relative-time` and `./format/display-names` cover the rest.
+Import only the entries you use; each carries its own data. The rules and what it costs are in
+[docs/icelandic-formatting.md](../../docs/icelandic-formatting.md).
+
 ## What is in the client
 
 | Group       | Methods                                                                                                                |
@@ -73,6 +95,34 @@ choosing `sizes`, and avoiding layout shift are in [docs/images.md](../../docs/i
 | `inventory` | `availability`                                                                                                         |
 | `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                               |
 | `platform`  | `config`                                                                                                               |
+| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                              |
+
+`forms` is the site-forms API: `get(key)` reads a form's definition (fields with a label per locale,
+the honeypot field's name, the Turnstile site key, the success message), and `submit(key, { values,
+locale, pagePath, turnstileToken?, hp? })` posts a submission. A `422` is an answer, not a failure:
+`submit` resolves `{ status: 'invalid', errors, form }` with the field-keyed messages a form shows
+inline (`errors` is the shape `@eldrajs/ui`'s `apiErrors` takes), and `{ status: 'ok', pending }` on
+success, where `pending` means a double opt-in email is on its way. A `404` (unknown form), `413`
+(oversize) and `429` (rate limited) reject with `EldraHttpError`. `confirm(token)` and
+`unsubscribe(token)` finish the subscriber's emailed links; those links point at the web gateway's
+own page, so an app needs no route of its own for them. Forms need the organisation's `FORMS`
+feature (not `PAGE_BUILDER`) and work with no theme: the app's origin must be registered as a
+storefront origin in Studio, and when the definition has a Turnstile site key the app renders the
+widget itself and sends the token as `turnstileToken`. The form types are hand-written, like
+`EldraPlatformConfig`: the SDK ships no response types.
+
+**Proof of consent.** For a form that subscribes the visitor, the platform records what they agreed
+to, and that wording is always real: the definition's `consentText` (a sentence per locale, with the
+shop name already filled in; present only when `kinds` contains `subscribe`). Show it next to the
+submit button as escaped plain text; submitting is the consent, so there is no extra checkbox and
+nothing extra to send. The platform stores the sentence in the visitor's `locale`, followed by the
+label of each `consent` field they ticked, taken from the form definition on the server, never from
+the client. `pagePath` is stored as the page the submission came from, so send the real
+`location.pathname`; it is client-supplied and informational. IP addresses and user agents are not
+stored.
+
+Subscribers and this record are owned by the platform's marketing service; `confirm` and
+`unsubscribe` keep calling the same `/site/v1/forms/subscriptions/*` paths, so nothing changes in an app.
 
 `checkout.url({ cartId, locale })` is where a storefront sends the shopper. The platform hosts the
 checkout page, so the client asks the platform where (`platform.config()`, a public read cached per

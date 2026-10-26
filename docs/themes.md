@@ -9,6 +9,43 @@ default data Studio shows before a page has real content. The scan output — th
 ingests it to create or update the org's `block`-tagged CMS schemas. Git is version control for the
 theme's code; the manifest is the sync channel, not the other way around.
 
+## Theme id and schema ownership
+
+Every theme declares a stable **theme id** in its `package.json`, beside the keys the scanner
+already reads:
+
+```json
+{
+  "name": "@acme/shop-theme",
+  "version": "1.0.0",
+  "eldra": { "themeId": "shop", "defaultLocale": "en-US" }
+}
+```
+
+- `eldra.themeId` is **required**. It has the block `apiId` grammar (`^[a-z][a-z0-9-]{1,48}$`),
+  and `catalog` is reserved. There is no derivation from the package name: renaming the package
+  must not change who owns the theme's content. A missing or invalid id fails the plugin build,
+  `eldra-theme validate` and `eldra-theme deploy` with `package.json: eldra.themeId — …`.
+- The scanner emits it as `manifest.theme.id`, and `manifestVersion` is `2`. Core rejects a
+  manifest that is not v2 or has no `theme.id`.
+- Core stores the theme's block **schemas** as `<themeId>:<blockApiId>` (`shop:hero`) and stamps
+  every schema and entry the deploy creates with the theme id, so two themes in one organisation
+  never clash (`shop:hero`, `starter:hero`) and Studio can tell a theme's content from the
+  merchant's own.
+- **Everything the theme authors stays bare.** `block.json`, the manifest's block ids, a layout
+  node's `apiId`, a slot's `allowedBlockApiIds`, `data-eldra-schema` and the overlay's
+  `theme:block-clicked` all keep the bare `hero`. Only the wire spelling of an entry's
+  `schemaApiId` (and of `/cms/v1/schema/{schemaApiId}/entry`) carries the prefix.
+- The runtime strips the prefix of **its own** theme (the manifest's `theme.id`, which
+  `virtual:eldra/manifest` carries into the build), never "any prefix": `catalog:product` and
+  another theme's `starter:hero` are not this theme's blocks. `getBlockSchemaApiId(entry)` returns
+  the bare id; `@eldrajs/theme-core` exports the two pure helpers `blockApiIdOf(schemaApiId,
+themeId)` (wire to bare) and `themeSchemaApiId(blockApiId, themeId)` (bare to wire), and
+  `registerBlockFields(fields, themeId)` registers the id for the block-field lookups inside
+  theme-core. `@eldrajs/theme-nuxt` does that for you.
+- Code that reads a block's entries through the SDK passes the **wire** id:
+  `client.getEntries('shop:hero')`. A custom (merchant-owned) schema a route points at stays bare.
+
 ## Package map
 
 ```
@@ -358,6 +395,90 @@ the site's own tests) after changing a seed. The starter does all of this in
 [Seeded templates and pages](starter-kit.md#seeded-templates-and-pages) for how it builds its
 three template seeds and its three page seeds out of the sample page fixtures.
 
+## Forms
+
+A theme does not own its forms: a merchant builds them on Studio's Forms page and the platform
+serves them (`GET /site/v1/forms/{key}`, submissions to `POST /site/v1/forms/{key}/submissions`, with
+a honeypot, a per-IP rate limit and optional Cloudflare Turnstile). A theme does two things.
+
+**Seed the forms a fresh site needs.** `formSeeds` (an `eldra.formSeeds` option, validated by
+`@eldrajs/vite-plugin-theme`'s `validateFormSeeds` and written to the manifest) lists up to eight
+forms:
+
+```ts
+formSeeds: [
+  {
+    key: 'newsletter', // ^[a-z][a-z0-9-]{0,39}$, "subscriptions" is reserved
+    name: 'Newsletter',
+    fields: [
+      { id: 'email', type: 'email', required: true, label: { 'en-US': 'Email address', 'is-IS': 'Netfang' } },
+    ],
+    // notify: email the merchant; confirm: email the visitor a copy; subscribe: a double opt-in list
+    actions: {
+      notify: false,
+      confirm: false,
+      subscribe: {
+        list: 'newsletter',
+        // the consent wording per locale; {shop} becomes the shop name on the platform
+        consentText: {
+          'en-US': 'I want to receive the newsletter from {shop}. I can unsubscribe at any time.',
+          'is-IS': 'Ég vil fá fréttabréf frá {shop}. Ég get skráð mig úr áskrift hvenær sem er.',
+        },
+      },
+    },
+    success: { message: { 'en-US': 'Check your inbox to confirm.', 'is-IS': 'Kíktu í pósthólfið.' } },
+  },
+],
+```
+
+Field types are `text`, `email`, `phone`, `textarea`, `select` (with `options`), `checkbox`, `consent`
+(a checkbox whose `required` means it must be checked), `number` and `url`; `validation` takes `minLength`, `maxLength` and a `pattern`. `confirm` and `subscribe` need an
+email field. `subscribe.consentText` is validated like Core (a locale map, 500 characters each, plain text). Core creates a seeded form only when its key is absent and never over a merchant's edits
+(an unedited seeded form is refreshed on a theme version bump). The starter's seeds are
+`examples/starter-nuxt/app/formSeeds.ts`.
+
+A seed cannot name an email template: `notify`, `confirm` and `subscribe` are flags, and Core maps each to
+its own form design (`form_notification`, `form_confirmation`, `form_subscribe_confirm`). A visitor can
+type any address into a form, so Core refuses a form action that would send anything but a form design
+or the organisation's own custom template (`SITE_FORM_TEMPLATE_NOT_ALLOWED`); the plugin refuses a
+`templateRef` on a seed with the same wording before the deploy.
+
+**Place them.** The starter's `form` block renders any form by key. `@eldrajs/theme-nuxt` also reads
+the definition of every seeded key — and every key in its `forms` option, for a merchant-made form a
+block names by default — at build time, fail-soft per key, and bakes them into the site
+(`useEldraForms()`); a key it could not read is fetched when the page opens. The baked copy is
+only the first paint and the prerendered HTML: a definition is **live** on the platform (no rebuild
+when a merchant edits a form), so the starter's storefront re-reads it in the browser and replaces
+the baked one, which is what renders a field added in Studio and the spam-check widget when
+Turnstile was turned on after the build. Seeds are validated exactly as Core validates them (field
+types `text`, `email`, `phone`, `textarea`, `select`, `checkbox`, `consent`; `validation` only on
+text-like fields; RE2 patterns with no lookaround or backreferences; ids compared ignoring case,
+`all` reserved; lengths up to 8000; a success redirect is a `/` path or an http(s) URL), because
+Core refuses a whole manifest over one bad seed. From code,
+`@eldrajs/sdk`'s `client.forms` (`get`, `submit`, `confirm`, `unsubscribe`) is the same API. Forms
+are gated by the organisation's `FORMS` feature, not `PAGE_BUILDER`, and a headless app can use them
+with no theme at all (see `getting-started.md`, "Forms without a theme").
+
+**What a subscription records.** A subscribing form always has real consent wording. The
+`subscribe` action carries a `consentText` sentence per locale (up to 500 characters each, plain
+text with no `<` or `>`, with a `{shop}` placeholder the platform replaces with the shop name).
+Core refuses to save a form whose subscribe action has no sentence in any locale; a seed that leaves
+`consentText` out gets the platform's default on create, so older seeds keep working, and Studio
+prefills the same default. The public definition (`GET /site/v1/forms/{key}`) exposes the resolved
+sentence per locale as `consentText`, only when the form subscribes. The `form` block shows it as
+small text under the submit button, escaped and linked to the button with `aria-describedby`;
+pressing the button is the consent, so there is no extra checkbox and no new submit field.
+
+At submission the platform sends marketing the sentence in the visitor's locale (resolved like a
+field label), followed by the label of each ticked `consent` field, newline-separated, never
+anything the client sent, plus its SHA-256, the form key and name, the `pagePath` the SDK sent
+(client-supplied, so informational), and when they subscribed, confirmed and unsubscribed. IP
+addresses and user agents are not stored. The `newsletter` block's own consent checkbox and
+rich-text consent line are block copy and are not recorded.
+
+The platform's marketing service owns subscribers and this record (the form only submits; the
+SDK and the emailed confirm/unsubscribe links are unchanged).
+
 ## Layout sizing and container queries
 
 Blocks adapt to the width they are given with container queries: every block root is a
@@ -434,6 +555,110 @@ generated stylesheets write them, and the overlay runtime reads them to decide w
 is selected and what is being edited. Everything a theme is expected to set is a documented token
 (see [Design tokens](theme-design-tokens.md)); anything else under those prefixes is internal and
 may change in a minor release.
+
+## Site icons
+
+A site's icons are the merchant's brand, not the theme's, so a merchant sets them in Studio (Site
+settings): one media-library image that is a **raster** (PNG, JPEG or WebP), square and at least
+512 px (SVG is refused: the image transform cannot rasterise it), a background colour, an optional
+theme colour and an optional short name. `@eldrajs/theme-nuxt` reads that setting at build time
+(`GET /site/v1/site-icons`, the same fail-soft read as the design tokens). The answer carries
+`iconUrl` and `icons`, the URLs of five variants that the **media worker** renders on demand (always
+`image/png`) from that one image; Core builds the URLs, so the kit never learns the suffixes:
+
+| Variant         | What it is                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `favicon32`     | 32 px, transparent (`/icon-32`)                                                                       |
+| `appleTouch180` | 180 px flattened onto the background colour (`/icon-180?bg=`; iOS has no alpha)                       |
+| `icon192`       | 192 px, transparent, for the web app manifest                                                         |
+| `icon512`       | 512 px, transparent, for the web app manifest                                                         |
+| `maskable512`   | artwork at 60% of the side, centred on the background colour (`/icon-maskable-512?bg=`), Android-safe |
+
+**The build does no image processing.** It writes one file, `site.webmanifest` (same-origin JSON,
+as browsers require: `name`, `short_name`, `icons` with the maskable one marked `purpose:
+"maskable"`, `theme_color`, `background_color`, `display: "standalone"`, `start_url`), to the static
+output (`.output/public`) when the server build is compiled and again after prerender. The module
+adds `<link rel="icon" type="image/png" sizes="32x32">` and `<link rel="apple-touch-icon">` pointing
+at the media URLs, `<link rel="manifest">` and `<meta name="theme-color">` to **every** page's head.
+No `favicon.ico` is generated: the theme's own `public/favicon.ico` stays the root fallback.
+
+Defaults are resolved by the build, not by Core: the theme colour is the primary design token
+(the platform's resolved catalog, else the theme's own `tokens.json`), and the short name is the
+site name (the platform SEO read's `site.name`, else the `app.head.title` of the Nuxt config, else the theme's `package.json` name) cut to 12
+characters. With no site name known, the manifest simply omits `name`/`short_name`.
+
+**When nothing is written.** An unset icon, a failed read or a response that is not the documented
+shape all end the same way: one warning at most (none for "unset"), no file, no tags. The theme's
+own `public/` files and head tags are then what ships.
+
+**Things a theme should know.**
+
+- When icons are set they replace the theme's own `icon`/`shortcut icon`/`apple-touch-icon`/
+  `manifest` links in `app.head` (and its `theme-color` meta), so the merchant's icons never sit
+  beside the theme's. Tags a theme adds at runtime with `useHead` are not touched, so keep icon tags
+  in `app.head` or leave the files in `public/` with no tags, as the starter does.
+- `nuxi dev` writes nothing — there is no static output to serve it from.
+- The icon images are served by the media CDN, not the storefront's origin, so they are only as
+  available as the CDN. `sharp` was removed from `@eldrajs/theme-nuxt`: native image processing in
+  every theme build was fragile (optional binaries, libc/arch, install scripts) and is unnecessary
+  now that the media worker renders the variants.
+
+## Built-in analytics
+
+A deployed Nuxt theme reports to the organisation's Studio analytics with no code: `@eldrajs/theme-nuxt`
+loads the Eldra tracker (`<gateway>/js/script.js`, the tag `analyticsTrackerScript` in `@eldrajs/sdk`
+describes) and the platform counts pageviews, including client-side navigations (the script patches
+`history.pushState`, so no router hook is involved).
+
+**When it runs.** The build decides: only a **production** build (the default; not `ELDRA_BUILD_TARGET=preview`) with an
+organisation id (`ELDRA_ORG_ID`) and no opt-out reports. Never `nuxi dev`, never a preview build (the
+Studio preview host's), never a credential-less build. The browser decides the last thing: the tag is
+added by a client plugin, not written into the HTML, because the preview serves the same bundle in an
+iframe; a document framed by an allowed Studio origin (`studioOrigins`) never loads it. A live site
+embedded in someone else's frame still reports.
+
+**Options.** `eldra: { analytics }` in `nuxt.config.ts`:
+
+| Option                       | Effect                                                                                                                                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analytics: false`           | Opts out (also `{ enabled: false }` or `ELDRA_ANALYTICS=off`). No tag, and `useEldraAnalytics().track` is a no-op.                                                                                      |
+| `analytics: { eventOrigin }` | A bare origin (`https://shop.example`, no path) that receives events instead of the gateway: becomes the tag's `data-api`. Also `ELDRA_ANALYTICS_ORIGIN`. An invalid value is warned about and ignored. |
+
+The module does not serve a first-party proxy; `eventOrigin` only names one that exists. Without it,
+events go to the gateway cross-origin, which ad blockers may drop.
+
+**Events must come from a registered origin.** The platform drops an event whose `Origin` is not one of the
+organisation's storefront origins (Studio, General settings, _Storefront origins_) without an error, so a
+new domain or a `*.pages.dev` URL shows nothing until it is registered.
+
+**Custom events.** `useEldraAnalytics()` (auto-imported) returns `{ track(name, props?), enabled }`. Props
+are stringified, `null`/`undefined` ones are dropped, and they are cut to the platform's limits (30
+entries, keys 60 bytes, values 300 bytes; names 120). It queues up to 50 events until the script has
+loaded and is a no-op on the server and wherever tracking is off. `pageview` is rejected: the script owns
+it. The framework-free core is `createAnalytics` in `@eldrajs/theme-core`.
+
+The starter theme sends these (`examples/starter-nuxt/app/storefront/analytics.ts`, a wrapper around the
+storefront source, so no block sends or forgets one). Values are major units with `.` as the decimal
+separator, `currency` is ISO 4217:
+
+| Event              | Props                                                       | Sent when                                                                                                        |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `product_view`     | `product_id`, `handle`, `variant_id`, `value`, `currency`   | The product page's product loads, once per visit                                                                 |
+| `add_to_cart`      | `product_id`, `variant_id`, `quantity`, `value`, `currency` | A cart add succeeded, or a quantity went up, or a removal was undone                                             |
+| `remove_from_cart` | same                                                        | A cart line removal succeeded, or a quantity went down                                                           |
+| `begin_checkout`   | `cart_id`, `item_count`, `value`, `currency`                | The shopper follows the Check out link                                                                           |
+| `search`           | `query` (trimmed, 100 characters), `result_count`           | A search result for the typed query settled (800 ms), once per query across the header panel and the search page |
+
+`purchase` is never sent from the browser; it belongs to the order module. The platform stores these events
+but Studio's analytics do not report them yet.
+
+**What is collected, for your privacy notice.** Technically: no cookie and nothing in `localStorage` or
+`sessionStorage` is written by the tracker or by `useEldraAnalytics`. A visitor is a salted hash that
+rotates daily, computed by the platform from the request, never an identifier kept in the browser. A
+browser can opt itself out by setting `localStorage.eldra_ignore = 'true'`, which the script reads and
+never writes. Whether that means no consent banner is a legal judgment for the site owner; this section
+states only the technical facts. (The starter's own wishlist and recently-viewed lists use
+`localStorage` for the shopper's features, not for analytics.)
 
 ## More
 

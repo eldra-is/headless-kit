@@ -485,7 +485,7 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <button
       ref="triggerRef"
       v-bind="$attrs"

@@ -189,6 +189,16 @@ function countPill(control: DOMWrapper<Element>): Element | null {
   return siblings.find((element) => element !== control.element) ?? null;
 }
 
+/** A mouse pointer entering or leaving an element; `NavMenu` ignores touch and pen. */
+function mouse(target: Element, type: 'pointerenter' | 'pointerleave'): void {
+  target.dispatchEvent(new PointerEvent(type, { pointerType: 'mouse' }));
+}
+
+/** `NavMenu`'s root, the Menu button's parent: the element a pointer leaves when it leaves the menu. */
+function menuRoot(wrapper: { get: (selector: string) => DOMWrapper<Element> }): Element {
+  return wrapper.get('[data-part="toggle"]').element.parentElement!;
+}
+
 describe('header block (navigation apiId)', () => {
   afterEach(() => {
     window.history.pushState({}, '', '/');
@@ -250,7 +260,7 @@ describe('header block (navigation apiId)', () => {
         { kind: 'url', url: '/pages/visit', label: 'Visit' },
       ],
     });
-    const rows = wrapper.findAll('nav ul li');
+    const rows = wrapper.findAll('[data-part="item"]');
     expect(rows).toHaveLength(1);
     expect(rows[0]!.text()).toBe('Visit');
   });
@@ -311,13 +321,13 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('labels the primary navigation landmark', () => {
-    // Exactly one `<nav>` — the bar's own row. The drawer's copy of the link list is a plain
-    // `<div>`/`<ul>` with no `nav` landmark of its own: with no real stylesheet loaded, jsdom/axe
-    // cannot tell "hidden below 64rem" from "visible", so a second identically-labelled `nav`
-    // would trip axe's `landmark-unique` rule the moment both exist in the same render.
+    // One landmark in the bar; the drawer's copy stays out of the page inside the closed `<dialog>`.
     const wrapper = mountBlock(resolved.data);
     const navs = wrapper.findAll('nav[aria-label="Primary navigation"]');
-    expect(navs).toHaveLength(1);
+    expect(navs.filter((nav) => nav.element.closest('dialog') === null)).toHaveLength(1);
+    for (const nav of navs.filter((nav) => nav.element.closest('dialog') !== null)) {
+      expect((nav.element.closest('dialog') as HTMLDialogElement).open).toBe(false);
+    }
   });
 
   it('establishes its own @container context on the root, so @tablet:/@content: classes measure the block’s own width', () => {
@@ -354,27 +364,29 @@ describe('header block (navigation apiId)', () => {
   });
 
   describe('mega-menu keyboard', () => {
-    it('Enter/Space toggles the trigger; hover alone never opens it; opening one closes the other', async () => {
+    // Enter/Space are a native button's click, which jsdom never synthesises; `@eldrajs/ui`'s browser spec presses them.
+    it('a trigger toggles on activation; hover alone never opens it; opening one closes the other', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       // Locate the two mega-menu triggers by their accessible label text.
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       const ceramics = wrapper.findAll('button').find((b) => b.text().includes('Ceramics'))!;
 
       expect(knitwear.attributes('aria-expanded')).toBe('false');
-      await knitwear.trigger('mouseenter');
+      mouse(knitwear.element, 'pointerenter');
+      await nextTick();
       expect(knitwear.attributes('aria-expanded')).toBe('false'); // nothing opens on hover alone (no wait)
-      await knitwear.trigger('mouseleave');
+      mouse(knitwear.element, 'pointerleave');
 
-      await knitwear.trigger('keydown', { key: 'Enter' });
+      await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
 
       // Opening the other one closes the first.
-      await ceramics.trigger('keydown', { key: ' ' });
+      await ceramics.trigger('click');
       expect(ceramics.attributes('aria-expanded')).toBe('true');
       expect(knitwear.attributes('aria-expanded')).toBe('false');
 
       // Toggling the same trigger again closes it.
-      await ceramics.trigger('keydown', { key: 'Enter' });
+      await ceramics.trigger('click');
       expect(ceramics.attributes('aria-expanded')).toBe('false');
 
       wrapper.unmount();
@@ -387,29 +399,32 @@ describe('header block (navigation apiId)', () => {
         const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
         const panel = () => wrapper.find(`#${knitwear.attributes('aria-controls')}`);
 
-        await knitwear.trigger('mouseenter');
+        mouse(knitwear.element, 'pointerenter');
         vi.advanceTimersByTime(160);
         await nextTick();
         expect(knitwear.attributes('aria-expanded')).toBe('true');
 
-        // Crossing from the trigger into the panel keeps it open.
-        await knitwear.trigger('mouseleave');
-        await panel().trigger('mouseenter');
+        // Trigger to panel never leaves the menu; straying out and back within the grace keeps it open.
+        mouse(knitwear.element, 'pointerleave');
+        mouse(menuRoot(wrapper), 'pointerleave');
+        vi.advanceTimersByTime(100);
+        mouse(menuRoot(wrapper), 'pointerenter');
         vi.advanceTimersByTime(300);
         await nextTick();
+        expect(panel().isVisible()).toBe(true);
         expect(knitwear.attributes('aria-expanded')).toBe('true');
 
-        // Leaving the panel closes what hover opened.
-        await panel().trigger('mouseleave');
+        // Leaving the menu closes what hover opened.
+        mouse(menuRoot(wrapper), 'pointerleave');
         vi.advanceTimersByTime(160);
         await nextTick();
         expect(knitwear.attributes('aria-expanded')).toBe('false');
 
-        // A panel opened by Enter is not hover-owned: the pointer leaving does not close it.
-        await knitwear.trigger('keydown', { key: 'Enter' });
+        // A panel opened by a click is not hover-owned: the pointer leaving does not close it.
+        await knitwear.trigger('click');
         expect(knitwear.attributes('aria-expanded')).toBe('true');
-        await knitwear.trigger('mouseenter');
-        await knitwear.trigger('mouseleave');
+        mouse(knitwear.element, 'pointerenter');
+        mouse(menuRoot(wrapper), 'pointerleave');
         vi.advanceTimersByTime(300);
         await nextTick();
         expect(knitwear.attributes('aria-expanded')).toBe('true');
@@ -446,7 +461,7 @@ describe('header block (navigation apiId)', () => {
       expect(spacer.classes()).toContain('border-b');
       expect(spacer.classes()).toContain('border-transparent');
       const reserved = spacer.get('div');
-      const bar = wrapper.get('header nav');
+      const bar = wrapper.get('[data-eldra-header-bar]');
       for (const height of ['h-16', '@content:h-[4.5rem]']) {
         expect(bar.classes()).toContain(height);
         expect(reserved.classes()).toContain(height);
@@ -490,7 +505,7 @@ describe('header block (navigation apiId)', () => {
 
       // In use: an open mega-menu keeps the bar on screen through a scroll-down …
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
-      await knitwear.trigger('keydown', { key: 'Enter' });
+      await knitwear.trigger('click');
       await scrollTo(900);
       expect(header.classes()).not.toContain('-translate-y-full');
       await knitwear.trigger('keydown', { key: 'Escape' });
@@ -975,7 +990,7 @@ describe('header block (navigation apiId)', () => {
           panelLinks(wrapper, knitwear)[0]!.element.focus();
 
           // The pointer has come to rest on the next trigger: its 150ms open is armed, not fired.
-          await ceramics.trigger('mouseenter');
+          mouse(ceramics.element, 'pointerenter');
           // Focus leaves the header's menus, which closes the open panel…
           wrapper.get('a[data-eldra-header-focus]').element.focus();
           await nextTick();
@@ -997,7 +1012,7 @@ describe('header block (navigation apiId)', () => {
           const wrapper = mountBlock(resolved.data, { attachTo: document.body });
           const knitwear = triggerFor(wrapper, 'Knitwear');
 
-          await knitwear.trigger('mouseenter');
+          mouse(knitwear.element, 'pointerenter');
           vi.advanceTimersByTime(160);
           await nextTick();
           expect(knitwear.attributes('aria-expanded')).toBe('true');
@@ -1005,7 +1020,7 @@ describe('header block (navigation apiId)', () => {
           // Focus has arrived inside what hover opened, so the pointer no longer owns it: closing
           // on the way out would strand that focus on a link the panel has just hidden.
           panelLinks(wrapper, knitwear)[0]!.element.focus();
-          await knitwear.trigger('mouseleave');
+          mouse(menuRoot(wrapper), 'pointerleave');
           vi.advanceTimersByTime(300);
           await nextTick();
           expect(knitwear.attributes('aria-expanded')).toBe('true');
@@ -1045,8 +1060,10 @@ describe('header block (navigation apiId)', () => {
 
       const dialog = wrapper.get('dialog');
       expect(dialog.attributes('open')).toBe('');
-      // The first row of the drawer's own list — a disclosure button (Knitwear has a mega-menu).
-      const firstRow = wrapper.get('dialog ul li:first-child button, dialog ul li:first-child a');
+      // The first row of the drawer's own list — an accordion row (Knitwear has a mega-menu).
+      const firstRow = wrapper.get(
+        'dialog ul li:first-child summary, dialog ul li:first-child button, dialog ul li:first-child a'
+      );
       expect(document.activeElement).toBe(firstRow.element);
       wrapper.unmount();
     });
@@ -1347,6 +1364,92 @@ describe('header block (navigation apiId)', () => {
     expect(other.attributes('aria-current')).toBeUndefined();
   });
 
+  it('marks a current page inside a mega-menu on its link and on the trigger that holds it', async () => {
+    window.history.pushState({}, '', '/collections/womens-sweaters');
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+    const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+    expect(knitwear.attributes('data-current')).toBe('');
+    const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+    const current = panel.findAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]!.attributes('href')).toBe('/collections/womens-sweaters');
+    wrapper.unmount();
+  });
+
+  it('routes a same-site row and leaves an external one a plain anchor, opening a new tab when asked', () => {
+    const wrapper = mountBlock({
+      ...resolved.data,
+      links: [
+        { kind: 'url', url: '/journal', label: 'Journal' },
+        {
+          kind: 'url',
+          url: 'https://example.com/stockists',
+          label: 'Stockists',
+          openInNewTab: true,
+        },
+      ],
+    });
+    const routed = wrapper
+      .findAllComponents({ name: 'NuxtLink' })
+      .map((link) => link.props('to') as string);
+    expect(routed).toContain('/journal');
+    expect(routed).not.toContain('https://example.com/stockists');
+    const external = wrapper.get('[data-part="link"][href="https://example.com/stockists"]');
+    expect(external.attributes('target')).toBe('_blank');
+    expect(external.attributes('rel')).toBe('noopener noreferrer');
+  });
+
+  it('takes no room for the View all row under a heading that goes nowhere', async () => {
+    const wrapper = mountBlock({
+      ...resolved.data,
+      links: [
+        {
+          kind: 'none',
+          label: 'Workshop',
+          children: [{ kind: 'url', url: '/journal', label: 'Journal' }],
+        },
+      ],
+    });
+    const trigger = wrapper.findAll('button').find((b) => b.text().includes('Workshop'))!;
+    // Ungrouped children still make a sheet across the header, not a dropdown under the trigger.
+    expect(wrapper.get(`#${trigger.attributes('aria-controls')}`).classes()).toContain('inset-x-0');
+    const footer = wrapper.get(`#${trigger.attributes('aria-controls')} [data-part="footer"]`);
+    // `:empty` as a browser reads it (jsdom counts Vue's empty anchors; `@eldrajs/ui`'s browser spec proves it).
+    expect(footer.element.children).toHaveLength(0);
+    expect(footer.element.textContent).toBe('');
+    expect(footer.classes()).toContain('empty:hidden');
+  });
+
+  it('is axe-clean in every variant with the drawer open, and with a mega-menu open where the bar has one', async () => {
+    for (const variant of ['default', 'centered', 'minimal']) {
+      const wrapper = mountBlock({ ...resolved.data, variant }, { attachTo: document.body });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'));
+      if (variant !== 'minimal') {
+        await knitwear!.trigger('click');
+        expect(knitwear!.attributes('aria-expanded'), variant).toBe('true');
+        expect(await axe(wrapper.element), variant).toHaveNoViolations();
+        await knitwear!.trigger('click');
+      }
+      await wrapper.get('[data-part="toggle"]').trigger('click');
+      const dialog = wrapper.get('dialog[open]');
+      expect(dialog.attributes('aria-label'), variant).toBe('Menu');
+      // The open drawer is modal: everything behind it is inert, so the dialog is what is checked.
+      expect(await axe(dialog.element), variant).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+
+  it('minimal variant shows the Menu button, word and all, at every width and no bar of links', () => {
+    const wrapper = mountBlock({ ...resolved.data, variant: 'minimal' });
+    expect(wrapper.find('[data-part="nav"]').exists()).toBe(false);
+    const toggle = wrapper.get('[data-part="toggle"]');
+    expect(toggle.text()).toBe('Menu');
+    expect(toggle.classes().some((token) => token.endsWith(':hidden'))).toBe(false);
+    // The default variant hides it once the bar has room for its links.
+    const bar = mountBlock(resolved.data).get('[data-part="toggle"]');
+    expect(bar.classes()).toContain('@content:hidden');
+  });
+
   it('renders 8 links with no overflow markup errors', async () => {
     const eightLinks = [
       ...resolved.data.links,
@@ -1376,49 +1479,53 @@ describe('header block (navigation apiId)', () => {
     // jsdom computes no layout, so the proof that the panel really lands on the brand's left edge
     // and the actions' right edge is the browser case in `test/prerenderRefresh.browser.spec.ts`.
     // What is checkable here is the arrangement that produces it: the panel is pinned to the
-    // header's own content box — the `<nav>` — rather than to the item that opened it, and its
+    // header's own content box — the bar's grid — rather than to the item that opened it, and its
     // columns are the container's 12-column grid.
     it('pins the panel to the header container, not to the trigger that opened it', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-      const nav = wrapper.get('nav');
-      // The positioning context: the panel's `left-0 right-0` only means "the header container"
-      // because this is the nearest positioned ancestor.
-      expect(nav.classes()).toContain('relative');
+      // The bar's grid is the panel's positioning box; the menu's own root takes no box at all.
+      expect(wrapper.get('[data-eldra-header-bar]').classes()).toContain('relative');
+      const root = [...menuRoot(wrapper).classList];
+      expect(root).toContain('contents');
+      expect(root).not.toContain('relative');
       // …and no row of the bar may reclaim it, or the panel would hang under its own item again.
-      for (const row of wrapper.findAll('nav > ul > li')) {
+      for (const row of wrapper.findAll('[data-part="item"]')) {
         expect(row.classes()).not.toContain('relative');
       }
 
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
       const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
-      expect(panel.attributes('data-eldra-mega-panel')).toBe('');
-      for (const token of ['absolute', 'top-full', 'left-0', 'right-0']) {
+      // Flush under the bar: no offset of its own.
+      for (const token of ['absolute', 'top-full', 'inset-x-0', 'pt-0']) {
         expect(panel.classes()).toContain(token);
       }
       // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
       expect(panel.classes()).not.toContain('w-screen');
       expect(panel.classes().some((token) => token.startsWith('max-w-'))).toBe(false);
-      // The hairline above the panel is the bar's own full-bleed bottom border, so the panel takes
-      // no top border of its own; the other three sides are the border token, the bottom corners
-      // are rounded, and the shadow falls below.
+      // The bar's own bottom border is the sheet's top edge, so only the other three sides and corners are drawn.
+      const sheet = panel.get('[data-part="content"]').classes();
       for (const token of [
         'border',
         'border-t-0',
         'border-border',
+        'rounded-none',
         'rounded-b-lg',
-        'shadow-float',
+        'shadow-(--eldra-shadow-float)',
+        'p-6',
+        '@wide:p-8',
       ]) {
-        expect(panel.classes()).toContain(token);
+        expect(sheet).toContain(token);
       }
 
       // The container's grid: 12 columns, 24px gutters, and an inset that keeps every column off
       // the panel's own edges — 24px, 32px once the container passes `wide`. The browser case
       // measures what this produces; here it is only the arrangement.
-      for (const token of ['grid', 'grid-cols-12', 'gap-6', 'p-6', '@wide:p-8']) {
-        expect(panel.classes()).toContain(token);
+      const columns = panel.get('[data-part="columns"]').classes();
+      for (const token of ['grid', 'grid-cols-12', 'gap-6']) {
+        expect(columns).toContain(token);
       }
-      expect(panel.classes()).not.toContain('py-8');
+      expect(sheet).not.toContain('py-8');
       wrapper.unmount();
     });
 
@@ -1448,10 +1555,12 @@ describe('header block (navigation apiId)', () => {
       expect(viewAll.text()).toBe('View all');
       // Self-descriptive out of context (2.4.4), opening with the visible text (2.5.3).
       expect(viewAll.attributes('aria-label')).toBe('View all Knitwear');
-      // Right-aligned under a rule that spans the panel's content width, 16px above it.
-      for (const token of ['justify-end', 'border-t', 'border-border', 'pt-4', 'col-span-12']) {
-        expect([...viewAll.element.parentElement!.classList]).toContain(token);
+      // Right-aligned under a rule across the content width: it follows the columns, outside their grid.
+      const row = viewAll.element.parentElement!;
+      for (const token of ['justify-end', 'border-t', 'border-border', 'pt-4']) {
+        expect([...row.classList]).toContain(token);
       }
+      expect(row.previousElementSibling?.getAttribute('data-part')).toBe('columns');
       // The trailing arrow the theme's other "view all" links carry, drawn outside the label so
       // the underline runs under the words only.
       expect(viewAll.find('[data-part="arrow"]').exists()).toBe(true);
@@ -1472,18 +1581,15 @@ describe('header block (navigation apiId)', () => {
 
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
-      const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
-      expect(panel.attributes('style')).toContain('background: var(--eldra-header-surface)');
+      const sheet = wrapper.get(`#${knitwear.attributes('aria-controls')} [data-part="content"]`);
+      expect(sheet.classes()).toContain('bg-(--eldra-header-surface)');
       // And no ground token of its own left behind to drift away from the bar's.
-      expect(panel.classes()).not.toContain('bg-background');
+      expect(sheet.classes()).not.toContain('bg-background');
       wrapper.unmount();
     });
 
-    it('eases the panel in and out, with the rise dropped under reduced motion', async () => {
-      // A `<Transition>` applies its from/active classes in the same patch that opens or closes the
-      // panel, one frame before the to-classes land, so this is the frame they can be read in.
-      // jsdom computes no transition at all, which is also why the leave's own duration is proven in
-      // the browser spec instead; what is checkable here is the wiring and the numbers on it.
+    it('eases the panel in and fades it out, both on the motion tokens', async () => {
+      // Leave classes land in the patch that closes the panel; the browser spec proves the fade itself.
       //
       // `stubs: { transition: false }` is the one thing this test needs that no other does:
       // `@vue/test-utils` stubs `<Transition>` by default, and a stub applies no classes at all.
@@ -1504,25 +1610,18 @@ describe('header block (navigation apiId)', () => {
 
       await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
-      for (const token of [
-        'opacity-0',
-        'motion-safe:-translate-y-1',
-        'transition-[opacity,transform]',
-        'duration-[150ms]',
-        'ease-out',
-      ]) {
-        expect(panel().classes(), 'enter').toContain(token);
-      }
+      expect(panel().get('[data-part="content"]').classes(), 'enter').toContain(
+        'animate-eldra-popover-in'
+      );
 
       await knitwear.trigger('click');
       // The panel is still there, and still addressable, while it leaves — that is the whole point
-      // of a `<Transition>` over a bare `v-show` — but it can no longer be pointed at, so a pointer
-      // crossing it on its way out never clears the close timer and pulls it back open.
+      // of a `<Transition>` over a bare `v-show` — but a click on the fading sheet goes through it.
       expect(knitwear.attributes('aria-expanded')).toBe('false');
       for (const token of [
         'pointer-events-none',
-        'transition-[opacity,transform]',
-        'duration-[120ms]',
+        'transition-opacity',
+        'duration-fast',
         'ease-in',
       ]) {
         expect(panel().classes(), 'leave').toContain(token);
@@ -1778,9 +1877,9 @@ describe('header block (navigation apiId)', () => {
     // together.
     it('puts one 0.25rem gap everywhere in the bar’s grid — never a larger one between columns', () => {
       const wrapper = mountBlock(resolved.data);
-      const nav = wrapper.get('nav[aria-label="Primary navigation"]');
-      expect(nav.classes()).toContain('gap-1');
-      expect(nav.classes().some((cls) => cls.includes('gap-4'))).toBe(false);
+      const bar = wrapper.get('[data-eldra-header-bar]');
+      expect(bar.classes()).toContain('gap-1');
+      expect(bar.classes().some((cls) => cls.includes('gap-4'))).toBe(false);
 
       const actions = wrapper.get('[data-eldra-header-actions]');
       expect(actions.classes()).toContain('gap-1');
@@ -1789,7 +1888,7 @@ describe('header block (navigation apiId)', () => {
     it('gives the call to action its own 0.75rem from the cart, not only the row’s 0.25rem gap', () => {
       const wrapper = mountBlock(resolved.data);
       const actions = wrapper.get('[data-eldra-header-actions]');
-      const cta = wrapper.findAll('a, button').find((el) => el.text() === mock.ctaLabel)!;
+      const cta = actions.findAll('a, button').find((el) => el.text() === mock.ctaLabel)!;
       // 0.5rem of margin on top of the row's own 0.25rem `gap-1` — spec "Header" -> Layout, "From
       // 64rem": the call to action "sits 0.75rem after the cart".
       expect(cta.classes()).toContain('@content:ml-2');

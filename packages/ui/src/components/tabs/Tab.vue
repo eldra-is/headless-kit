@@ -137,6 +137,7 @@ const indicatorClass = computed(() =>
     ref="el"
     type="button"
     role="tab"
+    data-eldra-ui
     data-part="tab"
     :aria-selected="isSelected ? 'true' : 'false'"
     :aria-controls="context.panelId(value)"

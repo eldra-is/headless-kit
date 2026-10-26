@@ -1,6 +1,7 @@
 // @eldrajs/theme-core
 export { encodeStega, decodeStega, stripStega, type StegaMeta } from './stega';
 export { createEldraClient } from './client';
+export * from './analytics';
 export * from './clientTypes';
 export { encodeEntryDataStega, projectEntryDataLocale } from './stegaWalk';
 export { resolvePagePath, type PageLike } from './pagePath';
@@ -60,3 +61,14 @@ export {
   type BlockFieldDefinition,
   type BlockFieldsMap,
 } from './blockFields';
+export {
+  blockApiIdOf,
+  getRegisteredThemeId,
+  registerThemeId,
+  RESERVED_THEME_IDS,
+  THEME_ID_PATTERN,
+  themeSchemaApiId,
+} from './themeId';
+export * from './seo';
+export * from './sitemap';
+export * from './structuredData';

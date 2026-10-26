@@ -10,8 +10,9 @@ import { startMockDeployApi, type MockDeployApi } from './mockDeployApi';
 import { startMockGateway, type MockGateway } from './mockGateway';
 
 const MANIFEST = JSON.stringify({
-  manifestVersion: 1,
+  manifestVersion: 2,
   theme: {
+    id: 'test-theme',
     name: 'test-theme',
     version: '0.0.1',
     framework: 'nuxt',
@@ -55,6 +56,8 @@ describe('eldra-theme CLI', () => {
     expect(packageJson.dependencies['@eldrajs/theme-nuxt']).toBe('^0.1.0');
     expect(packageJson.dependencies['@eldrajs/theme-vue']).toBe('^0.1.0');
     expect(packageJson.devDependencies['@eldrajs/theme-cli']).toBe('^0.1.0');
+    // The scaffold declares the theme's id; a new theme changes it to its own.
+    expect((packageJson as { eldra?: { themeId?: string } }).eldra?.themeId).toBe('starter');
 
     const repeated = await run(['init', target], dir);
     expect(repeated.exitCode).toBe(1);
@@ -86,6 +89,28 @@ describe('eldra-theme CLI', () => {
     expect(scaffoldBlock({ themeDir: dir, apiId: 'cta' }).created).toHaveLength(3);
     expect(() => scaffoldBlock({ themeDir: dir, apiId: 'Bad Id' })).toThrow(/apiId/);
     expect(() => scaffoldBlock({ themeDir: dir, apiId: 'cta' })).toThrow(/already exists/);
+  });
+
+  it('validate exits 1 naming eldra.themeId when the theme does not declare one', async () => {
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'tmp-theme', version: '0.0.1' })
+    );
+    mkdirSync(join(dir, 'blocks'), { recursive: true });
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('package.json: eldra.themeId — required');
+  });
+
+  it('validate exits 1 for an invalid eldra.themeId', async () => {
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'tmp-theme', version: '0.0.1', eldra: { themeId: 'Tmp Theme' } })
+    );
+    mkdirSync(join(dir, 'blocks'), { recursive: true });
+    const result = await run(['validate'], dir);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('package.json: eldra.themeId');
   });
 
   it('validate exits 1 with a precise scanner error', async () => {
@@ -380,7 +405,10 @@ describe('eldra-theme CLI', () => {
 });
 
 function writeThemePackage(dir: string): void {
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'tmp-theme', version: '0.0.1' }));
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'tmp-theme', version: '0.0.1', eldra: { themeId: 'tmp-theme' } })
+  );
 }
 
 function gatewayEnv(url: string): Record<string, string> {

@@ -38,7 +38,7 @@ describe('every custom @utility is covered by the cx() merge config', () => {
 /**
  * `cx(name, name)` above catches an utility with no class group at all, but not the sharper
  * defect `text-variant-legend`/`text-variant-pill` actually shipped with: an `@utility text-*`
- * (a type style — every one of these is a `font`/`font-size` shorthand, never a colour) that is
+ * (a type style, never a colour) that is
  * missing from `src/utils/cx.ts`'s own `text` array falls through to `tailwind-merge`'s *default*
  * built-in text-colour group instead of landing in no group at all — `cx(name, name)` still
  * collapses to one token there (a colour utility conflicts with itself too), so that probe stayed
@@ -67,4 +67,42 @@ describe('every custom text-* utility keeps stock font-size behaviour, not stock
       expect(cx(name, 'text-red-500')).toBe(`${name} text-red-500`);
     }
   );
+
+  it.each(textUtilityNames)('cx(%s, font-semibold) keeps both — a weight adjusts it', (name) => {
+    expect(cx(name, 'font-semibold')).toBe(`${name} font-semibold`);
+    expect(cx('font-medium', name)).toBe(`font-medium ${name}`);
+  });
+});
+
+// Stock tailwind-merge only knows t-shirt sizes for these scales; a key it cannot read keeps both.
+const THEME_PREFIXES: Record<string, { prefixes: string[]; stock: string }> = {
+  color: { prefixes: ['bg', 'text', 'border'], stock: 'current' },
+  font: { prefixes: ['font'], stock: 'sans' },
+  spacing: { prefixes: ['p', 'gap'], stock: '0' },
+  radius: { prefixes: ['rounded'], stock: 'none' },
+  shadow: { prefixes: ['shadow'], stock: 'none' },
+  ease: { prefixes: ['ease'], stock: 'linear' },
+  container: { prefixes: ['w', 'min-w', 'max-w', 'basis'], stock: 'full' },
+};
+const themeBlock = /^@theme \{([\s\S]*?)^\}/m.exec(source)?.[1] ?? '';
+const themeKeys = [...themeBlock.matchAll(/^\s*--([a-z]+)-([\w-]+):/gm)]
+  .filter(([, , key]) => key !== '*')
+  .map(([, namespace, key]) => [namespace!, key!] as const);
+const themeCases = themeKeys.flatMap(([namespace, key]) =>
+  (THEME_PREFIXES[namespace]?.prefixes ?? []).map(
+    (prefix) => [`${prefix}-${key}`, `${prefix}-${THEME_PREFIXES[namespace]!.stock}`] as const
+  )
+);
+
+describe('every @theme scale key merges with its own scale in cx()', () => {
+  it('knows a utility prefix for every namespace the @theme block declares', () => {
+    expect(themeKeys.length).toBeGreaterThan(20);
+    const unknown = themeKeys.filter(([namespace]) => !THEME_PREFIXES[namespace]);
+    expect(unknown).toEqual([]);
+  });
+
+  it.each(themeCases)('%s and %s replace each other', (kit, stock) => {
+    expect(cx(kit, stock)).toBe(stock);
+    expect(cx(stock, kit)).toBe(kit);
+  });
 });

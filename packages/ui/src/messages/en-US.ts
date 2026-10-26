@@ -406,6 +406,14 @@ export const enUS = {
    * hidden level rather than the spec's own three-level example.
    */
   showMoreLevels: (n: number) => (n === 1 ? 'Show 1 more level' : `Show ${n} more levels`),
+  /** `NavMenu`'s landmark name, the default for its `ariaLabel` prop. */
+  navMenuLabel: 'Main',
+  /** `NavMenu`'s narrow-screen menu button. */
+  navMenuOpen: 'Menu',
+  /** The name of the drawer `NavMenu`'s menu button opens. */
+  navMenuDrawer: 'Menu',
+  /** The link to a top-level entry's own page, first in its panel. */
+  navMenuOverview: (label: string) => `${label}: overview`,
   /** `Pagination`'s `<nav>` accessible name (spec "Pagination" → Accessibility:
    *  `<nav aria-label="Pagination">`), the default for its `ariaLabel` prop. */
   pagination: 'Pagination',
@@ -520,6 +528,35 @@ export const enUS = {
    * said "Show 0 products" while the read was in flight would be a number nobody can trust.
    */
   filterPanelShowProducts: 'Show products',
+
+  /** `SiteForm`'s submit button. The field messages below are the platform's own `422` wording. */
+  formSubmit: 'Send',
+  /** The submit button's accessible name while the submission is on its way. */
+  formSubmitting: 'Sending',
+  formLoading: 'Loading the form…',
+  formLoadFailed: 'This form can’t be shown right now.',
+  formRequired: 'This field is required.',
+  formRequiredCheckbox: 'Tick this box to continue.',
+  formInvalidEmail: 'Enter a valid email address.',
+  formInvalidNumber: 'Enter a number, for example 12 or 3.5.',
+  formInvalidUrl: 'Enter a full web address starting with http:// or https://.',
+  formInvalidOption: 'Choose one of the options.',
+  formInvalidFormat: 'Check the format of this value.',
+  formTooShort: (min: number) =>
+    `This is too short (at least ${min} ${min === 1 ? 'character' : 'characters'}).`,
+  formTooLong: (max: number) =>
+    `This is too long (at most ${max} ${max === 1 ? 'character' : 'characters'}).`,
+  /** A refusal the platform sent no message for. */
+  formRefused: 'Check your answers and try again.',
+  formRateLimited: 'Too many attempts. Wait a minute and try again.',
+  formTooLarge: 'That is more than the form can take. Shorten your answers and try again.',
+  formUnavailable: 'The form could not be sent just now. Try again in a minute.',
+  formSpamCheckRequired: 'Complete the spam check and try again.',
+  formSpamCheckFailed: 'The spam check could not load. Reload the page and try again.',
+  formSuccessTitle: 'Thank you',
+  /** A subscribing form's success: the address is confirmed from an email. */
+  formPendingTitle: 'Check your inbox',
+  formPendingMessage: 'We sent you an email. Open the link in it to confirm.',
 };
 
 /**

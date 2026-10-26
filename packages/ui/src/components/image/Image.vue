@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, useAttrs, watchEffect, type StyleValue } from 'vue';
+import { computed, useAttrs, useId, watchEffect, type StyleValue } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass, type ClassValue } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
-import type { ImageProps } from './types';
+import { scopeSizes, zoomSizes } from '../../utils/sizes';
+import type { ImageCrop, ImageProps } from './types';
 
 defineOptions({ inheritAttrs: false });
 
@@ -15,6 +16,8 @@ const props = withDefaults(defineProps<ImageProps>(), {
   fit: 'cover',
   focal: () => ({ x: 50, y: 50 }),
   zoom: 1,
+  zoomOrigin: 'band',
+  crops: () => [],
   rounded: 'none',
   caption: null,
   sizes: undefined,
@@ -68,8 +71,6 @@ const resolvedAlt = computed(() => {
   return props.alt ?? props.media?.alt ?? '';
 });
 
-const resolvedSizes = computed(() => props.sizes ?? props.media?.sizes);
-
 /** Spec "Image" → Behaviour & motion: eager + high priority for the first hero image, lazy
  * everywhere else. `decoding="async"` never blocks the first paint on the decode. */
 const loadingAttr = computed(() => (props.priority ? 'eager' : 'lazy'));
@@ -98,19 +99,7 @@ const frameClass = computed(() =>
   )
 );
 
-/**
- * The focal band a given `zoom` keeps safe (percent, 0–100 on either axis): the range a
- * `transform-origin` can sit in without pulling the scaled image away from one edge of the frame
- * and exposing the frame's own background there — which acceptance criterion "images are never
- * stretched or letterboxed" rules out. `object-fit: cover` alone can never letterbox (it always
- * fills the box, whatever `object-position` is), but a `scale()` *on top of* a cover fit can, once
- * its origin sits close enough to an edge that magnifying around it pulls the far side inward. The
- * higher the zoom, the narrower the safe band — at `zoom: 1` every point is safe (the whole 0–100
- * range); this is the same formula `@eldrajs/theme-core`'s `imageFraming.ts#focalBand` uses
- * (independently reimplemented here, in percent rather than a 0–1 fraction, because this package
- * must not depend on that one — see the repo root `CLAUDE.md`'s "Public packages never import a
- * private one"/framework-free rules — not shared code with it).
- */
+// The page builder's band (theme-core imageFraming.ts); any origin in the frame keeps it covered.
 function focalBand(zoom: number): [number, number] {
   const inset = (1 - 1 / zoom) * 50;
   return [inset, 100 - inset];
@@ -121,25 +110,107 @@ function clampToFocalBand(value: number, zoom: number): number {
   return Math.min(high, Math.max(low, value));
 }
 
-/**
- * Spec "Image" → Behaviour & motion: "The image covers the frame and is cropped, positioned at
- * the focal point and scaled by the zoom around the focal point." `object-position` always
- * follows `focal` exactly — cropping alone can never letterbox, so it needs no clamping.
- * `transform`/`transform-origin` are only added once `zoom` is actually above 1, so an untouched
- * image never carries an inert `scale(1)`; when it is, the origin is `focal` clamped into
- * `focalBand(zoom)` above, so scaling around it never uncovers the frame's own edge.
- */
-const mediaStyle = computed<StyleValue>(() => {
-  const style: Record<string, string> = {
-    objectPosition: `${props.focal.x}% ${props.focal.y}%`,
-  };
-  if (props.zoom > 1) {
-    style.transform = `scale(${props.zoom})`;
+const percent = (value: number) => `${Number(value.toFixed(4))}%`;
+
+// 'focal' sizes the media instead of scaling it: a transform would multiply the browser's pixel-rounded cover offset.
+function cropStyle(focal: { x: number; y: number }, zoom: number, rule = false) {
+  const style: Record<string, string> = { objectPosition: `${focal.x}% ${focal.y}%` };
+  if (props.zoomOrigin === 'focal') {
+    if (zoom <= 1 && !rule) return style;
+    const scale = Math.max(1, zoom);
+    return Object.assign(style, {
+      // Absolute, so the percentages resolve against the frame: older Safari ignores a relative child's `top` % in an aspect-ratio box.
+      position: 'absolute',
+      left: percent(focal.x * (1 - scale)),
+      top: percent(focal.y * (1 - scale)),
+      width: percent(scale * 100),
+      height: percent(scale * 100),
+      maxWidth: 'none',
+    });
+  }
+  if (rule) style.transform = 'none';
+  if (zoom > 1) {
+    style.transform = `scale(${zoom})`;
     style.transformOrigin =
-      `${clampToFocalBand(props.focal.x, props.zoom)}% ` +
-      `${clampToFocalBand(props.focal.y, props.zoom)}%`;
+      `${clampToFocalBand(focal.x, zoom)}% ` + `${clampToFocalBand(focal.y, zoom)}%`;
   }
   return style;
+}
+
+const mediaStyle = computed<StyleValue>(() => cropStyle(props.focal, props.zoom));
+
+interface ResolvedCrop {
+  media: string;
+  aspectRatio: string;
+  focal: { x: number; y: number };
+  zoom: number;
+  sizes?: string;
+}
+
+// Both are written into a <style> element, so anything that could close a rule or it is refused.
+const MEDIA_CONDITION = /^(?!.*(?:<\/|\/\*))[\w ().:<>=/+*-]+$/;
+const ASPECT_RATIO = /^(?:auto|[\d.]+(?: \/ [\d.]+)?)$/;
+
+const finite = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+function resolveCrop(crop: ImageCrop): ResolvedCrop | undefined {
+  const focal = crop.focal ?? props.focal;
+  const zoom = crop.zoom ?? props.zoom;
+  const aspectRatio = frameAspectRatio(crop.ratio ?? props.ratio, props.media);
+  const valid =
+    typeof crop.media === 'string' &&
+    MEDIA_CONDITION.test(crop.media.trim()) &&
+    ASPECT_RATIO.test(aspectRatio) &&
+    finite(focal?.x) &&
+    finite(focal?.y) &&
+    finite(zoom);
+  if (!valid) {
+    if (import.meta.env?.DEV) console.warn('[@eldrajs/ui] <Image> ignores an invalid crop:', crop);
+    return undefined;
+  }
+  return { media: crop.media.trim(), aspectRatio, focal, zoom, sizes: crop.sizes };
+}
+
+const crops = computed(() => props.crops.flatMap((crop) => resolveCrop(crop) ?? []));
+
+const scaledSizes = (sizes: string | undefined, zoom: number) =>
+  sizes && props.fit === 'cover' ? zoomSizes(sizes, zoom) : sizes;
+
+const resolvedSizes = computed(() => {
+  const sizes = props.sizes ?? props.media?.sizes;
+  const own = scaledSizes(sizes, props.zoom);
+  if (crops.value.length === 0) return own;
+  const scoped = crops.value.flatMap((crop) => {
+    const cropSizes = scaledSizes(crop.sizes ?? sizes, crop.zoom);
+    return cropSizes ? [scopeSizes(cropSizes, crop.media)] : [];
+  });
+  return [...scoped, ...(own ? [own] : [])].join(', ') || undefined;
+});
+
+const cropId = useId();
+const cropScope = computed(() => (crops.value.length > 0 ? cropId : undefined));
+
+const hyphenate = (property: string) => property.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+const cssString = (value: string) =>
+  `"${value.replace(/[^\w-]/g, (c) => `\\${c.codePointAt(0)!.toString(16)} `)}"`;
+
+// Later rules win in CSS and the first crop wins in `sizes`, so the rules are written last first.
+const cropCss = computed(() => {
+  const root = `[data-eldra-image-crops=${cssString(cropId)}]`;
+  return [...crops.value]
+    .reverse()
+    .map((crop) => {
+      const declarations = Object.entries(cropStyle(crop.focal, crop.zoom, true))
+        .map(([property, value]) => `${hyphenate(property)}:${value}!important`)
+        .join(';');
+      return (
+        `@media ${crop.media}{` +
+        `${root}>[data-part=frame]{aspect-ratio:${crop.aspectRatio}!important}` +
+        `${root}>[data-part=frame]>[data-part=media]{${declarations}}}`
+      );
+    })
+    .join('');
 });
 
 const mediaClass = computed(() =>
@@ -173,10 +244,13 @@ const skeletonClass = computed(() =>
 <template>
   <component
     :is="hasCaption ? 'figure' : 'div'"
+    data-eldra-ui
     data-part="root"
+    :data-eldra-image-crops="cropScope"
     :class="rootClass"
     :style="rootStyle"
   >
+    <component :is="'style'" v-if="cropScope" v-html="cropCss" />
     <div data-part="frame" :class="frameClass" :style="frameStyle">
       <div v-if="loading" data-part="skeleton" :class="skeletonClass" aria-hidden="true" />
       <video

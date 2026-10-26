@@ -725,7 +725,7 @@ const rootClass = computed(() =>
       'max-md:h-screen',
       'rounded-lg border border-border shadow-md',
       'max-md:rounded-none max-md:border-0 max-md:shadow-none',
-      'backdrop:bg-overlay',
+      'backdrop:bg-overlay focus:outline-none',
       'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     'root'
@@ -836,8 +836,8 @@ const footerClass = computed(() =>
 );
 
 const hintKeyClass =
-  'inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-border-strong ' +
-  'bg-background px-1 text-search-modal-kbd text-muted';
+  'box-border inline-flex h-5 min-w-5 items-center justify-center rounded-sm border ' +
+  'border-border-strong bg-background px-1 text-search-modal-kbd text-muted';
 const hintClass = 'inline-flex items-center gap-1.5';
 
 const liveRegionClass = computed(() => part('', 'liveRegion'));
@@ -848,6 +848,7 @@ const showClear = computed(() => text.value.length > 0);
 <template>
   <dialog
     ref="dialogEl"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-label="accessibleName"

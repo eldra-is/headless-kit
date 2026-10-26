@@ -5,6 +5,133 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The site profile carries the registered company.** `readSiteProfile`, `resolveSiteProfile` and
+  `useSiteProfile()` gain `legal` (`{name, kennitala, streetAddress, postalCode, city,
+  countryCode}` or `null`), from `GET /site/v1/site-profile` since public contract 5.1.0; a
+  platform before that reads as `null`. The starter writes it on the home `Organization` as
+  `legalName`, `taxID` and `address`.
+
+- **Prerender reads shared lists once per build (WS-406).** `nuxi generate` created a client per
+  route, so the page list, the route-template list and the category list behind link resolution
+  were read once per route (the category list about 136 times in one staging build). During a
+  prerender they are now read once per gateway, organisation and locale and shared across routes;
+  a failed read is not remembered. SSR requests and the browser are unchanged and never share
+  reads. New subpath `@eldrajs/theme-nuxt/prerender` (`memoizeForPrerender`, `prerenderMemoScope`,
+  `prerenderMemoStats`) for a theme's own build-wide reads; the build logs the counts once, and the
+  starter shares its category read with the module's (one read per locale).
+  `ELDRA_GATEWAY_URL` should be the edge API host: the edge recognises the build token, so builds
+  and browsers use the same base.
+
+- **A build sends a read-only build token for its own rate-limit bucket (WS-403, WS-409).**
+  `ELDRA_BUILD_TOKEN` (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens) is
+  sent as `X-Eldra-Build-Token` by the module's build-time reads and by the clients of a
+  `nuxi generate` prerender; never in the browser, `nuxi dev` or a deployed server answering a
+  visitor. The site deploy token is never read or sent by the build: keep `ELDRA_DEPLOY_TOKEN` on the
+  `eldra-theme deploy` job only. The starter's GitHub, GitLab and Bitbucket pipelines are split
+  into a build job (with the build token, uploading `.output/public`) and a deploy job (the pinned
+  CLI against that artifact, no project install) so build-time code never sees the deploy token. The token is stored in no runtime config (public or private) and appears in no build output,
+  server bundle included: it is read from the environment at call time. New auto-import
+  `useEldraBuildToken()` returns it (prerender only) for a theme's own `@eldrajs/sdk` client.
+
+- **Baked form definitions keep `consentText` (WS-386).** `toFormDefinition` carries a subscribing
+  form's consent sentence per locale and refuses a malformed one, like the other localized texts.
+
+- **The analytics tracker never loads on `localhost` or `*.previews.eldra.dev` (WS-387).** A local
+  `nuxi generate` is a production build now, so the browser skips the tracker on a developer's
+  machine and on the Studio preview host. `ELDRA_BUILD_TARGET` is also read once in `setup()`, so a
+  mistyped value warns once, in context, instead of at import.
+
+- **Baked form definitions accept `number` and `url` fields (WS-386).** `readFormDefinitions` no
+  longer drops a form that has one.
+
+- **Breaking: a build is production unless `ELDRA_BUILD_TARGET=preview` (WS-387).** The marker
+  flipped. Before, only `ELDRA_BUILD_TARGET=production` was a production build and everything else
+  was a noindex preview; now an unset or empty variable is production, `preview` is the preview
+  (noindex, `robots.txt` `Disallow: /`, no sitemap, no analytics), and any other value warns and
+  counts as production. `nuxi dev` is unchanged: always a preview, with no tracker. A pipeline that
+  must not be indexed sets `ELDRA_BUILD_TARGET=preview`; the starter's CI files no longer set
+  `production`. The `buildTarget` module option still overrides.
+
+- **`_redirects` rules that would match `/.eldra/manifest.json` are dropped (WS-384).** A theme's own
+  `public/_redirects` catch-all (or a platform rule) used to make every deploy fail the validator's
+  manifest check; the build now drops such a rule with one warning naming it and ships the rest.
+- **Form definitions are read at build time and baked in (WS-386).** The module reads
+  `GET /site/v1/forms/{key}` for every key in the new `formSeeds` option (also passed to
+  `@eldrajs/vite-plugin-theme`) and the new `forms: string[]` option, once per `nuxi generate`, each key
+  independently fail-soft — one warning naming the key, never a failed build, and one form's failure
+  never costs another its definition. The validated definitions are written to
+  `runtimeConfig.public.eldra.forms` and read with the new auto-imported `useEldraForms()`; the starter's
+  `forms.definition` serves a baked key with no request and fetches any other when the page opens.
+  `nuxi dev` reads none.
+- **Built-in analytics: the Eldra tracker, `useEldraAnalytics`, the `analytics` option.** A production
+  build (`ELDRA_BUILD_TARGET=production`) with an organisation id loads the tracker
+  (`analyticsTrackerScript` from `@eldrajs/sdk`) through a client plugin, so a deployed site reports
+  pageviews, SPA navigations included, with no code. Never `nuxi dev`, a preview build, a credential-less
+  build or a Studio preview frame. New module option `analytics: false | { enabled?, eventOrigin? }`
+  (env `ELDRA_ANALYTICS=off`, `ELDRA_ANALYTICS_ORIGIN`) on `runtimeConfig.public.eldra.analytics`; an
+  invalid `eventOrigin` is warned about and ignored. New auto-import `useEldraAnalytics()` returns
+  `{ track(name, props?), enabled }`, a no-op wherever tracking is off. No cookie or storage identifier.
+  Documented in `docs/themes.md`.
+
+- **Structured data: `useStructuredData`, `provideStructuredData`, `useSiteProfile`.** Writes a
+  page's schema.org JSON-LD (nodes from `@eldrajs/theme-core`'s builders) into the head as one
+  `<script type="application/ld+json">` under a fixed key, for `enabled` pages only (pass
+  `!seo.noindex`). New module option `structuredData: { disable }` (`true`, or the node kinds
+  `product`, `breadcrumb`, `itemList`, `organization`, `website`) on `runtimeConfig.public.eldra`;
+  editing a node at runtime is `provideStructuredData((type, node, { path, locale }) => node |
+  null)`. The build reads the shop's profile from `GET /site/v1/site-profile` (`readSiteProfile`,
+  `./runtime/siteProfile.ts`; fail-soft like the other platform reads, build-only) and carries it,
+  with the site name and the site icon's 512 px rendering filling its gaps, on
+  `runtimeConfig.public.eldra.siteProfile`; `useSiteProfile()` returns it with the site origin.
+  Documented in `docs/theme-seo.md`.
+
+- **`sitemap.xml` and `robots.txt`, generated from the prerendered routes.** `nuxi generate` writes
+  both into the static output. A preview build (the default) writes `Disallow: /` and no sitemap; a
+  production build (`ELDRA_BUILD_TARGET=production`) writes `Allow: /`, the merchant's own lines
+  and the sitemap line, and a sitemap with every content path once per locale, `xhtml:link`
+  hreflang alternates plus `x-default`, `lastmod` from the entry's or product's `updatedAt`, noindex
+  pages left out and a same-origin `seo.canonicalUrl` as the `loc`. It splits into a
+  `sitemapindex` and children past 50,000 URLs or 50 MiB. The origin is `ELDRA_SITE_URL`, else the
+  production URL from a seventh fail-soft read, `GET /site/v1/crawl` (`readCrawlSettings`,
+  `./runtime/crawl.ts`, production builds only); with neither, nothing is written and one line says
+  why. A theme's own `public/robots.txt` or `public/sitemap.xml` is never replaced (one line, `[eldra]
+  <file> generation skipped: theme ships its own`). New module option `sitemap` (`false`, or
+  `{ maxUrls, maxBytes }`). The head's hreflang `<link>`s are absolute when the origin is known. The
+  runtime `eldraSeo.siteUrl` now follows the same origin. Documented in `docs/theme-seo.md`.
+
+- **Page titles and SEO metadata, set in Studio.** A sixth fail-soft read, `GET /site/v1/seo`
+  (`readSeo`, `./runtime/seo.ts`), carries the site's title pattern, description, share image,
+  Twitter handle and per-context patterns (one warning and the default pattern
+  `{{page.title}} · {{site.name}}` when it fails). A new auto-imported composable,
+  `useEldraSeo(context, data, options?)`, sets `<title>`, description, canonical link, `og:*`,
+  `twitter:*` and `robots` through the resolver in `@eldrajs/theme-core`. New module options
+  `siteUrl` (`ELDRA_SITE_URL`; without it no canonical, `og:url` or relative image is written) and
+  `buildTarget` (`ELDRA_BUILD_TARGET`): anything but `production` is a preview build, and a preview
+  build, `nuxi dev` and a page framed by Studio are always `noindex`. The public runtime config
+  gains `eldraSeo`. Documented in `docs/theme-seo.md`.
+
+- The runtime registers the theme's own id (`manifest.theme.id`) with `registerBlockFields`, and
+  the draft projection validates slots against bare block ids when a published entry's
+  `schemaApiId` is `<themeId>:<apiId>`. Route-template targets (a merchant's own schema) and
+  `catalog:*` are unchanged. The theme must declare `eldra.themeId` in `package.json` (see the
+  `@eldrajs/vite-plugin-theme` changelog).
+
+- **Site icons, set in Studio and rendered by the media worker.** A fifth fail-soft read, `GET
+  /site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon (a
+  media-library raster, square, at least 512 px), background colour, theme colour, short name and
+  `icons`, the URLs of the variants the media worker renders (`null` when no icon is set). When an
+  icon is set, `nuxi generate` writes only `site.webmanifest` into the static output (on both
+  nitro `compiled` and `prerender:done`) and adds `<link rel="icon" type="image/png"
+  sizes="32x32">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` and `<meta
+  name="theme-color">` to every page; the icon tags point at the media URLs. No image is fetched or
+  processed at build time and no `favicon.ico` is generated (the theme's own `public/favicon.ico`
+  stays the root fallback). The theme colour defaults to the primary design token and the short name
+  to the site name. With no icon set or a failed read, nothing is written or tagged and the theme's
+  `public/` files stay. The icons replace the theme's own icon, manifest and `theme-color` tags in
+  `app.head`. `sharp` was removed (an earlier draft of this feature generated the files with it):
+  native image processing in every theme build was fragile, and the media worker renders the sizes.
+  Documented in `docs/themes.md` (Site icons).
+
 - **The deployed site now carries Studio's design-token overrides, not only the open preview.** A
   fourth fail-soft read, alongside the store's currency, its locales and the theme-message overrides
   — `GET /site/v1/design-tokens`, same client, same retry policy, absent gateway or any error

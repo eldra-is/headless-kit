@@ -79,6 +79,12 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   against the fixture. Built by tsdown. `src/image.ts` encodes the media host's contract — variant
   names and widths, the asset URL shape, which content types it resizes — copied from
   `eldra-is/studio-media-worker` `src/index.ts`; change both together.
+  `src/format/` is the `./format` entries (`./format/date`, `/list`, `/relative-time`,
+  `/display-names`): Icelandic and English formatting that prints the same on every runtime
+  (`docs/icelandic-formatting.md`). The formatjs classes are devDependencies **bundled** into
+  `dist`, never runtime dependencies: each formatjs package ships every locale's data (344 MB
+  installed for the five). `is`/`en` data lives in `src/format/data`, copied by `pnpm --filter
+@eldrajs/sdk format-data`; `check:format-data` in `lint:check` fails on drift.
 - `packages/rich-text` — `@eldrajs/rich-text`. Framework-free, imports nothing. The document types
   are declared here, not imported from TipTap. `src/html.ts` is the kit's XSS surface: it
   serialises merchant-authored content to HTML, so every text and attribute value goes through
@@ -97,23 +103,30 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
   (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
   optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
-  `@floating-ui/vue` and `tailwind-merge`. Built by Vite in library mode with `vite-plugin-dts`, the
+  `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/sdk` (`./format`, for every number, price, date and list it
+  prints), all external in the Vite build. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
   spacing step, font, duration, easing and z-index resolves to a `--eldra-*` variable, so a
   consumer restyles by setting variables. `scripts/build-tokens.mjs` generates
   `src/styles/tokens.css` from `eldra-starter-spec/tokens.json` (checked in; `pnpm --filter
 @eldrajs/ui check:tokens` runs in the root `lint:check` and fails on drift — regenerate with
-  `build-tokens`, never hand-edit). The Storybook screenshot harness
+  `build-tokens`, never hand-edit). `TablerIcon`'s data, `src/components/tabler-icon/data/*.json`, is
+  generated the same way from the pinned `@tabler/icons-vue` (`build-tabler-icons`, `check:tabler-icons`
+  in `lint:check`); bump it to at least Studio's picker version, never below, and when a bump drops a
+  name the generator fails until `RETIRED` maps it. The Storybook screenshot harness
   (`pnpm --filter @eldrajs/ui screenshots`, baselines in `packages/ui/__screenshots__`) is
   **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
   on another. Create your own once with `screenshots --update`, then compare against them.
-  Three CSS entries ship: `./tokens.css` (the variables),
+  Four CSS entries ship: `./tokens.css` (the variables),
   `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
   the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
-  own Tailwind build reads them, with `@source './'` resolving against `dist/`), and `./style.css`
+  own Tailwind build reads them, with `@source './'` resolving against `dist/`), `./style.css`
   (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
-  entry). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  entry, with Tailwind's page-wide preflight) and `./components.css` (the same without it: its
+  reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
+  `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
+  enforced by `src/__tests__/eldraUiMarker.spec.ts`). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
@@ -125,7 +138,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   and `useFieldControl`; `src/vee-validate/**` is the only place in the package that may import
   `vee-validate`, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry loads
   without it in both the source graph and the built `dist/`), `./messages/is-IS` (the Icelandic message set, its
-  own entry so an English-only store never bundles it), and the three CSS entries above. Text a
+  own entry so an English-only store never bundles it), and the four CSS entries above. Text a
   component renders itself goes through a `messages` prop / `provideEldraUiMessages`, English
   defaults built in. Composables exported from the root are the same building blocks the package's
   own components are built on, not a separate layer over private internals, so a consumer building
@@ -166,7 +179,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   controls come from `@eldrajs/ui` (a real dependency, restyled through the `--eldra-*` tokens,
   never forked); everything else is copied source the customer owns — `app/components/ui/` is down
   to just `UiImage` now (every other hand-rolled primitive was replaced, block by block, by the
-  matching `@eldrajs/ui` component). **34 blocks** ship under `blocks/`, `block.json`'s `category`
+  matching `@eldrajs/ui` component). **35 blocks** ship under `blocks/`, `block.json`'s `category`
   grouping them `structure`/`marketing`/`content`/`commerce` (see `docs/starter-kit.md` for the
   full set); nine hand-authored sample pages, `pages/*.page.json`
   (`{template,title,blocks:[{apiId,id,data}]}`, the same shape a real CMS page document has, with
@@ -220,12 +233,13 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   any block, `main.css` or package change and commit the regenerated files. See `docs/starter-kit.md` for
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
-- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`, `business-login.md`
-  (a public security sketch; its code is `examples/node-script/business-login.ts`, and the
-  storefront starter is the reference implementation), `customer-prices.md`, `sales-orders.md` (its
-  code is `examples/node-script/sales-orders.ts`), `frameworks.md` (the contract a
+- `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`,
+  `icelandic-formatting.md`, `business-login.md` (a public security sketch; its code is
+  `examples/node-script/business-login.ts`, and the storefront starter is the reference
+  implementation), `customer-prices.md`, `sales-orders.md` (its code is
+  `examples/node-script/sales-orders.ts`), `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
-  three CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
+  four CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
   starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
   `theme-*.md` docs `themes.md` links to, and `roadmap.md` (planned work; remove a line in the
@@ -254,6 +268,10 @@ manifest in, generated artifact out.
   merchant's own edits are never overwritten. See [Seeding default templates and
   pages](docs/themes.md#seeding-default-templates-and-pages) and
   [Reusable page components](docs/theme-reusable-components.md).
+- **`formSeeds`** — the forms a site starts with (at most 8): `{ key, name, fields, actions, success }`,
+  each field with a label per locale. Core creates one only when its key is absent and refreshes an
+  unedited one on a version bump, so a merchant's edits win (`ManifestFormSeed`; validated by
+  `validateFormSeeds`). See [Forms](docs/themes.md#forms).
 - **`tokens`** — the theme's own `tokens.json`, normalized into `--eldra-color-*` /
   `--eldra-container-*` CSS variables. Studio's site settings can override any token marked
   `allowSiteOverride`, live, with no redeploy of the theme's code — but a **deployed** (prerendered)
@@ -306,6 +324,19 @@ another down (a currency the gateway will not give up must not cost the site its
 with no `ELDRA_GATEWAY_URL`/`ELDRA_ORG_ID` configured still produces the static shell a scaffold
 build is for. See `readStoreCommerce`/`readStoreLocales`/`readThemeMessages`/`readDesignTokens` and
 their own `*_WARNING` constants for the exact wording each prints.
+
+Form definitions follow the same rule: every key in `eldra.formSeeds` and `eldra.forms` is read
+(`GET /site/v1/forms/{key}`, `readFormDefinitions`) once per build, each key independently, and baked into
+`runtimeConfig.public.eldra.forms`; a key that fails is left out with one warning and the storefront
+fetches it when the page opens.
+
+Three more follow the same rule: site icons (`GET /site/v1/site-icons`), the SEO setting
+(`GET /site/v1/seo`) and, on a **production** build only, the crawl settings (`GET /site/v1/crawl`:
+the site's production URL and the merchant's `robots.txt` lines, `readCrawlSettings`). The crawl
+settings feed `robots.txt` and `sitemap.xml`, which `module.ts` writes on nitro's `prerender:done`/
+`compiled` from the routes the `prerender:routes` hook collected (`./runtime/crawlOutput.ts`; pure
+builders in `@eldrajs/theme-core`'s `sitemap.ts`). A preview build writes `Disallow: /` and no
+sitemap; a file of the same name in the theme's own `public/` is never replaced.
 
 ### Virtual modules
 
@@ -377,7 +408,9 @@ two specs in that package declaring `environment: node` per file (the other is
 `src/components/select/__tests__/teleportSsr.spec.ts`, which server-renders with no DOM at all):
 under the package's default happy-dom, closing Playwright's browser raises an unhandled
 `ECONNRESET` on the driver connection, which vitest reports as a worker crash rather than a test
-result. `theme-cli`'s tests run
+result. `packages/sdk` needs the same Chromium for `src/__tests__/format/chromium.browser.spec.ts`,
+which proves the formatters match Node's full-ICU output in a browser that has no Icelandic data.
+`theme-cli`'s tests run
 `dist/cli.js` as a subprocess, so build that package first too. `examples/starter-nuxt` needs the
 same Chromium for
 `test/prerenderRefresh.browser.spec.ts`, which runs a real `nuxi generate` against a mock gateway

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computed, nextTick, ref } from 'vue';
+import { computed, createSSRApp, h, nextTick, ref } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
@@ -270,11 +271,41 @@ describe('Textarea — sizing', () => {
     vi.restoreAllMocks();
   });
 
-  it('leaves rows untouched when field-sizing is supported', () => {
+  it('keeps rows at the minimum when field-sizing is supported, however long the content', async () => {
     vi.spyOn(supportsFieldSizingModule, 'supportsFieldSizing').mockReturnValue(true);
     const wrapper = mountWith(Textarea, { attrs: NAME });
-    expect(control(wrapper).getAttribute('rows')).toBeNull();
+    const el = control(wrapper);
+    expect(el.getAttribute('rows')).toBe('3');
+
+    Object.defineProperty(el, 'scrollHeight', { value: 200, configurable: true });
+    Object.defineProperty(el, 'clientHeight', { value: 60, configurable: true });
+    el.value = 'a lot of text';
+    await wrapper.find('[data-part="control"]').trigger('input');
+    expect(el.getAttribute('rows')).toBe('3');
+
     wrapper.unmount();
+    vi.restoreAllMocks();
+  });
+
+  it('hydrates without a mismatch when the server has no field-sizing and the browser has', async () => {
+    const app = () => createSSRApp({ render: () => h(Textarea, { name: 'note', ...NAME }) });
+    const support = vi.spyOn(supportsFieldSizingModule, 'supportsFieldSizing');
+    support.mockReturnValue(false);
+    const html = await renderToString(app());
+
+    support.mockReturnValue(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.append(container);
+    app().mount(container);
+
+    const logged = [...warn.mock.calls, ...error.mock.calls].map((args) => String(args[0]));
+    expect(logged.filter((message) => /hydration/i.test(message))).toEqual([]);
+    expect(container.querySelector('textarea')!.getAttribute('rows')).toBe('3');
+
+    container.remove();
     vi.restoreAllMocks();
   });
 });

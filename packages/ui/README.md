@@ -27,7 +27,7 @@ entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
-Three CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
+Four CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
 starts from the same `--eldra-*` variables, so nothing here is a different theme, only a different
 delivery shape.
 
@@ -47,6 +47,15 @@ delivery shape.
   @import '@eldrajs/ui/tailwind.css';
   ```
 
+  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
+  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
+  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
+  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
+  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
+  Line height and tracking are plain longhands on purpose: the starter's own base rule
+  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
+  style.
+
 - **`@eldrajs/ui/style.css`** — the package's own compiled build of `tailwind.css` plus every
   component's utilities, for a consumer with no Tailwind build of their own:
 
@@ -56,6 +65,43 @@ delivery shape.
 
   This is also what a project whose own Tailwind build cannot share this package's utility prefix
   (a `ui:`-prefixed theme, for example) reaches for.
+
+- **`@eldrajs/ui/components.css`** — `style.css` without Tailwind's preflight, for a site that has
+  its own stylesheet and adds a few components (a header menu, a cart drawer) to it:
+
+  ```css
+  @import '@eldrajs/ui/components.css';
+  ```
+
+  Preflight is a reset for the **whole page**: `style.css` sets every `h1`–`h6` to the surrounding
+  size and weight, every `ul`/`ol` to no bullets and no indent, every `a` to the surrounding colour
+  with no underline, every `p` and heading to no margin, and every `button` to no border or fill.
+  It sits in `@layer base`, so a site's own rules still win where they exist, but anything the site
+  left to the browser — rich text from the CMS, most often — loses its defaults. `components.css`
+  carries the same theme and the same utilities, byte for byte, and narrows the reset to the
+  elements the components render themselves, so the site's own elements keep the browser's
+  defaults and anything passed into a component's slot keeps the site's styling. Use `style.css`
+  when the page is built from this package; use `components.css` when the page is the site's own.
+  `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component family under both,
+  the overlays open, and requires identical pixels.
+
+  **The `data-eldra-ui` marker.** Every component's outermost element carries `data-eldra-ui`, and
+  so does every element a component renders outside it: a `Select` or `MultiSelect` panel, a
+  `SearchBar` results panel, a `Popover` panel, a `Tooltip` bubble and the `Toaster` region, each
+  teleported out of its component. The reset reaches exactly those elements and the `data-part`
+  elements inside them, `:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero
+  specificity. `data-part` alone is not enough, because it is not this package's name: a site's
+  own `<h2 data-part="title">`, or any Ark UI or Zag component (which put `data-part` on every
+  element they render), keeps the browser's defaults. The attribute is public and stable, so a
+  site can use it as a hook too (`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global
+  link rule out of the components). One case stays inside the scope: an element carrying its own
+  `data-part` that the site passes into a component's slot (an Ark UI widget inside a `Dialog`,
+  say) is a `data-part` element inside a marked root, so it gets the reset as well.
+
+  Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
+  regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS
+  restyles those elements inside the components too. Scope such rules (`.prose a`) or put the
+  site's stylesheet in a layer declared before the package's.
 
 ## Fonts
 
@@ -101,7 +147,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `ContentCard`       | `--eldra-content-card-title-size` (default `1.25rem`) and `--eldra-content-card-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
    | `CurrencyInput`     | `UnitInput`'s exactly (it renders a `UnitInput` with `isCurrency` always on) — see the `UnitInput` row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
    | `Dialog`            | `--eldra-dialog-title-size` (default `1.25rem`), `--eldra-dialog-title-line` (default `1.3`) — the title's own size/line, no token of its own; `--eldra-dialog-width` (default `32rem`), `--eldra-dialog-width-sm` (default `24rem`) — the panel's own width, always capped at `100vw - 2rem` inside the utility itself; `--eldra-dialog-max-height` (default `calc(100vh - 4rem)`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-   | `Drawer`            | `--eldra-drawer-title-size` (default `1.25rem`), `--eldra-drawer-title-line` (default `1.3`) — the title's own size/line, no token of its own (the same numbers as `Dialog`'s, but its own variable pair); `--eldra-drawer-width` (default `28rem`) — the panel's own maximum width, capped at the viewport inside the utility itself, which also carries the full-screen-below-a-48rem-_viewport_ media query                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+   | `Drawer`            | `--eldra-drawer-title-size` (default `1.25rem`), `--eldra-drawer-title-line` (default `1.3`) — the title's own size/line, no token of its own (the same numbers as `Dialog`'s, but its own variable pair); `--eldra-drawer-width` (default `28rem`) — the panel's own maximum width, capped at the viewport inside the utility itself, which also carries the full-screen-below-a-48rem-_viewport_ media query; `--eldra-drawer-header-height` (default `4rem`) — the header row's least height, with `--eldra-drawer-header-padding` (default `var(--eldra-space-4)`) — its top and bottom padding, `0px` to centre the row's content in exactly that height, such as a site header's; `--eldra-drawer-gutter` (default `1.5rem`) — the header's, body's and footer's side padding. The device's safe areas (`env(safe-area-inset-*)`) are added around both, so a full-screen drawer clears a notch and the home indicator on a page with `viewport-fit=cover`                                                                                        |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
    | `EmptyState`        | `--eldra-empty-state-title-size` (default `1.25rem`) and `--eldra-empty-state-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `FeatureCard`       | Shares `ContentCard`'s `--eldra-content-card-excerpt-size`/`-line` for its own `body` text (`text-content-card-excerpt`); its `title` reads `text-h4` directly, no variable of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -115,6 +161,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Link`              | `--eldra-link-radius` (default `2px`) — the focus ring's corner radius on every variant                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LoadMore`          | none — the status/meter/button sizes all reuse shared tokens (`text-body-sm`, `control-h`, `text-button-md`), no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `LogoItem`          | `--eldra-logo-image-max-height` (default `2.5rem`), `--eldra-logo-image-max-width` (default `9rem`) — the logo image's contain box; `--eldra-logo-wordmark-size` (default `1.25rem`) — the wordmark fallback's font size (its weight, line-height and letter-spacing reuse `h2`/`h3` tokens directly, see `text-logo-wordmark` in `tailwind.css`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+   | `NavMenu`           | `--eldra-nav-menu-offset` (default `var(--eldra-space-2)`) — the gap between the bar and a panel, drawn as the panel's own top padding so a hovering pointer never leaves the menu; `--eldra-nav-menu-dropdown-min`/`-max` (defaults `14rem`/`24rem`, capped at `100vw - 2rem`) — a dropdown panel's width; `--eldra-nav-menu-column-min` (default `12rem`) — the narrowest a mega panel's column gets before the grid wraps (`classes.columns: 'grid-cols-5'` fixes the count instead). `--eldra-nav-menu-drawer-row-height` (default `3.5rem`) — every top-level row in the drawer, link, accordion row or section heading; `--eldra-nav-menu-drawer-indent` (default `var(--eldra-space-4)`) — how far a panel's links sit in from their row. The drawer itself and the badges are `Drawer` and `Badge`, each restyled through its own row                                                                                                                                                                                                           |
    | `MultiSelect`       | everything `Select` reads, plus `--eldra-select-pill-line` (the "+N" pill's line box) and `--eldra-checkbox-radius`/`--eldra-checkbox-border-width`, shared with `Checkbox` so a consumer restyles both at once                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `Pagination`        | none — every size (the 2.5rem page link/`control-h` previous-next, the `target-touch` compact arrows, the 0.9375rem `text-control` compact status) reuses a shared token or a shared arbitrary spacing multiple, no per-component variable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Popover`           | `--eldra-z-popover` (default `30`), shared with the other popover panels — no per-component variable of its own: it has no fixed size to clamp, unlike `Select`'s panel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -128,11 +175,13 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `SearchModal`       | `--eldra-search-modal-width` (default `40rem`), `--eldra-search-modal-max-height` (default `40rem`) — both clamped to the viewport inside their own utility, which also carries the full-screen-below-a-48rem-_viewport_ media query; `--eldra-search-modal-field-size` (default `1.0625rem`), `--eldra-search-modal-foot-size`/`-line` (defaults `0.75rem`/`1.4`), `--eldra-search-modal-kbd-size` (default `0.6875rem`) — none with a token of their own; plus everything `SearchBar`'s reused `SearchResultsPanel` reads (`--eldra-search-text-line`, `--eldra-search-empty-line`, `--eldra-control-line-height`)                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Section`           | none — the vertical rhythm (`--eldra-section-{sm,md,lg}`) and the gutters it shares with `Container` are shared tokens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
    | `Select`            | `--eldra-select-panel-max-height` (default `20rem`), `--eldra-select-panel-max-width` (default `22rem`, clamped to `90vw`), `--eldra-z-popover` (default `30`), `--eldra-field-radius`, `--eldra-field-border-width`, `--eldra-select-group-tracking`, `--eldra-select-option-line`, `--eldra-select-swatch-edge`, the `--eldra-select-match-*` trio, and `--eldra-popover-origin` (`top left` / `bottom left`, set by the panel from the placement it resolved to)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+   | `SiteForm`          | none of its own: it composes `FormLayout`, `FieldWrapper`, `Input`, `Textarea`, `Select`, `Checkbox` and `Button`, each restyled through its own row; its `classes` reach their parts (see [Site forms](#site-forms))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
    | `Skeleton`          | none — `width` sets an inline style directly (see the Deviations entry), no CSS variable involved                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
    | `StockBadge`        | `--eldra-stock-status-line` (default `1.4`) — the status line text's line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Switch`            | `--eldra-switch-radius` (default `var(--eldra-radius-full)`), `--eldra-switch-track-border-width` (default `1.5px`), `--eldra-switch-thumb-offset` (default `0.1875rem`, the thumb's rest inset from the track's start edge)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
    | `Tab`               | none — reads only the shared tokens from layer 1, plus `VariantPicker`'s `text-variant-pill` type style (no per-component variable of its own; see that component's row)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
    | `TabPanel`          | none — reads only the shared tokens from layer 1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+   | `TablerIcon`        | none — reads only the shared tokens from layer 1, the same as `Icon`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Tabs`              | none — reads only the shared tokens from layer 1; the `eldra-scrollbar-hide` utility the tab list uses has no variable of its own. The pills list's own padding, the negative margin that cancels it and its scroll padding are all `calc(var(--eldra-focus-offset) + var(--eldra-focus-width))` — the focus ring's own reach, so raising either ring token widens the room the scrolling list keeps for a focused pill's ring instead of letting it clip (the underline variant reserves nothing: its tabs ring _inside_ their own box, per the design spec, and padding that list vertically would push its hairline off the tabs). Set a gutter through `classes.list` only if it is wider than that reach — a `px-*`/`-mx-*`/`scroll-px-*` utility of your own replaces the reservation on that axis rather than composing with it, the way `--eldra-carousel-bleed` does for the carousel                                                                                                                                                          |
    | `Textarea`          | `--eldra-textarea-radius` (default `var(--eldra-radius-md)`), `--eldra-textarea-min-height` (set from the `minHeight` prop, default `5rem`), `--eldra-counter-line-height` (default `1.5`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
    | `Toast`             | `--eldra-toast-title-size` (default `0.9375rem`), `--eldra-toast-title-line` (default `1.4`) — the title's own size/line, sitting between two type-scale steps with no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -161,7 +210,10 @@ Every component supports all five of these; none hard-codes anything a store mig
    `<Name>Part` type and its Storybook docs page for the exact list). Values merge onto that part's
    own classes with `tailwind-merge` (via this package's own `cx`, also exported for a consumer
    composing a wrapper the same way), so `classes.root: 'rounded-full'` replaces
-   `eldra-button-radius` instead of landing beside it.
+   `eldra-button-radius` instead of landing beside it. The `@theme` keys that are not t-shirt sizes
+   (`shadow-float`, the `narrow`/`content`/`wide`/`tablet`/`two-col` container widths) merge the
+   same way, and a weight is never a conflict with a type style: `classes.label: 'font-bold'` keeps
+   `text-body-sm` and changes only the weight.
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered _root_ element (`Button`,
@@ -170,7 +222,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    to `<span>` and is never a link; `Section` picks `<section>`/`<div>` itself from whether it is
    named (`as` overrides that choice outright, for a `<header>`/`<footer>` landmark that needs no
    name of its own). **`linkAs`**, not `as`, on `ContentCard`/`FeatureCard`/`ProductCard`/
-   `Breadcrumb`/`Pagination`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
+   `Breadcrumb`/`Pagination`/`NavMenu`: each of these has a spec-fixed root (`<article>`/`<div>`/`<nav>`), and
    `linkAs` instead picks the element for a _nested_ part — the stretched title link on the cards,
    every level's link on `Breadcrumb`, a page/previous/next control on `Pagination` — so the name
    never collides with the root-tag meaning `as` carries everywhere else (a string still takes
@@ -262,6 +314,91 @@ import { isIS } from '@eldrajs/ui/messages/is-IS';
 
 app.provide(MESSAGES_KEY, isIS);
 ```
+
+## Site forms
+
+`SiteForm` draws any form a merchant builds in Studio (Settings › Forms) from its public definition,
+and submits it through the SDK. It is the form; the page around it (heading copy, card, image) is
+yours.
+
+```vue
+<script setup lang="ts">
+import { createEldraClient } from '@eldrajs/sdk';
+import { SiteForm } from '@eldrajs/ui';
+import { isIS } from '@eldrajs/ui/messages/is-IS';
+
+const eldra = createEldraClient({ orgId: useRuntimeConfig().public.eldraOrgId });
+const { data: contact } = await useAsyncData('form:contact', () => eldra.forms.get('contact'));
+</script>
+
+<template>
+  <SiteForm :definition="contact" :client="eldra" locale="is-IS" :messages="isIS" />
+</template>
+```
+
+- **Definition or key.** Pass `definition` (read in your data loader, so the form is in the
+  server-rendered HTML), or only `formKey`, and the form reads it with `client.forms.get` in the
+  browser, showing `formLoading` until it arrives and `formLoadFailed` (`role="alert"`) if it
+  cannot. A definition with a field type this version does not know is refused whole, with the
+  same notice, rather than drawn with the wrong control. A `null` definition with no `formKey`
+  reads as a form that cannot be shown, so with a loader that is still reading
+  (`useLazyAsyncData`) render `SiteForm` once the definition is there (`v-if`). `client` is
+  anything with the SDK's `forms.get` and `forms.submit` (`SiteFormClient`).
+- **Fields.** `text`, `email`, `phone` (`type="tel"`), `number` (a text field with the decimal
+  keypad, so a decimal comma survives), `url`, `textarea`, `select` (`Select`, clearable when
+  optional), `checkbox` and `consent` (`Checkbox`; a required one must be ticked). Labels,
+  placeholders and option labels are picked for `locale`: the exact tag, then the same language,
+  then the first tag, as the platform picks them. Every required field carries native `required`,
+  and a required field with a label of its own (not a box) the `*` mark; in a form of more than
+  one field the optional ones say "(optional)".
+- **Checks.** On submit every field is checked by the platform's own rules in the platform's order
+  (required; the per-type length ceiling, 254 for an email, 50 for a phone, 8000 for a textarea
+  and 500 otherwise, lowered by `maxLength`; the email, number, URL and option shape; `minLength`;
+  `pattern` against the whole value, an email lowercased and a number with a decimal point, as
+  the platform matches it), on the value the platform will see (control characters dropped, Go's
+  whitespace collapsed outside a textarea, trimmed), with the platform's wording, except that a
+  required box says `formRequiredCheckbox`. A pattern that does not compile as a `u` RegExp, and a
+  value holding a character RE2 and JavaScript read differently, are left to the platform rather
+  than guessed at. Nothing is sent while any field fails; focus moves to the first failing field.
+  A field's message clears when its value changes.
+- **Spam.** The honeypot the definition names is rendered visually hidden, `inert`,
+  `aria-hidden` and out of the tab order, and sent as `hp` only when something filled it. When
+  the definition carries a `turnstileSiteKey`, Cloudflare's script is loaded (once per page) and
+  the widget rendered under the fields; the token is sent as `turnstileToken`, and a fresh one is
+  asked for after every refused submission because a token is single-use. A form without a site
+  key loads nothing third-party.
+- **Answers.** A `422`'s field messages go under their fields (`aria-invalid`, first in
+  `aria-describedby`); its form messages, and a message for a field the form does not draw, go in
+  the error summary above the fields (`role="alert"`). A `429`, a `413` and anything else (the
+  network included) are the `formRateLimited`, `formTooLarge` and `formUnavailable` messages in the
+  same summary, and the visitor can send again. `error` is emitted with `{ reason, cause? }`
+  (`refused`, `rate-limited`, `too-large`, `unavailable`).
+- **Success.** The form is replaced by a `role="status"` panel that takes focus: `formSuccessTitle`
+  and the merchant's message, or for a subscribing form (`pending`) `formPendingTitle` and the
+  merchant's message or `formPendingMessage`. A merchant redirect is followed instead: a site path
+  (`/takk`) through `navigate` when you pass one (your router's, to stay in the app), an absolute
+  http(s) address, and a path with no `navigate`, through `location.assign`; anything else the
+  platform sent is dropped. `success` is emitted first with `{ pending, redirect }`.
+- **Consent.** A subscribing form's `consentText` is shown as plain text under the button, which
+  it describes (`aria-describedby`): pressing the button is the consent.
+- **Layout.** `layout` is `FormLayout`'s: `single`, `two`, or `inline` for a sign-up, which applies
+  only to a form of one text-like field and falls back to `single` otherwise. `heading` and
+  `headingLevel` give it a visible title; without one it is named by the definition's `name`.
+- **Styling.** `classes` takes the parts in `SiteFormPart`: `root`, `notice`, `success`,
+  `successTitle`, `successMessage`, `consentText` and `turnstile` are its own; `form`, `heading`,
+  `errorSummary`, `fields` and `actions` reach `FormLayout`; `field`, `label`, `requiredMark`,
+  `optionalText` and `error` reach every field's `FieldWrapper`; `control` reaches each `Input` and
+  `Textarea` element and the `Select` trigger; `checkbox` each `Checkbox`; `submit` the `Button`.
+  Slots: `submit` (`{ label, submitting, describedBy }`, a `type="submit"` control of your own;
+  bind `describedBy` to its `aria-describedby`, the consent sentence when there is one), `success`
+  (`{ pending, title, message, reset }`, where `reset` empties the form and focuses its first
+  field), `loading` and `failed`.
+- **Strings.** Every string is a `form*` message (English built in, Icelandic in
+  `@eldrajs/ui/messages/is-IS`), set app-wide or through the `messages` prop, which `SiteForm`
+  also passes down to the controls inside it. `submitLabel` overrides the button's text.
+
+`useSiteForm(options)` is the state the component is drawn from (the localized definition, values,
+errors, honeypot, Turnstile element, `submit()` and `reset()`), for a form with markup of your own.
 
 ## Composables
 
@@ -427,11 +564,13 @@ spec's own non-negotiable 2):
   tree, and `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared
   reference both sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()`
   already uses to teleport a panel into a dialog it did not render;
-- **initial focus** — `initialFocus`, else the first focusable that is not `[data-part="close"]`
+- **initial focus** — `initialFocus`, else a reachable `[autofocus]` control, else the first focusable that is not `[data-part="close"]`
   (this package's own "every part carries `data-part`" convention doubling as the composable's
   exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
   else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
-  the dialog (a form's first field) already exists to focus;
+  the dialog (a form's first field) already exists to focus; opened by a tap or click, the dialog
+  focuses itself instead unless that target is a text field or marked `autofocus`, so Safari draws
+  no focus ring on a control the visitor did not reach with the keyboard;
 - **focus return** — whatever had focus immediately before `showModal()`, refocused the moment the
   dialog actually closes, by any route — the page's own opener at the bottom of the stack, or,
   for a modal opened from inside another one, whichever control still had focus in the modal
@@ -1020,6 +1159,10 @@ during development, outside this repository's own history.
 Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
 comparing the package against the spec can tell an addition from a drift.
 
+- **`SiteForm` and `useSiteForm`**: a form from the platform's Forms API, drawn from its public
+  definition with this package's own controls, checked by the platform's rules and submitted
+  through `@eldrajs/sdk`. The spec has form controls and a form layout but no platform form; see
+  [Site forms](#site-forms).
 - **`Chip` and `ChipGroup`** — an operator addition (2026-09-25) for the private component
   library's `FilterChip`, which a store migrating onto this package needs an equivalent of. There
   is no spec 1 "Chip" section; the visual language is derived from two sections that do exist:
@@ -1125,8 +1268,8 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `Intl`'s own message blaming a `maximumFractionDigits` the caller never set.
 
   `formatCurrency` is what a theme should reach for when it has to put money in a sentence ("Add to
-  cart · kr 2,800") rather than render a `<Price>`: a hand-built
-  `Intl.NumberFormat({ style: 'currency' })` writes the **wide** sign (`"ISK 2,800"`), which is not
+  cart · ISK 2,800") rather than render a `<Price>`: a hand-built
+  `Intl.NumberFormat({ style: 'currency' })` prints English for Icelandic in Chrome, which is not
   the shape this package's own prices and currency fields are in, and that mismatch is exactly the
   defect it exists to prevent. Note that `maxFraction` defaults to `2` whatever the currency, so a
   caller that wants the currency's own count passes it — which is what keeps a króna from growing a
@@ -1151,6 +1294,26 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
 - **`frameAspectRatio`** (`src/utils/ratio.ts`) — turns an `ImageRatio` preset into the CSS
   `aspect-ratio` value `Image`'s frame and `Skeleton`'s `media` variant both resolve it to; exported
   so a consumer accepting an `ImageRatio` of their own (`ImageRatio` itself is public) can honour it.
+- **`zoomSizes(sizes, zoom)`** (`src/utils/sizes.ts`) — multiplies every length in an `<img sizes>`
+  list by `zoom`, keeping its media conditions: `(min-width: 1024px) 50vw, 100vw` at zoom 3 becomes
+  `(min-width: 1024px) calc(50vw * 3), calc(100vw * 3)`. `Image` applies it to its effective `sizes`
+  whenever `fit` is `cover` and `zoom` is above 1, because a crop scaled by `transform: scale(zoom)`
+  is drawn that many times wider than the frame `sizes` describes, and a `srcset` candidate chosen
+  for the frame is soft. A zoom of 1 or less, `auto` and a size-less media condition are left as
+  given. See [An art-directed crop](../../docs/images.md#an-art-directed-crop).
+- **`Image`'s `zoomOrigin`, `crops` and a numeric `ratio`** — `zoomOrigin: 'focal'` zooms around the
+  focal point itself; the default `'band'` keeps the origin inside the band
+  `@eldrajs/theme-core`'s image framing clamps to, so a page-builder framing renders exactly as
+  Studio previews it. The band is not needed to keep the frame covered (a zoom of 1 or more around
+  any point of the frame covers it), only for that parity. Under `'focal'` the zoom sizes the media
+  rather than scaling it with a transform, because the browser rounds the cover's offset to a pixel
+  first and a transform would multiply the rounding by the zoom. `crops` art-directs the one
+  `<img>`: each `ImageCrop` (`media`, and any of `ratio`, `focal`, `zoom`, `sizes`) replaces the
+  instance's values where its media condition matches, first match first, written as a `<style>`
+  scoped to the instance and as `sizes` entries scoped to the condition. A condition with any character
+  but letters, digits, `_`, spaces and `().:<>=/+*-`, or with `/*` or `</`, is refused with a dev
+  warning. `ratio` also takes a number, width ÷ height. See
+  [An exact crop](../../docs/images.md#an-exact-crop).
 - **`formatDate`** (`src/utils/date.ts`) — the ISO-date formatter behind `ContentCard`'s `date` prop.
   Never throws: a malformed, empty or calendar-invalid value (`'2026-02-30'`) returns `null` rather
   than a fabricated date or a thrown `RangeError`, warning once per bad value in dev.
@@ -1199,21 +1362,102 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   inside), but `tabRedirect` is always on, since a menu's rows or a filter form's fields are exactly
   the real tab stops that behaviour exists for.
 
-- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `true` by
-  default, the same default `CurrencyInput` already carried, so every currency this package renders
-  is written with the currency's **narrow** sign: `"kr 2,800"` under `en-US`/`ISK`, not
-  `"ISK 2,800"`; `"$"`, not `"US$"`, in a locale that distinguishes the two. The design spec says
-  only that the amount is formatted by `Intl`, which leaves the sign open; a store's own back office
-  writes narrow signs, and a price that disagreed with the currency field the operator typed it into
-  was the defect worth closing by default rather than by opt-in. Set it to `false` for the wide
-  sign; a locale whose two signs are identical (`is-IS` writes `kr.` either way) is unaffected
-  either way. **`ProductCard`'s price follows the same narrow default and has no opt-out** — the prop
-  is `Price`'s alone, not forwarded through the card, so a consumer who needs the wide sign inside a
-  card reaches for `Price` directly.
+- **`NavMenu`** — a site header's navigation (2026-10-22), because every Eldra site was
+  hand-building its header and dropdowns. Spec 1 names mega-menus only to say they are non-modal
+  popups, not dialogs, and puts the mobile menu in a left `Drawer` with accordion rows; this
+  follows both. It is the disclosure-navigation pattern, not an ARIA menu: a top-level entry with
+  children is a `<button aria-expanded aria-controls>` and its panel follows it in the DOM, so `Tab`
+  walks straight into the panel and on to the next entry, the panel closes when focus or a pointer
+  press lands outside it (`useOverlay`, unchanged), `Escape` closes it and returns focus to the
+  button, following a link closes it, and one panel is open at a time. On top of that it takes the
+  APG pattern's optional arrow keys, ported from the starter's header: `←`/`→` move along the bar
+  (landing on another trigger carries an open panel over to it), `Home`/`End` jump to its ends,
+  `↓`/`↑` on a trigger open its panel at the first or last link, and inside a panel `↓`/`↑` step
+  through its links and `Home`/`End` reach its ends. Nothing wraps, every link stays in the `Tab`
+  order, and a modified key or a key typed into a field is left alone. `Enter`/`Space` stay the
+  button's own. Panels are never teleported:
+  a `dropdown` hangs under its own item, a `mega` panel spans the menu's root, and a site whose
+  header should be the panel's width makes the root `static` (`classes.root`) and its header
+  `relative` (or `contents`, which makes the bar and the menu button cells of the header's own
+  grid). A closing panel fades out over `--eldra-duration-fast`, unclickable while it does.
+  `openOnHover` adds a resting mouse pointer to the ways of opening: a panel opens after the
+  pointer rests 150ms on its trigger, so passing over one opens nothing; leaving the menu closes a
+  hover-opened panel 150ms later unless the pointer comes back or focus is inside it; a click keeps
+  it, and touch never hovers.
+
+  **Data.** `items` takes `{ label, href?, newTab?, description?, badge?, group?, current?,
+children?, layout?, groups? }`, one level of children. Children sharing a `group` form a column
+  under that heading, and grouped children default the panel to `mega`. `groups` gives a heading a
+  page of its own, `[{ label, href?, newTab?, current? }]` matched to the children's `group` by
+  label: that heading is a link (the `groupLink` part) in the bar and in the drawer, with no slot. The shape is the one
+  `@eldrajs/theme-core`'s `resolveLink` returns for a Studio link tree — `href`, `label` and `group`
+  may be `null`, a heading with no `href` opens a panel and links nowhere, an entry without a label
+  is skipped — so a resolved tree is passed in as it is, with no dependency on the theme packages
+  (`navLinks.spec.ts` asserts the assignability). A top-level entry with both `href` and children
+  gets its own page as the panel's first link ("Journal: overview"); in the drawer's `sections`
+  layout the section heading is that link instead. A `panelFooter` that renders
+  nothing for a panel takes no room in it (`empty:hidden`), and a menu with no entry to show draws
+  no empty `<nav>`.
+
+  **Narrow screens.** Below `collapseBelow` the bar is hidden and a menu button
+  (`aria-controls` the drawer) opens a left `Drawer`. `md`, `lg` (default) and `xl` are **viewport**
+  breakpoints, since the menu's own width says nothing about how crowded the header is; `@tablet`,
+  `@content` and `@wide` measure the nearest `@container` instead, for a header block whose own
+  width is the measure; `never` keeps the bar and `always` shows only the button. The button is
+  named by `messages.navMenuOpen` and the drawer by `messages.navMenuDrawer` (both "Menu").
+  `v-model` is the open panel's index and `v-model:drawerOpen` the drawer; `close()` (exposed)
+  closes both, for a router's navigation hook.
+
+  **The phone menu.** `drawerLayout` picks how the drawer shows a panel: `accordion` (default)
+  folds each into an `AccordionItem` row, its links indented beneath once it opens; `sections` lists
+  each open under a heading row, its links indented beneath. Plain entries are rows of the same
+  height and type as those headings in both, so the whole top level reads as one level and the
+  indent shows what belongs to it. A section heading whose entry has a page links to it (and the
+  panel then has no "overview" row); one without is text. The indent is the `drawerNest` part, the
+  section heading `drawerSectionHeading`, and a panel's group headings are kept inside the indent.
+  A phone menu rarely wants the bar's exact entries — a mega panel's sixteen links may be five
+  area pages on a phone, and the links in a bar panel's footer still need a row somewhere — so
+  `drawerItems`, when given, is what the drawer draws instead of `items` (same shape, same rules;
+  the bar keeps `items`). The `drawerHeader` slot fills the drawer's header row before its close button — a logo
+  and a call to action, so the open menu keeps the header's own row — and is handed `close`, since
+  only the menu's own links close the drawer when followed. Opened from the keyboard, the drawer
+  focuses its first control, the header's first link when the slot holds one; opened by a tap or
+  click it focuses itself, so no control shows a focus ring. `panelItem` and
+  `groupHeading` are handed `placement` (`bar` or `drawer`), for content that differs between the
+  two, and `triggerIcon` replaces the panel buttons' chevron inside the `triggerIcon` part, which
+  keeps its size and turns over while its panel is open.
+
+  **Variants.** `variant` names the two common looks, each after the component that already has
+  it: `ghost` (default) is `Button`'s ghost — text colour, the same 6% text fill on hover and while
+  a panel is open — and `muted` is `Link`'s muted tone — muted text turning the text colour on
+  hover, while open and on the current page, with no fill, for a header of quiet text links. Both
+  reach the panels' links; neither changes the weight, so nothing shifts as a panel opens; the
+  current page keeps its underline in both, since colour alone cannot mark it. The drawer's rows
+  are the same under either. Spacing, size and type are left to `classes`.
+
+  The drawer draws a panel's content with the same parts as the bar, each named with a `drawer`
+  prefix (`drawerPanelLink`, `drawerGroupHeading`, `drawerPanelLabel`…, `NavMenuDrawerPanelPart`),
+  so a bar panel's classes never reach the drawer's rows. `classes.badge`/`drawerBadge`,
+  `drawerRoot` (the `<dialog>`, its backdrop and entrance), `drawer`, `drawerHeader`, `drawerClose`,
+  `drawerBody`, `drawerFooter`, `drawerTrigger` and `drawerPanel` restyle the composed `Badge`,
+  `Drawer` and `AccordionItem`, which keep their own `data-part` names.
+
+- **`Drawer`'s `header` slot** — content for the header row, after the title and before the close
+  button: the logo and call to action a menu drawer repeats from the page header it covers
+  (`NavMenu`'s `drawerHeader`). The spec's anatomy gives the row a title and the close button only.
+
+- **`narrowSymbol` on `Price`, and `Price` formatting through `formatCurrency`** — `false` by
+  default, the same default `CurrencyInput` carries, so every currency this package renders is
+  written with the currency's **wide** sign: `"ISK 2,800"` under `en-US`/`ISK`, not `"kr 2,800"`,
+  the form every Eldra surface writes (`docs/icelandic-formatting.md`). Set it to `true` for the narrow sign; a locale whose two signs
+  are identical (`is-IS` writes `kr.` either way) is unaffected either way. **`ProductCard`'s price
+  follows the same default and has no opt-out** — the prop is `Price`'s alone, not forwarded
+  through the card, so a consumer who needs the narrow sign inside a card reaches for `Price`
+  directly.
 
   `Price` formats every amount through that ported `formatCurrency`, passing
   `currencyFractionDigits(currency, locale)` as **both** the maximum and the minimum fraction
-  digits. The maximum keeps a zero-decimal currency integral (`"kr 2,800"`, never `"kr 2,800.4"`)
+  digits. The maximum keeps a zero-decimal currency integral (`"ISK 2,800"`, never `"ISK 2,800.4"`)
   and `BHD` at three places; the minimum is why a price reads `"$48.00"` rather than the `"$48"`
   the same formatter gives a currency _field_, which pads nothing because a field shows what
   someone typed. One formatter, two rules, and the caller says which.
@@ -1323,6 +1567,47 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   because `LoadMore` already owns a visible `status` part and a collection page renders both — plus
   the fade's own value spans, `currentValue`/`compareAtValue` on `Price` and `labelValue` on
   `StockBadge`.
+
+- **`TablerIcon`** — any [Tabler](https://tabler.io/icons) icon by the name a `tabler-icon` CMS
+  field holds, for a value an editor picks in Studio rather than an icon the code knows. It takes
+  Tabler's kebab-case name (`cash-register`), which is what Studio and the MCP store, and also the
+  older export-name form (`IconCashRegister`) that content saved before 17 Oct 2026 may hold, and
+  it tolerates the stega payload Studio's preview appends. `size`, `label` and `classes` are
+  `Icon`'s, with `Icon`'s decorative-by-default ARIA; `strokeWidth` (default the spec's 1.75) is
+  for a site whose own design draws another weight; a filled icon (`heart-filled`,
+  `IconHeartFilled`) is filled with no stroke. It is the one icon component here that takes a name
+  rather than a component, because a CMS field can only hold a name.
+
+  **Only the icons a page draws reach the browser.** The icons (every `@tabler/icons-vue` export,
+  aliases included) ship as data in 512 small files of about 12 icons each, which a bundler emits
+  as lazy chunks; the component loads the one file holding its icon. Rendered on the server
+  (`onServerPrefetch`), the `<svg>` and its paths are in the HTML, stamped
+  `data-tabler-icon="<export name>"`, and hydration keeps them and loads nothing when the stamp is
+  the client's name, so a server-rendered or prerendered page downloads no icon code at all (a
+  client rendering another name draws its own; an icon the server failed to load is unstamped, so
+  the browser loads it). A page rendered in the browser (a client-side navigation, Studio's live
+  preview) loads the index chunk (about 5.5 kB gzipped, once) and one file per icon it does not
+  have yet (1 to 1.7 kB gzipped); until it arrives the box is drawn empty at its full size, so
+  nothing moves. The server bundle
+  carries every icon (about 1.8 MB, 450 kB gzipped), since any name can be asked for.
+  `preloadTablerIcons(names)` loads a page's icons ahead of render, for a site that wants a
+  client-side navigation to draw them in its first frame (await it where the page's data loads).
+  One file per icon was measured and rejected: Nuxt keeps a manifest entry for every client chunk
+  in its server bundle, and 6,300 of them added 3.7 MB to a Cloudflare Worker and doubled the
+  build.
+
+  **An unknown name never throws.** A name Tabler does not have renders the empty box and warns
+  once; a value that cannot be a name (`Cash Register`) renders nothing and warns once; an empty
+  value renders nothing. A failed chunk load warns, draws the empty box and is retried on the next
+  mount. `preloadTablerIcons` takes one name or any iterable of them.
+
+  **The data follows Studio's picker.** It is generated from the `@tabler/icons-vue` version this
+  package pins (`pnpm --filter @eldrajs/ui build-tabler-icons`, checked by `check:tabler-icons`),
+  which must be at least the version Studio's picker uses, so every name the picker offers
+  resolves. A name never disappears: the generator fails when a new version drops one the data
+  held, and `RETIRED` in `scripts/build-tabler-icons.mjs` maps it to its successor
+  (`IconMoodConfuzedFilled`, offered by Studio up to 3.44 and gone from 3.48 without an alias).
+  The markup comes only from that data; a field value is only ever a lookup key.
 
 ## Deviations
 

@@ -77,6 +77,19 @@ describe('Drawer — element and parts', () => {
     wrapper.unmount();
   });
 
+  it('puts the header slot in the header row, after the title and before the close button', () => {
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: { header: '<a class="logo" href="/">Home</a>' },
+    });
+    const header = wrapper.find('[data-part="header"]').element;
+    const logo = header.querySelector('.logo')!;
+    expect(
+      logo.compareDocumentPosition(closeButton(wrapper)) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    wrapper.unmount();
+  });
+
   it('renders no footer part without a footer slot', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     expect(wrapper.find('[data-part="footer"]').exists()).toBe(false);
@@ -101,6 +114,16 @@ describe('Drawer — side classes', () => {
     expect(root(wrapper).className).toContain('animate-eldra-drawer-in-left');
     expect(panel(wrapper).className).toContain('border-r');
     wrapper.unmount();
+  });
+
+  it('drops the inner border below 48rem, where the sheet covers the screen', () => {
+    for (const side of ['left', 'right'] as const) {
+      const wrapper = mountWith(Drawer, { props: { ariaLabel: 'Menu', side, modelValue: true } });
+      expect(panel(wrapper).className).toContain(
+        side === 'left' ? 'max-md:border-r-0' : 'max-md:border-l-0'
+      );
+      wrapper.unmount();
+    }
   });
 });
 
@@ -468,6 +491,49 @@ describe('Drawer — initial focus', () => {
     wrapper.unmount();
   });
 
+  it('left side opened by a tap: focuses the drawer itself, so no link shows a focus ring', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        default: '<nav aria-label="Main"><a href="#" data-testid="first-link">Shop all</a></nav>',
+      },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(root(wrapper));
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
+  it('opened by a tap, a text field marked autofocus still takes focus', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Filters', modelValue: true },
+      slots: { default: '<input data-testid="query" autofocus />' },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-testid="query"]').element);
+    wrapper.unmount();
+    document.dispatchEvent(new Event('keydown'));
+  });
+
+  it('opened from the keyboard after a tap: focuses the first link again', async () => {
+    document.dispatchEvent(new Event('pointerdown'));
+    document.dispatchEvent(new Event('keydown'));
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        default: '<nav aria-label="Main"><a href="#" data-testid="first-link">Shop all</a></nav>',
+      },
+    });
+    await nextTick();
+    await nextTick();
+    expect(document.activeElement).toBe(wrapper.find('[data-testid="first-link"]').element);
+    wrapper.unmount();
+  });
+
   it('returns focus to the opener once the drawer closes', async () => {
     const opener = document.createElement('button');
     opener.textContent = 'Open cart';
@@ -546,6 +612,18 @@ describe('Drawer — accessibility', () => {
       slots: {
         default: '<nav aria-label="Main"><a href="#">Shop all</a></nav>',
         footer: '<button type="button">Sign in</button>',
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('is axe-clean open with a header slot holding a logo and a call to action', async () => {
+    const wrapper = mountWith(Drawer, {
+      props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
+      slots: {
+        header: '<a href="/">Home</a><a href="#contact">Contact us</a>',
+        default: '<nav aria-label="Main"><a href="#">Shop all</a></nav>',
       },
     });
     expect(await axe(wrapper.element)).toHaveNoViolations();

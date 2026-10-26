@@ -38,6 +38,7 @@ export { default as Link } from './components/link/Link.vue';
 export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
+export { default as NavMenu } from './components/nav-menu/NavMenu.vue';
 export { default as Pagination } from './components/pagination/Pagination.vue';
 export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
@@ -50,11 +51,13 @@ export { default as SearchBar } from './components/search-bar/SearchBar.vue';
 export { default as SearchModal } from './components/search-modal/SearchModal.vue';
 export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
+export { default as SiteForm } from './components/site-form/SiteForm.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Tab } from './components/tabs/Tab.vue';
 export { default as TabPanel } from './components/tabs/TabPanel.vue';
+export { default as TablerIcon } from './components/tabler-icon/TablerIcon.vue';
 export { default as Tabs } from './components/tabs/Tabs.vue';
 export { default as Textarea } from './components/textarea/Textarea.vue';
 export { default as Toast } from './components/toast/Toast.vue';
@@ -174,7 +177,13 @@ export type {
   FormLayoutVariant,
 } from './components/form-layout/types';
 export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
-export type { ImageMedia, ImagePart, ImageProps, ImageRatio } from './components/image/types';
+export type {
+  ImageCrop,
+  ImageMedia,
+  ImagePart,
+  ImageProps,
+  ImageRatio,
+} from './components/image/types';
 export type { InputPart, InputProps, InputSize, InputType } from './components/input/types';
 export type { LightboxImage, LightboxPart, LightboxProps } from './components/lightbox/types';
 export type { LinkPart, LinkProps, LinkTone, LinkVariant } from './components/link/types';
@@ -189,6 +198,22 @@ export type {
   SelectProps,
   SelectSize,
 } from './components/select/types';
+export type {
+  NavMenuCollapse,
+  NavMenuDrawerLayout,
+  NavMenuDrawerPanelPart,
+  NavMenuGroup,
+  NavMenuGroupHeadingSlotProps,
+  NavMenuItem,
+  NavMenuLink,
+  NavMenuPanelItemSlotProps,
+  NavMenuPanelLayout,
+  NavMenuPanelPart,
+  NavMenuPart,
+  NavMenuPlacement,
+  NavMenuProps,
+  NavMenuVariant,
+} from './components/nav-menu/types';
 export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
@@ -238,6 +263,20 @@ export type {
   SectionProps,
   SectionSpacing,
 } from './components/section/types';
+export type {
+  SiteFormClient,
+  SiteFormDefinition,
+  SiteFormFailure,
+  SiteFormFailureReason,
+  SiteFormField,
+  SiteFormLayout,
+  SiteFormPart,
+  SiteFormProps,
+  SiteFormStatus,
+  SiteFormSubmitOutcome,
+  SiteFormSuccess,
+  SiteFormValue,
+} from './components/site-form/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
 export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
 export type {
@@ -251,6 +290,7 @@ export type {
   TabsProps,
   TabsVariant,
 } from './components/tabs/types';
+export type { TablerIconPart, TablerIconProps } from './components/tabler-icon/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type {
   ToastAction,
@@ -301,6 +341,9 @@ export {
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
+// `TablerIcon`'s name rule and loader, for a page that warms its icons before it renders in the browser.
+export { preloadTablerIcons } from './components/tabler-icon/registry';
+export { tablerIconName } from './components/tabler-icon/tablerIconName';
 // The modal stack every modal surface in this package shares (`Dialog`, `Drawer`, `Lightbox` and
 // `SearchModal`) — nested modals are allowed; `Esc`/a backdrop click act only on the topmost one
 // (operator override, see the README's Deviations entry). `TOAST_HOST_KEY` is the hand-off a
@@ -354,6 +397,12 @@ export {
   type UsePopoverOptions,
   type UsePopoverReturn,
 } from './components/select/usePopover';
+// An Eldra form's state, checks, honeypot, Turnstile and submission; `SiteForm` is drawn from it.
+export {
+  useSiteForm,
+  type UseSiteFormOptions,
+  type UseSiteFormReturn,
+} from './components/site-form/useSiteForm';
 // Reactive slot presence: every component in this package that branches on a slot uses it instead
 // of a plain `$slots.x !== undefined` (slots are not reactive on their own — see its own comment)
 // — exported so a consumer's own wrapper composing this package's parts gets the same behaviour.
@@ -494,6 +543,8 @@ export { filterNumericBeforeInput, type NumericInputFilterOptions } from './util
 // `aspect-ratio` value it resolves to was not — a consumer accepting an `ImageRatio` of their own
 // could not honour it without this. Shared by `Image` and `Skeleton`'s `media` variant.
 export { frameAspectRatio } from './utils/ratio';
+// What `Image` does to `sizes` under a zoom, for a renderer that draws its own zoomed crop.
+export { zoomSizes } from './utils/sizes';
 // Never throws (see its own comment) — a consumer rendering its own `<time>` from a CMS date gets
 // the same guard `ContentCard` uses, rather than reimplementing the ISO-parsing/invalid-date rules.
 // `FormatDateOptions` is the `Intl.DateTimeFormatOptions` subset its third argument accepts (a

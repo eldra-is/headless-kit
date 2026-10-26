@@ -48,7 +48,7 @@
  * The currency selector is different: the spec was written for a multi-currency store, but the
  * platform supports exactly one currency per store today. So its options are derived from the
  * store (`useMoney().currency`, `app/storefront/money.ts`), not from a constant list, and there is
- * at most one of them — `currencyLabel()` names it "ISK kr" style (code + the narrow sign
+ * at most one of them — `currencyLabel()` names it "ISK kr." style (code + the sign
  * `@eldrajs/ui` writes the store's prices with in the content locale, falling back to the code
  * alone when the locale has no sign distinct from it). With exactly one option
  * there is nothing to select, so it renders as plain text with the same leading icon and a visually
@@ -57,7 +57,8 @@
  * slot renders nothing. The `Select` branch stays for the day the derived list carries two or more
  * entries; which branch renders is driven by that list's length, not by a separate flag.
  *
- * The newsletter zone posts through `useStorefront().forms.subscribe`. Email format is validated
+ * The newsletter zone posts through `useStorefront().forms.submit('newsletter', …)` — the platform's
+ * seeded `newsletter` form, the same one the newsletter block defaults to. Email format is validated
  * locally (empty/malformed never reaches the storefront); a backend `{ ok: false }` shows the same
  * error slot. Both failure paths return focus to the email field — `FormLayout`'s own submit
  * handler only refuses a *second* submit while a field is already marked invalid, so the first
@@ -96,8 +97,10 @@ import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import type { ThemeIconName } from '../../app/icons';
 import { currencyLabel, useMoney } from '../../app/storefront/money';
@@ -108,6 +111,9 @@ type FooterLink = {
   href: string | undefined;
   as: typeof EldraRouterLink | undefined;
 };
+
+/** The seeded form the footer's sign-up zone submits to (`app/formSeeds.ts`). */
+const NEWSLETTER_FORM_KEY = 'newsletter';
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
@@ -254,7 +260,7 @@ const showCurrency = computed(() => data.value.showCurrency ?? true);
  * The currency selector's option list, derived from the store rather than the spec's hard-coded
  * USD/CAD/EUR demo list: the platform supports exactly one currency per store today, so this is
  * either empty (the store publishes none) or a single entry — the store's currency, named "ISK
- * kr" style by `currencyLabel()` (code + the same narrow sign every price on the page is written
+ * kr." style by `currencyLabel()` (code + the same sign every price on the page is written
  * with). Kept as a list, not a single value, so the day the platform supports more than one
  * currency, this grows to match and the template's `Select` branch (below) is already there.
  */
@@ -308,6 +314,24 @@ const emailFieldRoot = ref<HTMLElement | null>(null);
 const showNewsletter = computed(
   () => variant.value === 'default' && (data.value.showNewsletter ?? true)
 );
+// Only a footer that shows the sign-up reads the form's definition (its honeypot and Turnstile).
+const {
+  definition,
+  honeypot,
+  honeypotField,
+  siteKey,
+  consentSentence,
+  turnstileRoot,
+  challenge,
+  signals,
+  reset,
+} = useFormSpam(computed(() => (showNewsletter.value ? NEWSLETTER_FORM_KEY : '')));
+const consentSentenceId = `footer-consent-sentence-${useUiId()}`;
+// The merchant's own label and placeholder on the form's email field; the theme's wording stands in until the
+// definition has loaded.
+const emailField = computed(() => definition.value?.fields.find((field) => field.type === 'email'));
+const emailLabel = computed(() => emailField.value?.label || t('footer.emailLabel'));
+const emailPlaceholder = computed(() => emailField.value?.placeholder || undefined);
 
 /** Mirrors `blocks/newsletter/Block.vue`'s own comment: an error has to clear itself the moment
  *  its own condition is fixed (the visitor edits the address), not only inside a later successful
@@ -353,9 +377,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
     return;
   }
 
+  // Turnstile is on and not passed: nothing about the address is wrong, so a retry is welcome.
+  const blocked = challenge();
+  if (blocked !== null) {
+    retryable.value = true;
+    emailError.value = blocked;
+    await focusEmailField();
+    return;
+  }
+
   emailError.value = null;
   newsletterState.value = 'submitting';
-  const result = await storefront.forms.subscribe({ email: value, list: 'footer-newsletter' });
+  const result = await storefront.forms.submit(NEWSLETTER_FORM_KEY, {
+    values: { email: value },
+    ...signals(),
+  });
+  // A Turnstile token is single-use, whatever the outcome.
+  reset();
 
   if (result.ok) {
     newsletterState.value = 'success';
@@ -365,7 +403,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
   newsletterState.value = 'idle';
   const serviceFailed = result.reason !== 'invalid';
   retryable.value = serviceFailed;
-  emailError.value = serviceFailed ? t('footer.emailError') : t('footer.emailInvalid');
+  emailError.value = serviceFailed
+    ? t('footer.emailError')
+    : (result.errors.email?.[0] ?? t('footer.emailInvalid'));
   await focusEmailField();
 }
 </script>
@@ -487,6 +527,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               :heading-level="3"
               :aria-label="data.newsletterTitle ? undefined : t('footer.newsletterAriaLabel')"
               :submitting="newsletterState === 'submitting'"
+              :classes="{ actions: 'w-full mt-3' }"
               @submit="onNewsletterSubmit"
               @invalid="onNewsletterInvalid"
             >
@@ -498,23 +539,39 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               </p>
               <div ref="emailFieldRoot" class="contents">
                 <FieldWrapper
-                  :label="t('footer.emailLabel')"
+                  :label="emailLabel"
                   :error="emailError ?? undefined"
-                  :classes="{ label: 'sr-only' }"
+                  :classes="{ root: 'block w-full' }"
                 >
                   <Input
                     v-model="email"
                     type="email"
                     name="email"
                     autocomplete="email"
-                    :placeholder="t('footer.emailLabel')"
+                    :placeholder="emailPlaceholder"
                   />
                 </FieldWrapper>
               </div>
+              <FormHoneypot v-model="honeypot" :name="honeypotField" />
+              <div v-if="siteKey" ref="turnstileRoot" class="w-full" />
               <template #actions>
-                <Button type="submit" variant="primary" :label="t('footer.subscribing')">{{
-                  t('footer.subscribe')
-                }}</Button>
+                <div class="grid w-full grid-cols-[minmax(0,1fr)] gap-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    :label="t('footer.subscribing')"
+                    :aria-describedby="consentSentence ? consentSentenceId : undefined"
+                    >{{ t('footer.subscribe') }}</Button
+                  >
+                  <p
+                    v-if="consentSentence"
+                    :id="consentSentenceId"
+                    data-part="consent-sentence"
+                    class="text-muted text-body-sm"
+                  >
+                    {{ consentSentence }}
+                  </p>
+                </div>
               </template>
             </FormLayout>
           </template>

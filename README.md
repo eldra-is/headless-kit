@@ -26,7 +26,10 @@ const eldra = createEldraClient({ orgId: 'your-organisation-id' });
 const { data: products } = await eldra.catalog.listProducts();
 ```
 
-Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md); for business-customer sign-in, [docs/business-login.md](docs/business-login.md); for customer prices, [docs/customer-prices.md](docs/customer-prices.md); for orders on account, [docs/sales-orders.md](docs/sales-orders.md).
+Start with [docs/getting-started.md](docs/getting-started.md); for images, [docs/images.md](docs/images.md); for
+Icelandic text, [docs/icelandic-formatting.md](docs/icelandic-formatting.md); for business-customer sign-in,
+[docs/business-login.md](docs/business-login.md); for customer prices,
+[docs/customer-prices.md](docs/customer-prices.md); for orders on account, [docs/sales-orders.md](docs/sales-orders.md).
 Planned work: [docs/roadmap.md](docs/roadmap.md).
 UI components: start with [docs/ui.md](docs/ui.md). Themes: start with [docs/themes.md](docs/themes.md).
 Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -116,7 +116,7 @@ const actionsClass = computed(() =>
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass" :role="role">
+  <div data-eldra-ui data-part="root" :class="rootClass" :role="role">
     <span data-part="icon" :class="iconClass" aria-hidden="true">
       <component
         :is="icon"

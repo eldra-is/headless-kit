@@ -2,6 +2,7 @@ import { existsSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
+import { starterFormSeeds } from './app/formSeeds';
 import { starterSeeds, starterTemplateRoles } from './app/templates';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
@@ -97,8 +98,16 @@ export default defineNuxtConfig({
   // Keep these exact origins: they are also emitted into the Pages CSP header. More than one
   // (comma-separated in `ELDRA_STUDIO_ORIGIN`) lets one build serve a Studio whose origin is
   // changing — the old and the new origin both allowed until the old one is retired.
+  //
+  // Defaults to production Studio (`https://eldra.app`), not a local dev origin: a build that
+  // forgets to set `ELDRA_STUDIO_ORIGIN` is far more likely to be a staging/production deploy than
+  // someone's local theme dev server, and the old `https://localhost:4311` default made that
+  // mistake fail silently — the static page still rendered, so nothing looked wrong, but the
+  // preview bridge would never connect and the editor would just report "Preview disconnected"
+  // with inline editing dead. Local theme development against a local Studio must set
+  // `ELDRA_STUDIO_ORIGIN` explicitly.
   eldra: {
-    studioOrigins: (process.env.ELDRA_STUDIO_ORIGIN ?? 'https://localhost:4311')
+    studioOrigins: (process.env.ELDRA_STUDIO_ORIGIN ?? 'https://eldra.app')
       .split(',')
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
@@ -127,6 +136,11 @@ export default defineNuxtConfig({
     // header and one footer.
     templates: starterSeeds(),
     templateRoles: starterTemplateRoles(),
+    // The forms Core creates on the first deploy (only when their key is absent, and never over a
+    // merchant's own edits): `contact` and `newsletter`, which the `contact`, `newsletter`,
+    // `footer` and `form` blocks submit to. The build also reads each one's definition from the
+    // platform and bakes it into the site (`app/formSeeds.ts`, "Forms" in `docs/starter-kit.md`).
+    formSeeds: starterFormSeeds(),
   },
   typescript: {
     tsConfig: {

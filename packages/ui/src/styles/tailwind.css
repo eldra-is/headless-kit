@@ -129,66 +129,90 @@
   max-width: var(--eldra-container-wide);
 }
 
-/* Type styles: one utility per spec style, e.g. `text-body-sm`. */
+/* Type styles, one per spec style. Weight reads `--tw-font-weight` so a `font-*` utility wins. */
 @utility text-display {
-  font: var(--eldra-text-display-weight) var(--eldra-text-display-size) /
-    var(--eldra-text-display-line) var(--eldra-text-display-family);
+  font-family: var(--eldra-text-display-family);
+  font-size: var(--eldra-text-display-size);
+  line-height: var(--eldra-text-display-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-display-weight));
   letter-spacing: var(--eldra-text-display-tracking);
 }
 @utility text-h1 {
-  font: var(--eldra-text-h1-weight) var(--eldra-text-h1-size) / var(--eldra-text-h1-line)
-    var(--eldra-text-h1-family);
+  font-family: var(--eldra-text-h1-family);
+  font-size: var(--eldra-text-h1-size);
+  line-height: var(--eldra-text-h1-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h1-weight));
   letter-spacing: var(--eldra-text-h1-tracking);
 }
 @utility text-h2 {
-  font: var(--eldra-text-h2-weight) var(--eldra-text-h2-size) / var(--eldra-text-h2-line)
-    var(--eldra-text-h2-family);
+  font-family: var(--eldra-text-h2-family);
+  font-size: var(--eldra-text-h2-size);
+  line-height: var(--eldra-text-h2-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h2-weight));
   letter-spacing: var(--eldra-text-h2-tracking);
 }
 @utility text-h3 {
-  font: var(--eldra-text-h3-weight) var(--eldra-text-h3-size) / var(--eldra-text-h3-line)
-    var(--eldra-text-h3-family);
+  font-family: var(--eldra-text-h3-family);
+  font-size: var(--eldra-text-h3-size);
+  line-height: var(--eldra-text-h3-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h3-weight));
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 @utility text-h4 {
-  font: var(--eldra-text-h4-weight) var(--eldra-text-h4-size) / var(--eldra-text-h4-line)
-    var(--eldra-text-h4-family);
+  font-family: var(--eldra-text-h4-family);
+  font-size: var(--eldra-text-h4-size);
+  line-height: var(--eldra-text-h4-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h4-weight));
   letter-spacing: var(--eldra-text-h4-tracking);
 }
 @utility text-body-lg {
-  font: var(--eldra-text-body-lg-weight) var(--eldra-text-body-lg-size) /
-    var(--eldra-text-body-lg-line) var(--eldra-text-body-lg-family);
+  font-family: var(--eldra-text-body-lg-family);
+  font-size: var(--eldra-text-body-lg-size);
+  line-height: var(--eldra-text-body-lg-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-lg-weight));
   letter-spacing: var(--eldra-text-body-lg-tracking);
 }
 @utility text-body {
-  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) / var(--eldra-text-body-line)
-    var(--eldra-text-body-family);
+  font-family: var(--eldra-text-body-family);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-text-body-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
   letter-spacing: var(--eldra-text-body-tracking);
 }
 @utility text-body-sm {
-  font: var(--eldra-text-body-sm-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-text-body-sm-line) var(--eldra-text-body-sm-family);
+  font-family: var(--eldra-text-body-sm-family);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-text-body-sm-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-sm-weight));
   letter-spacing: var(--eldra-text-body-sm-tracking);
 }
 @utility text-caption {
-  font: var(--eldra-text-caption-weight) var(--eldra-text-caption-size) /
-    var(--eldra-text-caption-line) var(--eldra-text-caption-family);
+  font-family: var(--eldra-text-caption-family);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-text-caption-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-caption-weight));
   letter-spacing: var(--eldra-text-caption-tracking);
 }
 @utility text-overline {
-  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
-    var(--eldra-text-overline-line) var(--eldra-text-overline-family);
+  font-family: var(--eldra-text-overline-family);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-overline-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-overline-weight));
   letter-spacing: var(--eldra-text-overline-tracking);
   text-transform: uppercase;
 }
 @utility text-label {
-  font: var(--eldra-text-label-weight) var(--eldra-text-label-size) / var(--eldra-text-label-line)
-    var(--eldra-text-label-family);
+  font-family: var(--eldra-text-label-family);
+  font-size: var(--eldra-text-label-size);
+  line-height: var(--eldra-text-label-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-text-label-tracking);
 }
 @utility text-code {
-  font: var(--eldra-text-code-weight) var(--eldra-text-code-size) / var(--eldra-text-code-line)
-    var(--eldra-text-code-family);
+  font-family: var(--eldra-text-code-family);
+  font-size: var(--eldra-text-code-size);
+  line-height: var(--eldra-text-code-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-code-weight));
   letter-spacing: var(--eldra-text-code-tracking);
 }
 
@@ -198,8 +222,10 @@
    want); only the 1 line ratio has no token of its own, so — like `text-button-md`'s 1.2 — it is
    a per-component variable with that literal default. */
 @utility text-badge {
-  font: var(--eldra-text-label-weight) var(--eldra-text-caption-size) /
-    var(--eldra-badge-line-height, 1) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-badge-line-height, 1);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-text-caption-tracking);
 }
 
@@ -210,8 +236,10 @@
    badge text above, the status line is a short sentence rather than a tag, so it is allowed to
    wrap on a narrow card rather than forcing `whitespace-nowrap`. */
 @utility text-stock-status {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-stock-status-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-stock-status-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* The Logo item wordmark fallback (spec "Logo item" → Sizes, "Wordmark" row): "heading family,
@@ -222,8 +250,10 @@
    `Button`'s `--eldra-button-font-size-lg` — it is a per-component variable with that literal
    default. */
 @utility text-logo-wordmark {
-  font: var(--eldra-text-h2-weight) var(--eldra-logo-wordmark-size, 1.25rem) /
-    var(--eldra-text-h2-line) var(--eldra-text-h2-family);
+  font-family: var(--eldra-text-h2-family);
+  font-size: var(--eldra-logo-wordmark-size, 1.25rem);
+  line-height: var(--eldra-text-h2-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h2-weight));
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 
@@ -245,7 +275,7 @@
    above sets or inherits. */
 @utility text-price-current {
   font-family: var(--eldra-font-body);
-  font-weight: var(--eldra-text-label-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   font-variant-numeric: tabular-nums;
 }
 
@@ -259,7 +289,7 @@
 @utility text-price-secondary {
   font-family: var(--eldra-font-body);
   font-size: 0.9em;
-  font-weight: var(--eldra-text-body-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
   font-variant-numeric: tabular-nums;
 }
 
@@ -269,7 +299,7 @@
 @utility text-price-unit {
   font-family: var(--eldra-font-body);
   font-size: var(--eldra-text-caption-size);
-  font-weight: var(--eldra-text-body-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
   font-variant-numeric: tabular-nums;
 }
 
@@ -290,16 +320,22 @@
    own font size. sm and md reuse the body-sm and body token sizes; lg's 1.0625rem sits between two
    type styles and has no token, so it is a per-component variable with that default. */
 @utility text-button-sm {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-button-line-height, 1.2);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 @utility text-button-md {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
-    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-button-line-height, 1.2);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 @utility text-button-lg {
-  font: var(--eldra-text-label-weight) var(--eldra-button-font-size-lg, 1.0625rem) /
-    var(--eldra-button-line-height, 1.2) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-button-font-size-lg, 1.0625rem);
+  line-height: var(--eldra-button-line-height, 1.2);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* Compact-control type (spec "Actions and forms" → Compact controls, and "Input" → Sizes): the
@@ -313,20 +349,28 @@
    is 48rem, which is the edge the spec measures for this rule — a viewport query, not the block
    `@max-tablet` container query the spec's own button touch-target growth would have measured). */
 @utility text-control-sm {
-  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 @utility text-control {
-  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 @utility text-control-lg {
-  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 @utility text-control-mobile {
-  font: var(--eldra-text-body-weight) var(--eldra-control-font-size-mobile, 1rem) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size-mobile, 1rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* A field's character counter (spec "Textarea" → Sizes, Counter row): "0.8125rem, line-height
@@ -366,8 +410,10 @@
    that literal default. The card's hint reuses `text-body-sm` `muted`, exactly as `Checkbox`'s
    hint does. */
 @utility text-card-title {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
-    var(--eldra-radio-card-title-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-radio-card-title-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* Accordion's label (spec "Accordion" → Sizes, "Label" row): "1.0625rem / 1.4, weight 600" —
@@ -376,34 +422,36 @@
    and the body family, with the 1.4 line ratio as a per-component variable carrying that literal
    default. */
 @utility text-accordion-title {
-  font: var(--eldra-text-label-weight) 1.0625rem / var(--eldra-accordion-title-line, 1.4)
-    var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: 1.0625rem;
+  line-height: var(--eldra-accordion-title-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* The Quantity stepper's value (spec "Quantity stepper" → Sizes): "0.9375rem, 600, tabular" at
    `md`, "0.875rem" at `sm` (weight and line stay the same size only). The size matches
-   `text-control`/`text-control-sm` exactly, but the weight does not — `text-control`'s shorthand
-   bakes in `--eldra-text-body-weight` (400), and layering a `font-semibold` utility after a
-   shorthand `font` property is order-dependent (see `text-counter`'s own comment above) — so this
-   is its own utility rather than `text-control` plus an override, reusing `--eldra-text-label-
-   weight` (600) as `text-card-title` does for the same reason. */
+   `text-control`/`text-control-sm` exactly; the weight reuses `--eldra-text-label-weight` (600). */
 @utility text-stepper-value {
-  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 @utility text-stepper-value-sm {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* `FilterGroup`'s trigger label (spec "Filter panel" → Sizes, "Trigger" row): "0.9375rem weight
-   600, left-aligned" — the same size and line as `text-control`, but that utility's shorthand
-   bakes in `--eldra-text-body-weight` (400) the same way `text-stepper-value`'s comment above
-   explains, so a trailing `font-semibold` is order-dependent rather than reliable. Its own
-   utility, reusing `--eldra-text-label-weight` (600), the same shape as `text-stepper-value`. */
+   600, left-aligned" — the same size and line as `text-control`, at `--eldra-text-label-weight`
+   (600), the same shape as `text-stepper-value`. */
 @utility text-filter-trigger {
-  font: var(--eldra-text-label-weight) var(--eldra-control-font-size, 0.9375rem) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* `EmptyState`'s title (spec "Empty and error states" → Sizes, "Title" row): "heading family,
@@ -413,8 +461,10 @@
    per-component variables with that literal default, the same shape as `text-counter`'s 1.5 — see
    the README's Customisation table for `--eldra-empty-state-title-size`. */
 @utility text-empty-state-title {
-  font: var(--eldra-text-label-weight) var(--eldra-empty-state-title-size, 1.25rem) /
-    var(--eldra-empty-state-title-line, 1.3) var(--eldra-font-heading);
+  font-family: var(--eldra-font-heading);
+  font-size: var(--eldra-empty-state-title-size, 1.25rem);
+  line-height: var(--eldra-empty-state-title-line, 1.3);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* `ContentCard`'s title (spec "Content card" → Sizes, "Title" row): "heading family, 1.25rem,
@@ -427,8 +477,10 @@
    default — the same shape as `text-empty-state-title`'s own — see the README's Customisation
    table for `--eldra-content-card-title-size`. */
 @utility text-content-card-title {
-  font: var(--eldra-text-label-weight) var(--eldra-content-card-title-size, 1.25rem) /
-    var(--eldra-content-card-title-line, 1.3) var(--eldra-font-heading);
+  font-family: var(--eldra-font-heading);
+  font-size: var(--eldra-content-card-title-size, 1.25rem);
+  line-height: var(--eldra-content-card-title-line, 1.3);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 
@@ -443,7 +495,7 @@
   font-family: var(--eldra-font-body);
   font-size: var(--eldra-content-card-excerpt-size, 0.9375rem);
   line-height: var(--eldra-content-card-excerpt-line, 1.5);
-  font-weight: var(--eldra-text-body-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* Control heights and targets. */
@@ -1026,16 +1078,20 @@
    the "with description" paragraph: "line-height 1.4"), so — like `text-card-title`'s 1.4 before
    it — it is a per-component variable with that literal default. */
 @utility text-switch-label {
-  font: var(--eldra-text-body-weight) var(--eldra-text-body-size) /
-    var(--eldra-switch-label-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-switch-label-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The Switch description (spec "Switch" → Sizes: "the description is 0.875rem `muted`", and the
    same paragraph's "line-height 1.4"). 0.875rem already reads the body-sm token's size; the line
    ratio is this component's own, exactly like `text-switch-label` above. */
 @utility text-switch-description {
-  font: var(--eldra-text-body-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-switch-description-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-switch-description-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* --- Select ---------------------------------------------------------------------------------- */
@@ -1045,8 +1101,10 @@
    already; the spec's 0.06em is half the overline token's 0.12em, so it is this component's own
    and gets a variable with that literal default, exactly like `text-card-title`'s 1.4 line. */
 @utility text-select-group {
-  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
-    var(--eldra-text-overline-line) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-text-overline-line);
+  font-weight: var(--tw-font-weight, var(--eldra-text-overline-weight));
   letter-spacing: var(--eldra-select-group-tracking, 0.06em);
   text-transform: uppercase;
 }
@@ -1057,18 +1115,21 @@
    deliberately not `text-control`, whose fixed 1.5rem line is the height of a 2.5rem field box and
    would push a two-line option (label + hint) past the spec's row. */
 @utility text-select-option {
-  font: var(--eldra-text-body-weight) var(--eldra-control-font-size, 0.9375rem) /
-    var(--eldra-select-option-line, 1.35) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-control-font-size, 0.9375rem);
+  line-height: var(--eldra-select-option-line, 1.35);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The "+N" pill on a Multi-select trigger (spec "Multi-select" -> Sizes: "0.75rem 600 tabular").
    The overline token carries both numbers, but `text-overline` itself is uppercase — which "+2"
    must not be — so the pill takes the token pair without the transform, on the pill's own 1.25rem
-   height as its line box. `font-variant-numeric` comes after the `font` shorthand, which resets
-   it. */
+   height as its line box. */
 @utility text-select-pill {
-  font: var(--eldra-text-overline-weight) var(--eldra-text-overline-size) /
-    var(--eldra-select-pill-line, 1.25rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-select-pill-line, 1.25rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-overline-weight));
   font-variant-numeric: tabular-nums;
 }
 
@@ -1216,30 +1277,33 @@
    tabular" — a price. Both numbers already read tokens (`text-label-weight` is 600,
    `text-body-sm-size` is 0.875rem); only the 1.35 line of the row's text stack is this component's
    own, and it is shared with the row's title, which reuses `text-select-option` (the same
-   0.9375rem on the same 1.35 line the spec gives both components). `font-variant-numeric` comes
-   after the `font` shorthand, which resets it. */
+   0.9375rem on the same 1.35 line the spec gives both components). */
 @utility text-search-meta {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-sm-size) /
-    var(--eldra-search-text-line, 1.35) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-sm-size);
+  line-height: var(--eldra-search-text-line, 1.35);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   font-variant-numeric: tabular-nums;
 }
 
 /* The no-results title (spec -> Sizes, "No-results message" row): "Title 1rem 600". The size and
    the weight are tokens; the 1.4 line has none of its own, so it is a per-component variable with
-   that literal default, exactly like `text-card-title`'s. Its own utility rather than a stock
-   weight layered over `text-body`, because layering `font-semibold` after a shorthand `font`
-   property that already bakes in a weight is order-dependent (see `text-counter`'s comment). */
+   that literal default, exactly like `text-card-title`'s. */
 @utility text-search-title {
-  font: var(--eldra-text-label-weight) var(--eldra-text-body-size) /
-    var(--eldra-search-empty-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-body-size);
+  line-height: var(--eldra-search-empty-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* The `/` keyboard-key chip (spec -> Sizes, "Keyboard hint" row): "monospace, 0.75rem". The size
    is the overline token's, the family the mono token's, and the 1rem line box is the chip's own
    height rather than a ratio. */
 @utility text-search-kbd {
-  font: var(--eldra-text-body-weight) var(--eldra-text-overline-size) /
-    var(--eldra-search-kbd-line, 1rem) var(--eldra-font-mono);
+  font-family: var(--eldra-font-mono);
+  font-size: var(--eldra-text-overline-size);
+  line-height: var(--eldra-search-kbd-line, 1rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The results panel's own box (spec -> Sizes, Panel row): "Max height min(32rem, 70vh), scrolls
@@ -1400,23 +1464,31 @@
    `sm` (`Avatar.vue`'s own comment) rather than a fifth type style, since the spec's States table
    gives it the identical treatment ("Initials / '+N' … `text`"). */
 @utility text-avatar-initials-sm {
-  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-sm, 0.76rem) / 1
-    var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-avatar-initials-size-sm, 0.76rem);
+  line-height: 1;
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
 }
 @utility text-avatar-initials-md {
-  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-md, 0.95rem) / 1
-    var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-avatar-initials-size-md, 0.95rem);
+  line-height: 1;
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
 }
 @utility text-avatar-initials-lg {
-  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-lg, 1.33rem) / 1
-    var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-avatar-initials-size-lg, 1.33rem);
+  line-height: 1;
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
 }
 @utility text-avatar-initials-xl {
-  font: var(--eldra-text-label-weight) var(--eldra-avatar-initials-size-xl, 2.28rem) / 1
-    var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-avatar-initials-size-xl, 2.28rem);
+  line-height: 1;
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-avatar-initials-tracking, 0.02em);
 }
 
@@ -1481,8 +1553,10 @@
    sit between two type styles with no token of their own, so, like `Button`'s `lg` size, they are
    per-component variables with the spec's literals as defaults. */
 @utility text-dialog-title {
-  font: var(--eldra-text-h3-weight) var(--eldra-dialog-title-size, 1.25rem) /
-    var(--eldra-dialog-title-line, 1.3) var(--eldra-font-heading);
+  font-family: var(--eldra-font-heading);
+  font-size: var(--eldra-dialog-title-size, 1.25rem);
+  line-height: var(--eldra-dialog-title-line, 1.3);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h3-weight));
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 
@@ -1564,8 +1638,10 @@
    rather than a shared one: a consumer restyling one component's title should not have to think
    about whether the other one moves with it. */
 @utility text-drawer-title {
-  font: var(--eldra-text-h3-weight) var(--eldra-drawer-title-size, 1.25rem) /
-    var(--eldra-drawer-title-line, 1.3) var(--eldra-font-heading);
+  font-family: var(--eldra-font-heading);
+  font-size: var(--eldra-drawer-title-size, 1.25rem);
+  line-height: var(--eldra-drawer-title-line, 1.3);
+  font-weight: var(--tw-font-weight, var(--eldra-text-h3-weight));
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 
@@ -1587,6 +1663,40 @@
   @media (width < 48rem) {
     width: 100vw;
   }
+}
+
+/* Drawer: the side gutter and the header row's least height from their variables, and the edge paddings, each with
+   the device's safe area added (zero unless the page sets `viewport-fit=cover`). One property per utility, so a
+   consumer's `px-*`, `pt-*`, `pb-*` or `min-h-*` replaces exactly the one it names. */
+@utility eldra-drawer-gutter {
+  padding-inline: calc(
+    var(--eldra-drawer-gutter, var(--eldra-space-6)) +
+      max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px))
+  );
+}
+
+@utility eldra-drawer-header-height {
+  min-height: calc(
+    var(--eldra-drawer-header-height, var(--eldra-space-16)) + env(safe-area-inset-top, 0px)
+  );
+}
+
+@utility eldra-drawer-header-top {
+  padding-top: calc(
+    var(--eldra-drawer-header-padding, var(--eldra-space-4)) + env(safe-area-inset-top, 0px)
+  );
+}
+
+@utility eldra-drawer-header-bottom {
+  padding-bottom: var(--eldra-drawer-header-padding, var(--eldra-space-4));
+}
+
+@utility eldra-drawer-body-bottom {
+  padding-bottom: calc(var(--eldra-space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+@utility eldra-drawer-footer-bottom {
+  padding-bottom: calc(var(--eldra-space-5) + env(safe-area-inset-bottom, 0px));
 }
 
 /* The drawer's own entrance (spec "Drawer" → Behaviour & motion): "Enter: slides in from its edge
@@ -1636,8 +1746,10 @@
    its own, so, like `text-button-lg`'s identical number, it is a per-component variable with the
    spec's literal as its default. */
 @utility text-search-modal-field {
-  font: var(--eldra-text-body-weight) var(--eldra-search-modal-field-size, 1.0625rem) /
-    var(--eldra-control-line-height, 1.5rem) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-search-modal-field-size, 1.0625rem);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The foot's own text (spec "Search modal" → Sizes, Foot row): "0.75rem `muted` text on `surface`".
@@ -1645,16 +1757,20 @@
    copy, not an uppercase, tracked label — so it is its own utility rather than that one plus an
    override. */
 @utility text-search-modal-foot {
-  font: var(--eldra-text-body-weight) var(--eldra-search-modal-foot-size, 0.75rem) /
-    var(--eldra-search-modal-foot-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-search-modal-foot-size, 0.75rem);
+  line-height: var(--eldra-search-modal-foot-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The foot's key caps (spec, same row): "monospace 0.6875rem, min-width 1.25rem" — smaller than
    `text-search-kbd` (the Search bar's own inline `/` chip, 0.75rem), for a denser row of three
    hints. */
 @utility text-search-modal-kbd {
-  font: var(--eldra-text-body-weight) var(--eldra-search-modal-kbd-size, 0.6875rem) / 1rem
-    var(--eldra-font-mono);
+  font-family: var(--eldra-font-mono);
+  font-size: var(--eldra-search-modal-kbd-size, 0.6875rem);
+  line-height: 1rem;
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* The dialog's own box (spec "Search modal" → Sizes, Dialog row): "min(40rem, 100vw − 2rem) wide;
@@ -1705,8 +1821,10 @@
    0.9375rem and `text-dialog-title`'s 1.25rem — so it is a per-component variable with that literal
    default. No line-height is given, so, like `text-stock-status`'s 1.4, it gets one too. */
 @utility text-toast-title {
-  font: var(--eldra-text-label-weight) var(--eldra-toast-title-size, 0.9375rem) /
-    var(--eldra-toast-title-line, 1.4) var(--eldra-font-body);
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-toast-title-size, 0.9375rem);
+  line-height: var(--eldra-toast-title-line, 1.4);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
 }
 
 /* The toast's own entrance (spec "Toast" -> Behaviour & motion): "Enter: fade in with a 0.5rem
@@ -2001,7 +2119,7 @@
   font-family: var(--eldra-font-body);
   font-size: var(--eldra-text-overline-size);
   line-height: var(--eldra-text-overline-line);
-  font-weight: var(--eldra-text-label-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-label-weight));
   letter-spacing: var(--eldra-filter-subheading-tracking, 0.06em);
   text-transform: uppercase;
 }
@@ -2015,7 +2133,7 @@
   font-family: var(--eldra-font-body);
   font-size: var(--eldra-text-overline-size);
   line-height: var(--eldra-text-caption-line);
-  font-weight: var(--eldra-text-body-weight);
+  font-weight: var(--tw-font-weight, var(--eldra-text-body-weight));
 }
 
 /* A colour swatch's own edge (spec → Sizes, Swatch row: "Swatch 1.5rem circle with a 1px inner
@@ -2054,4 +2172,33 @@
   min-height: var(--eldra-filter-histogram-bar-min, 2px);
   border-start-start-radius: var(--eldra-filter-histogram-bar-radius, 1px);
   border-start-end-radius: var(--eldra-filter-histogram-bar-radius, 1px);
+}
+
+/* --- Nav menu --------------------------------------------------------------------------------- */
+
+/* The gap under the bar is the panel's own padding, so a hovering pointer never leaves the menu. */
+@utility eldra-nav-menu-panel {
+  padding-top: var(--eldra-nav-menu-offset, var(--eldra-space-2));
+}
+
+@utility eldra-nav-menu-dropdown {
+  width: max-content;
+  min-width: var(--eldra-nav-menu-dropdown-min, 14rem);
+  max-width: min(var(--eldra-nav-menu-dropdown-max, 24rem), calc(100vw - 2rem));
+}
+
+@utility eldra-nav-menu-columns {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--eldra-nav-menu-column-min, 12rem)), 1fr)
+  );
+}
+
+/* NavMenu's phone menu: every top-level row's least height, and a panel's links indented beneath their row. */
+@utility eldra-nav-menu-drawer-row {
+  min-height: var(--eldra-nav-menu-drawer-row-height, calc(var(--spacing) * 14));
+}
+
+@utility eldra-nav-menu-drawer-nest {
+  padding-inline-start: var(--eldra-nav-menu-drawer-indent, var(--eldra-space-4));
 }

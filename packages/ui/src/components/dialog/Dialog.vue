@@ -109,7 +109,7 @@ const rootClass = computed(() =>
       // *outer* display to block regardless of which inner value wins, so the auto-margin centring
       // is unaffected either way — only the flex-shrink behaviour on the child differs.
       'hidden open:block m-auto border-0 bg-transparent p-0 text-text',
-      'backdrop:bg-overlay',
+      'backdrop:bg-overlay focus:outline-none',
       'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     props.classes,
@@ -188,6 +188,7 @@ const footerClass = computed(() =>
 <template>
   <dialog
     ref="dialogEl"
+    data-eldra-ui
     data-part="root"
     :class="rootClass"
     :aria-labelledby="titleId"

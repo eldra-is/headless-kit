@@ -577,8 +577,7 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
    * text** — what `CurrencyInput`/`UnitInput` put in the box — which is the thing a prior round
    * shipped wrong (`"kr 5,000"`, en-US grouping and a prefix sign) because a real browser's `Intl`
    * silently falls back to `en-US` for the one locale this package ships messages for whose
-   * number-formatting CLDR data Chromium does not bundle; see `number-format.ts`'s
-   * `LOCALE_FALLBACKS`. Exact equality, not `toContain`, so a regression in grouping, sign
+   * number-formatting CLDR data Chromium does not bundle; `@eldrajs/sdk/format` supplies it. Exact equality, not `toContain`, so a regression in grouping, sign
    * placement or the narrow symbol itself fails this test.
    */
   it('renders the is-IS/ISK and en-US/USD field text exactly, not just the thumb', () => {
@@ -612,9 +611,7 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
    * `withoutIcuDataFor` makes this process's own `Intl.NumberFormat` negotiate exactly the way a
    * real `is-IS`-less Chromium does (see `src/test/intlStub.ts`, verified against a genuine
    * `@playwright/test` browser), so this is the test that would have caught the original defect
-   * without needing an actual browser: the test above alone never exercises `number-format.ts`'s
-   * `LOCALE_FALLBACKS`, because this process's own ICU data already has `is-IS` and `Intl` never
-   * has to fall back to it.
+   * without needing an actual browser: the test above alone runs on this process's full ICU data.
    */
   it('renders the same is-IS/ISK field text on a runtime without is-IS ICU data', () => {
     const restore = withoutIcuDataFor('is-IS');

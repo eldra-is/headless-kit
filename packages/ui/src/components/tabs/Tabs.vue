@@ -183,7 +183,7 @@ const childClasses = computed(() => ({
 </script>
 
 <template>
-  <div data-part="root" :class="rootClass">
+  <div data-eldra-ui data-part="root" :class="rootClass">
     <!-- Per the ARIA APG tabs pattern, the tablist contains tab elements only — panels are
          siblings after it, not inside it. -->
     <div role="tablist" data-part="list" :aria-label="ariaLabel" :class="listClass">

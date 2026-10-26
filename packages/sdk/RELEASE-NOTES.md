@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.3.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.1...sdk-v0.3.2) (2026-10-22)
+
+
+### Features
+
+* **sdk,ui:** size images from the API's width and height, and keep zoomed crops sharp ([#74](https://github.com/eldra-is/headless-kit/issues/74)) ([a9ceef9](https://github.com/eldra-is/headless-kit/commit/a9ceef93ba8865518ed928cea51210947e2599b5))
+
+## [0.3.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.0...sdk-v0.3.1) (2026-10-19)
+
+
+### Features
+
+* **sdk:** send a read-only build token from theme builds, never the deploy token (WS-403, WS-409) ([#68](https://github.com/eldra-is/headless-kit/issues/68)) ([f5b1cfa](https://github.com/eldra-is/headless-kit/commit/f5b1cfab30f867f187346af422e865a46212cfe9))
+
+## [0.3.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.9...sdk-v0.3.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **theme-nuxt:** a build is production unless ELDRA_BUILD_TARGET=preview (WS-387)
+
+### Features
+
+* **sdk:** forms API; confirm and unsubscribe POST the emailed links (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **sdk:** number and url fields and the subscribe consent sentence on form definitions (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-core:** SEO resolver and schema.org JSON-LD builders (WS-382, WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** a build is production unless ELDRA_BUILD_TARGET=preview (WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** analytics tracker, baked form definitions and useStructuredData (WS-385, WS-386, WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** useEldraSeo, sitemap.xml and robots.txt, platform redirects and preview noindex (WS-382, WS-383, WS-384) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **ui:** Breadcrumb structuredData prop (WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **vite-plugin-theme:** formSeeds manifest section (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **vite-plugin-theme:** number and url field types and the subscribe consent sentence in formSeeds (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+
+## [0.2.9](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.8...sdk-v0.2.9) (2026-10-12)
+
+
+### Features
+
+* **sdk:** Icelandic formatting that prints the same on every runtime ([#51](https://github.com/eldra-is/headless-kit/issues/51)) ([1a731f0](https://github.com/eldra-is/headless-kit/commit/1a731f0e700205ce7cd6e34b4a8824744df34e96))
+
 ## [0.2.8](https://github.com/eldra-is/headless-kit/compare/sdk-v0.2.7...sdk-v0.2.8) (2026-10-10)
 
 

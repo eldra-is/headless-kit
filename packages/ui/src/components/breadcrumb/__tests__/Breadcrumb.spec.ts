@@ -579,6 +579,15 @@ describe('Breadcrumb — structured data', () => {
     expect(last.item).toBeUndefined();
     wrapper.unmount();
   });
+
+  it('writes no JSON-LD script when structuredData is false, and still renders the trail', () => {
+    const wrapper = mountWith(Breadcrumb, {
+      props: { items: PRODUCT_TRAIL, structuredData: false },
+    });
+    expect(wrapper.find('script[type="application/ld+json"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="current"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
 });
 
 describe('Breadcrumb — narrow container', () => {

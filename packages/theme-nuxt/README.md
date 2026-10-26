@@ -24,6 +24,17 @@ export default defineNuxtConfig({
 });
 ```
 
+Environment: `ELDRA_GATEWAY_URL` and `ELDRA_ORG_ID` are required for a real build. Point
+`ELDRA_GATEWAY_URL` at the **edge API host**: the edge recognises the build token
+(`X-Eldra-Build-Token`, its own rate bucket), so the build's reads and the visitor's browser both
+go through the same host.
+
+During a prerender the page list, route-template list and category list are read once per build
+(and locale), not once per route (`@eldrajs/theme-nuxt/prerender`); request-time rendering never
+shares reads. One process is one build: the shared reads live for the length of one `nuxi generate`
+and are cleared when a prerender starts. The build logs one line with the counts
+(`[eldra] prerender shared reads: N made, M avoided`).
+
 ```vue
 <script setup lang="ts">
 import { EldraLayout } from '@eldrajs/theme-vue';

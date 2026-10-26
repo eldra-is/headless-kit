@@ -142,7 +142,11 @@ const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText')
 </script>
 
 <template>
-  <li :data-part="hasHref ? undefined : 'root'" :class="hasHref ? undefined : rootClass">
+  <li
+    data-eldra-ui
+    :data-part="hasHref ? undefined : 'root'"
+    :class="hasHref ? undefined : rootClass"
+  >
     <component :is="cellTag" v-if="hasHref" data-part="root" :class="rootClass" v-bind="cellAttrs">
       <img
         v-if="hasLogo"

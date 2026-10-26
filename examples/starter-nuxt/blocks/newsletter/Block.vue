@@ -36,7 +36,15 @@
  * `text-field-note`/`text-danger`, the 0.3125rem icon gap) since that internal component is not
  * exported from the package.
  *
- * The newsletter posts through `useStorefront().forms.subscribe({ email, list })` — see
+ * **The consent sentence.** Pressing Subscribe is the consent, and Core records the form's own
+ * `consentText` (page locale, `{shop}` filled in) with the subscriber. So the block reads it from the
+ * form definition and shows it as escaped plain text under the button, tied to the button with
+ * `aria-describedby`: what the visitor was shown is exactly what is recorded. The optional checkbox
+ * below is only an extra client-side gate; its label is not recorded.
+ *
+ * The newsletter posts through `useStorefront().forms.submit(formKey, { values: { email } })` — the
+ * platform's own form (`formKey`, `newsletter` by default; the seeded one subscribes the visitor with
+ * a double opt-in email) — see
  * `blocks/footer/Block.vue`'s own newsletter zone for the identical local-validation-first,
  * backend-`{ok:false}`-second pattern this reuses: empty/malformed email never reaches the
  * storefront, and a backend `reason: 'invalid'` shows the exact same message a local check would.
@@ -65,10 +73,12 @@ import { EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
+import { useFormSpam } from '../../app/composables/useFormSpam';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import FormHoneypot from '../../app/components/FormHoneypot.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'newsletter'> }>();
 const { data, entryId } = useBlockData(props, 'newsletter');
@@ -76,8 +86,21 @@ const { t } = useI18n();
 const isEditing = useEditing();
 const storefront = useStorefront();
 
+const formKey = computed(() => (data.value.formKey ?? '').trim() || 'newsletter');
+const {
+  honeypot,
+  honeypotField,
+  siteKey,
+  consentSentence,
+  turnstileRoot,
+  challenge,
+  signals,
+  reset,
+} = useFormSpam(formKey);
+
 const headingId = `newsletter-heading-${useUiId()}`;
 const consentErrorId = `newsletter-consent-error-${useUiId()}`;
+const consentSentenceId = `newsletter-consent-sentence-${useUiId()}`;
 
 type Variant = 'centered' | 'split';
 const variant = computed<Variant>(() => data.value.variant ?? 'centered');
@@ -243,11 +266,25 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
     return;
   }
 
+  // Turnstile is on and not passed: nothing about the address is wrong, so a retry is welcome.
+  const blocked = challenge();
+  if (blocked !== null) {
+    retryable.value = true;
+    emailError.value = blocked;
+    await focusEmailField();
+    return;
+  }
+
   emailError.value = null;
   consentError.value = null;
   isSubmitting.value = true;
-  const result = await storefront.forms.subscribe({ email: value, list: data.value.list });
+  const result = await storefront.forms.submit(formKey.value, {
+    values: { email: value },
+    ...signals(),
+  });
   isSubmitting.value = false;
+  // A Turnstile token is single-use, whatever the outcome.
+  reset();
 
   if (result.ok) {
     succeeded.value = true;
@@ -257,7 +294,10 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
 
   const serviceFailed = result.reason !== 'invalid';
   retryable.value = serviceFailed;
-  emailError.value = serviceFailed ? t('newsletter.failed') : t('newsletter.invalidEmail');
+  // The platform's own message for the email, when it gave one; ours for a bare refusal.
+  emailError.value = serviceFailed
+    ? t('newsletter.failed')
+    : (result.errors.email?.[0] ?? t('newsletter.invalidEmail'));
   await focusEmailField();
 }
 </script>
@@ -314,6 +354,9 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
               </FieldWrapper>
             </div>
 
+            <FormHoneypot v-model="honeypot" :name="honeypotField" />
+            <div v-if="siteKey" ref="turnstileRoot" class="@two-col:col-span-2 order-2" />
+
             <div
               v-if="requireConsentCheckbox"
               ref="checkboxFieldRoot"
@@ -350,9 +393,20 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
               size="lg"
               class="@two-col:w-auto w-full"
               :label="t('newsletter.subscribing')"
+              :aria-describedby="consentSentence ? consentSentenceId : undefined"
             >
               {{ buttonLabelText }}
             </Button>
+
+            <p
+              v-if="consentSentence"
+              :id="consentSentenceId"
+              data-part="consent-sentence"
+              class="text-body-sm @two-col:col-span-2 order-3"
+              :class="consentToneClass"
+            >
+              {{ consentSentence }}
+            </p>
 
             <div ref="consentRoot" class="@two-col:col-span-2 order-3">
               <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->

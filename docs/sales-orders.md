@@ -3,7 +3,7 @@
 A signed-in business customer (see [business-login.md](business-login.md)) can order on account:
 the supplier sends the goods and invoices the company later, so there is no payment step. The
 calls act for the person's **active company**. The types come from the generated contract
-(3.15.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
+(5.3.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
 `EldraSalesOrderLine`, `EldraSalesOrderList`, `EldraCreateSalesOrderInput` and
 `EldraSalesOrderListOptions`.
 

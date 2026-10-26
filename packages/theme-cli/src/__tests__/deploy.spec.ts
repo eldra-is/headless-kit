@@ -8,8 +8,9 @@ import { deployTheme } from '../commands/deploy';
 import { startMockDeployApi, type MockDeployApi } from './mockDeployApi';
 
 const MANIFEST = JSON.stringify({
-  manifestVersion: 1,
+  manifestVersion: 2,
   theme: {
+    id: 'test-theme',
     name: 'test-theme',
     version: '0.0.1',
     framework: 'nuxt',
@@ -51,6 +52,35 @@ describe('deployTheme', () => {
     pollIntervalMs: 1,
     log: () => {},
     ...overrides,
+  });
+
+  it.each([
+    [
+      'a v1 manifest',
+      { ...JSON.parse(MANIFEST), manifestVersion: 1 },
+      /manifestVersion 1.*rebuild/,
+    ],
+    [
+      'a manifest with no theme id',
+      { ...JSON.parse(MANIFEST), theme: { name: 'test-theme' } },
+      /theme\.id is missing or invalid.*themeId/,
+    ],
+    [
+      'a manifest with an invalid theme id',
+      { ...JSON.parse(MANIFEST), theme: { id: 'Not Valid', name: 'test-theme' } },
+      /theme\.id is missing or invalid/,
+    ],
+    [
+      'the reserved catalog theme id',
+      { ...JSON.parse(MANIFEST), theme: { id: 'catalog', name: 'test-theme' } },
+      /theme\.id is missing or invalid/,
+    ],
+  ])('refuses %s before uploading anything', async (_label, manifest, message) => {
+    const buildDir = makeBuild(root);
+    writeFileSync(join(buildDir, '.eldra', 'manifest.json'), JSON.stringify(manifest));
+    api = await startMockDeployApi({ previewUrl: 'https://test-theme.pages.dev' });
+    await expect(deployTheme(options())).rejects.toThrow(message);
+    expect(api.posts).toHaveLength(0);
   });
 
   it('sends the exact manifest and artifact multipart fields and Bearer auth', async () => {
@@ -201,6 +231,21 @@ describe('deployTheme', () => {
     const rejection = deployTheme(options());
     await expect(rejection).rejects.toThrow(expected);
     await expect(rejection).rejects.toMatchObject({ code: detail });
+  });
+
+  // BUGS.md A11: a raw 413 from a proxy/CDN in front of the gateway (no JSON
+  // body, so no errorId to look up) used to surface as a bare
+  // "gateway responded 413" with no hint at all.
+  it('gives actionable guidance for a raw 413 with no JSON body', async () => {
+    makeBuild(root, 'dist');
+    api = await startMockDeployApi({
+      postStatus: 413,
+      rawErrorBody: '<html><body>413 Request Entity Too Large</body></html>',
+    });
+
+    await expect(deployTheme(options())).rejects.toThrow(
+      /proxy\/CDN in front of it may have.*app's own.*25 MiB\/file/s
+    );
   });
 
   it('prints one line per retired field migration', async () => {

@@ -321,8 +321,12 @@ export interface BlockDefinition {
 }
 
 export interface ThemeManifest {
-  manifestVersion: 1;
+  /** 2: `theme.id` is required. There is no v1 reader. */
+  manifestVersion: 2;
   theme: {
+    /** The theme's stable id (`package.json` `eldra.themeId`); Core stores the theme's
+     * block schemas as `<id>:<blockApiId>`. Block apiIds in this manifest stay bare. */
+    id: string;
     name: string;
     version: string;
     framework: string;
@@ -350,6 +354,9 @@ export interface ThemeManifest {
    * byte-identical to the one themes have always emitted. Absent rather than
    * empty when the theme seeds no pages, for the same reason `templates` is. */
   pageSeeds?: ManifestPageSeed[];
+  /** The forms the site is created with (`/site/v1/forms/{key}` serves them). Absent rather than
+   * empty when the theme seeds none, for the same reason `templates` is. */
+  formSeeds?: ManifestFormSeed[];
   tokens: ThemeDesignTokens | LegacyThemeTokens;
   /** The theme's own message catalogue, read from `i18n/<tag>.json` and
    *  flattened to dotted keys. Absent rather than empty when the theme ships
@@ -391,6 +398,65 @@ export interface ScanResult {
   breakpoints: LayoutBreakpoints;
 }
 
+/**
+ * The field types a seeded form field may take: the WS-386 set (`text`, `email`, `phone`,
+ * `textarea`, `select`, `checkbox`, `consent`, `number`, `url`), exactly what Core accepts. `consent` is a checkbox
+ * whose value is a boolean and whose `required` means it must be checked.
+ */
+export type ManifestFormSeedFieldType =
+  | 'text'
+  | 'email'
+  | 'phone'
+  | 'textarea'
+  | 'select'
+  | 'checkbox'
+  | 'consent'
+  | 'number'
+  | 'url';
+
+export interface ManifestFormSeedField {
+  id: string;
+  type: ManifestFormSeedFieldType;
+  required: boolean;
+  /** One entry per locale tag, e.g. `{ 'en-US': 'Email', 'is-IS': 'Netfang' }`. */
+  label: Record<string, string>;
+  placeholder?: Record<string, string>;
+  /** A `select` field's options; absent on every other type. */
+  options?: Array<{ value: string; label: Record<string, string> }>;
+  validation?: { minLength?: number; maxLength?: number; pattern?: string };
+}
+
+/**
+ * A form the site is created with (`formSeeds` in the manifest). Core creates it only when the
+ * key is absent; a seeded form the merchant never edited is refreshed on a theme version bump.
+ */
+export interface ManifestFormSeed {
+  key: string;
+  name: string;
+  fields: ManifestFormSeedField[];
+  actions: {
+    /** Email the merchant's notification recipients on every submission. */
+    notify: boolean;
+    /** Email the visitor a copy (needs an email field). */
+    confirm: boolean;
+    /** Subscribe the visitor's email to a list, double opt-in (needs an email field). */
+    subscribe?: {
+      list: string;
+      /**
+       * The consent sentence shown beside the submit button, per locale, with a `{shop}`
+       * placeholder Core replaces with the shop name. It is sent to marketing as the proof of
+       * consent. Plain text, at most 500 characters per locale. Left out, Core fills in its
+       * platform default on create, so a seed without it keeps working.
+       */
+      consentText?: Record<string, string>;
+    };
+  };
+  success: { message: Record<string, string>; redirect?: Record<string, string> };
+}
+
+/** What a theme declares; the same shape, validated by `validateFormSeeds` into `ManifestFormSeed`. */
+export type DeclaredFormSeed = ManifestFormSeed;
+
 export interface ScanOptions {
   /** Last validated local manifest, advisory only; Core owns installed history. */
   previousManifest?: ThemeManifest;
@@ -405,6 +471,8 @@ export interface ScanOptions {
    * `templates` layouts may reference. Required for a role once any template
    * seed's layout places it. */
   templateRoles?: ManifestTemplateRoles;
+  /** The forms a site is created with; see `ManifestFormSeed`. */
+  formSeeds?: DeclaredFormSeed[];
   /** The theme's raw, as-configured breakpoints — validated and defaulted
    * into the manifest's `breakpoints` by resolveLayoutBreakpoints (Core),
    * not here. */
@@ -427,6 +495,10 @@ export interface EldraThemeOptions {
    * `templates` layouts may reference. Required for a role once any template
    * seed's layout places it. */
   templateRoles?: ManifestTemplateRoles;
+  /** The forms a site is created with on its first deploy (at most 8): fields with a label per
+   * locale, and which of notify/confirm/subscribe a submission triggers. Never overwrites a
+   * form the merchant has edited. */
+  formSeeds?: DeclaredFormSeed[];
   /** Theme source root. Nuxt 4 sets Vite's root to app/, so adapters pass rootDir explicitly. */
   themeDir?: string;
   /** Opt in to the Tailwind v4 virtual theme module; false keeps Tailwind entirely optional. */

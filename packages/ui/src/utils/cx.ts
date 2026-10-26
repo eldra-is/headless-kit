@@ -64,8 +64,14 @@ const twMerge = extendTailwindMerge<
   | 'eldra-range-thumb'
   | 'eldra-filter-swatch-edge'
   | 'eldra-filter-histogram-bar'
+  | 'eldra-nav-menu-dropdown'
 >({
   extend: {
+    // tailwind.css `@theme` keys that are not t-shirt sizes, so `shadow-float`/`w-narrow` merge too.
+    theme: {
+      shadow: ['float'],
+      container: ['narrow', 'content', 'wide', 'tablet', 'two-col'],
+    },
     classGroups: {
       // Type styles (tailwind.css "Type styles" + "Button type"): all `text-*` utilities, so a
       // consumer's `text-lg` replaces `text-button-md` instead of landing beside it.
@@ -141,10 +147,10 @@ const twMerge = extendTailwindMerge<
       // The Range slider rail's own touch band (tailwind.css "Range slider"): a `min-height` with
       // a container-query step, in Tailwind's own `min-h` group so a consumer's `min-h-0` on the
       // rail replaces it rather than landing beside it.
-      'min-h': ['eldra-range-rail'],
+      'min-h': ['eldra-range-rail', 'eldra-drawer-header-height', 'eldra-nav-menu-drawer-row'],
       // The gutter that keeps a thumb inside the control (tailwind.css "Range slider"): a
       // `padding-inline` in Tailwind's own `px` group, so `classes.group: 'px-0'` replaces it.
-      px: ['eldra-range-gutter', 'eldra-range-gutter-thumb'],
+      px: ['eldra-range-gutter', 'eldra-range-gutter-thumb', 'eldra-drawer-gutter'],
       // The Dialog panel's own width (tailwind.css "Dialog"): whole class names rather than a
       // `w-*` suffix, but Tailwind's own "w" group, so a consumer's `classes.panel: 'w-full'`
       // replaces the clamp instead of landing beside it. The two are mutually exclusive (`size`
@@ -215,23 +221,9 @@ const twMerge = extendTailwindMerge<
       // shorthand, the same technique `eldra-drawer-width` uses for its own viewport exception, in
       // Tailwind's own `m` group so a consumer's `classes.root: 'm-0'` replaces it outright.
       m: ['eldra-search-modal-position'],
-      // `max-w-narrow`/`-content`/`-wide` (tailwind.css's `@theme` block, "Container and section"):
-      // Tailwind generates these from the `--container-*` theme namespace, not from an `@utility`
-      // this package writes, so `custom-utility-coverage.spec.ts`'s scan (which only reads
-      // `@utility` names) cannot catch a missing entry here the way it does for the rest of this
-      // file — proven by mutation: without this line, `cx('max-w-narrow', 'max-w-full')` keeps
-      // both instead of letting `Container`'s own `full` (or a consumer's `classes.root`) win.
-      // `eldra-container-narrow`/`-content`/`-wide` (tailwind.css, "Container's own max-width
-      // utilities") are `Container`'s actual width utilities — real `@utility` declarations, so
-      // `custom-utility-coverage.spec.ts` does catch a missing entry for these on its own — but they
-      // still belong in this same group: they are mutually exclusive with each other, with the
-      // three stock ones above, with `max-w-none` (`Container`'s own `full`), and with a consumer's
-      // `classes.root` override.
+      // `Container`'s widths: one group with the `container` scale's `max-w-*` and `max-w-none`.
       'max-w': [
         'eldra-select-panel-width',
-        'max-w-narrow',
-        'max-w-content',
-        'max-w-wide',
         'eldra-container-narrow',
         'eldra-container-content',
         'eldra-container-wide',
@@ -327,6 +319,14 @@ const twMerge = extendTailwindMerge<
       // A histogram bar's minimum height and its two top corners (tailwind.css "Filter panel"):
       // a bundled rule with no stock Tailwind equivalent, so it gets its own group.
       'eldra-filter-histogram-bar': ['eldra-filter-histogram-bar'],
+      // Nav menu: the panel gap and column grid join stock groups so `pt-0`/`grid-cols-5` win.
+      pt: ['eldra-nav-menu-panel', 'eldra-drawer-header-top'],
+      'grid-cols': ['eldra-nav-menu-columns'],
+      'eldra-nav-menu-dropdown': ['eldra-nav-menu-dropdown'],
+      // The phone menu's indent and the drawer's bottom paddings join their stock groups (the drawer's gutter,
+      // header top and both least heights sit in `px`, `pt` and `min-h` above), so a consumer class replaces each.
+      ps: ['eldra-nav-menu-drawer-nest'],
+      pb: ['eldra-drawer-header-bottom', 'eldra-drawer-body-bottom', 'eldra-drawer-footer-bottom'],
       // The button spinner's keyframes (tailwind.css "The Button spinner"): the same "animate"
       // group as `animate-spin`.
       animate: [

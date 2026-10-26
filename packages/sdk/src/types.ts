@@ -60,6 +60,14 @@ export interface EldraClientOptions {
   orgId?: RuntimeValue<string>;
   /** Sends X-Preview-Token on requests, overriding the same header in headers/context. */
   previewToken?: RuntimeValue<string>;
+  /**
+   * Sends X-Eldra-Build-Token on every request: a read-only build token (`eldra_bld_…`, Studio → Settings → Developers → Build tokens), proving the request comes
+   * from a theme build so the gateway counts it against the build's own rate-limit budget instead
+   * of the machine's IP. **Server and build only** — never pass it from code that runs in a
+   * browser, and never put it in a public config. Never pass a site deploy token here.
+   * An SSR server that sends it on every visitor request shares the organisation's build budget. Omitted or empty sends no header.
+   */
+  buildToken?: RuntimeValue<string>;
   env?: RuntimeValue<RuntimeEnv>;
   headers?: RuntimeValue<HeadersInit>;
   httpClient?: EldraHttpClient;
@@ -358,6 +366,7 @@ export interface EldraClient {
   cart: EldraCartClient;
   orders: EldraOrdersClient;
   platform: EldraPlatformClient;
+  forms: EldraFormsClient;
   checkout: EldraCheckoutClient;
   inventory: EldraInventoryClient;
   customer: EldraCustomerClient;
@@ -561,7 +570,7 @@ export type EldraShopErrorId =
   | 'FEATURE_DISABLED';
 
 /**
- * Error ids of the sales-order routes (contract 3.15.0). `SALES_ORDER_CART_ALREADY_ORDERED`
+ * Error ids of the sales-order routes (contract 5.3.0). `SALES_ORDER_CART_ALREADY_ORDERED`
  * carries `errors.salesOrderId`, `SALES_ORDER_LINE_INVALID` `errors.variantId` and
  * `ORDER_PRODUCT_UNAVAILABLE` `errors.variantIds` on `EldraHttpError.errors`.
  */
@@ -609,7 +618,7 @@ export type EldraErrorId =
   | (string & {});
 
 /**
- * Orders on account for a signed-in business customer's active company (contract 3.15.0).
+ * Orders on account for a signed-in business customer's active company (contract 5.3.0).
  * Server-side only: pass `customerHeaders(accessToken, customerId)` as `context.headers` on every
  * call. Every answer is `Cache-Control: private, no-store`; never cache one. See
  * docs/sales-orders.md.
@@ -653,4 +662,122 @@ export interface EldraInventoryClient {
     items: EldraStockAvailabilityInput[],
     context?: EldraRequestContext
   ): Promise<EldraStockAvailability>;
+}
+
+/**
+ * A localized string as the forms API publishes it: one entry per locale tag the merchant wrote
+ * (`en-US`, `is-IS`). A caller resolves its own locale and falls back; the API never guesses.
+ */
+export type EldraFormLocalized = Record<string, string>;
+
+/**
+ * The field types a form definition can carry. `checkbox` and `consent` both carry a boolean;
+ * `required` on a `consent` field means it must be checked. `number` and `url` carry text the
+ * platform validates (a finite number, an absolute http(s) URL).
+ */
+export type EldraFormFieldType =
+  | 'text'
+  | 'email'
+  | 'phone'
+  | 'textarea'
+  | 'select'
+  | 'checkbox'
+  | 'consent'
+  | 'number'
+  | 'url';
+
+export interface EldraFormFieldOption {
+  value: string;
+  label: EldraFormLocalized;
+}
+
+export interface EldraFormField {
+  /** Stable id: the key of the field in a submission's `values` and in a 422's `errors`. */
+  id: string;
+  type: EldraFormFieldType;
+  required: boolean;
+  label: EldraFormLocalized;
+  placeholder?: EldraFormLocalized;
+  options?: EldraFormFieldOption[];
+  validation?: { minLength?: number; maxLength?: number; pattern?: string };
+}
+
+/** The actions a submission triggers; the merchant's notify/confirm targets are never published. */
+export type EldraFormActionKind = 'store' | 'notify' | 'confirm' | 'subscribe';
+
+/**
+ * A form definition exactly as `GET /site/v1/forms/{key}` answers it. Hand-written rather than
+ * contract-derived (the SDK ships no response types): the shape is the platform's documented wire
+ * contract, and `@eldrajs/theme-nuxt` validates a build-time read of it before baking it.
+ */
+export interface EldraFormDefinition {
+  key: string;
+  name: string;
+  fields: EldraFormField[];
+  /** The name of a field that must stay empty: render it hidden from people, send it as `hp`. */
+  honeypotField: string;
+  /** Cloudflare Turnstile site key, or `null` when the merchant has not enabled it. */
+  turnstileSiteKey: string | null;
+  success: { message: EldraFormLocalized; redirect?: EldraFormLocalized };
+  kinds: EldraFormActionKind[];
+  /**
+   * The consent sentence per locale, with the shop name already filled in for `{shop}`. Present
+   * only when `kinds` contains `subscribe`. Show it next to the submit button (escaped, plain
+   * text): submitting the form is the visitor's consent to exactly this wording, and the platform
+   * stores it as the proof. There is no extra checkbox and no extra submit field.
+   */
+  consentText?: EldraFormLocalized;
+}
+
+export interface EldraFormSubmitInput {
+  /** `fieldId` to the entered value; a checkbox is a boolean, everything else a string. */
+  values: Record<string, string | boolean>;
+  locale: string;
+  pagePath: string;
+  turnstileToken?: string;
+  /** The honeypot field's value, which a person never fills. */
+  hp?: string;
+}
+
+/**
+ * What a submission resolves to. A `422` is an answer, not a failure — it carries the field-keyed
+ * messages a form shows inline — so it resolves as `status: 'invalid'`. Every other non-2xx
+ * (`404` unknown form, `413` oversize, `429` rate limited) rejects with `EldraHttpError`.
+ */
+export type EldraFormSubmitResult =
+  | {
+      status: 'ok';
+      /** `true` when the form subscribes the visitor and a confirmation email is on its way. */
+      pending: boolean;
+    }
+  | {
+      status: 'invalid';
+      /** `fieldId` to messages, the shape `@eldrajs/ui`'s `apiErrors` expects. */
+      errors: Record<string, string[]>;
+      /** Messages about the form as a whole. */
+      form: string[];
+    };
+
+export interface EldraFormTokenResult {
+  status: 'confirmed' | 'unsubscribed';
+}
+
+/**
+ * The site-forms API. Needs the organisation's `FORMS` feature (not `PAGE_BUILDER`) and a registered
+ * storefront origin in a browser; works with no theme. The mailed confirm and unsubscribe links point
+ * at the web gateway's own page, not the storefront.
+ */
+export interface EldraFormsClient {
+  /** `GET /site/v1/forms/{key}`. Rejects with `EldraHttpError` (`404`) for an unknown key. */
+  get(key: string, context?: EldraRequestContext): Promise<EldraFormDefinition>;
+  /** `POST /site/v1/forms/{key}/submissions`. See `EldraFormSubmitResult`. */
+  submit(
+    key: string,
+    input: EldraFormSubmitInput,
+    context?: EldraRequestContext
+  ): Promise<EldraFormSubmitResult>;
+  /** Double opt-in: `POST /site/v1/forms/subscriptions/confirm?token=` (a GET of the link is only a page). */
+  confirm(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
+  /** `POST /site/v1/forms/subscriptions/unsubscribe?token=` (a GET of the link is only a page). */
+  unsubscribe(token: string, context?: EldraRequestContext): Promise<EldraFormTokenResult>;
 }

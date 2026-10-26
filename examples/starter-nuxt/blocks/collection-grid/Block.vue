@@ -89,7 +89,7 @@ import {
   selectorNeedsPublish,
   selectorSlug,
 } from '../../app/storefront/collectionSelector';
-import type { StorefrontCollectionSelector } from '../../app/storefront/types';
+import type { CatalogFacets, StorefrontCollectionSelector } from '../../app/storefront/types';
 import { canonicalAvailabilityValues } from '../../app/storefront/facets';
 import { CATALOGUE_PATH } from '../../app/storefront/categories';
 import { categoryHref, safeHref } from '../../app/utils/links';
@@ -832,7 +832,7 @@ const skeletonCount = computed(() =>
  * is at least the merchant's own word. A toggle source never reaches here — it is folded into the
  * `availability` facet, which keeps its own label.
  */
-function defaultFacetLabel(source: FilterSource): string {
+function defaultFacetLabel(source: FilterSource, names: ReadonlyMap<string, string>): string {
   if (source === 'price') return t('grid.price');
   if (source === 'category') return t('grid.legendCategory');
   if (source === 'collection') return t('grid.legendCollection');
@@ -840,13 +840,8 @@ function defaultFacetLabel(source: FilterSource): string {
   const key = optionKeyOf(source);
   if (key === 'size') return t('grid.legendSize');
   if (key === 'colour') return t('grid.legendColour');
-  return optionNames.value.get(key ?? '') ?? key ?? source;
+  return names.get(key ?? '') ?? key ?? source;
 }
-
-/** Each option key's own display name, as the storefront's facets report it. */
-const optionNames = computed(
-  () => new Map((facets.value?.options ?? []).map((option) => [option.key, option.name] as const))
-);
 
 /** The combined `availability` facet's own values' names: the facets carry counts, never labels —
  *  "In stock only" is the one switch row the theme names itself (spec → Variants, `toggle` facet). */
@@ -899,13 +894,6 @@ watch(selected, () => {
   loadedPriceSpan.value = null;
 });
 const EMPTY_SPAN: PriceSpan = { min: 0, max: 0 };
-const priceSpan = computed<PriceSpan>(() =>
-  spanWithRange(facetPriceSpan.value ?? loadedPriceSpan.value ?? EMPTY_SPAN, {
-    min: priceMin.value,
-    max: priceMax.value,
-  })
-);
-
 /**
  * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
  * USD 1 — `defaultPriceStep`), narrowed to a step this catalogue's own span can actually hold
@@ -925,88 +913,129 @@ const priceSpan = computed<PriceSpan>(() =>
  */
 const priceSlider = computed(() => data.value.priceSlider !== false);
 
-const priceStep = computed(() => {
-  const own = data.value.priceStep;
-  if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
-  return fitPriceStep(defaultPriceStep(money.currency.value), priceSpan.value);
-});
-
 /**
- * **The author's rows expanded into rendered sources**, which is the whole of what `options` means: in
- * its place, one `option:<key>` row per option key the storefront's facets answer, in the facets'
- * order, carrying no label of its own (the group then takes the store's own name for that key).
+ * **Everything the filter panel derives from one facets answer**, as a function of three inputs: the
+ * facets, the selection they are shown under, and the price range held beside it. Called twice — the
+ * applied view (`filterFacets`, the sidebar and the chips) and the drawer's own view over the
+ * pending read's facets and the pending selection (`drawerView`) — because the drawer's panel has to
+ * describe *its* selection, not the page's: unticking the one filter that narrowed the page to
+ * nothing else must bring the groups that filter had hidden back while the drawer is still open.
  *
- * A key an explicit `option:<key>` row already names is **not** expanded again: that row wins, wherever
- * the author put it and whatever they called it. So "Size first, then whatever else this store sells
- * by" is two rows, and the common case — "every option, in the store's order" — is one.
+ * `expandedFilterRows` is the author's rows expanded into rendered sources, which is the whole of
+ * what `options` means: in its place, one `option:<key>` row per option key the facets answer, in
+ * the facets' order, carrying no label of its own (the group then takes the store's own name for
+ * that key). A key an explicit `option:<key>` row already names is **not** expanded again: that row
+ * wins, wherever the author put it. So "Size first, then whatever else this store sells by" is two
+ * rows, and the common case — "every option, in the store's order" — is one.
+ *
+ * `filterFacets` is **the one call into the adapter**: `buildFilterFacets` (`parts/groups.ts`) turns
+ * those rows and the facets into the `FilterFacet[]` `FilterPanel` draws — a source this scope cannot
+ * narrow by, or one with nothing to offer, is dropped there. A range with fewer than two distinct
+ * values is still included: the package's own `renderableFacets` drops it.
  */
-const expandedFilterRows = computed<Array<FilterField & { source: FilterSource }>>(() => {
-  const explicitKeys = new Set(
-    filterFields.value.map((row) => optionKeyOf(row.source)).filter((key) => key !== null)
+function facetViewFor(
+  facetsOf: () => CatalogFacets | undefined,
+  selectionOf: () => FilterSelection,
+  rangeOf: () => PriceRange
+) {
+  /** Each option key's own display name, as the storefront's facets report it. */
+  const optionNames = computed(
+    () => new Map((facetsOf()?.options ?? []).map((option) => [option.key, option.name] as const))
   );
-  const out: Array<FilterField & { source: FilterSource }> = [];
-  for (const row of filterFields.value) {
-    if (row.source !== 'options') {
-      out.push({ ...row, source: row.source });
-      continue;
-    }
-    // The facets' own keys, in the facets' order — plus any key the shopper already has a filter on
-    // that the facets have stopped naming. That second half is the standing rule that a group
-    // carrying a selection is never dropped out from under an applied filter: facets are computed
-    // over the current result set on most backends, so a narrowing filter can remove the very family
-    // it was set in, and a group that vanished would leave the shopper no control to undo it.
-    for (const key of [
-      ...(facets.value?.options ?? []).map((option) => option.key),
-      ...Object.keys(selection.value).map(optionKeyOf),
-    ]
-      .map(usableOptionKey)
-      .filter((key): key is string => key !== null)) {
-      if (explicitKeys.has(key) || out.some((done) => done.source === optionSourceFor(key))) {
+
+  const priceSpan = computed<PriceSpan>(() =>
+    spanWithRange(facetsOf()?.price ?? loadedPriceSpan.value ?? EMPTY_SPAN, rangeOf())
+  );
+
+  /**
+   * The price slider's step: the author's `priceStep`, else one unit of the store currency (ISK 100,
+   * USD 1 — `defaultPriceStep`), narrowed to a step this catalogue's own span can actually hold
+   * (`fitPriceStep`). A non-positive or non-integer field value is no step at all, so it falls back
+   * rather than handing the slider a grid it cannot land on.
+   */
+  const priceStep = computed(() => {
+    const own = data.value.priceStep;
+    if (typeof own === 'number' && Number.isFinite(own) && own > 0) return own;
+    return fitPriceStep(defaultPriceStep(money.currency.value), priceSpan.value);
+  });
+
+  const expandedFilterRows = computed<Array<FilterField & { source: FilterSource }>>(() => {
+    const explicitKeys = new Set(
+      filterFields.value.map((row) => optionKeyOf(row.source)).filter((key) => key !== null)
+    );
+    const out: Array<FilterField & { source: FilterSource }> = [];
+    for (const row of filterFields.value) {
+      if (row.source !== 'options') {
+        out.push({ ...row, source: row.source });
         continue;
       }
-      out.push({ ...row, label: undefined, source: optionSourceFor(key) });
+      // The facets' own keys, in the facets' order — plus any key the shopper already has a filter on
+      // that the facets have stopped naming. That second half is the standing rule that a group
+      // carrying a selection is never dropped out from under an applied filter: facets are computed
+      // over the current result set on most backends, so a narrowing filter can remove the very family
+      // it was set in, and a group that vanished would leave the shopper no control to undo it.
+      for (const key of [
+        ...(facetsOf()?.options ?? []).map((option) => option.key),
+        ...Object.keys(selectionOf()).map(optionKeyOf),
+      ]
+        .map(usableOptionKey)
+        .filter((key): key is string => key !== null)) {
+        if (explicitKeys.has(key) || out.some((done) => done.source === optionSourceFor(key))) {
+          continue;
+        }
+        out.push({ ...row, label: undefined, source: optionSourceFor(key) });
+      }
     }
-  }
-  return out;
-});
+    return out;
+  });
 
-/**
- * **The one call into the adapter.** `buildFilterFacets` (`parts/groups.ts`) turns the author's
- * expanded rows and the storefront's facets into the `FilterFacet[]` `FilterPanel` draws — a source
- * this scope cannot narrow by, or one with nothing to offer, is dropped there, same as it always
- * was. A range with fewer than two distinct values is still included: the package's own
- * `renderableFacets` (inside `FilterPanel`) drops it, so this file does not duplicate that rule.
- */
-const filterFacets = computed<FilterFacet[]>(() =>
-  buildFilterFacets(expandedFilterRows.value, {
-    facets: facets.value,
-    selection: selection.value,
-    availability: availabilityLabels.value,
-    categoryScopeSlug: categoryScopeSlug.value,
-    unfilterable: unfilterableSources.value,
-    labelFor: defaultFacetLabel,
-    colourLayout: colourLayout.value,
-    sizeGuideHref: sizeGuideHref.value,
-    price: {
-      min: priceSpan.value.min,
-      max: priceSpan.value.max,
-      step: priceStep.value,
-      slider: priceSlider.value,
-      currency: money.currency.value !== undefined,
-      ...(facets.value?.price?.histogram ? { histogram: facets.value.price.histogram } : {}),
-    },
-  })
-);
+  const filterFacets = computed<FilterFacet[]>(() =>
+    buildFilterFacets(expandedFilterRows.value, {
+      facets: facetsOf(),
+      selection: selectionOf(),
+      availability: availabilityLabels.value,
+      categoryScopeSlug: categoryScopeSlug.value,
+      unfilterable: unfilterableSources.value,
+      labelFor: (source) => defaultFacetLabel(source, optionNames.value),
+      colourLayout: colourLayout.value,
+      sizeGuideHref: sizeGuideHref.value,
+      price: {
+        min: priceSpan.value.min,
+        max: priceSpan.value.max,
+        step: priceStep.value,
+        slider: priceSlider.value,
+        currency: money.currency.value !== undefined,
+        ...(facetsOf()?.price?.histogram ? { histogram: facetsOf()!.price!.histogram } : {}),
+      },
+    })
+  );
 
-/** Every rendered source's own `FilterSource`, by the `FilterFacet.id` the panel uses — the reverse
- *  of `queryKeyFor`, for translating the panel's own selection back into the block's internal one
- *  (`applyPanelSelection`, called from `onPanelChange`/`onPendingPanelChange`). */
-const sourceMap = computed(() => facetSourceMap(expandedFilterRows.value));
+  /** Every rendered source's own `FilterSource`, by the `FilterFacet.id` the panel uses — the reverse
+   *  of `queryKeyFor`, for translating the panel's own selection back into the block's internal one
+   *  (`applyPanelSelection`, called from `onPanelChange`/`onPendingPanelChange`). */
+  const sourceMap = computed(() => facetSourceMap(expandedFilterRows.value));
 
-/** This scope's current toggle keys (`facets.toggles[]`), so `applyPanelSelection` can tell a known
- *  toggle apart from an unknown `availability` array member (a stale value nothing lists any more). */
-const toggleKeySet = computed(
-  () => new Set((facets.value?.toggles ?? []).map((toggle) => toggle.key))
+  /** This view's toggle keys (`facets.toggles[]`), so `applyPanelSelection` can tell a known
+   *  toggle apart from an unknown `availability` array member (a stale value nothing lists any more). */
+  const toggleKeySet = computed(
+    () => new Set((facetsOf()?.toggles ?? []).map((toggle) => toggle.key))
+  );
+
+  return {
+    optionNames,
+    priceSpan,
+    priceStep,
+    expandedFilterRows,
+    filterFacets,
+    sourceMap,
+    toggleKeySet,
+  };
+}
+
+const { priceSpan, filterFacets, sourceMap, toggleKeySet } = facetViewFor(
+  () => facets.value,
+  () => selection.value,
+  () => ({ min: priceMin.value, max: priceMax.value })
 );
 
 /** The sidebar panel's own live (applied) selection, keyed by facet id. One-way: the panel is
@@ -1020,7 +1049,7 @@ const pendingPanelSelection = computed<UiFilterSelection>(() =>
   panelSelectionFor(
     pendingSelection.value,
     { min: pendingMin.value, max: pendingMax.value },
-    priceSpan.value
+    drawerView.priceSpan.value
   )
 );
 
@@ -1406,22 +1435,45 @@ const pendingProducts = storeWideScope.value
   : storefront.catalog.collectionProducts(pendingSelected, pendingOptions);
 const pendingTotal = computed(() => pendingProducts.data.value?.total ?? total.value);
 
+/**
+ * The facets the drawer panel draws from: the pending read's, so the groups follow the *pending*
+ * selection (untick the filter that narrowed the page and the groups it hid come back before
+ * "Show N products" is pressed). Only an answered, settled read counts — a read in flight keeps the
+ * last answer rather than flashing back to the applied facets between two ticks — and until the
+ * first one lands, or after a reopen that changes the filters, the applied facets stand in so the
+ * panel is never empty.
+ */
+const settledPendingFacets = ref<CatalogFacets | undefined>();
+watch([pendingProducts.data, pendingProducts.loading], ([answer, loading]) => {
+  if (drawerUsed.value && !loading && answer) settledPendingFacets.value = answer.facets;
+});
+const drawerFacets = computed(() => settledPendingFacets.value ?? facets.value);
+const drawerView = facetViewFor(
+  () => drawerFacets.value,
+  () => pendingSelection.value,
+  () => ({ min: pendingMin.value, max: pendingMax.value })
+);
+
 function openDrawer(): void {
+  const before = JSON.stringify(debouncedPendingFilters.value);
   pendingSelection.value = { ...selection.value };
   pendingMin.value = priceMin.value;
   pendingMax.value = priceMax.value;
   drawerUsed.value = true;
   drawerOpen.value = true;
   flushPendingDebounce();
+  // Reopened over different filters than the last answer was for: it describes another selection.
+  if (JSON.stringify(debouncedPendingFilters.value) !== before)
+    settledPendingFacets.value = undefined;
 }
 /** The drawer's own path: every kind of change the panel reports, applied to the *pending* copy —
  *  nothing here reaches the page until `applyPending()`. */
 function onPendingPanelChange(next: UiFilterSelection): void {
-  lastPendingChips = appliedFilters(filterFacets.value, pendingPanelSelection.value);
+  lastPendingChips = appliedFilters(drawerView.filterFacets.value, pendingPanelSelection.value);
   const applied = applyPanelSelection(next, {
-    sources: sourceMap.value,
-    toggleKeys: toggleKeySet.value,
-    priceSpan: priceSpan.value,
+    sources: drawerView.sourceMap.value,
+    toggleKeys: drawerView.toggleKeySet.value,
+    priceSpan: drawerView.priceSpan.value,
     appliedPrice: { min: pendingMin.value, max: pendingMax.value },
   });
   pendingSelection.value = applied.selection;
@@ -1441,7 +1493,7 @@ async function onPendingPanelRemove(removal: { facetId: string; value: string })
   );
   flushPendingDebounce();
   await nextTick();
-  const remaining = appliedFilters(filterFacets.value, pendingPanelSelection.value);
+  const remaining = appliedFilters(drawerView.filterFacets.value, pendingPanelSelection.value);
   if (remaining.length === 0 || index < 0) return;
   focusNthRemoveButton(drawerPanelEl.value, Math.min(index, remaining.length - 1));
 }
@@ -1801,7 +1853,7 @@ function hrefForPage(page: number): string {
             mode="drawer"
             :show-head="false"
             show-applied
-            :facets="filterFacets"
+            :facets="drawerView.filterFacets.value"
             :model-value="pendingPanelSelection"
             :currency="money.currency.value"
             :result-count="pendingTotal"

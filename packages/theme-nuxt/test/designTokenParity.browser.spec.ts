@@ -235,6 +235,7 @@ function createFixture(tailwind: boolean, studioOrigin: string): string {
       private: true,
       version: '1.0.0',
       type: 'module',
+      eldra: { themeId: 'token-parity' },
     })
   );
   writeFileSync(join(root, 'app', 'app.vue'), '<template><NuxtPage /></template>\n');
@@ -291,7 +292,7 @@ async function generate(
 ): Promise<void> {
   await execa(nuxi, ['generate'], {
     cwd: root,
-    env: { ELDRA_GATEWAY_URL: gatewayUrl, ELDRA_ORG_ID: orgId },
+    env: { ELDRA_GATEWAY_URL: gatewayUrl, ELDRA_ORG_ID: orgId, ELDRA_BUILD_TARGET: 'preview' },
     timeout: 120_000,
   });
   const output = join(root, '.output', 'public', 'index.html');

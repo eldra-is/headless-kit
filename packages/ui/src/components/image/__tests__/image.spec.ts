@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { responsiveImage, type EldraResponsiveImage } from '@eldrajs/sdk';
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { isIS } from '../../../messages/is-IS';
 import { MESSAGES_KEY } from '../../../composables/useMessages';
 import { axe } from '../../../test/axe';
@@ -137,21 +138,14 @@ describe('Image — focal point and zoom', () => {
     wrapper.unmount();
   });
 
-  /**
-   * Acceptance criterion "images are never stretched or letterboxed": a focal point too close to
-   * an edge for a given zoom would, if used verbatim as the scale origin, pull the far side of the
-   * image inward and uncover the frame's own background there. The origin is clamped into the safe
-   * band for that zoom instead — `object-position` is not, since cropping alone can never
-   * letterbox (spec "Image" → Behaviour & motion; the same band `@eldrajs/theme-core`'s
-   * `imageFraming.ts#focalBand` computes).
-   */
-  it('clamps transform-origin into the safe band for the zoom, without touching object-position', () => {
+  // The band is the page builder's (theme-core imageFraming.ts), so a stored framing renders as Studio previews it.
+  it('clamps transform-origin into the page builder band by default, without touching object-position', () => {
     const wrapper = mountWith(Image, {
       props: { media: MEDIA, focal: { x: 20, y: 90 }, zoom: 2 },
     });
     const style = wrapper.get('[data-part="media"]').attributes('style') ?? '';
     expect(style).toContain('object-position: 20% 90%');
-    // zoom 2 → inset (1 - 1/2) * 50 = 25, so the safe band is [25, 75].
+    // zoom 2 → inset (1 - 1/2) * 50 = 25, so the band is [25, 75].
     expect(style).toContain('transform-origin: 25% 75%');
     wrapper.unmount();
   });
@@ -163,6 +157,251 @@ describe('Image — focal point and zoom', () => {
     const style = wrapper.get('[data-part="media"]').attributes('style') ?? '';
     expect(style).toContain('transform-origin: 50% 50%');
     wrapper.unmount();
+  });
+});
+
+describe('Image — sizes under a zoom', () => {
+  const FRAME_SIZES = '(min-width: 1024px) 400px, 100vw';
+  const sizesOf = (props: Record<string, unknown>) => {
+    const wrapper = mountWith(Image, { props: { media: MEDIA, ...props } });
+    const sizes = wrapper.get('[data-part="media"]').attributes('sizes');
+    wrapper.unmount();
+    return sizes;
+  };
+
+  it('passes sizes through unchanged at zoom 1', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES })).toBe(FRAME_SIZES);
+  });
+
+  it('multiplies every length by the zoom when the media covers the frame', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES, zoom: 3 })).toBe(
+      '(min-width: 1024px) calc(400px * 3), calc(100vw * 3)'
+    );
+  });
+
+  it('scales media.sizes the same way when there is no sizes prop', () => {
+    expect(sizesOf({ media: { ...MEDIA, sizes: '50vw' }, zoom: 2.5 })).toBe('calc(50vw * 2.5)');
+  });
+
+  it('leaves sizes alone under contain, where the whole image is shown', () => {
+    expect(sizesOf({ sizes: FRAME_SIZES, zoom: 3, fit: 'contain' })).toBe(FRAME_SIZES);
+  });
+
+  it('renders no sizes when none is given, zoomed or not', () => {
+    expect(sizesOf({ zoom: 3 })).toBeUndefined();
+  });
+
+  it('takes responsiveImage() output as its media, srcset untouched', () => {
+    expectTypeOf<EldraResponsiveImage>().toExtend<ImageMedia>();
+    const asset =
+      'https://media.eldra.app/public/6ace9a70-fb78-43f3-87a8-c8adffadcf36/assets/52a99a52-50a2-4e0f-ba14-d0a769e7eede';
+    const media = responsiveImage(
+      { url: asset, contentType: 'image/jpeg', width: 5504, height: 3096 },
+      { sizes: '100vw' }
+    );
+    const wrapper = mountWith(Image, {
+      props: { media, alt: 'A close crop', ratio: '1x1', focal: { x: 62, y: 40 }, zoom: 3 },
+    });
+    const img = wrapper.get('[data-part="media"]');
+    expect(img.attributes('srcset')).toBe(media?.srcset);
+    expect(img.attributes('sizes')).toBe('calc(100vw * 3)');
+    wrapper.unmount();
+  });
+});
+
+describe('Image — zoomOrigin', () => {
+  const styleOf = (props: Record<string, unknown>) => {
+    const wrapper = mountWith(Image, { props: { media: MEDIA, ...props } });
+    const style = wrapper.get('[data-part="media"]').attributes('style') ?? '';
+    wrapper.unmount();
+    return style;
+  };
+
+  it("'focal' zooms around the focal point itself, outside the band too, by sizing the media", () => {
+    const style = styleOf({ focal: { x: 5, y: 95 }, zoom: 4, zoomOrigin: 'focal' });
+    expect(style).toBe(
+      'object-position: 5% 95%; position: absolute; left: -15%; top: -285%; width: 400%; ' +
+        'height: 400%; max-width: none;'
+    );
+  });
+
+  it("'band' is the default and renders the same style as before the option existed", () => {
+    expect(styleOf({ focal: { x: 5, y: 95 }, zoom: 4 })).toBe(
+      styleOf({ focal: { x: 5, y: 95 }, zoom: 4, zoomOrigin: 'band' })
+    );
+    expect(styleOf({ focal: { x: 5, y: 95 }, zoom: 4 })).toContain('transform-origin: 37.5% 62.5%');
+  });
+
+  it("'focal' adds nothing to the focal point at zoom 1", () => {
+    expect(styleOf({ focal: { x: 5, y: 95 }, zoomOrigin: 'focal' })).toBe(
+      'object-position: 5% 95%;'
+    );
+  });
+});
+
+describe('Image — a numeric ratio', () => {
+  it('sets the frame aspect-ratio to the width ÷ height it is given', () => {
+    const wrapper = mountWith(Image, { props: { media: MEDIA, ratio: 6 / 5 } });
+    expect(wrapper.get('[data-part="frame"]').attributes('style')).toContain('aspect-ratio: 1.2');
+    wrapper.unmount();
+  });
+});
+
+describe('Image — crops', () => {
+  const PHONE = '(max-width: 640px)';
+  const mountCrops = (props: Record<string, unknown>) =>
+    mountWith(Image, {
+      props: {
+        media: MEDIA,
+        ratio: '4x3',
+        focal: { x: 60, y: 40 },
+        zoom: 2,
+        zoomOrigin: 'focal',
+        ...props,
+      },
+    });
+  const cssOf = (wrapper: ReturnType<typeof mountCrops>) =>
+    wrapper.find('style').exists() ? wrapper.get('style').element.innerHTML : undefined;
+
+  it('renders no style element and no scope without crops', () => {
+    const wrapper = mountCrops({});
+    expect(wrapper.find('style').exists()).toBe(false);
+    expect(wrapper.attributes('data-eldra-image-crops')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('writes each crop as a media rule scoped to this instance, over its inline style', () => {
+    const wrapper = mountCrops({
+      crops: [{ media: PHONE, ratio: '16x9', focal: { x: 20, y: 70 }, zoom: 3 }],
+    });
+    const scope = wrapper.attributes('data-eldra-image-crops');
+    expect(scope).toBeTruthy();
+    const css = cssOf(wrapper)!;
+    expect(css).toContain(`@media ${PHONE}{`);
+    expect(css).toContain(
+      `[data-eldra-image-crops="${scope!.replace(/[^\w-]/g, (c) => `\\${c.codePointAt(0)!.toString(16)} `)}"]`
+    );
+    expect(css).toContain('>[data-part=frame]{aspect-ratio:16 / 9!important}');
+    expect(css).toContain(
+      '>[data-part=frame]>[data-part=media]{object-position:20% 70%!important;' +
+        'position:absolute!important;left:-40%!important;top:-140%!important;' +
+        'width:300%!important;height:300%!important;max-width:none!important}'
+    );
+    expect(wrapper.find('img').attributes('style')).toContain('object-position: 60% 40%');
+    expect(wrapper.findAll('img')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('writes the rules last crop first, so the first crop that matches wins as in sizes', () => {
+    const wrapper = mountCrops({
+      crops: [
+        { media: PHONE, zoom: 3 },
+        { media: '(max-width: 1000px)', zoom: 1.5 },
+      ],
+    });
+    const css = cssOf(wrapper)!;
+    expect(css.indexOf('(max-width: 1000px)')).toBeLessThan(css.indexOf(PHONE));
+    wrapper.unmount();
+  });
+
+  it('takes ratio, focal and zoom from the instance where the crop leaves them out', () => {
+    const wrapper = mountCrops({ ratio: 6 / 5, crops: [{ media: PHONE }] });
+    const css = cssOf(wrapper)!;
+    expect(css).toContain('aspect-ratio:1.2!important');
+    expect(css).toContain('object-position:60% 40%!important');
+    expect(css).toContain('width:200%!important');
+    wrapper.unmount();
+  });
+
+  it('undoes the zoom where a crop shows the whole cover', () => {
+    const focal = mountCrops({ crops: [{ media: PHONE, zoom: 1 }] });
+    expect(cssOf(focal)).toContain(
+      'left:0%!important;top:0%!important;width:100%!important;height:100%!important'
+    );
+    focal.unmount();
+    const band = mountCrops({ zoomOrigin: 'band', crops: [{ media: PHONE, zoom: 1 }] });
+    expect(cssOf(band)).toContain('{object-position:60% 40%!important;transform:none!important}');
+    band.unmount();
+  });
+
+  it("clamps each crop's origin into the band under the default zoomOrigin", () => {
+    const wrapper = mountCrops({
+      zoomOrigin: undefined,
+      crops: [{ media: PHONE, focal: { x: 5, y: 50 }, zoom: 4 }],
+    });
+    expect(cssOf(wrapper)).toContain('transform-origin:37.5% 50%!important');
+    wrapper.unmount();
+  });
+
+  it('scales sizes per crop: its own sizes or the instance sizes, under its condition', () => {
+    const wrapper = mountCrops({
+      sizes: '(min-width: 960px) 48vw, 100vw',
+      crops: [
+        { media: PHONE, zoom: 4.6, sizes: '100vw' },
+        { media: '(max-width: 1100px)', zoom: 3 },
+      ],
+    });
+    expect(wrapper.get('img').attributes('sizes')).toBe(
+      '(max-width: 640px) calc(100vw * 4.6), ' +
+        '(max-width: 1100px) and (min-width: 960px) calc(48vw * 3), ' +
+        '(max-width: 1100px) calc(100vw * 3), ' +
+        '(min-width: 960px) calc(48vw * 2), calc(100vw * 2)'
+    );
+    wrapper.unmount();
+  });
+
+  it('leaves sizes unset when neither the instance nor a crop gives any', () => {
+    const wrapper = mountCrops({ crops: [{ media: PHONE, zoom: 3 }] });
+    expect(wrapper.get('img').attributes('sizes')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it.each([
+    ['a condition that closes the style element', '(max-width: 640px)</style><script>x()</script>'],
+    ['a condition that opens a rule', '(max-width: 640px){body{display:none}}'],
+    ['a condition on two lines', '(max-width: 640px)\n</style>'],
+    ['a media query list', '(max-width: 640px), print'],
+    ['an empty condition', ' '],
+  ])('ignores a crop with %s, with a warning', (_name, media) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountCrops({ crops: [{ media, zoom: 3 }] });
+    expect(wrapper.find('style').exists()).toBe(false);
+    expect(wrapper.get('img').attributes('sizes')).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith('[@eldrajs/ui] <Image> ignores an invalid crop:', {
+      media,
+      zoom: 3,
+    });
+    wrapper.unmount();
+  });
+
+  it('ignores a crop whose numbers are not numbers', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountCrops({
+      crops: [
+        { media: PHONE, zoom: '3;}</style>' },
+        { media: PHONE, ratio: '1;}</style>' },
+        { media: PHONE, focal: { x: Number.NaN, y: 1 } },
+      ],
+    });
+    expect(wrapper.find('style').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('server-renders the rules as written, with nothing escaped', async () => {
+    const { createSSRApp, h } = await import('vue');
+    const { renderToString } = await import('vue/server-renderer');
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(Image, {
+            media: MEDIA,
+            zoomOrigin: 'focal',
+            crops: [{ media: '(width < 641px)', ratio: '16x9' }],
+          }),
+      })
+    );
+    expect(html).toContain('<style>@media (width < 641px){[data-eldra-image-crops=');
+    expect(html).toContain('>[data-part=frame]{aspect-ratio:16 / 9!important}');
   });
 });
 

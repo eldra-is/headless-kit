@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
@@ -14,20 +14,24 @@ const moduleVersion = (
   }
 ).version;
 let gateway: Awaited<ReturnType<typeof startMockGateway>>;
+let buildOutput = '';
 
 describe('theme-nuxt nuxi generate', () => {
   beforeAll(async () => {
     gateway = await startMockGateway();
     rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
     rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
-    await execa(nuxi, ['generate'], {
+    const built = await execa(nuxi, ['generate'], {
       cwd: fixtureDir,
       env: {
         ELDRA_GATEWAY_URL: gateway.url,
         ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        ELDRA_BUILD_TARGET: 'preview',
       },
       timeout: 300_000,
+      all: true,
     });
+    buildOutput = built.all ?? '';
   }, 360_000);
 
   afterAll(async () => {
@@ -47,6 +51,33 @@ describe('theme-nuxt nuxi generate', () => {
     expect(existsSync(output('articles/hello-dynamic/index.html'))).toBe(true);
     expect(existsSync(output('articles/code-owned/index.html'))).toBe(true);
     expect(gateway.requests.some((request) => request.includes('pageSize=100'))).toBe(true);
+  });
+
+  /**
+   * **WS-406: a shared list is read once per locale for the whole build, not once per route.** The
+   * fixture prerenders many routes (each path in two locales, plus every `_payload.json`), and each
+   * resolves against the page and route-template lists; those reads used to repeat per route.
+   */
+  it('reads the page and route-template lists once per locale, not once per route', () => {
+    const listReads = (schema: string) =>
+      gateway.requests
+        .filter(
+          (request) =>
+            request.startsWith(`/cms/v1/schema/${schema}/entry?`) &&
+            request.includes('pageSize=100') &&
+            request.includes('depth=0')
+        )
+        .map((request) => new URL(request, 'http://gateway.test').searchParams.get('locale') ?? '');
+    // The module's own route discovery reads the page list once (default locale); the prerender
+    // then reads each list exactly once per locale served (`is` at `/`, `en-US` under a prefix).
+    expect(listReads('page').sort()).toEqual(['en-US', 'is', 'is']);
+    expect(listReads('route-template').sort()).toEqual(['en-US', 'is', 'is']);
+  });
+
+  it('logs the shared-read counts once at the end of the prerender', () => {
+    const lines = buildOutput.split('\n').filter((line) => line.includes('prerender shared reads'));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/: \d+ made, \d+ avoided$/);
   });
 
   /**
@@ -374,6 +405,8 @@ describe('theme-nuxt nuxi generate', () => {
     const headers = readFileSync(output('_headers'), 'utf8');
     expect(headers).toContain("frame-ancestors 'self' https://acme.eldracms.com");
     expect(headers).not.toContain('https://*.eldracms.com');
+    // The preview host's noindex is the edge router's job (site-deploy-worker), not a `_headers` rule.
+    expect(headers).not.toContain('X-Robots-Tag');
     const html = readFileSync(output('index.html'), 'utf8');
     expect(html).toContain('name="eldra-theme-version" content="1.2.3"');
     expect(html).toContain(`name="eldra-sdk-version" content="${moduleVersion}"`);
@@ -425,6 +458,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: upgradeGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
         },
         timeout: 300_000,
       });
@@ -488,6 +522,7 @@ describe('theme-nuxt nuxi generate', () => {
         env: {
           ELDRA_GATEWAY_URL: overrideGateway.url,
           ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
         },
         timeout: 300_000,
       });
@@ -509,4 +544,602 @@ describe('theme-nuxt nuxi generate', () => {
       );
     }
   }, 360_000);
+  /**
+   * Regenerates the fixture against a gateway with the given options. Each call replaces `.output`,
+   * so a test reads what it needs before the next one runs.
+   */
+  async function generateWith(
+    options: Parameters<typeof startMockGateway>[0],
+    env: Record<string, string> = {}
+  ): Promise<{ buildTokens: Array<string | null> }> {
+    const scenarioGateway = await startMockGateway(options);
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: scenarioGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
+          ...env,
+        },
+        timeout: 300_000,
+      });
+      return { buildTokens: [...scenarioGateway.buildTokens] };
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }
+
+  /**
+   * **No icon set** is the default for every site: the fixture theme ships its own
+   * `public/favicon.ico`, and the build must neither overwrite it nor tag anything. (The first
+   * `generate` in this file ran against a gateway that 404s the setting — the fail-soft read.)
+   */
+  it('keeps the theme’s own icon files and head when the platform has no site icons', () => {
+    expect(gateway.requests).toContain('/site/v1/site-icons');
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+    for (const name of ['apple-touch-icon.png', 'site.webmanifest', 'icon-512-maskable.png']) {
+      expect(existsSync(output(name)), name).toBe(false);
+    }
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).toContain('href="/theme-own-icon.svg"');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('name="theme-color"');
+  });
+
+  /**
+   * The setting is on: only `site.webmanifest` is written (replacing nothing of the theme's —
+   * its `favicon.ico` stays the root fallback), and **every** prerendered page — both locales —
+   * links the media worker's variants, with the theme colour defaulted from the primary token.
+   */
+  it('writes the manifest and tags every page when the platform has site icons', async () => {
+    const iconUrl = 'https://media.example.test/public/org-1/assets/asset-1';
+    await generateWith({
+      siteIcons: { iconUrl, backgroundColor: '#112233', shortName: 'Fixture' },
+    });
+
+    expect(existsSync(output('site.webmanifest'))).toBe(true);
+    // No image is generated or copied: the media worker renders them.
+    for (const name of ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'favicon-32.png']) {
+      expect(existsSync(output(name)), name).toBe(false);
+    }
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+
+    const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
+      short_name: string;
+      theme_color: string;
+      background_color: string;
+      icons: { src: string; purpose?: string }[];
+    };
+    expect(manifest).toMatchObject({
+      short_name: 'Fixture',
+      theme_color: '#4f46e5',
+      background_color: '#112233',
+    });
+    expect(manifest.icons.map((icon) => icon.src)).toEqual([
+      `${iconUrl}/icon-192`,
+      `${iconUrl}/icon-512`,
+      `${iconUrl}/icon-maskable-512?bg=112233`,
+    ]);
+    expect(manifest.icons[2]!.purpose).toBe('maskable');
+
+    for (const page of ['index.html', 'about/index.html', 'en-US/index.html']) {
+      const html = readFileSync(output(page), 'utf8');
+      expect(html, page).toContain(`href="${iconUrl}/icon-32"`);
+      expect(html, page).toContain('sizes="32x32"');
+      expect(html, page).toContain(`rel="apple-touch-icon" href="${iconUrl}/icon-180?bg=112233"`);
+      expect(html, page).toContain('rel="manifest" href="/site.webmanifest"');
+      expect(html, page).toContain('name="theme-color" content="#4f46e5"');
+      expect(html, page).not.toContain('theme-own-icon.svg');
+    }
+  }, 360_000);
+
+  /** The manifest's name falls back to the platform's resolved site name, not the package name. */
+  it('names the manifest from the platform’s resolved site name', async () => {
+    await generateWith({
+      siteIcons: { iconUrl: 'https://media.example.test/public/org-1/assets/asset-1' },
+      seo: {
+        revision: 1,
+        syntax: 1,
+        site: {
+          name: 'Platform Shop',
+          titlePattern: {},
+          description: {},
+          imageAssetId: null,
+          imageUrl: null,
+          twitterHandle: null,
+        },
+        templates: {},
+      },
+    });
+    const manifest = JSON.parse(readFileSync(output('site.webmanifest'), 'utf8')) as {
+      name?: string;
+      short_name?: string;
+    };
+    expect(manifest.name ?? manifest.short_name).toBe('Platform Shop');
+    expect(JSON.stringify(manifest)).not.toContain('eldra-theme-nuxt-fixture');
+  }, 360_000);
+
+  /** A malformed answer (iconUrl set, no icons) is treated like a failed read. */
+  it('writes no manifest and adds no tags for a malformed site-icons answer', async () => {
+    await generateWith({
+      siteIcons: {
+        iconUrl: 'https://media.example.test/public/org-1/assets/asset-1',
+        malformed: true,
+      },
+    });
+
+    expect(existsSync(output('site.webmanifest'))).toBe(false);
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('media.example.test');
+  }, 360_000);
+
+  /** An unset icon ends like a failed read: nothing written, nothing tagged, theme files untouched. */
+  it('keeps the theme’s files and emits no tags for an unset icon', async () => {
+    await generateWith({ siteIcons: { iconUrl: null } });
+
+    expect(readFileSync(output('favicon.ico'), 'utf8')).toBe('theme-own-favicon\n');
+    expect(existsSync(output('site.webmanifest'))).toBe(false);
+    const html = readFileSync(output('index.html'), 'utf8');
+    expect(html).not.toContain('rel="manifest"');
+    expect(html).not.toContain('rel="apple-touch-icon"');
+    expect(html).not.toContain('name="theme-color"');
+  }, 360_000);
+
+  /**
+   * **A preview build is never indexed**, whatever the SEO setting says: a build with
+   * `ELDRA_BUILD_TARGET=preview` writes `robots: noindex`. With no setting (the mock 404s
+   * the read) the default pattern applies and nothing absolute is written.
+   */
+  it('titles pages with the default pattern and marks a preview build noindex', async () => {
+    await generateWith({});
+
+    const html = readFileSync(output('about/index.html'), 'utf8');
+    expect(html).toContain('<title>About</title>');
+    expect(html).toContain('name="robots" content="noindex"');
+    expect(html).not.toContain('rel="canonical"');
+    expect(html).not.toContain('property="og:url"');
+  }, 360_000);
+
+  /**
+   * **Form definitions are baked, each key on its own.** `contact` is served and rides along in the
+   * prerendered runtime config (what `useEldraForms()` reads, and the starter's `forms.definition`
+   * serves with no request); `newsletter` 404s — a form not created yet — and costs the build
+   * nothing: the other form is still baked and every page is still written.
+   */
+  it('bakes the form definitions the platform serves and survives one it does not', async () => {
+    const scenarioGateway = await startMockGateway({
+      forms: {
+        contact: {
+          key: 'contact',
+          name: 'Contact',
+          fields: [
+            {
+              id: 'email',
+              type: 'email',
+              required: true,
+              label: { 'en-US': 'Baked email label', 'is-IS': 'Netfang' },
+            },
+          ],
+          honeypotField: 'website',
+          turnstileSiteKey: null,
+          success: { message: { 'en-US': 'Thanks' } },
+          kinds: ['store', 'notify'],
+        },
+      },
+    });
+    try {
+      rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
+      rmSync(join(fixtureDir, '.output'), { recursive: true, force: true });
+      const result = await execa(nuxi, ['generate'], {
+        cwd: fixtureDir,
+        env: {
+          ELDRA_GATEWAY_URL: scenarioGateway.url,
+          ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          ELDRA_BUILD_TARGET: 'preview',
+        },
+        timeout: 300_000,
+      });
+
+      expect(scenarioGateway.requests).toContain('/site/v1/forms/contact');
+      expect(scenarioGateway.requests).toContain('/site/v1/forms/newsletter');
+      const html = readFileSync(output('index.html'), 'utf8');
+      expect(html).toContain('Baked email label');
+      expect(html).toContain('honeypotField:"website"');
+      expect(html).not.toContain('"newsletter"');
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'could not read the platform’s form “newsletter”'
+      );
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+  }, 360_000);
+
+  /** The production build writes the merchant's patterns, the canonical and the share tags. */
+  it('writes the platform’s SEO setting into every page of a production build', async () => {
+    await generateWith(
+      {
+        seo: {
+          revision: 2,
+          syntax: 1,
+          site: {
+            name: 'Fixture Shop',
+            titlePattern: { is: '{{page.title}} | {{site.name}}' },
+            description: { is: 'Fixture description for {{site.name}}.' },
+            imageAssetId: null,
+            imageUrl: 'https://media.example.test/public/org-1/assets/asset-1/og',
+            twitterHandle: 'fixture',
+          },
+          templates: {},
+        },
+      },
+      { ELDRA_BUILD_TARGET: 'production', ELDRA_SITE_URL: 'https://shop.example.test' }
+    );
+
+    const html = readFileSync(output('about/index.html'), 'utf8');
+    expect(html).toContain('<title>About | Fixture Shop</title>');
+    expect(html).toContain('name="description" content="Fixture description for Fixture Shop."');
+    expect(html).toContain('rel="canonical" href="https://shop.example.test/about"');
+    expect(html).toContain('property="og:title" content="About | Fixture Shop"');
+    expect(html).toContain('property="og:url" content="https://shop.example.test/about"');
+    expect(html).toContain('property="og:image" content="https://media.example.test/');
+    expect(html).toContain('name="twitter:site" content="@fixture"');
+    expect(html).not.toContain('name="robots"');
+    // The platform's resolved site name is the one the page carries.
+    expect(html).toContain('property="og:site_name" content="Fixture Shop"');
+    // The page's own seo.imageUrl beats the site's default share image.
+    expect(html).toContain(
+      'property="og:image" content="https://media.example.test/public/org-1/assets/entry-og/og"'
+    );
+    expect(html).toContain(
+      'name="twitter:image" content="https://media.example.test/public/org-1/assets/entry-og/og"'
+    );
+    expect(html.match(/property="og:image"/g)).toHaveLength(1);
+  }, 360_000);
+
+  /**
+   * **A preview build is never crawlable**: `ELDRA_BUILD_TARGET=preview` means `robots.txt`
+   * is `Disallow: /` and there is no sitemap, whatever the platform says about the site's URL.
+   */
+  it('writes a Disallow-all robots.txt and no sitemap for a preview build', async () => {
+    await generateWith({
+      crawl: {
+        revision: 1,
+        siteUrl: 'https://shop.example.test',
+        robotsExtra: '',
+      },
+    });
+
+    expect(readFileSync(output('robots.txt'), 'utf8')).toBe('User-agent: *\nDisallow: /\n');
+    expect(existsSync(output('sitemap.xml'))).toBe(false);
+  }, 360_000);
+
+  /**
+   * The production build: every prerendered content path once per locale with hreflang
+   * alternates, the platform's URL as origin, `lastmod` where the read carried one, the noindex
+   * page left out, the retired product (never prerendered) absent, the code-owned page listed
+   * once, and `robots.txt` with the merchant's lines and the sitemap.
+   */
+  it('writes sitemap.xml and robots.txt from the prerendered routes of a production build', async () => {
+    await generateWith(
+      {
+        crawl: {
+          revision: 3,
+          siteUrl: 'https://shop.example.test/',
+          robotsExtra: 'Disallow: /cart',
+        },
+      },
+      { ELDRA_BUILD_TARGET: 'production' }
+    );
+
+    const xml = readFileSync(output('sitemap.xml'), 'utf8');
+    expect(xml).toContain('<urlset');
+    for (const loc of [
+      'https://shop.example.test/',
+      'https://shop.example.test/en-US',
+      'https://shop.example.test/about',
+      'https://shop.example.test/en-US/about',
+      'https://shop.example.test/articles/hello-dynamic',
+      'https://shop.example.test/en-US/articles/hello-dynamic',
+      'https://shop.example.test/products/merino-crew',
+      'https://shop.example.test/en-US/products/merino-crew',
+      'https://shop.example.test/articles/code-owned',
+    ]) {
+      expect(xml.split(`<loc>${loc}</loc>`).length - 1, loc).toBe(1);
+    }
+    expect(xml).not.toContain('/control');
+    expect(xml).not.toContain('retired-tee');
+    expect(xml).not.toContain('/en-US/articles/code-owned');
+
+    expect(xml).toContain('<lastmod>2026-02-03T04:05:06.000Z</lastmod>');
+    expect(xml).toContain('<lastmod>2026-03-04T05:06:07.000Z</lastmod>');
+    // The alternates name the same pair from both spellings, x-default is the unprefixed one.
+    expect(xml).toContain(
+      '<xhtml:link rel="alternate" hreflang="en-US" href="https://shop.example.test/en-US/about"/>'
+    );
+    expect(xml).toContain(
+      '<xhtml:link rel="alternate" hreflang="x-default" href="https://shop.example.test/about"/>'
+    );
+
+    expect(readFileSync(output('robots.txt'), 'utf8')).toBe(
+      'User-agent: *\nAllow: /\nDisallow: /cart\n\nSitemap: https://shop.example.test/sitemap.xml\n'
+    );
+
+    // The head alternates are absolute now that the origin is known.
+    const about = readFileSync(output('about/index.html'), 'utf8');
+    expect(about).toContain(
+      'rel="alternate" hreflang="en-US" href="https://shop.example.test/en-US/about"'
+    );
+  }, 360_000);
+
+  /**
+   * The tracker tag is added by a runtime plugin, so the HTML never carries it; what the build
+   * decides is `runtimeConfig.public.eldra.analytics.enabled`, baked into every page.
+   */
+  it('bakes analytics enabled into a production build and disabled into a preview build', async () => {
+    const analyticsConfig = () =>
+      /analytics:\{enabled:(!0|!1|true|false)/.exec(
+        readFileSync(output('index.html'), 'utf8')
+      )?.[1];
+
+    await generateWith({}, { ELDRA_BUILD_TARGET: 'production' });
+    expect(['!0', 'true']).toContain(analyticsConfig());
+
+    await generateWith({});
+    expect(['!1', 'false']).toContain(analyticsConfig());
+  }, 720_000);
+
+  it('splits the sitemap into an index and children past the limit', async () => {
+    await generateWith(
+      { crawl: { revision: 1, siteUrl: null, robotsExtra: '' } },
+      {
+        ELDRA_BUILD_TARGET: 'production',
+        ELDRA_SITE_URL: 'https://shop.example.test',
+        ELDRA_TEST_SITEMAP_MAX_URLS: '4',
+      }
+    );
+
+    expect(readFileSync(output('sitemap.xml'), 'utf8')).toContain('<sitemapindex');
+    const first = readFileSync(output('sitemap-1.xml'), 'utf8');
+    expect(first.match(/<url>/g)).toHaveLength(4);
+    expect(existsSync(output('sitemap-2.xml'))).toBe(true);
+    expect(readFileSync(output('robots.txt'), 'utf8')).toContain(
+      'Sitemap: https://shop.example.test/sitemap.xml'
+    );
+  }, 360_000);
+
+  it('writes neither file for a production build with no absolute site url', async () => {
+    await generateWith({}, { ELDRA_BUILD_TARGET: 'production' });
+
+    expect(existsSync(output('robots.txt'))).toBe(false);
+    expect(existsSync(output('sitemap.xml'))).toBe(false);
+  }, 360_000);
+
+  it('never replaces a robots.txt or sitemap.xml the theme ships itself', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, 'robots.txt'), 'theme-own-robots\n');
+    writeFileSync(join(publicDir, 'sitemap.xml'), 'theme-own-sitemap\n');
+    try {
+      await generateWith(
+        {},
+        {
+          ELDRA_BUILD_TARGET: 'production',
+          ELDRA_SITE_URL: 'https://shop.example.test',
+        }
+      );
+      expect(readFileSync(output('robots.txt'), 'utf8')).toBe('theme-own-robots\n');
+      expect(readFileSync(output('sitemap.xml'), 'utf8')).toBe('theme-own-sitemap\n');
+    } finally {
+      rmSync(join(publicDir, 'robots.txt'), { force: true });
+      rmSync(join(publicDir, 'sitemap.xml'), { force: true });
+    }
+  }, 360_000);
+
+  /**
+   * `_redirects`: the platform's rules between markers, ahead of the theme's own file, which is
+   * kept whole.
+   */
+  it('writes the platform redirects ahead of the theme’s own _redirects', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, '_redirects'), '/theme-old /theme-new 301\n');
+    try {
+      await generateWith({
+        redirects: {
+          revision: 2,
+          rules: [
+            { source: '/blog/*', destination: '/news/:splat', status: 301, applyToLocales: false },
+            { source: '/old', destination: '/new', status: 302, applyToLocales: true },
+          ],
+        },
+      });
+      expect(readFileSync(output('_redirects'), 'utf8')).toBe(
+        [
+          '# BEGIN eldra platform redirects (generated, edit them in Studio)',
+          '/old /new 302',
+          // The fixture's site serves en-US under a prefix, so the applyToLocales rule gets its twin.
+          '/en-US/old /en-US/new 302',
+          '/blog/* /news/:splat 301',
+          '# END eldra platform redirects',
+          '',
+          '/theme-old /theme-new 301',
+          '',
+        ].join('\n')
+      );
+    } finally {
+      rmSync(join(publicDir, '_redirects'), { force: true });
+    }
+  }, 360_000);
+
+  it('leaves the theme’s own _redirects alone when the platform read fails', async () => {
+    const publicDir = join(fixtureDir, 'public');
+    writeFileSync(join(publicDir, '_redirects'), '/theme-old /theme-new 301\n');
+    try {
+      await generateWith({});
+      expect(readFileSync(output('_redirects'), 'utf8')).toBe('/theme-old /theme-new 301\n');
+    } finally {
+      rmSync(join(publicDir, '_redirects'), { force: true });
+    }
+  }, 360_000);
+
+  /**
+   * The structured data (`useStructuredData`): the home page writes `Organization` + `WebSite`, any
+   * other page a `BreadcrumbList`, as one `<script type="application/ld+json">` in the prerendered
+   * HTML, from the platform's site profile with the icon as the logo fallback.
+   */
+  const SCRIPT = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
+  const ldNodes = (html: string): Array<Record<string, any>> => {
+    const scripts = [...html.matchAll(SCRIPT)];
+    expect(scripts.length, 'one ld+json script per page').toBeLessThanOrEqual(1);
+    return scripts.flatMap(([, json]) => {
+      const parsed = JSON.parse(json!) as Record<string, any> | Array<Record<string, any>>;
+      return Array.isArray(parsed) ? parsed : [parsed];
+    });
+  };
+  const PRODUCTION = {
+    ELDRA_BUILD_TARGET: 'production',
+    ELDRA_SITE_URL: 'https://shop.example.test',
+  };
+
+  it('writes Organization and WebSite on home and a BreadcrumbList elsewhere in a production build', async () => {
+    await generateWith(
+      {
+        siteProfile: {
+          revision: 1,
+          name: 'Fixture Shop Ltd',
+          logoUrl: null,
+          sameAs: ['https://social.example.test/fixture', 'http://insecure.example.test/x'],
+          contact: { email: 'hello@shop.example.test', telephone: null },
+        },
+        siteIcons: { iconUrl: 'https://media.example.test/public/org/assets/icon' },
+      },
+      PRODUCTION
+    );
+
+    expect(gateway.requests).toBeDefined();
+    const home = ldNodes(readFileSync(output('index.html'), 'utf8'));
+    expect(home.map((node) => node['@type'])).toEqual(['Organization', 'WebSite']);
+    expect(home[0]).toMatchObject({
+      name: 'Fixture Shop Ltd',
+      url: 'https://shop.example.test',
+      // The icon's 512 px rendering stands in for a logo nobody uploaded.
+      logo: 'https://media.example.test/public/org/assets/icon/icon-512',
+      // A non-https profile link is dropped, not written.
+      sameAs: ['https://social.example.test/fixture'],
+      contactPoint: { email: 'hello@shop.example.test' },
+    });
+    expect(home[1].potentialAction.target.urlTemplate).toBe(
+      'https://shop.example.test/search?q={search_term_string}'
+    );
+
+    const about = ldNodes(readFileSync(output('about/index.html'), 'utf8'));
+    expect(about).toHaveLength(1);
+    expect(about[0]).toMatchObject({ '@type': 'BreadcrumbList' });
+    expect(about[0].itemListElement.map((item: { name: string }) => item.name)).toEqual([
+      'Home',
+      'About',
+    ]);
+    expect(about[0].itemListElement[1].item).toBe('https://shop.example.test/about');
+  }, 360_000);
+
+  it('still writes an Organization from the SEO site name when the profile read fails', async () => {
+    await generateWith(
+      {
+        seo: {
+          revision: 2,
+          syntax: 1,
+          site: {
+            name: 'Fixture Shop',
+            titlePattern: {},
+            description: {},
+            imageAssetId: null,
+            imageUrl: null,
+            twitterHandle: null,
+          },
+          templates: {},
+        },
+      },
+      PRODUCTION
+    );
+
+    const [organization] = ldNodes(readFileSync(output('index.html'), 'utf8'));
+    expect(organization).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'Fixture Shop',
+      url: 'https://shop.example.test',
+    });
+  }, 360_000);
+
+  it('writes no structured data in a preview build, which is noindex', async () => {
+    await generateWith({}, { ELDRA_SITE_URL: 'https://shop.example.test' });
+    expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
+    expect(readFileSync(output('about/index.html'), 'utf8')).not.toContain('application/ld+json');
+  }, 360_000);
+
+  it('honours the theme’s opt-out per kind and altogether', async () => {
+    await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'breadcrumb,website' });
+    expect(ldNodes(readFileSync(output('index.html'), 'utf8')).map((n) => n['@type'])).toEqual([
+      'Organization',
+    ]);
+    expect(readFileSync(output('about/index.html'), 'utf8')).not.toContain('application/ld+json');
+
+    await generateWith({}, { ...PRODUCTION, ELDRA_TEST_LD_DISABLE: 'all' });
+    expect(readFileSync(output('index.html'), 'utf8')).not.toContain('application/ld+json');
+  }, 360_000);
+
+  /**
+   * WS-403/WS-409. A build proves it is a build with the organisation's read-only build token, in `X-Eldra-Build-Token`, so
+   * the gateway can give its reads their own rate-limit bucket. The token is a secret: it must reach
+   * the gateway from the server-side prerender and appear in nothing the build publishes.
+   */
+  it('sends ELDRA_BUILD_TOKEN as X-Eldra-Build-Token from the build and leaks it into no built file', async () => {
+    const token = 'eldra_bld_Zk3p9QxW7mTn2vLc_a1b2c3d4';
+    const { buildTokens } = await generateWith({}, { ELDRA_BUILD_TOKEN: token });
+
+    expect(buildTokens.length).toBeGreaterThan(0);
+    // Every gateway read the build made — the module's discovery reads and the runtime plugin's.
+    expect(buildTokens.every((value) => value === token)).toBe(true);
+
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]
+      );
+    // The whole build: published files, the server bundle and the prerender bundle in `.nuxt`.
+    const published = walk(output(''));
+    expect(published.some((file) => file.endsWith('_payload.json'))).toBe(true);
+    const everything = [
+      ...published,
+      ...walk(join(fixtureDir, '.output')),
+      ...walk(join(fixtureDir, '.nuxt')),
+    ];
+    expect(everything.some((file) => file.includes(`${sep}.nuxt${sep}dist${sep}`))).toBe(true);
+    for (const file of new Set(everything)) {
+      const text = readFileSync(file, 'latin1');
+      expect(text, file).not.toContain(token);
+      expect(text, file).not.toContain('Zk3p9QxW7mTn2vLc');
+    }
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when only ELDRA_DEPLOY_TOKEN is set (the deploy token never rides along)', async () => {
+    const { buildTokens } = await generateWith(
+      {},
+      { ELDRA_DEPLOY_TOKEN: 'eldra_site_0b7e8c1a_s3cr3t-deploy-token', ELDRA_BUILD_TOKEN: '' }
+    );
+    expect(buildTokens.length).toBeGreaterThan(0);
+    expect(buildTokens.every((value) => value === null)).toBe(true);
+  }, 360_000);
+
+  it('sends no X-Eldra-Build-Token when ELDRA_BUILD_TOKEN is not set', () => {
+    expect(gateway.requests.length).toBeGreaterThan(0);
+    expect(gateway.buildTokens.every((value) => value === null)).toBe(true);
+  });
 });

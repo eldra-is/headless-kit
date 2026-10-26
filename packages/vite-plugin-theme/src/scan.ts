@@ -1,5 +1,9 @@
 import Ajv, { type ErrorObject } from 'ajv';
-import { RICH_TEXT_TOOLBAR_CONTROLS } from '@eldrajs/theme-core';
+import {
+  RESERVED_THEME_IDS,
+  RICH_TEXT_TOOLBAR_CONTROLS,
+  THEME_ID_PATTERN,
+} from '@eldrajs/theme-core';
 import {
   DesignTokenValidationError,
   normalizeThemeDesignTokens,
@@ -11,6 +15,7 @@ import { dirname, join, relative } from 'node:path';
 import { blockJsonSchema } from './blockSchema';
 import { migrationChecks, validMigrationFieldShape } from './migrations';
 import { checkSeedData } from './seedData';
+import { validateFormSeeds } from './formSeeds';
 import { validatePageSeeds, validateTemplateRoles, validateTemplateSeeds } from './templates';
 import { codePointLength, isRecord, stripPlainTextControls } from './util';
 import type {
@@ -55,6 +60,7 @@ const LINK_KIND_SET = new Set<string>(LINK_KINDS);
  * the whole surface a block.json may carry on one. */
 const LINK_METADATA_KEYS = ['kinds', 'allowedEntrySchemaApiIds', 'tree'] as const;
 const SCHEMA_API_ID_PATTERN = /^[a-z][a-z0-9-]{1,48}$/;
+
 /** A message key: a dotted path of camelCase segments (`header.menu`,
  * `cart.empty.title`). Mirrors Core's own grammar for a theme message key. */
 const MESSAGE_KEY_PATTERN = /^[a-z0-9]+([A-Z][a-z0-9]*)*(\.[a-z0-9]+([A-Z][a-z0-9]*)*)*$/;
@@ -194,14 +200,18 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     templateRoles,
     errors
   );
+  const formSeeds = validateFormSeeds(opts.formSeeds, errors);
   // The theme's own i18n message catalogue, read beside tokens.json/blocks —
   // see readMessages. Absent (not computed to {}) when the theme ships no
   // i18n/ directory.
   const messages = readMessages(themeDir, packageJson, errors);
 
+  const themeId = readThemeId(packageJson, errors);
+
   const manifest: ThemeManifest = {
-    manifestVersion: 1,
+    manifestVersion: 2,
     theme: {
+      id: themeId,
       // The theme's optional default message locale is declared beside name
       // and version, under package.json's own `eldra` key — see readMessages.
       name: sanitizeThemeName(typeof packageJson?.name === 'string' ? packageJson.name : ''),
@@ -229,6 +239,8 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // it stays the `templates` entry it has always been, which Core maps to the
     // site's root Page itself.
     ...(pageSeeds.length === 0 ? {} : { pageSeeds }),
+    // Absent rather than empty for the same reason.
+    ...(formSeeds.length === 0 ? {} : { formSeeds }),
     tokens: readTokens(themeDir, errors),
     // Absent rather than empty when the theme ships no i18n/ directory, so a
     // theme that declares no texts keeps emitting the manifest shape an
@@ -1105,6 +1117,32 @@ function resolvePackageVersion(themeDir: string, packageName: string): string {
   }
 }
 
+/** The theme's declared `eldra.themeId`: the stable identity Core stores the
+ * theme's block schemas and entries under (`<themeId>:<apiId>`), independent of
+ * the npm package name. Required; there is no derivation from `name`. Returns
+ * an empty string after reporting an error, so the caller still builds the
+ * rest of the manifest and every problem is reported in one pass. */
+function readThemeId(packageJson: Record<string, unknown> | null, errors: string[]): string {
+  const declared = isRecord(packageJson?.eldra) ? packageJson.eldra.themeId : undefined;
+  if (declared === undefined) {
+    errors.push(
+      'package.json: eldra.themeId — required; set "eldra": { "themeId": "<id>" } (lower-case letters, digits and hyphens, 2 to 49 characters, starting with a letter)'
+    );
+    return '';
+  }
+  if (typeof declared !== 'string' || !THEME_ID_PATTERN.test(declared)) {
+    errors.push(
+      `package.json: eldra.themeId — must match ${THEME_ID_PATTERN} (lower-case letters, digits and hyphens, 2 to 49 characters, starting with a letter; got ${JSON.stringify(declared)})`
+    );
+    return '';
+  }
+  if (RESERVED_THEME_IDS.includes(declared)) {
+    errors.push(`package.json: eldra.themeId — "${declared}" is reserved`);
+    return '';
+  }
+  return declared;
+}
+
 function sanitizeThemeName(name: string): string {
   return (name.split('/').pop() ?? '')
     .toLowerCase()
@@ -1145,8 +1183,10 @@ function previousBlocks(
 ): Map<string, BlockDefinition> {
   const result = new Map<string, BlockDefinition>();
   if (manifest === undefined) return result;
-  if (!isRecord(manifest) || manifest.manifestVersion !== 1 || !Array.isArray(manifest.blocks)) {
-    errors.push('previous manifest: expected manifestVersion 1 and a blocks array');
+  // The local history is the manifest a previous build wrote; only `blocks` is read.
+  // No v1 acceptance: delete a stale `.eldra/manifest.json` and rebuild.
+  if (!isRecord(manifest) || manifest.manifestVersion !== 2 || !Array.isArray(manifest.blocks)) {
+    errors.push('previous manifest: expected manifestVersion 2 and a blocks array');
     return result;
   }
   for (const [index, value] of manifest.blocks.entries()) {

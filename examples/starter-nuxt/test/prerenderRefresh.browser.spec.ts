@@ -395,7 +395,7 @@ describe('prerendered commerce data on the generated static site', () => {
     );
     const generated = await execa(nuxi, ['generate'], {
       cwd: root,
-      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID },
+      env: { ELDRA_GATEWAY_URL: gateway.url, ELDRA_ORG_ID: ORG_ID, ELDRA_BUILD_TARGET: 'preview' },
       reject: false,
       timeout: 600_000,
     });
@@ -747,15 +747,10 @@ describe('prerendered commerce data on the generated static site', () => {
       expect(panelId).not.toBeNull();
       // Vitest's `expect` here, not Playwright's — the wait is the locator's own.
       await page.locator(`#${panelId ?? ''}`).waitFor({ state: 'visible' });
-      // "Visible" is true from the *first* frame of the panel's entrance, and that entrance carries
-      // a 4px rise (`-translate-y-1` over 150ms, `panelTransition` in `blocks/navigation/Block.vue`).
-      // Measuring there reads the panel 4px above where it settles — which, plus the bar's own 1px
-      // border, is exactly the 5px this geometry case used to fail by whenever the machine got to
-      // `evaluate` inside 150ms. So wait for the transition itself to finish, not just for the
-      // element to exist.
+      // "Visible" holds from the entrance's first frame, so wait for the panel's animations to end.
       await page.waitForFunction(
         (id) =>
-          (document.getElementById(id)?.getAnimations() ?? []).every(
+          (document.getElementById(id)?.getAnimations({ subtree: true }) ?? []).every(
             (animation) => animation.playState !== 'running'
           ),
         panelId ?? ''
@@ -774,7 +769,7 @@ describe('prerendered commerce data on the generated static site', () => {
         const rect = panel.getBoundingClientRect();
         // The first column of the grid, and the "View all" anchor — the two pieces of content
         // that decide whether the panel has an inset at all.
-        const firstColumn = panel.firstElementChild!.getBoundingClientRect();
+        const firstColumn = panel.querySelector('[data-part="group"]')!.getBoundingClientRect();
         const viewAll = panel.querySelector('[data-eldra-mega-view-all]')!.getBoundingClientRect();
         return {
           panel: { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top },
@@ -810,7 +805,7 @@ describe('prerendered commerce data on the generated static site', () => {
     // resolve `--eldra-header-surface` through the theme's token variables, which exist only in a
     // real stylesheet — jsdom sees the class names and no colour at all. Second the leave: a panel
     // that merely stops being `display: block` is indistinguishable, in a mounted test, from one
-    // that fades out over 120ms, and the fade is the whole point of the change.
+    // that fades out over `--eldra-duration-fast`, and the fade is the whole point of the change.
     //
     // Both bar states are measured, because they are the two different grounds the bar can be
     // asked about: the home page's header is solid, and the collection template's carries
@@ -851,8 +846,9 @@ describe('prerendered commerce data on the generated static site', () => {
 
         const open = await page.evaluate((id) => {
           const bar = document.querySelector('header')!;
+          const sheet = document.getElementById(id)!.querySelector('[data-part="content"]')!;
           return {
-            panel: getComputedStyle(document.getElementById(id)!).backgroundColor,
+            panel: getComputedStyle(sheet).backgroundColor,
             bar: getComputedStyle(bar).backgroundColor,
             transparentAttribute: bar.getAttribute('data-eldra-transparent'),
           };
@@ -888,8 +884,7 @@ describe('prerendered commerce data on the generated static site', () => {
           panelId
         );
         expect(leave.faded, `${path} fades out`).toBe(true);
-        // 120ms of leave: comfortably more than the frame a bare `v-show` would have taken, and
-        // nowhere near a panel that never leaves at all.
+        // 150ms of leave (`--eldra-duration-fast`): more than a bare `v-show`'s one frame, less than never.
         expect(leave.hiddenAfterMs, path).toBeGreaterThanOrEqual(60);
         expect(leave.hiddenAfterMs, path).toBeLessThan(1000);
         expect(await trigger.getAttribute('aria-expanded'), path).toBe('false');
@@ -959,7 +954,7 @@ describe('prerendered commerce data on the generated static site', () => {
           // same classes. A difference here is a page that jumps on hydration.
           reserved:
             spacer === null ? null : spacer.firstElementChild!.getBoundingClientRect().height,
-          nav: element.querySelector('nav')!.getBoundingClientRect().height,
+          nav: element.querySelector('[data-eldra-header-bar]')!.getBoundingClientRect().height,
           wrapper: wrapper === null ? null : wrapper.getBoundingClientRect().height,
         };
       });
@@ -1017,6 +1012,10 @@ describe('prerendered commerce data on the generated static site', () => {
       'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
       'storefront:catalog.related:["ash-glaze-mug",8]',
+      // The footer's sign-up spam guard (`useFormSpam`): a footer with no newsletter zone names no
+      // form, so the read is keyed `""`, resolves `null` without a request and is in the payload
+      // because it exists.
+      'storefront:forms.definition:["","en-US"]',
       'storefront:search.run:[""]',
     ]);
   });

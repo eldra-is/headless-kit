@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { EldraBlockZone, EldraLayout, getBlockSchemaApiId } from '@eldrajs/theme-vue';
+import {
+  EldraBlockZone,
+  EldraLayout,
+  getBlockSchemaApiId,
+  useEldraLocale,
+} from '@eldrajs/theme-vue';
 import { Button, Container, Section } from '@eldrajs/ui';
 import EldraRouterLink from '../components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import { partitionPageBlocks } from '../utils/pageStructure';
-import { pageTitle } from '../utils/pageTitle';
+import { seoInput } from '../utils/seoInput';
+import { useMoney } from '../storefront/money';
 
 const {
   page,
@@ -41,18 +47,48 @@ const isNotFound = computed(
   () => isNotFoundRoute.value || (page.value === null && template.value === null)
 );
 
-useHead(() => ({
-  title: pageTitle({
+// The title, description, canonical, Open Graph and robots tags come from the platform's SEO
+// settings (Studio, Website and theme) and the route's own `seo` field, resolved by the one
+// resolver Studio's previews share. A catalog route is named by the object it shows — the shared
+// route template's own title names the template ("Product" on every product page) — and the
+// not-found shell names itself and is never indexed. See `docs/theme-seo.md`.
+const money = useMoney();
+const { supported } = useEldraLocale();
+// The product's category name for `product.category`: the deepest level of the trail the product
+// page draws (same cache key as the blocks and `usePageStructuredData`, so no extra read).
+const seoProduct = useStorefront().catalog.product(
+  computed(() => (catalog.value?.kind === 'product' ? catalog.value.slug : null))
+).data;
+const seo = computed(() =>
+  seoInput({
+    productCategory: seoProduct.value?.categoryTrail.at(-1)?.label ?? null,
     isNotFound: isNotFound.value,
     notFoundTitle: t('notFound.title'),
-    // A catalog-backed route (a product, a collection) renders through a shared route template
-    // whose own title names the template — "Product" on every product page. The object's own
-    // title is on the resolved catalog `entry`, which is what the tab, the bookmark and the
-    // search result should say.
-    catalogTitle: catalog.value === null ? null : entry.value?.data.title,
-    documentTitle: (template.value ?? page.value)?.data.title,
-  }),
-}));
+    catalog: catalog.value,
+    entry: entry.value,
+    page: page.value,
+    template: template.value,
+    path: route.path,
+    locales: supported,
+    formatPrice: money.format,
+  })
+);
+const resolvedSeo = useEldraSeo(
+  () => seo.value.context,
+  () => seo.value.data,
+  () => seo.value.options
+);
+// The schema.org JSON-LD (`Product`, `BreadcrumbList`, `ItemList`, `Organization`, `WebSite`), from
+// the same product, price and stock the page renders; a `noindex` page carries none. See
+// `app/composables/usePageStructuredData.ts` and `docs/theme-seo.md`.
+usePageStructuredData({
+  catalog,
+  isNotFound,
+  isHome: computed(() => seo.value.context === 'home'),
+  seo: resolvedSeo,
+  title: computed(() => String(seo.value.data['page.title'] ?? '')),
+  path: computed(() => route.path),
+});
 
 /**
  * The page's flat block list, cut into the three landmark regions — see

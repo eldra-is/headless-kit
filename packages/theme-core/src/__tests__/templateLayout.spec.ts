@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LayoutValidationError, layoutNodeClass, layoutRenderNodeId } from '../layout';
 import { createReusableLayoutRenderModel, type ReusableComponentProjection } from '../reusable';
 import { decodeStega, encodeStega } from '../stega';
+import { registerThemeId } from '../themeId';
 import { buildTemplateBlockRenames, createTemplateLayoutRenderModel } from '../templateLayout';
 
 const entry = {
@@ -64,6 +65,29 @@ describe('template layout render model', () => {
     expect(block.entry.data.byline).toBe('Ada');
     expect(block.entry.data.eyebrow).toBe('News');
     expect(model.css).toContain(model.root.className);
+  });
+
+  it("matches a block entry's wire schemaApiId (<themeId>:<apiId>) against the bare placement apiId", () => {
+    const placement = layout({
+      id: 'hero-placement',
+      type: 'template-block',
+      apiId: 'hero',
+      entryId: blockEntry.id,
+    });
+    const options = (schemaApiId: string) => ({
+      entry,
+      blockEntries: [{ ...blockEntry, schemaApiId }],
+      blockCatalog: catalog,
+    });
+    try {
+      registerThemeId('soley');
+      expect(() => createTemplateLayoutRenderModel(placement, options('soley:hero'))).not.toThrow();
+      expect(() => createTemplateLayoutRenderModel(placement, options('hero'))).not.toThrow();
+      // Another theme's hero is not this placement's block.
+      expect(() => createTemplateLayoutRenderModel(placement, options('starter:hero'))).toThrow();
+    } finally {
+      registerThemeId(undefined);
+    }
   });
 
   it('starts with the ordinary block entry and applies optional dynamic overrides', () => {

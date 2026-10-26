@@ -46,7 +46,7 @@ export const isIS: UiMessages = {
   clearSearch: 'Hreinsa leit',
   dismissNotification: 'Loka tilkynningu',
   notifications: 'Tilkynningar',
-  loading: 'Hleð',
+  loading: 'Hleður…',
   optional: 'valfrjálst',
   required: 'Nauðsynlegt',
   search: 'Leita',
@@ -72,15 +72,15 @@ export const isIS: UiMessages = {
   to: 'til',
   opensInNewTab: '(opnast í nýjum flipa)',
   counter: (n: number, max: number) => `${n} af ${max}`,
-  previous: 'Fyrri skyggna',
-  next: 'Næsta skyggna',
+  previous: 'Fyrri',
+  next: 'Næsta',
   pause: 'Hlé',
   play: 'Spila',
   slideOf: (position: number, total: number) => `${position} af ${total}`,
-  goToSlide: (n: number) => `Fara á skyggnu ${n}`,
-  slides: 'Skyggnur',
+  goToSlide: (n: number) => `Fara á ${n}`,
+  slides: 'Atriði',
   slideInstructions:
-    'Notaðu vinstri og hægri örvatakka til að fara á milli skyggna. Ýttu á Tab til að fara innan núverandi skyggnu.',
+    'Notaðu vinstri og hægri örvatakkana til að fletta. Ýttu á Tab til að fara inn í það sem er sýnt.',
   closeLightbox: 'Loka myndaskoðara',
   previousImage: 'Fyrri mynd',
   nextImage: 'Næsta mynd',
@@ -97,7 +97,7 @@ export const isIS: UiMessages = {
   // `quickAdd` for why the whole sentence is one catalogue entry rather than a label plus a
   // glued-on suffix.
   quickAdd: (title: string) => `Setja ${title} í körfu`,
-  loadingProduct: 'Hleð vöru',
+  loadingProduct: 'Hleður…',
   swatchesAvailable: (n: number) => `Til í ${n} ${singular(n) ? 'lit' : 'litum'}`,
   noImage: 'Engin mynd',
   noImageAvailable: 'Engin mynd í boði',
@@ -111,8 +111,8 @@ export const isIS: UiMessages = {
   regularPrice: 'Fullt verð',
   from: 'Frá',
   perUnit: (per: string) => `/ ${per}`,
-  updatingPrice: 'Uppfæri verð',
-  updatingStock: 'Uppfæri lagerstöðu',
+  updatingPrice: 'Verð uppfærist…',
+  updatingStock: 'Lagerstaða uppfærist…',
   // Icelandic decimals use a comma, not a period — `Rating` has no `locale` prop to format
   // through `Intl`, so the swap happens here rather than pulling in a formatter for one digit.
   rating: (value: number, count: number) =>
@@ -136,7 +136,7 @@ export const isIS: UiMessages = {
     const count = singular(n) ? `Sjá ${n} niðurstöðu` : `Sjá allar ${n} niðurstöður`;
     return query === undefined || query === '' ? count : `${count} fyrir „${query}“`;
   },
-  searchLoading: 'Leita…',
+  searchLoading: 'Leitar…',
   shortcutHint: 'Ýttu á / til að leita',
   searchMoveHint: 'til að fara á milli',
   searchOpenHint: 'til að opna',
@@ -159,12 +159,17 @@ export const isIS: UiMessages = {
   // "þrep" (a rung/step) does not change form between one and many, so — unlike `formErrors` or
   // `resultsCount` above — this needs no singular/plural branch of its own.
   showMoreLevels: (n: number) => `Sýna ${n} þrep í viðbót`,
+  navMenuLabel: 'Aðalvalmynd',
+  navMenuOpen: 'Valmynd',
+  navMenuDrawer: 'Valmynd',
+  // A colon rather than a preposition, so the label never has to be declined.
+  navMenuOverview: (label: string) => `${label}: yfirlit`,
   pagination: 'Síðuskipting',
   previousPage: 'Fyrri síða',
   nextPage: 'Næsta síða',
   pageN: (n: number, current = false) => (current ? `Síða ${n}, núverandi síða` : `Síða ${n}`),
   pageOfTotal: (page: number, total: number) => `Síða ${page} af ${total}`,
-  showingOf: (shown: number, total: number, noun: string) => `Sýni ${shown} af ${total} ${noun}`,
+  showingOf: (shown: number, total: number, noun: string) => `${shown} af ${total} ${noun}`,
   loadMore: 'Hlaða meira',
 
   filterPanelTitle: 'Síur',
@@ -191,6 +196,32 @@ export const isIS: UiMessages = {
   filterPanelOrMore: ' eða meira',
   filterPanelShowResults: (n: number) => `Sýna ${n} ${productsWord(n)}`,
   filterPanelShowProducts: 'Sýna vörur',
+
+  formSubmit: 'Senda',
+  formSubmitting: 'Sendir…',
+  formLoading: 'Hleður…',
+  formLoadFailed: 'Ekki er hægt að sýna þetta eyðublað núna.',
+  formRequired: 'Þennan reit þarf að fylla út.',
+  formRequiredCheckbox: 'Hakaðu í reitinn til að halda áfram.',
+  formInvalidEmail: 'Sláðu inn gilt netfang.',
+  formInvalidNumber: 'Sláðu inn tölu, til dæmis 12 eða 3,5.',
+  formInvalidUrl: 'Sláðu inn fullt veffang sem byrjar á http:// eða https://.',
+  formInvalidOption: 'Veldu einn af valkostunum.',
+  formInvalidFormat: 'Þetta er ekki á réttu formi.',
+  formTooShort: (min: number) =>
+    `Þetta er of stutt (að minnsta kosti ${min} ${singular(min) ? 'stafur' : 'stafir'}).`,
+  formTooLong: (max: number) =>
+    `Þetta er of langt (í mesta lagi ${max} ${singular(max) ? 'stafur' : 'stafir'}).`,
+  formRefused: 'Athugaðu svörin og reyndu aftur.',
+  formRateLimited: 'Of margar tilraunir. Bíddu í eina mínútu og reyndu aftur.',
+  formTooLarge: 'Þetta er meira en eyðublaðið tekur við. Styttu svörin og reyndu aftur.',
+  formUnavailable: 'Ekki tókst að senda eyðublaðið núna. Reyndu aftur eftir smá stund.',
+  formSpamCheckRequired: 'Staðfestu að þú sért ekki vélmenni og reyndu aftur.',
+  formSpamCheckFailed:
+    'Ekki tókst að hlaða öryggisathuguninni. Endurnýjaðu síðuna og reyndu aftur.',
+  formSuccessTitle: 'Takk fyrir',
+  formPendingTitle: 'Kíktu í pósthólfið',
+  formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
 };
 
 export default isIS;

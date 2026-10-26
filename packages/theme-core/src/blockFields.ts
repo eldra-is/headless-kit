@@ -1,3 +1,5 @@
+import { registerThemeId, registeredBlockApiId } from './themeId';
+
 /**
  * The theme's scanned `block.json` field metadata, as `virtual:eldra/block-fields`
  * projects it. Framework-neutral: a binding's composable is a thin wrapper
@@ -25,9 +27,14 @@ let registeredBlockFields: BlockFieldsMap = {};
  * equivalent entry for another adapter) imports `virtual:eldra/block-fields`
  * and calls this once at startup with the resolved map; call it again (e.g.
  * on the plugin's HMR rescan) to replace the registered map.
+ *
+ * `themeId` is the theme's own id (the manifest's `theme.id`). Core spells a
+ * block entry's schema `<themeId>:<apiId>` on the wire while this map is keyed
+ * by the bare `apiId`, so the lookups below strip that one prefix.
  */
-export function registerBlockFields(fields: BlockFieldsMap): void {
+export function registerBlockFields(fields: BlockFieldsMap, themeId: string): void {
   registeredBlockFields = fields;
+  registerThemeId(themeId);
 }
 
 /**
@@ -45,7 +52,8 @@ export function registerBlockFields(fields: BlockFieldsMap): void {
 export function isBlockFieldLocalized(apiId: string | undefined, fieldId: string): boolean {
   if (apiId === undefined) return false;
   return (
-    registeredBlockFields[apiId]?.find((field) => field.fieldId === fieldId)?.localized === true
+    registeredBlockFields[registeredBlockApiId(apiId)]?.find((field) => field.fieldId === fieldId)
+      ?.localized === true
   );
 }
 
@@ -130,5 +138,8 @@ function resolveBlockFieldType(
  */
 export function isBlockFieldSelect(apiId: string | undefined, path: string): boolean {
   if (apiId === undefined) return false;
-  return resolveBlockFieldType(registeredBlockFields[apiId], path.split('.')) === 'select';
+  return (
+    resolveBlockFieldType(registeredBlockFields[registeredBlockApiId(apiId)], path.split('.')) ===
+    'select'
+  );
 }

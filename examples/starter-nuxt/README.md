@@ -21,6 +21,11 @@ pnpm install
 ELDRA_GATEWAY_URL=https://web-gateway.example.com ELDRA_ORG_ID=<org-id> pnpm dev
 ```
 
+Set your theme's own id before the first deploy: `package.json` declares `"eldra": { "themeId":
+"starter" }`, and Core files the theme's schemas and entries under that id (`starter:hero`), so two
+themes in one organisation need different ids. Lower-case letters, digits and hyphens; it is the
+theme's identity, so choose it once. See [`docs/themes.md`](../../docs/themes.md).
+
 ## Commands
 
 ```sh
@@ -97,7 +102,7 @@ alongside it.
 
 - **structure** — `navigation` ("Header"), `announcement-bar`, `breadcrumbs`, `footer`.
 - **marketing** — `hero`, `cta` ("Call to action"), `feature-grid`, `split-content`, `stats`,
-  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact`
+  `logo-cloud`, `testimonials`, `faq`, `pricing-table`, `newsletter`, `contact`, `form`
   ("Contact and map"), `video-embed`, `team`, `timeline`.
 - **content** — `article`, `article-list`, `rich-text`, `gallery`, `image`, `quote`, `tabs`.
 - **commerce** — `collection-header`, `product-carousel`, `collection-grid`, `product-detail`,
@@ -121,10 +126,14 @@ your own site's pages, or as a reference for how a set of blocks composes.
 
 ## Storefront forms
 
-The newsletter (`forms.subscribe`), contact (`forms.sendMessage`) and back-in-stock
-(`catalog.notifyBackInStock`) forms have no gateway endpoint by default: without one configured,
-they resolve `{ ok: false, reason: 'unsupported' }` and the block renders its own "isn't set up
-yet" copy rather than crashing. Wire a real endpoint by adding it to `nuxt.config.ts`:
+Forms come from the platform: a merchant builds them on Studio's Forms page, and the `form` block
+(plus `contact`, `newsletter` and the footer's sign-up, which submit to the seeded `contact` and
+`newsletter` forms) renders and submits them through `useStorefront().forms`. `app/formSeeds.ts` is
+what a fresh site starts with (the `newsletter` seed carries its consent sentence per locale, which the `form` block shows under the button). See `docs/starter-kit.md`, "Forms".
+
+`formsEndpoint` overrides where a form _submission_ goes, and is where the back-in-stock form
+(`catalog.notifyBackInStock`, which has no platform endpoint) posts. Without it that one resolves
+`{ ok: false, reason: 'unsupported' }` and the block renders its own "isn't set up yet" copy:
 
 ```ts
 export default defineNuxtConfig({
@@ -136,10 +145,10 @@ export default defineNuxtConfig({
 });
 ```
 
-or by setting the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time.
-Once set, `app/storefront/gateway.ts` posts `{ kind: 'subscribe' | 'sendMessage' |
-'notifyBackInStock', ...input }` as JSON to that endpoint and treats a non-2xx response as a
-recoverable failure (the same retry-on-resubmit path each form's own spec proves).
+or set the matching `NUXT_PUBLIC_FORMS_ENDPOINT` environment variable at build/deploy time. A form
+submission is posted as `{ kind: 'form', key, values, locale, pagePath, turnstileToken?, hp? }` JSON (the last two are the
+spam signals the form collected; verify them or ignore them), a back-in-stock
+request as `{ kind: 'notifyBackInStock', ... }`; a non-2xx is a recoverable failure.
 
 ## Checkout
 
@@ -149,6 +158,14 @@ visit — `app/storefront/gateway.ts` awaits `client.checkout.url({ cartId })` a
 button appears when that resolves. If the platform publishes no checkout URL, or the read does not
 come back, the cart still adds, updates and persists lines normally; it just has no Check out
 button to show, since there is nowhere to hand the cart off to.
+
+## Analytics
+
+On a production build the theme reports to Studio's analytics through `@eldrajs/theme-nuxt` (see
+`docs/themes.md`, _Built-in analytics_), and `app/storefront/analytics.ts` sends `product_view`,
+`add_to_cart`, `remove_from_cart`, `begin_checkout` and `search` by wrapping the storefront source in
+`app/plugins/eldra-storefront.ts`, so blocks never call it. Opt out with `eldra: { analytics: false }`
+in `nuxt.config.ts` or `ELDRA_ANALYTICS=off`. Nothing is written to cookies or storage.
 
 ## Prices and the store currency
 
@@ -160,12 +177,12 @@ converts money, and `useMoney()` is what a block calls — the formatted text in
 cart · 2.800 kr.") and the `<Price>` beside it therefore always agree.
 
 They agree on the **sign**, too, because both come from `@eldrajs/ui`: `formatMoney` is the
-package's `formatCurrency`, so every amount on the page carries the currency's narrow sign
-(`kr 2,800` on an English page, `2.800 kr.` on an Icelandic one, `$28.00` for dollars) rather than the
-wide one a hand-built `Intl.NumberFormat({ style: 'currency' })` writes (`ISK 2,800`). Nothing in
+package's `formatCurrency`, so every amount on the page carries the currency's wide sign
+(`ISK 2,800` on an English page, `2.800 kr.` on an Icelandic one, `$28.00` for dollars), the same text
+on the server and in Chrome, rather than whatever a hand-built `Intl.NumberFormat` prints there. Nothing in
 `app/**` or `blocks/**` may build a currency formatter of its own — `test/moneyFormatting.spec.ts`
 fails the build if anything does. The footer's currency text follows the same sign as well:
-`currencyLabel()` names the store's currency "ISK kr" style, the code plus that sign.
+`currencyLabel()` names the store's currency "ISK kr." style, the code plus that sign.
 
 A store that has not configured commerce publishes no currency, and the build says so once:
 
@@ -279,10 +296,10 @@ The deploy command uploads the generated static site and exact `.eldra/manifest.
 
 ## Wiring rebuilds
 
-The starter includes GitHub Actions, GitLab CI, and Bitbucket Pipelines examples. All build locally with Node 20 and pnpm, run `nuxi generate`, then push the static output with `eldra-theme deploy`.
+The starter includes GitHub Actions, GitLab CI, and Bitbucket Pipelines examples. Each is split into a **build job** and a **deploy job**. The build job checks out the theme, installs with Node 20 and pnpm, runs `nuxi generate` (with `ELDRA_BUILD_TOKEN`, a read-only build token, so the build's gateway reads get their own rate-limit budget; it is sent only from the build in `X-Eldra-Build-Token`) and uploads `.output/public` as an artifact. The deploy job downloads the artifact and pushes it with `eldra-theme deploy` and `ELDRA_DEPLOY_TOKEN`, which can publish the site. The build job never receives the deploy token, because it runs every npm dependency's code. The deploy job installs none of the project's dependencies: it runs the pinned `@eldrajs/theme-cli` with install scripts disabled (keep its version in step with `package.json`).
 
-- GitHub: set repository variables `ELDRA_GATEWAY_URL`, `ELDRA_ORG_ID`, and `ELDRA_API_URL`, plus secret `ELDRA_DEPLOY_TOKEN`. In Studio choose the GitHub trigger and configure `https://api.github.com/repos/<owner>/<repo>/dispatches` with a token allowed to dispatch workflows.
-- GitLab: configure those four names as project CI/CD variables, masking `ELDRA_DEPLOY_TOKEN`. In Studio use the project pipeline-trigger URL, trigger token, and branch/tag ref.
-- Bitbucket: configure repository variables, securing `ELDRA_DEPLOY_TOKEN`. In Studio use the pipelines endpoint, `username:app-password` token, and ref; the backend selects the `eldra-rebuild` custom pipeline.
+- GitHub: set repository variables `ELDRA_GATEWAY_URL`, `ELDRA_ORG_ID`, `ELDRA_API_URL` and `ELDRA_SITE_URL` (the public origin, for canonical and `og:url`), plus repository secrets `ELDRA_BUILD_TOKEN` (used by the `build` job only) and `ELDRA_DEPLOY_TOKEN` (used by the `deploy` job only). Create the build token in Studio under Settings → Developers → Build tokens. In Studio choose the GitHub trigger and configure `https://api.github.com/repos/<owner>/<repo>/dispatches` with a token allowed to dispatch workflows.
+- GitLab: configure `ELDRA_GATEWAY_URL`, `ELDRA_ORG_ID`, `ELDRA_API_URL` and `ELDRA_SITE_URL` as project CI/CD variables and `ELDRA_BUILD_TOKEN` as a masked variable. Create `ELDRA_DEPLOY_TOKEN` as a **masked, protected variable scoped to the `production` environment**; the deploy job declares `environment: production`, so the build job never receives it. In Studio use the project pipeline-trigger URL, trigger token, and branch/tag ref.
+- Bitbucket: configure `ELDRA_GATEWAY_URL`, `ELDRA_ORG_ID` and `ELDRA_SITE_URL` as repository variables, securing `ELDRA_BUILD_TOKEN`. Define `ELDRA_DEPLOY_TOKEN` (secured) and `ELDRA_API_URL` as **deployment variables** of the Production environment, not repository variables; the deploy step declares `deployment: production`, so the build step never receives them. In Studio use the pipelines endpoint, `username:app-password` token, and ref; the backend selects the `eldra-rebuild` custom pipeline.
 
 Trigger tokens and app passwords are write-only in Studio. Rebuild requests supply `ELDRA_TRIGGER_DEPLOYMENT_ID`; the deploy command returns it as multipart `triggerDeploymentId`, completing the existing MANUAL or CONTENT_PUBLISH deployment rather than creating a duplicate.

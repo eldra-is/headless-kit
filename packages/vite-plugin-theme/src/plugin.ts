@@ -51,6 +51,7 @@ export default function eldraTheme(options: EldraThemeOptions = {}): Plugin {
       customPages: options.customPages,
       templates: options.templates,
       templateRoles: options.templateRoles,
+      formSeeds: options.formSeeds,
       breakpoints: options.breakpoints,
     });
     scan.errors.unshift(...historyErrors);

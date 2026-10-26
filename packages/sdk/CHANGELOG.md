@@ -9,10 +9,10 @@ platform repository.
 
 ## Unreleased
 
-Business customers (B2B), for the next release after 0.2.8. Every entry below needs a gateway
-serving public contract 3.15.0.
+Business customers (B2B), for the next release after 0.3.2. Every entry below needs a gateway
+serving public contract 5.3.0.
 
-- Contract 3.15.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
+- Contract 5.3.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
   `pkceChallenge`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`, `refreshTokens` and
   `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm, `EldraOidcError` on
   failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in business customer
@@ -23,22 +23,22 @@ serving public contract 3.15.0.
 - `buildAuthorizeUrl` takes an optional `uiLocales` (a BCP 47 tag or a list, most preferred
   first), sent as the OIDC `ui_locales` parameter so the shop login pages use the storefront's
   language. No contract change.
-- Customer prices (contract 3.15.0): catalog product, list and collection-product reads and cart
+- Customer prices (contract 5.3.0): catalog product, list and collection-product reads and cart
   writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
   responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
   headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
-- Customer carts (contract 3.15.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+- Customer carts (contract 5.3.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
   signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
   `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
   `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
   code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
-- Customer carts (contract 3.15.0): an archived or unknown company answers 409
+- Customer carts (contract 5.3.0): an archived or unknown company answers 409
   `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
   preview; treat them like `*_CUSTOMER_PRICES_OFF`. A bound
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
-- Sales orders and delivery locations (contract 3.15.0) for a signed-in business customer's active
+- Sales orders and delivery locations (contract 5.3.0) for a signed-in business customer's active
   company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
   envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
   context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
@@ -72,6 +72,73 @@ serving public contract 3.15.0.
 - New required interface members: `EldraClient.salesOrders` and `EldraCustomerClient.locations`. Code
   that only calls the client is unaffected; code that implements these interfaces itself (a mock or a
   wrapper) must add them.
+
+## 0.3.2 — 2026-10-22
+
+- **Images use the size the API gives them (contract 4.14.0).** `EldraImageSource` accepts the
+  `width` and `height` an image object now carries (its pixels as displayed). `imageSrcset` stops at
+  that width unless `originalWidth` is passed, and `responsiveImage` sets `width`/`height` to the
+  `src` variant's own size (the original scaled to the variant, never enlarged) when neither
+  `width`/`height` nor `aspectRatio` is given; both of those still win. An image without them
+  behaves as before.
+
+- **`imageSrcset` lists the original when it is wider than `full`.** When the original's width is
+  known (the API's `width`, or `originalWidth`) and above 2560 px, the `srcset` ends with
+  `…/original <width>w`, so a zoomed crop that needs more than 2560 px is sharp. The original is
+  served as uploaded, so a browser picks it only when no variant is wide enough. Never for HEIC,
+  which most browsers cannot show as uploaded. A narrower original still ends the list at its own
+  width.
+
+## 0.3.1 — 2026-10-19
+
+- **`buildToken` client option (WS-403).** When set (a string or a function returning one), every
+  request carries `X-Eldra-Build-Token`, a read-only build token (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens),
+  so the gateway can give a theme build's reads their own rate-limit bucket. Server and build only;
+  omitted or empty sends no header. Never pass the site deploy token. Pass it from server-side code
+  only; an SSR server that sends it on every visitor request shares the organisation's build budget.
+
+## 0.3.0 — 2026-10-18
+
+- **`EldraFormDefinition.consentText` (WS-386, contract 4.13.0).** A form that subscribes the
+  visitor now publishes the consent sentence per locale, with the shop name already filled in
+  (`consentText?: EldraFormLocalized`, present only when `kinds` contains `subscribe`). Show it
+  beside the submit button as escaped plain text; the platform records it as the proof of consent
+  (followed by the labels of any ticked `consent` fields). No new submit field and no checkbox.
+
+- **Forms are gated by the `FORMS` feature, and mailed links go to the web gateway (WS-386,
+  contract 4.12.0).** `client.forms` no longer needs `PAGE_BUILDER`: the organisation's new `FORMS`
+  feature switches on form reads and submissions, so a headless app with no theme or page builder
+  can use them (its origin must be a registered storefront origin). The confirm and unsubscribe
+  links in form mails now point at the web gateway's own page rather than the storefront's domain;
+  nothing changes for `confirm(token)` and `unsubscribe(token)`. No SDK code change.
+
+- **`EldraFormFieldType` gains `number` and `url` (WS-386, contract 4.11.0).** The two types Core
+  accepts besides the earlier set from contract 4.11.0 on; both carry text the platform validates
+  (a finite number, with a decimal comma stored as a point, and an absolute http(s) URL).
+
+- **`client.forms.confirm(token)` and `unsubscribe(token)` POST (WS-386, contract 4.10.0).** The
+  emailed confirm and unsubscribe links no longer act on a `GET`: Core answers a `GET` with a small
+  HTML page whose button posts the token back, so a mail scanner that prefetches the link confirms
+  and unsubscribes nobody. The two methods now `POST` the same paths with the token in the query and
+  still resolve `{ status }`; confirming or unsubscribing twice is a success. Needs a gateway at
+  contract 4.10.0 or later (the `GET` JSON answer of 4.7.0 to 4.9.0, never released, is gone).
+
+- **`client.forms`: the site-forms API (WS-386).** `get(key)` reads a form definition,
+  `submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission and
+  `confirm(token)` / `unsubscribe(token)` finish a subscriber's emailed links. A `422` resolves as
+  `{ status: 'invalid', errors, form }` (field-keyed, ready for `apiErrors`) rather than throwing;
+  `404`, `413` and `429` reject with `EldraHttpError`. New types `EldraFormDefinition`,
+  `EldraFormField`, `EldraFormSubmitInput`, `EldraFormSubmitResult` and friends, hand-written like
+  `EldraPlatformConfig`. Needs a gateway at contract 4.4.0 or later.
+
+## 0.2.9 — 2026-10-12
+
+- **Icelandic formatting that prints the same on every runtime: `@eldrajs/sdk/format`.**
+  `numberFormat`, `formatPrice` and `comparator`/`compareIcelandic`, plus `./format/date`,
+  `./format/list`, `./format/relative-time` and `./format/display-names`. Icelandic and English come
+  from the package's own CLDR 48.2 data, so Chrome and Cloudflare Workers, which lack it, print what
+  Node and Safari do; every other locale goes to the runtime's `Intl`. Dates are UTC. No new
+  runtime dependency: the formatjs code is bundled.
 
 ## 0.2.8 — 2026-10-10
 

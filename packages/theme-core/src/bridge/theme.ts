@@ -39,7 +39,7 @@ export function createThemeBridge(opts: {
   function sendReady(): void {
     deliver(
       makeEnvelope('theme:ready', {
-        manifestVersion: 1,
+        manifestVersion: 2,
         themeVersion: readMeta('eldra-theme-version'),
         sdkVersion: readMeta('eldra-sdk-version'),
         path: window.location.pathname,

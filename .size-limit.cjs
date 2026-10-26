@@ -5,14 +5,15 @@ module.exports = [
   // Raised from 2.5 kB / 3 kB when the transport grew its retry (`src/retry.ts`):
   // a `429` from the gateway's rate limit is waited out rather than failed, which
   // is what a static build of a real catalogue needs and is worth ~0.7 kB brotlied.
-  // Raised from 3.5 kB when the business-customer calls joined the client (B2B phases 2–5:
-  // customer.me and locations, the sales-order calls, the idempotency-key check, typed problem
-  // `errors`): ~0.2 kB brotlied.
   {
     name: '@eldrajs/sdk — createEldraClient',
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
-    limit: '3.8 kB',
+    // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
+    // about 0.2 kB brotlied, and the client is one object, so an unused method is not shaken out.
+    // 3.75 kB before the business-customer calls (B2B: customer.me and locations, the sales-order
+    // calls, the idempotency-key check, typed problem `errors`): 3.96 kB with them.
+    limit: '4 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -29,12 +30,14 @@ module.exports = [
   },
   // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
   // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport.
-  // Raised from 4.5 kB with the B2B work: business login (OIDC with PKCE, `customerHeaders`), the
-  // sales-order calls and `isEldraError`, ~0.8 kB brotlied.
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '5.4 kB',
+    // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
+    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used.
+    // 4.6 kB before the B2B work: business login (OIDC with PKCE, `customerHeaders`), the
+    // sales-order calls and `isEldraError`: 5.74 kB with it.
+    limit: '5.8 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
@@ -53,6 +56,40 @@ module.exports = [
     path: 'packages/rich-text/dist/index.js',
     limit: '6 kB',
   },
+  // Each entry is mostly CLDR data for `is` and `en`; the comparator alone must stay small.
+  {
+    name: '@eldrajs/sdk/format — formatPrice',
+    path: 'packages/sdk/dist/format.js',
+    import: '{ formatPrice }',
+    limit: '38 kB',
+  },
+  {
+    name: '@eldrajs/sdk/format — compareIcelandic',
+    path: 'packages/sdk/dist/format.js',
+    import: '{ compareIcelandic }',
+    limit: '1 kB',
+  },
+  // Dates include the number formatter (shared with the root entry) for the decimal in fractional seconds.
+  {
+    name: '@eldrajs/sdk/format — date',
+    path: 'packages/sdk/dist/format/date.js',
+    limit: '70 kB',
+  },
+  {
+    name: '@eldrajs/sdk/format — list',
+    path: 'packages/sdk/dist/format/list.js',
+    limit: '12 kB',
+  },
+  {
+    name: '@eldrajs/sdk/format — relative-time',
+    path: 'packages/sdk/dist/format/relative-time.js',
+    limit: '43 kB',
+  },
+  {
+    name: '@eldrajs/sdk/format — display-names',
+    path: 'packages/sdk/dist/format/display-names.js',
+    limit: '32 kB',
+  },
   {
     name: '@eldrajs/vue — RichText, without vue',
     path: 'packages/vue/dist/index.js',
@@ -65,12 +102,14 @@ module.exports = [
     path: 'packages/vue/dist/index.js',
     import: '{ EldraImage }',
     ignore: ['vue'],
-    limit: '1 kB',
+    // 1 kB before `imageSrcset` listed an original wider than `full`: +0.05 kB on 0.95 kB used.
+    limit: '1.1 kB',
   },
   {
     name: '@eldrajs/theme-core — everything',
     path: 'packages/theme-core/dist/index.js',
-    limit: '29 kB',
+    // SEO, sitemap, structured data, forms and analytics (WS-382–WS-387); storefronts tree-shake what they skip.
+    limit: '32 kB',
   },
   {
     name: '@eldrajs/theme-core — overlay runtime',
@@ -90,6 +129,20 @@ module.exports = [
     name: '@eldrajs/theme-core — links',
     path: 'packages/theme-core/dist/links.js',
     limit: '3 kB',
+  },
+  // The icon data must stay lazy: one static import on this path ships all 6,287 icons (275 kB brotlied).
+  {
+    name: '@eldrajs/ui — TablerIcon, without vue, tailwind-merge or its lazy chunks',
+    path: 'packages/ui/dist/index.js',
+    import: '{ TablerIcon }',
+    ignore: ['vue', 'tailwind-merge', './tablerIconData-*'],
+    limit: '3.25 kB',
+  },
+  {
+    name: "@eldrajs/ui — TablerIcon's lazy index, without the data files",
+    path: 'packages/ui/dist/tablerIconData-*.js',
+    ignore: ['./tabler-icons/*'],
+    limit: '2 kB',
   },
   {
     name: '@eldrajs/ui — Button, without vue or tailwind-merge',
@@ -119,11 +172,16 @@ module.exports = [
   // honest size of a component that composes a third of the catalogue, not a shaking regression.
   // The same check is what the next jump close to this ceiling should start with, before any
   // further raise.
+  // Raised from 88 kB for `@eldrajs/sdk/format`'s Icelandic and English data (~59 kB), which Chrome and Workers lack.
+  // Raised from 150 kB for `NavMenu` (148.4 kB without it, 150.9 kB with it).
+  // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
+  // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
+  // Raised from 154 kB for `TablerIcon` (its icon data stays lazy, so is ignored here) and `SiteForm` with its `form*` messages.
   {
-    name: '@eldrajs/ui — everything, without vue',
+    name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
-    ignore: ['vue'],
-    limit: '88 kB',
+    ignore: ['vue', './tablerIconData-*'],
+    limit: '160 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
@@ -142,6 +200,11 @@ module.exports = [
   {
     name: '@eldrajs/ui — style.css',
     path: 'packages/ui/dist/style.css',
+    limit: '14.5 kB',
+  },
+  {
+    name: '@eldrajs/ui — components.css',
+    path: 'packages/ui/dist/components.css',
     limit: '14.5 kB',
   },
   {

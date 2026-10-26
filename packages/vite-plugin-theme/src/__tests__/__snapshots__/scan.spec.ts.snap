@@ -55,7 +55,7 @@ exports[`scanTheme > builds the frozen manifest shape for a valid theme 1`] = `
     },
   ],
   "customPages": [],
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "routes": [
     {
       "kind": "page",
@@ -64,6 +64,7 @@ exports[`scanTheme > builds the frozen manifest shape for a valid theme 1`] = `
   ],
   "theme": {
     "framework": "nuxt",
+    "id": "marketing",
     "name": "marketing-theme",
     "sdk": {
       "core": "0.0.0",

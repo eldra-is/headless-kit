@@ -271,7 +271,7 @@ const soldOutPillLineClass = computed(() =>
 </script>
 
 <template>
-  <fieldset data-part="root" :class="rootClass">
+  <fieldset data-eldra-ui data-part="root" :class="rootClass">
     <legend data-part="legend" :class="legendClass">
       <span>{{ legendText }}: </span>
       <span data-part="legendValue" :class="legendValueClass">{{ legendValueText }}</span>

@@ -1,5 +1,124 @@
 # Changelog
 
+## [0.2.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.6...ui-v0.2.7) (2026-10-24)
+
+
+### Features
+
+* **ui:** NavMenu phone menu with two clear levels, linked column headings and drawer variables ([#91](https://github.com/eldra-is/headless-kit/issues/91)) ([9b480b0](https://github.com/eldra-is/headless-kit/commit/9b480b05131cbdfc8abcfb39a5343c101b26549a))
+
+
+### Bug Fixes
+
+* **ui:** tap-opened dialogs focus themselves; Image crops survive older Safari ([#90](https://github.com/eldra-is/headless-kit/issues/90)) ([d0b452d](https://github.com/eldra-is/headless-kit/commit/d0b452deba65f40400df8a3b40e97bd1d6b72e3a))
+
+## [0.2.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.5...ui-v0.2.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* **ui:** plain Icelandic in the default is-IS messages ([#88](https://github.com/eldra-is/headless-kit/issues/88)) ([0a63f6b](https://github.com/eldra-is/headless-kit/commit/0a63f6b18d5ff091caab8821cf1de38f49227005))
+
+## [0.2.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.4...ui-v0.2.5) (2026-10-23)
+
+
+### Features
+
+* **ui:** SiteForm renders any Eldra Studio form ([#85](https://github.com/eldra-is/headless-kit/issues/85)) ([a300d8e](https://github.com/eldra-is/headless-kit/commit/a300d8e1c7ea21b8745ec2c065c44703020103a6))
+* **ui:** TablerIcon draws any Tabler icon by name ([#86](https://github.com/eldra-is/headless-kit/issues/86)) ([00a8261](https://github.com/eldra-is/headless-kit/commit/00a82612b6ff8fffeb0957915fe4acd8a97cd48f))
+
+## [0.2.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.3...ui-v0.2.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ui:** Textarea hydrates without a mismatch ([#79](https://github.com/eldra-is/headless-kit/issues/79)) ([b423d8f](https://github.com/eldra-is/headless-kit/commit/b423d8f17ef984a58c8f053172f200c83473c853))
+
+## [0.2.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.2...ui-v0.2.3) (2026-10-22)
+
+
+### Features
+
+* **ui:** NavMenu phone menu and exact Image crops ([#77](https://github.com/eldra-is/headless-kit/issues/77)) ([b094fdd](https://github.com/eldra-is/headless-kit/commit/b094fdddbf8db03687ed2131e98a7c31e886a44f))
+
+## [0.2.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.1...ui-v0.2.2) (2026-10-22)
+
+
+### Features
+
+* **sdk,ui:** size images from the API's width and height, and keep zoomed crops sharp ([#74](https://github.com/eldra-is/headless-kit/issues/74)) ([a9ceef9](https://github.com/eldra-is/headless-kit/commit/a9ceef93ba8865518ed928cea51210947e2599b5))
+* **ui:** NavMenu and components.css ([#73](https://github.com/eldra-is/headless-kit/issues/73)) ([b8429aa](https://github.com/eldra-is/headless-kit/commit/b8429aa5e2cf5e634c552435a57817e8dacbf091))
+
+
+### Bug Fixes
+
+* **ui:** let weight utilities win over type styles, and merge the kit's shadow and container scales in cx ([#76](https://github.com/eldra-is/headless-kit/issues/76)) ([13d17c6](https://github.com/eldra-is/headless-kit/commit/13d17c6eb632cfdf519a8163914ff43d5214efd2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.2
+
+## [0.2.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.0...ui-v0.2.1) (2026-10-19)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.1
+
+## [0.2.0](https://github.com/eldra-is/headless-kit/compare/ui-v0.1.2...ui-v0.2.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **theme-nuxt:** a build is production unless ELDRA_BUILD_TARGET=preview (WS-387)
+
+### Features
+
+* **sdk:** forms API; confirm and unsubscribe POST the emailed links (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **sdk:** number and url fields and the subscribe consent sentence on form definitions (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-core:** SEO resolver and schema.org JSON-LD builders (WS-382, WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** a build is production unless ELDRA_BUILD_TARGET=preview (WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** analytics tracker, baked form definitions and useStructuredData (WS-385, WS-386, WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **theme-nuxt:** useEldraSeo, sitemap.xml and robots.txt, platform redirects and preview noindex (WS-382, WS-383, WS-384) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **ui:** Breadcrumb structuredData prop (WS-387) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **vite-plugin-theme:** formSeeds manifest section (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+* **vite-plugin-theme:** number and url field types and the subscribe consent sentence in formSeeds (WS-386) ([252cc04](https://github.com/eldra-is/headless-kit/commit/252cc0496eaef25039685d25cc14340af255b56c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.0
+
+## [0.1.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.1.1...ui-v0.1.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **theme-cli:** explain a raw 413 from a proxy or CDN in front of the gateway ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+* **theme-cli:** scaffold studioOrigins defaulting to production Studio instead of localhost ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+* **ui:** centre the Lightbox image between equal top and bottom space ([8a08701](https://github.com/eldra-is/headless-kit/commit/8a0870190a63f55f1bdb874508a7526461da0353))
+
+## [0.1.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.1.0...ui-v0.1.1) (2026-10-12)
+
+
+### Features
+
+* **sdk:** Icelandic formatting that prints the same on every runtime ([#51](https://github.com/eldra-is/headless-kit/issues/51)) ([1a731f0](https://github.com/eldra-is/headless-kit/commit/1a731f0e700205ce7cd6e34b4a8824744df34e96))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.2.9
+
 ## 0.1.0 (2026-10-10)
 
 

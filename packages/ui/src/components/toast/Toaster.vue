@@ -196,6 +196,7 @@ const listClass = computed(() =>
 <template>
   <Teleport :to="TOAST_HOST_KEY ?? 'body'">
     <div
+      data-eldra-ui
       data-part="root"
       :class="rootClass"
       @mouseenter="hovering = true"

@@ -42,7 +42,13 @@ table and Storybook for the full contract of each).
   conventions.
 - `FieldWrapper` — the label/help/error layout every form control renders inside.
 - `FormLayout` — the form shell: heading, fields, a status region and an actions row.
+- `SiteForm`: any form built in Studio, drawn from its definition and submitted through the SDK,
+  with the platform's own checks, the honeypot and Turnstile (`useSiteForm` for markup of your own;
+  see `packages/ui/README.md`, "Site forms").
 - `Icon` — the shared icon frame the rest of the package draws its icons through.
+- `TablerIcon` — any Tabler icon by the name a `tabler-icon` CMS field holds (`cash-register`, or
+  the older `IconCashRegister` that content saved before 17 Oct 2026 may hold), drawn into the
+  server HTML; only the icons a page draws reach the browser.
 - `VisuallyHidden` — text present for assistive technology only.
 
 **Display, commerce and layout**
@@ -50,7 +56,9 @@ table and Storybook for the full contract of each).
 - `Container` / `Section` — the max-width/gutter wrapper and the vertical-spacing/background
   wrapper every block is built from.
 - `Image` — the responsive media frame every card and block builds on (fixed aspect ratio, focal
-  point, zoom, a live "no image" placeholder).
+  point, zoom, a live "no image" placeholder). A zoomed crop multiplies `sizes` by the zoom, so it
+  stays sharp ([An art-directed crop](images.md#an-art-directed-crop)); `zoomOrigin="focal"` and
+  `crops` give exact crops, one per media condition ([An exact crop](images.md#an-exact-crop)).
 - `Badge` / `StockBadge` — a small status/count pill, and an icon-plus-word inventory status line
   (in stock, low stock, preorder, out of stock).
 - `Price` — a formatted amount, with an automatic sale/compare-at state.
@@ -121,6 +129,14 @@ table and Storybook for the full contract of each).
   nothing focusable at all keeps the track itself as the one stop with `←`/`→` stepping it. The
   model is applied after mount, so a server-rendered page carries the pre-enhancement shape until
   then. See `packages/ui/README.md`'s `useCarousel` section for the whole rule and what it trades.
+- `NavMenu` — a site header's navigation: links, and buttons opening a dropdown or a mega panel of
+  columns (descriptions, badges), as a disclosure pattern (`Tab` walks through, the arrow keys
+  move along the bar and through a panel, `Escape` returns focus, one panel open); a menu button
+  and a `Drawer` below a viewport or container breakpoint, its panels as accordion rows or as
+  sections listed open (`drawerLayout`), with entries of its own (`drawerItems`) and a header row
+  for a logo and a call to action (`drawerHeader`). `variant` is `ghost`
+  (default, a fill on hover) or `muted` (quiet text links). A resolved Studio link tree fits its
+  `items` as it is.
 - `Breadcrumb` — a `<nav>`/`<ol>` trail back up the catalogue, collapsing its middle levels behind
   an ellipsis button below its own 48rem width (never the viewport) and never truncating a title.
 - `Lightbox` — a full-screen native `<dialog>` image viewer for product galleries, built on
@@ -159,29 +175,31 @@ changes. A value that is on screen never turns back into a skeleton.
 
 ## Money and number formatting
 
-Every currency the package renders is written with the currency's **narrow** sign — `kr 2,800`
-under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28.00` for dollars — because that is the sign a
-store's own back office writes, and a price that disagreed with the currency field an operator
-typed it into is a bug the shopper sees. `Price` takes `narrowSymbol`, `true` by default, as
-`CurrencyInput` already did; pass `false` for the wide sign, which for some currency-and-locale pairs
-is the ISO code itself. `ProductCard`'s own price follows the same default and has no opt-out of its
-own — the prop is `Price`'s.
+Every price the components render is written with the currency's **wide** sign — `ISK 2,800`
+under `en-US`/`ISK`, `2.800 kr.` under `is-IS`, `$28.00` for dollars — the form every Eldra surface
+writes ([Icelandic formatting](icelandic-formatting.md)). `Price` takes `narrowSymbol`, `false` by
+default, as `CurrencyInput` does; pass `true` for the narrow sign. The `formatCurrency` util keeps
+the private library's narrow default, so pass `false` to match. `ProductCard`'s own price follows the same default and has no opt-out of
+its own — the prop is `Price`'s.
+
+Every number, date and list goes through [`@eldrajs/sdk/format`](icelandic-formatting.md), so Icelandic
+prints the same on the server and in Chrome, which ships without Icelandic locale data.
 
 `Price` formats through `formatCurrency` (below), asking it for the currency's own fraction count
 as both the maximum and the minimum: a zero-decimal currency prints none, and a two-decimal one
 pads, so a column of prices lines up (`$48.00`, not `$48`).
 
 A theme that has to put money in a sentence rather than render a `<Price>` — "Add to cart ·
-kr 2,800", a cart line total, a search suggestion — should format it with the package's own
-`formatCurrency` rather than `Intl.NumberFormat`, which writes the wide sign by default and so
-quietly disagrees with every price beside it:
+ISK 2,800", a cart line total, a search suggestion — should format it with the package's own
+`formatCurrency` rather than `Intl.NumberFormat`, which prints English in Chrome for an Icelandic
+page and so quietly disagrees with every price beside it:
 
 ```ts
 import { currencySymbol, formatCurrency } from '@eldrajs/ui';
 
 formatCurrency(28, 'en-US', 'USD'); // "$28"       — a field: shows what was typed
-formatCurrency(28, 'en-US', 'USD', true, 2, 2); // "$28.00"   — a display: padded
-formatCurrency(2800, 'en-US', 'ISK', true, 0, 0); // "kr 2,800"
+formatCurrency(28, 'en-US', 'USD', false, 2, 2); // "$28.00"   — a display: padded
+formatCurrency(2800, 'en-US', 'ISK', false, 0, 0); // "ISK 2,800"
 currencySymbol('ISK', 'is-IS'); // "kr."
 ```
 
@@ -211,7 +229,7 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of three CSS entries, depending on how the consuming project builds CSS:
+Pick one of four CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
 - `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
@@ -228,6 +246,21 @@ Pick one of three CSS entries, depending on how the consuming project builds CSS
   ```css
   @import '@eldrajs/ui/style.css';
   ```
+
+- `@eldrajs/ui/components.css` — the same stylesheet without Tailwind's page-wide reset, for a site
+  with its own CSS that adds a few components: its own headings, lists and links keep their
+  browser defaults.
+
+  ```css
+  @import '@eldrajs/ui/components.css';
+  ```
+
+  Its reset reaches only elements inside a component: each component's outermost element, and
+  every panel, bubble or toast region it renders outside it, carries `data-eldra-ui`, and the reset
+  applies to those and to the `data-part` elements within them. A site's own `data-part` elements,
+  Ark UI and Zag included, keep their defaults. `data-eldra-ui` is public, so a site can use it as a
+  hook. The one exception: an element with its own `data-part` passed into a component's slot is
+  inside the scope and gets the reset too.
 
 ## Forms
 

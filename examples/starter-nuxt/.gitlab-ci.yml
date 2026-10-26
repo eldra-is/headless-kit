@@ -1,16 +1,45 @@
-stages: [deploy]
+stages: [build, deploy]
 
-eldra-deploy:
-  stage: deploy
+# The build runs every npm dependency's code (install scripts, the Nuxt build), so it must never
+# receive the deploy token. Create these in Settings → CI/CD → Variables:
+#   ELDRA_BUILD_TOKEN   masked. A read-only build token (Studio → Settings → Developers → Build
+#                       tokens): gives the build's gateway reads their own rate-limit bucket.
+#   ELDRA_DEPLOY_TOKEN  masked, protected, with the environment scope `production`. It can publish
+#                       the site; scoped like this only the deploy job (environment: production, on
+#                       a protected branch) receives it, never the build job.
+#   ELDRA_GATEWAY_URL, ELDRA_ORG_ID, ELDRA_SITE_URL (the public origin) and ELDRA_API_URL: plain
+#                       variables.
+# A build is production unless ELDRA_BUILD_TARGET=preview, so none is set here.
+# The platform's trigger passes ELDRA_TRIGGER_DEPLOYMENT_ID as a pipeline variable.
+
+.rules: &rules
+  - if: '$CI_PIPELINE_SOURCE == "trigger"'
+  - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+eldra-build:
+  stage: build
   image: node:20
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "trigger"'
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  rules: *rules
   before_script:
     - corepack enable && corepack prepare pnpm@9.15.0 --activate
   script:
     - pnpm install --frozen-lockfile
     - pnpm exec nuxi generate
-    - pnpm exec eldra-theme deploy
+  artifacts:
+    # .output/public/.eldra/manifest.json is a hidden path; artifacts keep it.
+    paths:
+      - .output/public
+    expire_in: 1 hour
+
+# Runs none of the project's code: no `pnpm install`, only the pinned CLI, installed with scripts
+# disabled. Keep the version in step with @eldrajs/theme-cli in package.json.
+eldra-deploy:
+  stage: deploy
+  image: node:20
+  needs: [eldra-build]
+  rules: *rules
+  environment: production
   variables:
-    ELDRA_TRIGGER_DEPLOYMENT_ID: $ELDRA_TRIGGER_DEPLOYMENT_ID
+    npm_config_ignore_scripts: 'true'
+  script:
+    - npx --yes @eldrajs/theme-cli@0.2.1 deploy

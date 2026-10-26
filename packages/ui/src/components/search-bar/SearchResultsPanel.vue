@@ -253,6 +253,7 @@ function onPanelMouseDown(event: MouseEvent): void {
   <div
     ref="root"
     :id="panelId"
+    data-eldra-ui
     data-part="panel"
     :data-eldra-overlay-owner="panelId"
     :class="panelClass"
@@ -266,8 +267,8 @@ function onPanelMouseDown(event: MouseEvent): void {
          while the chips below this message are options. -->
     <div v-if="view === 'none'" data-part="empty" :class="emptyClass">
       <slot name="empty">
-        <p class="text-search-title break-words">{{ emptyTitle }}</p>
-        <p class="text-body-sm text-muted mt-1">{{ emptyAdvice }}</p>
+        <p class="text-search-title m-0 break-words">{{ emptyTitle }}</p>
+        <p class="text-body-sm text-muted mt-1 mb-0">{{ emptyAdvice }}</p>
       </slot>
     </div>
 

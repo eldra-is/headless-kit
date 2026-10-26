@@ -71,7 +71,7 @@ describe('product sample page', () => {
     const html = wrapper.html();
     const markers = [
       'Free shipping on orders over $80', // announcement-bar
-      'aria-label="Primary navigation"', // navigation
+      'data-eldra-header-focus', // navigation
       'aria-label="Breadcrumb"', // breadcrumbs
       'aria-label="Product images"', // product-detail (gallery)
       'You may also like', // product-carousel

@@ -42,7 +42,7 @@ const errorIconClass = computed(() =>
 </script>
 
 <template>
-  <p :id="id" data-part="error" :class="errorClass">
+  <p :id="id" data-eldra-ui data-part="error" :class="errorClass">
     <!-- Tabler's `alert-circle`, stroke 1.75, at 1rem. Decorative: the message is the text. -->
     <svg
       data-part="errorIcon"
