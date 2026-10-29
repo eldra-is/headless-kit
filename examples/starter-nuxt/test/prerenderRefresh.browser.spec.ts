@@ -1254,6 +1254,40 @@ describe('prerendered commerce data on the generated static site', () => {
     }
   });
 
+  /** A campaign mail's link, through `@eldrajs/theme-nuxt`'s capture and the SDK's cart add, on a generated site. */
+  it('credits the cart to the campaign the visitor landed from', async () => {
+    const campaignId = '0b9f8a52-3c1d-4e6f-9a7b-2c4d6e8f0a1b';
+    const attribution = {
+      campaignId,
+      utmSource: 'eldra',
+      utmMedium: 'email',
+      utmCampaign: 'haustutsala',
+    };
+    const page = await browser.newPage();
+    try {
+      await page.goto(
+        `${statics.origin}${productPage}?utm_source=eldra&utm_medium=email&utm_campaign=haustutsala` +
+          `&utm_id=${campaignId}&gclid=not-kept`,
+        { waitUntil: 'domcontentloaded' }
+      );
+      await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
+      const stored = await page.evaluate(() => localStorage.getItem('eldra.campaignAttribution'));
+      expect(JSON.parse(stored ?? 'null')).toMatchObject(attribution);
+      expect(stored).not.toContain('gclid');
+
+      gateway.reset();
+      await page.locator('main button[type="submit"]', { hasText: 'Add to cart' }).first().click();
+      await expect.poll(() => gateway.cartAdds.length, { timeout: 5000 }).toBe(1);
+      expect(gateway.cartAdds[0]).toMatchObject({
+        productId: expect.any(String),
+        variantId: `var-${PRODUCT_HANDLE}`,
+        attribution,
+      });
+    } finally {
+      await page.close();
+    }
+  });
+
   /**
    * **A reload with a cart already in the browser.**
    *

@@ -140,6 +140,53 @@ number rather than under a currency symbol nobody chose. It reads the same organ
 rest of the group reads, so a caller already holding an `EldraOrganizationDetails` should take
 `commerce` off it instead of asking again.
 
+## Campaign attribution
+
+A merchant's campaign mails link to the storefront with `utm_source`, `utm_medium`, `utm_campaign`
+and `utm_id` (the campaign's id). Call `captureCampaignAttribution()` in the browser on the first
+page and after every navigation. When the URL carries any of the four, it keeps them in
+`localStorage` (key `eldra.campaignAttribution`) with the time, for 30 days; a later tagged landing
+replaces them whole. From then on `cart.addItem` sends them as `attribution` with every add, and the
+platform credits the order made from that cart to the campaign.
+
+```ts
+import { captureCampaignAttribution } from '@eldrajs/sdk';
+
+captureCampaignAttribution(); // reads location.href
+router.afterEach((to) => captureCampaignAttribution(to.fullPath));
+```
+
+A Nuxt theme on `@eldrajs/theme-nuxt` needs none of this: the module captures by itself
+([Campaign attribution](../../docs/themes.md#campaign-attribution)).
+
+**It stores no personal data.** It keeps those four campaign-level tags and nothing else: no click id
+(`gclid`, `fbclid`), no referrer, no visitor id, nothing about the person. `utm_id` is kept as
+`campaignId` only when it is a uuid, as Eldra's campaign ids are. A tag loses its control characters
+and is cut to 100 characters, as the gateway does, and a tag holding an `@` is dropped, since it may be
+an email address. Outside a browser nothing is kept or read: a server's
+`localStorage` (Node's, when enabled) is shared by every visitor it serves, so the default there is
+no storage at all. It does write one `localStorage` key, which the analytics tracker never does;
+whether that needs the visitor's consent is the site owner's call.
+
+**Clearing it.** The kit never clears it. Checkout is the platform's, so a storefront has no "order
+placed" moment of its own, and a second order inside the 30 days is still that campaign's result.
+`clearCampaignAttribution()` forgets it, for a storefront that wants one order per landing;
+`readCampaignAttribution()` returns what is kept, or `null` once it has expired.
+
+**Options.** `captureCampaignAttribution(url, { storage, maxAgeMs })` takes any
+`getItem`/`setItem`/`removeItem` storage (`null` keeps nothing) and a shorter or longer window. Give
+the client the same storage as `createEldraClient({ campaignAttribution: { storage } })`, or
+`campaignAttribution: false` to send none. An `addItem` input that names `attribution` itself is sent
+exactly as given.
+
+**Gateways before contract 5.4.0.** `attribution` joins the add-items body in public contract 5.4.0.
+An older gateway refuses a body that carries it (`422`, an unexpected property at `body.attribution`);
+`addItem` then sends the same add again without it, so attribution never costs a cart add (a custom
+`httpClient` must throw `EldraHttpError` for this to apply). Your
+generated `EldraAddCartItemInput` names `attribution` once `.eldra/web-studio/contract.ts` is
+regenerated against a 5.4.0 gateway; the SDK adds the field itself, so no code changes before or
+after.
+
 ## Retrying what the gateway refused for now
 
 The gateway rate-limits a client by requests per minute, so a static build of a real catalogue —

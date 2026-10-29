@@ -16,6 +16,12 @@ export type {
   EldraContractQuery,
   EldraContractResponse,
 } from './contract';
+export {
+  captureCampaignAttribution,
+  clearCampaignAttribution,
+  readCampaignAttribution,
+} from './attribution';
+export type { EldraCampaignAttribution, EldraCampaignAttributionOptions } from './attribution';
 export { createCartSession, createOrderAccessTokens } from './storage';
 export { analyticsTrackerScript } from './tracker';
 export type { EldraTrackerScript, EldraTrackerScriptOptions } from './tracker';

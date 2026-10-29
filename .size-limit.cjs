@@ -9,9 +9,8 @@ module.exports = [
     name: '@eldrajs/sdk — createEldraClient',
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
-    // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
-    // about 0.2 kB brotlied, and the client is one object, so an unused method is not shaken out.
-    limit: '3.75 kB',
+    // The client is one object, so an unused method (forms, the campaign landing in `cart.addItem`) is not shaken out.
+    limit: '4.25 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -24,9 +23,7 @@ module.exports = [
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
-    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used.
-    limit: '4.6 kB',
+    limit: '5.2 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

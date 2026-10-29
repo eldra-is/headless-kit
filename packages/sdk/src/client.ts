@@ -1,3 +1,4 @@
+import { readCampaignAttribution } from './attribution';
 import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import type {
   EldraCatalogGetProductOptions,
@@ -95,6 +96,14 @@ export class EldraHttpError extends Error {
     this.code = problemString(body, 'code');
     this.errorId = problemString(body, 'errorId');
   }
+}
+
+function isAttributionRefused(error: unknown): boolean {
+  return (
+    error instanceof EldraHttpError &&
+    error.status === 422 &&
+    JSON.stringify(error.body ?? null).includes('body.attribution')
+  );
 }
 
 /** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
@@ -341,13 +350,27 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         }),
     },
     cart: {
-      addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) =>
-        request<EldraCart>({
-          ...context,
-          method: 'POST',
-          path: '/shopping-cart/v1/cart/items',
-          body: input,
-        }),
+      addItem: async (input: EldraAddCartItemInput, context?: EldraRequestContext) => {
+        const add = (body: object) =>
+          request<EldraCart>({
+            ...context,
+            method: 'POST',
+            path: '/shopping-cart/v1/cart/items',
+            body,
+          });
+        const attribution =
+          options.campaignAttribution === false || 'attribution' in input
+            ? null
+            : readCampaignAttribution(options.campaignAttribution);
+        if (attribution === null) return add(input);
+        try {
+          return await add({ ...input, attribution });
+        } catch (error) {
+          // One-off: a gateway before contract 5.4.0 refuses the field; remove once production serves 5.4.0.
+          if (!isAttributionRefused(error)) throw error;
+          return add(input);
+        }
+      },
       get: (cartId: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,
