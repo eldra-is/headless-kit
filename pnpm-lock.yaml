@@ -178,8 +178,8 @@ importers:
         specifier: workspace:^
         version: link:../vite-plugin-theme
       citty:
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: ^0.2.2
+        version: 0.2.2
       tar:
         specifier: ^7.4.3
         version: 7.5.22
