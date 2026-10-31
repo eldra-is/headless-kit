@@ -256,8 +256,8 @@ importers:
         specifier: workspace:^
         version: link:../sdk
       '@floating-ui/vue':
-        specifier: ^1.1.5
-        version: 1.1.11(vue@3.5.44(typescript@6.0.3))
+        specifier: ^2.0.1
+        version: 2.0.1(vue@3.5.44(typescript@6.0.3))
       tailwind-merge:
         specifier: ^3.0.0
         version: 3.7.0
@@ -1113,8 +1113,10 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@floating-ui/vue@1.1.11':
-    resolution: {integrity: sha512-HzHKCNVxnGS35r9fCHBc3+uCnjw9IWIlCPL683cGgM9Kgj2BiAl8x1mS7vtvP6F9S/e/q4O6MApwSHj8hNLGfw==}
+  '@floating-ui/vue@2.0.1':
+    resolution: {integrity: sha512-043dyEKD9TDSfz080YH2vobubgg+NIo/9Fw4RAl7sEMpD8Am1DNrrSTl/GpMBjyGHoD/FbJY2QLawY+HSQsEIA==}
+    peerDependencies:
+      vue: '>=3.3.0'
 
   '@formatjs/bigdecimal@0.2.7':
     resolution: {integrity: sha512-B4+XY/e4u5v261r3a37Kq2ax91gPZSKGyVpx8X5dygAggLlUz+6MeBpmAhaBFGB8WQ4JB1qD+QtKHk9aJkEb9Q==}
@@ -6323,17 +6325,6 @@ packages:
   vue-component-type-helpers@3.3.14:
     resolution: {integrity: sha512-Pq3+OnbCiPCHk0R7KSZrx+j/XXaUn2kSQ1epxq60w8CPbByLjC1EJgV51n4WY851sTXUVzsNMuitywdkdVyKjA==}
 
-  vue-demi@0.14.10:
-    resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
-    engines: {node: '>=12'}
-    hasBin: true
-    peerDependencies:
-      '@vue/composition-api': ^1.0.0-rc.1
-      vue: ^3.0.0-0 || ^2.6.0
-    peerDependenciesMeta:
-      '@vue/composition-api':
-        optional: true
-
   vue-devtools-stub@0.1.0:
     resolution: {integrity: sha512-RutnB7X8c5hjq39NceArgXg28WZtZpGc3+J16ljMiYnFhKvd8hITxSWQSQ5bvldxMDU6gG5mkxl1MTQLXckVSQ==}
 
@@ -7141,14 +7132,11 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@floating-ui/vue@1.1.11(vue@3.5.44(typescript@6.0.3))':
+  '@floating-ui/vue@2.0.1(vue@3.5.44(typescript@6.0.3))':
     dependencies:
       '@floating-ui/dom': 1.8.0
       '@floating-ui/utils': 0.2.12
-      vue-demi: 0.14.10(vue@3.5.44(typescript@6.0.3))
-    transitivePeerDependencies:
-      - '@vue/composition-api'
-      - vue
+      vue: 3.5.44(typescript@6.0.3)
 
   '@formatjs/bigdecimal@0.2.7': {}
 
@@ -13012,10 +13000,6 @@ snapshots:
       typescript: 6.0.3
 
   vue-component-type-helpers@3.3.14: {}
-
-  vue-demi@0.14.10(vue@3.5.44(typescript@6.0.3)):
-    dependencies:
-      vue: 3.5.44(typescript@6.0.3)
 
   vue-devtools-stub@0.1.0: {}
 
