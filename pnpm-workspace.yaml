@@ -5,3 +5,13 @@ packages:
 allowBuilds:
   esbuild: true
   vue-demi: true
+
+# Supply-chain guards: resolve no version younger than a day, and refuse a version
+# published with weaker provenance than an earlier one of the same package.
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+# Backports to an older major, published by hand after the newer major had provenance;
+# exact versions only, so any other release of these packages is still checked.
+trustPolicyExclude:
+  - 'rollup@3.30.0' # 3.x backport of the CVE-2026-27606 fix
+  - 'semver@6.3.1' # 6.x backport of the CVE-2022-25883 fix
