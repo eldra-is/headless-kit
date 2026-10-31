@@ -259,6 +259,15 @@ tokens in `sessionStorage`; both take an injectable storage and never throw wher
 unavailable. The server may forget a cart; when a request fails with `errorId` `CART_NOT_FOUND`,
 drop the stored id and start a new cart.
 
+## Campaign attribution
+
+Call `captureCampaignAttribution()` in the browser on the first page and after every navigation:
+it keeps a campaign landing's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` for 30 days,
+and `cart.addItem` sends them with every add so the order is credited to the campaign. Campaign
+tags only, nothing about the visitor, and nothing on a server. A theme on `@eldrajs/theme-nuxt` gets
+this without code. Details in
+[`packages/sdk/README.md`](../packages/sdk/README.md#campaign-attribution).
+
 ## Errors
 
 Every failed request throws `EldraHttpError` with `status`, `code` and `errorId` from the gateway's

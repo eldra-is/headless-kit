@@ -797,6 +797,8 @@ export interface MockGateway {
   url: string;
   /** `pathname + search` of every request, in order. */
   requests: string[];
+  /** The JSON body of every `POST /shopping-cart/v1/cart/items`, in order; each answers the seeded cart. */
+  cartAdds: unknown[];
   /** Milliseconds every `/catalog/v1/**` answer is held back. Settable between phases. */
   catalogDelayMs: number;
   /**
@@ -828,6 +830,7 @@ export function startMockGateway(
   setMockCatalogContract(options.catalogContract ?? '3.8.0');
   return new Promise((resolve) => {
     const requests: string[] = [];
+    const cartAdds: unknown[] = [];
     const state = {
       catalogDelayMs: 0,
       cartDelayMs: 0,
@@ -965,6 +968,9 @@ export function startMockGateway(
         );
       } else if (url.pathname === '/inventory/v1/stock/availability') {
         answer(availabilityOf(await readJsonBody(req)));
+      } else if (url.pathname === '/shopping-cart/v1/cart/items' && req.method === 'POST') {
+        cartAdds.push(await readJsonBody(req));
+        answer(seededCart());
       } else if (segments[0] === 'shopping-cart' && segments[2] === 'cart') {
         // The one cart this mock knows, and only by the id a test seeded. Any other id is a cart
         // the gateway has forgotten — which the store answers by clearing `eldra.cartId` and
@@ -1014,6 +1020,7 @@ export function startMockGateway(
         server,
         url: `http://127.0.0.1:${address.port}`,
         requests,
+        cartAdds,
         get catalogDelayMs() {
           return state.catalogDelayMs;
         },
@@ -1034,6 +1041,7 @@ export function startMockGateway(
         },
         reset() {
           requests.length = 0;
+          cartAdds.length = 0;
         },
         close: () =>
           new Promise<void>((done, fail) =>
