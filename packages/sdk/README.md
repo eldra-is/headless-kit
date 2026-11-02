@@ -153,7 +153,9 @@ platform credits the order made from that cart to the campaign.
 import { captureCampaignAttribution } from '@eldrajs/sdk';
 
 captureCampaignAttribution(); // reads location.href
-router.afterEach((to) => captureCampaignAttribution(to.fullPath));
+router.afterEach((to, _from, failure) => {
+  if (!failure) captureCampaignAttribution(to.fullPath);
+});
 ```
 
 A Nuxt theme on `@eldrajs/theme-nuxt` needs none of this: the module captures by itself
@@ -174,7 +176,8 @@ placed" moment of its own, and a second order inside the 30 days is still that c
 `readCampaignAttribution()` returns what is kept, or `null` once it has expired.
 
 **Options.** `captureCampaignAttribution(url, { storage, maxAgeMs })` takes any
-`getItem`/`setItem`/`removeItem` storage (`null` keeps nothing) and a shorter or longer window. Give
+`getItem`/`setItem`/`removeItem` storage (`null` keeps nothing) and a shorter or longer window in
+milliseconds (one that is not finite keeps the 30 days). Give
 the client the same storage as `createEldraClient({ campaignAttribution: { storage } })`, or
 `campaignAttribution: false` to send none. An `addItem` input that names `attribution` itself is sent
 exactly as given.

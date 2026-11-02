@@ -6,8 +6,9 @@ export default defineNuxtPlugin({
   name: 'eldra-campaign-attribution',
   setup() {
     captureCampaignAttribution(window.location.href);
-    useRouter().afterEach((to) => {
-      captureCampaignAttribution(to.fullPath);
+    useRouter().afterEach((to, _from, failure) => {
+      // A blocked or cancelled navigation never reached `to`, so its tags are not a landing.
+      if (!failure) captureCampaignAttribution(to.fullPath);
     });
   },
 });
