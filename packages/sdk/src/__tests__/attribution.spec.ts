@@ -171,6 +171,17 @@ describe('readCampaignAttribution', () => {
     expect(readCampaignAttribution({ storage })).toBeNull();
   });
 
+  it('keeps the 30-day window when the window given is not a finite number', () => {
+    const storage = memoryStorage();
+    captureCampaignAttribution(LANDING, { storage, maxAgeMs: Infinity });
+
+    vi.advanceTimersByTime(30 * DAY - 1);
+    expect(readCampaignAttribution({ storage })).not.toBeNull();
+
+    vi.advanceTimersByTime(1);
+    expect(readCampaignAttribution({ storage })).toBeNull();
+  });
+
   it('returns only valid campaign tags from a stored value, and drops one it cannot read', () => {
     const storage = memoryStorage();
     const expiresAt = Date.now() + DAY;

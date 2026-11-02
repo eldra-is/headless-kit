@@ -12,7 +12,7 @@ export interface EldraCampaignAttribution {
 export interface EldraCampaignAttributionOptions {
   /** Where the landing is kept. Defaults to `localStorage` in a browser and to nothing elsewhere. */
   storage?: EldraKeyValueStorage | null;
-  /** How long a landing counts, from when it is captured. Defaults to 30 days. */
+  /** How long a landing counts, in milliseconds from when it is captured. Defaults to 30 days, as does a value that is not finite. */
   maxAgeMs?: number;
 }
 
@@ -41,10 +41,12 @@ export function captureCampaignAttribution(
   });
   if (attribution === null) return null;
   const capturedAt = Date.now();
+  const maxAgeMs = options.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
   const stored: StoredAttribution = {
     ...attribution,
     capturedAt,
-    expiresAt: capturedAt + (options.maxAgeMs ?? DEFAULT_MAX_AGE_MS),
+    // JSON writes Infinity as null, which would read back as an expired landing.
+    expiresAt: capturedAt + (Number.isFinite(maxAgeMs) ? maxAgeMs : DEFAULT_MAX_AGE_MS),
   };
   safeWrite(storageOf(options), STORAGE_KEY, JSON.stringify(stored));
   return attribution;
