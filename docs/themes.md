@@ -658,7 +658,30 @@ rotates daily, computed by the platform from the request, never an identifier ke
 browser can opt itself out by setting `localStorage.eldra_ignore = 'true'`, which the script reads and
 never writes. Whether that means no consent banner is a legal judgment for the site owner; this section
 states only the technical facts. (The starter's own wishlist and recently-viewed lists use
-`localStorage` for the shopper's features, not for analytics.)
+`localStorage` for the shopper's features, not for analytics; campaign attribution, below, keeps one
+key there.)
+
+## Campaign attribution
+
+A merchant's campaign mails link to the site with `utm_source`, `utm_medium`, `utm_campaign` and
+`utm_id` (the campaign's id) in the URL. `@eldrajs/theme-nuxt` remembers the latest such landing and
+every cart add sends it, so the order made from that cart is credited to the campaign in Studio. A
+theme writes no code for it: a client plugin calls `@eldrajs/sdk`'s `captureCampaignAttribution` on
+the first page and after every navigation, and the SDK's `cart.addItem` (the starter's cart goes
+through it) adds the remembered landing as `attribution`.
+
+**What is kept, for your privacy notice.** One `localStorage` key, `eldra.campaignAttribution`,
+holding those four campaign-level tags and the time they were captured, for 30 days; a later tagged
+landing replaces it. No click id (`gclid`, `fbclid`), referrer or visitor id, and nothing about the
+person. It is never cleared on an order (the platform's checkout has no moment in the theme to clear
+it from); `clearCampaignAttribution()` does it on demand. Whether keeping it needs the visitor's
+consent is the site owner's call.
+
+**Turning it off.** `eldra: { campaignAttribution: false }` in `nuxt.config.ts` leaves the plugin out,
+and nothing is captured. A site that asks for consent first turns it off and calls
+`captureCampaignAttribution()` itself once the visitor agrees; carts then carry it as before. The SDK
+side, its options and the behaviour against a gateway older than public contract 5.4.0 are in
+[`packages/sdk/README.md`](../packages/sdk/README.md#campaign-attribution).
 
 ## More
 

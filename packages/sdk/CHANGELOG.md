@@ -9,6 +9,15 @@ platform repository.
 
 ## Unreleased
 
+- **Campaign attribution (WS-546, contract 5.4.0).** `captureCampaignAttribution(url?)` keeps a
+  landing URL's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` (as `campaignId`, only when
+  it is a uuid) in `localStorage` for 30 days, replacing an earlier landing whole; nothing else, and
+  nothing outside a browser. Each tag loses control characters and is cut to 100 characters; a tag
+  holding `@` is dropped, since it may be an email address. `cart.addItem` sends it as `attribution` with every add; when a gateway
+  before 5.4.0 refuses the field, the add is sent again without it. New: `readCampaignAttribution()`,
+  `clearCampaignAttribution()`, the `EldraCampaignAttribution` type and the client option
+  `campaignAttribution` (`{ storage }`, or `false` to send none). Nothing clears it automatically.
+
 - **Images use the size the API gives them (contract 4.14.0).** `EldraImageSource` accepts the
   `width` and `height` an image object now carries (its pixels as displayed). `imageSrcset` stops at
   that width unless `originalWidth` is passed, and `responsiveImage` sets `width`/`height` to the
