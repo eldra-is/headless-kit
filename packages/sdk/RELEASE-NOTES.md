@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.2...sdk-v0.3.3) (2026-11-06)
+
+
+### Features
+
+* **sdk:** remember a campaign landing and send it with add to cart (WS-546) ([#96](https://github.com/eldra-is/headless-kit/issues/96)) ([1084718](https://github.com/eldra-is/headless-kit/commit/10847180ac225c11eb99411dec45c37fc7f68cfd))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.1...sdk-v0.3.2) (2026-10-22)
 
 

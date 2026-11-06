@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.5](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.4...theme-nuxt-v0.3.5) (2026-11-06)
+
+
+### Features
+
+* **sdk:** remember a campaign landing and send it with add to cart (WS-546) ([#96](https://github.com/eldra-is/headless-kit/issues/96)) ([1084718](https://github.com/eldra-is/headless-kit/commit/10847180ac225c11eb99411dec45c37fc7f68cfd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.3.3
+
 ## [0.3.4](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.3...theme-nuxt-v0.3.4) (2026-10-26)
 
 
