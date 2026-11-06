@@ -182,13 +182,11 @@ the client the same storage as `createEldraClient({ campaignAttribution: { stora
 `campaignAttribution: false` to send none. An `addItem` input that names `attribution` itself is sent
 exactly as given.
 
-**Gateways before contract 5.4.0.** `attribution` joins the add-items body in public contract 5.4.0.
-An older gateway refuses a body that carries it (`422`, an unexpected property at `body.attribution`);
-`addItem` then sends the same add again without it, so attribution never costs a cart add (a custom
-`httpClient` must throw `EldraHttpError` for this to apply). Your
-generated `EldraAddCartItemInput` names `attribution` once `.eldra/web-studio/contract.ts` is
-regenerated against a 5.4.0 gateway; the SDK adds the field itself, so no code changes before or
-after.
+**Gateway contract 5.4.0 or later.** `attribution` joins the add-items body in public contract 5.4.0;
+an older gateway refuses a body that carries it (`422`), so a client against one passes
+`campaignAttribution: false`. Your generated `EldraAddCartItemInput` names `attribution` once
+`.eldra/web-studio/contract.ts` is regenerated against a 5.4.0 gateway; the SDK adds the field
+itself, so no code changes before or after.
 
 ## Retrying what the gateway refused for now
 
