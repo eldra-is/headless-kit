@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
+import { DRAFT_MARKER, startMockGateway, TEMPLATE_HEADER_NODE_ID } from './mockGateway';
 
 const fixtureDir = fileURLToPath(new URL('./fixtures/basic', import.meta.url));
 const nuxi = fileURLToPath(new URL('../node_modules/.bin/nuxi', import.meta.url));
@@ -551,7 +551,7 @@ describe('theme-nuxt nuxi generate', () => {
   async function generateWith(
     options: Parameters<typeof startMockGateway>[0],
     env: Record<string, string> = {}
-  ): Promise<{ buildTokens: Array<string | null> }> {
+  ): Promise<{ buildTokens: Array<string | null>; previewTokens: Array<string | null> }> {
     const scenarioGateway = await startMockGateway(options);
     try {
       rmSync(join(fixtureDir, '.nuxt'), { recursive: true, force: true });
@@ -566,7 +566,10 @@ describe('theme-nuxt nuxi generate', () => {
         },
         timeout: 300_000,
       });
-      return { buildTokens: [...scenarioGateway.buildTokens] };
+      return {
+        buildTokens: [...scenarioGateway.buildTokens],
+        previewTokens: [...scenarioGateway.previewTokens],
+      };
     } finally {
       await new Promise<void>((resolve, reject) =>
         scenarioGateway.server.close((error) => (error ? reject(error) : resolve()))
@@ -1142,4 +1145,58 @@ describe('theme-nuxt nuxi generate', () => {
     expect(gateway.requests.length).toBeGreaterThan(0);
     expect(gateway.buildTokens.every((value) => value === null)).toBe(true);
   });
+
+  /**
+   * **WS-371: the published build carries no draft.** A custom domain serves the production
+   * deployment, so the artifact a production `nuxi generate` writes must hold published content
+   * only. Core answers the draft perspective only to `X-Preview-Token`; the mock does the same
+   * (`drafts: true`), and the build runs with a preview token in its environment, the
+   * misconfiguration a pipeline could make. The build must send no preview token, so neither the
+   * changed draft heading nor the never-published page reaches any built file.
+   */
+  it('writes no draft content into a production build, even with a preview token in its environment', async () => {
+    const probe = await startMockGateway({ drafts: true });
+    try {
+      // The mock does serve the draft to a preview token, so the assertions below can fail.
+      const draftList = await fetch(`${probe.url}/cms/v1/schema/page/entry?pageSize=100`, {
+        headers: {
+          'x-org-id': '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+          'x-preview-token': 'eldra_prv_probe',
+        },
+      }).then((response) => response.text());
+      expect(draftList).toContain(DRAFT_MARKER);
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        probe.server.close((error) => (error ? reject(error) : resolve()))
+      );
+    }
+
+    const previewToken = 'eldra_prv_Lk2m8RfT4wQz';
+    const { previewTokens } = await generateWith(
+      { drafts: true },
+      {
+        ELDRA_BUILD_TARGET: '',
+        ELDRA_SITE_URL: 'https://shop.example.test',
+        ELDRA_PREVIEW_TOKEN: previewToken,
+      }
+    );
+
+    expect(previewTokens.length).toBeGreaterThan(0);
+    expect(previewTokens.every((value) => value === null)).toBe(true);
+    expect(readFileSync(output('index.html'), 'utf8')).toContain('Generated heading');
+    expect(existsSync(output('draft-only/index.html'))).toBe(false);
+
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]
+      );
+    const published = walk(output(''));
+    expect(published.some((file) => file.endsWith('_payload.json'))).toBe(true);
+    for (const file of published) {
+      const text = readFileSync(file, 'utf8');
+      expect(text, file).not.toContain(DRAFT_MARKER);
+      expect(text, file).not.toContain('p-draft-only');
+      expect(text, file).not.toContain(previewToken);
+    }
+  }, 360_000);
 });

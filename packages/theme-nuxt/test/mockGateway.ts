@@ -233,6 +233,32 @@ const PAGES: Record<string, { id: string; data: { slug: string } }> = {
   [BAD.id]: BAD,
 };
 
+/**
+ * What Core's draft perspective answers instead of `PAGES`, to a request carrying `X-Preview-Token`
+ * (`startMockGateway({ drafts: true })`): the home page with an unpublished hero heading, and a page
+ * that has never been published. A published build must contain neither.
+ */
+export const DRAFT_MARKER = 'Unpublished draft heading';
+const DRAFT_ONLY_PAGE = {
+  id: 'p-draft-only',
+  data: { slug: 'draft-only', title: `${DRAFT_MARKER} page`, blocks: [] },
+};
+const DRAFT_PAGES: Record<string, { id: string; data: { slug: string } }> = {
+  ...PAGES,
+  [HOME.id]: {
+    ...HOME,
+    data: {
+      ...HOME.data,
+      blocks: HOME.data.blocks.map((block) =>
+        block.id === '11111111-1111-4111-8111-111111111111'
+          ? { ...block, data: { ...block.data, heading: DRAFT_MARKER } }
+          : block
+      ),
+    },
+  },
+  [DRAFT_ONLY_PAGE.id]: DRAFT_ONLY_PAGE,
+};
+
 const DYNAMIC_HERO = {
   id: '77777777-7777-4777-8777-777777777777',
   schemaApiId: 'hero',
@@ -395,6 +421,9 @@ const listResponse = (data: unknown[]) => ({
 export function startMockGateway(
   options: {
     missingRouteTemplateSchema?: boolean;
+    /** Answer a request carrying `X-Preview-Token` from `DRAFT_PAGES`, the way Core serves the
+     *  draft perspective only to a preview token. Without it every request reads `PAGES`. */
+    drafts?: boolean;
     /** The SEO setting `/site/v1/seo` answers with, in the public shape. Absent, the route 404s
      *  like a Core that predates the setting (the build's fail-soft default pattern). */
     seo?: Record<string, unknown>;
@@ -433,11 +462,14 @@ export function startMockGateway(
   requests: string[];
   /** The `X-Eldra-Build-Token` header of every request, `null` where absent. */
   buildTokens: Array<string | null>;
+  /** The `X-Preview-Token` header of every request, `null` where absent. */
+  previewTokens: Array<string | null>;
   servedEntryIds: Set<string>;
 }> {
   return new Promise((resolve) => {
     const requests: string[] = [];
     const buildTokens: Array<string | null> = [];
+    const previewTokens: Array<string | null> = [];
     const servedEntryIds = new Set<string>();
 
     function recordServedEntryIds(doc: unknown): void {
@@ -461,13 +493,16 @@ export function startMockGateway(
       const url = new URL(req.url ?? '/', 'http://localhost');
       requests.push(url.pathname + url.search);
       buildTokens.push(req.headers['x-eldra-build-token']?.toString() ?? null);
+      const previewToken = req.headers['x-preview-token']?.toString() ?? null;
+      previewTokens.push(previewToken);
+      const pages = options.drafts === true && previewToken !== null ? DRAFT_PAGES : PAGES;
       res.setHeader('content-type', 'application/json');
       if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
         res.statusCode = 400;
         res.end(JSON.stringify({ error: 'missing org id' }));
       } else if (url.pathname === '/cms/v1/schema/page/entry') {
-        for (const page of Object.values(PAGES)) recordServedEntryIds(page);
-        res.end(JSON.stringify(listResponse(Object.values(PAGES))));
+        for (const page of Object.values(pages)) recordServedEntryIds(page);
+        res.end(JSON.stringify(listResponse(Object.values(pages))));
       } else if (url.pathname === '/cms/v1/schema/route-template/entry') {
         if (options.missingRouteTemplateSchema === true) {
           res.statusCode = 404;
@@ -622,7 +657,7 @@ export function startMockGateway(
         }
       } else if (url.pathname.startsWith('/cms/v1/schema/page/entry/')) {
         const id = url.pathname.split('/').pop() ?? '';
-        const page = PAGES[id];
+        const page = pages[id];
         if (page === undefined) {
           res.statusCode = 404;
           res.end('{}');
@@ -643,6 +678,7 @@ export function startMockGateway(
           url: `http://127.0.0.1:${address.port}`,
           requests,
           buildTokens,
+          previewTokens,
           servedEntryIds,
         });
       }

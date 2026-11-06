@@ -96,7 +96,9 @@ always a preview. A local `nuxi generate` (or `nuxi build` with `nuxi preview`) 
 gets bare page titles.
 
 **Deploy prerequisite.** A pipeline needs `ELDRA_SITE_URL` when the production URL set in Studio is
-not the origin that deploy serves; without an absolute origin the home page's `Organization`/`WebSite`
+not the origin that deploy serves. `ELDRA_SITE_URL` wins over that production URL, so once the
+site's own domain is connected in Studio (which sets the production URL and rebuilds the site),
+remove the variable, or the canonical, hreflang and sitemap keep the old origin. Without an absolute origin the home page's `Organization`/`WebSite`
 markup and every canonical are omitted. A build is production unless `ELDRA_BUILD_TARGET=preview`;
 a preview build is `noindex`, writes no JSON-LD (structured data follows `noindex`), loads no
 analytics tracker, and writes `robots.txt` `Disallow: /`. The platform's CI trigger passes only
