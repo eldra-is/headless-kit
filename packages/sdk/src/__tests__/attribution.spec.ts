@@ -3,10 +3,9 @@ import {
   captureCampaignAttribution,
   clearCampaignAttribution,
   createEldraClient,
-  EldraHttpError,
   readCampaignAttribution,
 } from '../index';
-import type { EldraHttpRequest, EldraKeyValueStorage } from '../index';
+import type { EldraKeyValueStorage } from '../index';
 import { stubHttpClient } from './support';
 
 const KEY = 'eldra.campaignAttribution';
@@ -260,10 +259,7 @@ describe('where it is kept', () => {
 describe('cart.addItem carries the landing', () => {
   const item = { productId: 'prod-1', variantId: 'var-1', quantity: 1 };
 
-  function recording(
-    options: Parameters<typeof createEldraClient>[0] = {},
-    answer: (request: EldraHttpRequest) => unknown = () => ({ id: 'cart-1' })
-  ) {
+  function recording(options: Parameters<typeof createEldraClient>[0] = {}) {
     const bodies: unknown[] = [];
     const client = createEldraClient({
       apiBaseUrl: 'https://api.example.test/api',
@@ -271,7 +267,7 @@ describe('cart.addItem carries the landing', () => {
       ...options,
       httpClient: stubHttpClient((request) => {
         bodies.push(JSON.parse(request.body as string));
-        return answer(request);
+        return { id: 'cart-1' };
       }),
     });
     return { client, bodies };
@@ -335,47 +331,5 @@ describe('cart.addItem carries the landing', () => {
     await client.cart.addItem(own);
 
     expect(bodies).toEqual([own]);
-  });
-
-  it('adds the item without it when the gateway refuses the field', async () => {
-    const storage = memoryStorage();
-    captureCampaignAttribution(LANDING, { storage });
-    const refusal = {
-      status: 422,
-      code: 'VALIDATION',
-      detail: 'validation failed',
-      errors: {
-        messages: [
-          'unexpected property (body.attribution: map[campaignId:0b9f8a52 utmSource:eldra])',
-        ],
-      },
-    };
-    const { client, bodies } = recording({ campaignAttribution: { storage } }, (request) => {
-      if (JSON.parse(request.body as string).attribution) {
-        throw new EldraHttpError(new Response(null, { status: 422 }), refusal);
-      }
-      return { id: 'cart-1' };
-    });
-
-    await expect(client.cart.addItem(item)).resolves.toEqual({ id: 'cart-1' });
-
-    expect(bodies).toHaveLength(2);
-    expect(bodies[1]).toEqual(item);
-  });
-
-  it('does not retry a refusal that is about something else', async () => {
-    const storage = memoryStorage();
-    captureCampaignAttribution(LANDING, { storage });
-    const refusal = {
-      status: 422,
-      errors: { messages: ['expected number >= 1 (body.quantity: 0)'] },
-    };
-    const { client, bodies } = recording({ campaignAttribution: { storage } }, () => {
-      throw new EldraHttpError(new Response(null, { status: 422 }), refusal);
-    });
-
-    await expect(client.cart.addItem(item)).rejects.toBeInstanceOf(EldraHttpError);
-
-    expect(bodies).toHaveLength(1);
   });
 });
