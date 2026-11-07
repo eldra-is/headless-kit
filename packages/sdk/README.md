@@ -144,41 +144,62 @@ rest of the group reads, so a caller already holding an `EldraOrganizationDetail
 
 A merchant's campaign mails link to the storefront with `utm_source`, `utm_medium`, `utm_campaign`
 and `utm_id` (the campaign's id). Call `captureCampaignAttribution()` in the browser on the first
-page and after every navigation. When the URL carries any of the four, it keeps them in
-`localStorage` (key `eldra.campaignAttribution`) with the time, for 30 days; a later tagged landing
-replaces them whole. From then on `cart.addItem` sends them as `attribution` with every add, and the
-platform credits the order made from that cart to the campaign.
+page and after every navigation. When the URL carries any of the four, the kit notes them with the
+time. **It keeps them only once the visitor agrees.** Keeping them in the browser to credit a sale is
+not something the shop needs in order to work, so in Iceland it needs consent (88. gr. 2. mgr. laga
+70/2022 as Fjarskiptastofa reads it, ákvörðun 14/2024). Your consent tool answers with one call each:
 
 ```ts
-import { captureCampaignAttribution } from '@eldrajs/sdk';
+import {
+  captureCampaignAttribution,
+  grantCampaignAttributionConsent,
+  withdrawCampaignAttributionConsent,
+} from '@eldrajs/sdk';
 
 captureCampaignAttribution(); // reads location.href
 router.afterEach((to, _from, failure) => {
   if (!failure) captureCampaignAttribution(to.fullPath);
 });
+consentTool.onChange((choice) =>
+  choice.marketing ? grantCampaignAttributionConsent() : withdrawCampaignAttributionConsent()
+);
 ```
 
-A Nuxt theme on `@eldrajs/theme-nuxt` needs none of this: the module captures by itself
-([Campaign attribution](../../docs/themes.md#campaign-attribution)).
+- **Before consent** the landing is held in memory for this page load only, and `cart.addItem`
+  sends nothing.
+- **On consent** the landing of this page load is kept in `localStorage` (key
+  `eldra.campaignAttribution`) for 30 days from when the visitor landed. Later landings are kept as
+  they come, a later one replacing the earlier whole. From then on `cart.addItem` sends them as
+  `attribution` with every add, and the platform credits the order made from that cart to the
+  campaign.
+- **Consent is not stored by the kit.** Call `grantCampaignAttributionConsent()` on every page load
+  where it stands, as consent tools report a stored choice on load.
+- **On withdrawal** the kept value is removed, and later carts carry none.
+- A value kept before this version, without consent, is removed at the next capture and never sent.
+- A site with no consent tool keeps nothing. Its orders are still credited by the platform's email
+  match, "Orders from recipients" in Studio.
+
+A Nuxt theme on `@eldrajs/theme-nuxt` captures by itself and takes the consent answer from the
+window ([Campaign attribution](../../docs/themes.md#campaign-attribution)).
 
 **It stores no personal data.** It keeps those four campaign-level tags and nothing else: no click id
 (`gclid`, `fbclid`), no referrer, no visitor id, nothing about the person. `utm_id` is kept as
 `campaignId` only when it is a uuid, as Eldra's campaign ids are. A tag loses its control characters
 and is cut to 100 characters, as the gateway does, and a tag holding an `@` is dropped, since it may be
-an email address. Outside a browser nothing is kept or read: a server's
-`localStorage` (Node's, when enabled) is shared by every visitor it serves, so the default there is
-no storage at all. It does write one `localStorage` key, which the analytics tracker never does;
-whether that needs the visitor's consent is the site owner's call.
+an email address. Outside a browser nothing is held, kept or read: a server's `localStorage` (Node's,
+when enabled) is shared by every visitor it serves, so the default there is no storage at all.
 
-**Clearing it.** The kit never clears it. Checkout is the platform's, so a storefront has no "order
-placed" moment of its own, and a second order inside the 30 days is still that campaign's result.
-`clearCampaignAttribution()` forgets it, for a storefront that wants one order per landing;
-`readCampaignAttribution()` returns what is kept, or `null` once it has expired.
+**Clearing it.** The kit clears it only on withdrawal. Checkout is the platform's, so a storefront
+has no "order placed" moment of its own, and a second order inside the 30 days is still that
+campaign's result. `clearCampaignAttribution()` forgets it, for a storefront that wants one order per
+landing; `readCampaignAttribution()` returns what is kept, or `null` once it has expired or while
+there is no consent.
 
 **Options.** `captureCampaignAttribution(url, { storage, maxAgeMs })` takes any
 `getItem`/`setItem`/`removeItem` storage (`null` keeps nothing) and a shorter or longer window in
-milliseconds (one that is not finite keeps the 30 days). Give
-the client the same storage as `createEldraClient({ campaignAttribution: { storage } })`, or
+milliseconds (one that is not finite keeps the 30 days). Give the consent calls and the client the
+same storage, as `grantCampaignAttributionConsent({ storage })` and
+`createEldraClient({ campaignAttribution: { storage } })`, or
 `campaignAttribution: false` to send none. An `addItem` input that names `attribution` itself is sent
 exactly as given.
 
