@@ -154,6 +154,8 @@ export interface ModuleOptions {
    * proxy on the site's own domain. No cookie or storage identifier is written.
    */
   analytics?: AnalyticsOption;
+  /** Keeps a landing's campaign `utm_*` tags for cart adds (docs/themes.md, Campaign attribution); `false` turns it off. */
+  campaignAttribution?: boolean;
 }
 
 /** The slice of Nitro's runtime context this module reads from `nitro:init`. */
@@ -277,6 +279,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     addPlugin(resolver.resolve('./runtime/plugin'));
     addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
+    if (options.campaignAttribution !== false) {
+      addPlugin({ src: resolver.resolve('./runtime/attributionPlugin'), mode: 'client' });
+    }
     addImports([
       {
         name: 'useEldraBuildToken',

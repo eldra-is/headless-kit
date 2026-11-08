@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
+  `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds
+  carry the campaign a visitor came from (`utm_*` tags only, one `localStorage` key, 30 days). New
+  option `campaignAttribution: false` turns it off.
+
 - **The site profile carries the registered company.** `readSiteProfile`, `resolveSiteProfile` and
   `useSiteProfile()` gain `legal` (`{name, kennitala, streetAddress, postalCode, city,
   countryCode}` or `null`), from `GET /site/v1/site-profile` since public contract 5.1.0; a

@@ -28,7 +28,9 @@ export interface EldraOrderAccessTokenOptions {
 const DEFAULT_CART_KEY = 'eldra.cartId';
 const DEFAULT_ORDER_TOKEN_PREFIX = 'eldra.orderAccessToken.';
 
-function browserStorage(name: 'localStorage' | 'sessionStorage'): EldraKeyValueStorage | null {
+export function browserStorage(
+  name: 'localStorage' | 'sessionStorage'
+): EldraKeyValueStorage | null {
   try {
     const storage = (globalThis as Record<string, unknown>)[name] as
       | EldraKeyValueStorage
@@ -39,7 +41,7 @@ function browserStorage(name: 'localStorage' | 'sessionStorage'): EldraKeyValueS
   }
 }
 
-function safeRead(storage: EldraKeyValueStorage | null, key: string): string | null {
+export function safeRead(storage: EldraKeyValueStorage | null, key: string): string | null {
   try {
     return storage?.getItem(key) ?? null;
   } catch {
@@ -47,7 +49,11 @@ function safeRead(storage: EldraKeyValueStorage | null, key: string): string | n
   }
 }
 
-function safeWrite(storage: EldraKeyValueStorage | null, key: string, value: string | null): void {
+export function safeWrite(
+  storage: EldraKeyValueStorage | null,
+  key: string,
+  value: string | null
+): void {
   try {
     if (value === null) storage?.removeItem(key);
     else storage?.setItem(key, value);

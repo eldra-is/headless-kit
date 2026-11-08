@@ -1,3 +1,4 @@
+import { readCampaignAttribution } from './attribution';
 import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import type {
   EldraCatalogGetProductOptions,
@@ -431,13 +432,18 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
        * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
        * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
        */
-      addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) =>
-        request<EldraCart>({
+      addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) => {
+        const attribution =
+          options.campaignAttribution === false || 'attribution' in input
+            ? null
+            : readCampaignAttribution(options.campaignAttribution);
+        return request<EldraCart>({
           ...context,
           method: 'POST',
           path: '/shopping-cart/v1/cart/items',
-          body: input,
-        }),
+          body: attribution === null ? input : { ...input, attribution },
+        });
+      },
       /**
        * Reads a cart by id. Reads stay open for a cart bound to a customer (hosted checkout).
        */

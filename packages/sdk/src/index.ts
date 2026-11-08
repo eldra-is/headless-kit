@@ -20,6 +20,12 @@ export type {
   EldraContractResponse,
 } from './contract';
 export {
+  captureCampaignAttribution,
+  clearCampaignAttribution,
+  readCampaignAttribution,
+} from './attribution';
+export type { EldraCampaignAttribution, EldraCampaignAttributionOptions } from './attribution';
+export {
   ELDRA_SHOP_CLIENT_ID,
   EldraOidcError,
   bearer,

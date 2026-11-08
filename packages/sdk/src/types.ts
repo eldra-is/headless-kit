@@ -1,3 +1,4 @@
+import type { EldraCampaignAttributionOptions } from './attribution';
 import type {
   EldraContractBody,
   EldraContractItem as Item,
@@ -74,6 +75,8 @@ export interface EldraClientOptions {
   fetch?: typeof fetch;
   /** See `EldraRetryOptions`; defaults documented there. */
   retry?: EldraRetryOptions;
+  /** Where `cart.addItem` reads the landing it sends as `attribution`: browser `localStorage` by default, `false` for none. */
+  campaignAttribution?: Pick<EldraCampaignAttributionOptions, 'storage'> | false;
 }
 
 export interface EldraPaginationOptions {

@@ -10,10 +10,11 @@ module.exports = [
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
     // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
-    // about 0.2 kB brotlied, and the client is one object, so an unused method is not shaken out.
-    // 3.75 kB before the business-customer calls (B2B: customer.me and locations, the sales-order
-    // calls, the idempotency-key check, typed problem `errors`): 3.96 kB with them.
-    limit: '4 kB',
+    // about 0.2 kB brotlied, and the client is one object, so an unused method (forms, the campaign
+    // landing in `cart.addItem`) is not shaken out. Main's budget with the campaign landing: 4.25 kB.
+    // With the business-customer calls on top (B2B: customer.me and locations, the sales-order
+    // calls, the idempotency-key check, typed problem `errors`) it measures 4.37 kB.
+    limit: '4.4 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -34,10 +35,10 @@ module.exports = [
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
     // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
-    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used.
-    // 4.6 kB before the B2B work: business login (OIDC with PKCE, `customerHeaders`), the
-    // sales-order calls and `isEldraError`: 5.74 kB with it.
-    limit: '5.8 kB',
+    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget with the campaign
+    // landing: 5.2 kB. With the B2B work on top (business login: OIDC with PKCE, `customerHeaders`;
+    // the sales-order calls and `isEldraError`) it measures 6.24 kB.
+    limit: '6.3 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

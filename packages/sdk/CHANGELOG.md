@@ -9,6 +9,15 @@ platform repository.
 
 ## Unreleased
 
+- **Campaign attribution (WS-546, contract 5.4.0).** `captureCampaignAttribution(url?)` keeps a
+  landing URL's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` (as `campaignId`, only when
+  it is a uuid) in `localStorage` for 30 days, replacing an earlier landing whole; nothing else, and
+  nothing outside a browser. Each tag loses control characters and is cut to 100 characters; a tag
+  holding `@` is dropped, since it may be an email address. `cart.addItem` sends it as `attribution`
+  with every add, which needs a gateway on contract 5.4.0 or later. New: `readCampaignAttribution()`,
+  `clearCampaignAttribution()`, the `EldraCampaignAttribution` type and the client option
+  `campaignAttribution` (`{ storage }`, or `false` to send none). Nothing clears it automatically.
+
 Business customers (B2B), for the next release after 0.3.2. Every entry below needs a gateway
 serving public contract 5.3.0.
 
