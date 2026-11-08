@@ -3,7 +3,7 @@
 A signed-in business customer (see [business-login.md](business-login.md)) can order on account:
 the supplier sends the goods and invoices the company later, so there is no payment step. The
 calls act for the person's **active company**. The types come from the generated contract
-(5.3.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
+(5.6.0): `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrder`,
 `EldraSalesOrderLine`, `EldraSalesOrderList`, `EldraCreateSalesOrderInput` and
 `EldraSalesOrderListOptions`.
 
@@ -49,9 +49,11 @@ Every answer, errors included, is `Cache-Control: private, no-store` and varies 
 The cart page shows the prices stored when each line was added. The order prices from the
 company's current terms, so show the preview before the person places the order. The preview
 writes nothing. It answers the lines, totals, payment term, the delivery address and
-`credit: {status, wouldBlock}`. No credit limit or balance is ever answered. When `wouldBlock` is
-true, placing the order will be refused with 409 `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`, so say so
-before the person tries. `availableNow` on a line is information only: an order on account is never
+`credit: {status, wouldBlock, creditCurrency?}`. No credit limit or balance is ever answered. When
+`wouldBlock` is true, placing the order will be refused with 409 `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`,
+or with `SALES_ORDER_CREDIT_CURRENCY_MISMATCH` when `creditCurrency` is present (the company's credit
+is kept in another currency than the order's, so it cannot be checked); say so before the person
+tries. `availableNow` on a line is information only: an order on account is never
 refused for stock.
 
 The cart must be bound to the active company. A cart the person filled while signed in is bound

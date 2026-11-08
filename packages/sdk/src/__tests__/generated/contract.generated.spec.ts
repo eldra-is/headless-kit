@@ -100,6 +100,7 @@ describe('eldra sdk with generated contract types', () => {
     expectTypeOf<EldraSalesOrderCredit>().toEqualTypeOf<{
       status: 'NOT_CHECKED' | 'NO_LIMIT' | 'WITHIN' | 'OVER' | 'UNCHECKED';
       wouldBlock: boolean;
+      creditCurrency?: string;
     }>();
     expectTypeOf<EldraSalesOrderPreviewInput>().toEqualTypeOf<{
       cartId: string;
