@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ELDRA_API_BASE_URL } from '../client';
-import { createContractSource, eldra, generateEldraFiles } from '../vite-plugin';
+import {
+  createContractSource,
+  eldra,
+  generateEldraFiles,
+  retargetSdkAugmentation,
+} from '../vite-plugin';
 
 let tmpRoot: string | undefined;
 
@@ -93,6 +98,38 @@ describe('eldra vite plugin generator', () => {
 
     expect(await readFile(join(out, 'index.ts'), 'utf8')).toBe(
       "export * from './client';\nexport * from './contract';\n"
+    );
+  });
+
+  it('writes the product extensions augmentation the server emits, aimed at the SDK import', async () => {
+    const augmented =
+      'export interface StorefrontProductExtensions { clothing?: ClothingData }\n' +
+      "declare module '@eldrajs/sdk' {\n  interface EldraProductExtensions extends StorefrontProductExtensions {}\n}\n";
+    const out = async (sdkImport?: string) => {
+      tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-'));
+      const { fetch } = gateway({ cms: new Response(augmented) });
+      await generateEldraFiles(tmpRoot, {
+        apiBaseUrl: 'https://api.example.test/api',
+        orgId: 'org-123',
+        sdkImport,
+        fetch,
+      });
+      const text = await readFile(join(tmpRoot, '.eldra/web-studio/cms-types.ts'), 'utf8');
+      await rm(tmpRoot, { force: true, recursive: true });
+      tmpRoot = undefined;
+      return text;
+    };
+
+    expect(await out()).toBe(augmented);
+    expect(await out('~/vendor/sdk')).toBe(augmented.replace('@eldrajs/sdk', '~/vendor/sdk'));
+  });
+
+  it('retargets only the module declaration, never other text', () => {
+    expect(retargetSdkAugmentation("// from '@eldrajs/sdk'\n", 'x')).toBe(
+      "// from '@eldrajs/sdk'\n"
+    );
+    expect(retargetSdkAugmentation("declare module '@eldrajs/sdk' {}", '@eldrajs/sdk')).toBe(
+      "declare module '@eldrajs/sdk' {}"
     );
   });
 

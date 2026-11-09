@@ -1021,6 +1021,14 @@
             "additionalProperties": {},
             "type": "object"
           },
+          "extensions": {
+            "additionalProperties": {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            "description": "Product extension data keyed by CMS schema apiId; absent when none.",
+            "type": "object"
+          },
           "id": {
             "type": "string"
           },

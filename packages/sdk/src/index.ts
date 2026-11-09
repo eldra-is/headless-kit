@@ -68,6 +68,7 @@ export type {
 export type {
   EldraCatalogClient,
   EldraProductDetails,
+  EldraProductExtensions,
   EldraProductList,
   EldraProductListItem,
   EldraProductMediaLink,

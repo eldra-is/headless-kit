@@ -906,6 +906,12 @@ export type components = {
             description?: {
                 [key: string]: unknown;
             };
+            /** @description Product extension data keyed by CMS schema apiId; absent when none. */
+            extensions?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
             id: string;
             mediaByOptionValue?: components["schemas"]["catalogweb_WebOptionValueMedia"][] | null;
             mediaLinks?: components["schemas"]["assetweb_AssetLinkLocalizedResult"][] | null;

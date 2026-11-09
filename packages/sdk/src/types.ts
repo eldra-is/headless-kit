@@ -275,7 +275,25 @@ export interface EldraCmsClient {
 
 export type EldraProductList = EldraContractResponse<'/catalog/v1/products/list', 'get'>;
 export type EldraProductListItem = Item<Prop<EldraProductList, 'data'>>;
-export type EldraProductDetails = EldraContractResponse<'/catalog/v1/products/{productId}', 'get'>;
+
+// Typed product extensions, keyed by CMS schema apiId. Empty until the CMS types the Vite plugin (or
+// `eldra-theme types`) writes fill it in:
+//
+//   declare module '@eldrajs/sdk' { interface EldraProductExtensions extends EldraCMSProductExtensions {} }
+//
+// Then `product.extensions?.clothing?.material` is typed. Before that it is `{}`: nothing is
+// guessed, and nothing can be read off it either.
+export interface EldraProductExtensions {}
+
+// The contract serves `extensions` as `{ [schemaApiId]: { [fieldId]: unknown } }`; that is replaced
+// by the registry above. Before generation `Omit<unknown, ...>` would be `{}`, so the detail stays
+// `unknown` there instead of turning into a guess.
+export type EldraProductDetails =
+  EldraContractResponse<'/catalog/v1/products/{productId}', 'get'> extends infer Generated
+    ? unknown extends Generated
+      ? unknown
+      : Omit<Generated, 'extensions'> & { extensions?: EldraProductExtensions }
+    : never;
 export type EldraProductVariant = Item<Prop<EldraProductDetails, 'variants'>>;
 export type EldraProductOption = Item<Prop<EldraProductDetails, 'options'>>;
 export type EldraProductOptionValue = Item<Prop<EldraProductOption, 'values'>>;

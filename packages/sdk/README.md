@@ -33,6 +33,18 @@ actually returns. Commit the folder; it is what your CI type-checks against, and
 you see the API change. Without the plugin, responses are `unknown` and you name the type at the
 call site.
 
+### Product extensions
+
+A CMS schema flagged "extends products" attaches its fields to every product. The generated
+`cms-types.ts` types them by schema apiId, so for a `clothing` schema:
+
+```ts
+const product = await eldra.catalog.getProduct(id);
+product.extensions?.clothing?.material; // string | undefined
+```
+
+`extensions` is absent when a product has none. Without generated types it is `{}`: nothing to read.
+
 The full walkthrough is [docs/getting-started.md](../../docs/getting-started.md).
 
 ## Preview mode

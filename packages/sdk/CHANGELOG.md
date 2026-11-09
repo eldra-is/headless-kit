@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- **Typed product extensions (WS-439, contract 5.6.0).** `EldraProductDetails.extensions` is keyed by
+  the apiId of each CMS schema that extends products, and its type is the new, initially empty
+  `EldraProductExtensions` registry. The CMS types the Vite plugin writes (and `eldra-theme types`)
+  now fill it in, so `product.extensions?.clothing?.material` type-checks; before generation it is
+  `{}`, not `unknown`. If you set `sdkImport`, the augmentation in `cms-types.ts` names that import.
+  Needs a gateway on contract 5.6.0 or later to return `extensions`.
+
 - **`installIcelandicIntl()` (new entry `@eldrajs/sdk/format/intl`)** — Icelandic for code that calls
   `Intl` itself (date pickers, vue-i18n, chart libraries). Where the runtime has no Icelandic data,
   it patches `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Number.prototype.toLocaleString` and
