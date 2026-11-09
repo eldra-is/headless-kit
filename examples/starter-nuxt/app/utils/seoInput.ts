@@ -72,7 +72,6 @@ export function seoInput(parts: SeoInputParts): SeoInput {
     data['product.sku'] = text(variants[0]?.sku) ?? '';
     data['product.price'] = prices.length === 0 ? '' : parts.formatPrice(Math.min(...prices));
     data['product.shortDescription'] = shortDescription(entryData.description);
-    data['product.brand'] = text(entryData.brand) ?? '';
     data['product.category'] = text(parts.productCategory) ?? '';
     contentImage = shareImage(list(entryData.images)[0]);
   } else if (catalogKind !== null) {

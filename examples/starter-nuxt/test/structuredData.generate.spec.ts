@@ -112,7 +112,7 @@ describe('generated pages carry schema.org JSON-LD', () => {
     expect(product).toMatchObject({
       name: 'Ash glaze mug',
       url: `${ORIGIN}/products/${PRODUCT_HANDLE}`,
-      brand: { name: 'Northwind Ceramics' },
+      brand: { name: 'Northwind Goods' },
       sku: PRODUCT_HANDLE.toUpperCase(),
       gtin: '4006381333931',
       offers: {

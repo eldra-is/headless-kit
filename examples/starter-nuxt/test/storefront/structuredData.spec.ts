@@ -105,7 +105,7 @@ describe('pageStructuredData', () => {
         title: 'Mug',
         currentUrl: `${ORIGIN}/products/mug`,
         trail: [{ label: 'Cups', path: '/categories/cups' }],
-        product: product({ brand: 'Acme' }),
+        product: product(),
       })
     );
     expect(types(entries)).toEqual(['breadcrumb', 'product']);
@@ -117,14 +117,14 @@ describe('pageStructuredData', () => {
       name: 'Mug',
       description: 'A hand-thrown mug.',
       image: ['https://cdn.test/mug.jpg'],
-      brand: { name: 'Acme' },
+      brand: { name: 'Shop' },
       offers: { price: 2800, priceCurrency: 'ISK', availability: 'https://schema.org/InStock' },
     });
     // The number the markup states is the number the visible price is formatted from.
     expect(formatMoney(node.offers.price, 'ISK', 'en-US')).toContain('2,800');
   });
 
-  it('maps stock states to availability and falls back to the shop name as brand', () => {
+  it('maps stock states to availability', () => {
     const availability = (stock: StorefrontProduct['stock']) =>
       (
         pageStructuredData(parts({ kind: 'product', product: product({ stock }) }))[1]!.node
@@ -133,9 +133,6 @@ describe('pageStructuredData', () => {
     expect(availability('out')).toBe('https://schema.org/OutOfStock');
     expect(availability('preorder')).toBe('https://schema.org/PreOrder');
     expect(availability('low')).toBe('https://schema.org/LimitedAvailability');
-    expect(
-      pageStructuredData(parts({ kind: 'product', product: product() }))[1]!.node.brand
-    ).toEqual({ '@type': 'Brand', name: 'Shop' });
   });
 
   it('writes one offer per variant, AggregateOffer when prices differ, and drops a bad barcode', () => {

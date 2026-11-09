@@ -159,8 +159,8 @@ export function pageStructuredData(parts: PageLdParts): StructuredDataEntry[] {
         name: product.title,
         description: ldPlainText(product.description),
         images: product.images.map((image) => image.src),
-        // A product with no brand of its own is sold under the shop's name (the site profile's).
-        brand: product.brand ?? parts.profile.name,
+        // Products carry no brand of their own: they are sold under the shop's name.
+        brand: parts.profile.name,
         variants: variantsOf(product, parts.currentUrl),
         currency: parts.currency,
         ratings: product.rating,

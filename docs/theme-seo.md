@@ -29,13 +29,13 @@ useEldraSeo(
 search, `robots: noindex`. It returns the resolved values. A tag whose value is empty is not
 written, and a canonical, `og:url` or `og:image` is written only when it is an absolute URL.
 
-| Context              | Variables the theme supplies (besides `site.*`)                                                                                                                             |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `page`               | `page.title`, `page.slug`                                                                                                                                                   |
-| `home`               | `page.title`                                                                                                                                                                |
-| `catalog:product`    | `product.name`, `product.brand`, `product.price` (formatted by the theme in the store's currency and locale), `product.sku`, `product.shortDescription`, `product.category` |
-| `catalog:collection` | `collection.name`, `collection.description`, `collection.productCount`                                                                                                      |
-| `catalog:category`   | `category.name`, `category.description`, `category.productCount`                                                                                                            |
+| Context              | Variables the theme supplies (besides `site.*`)                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`               | `page.title`, `page.slug`                                                                                                                                  |
+| `home`               | `page.title`                                                                                                                                               |
+| `catalog:product`    | `product.name`, `product.price` (formatted by the theme in the store's currency and locale), `product.sku`, `product.shortDescription`, `product.category` |
+| `catalog:collection` | `collection.name`, `collection.description`, `collection.productCount`                                                                                     |
+| `catalog:category`   | `category.name`, `category.description`, `category.productCount`                                                                                           |
 
 `site.name`, `site.url` and `site.locale` are filled in for every context. The registry is
 code-owned in Core (`GET /seo/variables`); a variable the theme does not supply renders empty.
@@ -166,8 +166,8 @@ trail as a trail. The builders are framework-free and live in `@eldrajs/theme-co
 - **Nothing made up.** A value that is unset is left out, never written empty. `gtin` is written
   only when the barcode is a valid GTIN-8/12/13/14 (check digit included). There is no
   `AggregateRating` until real review data exists. `priceValidUntil` is not written until the
-  platform has a sale schedule to give it. `Product.brand` is the product's own `brand`, else the
-  shop's name.
+  platform has a sale schedule to give it. `Product.brand` is the shop's name: products carry no
+  brand of their own.
 - **Static HTML is a snapshot.** The markup is in the prerendered file, so `availability` is the
   stock at build time; it is not rewritten in the browser. Search engines re-crawl.
 - **The shop's profile.** `Organization` takes its name, logo, social profile links (`sameAs`),
