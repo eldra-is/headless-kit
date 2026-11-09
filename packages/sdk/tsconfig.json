@@ -4,5 +4,9 @@
     "types": ["node", "vite/client"]
   },
   "include": ["src/**/*.ts", "tsdown.config.ts", "vitest.config.ts"],
-  "exclude": ["src/__tests__/generated/**", "src/__tests__/fixtures/**"]
+  "exclude": [
+    "src/__tests__/generated/**",
+    "src/__tests__/generated-bare/**",
+    "src/__tests__/fixtures/**"
+  ]
 }

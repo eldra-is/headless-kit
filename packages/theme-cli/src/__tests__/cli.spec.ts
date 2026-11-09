@@ -323,6 +323,20 @@ describe('eldra-theme CLI', () => {
     expect(requestUrl.searchParams.get('moduleName')).toBe('Eldra');
   });
 
+  it('types writes the SDK augmentation the server emits through unchanged', async () => {
+    const dts =
+      'export interface EldraProductExtensions_ { clothing?: ClothingData }\n' +
+      "declare module '@eldrajs/sdk' {\n  interface EldraProductExtensions extends EldraProductExtensions_ {}\n}\n";
+    gateway = await startMockGateway({ dts });
+    const result = await run(['types', '--out', 'generated/eldra.d.ts'], dir, {
+      ELDRA_GATEWAY_URL: gateway.url,
+      ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(readFileSync(join(dir, 'generated', 'eldra.d.ts'), 'utf8')).toBe(dts);
+  });
+
   it('types --blocks writes .eldra/block-types.d.ts from block.json with no gateway', async () => {
     writeThemePackage(dir);
     scaffoldBlock({

@@ -124,6 +124,15 @@ describe('eldra vite plugin generator', () => {
     expect(await out('~/vendor/sdk')).toBe(augmented.replace('@eldrajs/sdk', '~/vendor/sdk'));
   });
 
+  it('retargets a declaration written with either quote style', () => {
+    expect(retargetSdkAugmentation('declare module "@eldrajs/sdk" {}', '~/sdk')).toBe(
+      'declare module "~/sdk" {}'
+    );
+    expect(retargetSdkAugmentation("declare module '@eldrajs/sdk' {}", '~/sdk')).toBe(
+      "declare module '~/sdk' {}"
+    );
+  });
+
   it('retargets only the module declaration, never other text', () => {
     expect(retargetSdkAugmentation("// from '@eldrajs/sdk'\n", 'x')).toBe(
       "// from '@eldrajs/sdk'\n"

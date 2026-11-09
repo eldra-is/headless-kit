@@ -212,7 +212,18 @@ async function fetchCmsTypes(
 // that imports the SDK under another specifier (`sdkImport`) needs the augmentation to name that one.
 export function retargetSdkAugmentation(source: string, sdkImport: string): string {
   if (sdkImport === defaultSdkImport) return source;
-  return source.replaceAll(`declare module '${defaultSdkImport}'`, `declare module '${sdkImport}'`);
+  const declaration = new RegExp(
+    `declare\\s+module\\s+(['"])${escapeRegExp(defaultSdkImport)}\\1`,
+    'g'
+  );
+  return source.replace(
+    declaration,
+    (_match, quote: string) => `declare module ${quote}${sdkImport}${quote}`
+  );
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function fetchContract(
