@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.2...sdk-v0.4.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105))
+
+### Features
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105)) ([e39d86f](https://github.com/eldra-is/headless-kit/commit/e39d86f1c2c4a98824a00492ca8aa105e2d2fb26))
+* **sdk:** remember a campaign landing and send it with add to cart (WS-546) ([#96](https://github.com/eldra-is/headless-kit/issues/96)) ([1084718](https://github.com/eldra-is/headless-kit/commit/10847180ac225c11eb99411dec45c37fc7f68cfd))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.1...sdk-v0.3.2) (2026-10-22)
 
 

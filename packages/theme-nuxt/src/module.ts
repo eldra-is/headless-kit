@@ -154,7 +154,7 @@ export interface ModuleOptions {
    * proxy on the site's own domain. No cookie or storage identifier is written.
    */
   analytics?: AnalyticsOption;
-  /** Keeps a landing's campaign `utm_*` tags for cart adds (docs/themes.md, Campaign attribution); `false` turns it off. */
+  /** Keeps a landing's campaign `utm_*` tags for cart adds once the visitor agrees (docs/themes.md, Campaign attribution); `false` leaves it out. */
   campaignAttribution?: boolean;
 }
 
