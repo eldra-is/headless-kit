@@ -19,7 +19,9 @@ export type {
 export {
   captureCampaignAttribution,
   clearCampaignAttribution,
+  grantCampaignAttributionConsent,
   readCampaignAttribution,
+  withdrawCampaignAttributionConsent,
 } from './attribution';
 export type { EldraCampaignAttribution, EldraCampaignAttributionOptions } from './attribution';
 export { createCartSession, createOrderAccessTokens } from './storage';

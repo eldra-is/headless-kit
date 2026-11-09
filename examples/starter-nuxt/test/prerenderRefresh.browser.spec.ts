@@ -1255,7 +1255,7 @@ describe('prerendered commerce data on the generated static site', () => {
   });
 
   /** A campaign mail's link, through `@eldrajs/theme-nuxt`'s capture and the SDK's cart add, on a generated site. */
-  it('credits the cart to the campaign the visitor landed from', async () => {
+  it('credits the cart to the campaign the visitor landed from, once they agree', async () => {
     const campaignId = '0b9f8a52-3c1d-4e6f-9a7b-2c4d6e8f0a1b';
     const attribution = {
       campaignId,
@@ -1271,8 +1271,18 @@ describe('prerendered commerce data on the generated static site', () => {
         { waitUntil: 'domcontentloaded' }
       );
       await page.waitForTimeout(CATALOG_DELAY_MS + 1500);
-      const stored = await page.evaluate(() => localStorage.getItem('eldra.campaignAttribution'));
-      expect(JSON.parse(stored ?? 'null')).toMatchObject(attribution);
+      const kept = () => page.evaluate(() => localStorage.getItem('eldra.campaignAttribution'));
+      expect(await kept(), 'nothing is kept before the visitor agrees').toBeNull();
+      const answer = (granted: boolean) =>
+        page.evaluate((value) => {
+          (
+            window as Window & { eldraCampaignAttributionConsent?: boolean }
+          ).eldraCampaignAttributionConsent = value;
+          window.dispatchEvent(new Event('eldra:campaign-attribution-consent'));
+        }, granted);
+      await answer(true);
+      const stored = await kept();
+      expect(JSON.parse(stored ?? 'null')).toMatchObject({ ...attribution, consented: true });
       expect(stored).not.toContain('gclid');
 
       gateway.reset();
@@ -1283,6 +1293,12 @@ describe('prerendered commerce data on the generated static site', () => {
         variantId: `var-${PRODUCT_HANDLE}`,
         attribution,
       });
+
+      await answer(false);
+      expect(await kept(), 'withdrawing removes it').toBeNull();
+      await page.locator('main button[type="submit"]', { hasText: 'Add to cart' }).first().click();
+      await expect.poll(() => gateway.cartAdds.length, { timeout: 5000 }).toBe(2);
+      expect(gateway.cartAdds[1]).not.toHaveProperty('attribution');
     } finally {
       await page.close();
     }
