@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.8...ui-v0.2.9) (2026-11-09)
+
+
+### Features
+
+* **ui:** wrapper options, scoped.css and inside tags for embedding the kit ([#106](https://github.com/eldra-is/headless-kit/issues/106)) ([5a23cf6](https://github.com/eldra-is/headless-kit/commit/5a23cf69c7c622de68b894f10d335d42e02157ba))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.1
+
 ## [0.2.8](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.7...ui-v0.2.8) (2026-11-09)
 
 

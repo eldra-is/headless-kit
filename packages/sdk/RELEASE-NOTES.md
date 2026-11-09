@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.0...sdk-v0.4.1) (2026-11-09)
+
+
+### Features
+
+* **sdk:** installIcelandicIntl() formats Icelandic for code that calls Intl itself ([#107](https://github.com/eldra-is/headless-kit/issues/107)) ([ce768ca](https://github.com/eldra-is/headless-kit/commit/ce768cada80c96f58eea9ab43118d5c1b8650959))
+
 ## [0.4.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.2...sdk-v0.4.0) (2026-11-09)
 
 
