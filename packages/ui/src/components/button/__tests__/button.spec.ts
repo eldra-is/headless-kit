@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+// happy-dom's global `URL` refuses the `file:` scheme; Node's own resolves it.
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IconArrowRight, IconHeart, IconShoppingBag } from '@tabler/icons-vue';
 import { computed, defineComponent, h, ref } from 'vue';
@@ -632,7 +635,7 @@ describe('Button — states', () => {
     wrapper.unmount();
   });
 
-  it.each(['primary', 'secondary', 'ghost', 'link', 'danger'] as ButtonVariant[])(
+  it.each(['primary', 'secondary', 'link', 'danger'] as ButtonVariant[])(
     'warns that a pressed %s button shows no pressed state',
     (variant) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -648,6 +651,49 @@ describe('Button — states', () => {
       wrapper.unmount();
     }
   );
+
+  it.each(['outline', 'ghost'] as ButtonVariant[])(
+    'draws the pressed fill on a pressed %s button, and only while pressed is true',
+    (variant) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      for (const pressed of [undefined, false, true]) {
+        const wrapper = mountWith(Button, {
+          props: { variant, pressed },
+          slots: { default: 'Bold' },
+        });
+        const drawn = pressed === true;
+        expect(wrapper.classes().includes('bg-surface-strong')).toBe(drawn);
+        expect(wrapper.classes().includes('border-border-strong')).toBe(
+          drawn || variant === 'outline'
+        );
+        wrapper.unmount();
+      }
+      expect(warn).not.toHaveBeenCalled();
+    }
+  );
+
+  it('draws the pressed fill on a pressed ghost icon-only button', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'ghost', iconOnly: true, icon: IconHeart, label: 'Bold', pressed: true },
+    });
+    expect(wrapper.attributes('aria-pressed')).toBe('true');
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining(['bg-surface-strong', 'border-border-strong'])
+    );
+    expect(wrapper.classes()).not.toContain('bg-transparent');
+    expect(wrapper.classes()).not.toContain('border-transparent');
+    wrapper.unmount();
+  });
+
+  it('keeps a disabled pressed ghost button dead, without the pressed fill', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'ghost', pressed: true, disabled: true },
+      slots: { default: 'Bold' },
+    });
+    expect(wrapper.classes()).not.toContain('bg-surface-strong');
+    expect(wrapper.attributes('aria-pressed')).toBe('true');
+    wrapper.unmount();
+  });
 
   it('says nothing about a pressed outline button', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1111,5 +1157,280 @@ describe('ButtonGroup', () => {
     const wrapper = mountNarrow(ButtonGroup, { slots: buttons });
     expect(wrapper.findAll('button')).toHaveLength(2);
     wrapper.unmount();
+  });
+});
+
+describe('Button — a routed `as` component given `to`', () => {
+  const routed: unknown[] = [];
+  const RouteLink = defineComponent({
+    props: { to: { type: [String, Object], required: true } },
+    setup(props, { slots }) {
+      const onClick = (event: MouseEvent): void => {
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        routed.push(props.to);
+      };
+      const href = () => (typeof props.to === 'string' ? props.to : '/resolved');
+      return () => h('a', { href: href(), onClick }, slots.default?.());
+    },
+  });
+
+  afterEach(() => {
+    routed.length = 0;
+  });
+
+  it('renders the component with `to`, as a link with no button attributes, and routes', async () => {
+    const to = { name: 'product', params: { slug: 'merino' } };
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', as: RouteLink, to, pressed: true },
+      slots: { default: 'View product' },
+    });
+    expect(wrapper.element.tagName).toBe('A');
+    expect(wrapper.attributes('type')).toBeUndefined();
+    expect(wrapper.attributes('aria-pressed')).toBeUndefined();
+    expect(wrapper.classes()).toContain('eldra-focus');
+    await wrapper.trigger('click');
+    expect(routed).toEqual([to]);
+    expect(wrapper.emitted('click')).toHaveLength(1);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('is inert while disabled: aria-disabled, out of the tab order, and never routes', async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', as: RouteLink, to: '/products', disabled: true },
+      slots: { default: 'View products' },
+    });
+    expect(wrapper.element.tagName).toBe('A');
+    expect(wrapper.attributes('aria-disabled')).toBe('true');
+    expect(wrapper.attributes('tabindex')).toBe('-1');
+    expect(wrapper.attributes('disabled')).toBeUndefined();
+    await wrapper.trigger('click');
+    expect(routed).toEqual([]);
+    expect(wrapper.emitted('click')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('ignores `to` without a component `as`', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', to: '/products' },
+      slots: { default: 'View products' },
+    });
+    expect(wrapper.element.tagName).toBe('BUTTON');
+    expect(wrapper.attributes('to')).toBeUndefined();
+    wrapper.unmount();
+  });
+});
+
+describe('Button — rich default-slot content', () => {
+  it('keeps a plain-text label an inline run', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary' },
+      slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.find('[data-part="label"]').attributes('class')).toBe('whitespace-nowrap');
+    wrapper.unmount();
+  });
+
+  it("lays an icon and text in the slot out in the button's own gap", async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline' },
+      slots: { default: () => [h(IconHeart, { 'aria-hidden': 'true' }), 'Save'] },
+    });
+    const label = wrapper.find('[data-part="label"]');
+    expect(label.classes()).toEqual(
+      expect.arrayContaining(['inline-flex', 'items-center', 'gap-[inherit]'])
+    );
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Button — spinnerPlacement', () => {
+  it('keeps the overlay spinner by default', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', loading: true, label: 'Adding to cart' },
+      slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.find('[data-part="spinner"]').classes()).toContain('absolute');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('invisible');
+    expect(wrapper.attributes('aria-label')).toBe('Adding to cart');
+    wrapper.unmount();
+  });
+
+  it('draws the spinner inline before a visible label with "start"', async () => {
+    const wrapper = mountWith(Button, {
+      props: {
+        variant: 'primary',
+        loading: true,
+        spinnerPlacement: 'start',
+        iconLeft: IconShoppingBag,
+      },
+      slots: { default: 'Add to cart' },
+    });
+    const parts = [...wrapper.element.children].map((el) => el.getAttribute('data-part'));
+    expect(parts).toEqual(['spinner', 'label']);
+    const spinner = wrapper.find('[data-part="spinner"]');
+    expect(spinner.classes()).not.toContain('absolute');
+    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('invisible');
+    expect(wrapper.attributes('aria-label')).toBeUndefined();
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(wrapper.text()).toBe('Add to cart');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Button — the focus ring composes with a consumer shadow', () => {
+  it("ends eldra-focus's box-shadow with Tailwind's shadow variables, each empty by default", () => {
+    const css = readFileSync(
+      fileURLToPath(new NodeURL('../../../styles/tailwind.css', import.meta.url)),
+      'utf8'
+    );
+    const start = css.indexOf('@utility eldra-focus {');
+    const rule = css.slice(start, css.indexOf('transition:', start));
+    for (const name of [
+      '--tw-inset-shadow',
+      '--tw-inset-ring-shadow',
+      '--tw-ring-offset-shadow',
+      '--tw-ring-shadow',
+      '--tw-shadow',
+    ]) {
+      expect(rule).toContain(`var(${name}, 0 0 #0000)`);
+    }
+  });
+});
+
+describe('Button — a static tag', () => {
+  it('renders a string as with no href as that tag, with the look and nothing interactive', async () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'outline', as: 'span', pressed: true, disabled: true, label: 'Edit' },
+      slots: { default: 'Edit' },
+    });
+    expect(wrapper.element.tagName).toBe('SPAN');
+    for (const attr of [
+      'type',
+      'disabled',
+      'tabindex',
+      'role',
+      'aria-pressed',
+      'aria-disabled',
+      'aria-label',
+      'href',
+    ]) {
+      expect(wrapper.attributes(attr)).toBeUndefined();
+    }
+    expect(wrapper.attributes('data-part')).toBe('container');
+    expect(wrapper.classes()).toContain(
+      'rounded-[var(--eldra-button-radius,var(--eldra-radius-md))]'
+    );
+    expect(wrapper.text()).toBe('Edit');
+    const row = mountWith(
+      defineComponent(
+        () => () =>
+          h('button', { type: 'button' }, [
+            h('span', 'Merino crew sweater'),
+            h(Button, { variant: 'outline', as: 'span' }, () => 'Edit'),
+          ])
+      )
+    );
+    expect(await axe(row.element)).toHaveNoViolations();
+    row.unmount();
+    wrapper.unmount();
+  });
+
+  it('draws the live variant look on the static tag', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', as: 'div' },
+      slots: { default: 'Shop' },
+    });
+    expect(wrapper.element.tagName).toBe('DIV');
+    expect(wrapper.classes()).toContain('bg-primary');
+    wrapper.unmount();
+  });
+
+  it("keeps 'button' and 'a' without href a native button", () => {
+    for (const as of ['button', 'a']) {
+      const wrapper = mountWith(Button, {
+        props: { variant: 'primary', as },
+        slots: { default: 'Add to cart' },
+      });
+      expect(wrapper.element.tagName).toBe('BUTTON');
+      expect(wrapper.attributes('type')).toBe('button');
+      wrapper.unmount();
+    }
+  });
+
+  it('keeps a string as with href the link form', () => {
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', as: 'span', href: '/cart' },
+      slots: { default: 'Cart' },
+    });
+    expect(wrapper.element.tagName).toBe('SPAN');
+    expect(wrapper.attributes('href')).toBe('/cart');
+    wrapper.unmount();
+  });
+
+  it('does not warn about a name on a static icon-only tag', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'ghost', as: 'span', iconOnly: true, icon: IconHeart },
+    });
+    expect(warn).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+});
+
+describe('Button — keepNameWhileLoading', () => {
+  it('keeps slot content naming a loading button with no label', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWith(Button, {
+      props: { variant: 'primary', loading: true, keepNameWhileLoading: true },
+      slots: { default: 'Add to cart' },
+    });
+    const label = wrapper.get('[data-part="label"]');
+    expect(label.classes()).toContain('opacity-0');
+    expect(label.classes()).not.toContain('invisible');
+    expect(label.attributes('aria-hidden')).toBeUndefined();
+    expect(wrapper.attributes('aria-label')).toBeUndefined();
+    expect(wrapper.text()).toBe('Add to cart');
+    expect(wrapper.attributes('aria-busy')).toBe('true');
+    expect(warn).not.toHaveBeenCalled();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('still lets label win as the loading name', () => {
+    const wrapper = mountWith(Button, {
+      props: {
+        variant: 'primary',
+        loading: true,
+        keepNameWhileLoading: true,
+        label: 'Adding to cart',
+      },
+      slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.attributes('aria-label')).toBe('Adding to cart');
+    wrapper.unmount();
+  });
+
+  it('keeps the icons hidden and changes nothing when not loading', () => {
+    const wrapper = mountWith(Button, {
+      props: {
+        variant: 'primary',
+        loading: true,
+        keepNameWhileLoading: true,
+        iconLeft: IconShoppingBag,
+      },
+      slots: { default: 'Add to cart' },
+    });
+    expect(wrapper.get('[data-part="leadingIcon"]').classes()).toContain('invisible');
+    wrapper.unmount();
+    const idle = mountWith(Button, {
+      props: { variant: 'primary', keepNameWhileLoading: true },
+      slots: { default: 'Add to cart' },
+    });
+    expect(idle.get('[data-part="label"]').classes()).not.toContain('opacity-0');
+    idle.unmount();
   });
 });

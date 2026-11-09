@@ -1,4 +1,5 @@
 import type { Component } from 'vue';
+import type { UiMessages } from '../../composables/useMessages';
 
 /**
  * The parts a consumer can restyle through `classes`, named as the spec's anatomy names them
@@ -56,6 +57,36 @@ export interface PaginationProps {
    * Defaults to the `pagination` message ("Pagination").
    */
   ariaLabel?: string;
+  /**
+   * Keep the numbered row the same length on every page. The window of `2 × siblings + 1` pages
+   * slides against the ends instead of shrinking near them, the slot next to the first and the last
+   * page shows that page or "…", and a "…" always stands for two or more pages. So `siblings: 1`
+   * always draws seven items once there are more than seven pages (`1 2 3 [4] 5 … 12`,
+   * `1 … 5 [6] 7 … 12`), and the controls do not move under the pointer as the page changes.
+   * Defaults to `false`: the window is the current page ± `siblings`, plus the first and last.
+   */
+  fixedLength?: boolean;
+  /**
+   * Renders every control inert: pages and previous/next in the disabled previous/next form (a
+   * `<span aria-disabled="true">`, `muted` at 60%, no link, not focusable), the current page still
+   * marked with `aria-current="page"`. Nothing emits `update:page`. Defaults to `false`.
+   */
+  disabled?: boolean;
+  /**
+   * Defaults to `true`: below 48rem of its own width the numbered form gives way to the compact
+   * one. `false` keeps the numbered form at every width (it wraps) and never renders the compact
+   * row, for a layout where jumping straight to any page matters more than one line. `compact`
+   * still wins when set.
+   */
+  responsive?: boolean;
+  /**
+   * Render with a single page too: previous and next disabled around page 1, so a paged list keeps
+   * its footer while it holds one page. Defaults to `false`: nothing renders below two pages.
+   */
+  showSinglePage?: boolean;
+  /** Message overrides (`pagination`, `previousPage`, `nextPage`, `pageN`, `pageOfTotal`), per
+   *  instance; a shorter visible "Previous"/"Next" goes here. See `useMessages`. */
+  messages?: Partial<UiMessages>;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<PaginationPart, string>>;
 }

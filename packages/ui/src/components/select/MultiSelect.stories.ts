@@ -164,6 +164,35 @@ export const WithTags: Story = {
   }),
 };
 
+/** `tagPlacement: 'inside'`: the tags sit in the field, which grows a row at a time, and past
+ *  `maxTagRows` (2 here) the rest collapse into a "+N" tag. Backspace on the trigger takes the
+ *  last tag off. Shown at three widths, the narrowest one tag to a row. */
+export const TagsInside: Story = {
+  args: { options: SIZES, name: 'sizes', tagPlacement: 'inside' },
+  render: (args) => ({
+    components: { MultiSelect, FieldWrapper },
+    setup: () => ({
+      args,
+      few: ref(['xs', 's']),
+      many: ref(SIZES.map((size) => size.value)),
+      narrow: ref(SIZES.map((size) => size.value)),
+    }),
+    template: `
+      <div class="grid max-w-[32rem] gap-6">
+        <FieldWrapper label="Sizes">
+          <MultiSelect v-bind="args" v-model="few" placeholder="Any size" />
+        </FieldWrapper>
+        <FieldWrapper label="Every size, two rows at most">
+          <MultiSelect v-bind="args" v-model="many" />
+        </FieldWrapper>
+        <FieldWrapper label="Narrow, every row shown" class="w-48">
+          <MultiSelect v-bind="args" v-model="narrow" :max-tag-rows="0" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
 /** `showTags: false` for a compact toolbar, where the trigger summary is enough. The sm size is
  *  the spec's own example of a dense desktop filter bar. */
 export const NoTags: Story = {

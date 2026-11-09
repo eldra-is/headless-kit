@@ -91,6 +91,8 @@ export const enUS = {
    * curly quotation marks are the spec's own.
    */
   noMatchesFor: (query: string) => `No matches for “${query}”`,
+  /** A creatable `Select`'s or `MultiSelect`'s last row, offering the query as a new option. */
+  createOption: (query: string) => `Create “${query}”`,
   /** The overflow badge on a `MultiSelect` that cannot show every tag. */
   moreSelected: (n: number) => `+${n}`,
   /** The accessible name of a selected tag's remove button. */

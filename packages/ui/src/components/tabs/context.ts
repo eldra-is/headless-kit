@@ -7,6 +7,9 @@ export interface TabsEntry {
   value: string;
   /** Moves real DOM focus to this tab's `<button>`. */
   focus: () => void;
+  /** Whether the tab is disabled now: skipped by the arrow keys and never the default selection.
+   *  Optional, so an entry registered without it reads as enabled. */
+  disabled?: () => boolean;
 }
 
 /**
@@ -37,9 +40,10 @@ export interface TabsContext {
   /** Adds a `Tab` to the registration order. Returns the function that removes it again. */
   register: (entry: TabsEntry) => () => void;
   /** `ArrowRight` (`delta` 1) / `ArrowLeft` (`delta` -1) from `current`: moves focus to the next
-   *  tab, wrapping at the ends, and — under automatic activation — selects it too. */
+   *  tab that is not disabled, wrapping at the ends, and — under automatic activation — selects it too. */
   moveFocus: (current: string, delta: 1 | -1) => void;
-  /** `Home` (`'first'`) / `End` (`'last'`): same as `moveFocus`, but to an end of the list. */
+  /** `Home` (`'first'`) / `End` (`'last'`): same as `moveFocus`, but to the first / last tab that
+   *  is not disabled. */
   focusEdge: (edge: 'first' | 'last') => void;
   /** The `id` a `Tab` with this value renders, and what its `TabPanel`'s `aria-labelledby` reads. */
   tabId: (value: string) => string;

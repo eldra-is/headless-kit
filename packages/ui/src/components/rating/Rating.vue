@@ -5,6 +5,9 @@ import { useMessages } from '../../composables/useMessages';
 import { roundRatingToHalf } from '../../utils/rating';
 import RatingStars from './RatingStars.vue';
 import type { RatingProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<RatingProps>(), {
   count: 0,
@@ -128,7 +131,9 @@ const emptyClass = computed(() => partClass('text-body-sm text-muted', props.cla
 
 <template>
   <span
+    :data-eldra-slot="eldra.slotHost('emptyAction')"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     v-bind="!isLinked && !isEmpty ? { role: 'img', 'aria-label': ratingSentence } : {}"
@@ -136,6 +141,7 @@ const emptyClass = computed(() => partClass('text-body-sm text-muted', props.cla
     <component
       :is="as ?? 'a'"
       v-if="isLinked"
+      :data-eldra-scope="eldra.scope"
       data-part="link"
       :class="linkClass"
       :aria-label="ratingSentence"
@@ -152,16 +158,28 @@ const emptyClass = computed(() => partClass('text-body-sm text-muted', props.cla
     <template v-else>
       <RatingStars :value="value" :size="size" :classes="classes" />
       <template v-if="isEmpty">
-        <span data-part="empty" :class="emptyClass">{{ messages.noReviews }}</span>
+        <span :data-eldra-scope="eldra.scope" data-part="empty" :class="emptyClass">{{
+          messages.noReviews
+        }}</span>
         <slot name="emptyAction" />
       </template>
       <template v-else>
-        <span v-if="showValue" data-part="value" :class="valueClass" aria-hidden="true">{{
-          formattedValue
-        }}</span>
-        <span v-if="showCount" data-part="count" :class="countClass" aria-hidden="true">{{
-          cardCountText
-        }}</span>
+        <span
+          v-if="showValue"
+          :data-eldra-scope="eldra.scope"
+          data-part="value"
+          :class="valueClass"
+          aria-hidden="true"
+          >{{ formattedValue }}</span
+        >
+        <span
+          v-if="showCount"
+          :data-eldra-scope="eldra.scope"
+          data-part="count"
+          :class="countClass"
+          aria-hidden="true"
+          >{{ cardCountText }}</span
+        >
       </template>
     </template>
   </span>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { computed } from 'vue';
+import { computed, h } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
@@ -518,6 +518,190 @@ describe('Switch — accessibility', () => {
       slots: { default: 'In stock only' },
     });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Switch — thumb and track slots', () => {
+  const SUN = '<svg data-test="sun" viewBox="0 0 12 12"><circle cx="6" cy="6" r="3" /></svg>';
+
+  it('renders no track slot boxes and the default check icon when no slot is given', () => {
+    const wrapper = mountWith(Switch, {
+      props: { modelValue: true },
+      slots: { default: 'Dark mode' },
+    });
+    expect(wrapper.find('[data-part="trackStart"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="trackEnd"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="thumb"] svg path').exists()).toBe(true);
+    expect(wrapper.find('[data-part="thumb"]').classes()).not.toContain('text-background');
+    wrapper.unmount();
+  });
+
+  it('replaces the check icon with the thumb slot, handed checked and disabled, in both states', async () => {
+    const wrapper = mountWith(Switch, {
+      props: { modelValue: false, disabled: false },
+      slots: {
+        default: 'Dark mode',
+        thumb: `<template #thumb="{ checked, disabled }"><i :data-checked="checked" :data-disabled="disabled" /></template>`,
+      },
+    });
+    const thumb = () => wrapper.get('[data-part="thumb"]');
+    expect(thumb().get('i').attributes('data-checked')).toBe('false');
+    expect(thumb().classes()).toContain('text-background');
+    await wrapper.setProps({ modelValue: true, disabled: true });
+    expect(thumb().get('i').attributes('data-checked')).toBe('true');
+    expect(thumb().get('i').attributes('data-disabled')).toBe('true');
+    expect(thumb().find('path').exists()).toBe(false);
+    expect(thumb().get('span').attributes('aria-hidden')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it.each(SIZES)(
+    'draws trackStart and trackEnd at the thumb rest positions, in the thumb size (%s)',
+    (size) => {
+      const wrapper = mountWith(Switch, {
+        props: { size },
+        slots: { default: 'Dark mode', trackStart: SUN, trackEnd: SUN },
+      });
+      const start = wrapper.get('[data-part="trackStart"]');
+      const end = wrapper.get('[data-part="trackEnd"]');
+      const thumbSize = size === 'md' ? 'size-4' : 'size-3';
+      const travel = size === 'md' ? 'translate-x-5' : 'translate-x-4';
+      for (const box of [start, end]) {
+        expect(box.attributes('aria-hidden')).toBe('true');
+        expect(box.classes()).toEqual(
+          expect.arrayContaining(['absolute', 'eldra-switch-thumb-offset', thumbSize])
+        );
+        expect(box.find('[data-test="sun"]').exists()).toBe(true);
+      }
+      expect(start.classes()).not.toContain(travel);
+      expect(end.classes()).toContain(travel);
+      // Painted before the thumb, so the thumb covers whichever one it rests on.
+      const track = wrapper.get('[data-part="track"]').element;
+      expect([...track.children].map((child) => child.getAttribute('data-part'))).toEqual([
+        'trackStart',
+        'trackEnd',
+        'thumb',
+      ]);
+      wrapper.unmount();
+    }
+  );
+
+  it('inks track content primary-contrast while on and muted while off or disabled', async () => {
+    const wrapper = mountWith(Switch, {
+      props: { modelValue: false },
+      slots: { default: 'Dark mode', trackStart: SUN },
+    });
+    const start = () => wrapper.get('[data-part="trackStart"]');
+    expect(start().classes()).toContain('text-muted');
+    await wrapper.setProps({ modelValue: true });
+    expect(start().classes()).toContain('text-primary-contrast');
+    await wrapper.setProps({ disabled: true });
+    expect(start().classes()).toContain('text-muted');
+    wrapper.unmount();
+  });
+
+  it('takes classes for the two track parts', () => {
+    const wrapper = mountWith(Switch, {
+      props: { classes: { trackStart: 'text-accent', trackEnd: 'text-danger' } },
+      slots: { default: 'Dark mode', trackStart: SUN, trackEnd: SUN },
+    });
+    expect(wrapper.get('[data-part="trackStart"]').classes()).toContain('text-accent');
+    expect(wrapper.get('[data-part="trackEnd"]').classes()).toContain('text-danger');
+    wrapper.unmount();
+  });
+
+  it('keeps slot content out of the accessible name', () => {
+    const wrapper = mountWith(Switch, {
+      slots: { default: 'Dark mode', thumb: 'Moon', trackStart: 'On', trackEnd: 'Off' },
+    });
+    for (const selector of ['[data-part="trackStart"]', '[data-part="trackEnd"]']) {
+      expect(wrapper.get(selector).attributes('aria-hidden')).toBe('true');
+    }
+    expect(wrapper.get('[data-part="thumb"] > span').attributes('aria-hidden')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('is axe-clean with every slot filled, off, on and disabled', async () => {
+    for (const props of [{ modelValue: false }, { modelValue: true }, { disabled: true }]) {
+      const wrapper = mountWith(Switch, {
+        props,
+        slots: { default: 'Dark mode', thumb: SUN, trackStart: SUN, trackEnd: SUN },
+      });
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+});
+
+describe('Switch — requiredMark and error', () => {
+  it('renders the button and its mirror input alone without either', () => {
+    const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(false);
+    expect(root(wrapper).getAttribute('aria-invalid')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it("draws FieldWrapper's mark after the label, with the hidden Required", async () => {
+    const wrapper = mountWith(Switch, {
+      props: { requiredMark: true },
+      slots: { default: 'Restock alerts' },
+    });
+    const label = wrapper.find('[data-part="label"]');
+    expect(label.find('[data-part="requiredMark"]').attributes('aria-hidden')).toBe('true');
+    expect(label.text()).toBe('Restock alerts*Required');
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('draws the error row after the switch, linked first, and marks it invalid', async () => {
+    const wrapper = mountWith(Switch, {
+      props: { error: 'Turn this on to continue.', description: 'Weekly at most' },
+      slots: { default: 'Restock alerts' },
+    });
+    const error = wrapper.find('[data-part="error"]');
+    expect(error.text()).toBe('Turn this on to continue.');
+    expect(root(wrapper).contains(error.element)).toBe(false);
+    expect(root(wrapper).getAttribute('aria-invalid')).toBe('true');
+    expect(root(wrapper).getAttribute('aria-describedby')).toBe(
+      `${error.attributes('id')} ${wrapper.find('[data-part="description"]').attributes('id')}`
+    );
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('keeps its own label inside a FieldWrapper with no visible label', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      slots: { default: () => h(Switch, null, () => 'Restock alerts') },
+    });
+    expect(wrapper.find('[data-part="label"]').text()).toBe('Restock alerts');
+    wrapper.unmount();
+  });
+});
+
+describe('Switch — invalid', () => {
+  it('sets aria-invalid with no error row and no extra description', async () => {
+    const wrapper = mountWith(Switch, {
+      props: { invalid: true },
+      slots: { default: 'Restock alerts' },
+    });
+    expect(root(wrapper).getAttribute('aria-invalid')).toBe('true');
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
+    expect(root(wrapper).getAttribute('aria-describedby')).toBeNull();
+    expect(await axe(document.body)).toHaveNoViolations();
+    await wrapper.setProps({ invalid: false });
+    expect(root(wrapper).getAttribute('aria-invalid')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('keeps the error row when error is also given', () => {
+    const wrapper = mountWith(Switch, {
+      props: { invalid: true, error: 'Turn this on to continue.' },
+      slots: { default: 'Restock alerts' },
+    });
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(true);
+    expect(root(wrapper).getAttribute('aria-invalid')).toBe('true');
     wrapper.unmount();
   });
 });

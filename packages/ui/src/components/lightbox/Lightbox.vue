@@ -28,6 +28,9 @@ import { cx, partClass } from '../../utils/cx';
 import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<LightboxProps>(), {
   modelValue: undefined,
@@ -418,6 +421,7 @@ const thumbnailClass = computed(() =>
   <dialog
     ref="dialogEl"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-label="ariaLabel"

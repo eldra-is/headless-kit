@@ -229,7 +229,7 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of four CSS entries, depending on how the consuming project builds CSS:
+Pick one of five CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
 - `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
@@ -262,6 +262,15 @@ Pick one of four CSS entries, depending on how the consuming project builds CSS:
   hook. The one exception: an element with its own `data-part` passed into a component's slot is
   inside the scope and gets the reset too.
 
+- `@eldrajs/ui/scoped.css` — for embedding the components in another Tailwind app, or beside this
+  package's own components on a page: theme variables renamed into `--eldra-tw-*`, every rule
+  inside `@scope ([data-eldra-scope])`, stopping at slot content. Call `provideEldraScope()` in the
+  wrapper or app root; the package README's "Embedding in another Tailwind app" has the rules.
+
+  ```css
+  @import '@eldrajs/ui/scoped.css';
+  ```
+
 ## Forms
 
 The form components are validation-agnostic: `FieldWrapper` takes an `error` string, `Input` takes
@@ -270,6 +279,9 @@ The form components are validation-agnostic: `FieldWrapper` takes an `error` str
 ships `Form` (over `useForm` and `FormLayout`) and a `Field*` component per control (over
 `useField`) — see `packages/ui/README.md`'s `./vee-validate` section for the exact list.
 `vee-validate ^4.12` is an optional peer; nothing else in the package imports it.
+
+The components' own text (close, clear, "N results"…) can come from the app's vue-i18n through the
+optional `@eldrajs/ui/vue-i18n` entry (`useEldraUiI18n()`); see the README's Messages section.
 
 ```vue
 <Form :validation-schema="schema" @submit="send">

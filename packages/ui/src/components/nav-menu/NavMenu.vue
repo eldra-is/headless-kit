@@ -36,6 +36,9 @@ import type {
   NavMenuProps,
   NavMenuVariant,
 } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<NavMenuProps>(), {
   variant: 'ghost',
@@ -455,6 +458,7 @@ const accordionClasses = computed(() => ({
 <template>
   <div
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     @pointerenter="onRootPointerEnter"
@@ -489,6 +493,7 @@ const accordionClasses = computed(() => ({
             >
               <span>{{ item.label }}</span>
               <span
+                :data-eldra-slot="eldra.slotHost('triggerIcon')"
                 data-part="triggerIcon"
                 :class="triggerIconClass(openIndex === index)"
                 aria-hidden="true"
@@ -536,7 +541,12 @@ const accordionClasses = computed(() => ({
                       <slot name="groupHeading" v-bind="scope" />
                     </template>
                   </NavMenuPanel>
-                  <div v-if="slots.panelFooter" data-part="footer" :class="footerClass">
+                  <div
+                    v-if="slots.panelFooter"
+                    :data-eldra-slot="eldra.slotHost('panelFooter')"
+                    data-part="footer"
+                    :class="footerClass"
+                  >
                     <slot name="panelFooter" :item="item" :index="index" :close="closePanel" />
                   </div>
                 </div>
@@ -562,6 +572,7 @@ const accordionClasses = computed(() => ({
     <template v-if="collapseBelow !== 'never'">
       <button
         ref="toggleEl"
+        :data-eldra-slot="eldra.slotHost('toggle')"
         type="button"
         data-part="toggle"
         :class="toggleClass"
@@ -603,7 +614,12 @@ const accordionClasses = computed(() => ({
         <template v-if="slots.drawerHeader" #header>
           <slot name="drawerHeader" :close="closeDrawer" />
         </template>
-        <nav v-if="drawerEntries.length > 0" :aria-label="navLabel" @click="onDrawerClick">
+        <nav
+          v-if="drawerEntries.length > 0"
+          :data-eldra-scope="eldra.scope"
+          :aria-label="navLabel"
+          @click="onDrawerClick"
+        >
           <ul data-part="drawerList" :class="drawerListClass">
             <li
               v-for="{ item, index } in drawerEntries"
@@ -650,7 +666,11 @@ const accordionClasses = computed(() => ({
                 :title="item.label ?? ''"
                 :classes="accordionClasses"
               >
-                <div data-part="drawerNest" :class="drawerNestClass">
+                <div
+                  :data-eldra-scope="eldra.scope"
+                  data-part="drawerNest"
+                  :class="drawerNestClass"
+                >
                   <NavMenuPanel
                     :item="item"
                     :id-prefix="`${panelId(index)}-drawer`"

@@ -7,6 +7,9 @@ import { TABS_KEY, type TabsContext, type TabsEntry } from './context';
 import Tab from './Tab.vue';
 import TabPanel from './TabPanel.vue';
 import type { TabsProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TabsProps>(), {
   modelValue: undefined,
@@ -42,8 +45,13 @@ function register(entry: TabsEntry): () => void {
   };
 }
 
-/** Spec "Tabs" → Properties, `value` row: "Default first tab." */
-const selectedValue = computed(() => (model.value === '' ? registry.value[0]?.value : model.value));
+/** Spec "Tabs" → Properties, `value` row: "Default first tab." The first one that can be chosen,
+ *  so a disabled first tab is never selected for the user; the first of all when every tab is. */
+const selectedValue = computed(() =>
+  model.value === ''
+    ? (registry.value.find((tab) => !tab.disabled?.()) ?? registry.value[0])?.value
+    : model.value
+);
 
 function isSelected(value: string): boolean {
   return selectedValue.value === value;
@@ -54,18 +62,26 @@ function select(value: string): void {
   emit('change', value);
 }
 
+/** Walks from `current` in `delta`'s direction, wrapping, past every disabled tab. Nothing moves
+ *  when no other tab can be chosen. */
 function moveFocus(current: string, delta: 1 | -1): void {
   const tabs = registry.value;
   if (tabs.length === 0) return;
   const index = tabs.findIndex((tab) => tab.value === current);
-  const nextIndex = index === -1 ? 0 : (index + delta + tabs.length) % tabs.length;
-  activate(tabs[nextIndex]!);
+  const start = index === -1 ? (delta === 1 ? -1 : tabs.length) : index;
+  for (let step = 1; step <= tabs.length; step++) {
+    const candidate = tabs[(start + delta * step + tabs.length * 2) % tabs.length]!;
+    if (!candidate.disabled?.()) {
+      activate(candidate);
+      return;
+    }
+  }
 }
 
 function focusEdge(edge: 'first' | 'last'): void {
-  const tabs = registry.value;
-  if (tabs.length === 0) return;
-  activate(edge === 'first' ? tabs[0]! : tabs[tabs.length - 1]!);
+  const enabled = registry.value.filter((tab) => !tab.disabled?.());
+  const target = edge === 'first' ? enabled[0] : enabled[enabled.length - 1];
+  if (target) activate(target);
 }
 
 /** Moves DOM focus, and — spec "Tabs" → Behaviour & motion: "With automatic activation, moving
@@ -183,16 +199,30 @@ const childClasses = computed(() => ({
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <!-- Per the ARIA APG tabs pattern, the tablist contains tab elements only — panels are
          siblings after it, not inside it. -->
-    <div role="tablist" data-part="list" :aria-label="ariaLabel" :class="listClass">
+    <div
+      :data-eldra-slot="eldra.slotHost('tabs')"
+      :data-eldra-scope="eldra.scope"
+      role="tablist"
+      data-part="list"
+      :aria-label="ariaLabel"
+      :class="listClass"
+    >
       <template v-if="items">
         <Tab
           v-for="item in items"
           :key="item.value"
           :value="item.value"
           :title="item.title"
+          :disabled="item.disabled"
           :classes="childClasses"
         />
       </template>

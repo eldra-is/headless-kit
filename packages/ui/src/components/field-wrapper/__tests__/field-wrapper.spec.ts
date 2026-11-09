@@ -25,6 +25,7 @@ const ContextProbe = defineComponent({
         'data-testid': 'probe',
         'data-id': field?.value.id,
         'data-label-id': field?.value.labelId,
+        'data-labelled': String(field?.value.labelled),
         'data-described-by': field?.value.describedBy ?? '',
         'data-invalid': String(field?.value.invalid),
         'data-required': String(field?.value.required),
@@ -807,6 +808,126 @@ describe('FieldWrapper — content, accessibility and narrow containers', () => 
     const legendId = wrapper.find('legend').attributes('id');
     expect(legendId).toBeTruthy();
     expect(probe(wrapper)['data-label-id']).toBe(legendId);
+    wrapper.unmount();
+  });
+});
+
+describe('FieldWrapper — no visible label', () => {
+  it('draws no label and reports labelled false, so the control is named by its own aria-label', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { error: 'Enter a link.' },
+      slots: {
+        default: () => [h(Input, { 'aria-label': 'Link address' }), h(ContextProbe)],
+      },
+    });
+    expect(wrapper.find('label').exists()).toBe(false);
+    expect(probe(wrapper)['data-labelled']).toBe('false');
+    expect(probe(wrapper)['data-label-id']).toBeTruthy();
+    const input = wrapper.find('input');
+    expect(input.attributes('aria-label')).toBe('Link address');
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(input.attributes('aria-describedby')).toBe(
+      wrapper.find('[data-part="error"]').attributes('id')
+    );
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('drops the required mark with the label it lives in', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { required: true },
+      slots: { default: () => h(Input, { 'aria-label': 'Link address' }) },
+    });
+    expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(false);
+    expect(wrapper.find('input').attributes('required')).toBeDefined();
+    wrapper.unmount();
+  });
+
+  it('still draws a label for the label slot alone, and for an empty label string', () => {
+    const slotted = mountWith(FieldWrapper, {
+      slots: { label: 'Email address', default: CONTROL },
+    });
+    expect(slotted.find('label').text()).toBe('Email address');
+    slotted.unmount();
+
+    const empty = mountWith(FieldWrapper, { props: { label: '' }, slots: { default: CONTROL } });
+    expect(empty.find('label').exists()).toBe(true);
+    empty.unmount();
+  });
+
+  it('renders a group with no legend, named by the aria-label it passes to the fieldset', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { group: true },
+      attrs: { 'aria-label': 'Shipping' },
+      slots: { default: '<label><input type="checkbox" /> Express</label>' },
+    });
+    expect(wrapper.find('legend').exists()).toBe(false);
+    expect(wrapper.element.tagName).toBe('FIELDSET');
+    expect(wrapper.attributes('aria-label')).toBe('Shipping');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('FieldWrapper — labelSuffix slot', () => {
+  it('follows the required mark inside the label, so it is part of the control name', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Title', required: true },
+      slots: {
+        labelSuffix: '<span data-testid="locale">IS</span>',
+        default: () => h(Input),
+      },
+    });
+    const label = wrapper.find('label');
+    const children = Array.from(label.element.children);
+    const mark = label.find('[data-part="requiredMark"]').element;
+    const suffix = label.find('[data-testid="locale"]').element;
+    expect(children.indexOf(suffix)).toBeGreaterThan(children.indexOf(mark));
+    expect(label.text()).toBe('Title*IS');
+    expect(label.attributes('for')).toBe(wrapper.find('input').attributes('id'));
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('follows the optional mark too, and renders nothing when it is not filled', () => {
+    const filled = mountWith(FieldWrapper, {
+      props: { label: 'Company', optional: true },
+      slots: { labelSuffix: '<span data-testid="locale">EN</span>', default: CONTROL },
+    });
+    const children = Array.from(filled.find('label').element.children);
+    expect(children.at(-1)?.getAttribute('data-testid')).toBe('locale');
+    filled.unmount();
+
+    const bare = mountWith(FieldWrapper, {
+      props: { label: 'Company' },
+      slots: { default: CONTROL },
+    });
+    expect(bare.find('label').element.children).toHaveLength(0);
+    bare.unmount();
+  });
+});
+
+describe('FieldWrapper — counter without a limit', () => {
+  it('shows the length alone, never over a limit, and is still described', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Notes', counter: { value: 120 } },
+      slots: { default: () => h(Input) },
+    });
+    const counter = wrapper.find('[data-part="counter"]');
+    expect(counter.text()).toBe('120');
+    expect(counter.classes()).toContain('text-muted');
+    expect(counter.classes()).not.toContain('text-danger');
+    expect(wrapper.find('input').attributes('aria-describedby')).toBe(counter.attributes('id'));
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('counts from zero with no value either', () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Notes', counter: {} },
+      slots: { default: CONTROL },
+    });
+    expect(wrapper.find('[data-part="counter"]').text()).toBe('0');
     wrapper.unmount();
   });
 });

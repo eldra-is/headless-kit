@@ -3,6 +3,9 @@ import { computed, nextTick, ref, type Component, type ComponentPublicInstance }
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import type { BreadcrumbItem, BreadcrumbProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<BreadcrumbProps>(), {
   collapseAfter: 1,
@@ -341,7 +344,13 @@ const structuredDataJson = computed(() =>
 </script>
 
 <template>
-  <nav data-eldra-ui data-part="root" :aria-label="m.breadcrumbLabel" :class="rootClass">
+  <nav
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :aria-label="m.breadcrumbLabel"
+    :class="rootClass"
+  >
     <ol data-part="list" :class="listClass">
       <li
         v-for="(item, index) in startItems"

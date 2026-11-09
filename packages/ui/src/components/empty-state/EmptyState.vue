@@ -7,6 +7,9 @@ import { cx, partClass } from '../../utils/cx';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import Button from '../button/Button.vue';
 import type { EmptyStateProps, EmptyStateVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<EmptyStateProps>(), {
   variant: 'empty',
@@ -116,7 +119,13 @@ const actionsClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" :role="role">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :role="role"
+  >
     <span data-part="icon" :class="iconClass" aria-hidden="true">
       <component
         :is="icon"
@@ -143,7 +152,12 @@ const actionsClass = computed(() =>
     </span>
     <component :is="headingTag" data-part="title" :class="titleClass">{{ title }}</component>
     <p v-if="hasText" data-part="text" :class="textClass">{{ text }}</p>
-    <div v-if="hasActions" data-part="actions" :class="actionsClass">
+    <div
+      v-if="hasActions"
+      :data-eldra-slot="eldra.slotHost('actions')"
+      data-part="actions"
+      :class="actionsClass"
+    >
       <slot name="actions" :retrying="retrying">
         <Button
           v-if="variant === 'error'"

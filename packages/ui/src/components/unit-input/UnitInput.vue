@@ -62,6 +62,9 @@ import {
 } from '../input/classes';
 import type { UnitInputProps } from './types';
 import { useUndoRedo } from './undo-redo';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -780,13 +783,18 @@ defineExpose({ formatValue });
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <label v-if="showOwnLabel" data-part="label" :for="controlId" :class="labelClass">
       {{ label }}
     </label>
 
     <span data-part="field" :class="fieldClass">
-      <span v-if="hasLeading" data-part="leadingIcon" :class="leadingIconClass">
+      <span
+        v-if="hasLeading"
+        :data-eldra-slot="eldra.slotHost('leadingIcon')"
+        data-part="leadingIcon"
+        :class="leadingIconClass"
+      >
         <slot name="leadingIcon">
           <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
         </slot>
@@ -822,9 +830,15 @@ defineExpose({ formatValue });
            deliberately carries no `name` of its own, so exactly one value is posted. -->
       <input v-if="name" type="hidden" :name="name" :value="numericModel ?? ''" />
 
-      <span v-if="hasTrailing" data-part="suffix" :class="suffixClass">
+      <span
+        v-if="hasTrailing"
+        :data-eldra-slot="eldra.slotHost('suffix')"
+        data-part="suffix"
+        :class="suffixClass"
+      >
         <button
           v-if="showClear"
+          :data-eldra-scope="eldra.scope"
           data-part="clearButton"
           type="button"
           :class="clearButtonClass"
@@ -855,6 +869,7 @@ defineExpose({ formatValue });
         <button
           v-if="showDragHandle"
           ref="dragHandleRef"
+          :data-eldra-scope="eldra.scope"
           data-part="dragHandle"
           data-drag-adjust-handle
           type="button"

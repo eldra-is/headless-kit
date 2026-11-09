@@ -10,11 +10,15 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import type { ToastProps, ToastVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ToastProps>(), {
   variant: 'success',
   text: undefined,
   action: undefined,
+  closable: true,
   messages: undefined,
   classes: undefined,
 });
@@ -39,6 +43,7 @@ const m = useMessages(() => props.messages);
  */
 const ICON_PATHS: Record<ToastVariant, string[]> = {
   success: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M9 12l2 2l4 -4'],
+  info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M12 9h.01', 'M11 12h1v4h1'],
   warning: [
     'M12 9v4',
     'M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0',
@@ -55,6 +60,7 @@ const ICON_STROKE_WIDTH = 1.75;
  *  inherits `currentColor` from this. */
 const VARIANT_TEXT_CLASS: Record<ToastVariant, string> = {
   success: 'text-success',
+  info: 'text-text',
   warning: 'text-warning',
   danger: 'text-danger',
 };
@@ -84,7 +90,7 @@ function onClose(): void {
  * "closes the toast that holds focus" — not the dialog underneath it.
  */
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape' || !props.closable) return;
   event.preventDefault();
   emit('close', 'escape');
 }
@@ -139,7 +145,9 @@ const closeClass = computed(() =>
 <template>
   <div
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
+    :data-variant="variant"
     :class="rootClass"
     :role="variant === 'danger' ? 'alert' : undefined"
     @keydown="onKeydown"
@@ -180,6 +188,7 @@ const closeClass = computed(() =>
       </button>
     </div>
     <button
+      v-if="closable"
       type="button"
       data-part="close"
       :class="closeClass"

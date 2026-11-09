@@ -13,6 +13,9 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'lin
 /** The spec's three button heights: 2rem, 2.5rem and 3rem. */
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
+/** Where `Button`'s loading spinner is drawn. */
+export type ButtonSpinnerPlacement = 'overlay' | 'start';
+
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type ButtonPart = 'container' | 'leadingIcon' | 'label' | 'trailingIcon' | 'spinner';
 
@@ -30,10 +33,22 @@ export interface ButtonProps {
    * link component, for example `resolveComponent('NuxtLink')`, so an in-app destination routes
    * instead of reloading the document. A string is used as the tag directly and still receives
    * `href`; a component receives the destination as its `to` prop instead, matching Vue Router /
-   * NuxtLink's own contract. Ignored when there is no `href`: without a destination this is a
-   * `<button>`, and the same rule as `Link`'s `as`.
+   * NuxtLink's own contract. With neither `href` nor `to`, a component `as` (or `'a'`/`'button'`)
+   * is ignored and this is a `<button>`, the same rule as `Link`'s `as`; any other string (`'span'`,
+   * `'div'`) renders that tag with the button look and nothing interactive — no `type`,
+   * `disabled`, `tabindex`, `aria-pressed`, `aria-disabled` or `aria-label` — for a part that only
+   * looks like a button inside another control (a row that is itself the button). Its name is its
+   * own text; an icon-only one is decorative.
    */
   as?: string | Component;
+  /**
+   * A router destination (a path or a route object) for an `as` component, handed to it as its
+   * `to` prop, for a destination `href` cannot hold. Ignored without a component `as`. No `type`,
+   * `disabled` or `aria-pressed` is set on the component; while disabled it is
+   * `aria-disabled="true"`, out of the tab order, and its clicks are cancelled before the router
+   * link's own handler sees them.
+   */
+  to?: string | Record<string, unknown>;
   /** Leading icon component, for example `IconShoppingBag`. */
   iconLeft?: IconComponent;
   /** Trailing icon component, for example `IconArrowRight` on "Continue to checkout". */
@@ -50,9 +65,24 @@ export interface ButtonProps {
   label?: string;
   /** Shows the spinner, sets `aria-busy="true"` and keeps the button's width and focus. */
   loading?: boolean;
+  /**
+   * Where the spinner goes while `loading`. `"overlay"` (the default) centres it over the hidden
+   * label and icons, and `label` becomes the accessible name. `"start"` draws it in the leading
+   * icon's place, before the label, which stays visible and keeps naming the button.
+   */
+  spinnerPlacement?: ButtonSpinnerPlacement;
+  /**
+   * While `loading` with the overlay spinner, keep the hidden label in the accessibility tree
+   * (transparent rather than `visibility: hidden`), so slot content keeps naming the button when
+   * there is no `label`. A `label` still wins as the name. Default `false`.
+   */
+  keepNameWhileLoading?: boolean;
   /** Full width of its container. */
   block?: boolean;
-  /** Toggle buttons only: sets `aria-pressed`. Leave it undefined for ordinary buttons. */
+  /**
+   * Toggle buttons only: sets `aria-pressed`. Leave it undefined for ordinary buttons. `true` draws
+   * the pressed fill (`surface-strong`, `border-strong` boundary) on `outline` and `ghost`.
+   */
   pressed?: boolean;
   /** Native `disabled`. A disabled link button loses its `href` so it is not focusable either. */
   disabled?: boolean;

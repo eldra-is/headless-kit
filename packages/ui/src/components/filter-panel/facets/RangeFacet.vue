@@ -34,6 +34,9 @@ import Histogram from '../Histogram.vue';
 import { rangeLimits, rangeOf } from '../useFilterPanel';
 import type { RangeSliderEnd } from '../../range-slider/types';
 import type { FacetProps } from './shared';
+import { useEldraScope } from '../../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(
   defineProps<
@@ -214,7 +217,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
 </script>
 
 <template>
-  <div data-eldra-ui data-part="range" :class="rangeClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="range" :class="rangeClass">
     <!-- No visible `label` on the slider: the group's own trigger and its hidden `<legend>`
          already say "Price", and a third copy inside the body would be read as a second field
          name. The two thumbs are named explicitly instead, which is what the spec asks for
@@ -248,7 +251,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
            `<legend>` ("Price") is what says which range they belong to, and a field whose visible
            word is not in its accessible name fails 2.5.3. -->
       <template #inputs="{ step: fieldStep, disabled, commit }">
-        <div data-part="fields" :class="fieldsClass">
+        <div :data-eldra-scope="eldra.scope" data-part="fields" :class="fieldsClass">
           <CurrencyInput
             v-if="isMoney"
             v-model="typed[0]"

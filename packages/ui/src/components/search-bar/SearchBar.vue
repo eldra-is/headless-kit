@@ -28,6 +28,9 @@ import type {
   SearchSection,
   SearchSelectType,
 } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -808,7 +811,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <!-- Spec → Accessibility: "A search landmark: … `<form role="search" action="/search">`". -->
     <form
       data-part="form"

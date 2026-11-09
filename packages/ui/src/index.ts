@@ -44,6 +44,7 @@ export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
+export { default as Radio } from './components/radio/Radio.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as RangeSlider } from './components/range-slider/RangeSlider.vue';
 export { default as Rating } from './components/rating/Rating.vue';
@@ -120,6 +121,7 @@ export type {
   ButtonPart,
   ButtonProps,
   ButtonSize,
+  ButtonSpinnerPlacement,
   ButtonVariant,
 } from './components/button/types';
 export type {
@@ -234,6 +236,9 @@ export type {
   RadioGroupPart,
   RadioGroupProps,
   RadioGroupSize,
+  RadioPart,
+  RadioProps,
+  RadioValue,
 } from './components/radio/types';
 export type {
   RangeSliderEnd,
@@ -278,7 +283,12 @@ export type {
   SiteFormValue,
 } from './components/site-form/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
-export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
+export type {
+  SwitchPart,
+  SwitchProps,
+  SwitchSize,
+  SwitchSlotProps,
+} from './components/switch/types';
 export type {
   TabPanelPart,
   TabPanelProps,
@@ -298,7 +308,9 @@ export type {
   ToastProps,
   ToastVariant,
   ToasterPart,
+  ToasterPosition,
   ToasterProps,
+  ToasterToast,
 } from './components/toast/types';
 export type {
   TooltipAlign,
@@ -339,6 +351,11 @@ export {
   useEldraUiLocale,
 } from './composables/useLocale';
 
+// The marker `@eldrajs/ui/scoped.css` styles under: a wrapper calls `provideEldraScope()` and every
+// component below it renders `data-eldra-scope` on its roots and `data-eldra-slot` on the elements
+// holding the wrapper's slot content (README, "Embedding in another Tailwind app").
+export { ELDRA_SCOPE_KEY, provideEldraScope } from './composables/useEldraScope';
+
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
 // `TablerIcon`'s name rule and loader, for a page that warms its icons before it renders in the browser.
@@ -370,6 +387,9 @@ export {
   type UseFloatingOptions,
   type UseFloatingReturn,
 } from './composables/useFloating';
+// The open top-layer `<dialog>` a popup has to render inside instead of `body`, for a consumer's own
+// teleported popup (a third-party date picker) to follow the rule this package's popovers follow.
+export { topLayerDialog } from './composables/teleportTarget';
 // `headingLevel` → `<component :is>` tag, shared by every component with a `headingLevel` prop
 // (`ContentCard`, `FeatureCard`, `ProductCard`, `EmptyState`, `FormLayout`) — exported so a
 // consumer's own wrapper picks the same heading tag the same way.

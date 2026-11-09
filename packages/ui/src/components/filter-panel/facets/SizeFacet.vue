@@ -26,6 +26,9 @@ import {
 } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
 import type { FacetProps } from './shared';
+import { useEldraScope } from '../../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FacetProps>(), {
   dense: false,
@@ -127,7 +130,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
 </script>
 
 <template>
-  <div data-eldra-ui class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
     <template v-for="(group, index) in groups" :key="group.key ?? ''">
       <!-- Only a system that has a name gets a heading. A `<p>` rather than a heading element: it
            labels a grid inside a `<fieldset>` the group's own `<legend>` already names, and a

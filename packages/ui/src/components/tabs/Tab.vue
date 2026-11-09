@@ -3,9 +3,13 @@ import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TabProps>(), {
   title: undefined,
+  disabled: false,
   classes: undefined,
 });
 
@@ -23,7 +27,11 @@ const el = ref<HTMLButtonElement | null>(null);
  *  registration order match DOM order. */
 let unregister: (() => void) | undefined;
 onMounted(() => {
-  unregister = context.register({ value: props.value, focus: () => el.value?.focus() });
+  unregister = context.register({
+    value: props.value,
+    focus: () => el.value?.focus(),
+    disabled: () => props.disabled,
+  });
 });
 onBeforeUnmount(() => unregister?.());
 
@@ -31,6 +39,7 @@ const isSelected = computed(() => context.isSelected(props.value));
 const isUnderline = computed(() => context.variant.value === 'underline');
 
 function select(): void {
+  if (props.disabled) return;
   context.select(props.value);
 }
 
@@ -105,9 +114,34 @@ const PILLS = computed(() =>
   )
 );
 
-const tabClass = computed(() =>
-  partClass(cx(BASE, isUnderline.value ? UNDERLINE.value : PILLS.value), props.classes, 'tab')
+/**
+ * A disabled tab (not in the spec's States table, which has no disabled row). It borrows the
+ * package's own disabled readings rather than inventing one: unselected, `Pagination`'s disabled
+ * page (`muted` at 60%, no hover); selected, the dead "on" every other control draws (`Switch`,
+ * `Checkbox`): the selected weight is kept and the `primary` colour becomes `muted` — a `muted`
+ * underline bar, or `Button`'s disabled fill (`surface-strong`, `muted` text) for a pill.
+ */
+const UNDERLINE_DISABLED = computed(() =>
+  cx(
+    'rounded-t-sm eldra-focus-inset cursor-not-allowed',
+    isSelected.value ? 'font-semibold text-muted' : 'font-medium text-muted/60'
+  )
 );
+const PILLS_DISABLED = computed(() =>
+  cx(
+    'rounded-full border eldra-focus cursor-not-allowed',
+    isSelected.value
+      ? 'border-transparent bg-surface-strong font-semibold text-muted'
+      : 'border-border font-medium text-muted/60'
+  )
+);
+
+const stateClass = computed(() => {
+  if (props.disabled) return isUnderline.value ? UNDERLINE_DISABLED.value : PILLS_DISABLED.value;
+  return isUnderline.value ? UNDERLINE.value : PILLS.value;
+});
+
+const tabClass = computed(() => partClass(cx(BASE, stateClass.value), props.classes, 'tab'));
 
 /**
  * Spec "Tabs" → Anatomy, point 3 and → Sizes: "an underline bar … 0.1875rem tall, inset 0.5rem
@@ -123,7 +157,7 @@ const indicatorClass = computed(() =>
     cx(
       'pointer-events-none absolute inset-x-2 bottom-0 h-[0.1875rem] rounded-t-full',
       'transition-colors duration-fast ease-out',
-      isSelected.value ? 'bg-primary' : 'bg-transparent'
+      isSelected.value ? (props.disabled ? 'bg-muted' : 'bg-primary') : 'bg-transparent'
     ),
     props.classes,
     'indicator'
@@ -133,20 +167,29 @@ const indicatorClass = computed(() =>
 
 <template>
   <button
+    :data-eldra-slot="eldra.slotHost('default')"
     :id="context.tabId(value)"
     ref="el"
     type="button"
     role="tab"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="tab"
     :aria-selected="isSelected ? 'true' : 'false'"
     :aria-controls="context.panelId(value)"
+    :aria-disabled="disabled ? 'true' : undefined"
     :tabindex="isSelected ? 0 : -1"
     :class="tabClass"
     @click="select"
     @keydown="onKeydown"
   >
     <slot>{{ title }}</slot>
-    <span v-if="isUnderline" aria-hidden="true" data-part="indicator" :class="indicatorClass" />
+    <span
+      v-if="isUnderline"
+      :data-eldra-scope="eldra.scope"
+      aria-hidden="true"
+      data-part="indicator"
+      :class="indicatorClass"
+    />
   </button>
 </template>

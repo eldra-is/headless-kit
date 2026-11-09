@@ -5,6 +5,9 @@ import { cx, partClass, type ClassValue } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
 import { scopeSizes, zoomSizes } from '../../utils/sizes';
 import type { ImageCrop, ImageProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -245,6 +248,7 @@ const skeletonClass = computed(() =>
   <component
     :is="hasCaption ? 'figure' : 'div'"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :data-eldra-image-crops="cropScope"
     :class="rootClass"

@@ -103,7 +103,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `packages/ui` — `@eldrajs/ui`. The public Vue 3 core component library, built to
   `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
   (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
-  optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
+  optionally on `vee-validate` (the `./vee-validate` entry only) and `vue-i18n` (the `./vue-i18n`
+  entry only); runtime deps are
   `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/sdk` (`./format`, for every number, price, date and list it
   prints), all external in the Vite build. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
@@ -119,7 +120,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
   on another. Create your own once with `screenshots --update`, then compare against them.
-  Four CSS entries ship: `./tokens.css` (the variables),
+  Five CSS entries ship: `./tokens.css` (the variables),
   `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
   the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
   own Tailwind build reads them, with `@source './'` resolving against `dist/`), `./style.css`
@@ -127,7 +128,9 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   entry, with Tailwind's page-wide preflight) and `./components.css` (the same without it: its
   reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
   `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
-  enforced by `src/__tests__/eldraUiMarker.spec.ts`). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  enforced by `src/__tests__/eldraUiMarker.spec.ts`), and `./scoped.css` (`components.css` with its
+  theme as `--eldra-tw-*` and every rule in `@scope ([data-eldra-scope])`, stopping at slot content;
+  `scripts/scoped-css.mjs`, for embedding beside another Tailwind app). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
@@ -138,8 +141,13 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   twelve `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
   and `useFieldControl`; `src/vee-validate/**` is the only place in the package that may import
   `vee-validate`, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry loads
-  without it in both the source graph and the built `dist/`), `./messages/is-IS` (the Icelandic message set, its
-  own entry so an English-only store never bundles it), and the four CSS entries above. Text a
+  without it in both the source graph and the built `dist/`), `./vue-i18n` (`useEldraUiI18n`,
+  `eldraUiI18nMessages`, `toVueI18nMessages`, `icelandicPluralRule`: the messages read through an
+  app's vue-i18n; `SHAPES` in `src/vue-i18n/shapes.ts` maps every message function onto named values,
+  plural forms and suffixed keys, and `vue-i18n.spec.ts` proves both shipped sets print the same
+  through it; `vueI18nIsolation.spec.ts` guards the optional peer like vee-validate's),
+  `./messages/is-IS` (the Icelandic message set, its
+  own entry so an English-only store never bundles it), and the five CSS entries above. Text a
   component renders itself goes through a `messages` prop / `provideEldraUiMessages`, English
   defaults built in. Composables exported from the root are the same building blocks the package's
   own components are built on, not a separate layer over private internals, so a consumer building
@@ -237,7 +245,7 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
 - `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`,
   `icelandic-formatting.md`, `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
-  four CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
+  five CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
   starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
   `theme-*.md` docs `themes.md` links to, and `roadmap.md` (planned work; remove a line in the

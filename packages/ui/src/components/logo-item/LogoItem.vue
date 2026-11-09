@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import type { LogoItemProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<LogoItemProps>(), {
   logo: null,
@@ -144,6 +147,7 @@ const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText')
 <template>
   <li
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     :data-part="hasHref ? undefined : 'root'"
     :class="hasHref ? undefined : rootClass"
   >

@@ -84,6 +84,22 @@ describe('the focus ring owns its element transitions', () => {
     }
   );
 
+  it('draws the inset ring against the edge, with its gap inside it', () => {
+    const source = readFileSync(
+      fileURLToPath(new NodeURL('../styles/tailwind.css', import.meta.url)),
+      'utf8'
+    );
+    for (const name of ['eldra-focus-inset', 'eldra-focus-inset-always']) {
+      const start = source.indexOf(`@utility ${name} {`);
+      const rule = source.slice(start, source.indexOf('\n}', start));
+      const ring = rule.indexOf('var(--eldra-color-focus)');
+      const gap = rule.indexOf('var(--eldra-color-focus-inner)');
+      expect(ring, name).toBeGreaterThan(-1);
+      // The first shadow is painted on top: the ring's own band at the edge, the gap colour under it.
+      expect(ring, name).toBeLessThan(gap);
+    }
+  });
+
   it.runIf(built)('compiles a focus ring that fades in at full size', async () => {
     const { compile } = await import('@tailwindcss/node');
     const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {

@@ -7,7 +7,7 @@ export type InputType = 'text' | 'email' | 'tel' | 'number' | 'search' | 'url' |
 export type InputSize = 'sm' | 'md' | 'lg';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type InputPart = 'root' | 'leadingIcon' | 'control' | 'clearButton' | 'suffix';
+export type InputPart = 'root' | 'leadingIcon' | 'prefix' | 'control' | 'clearButton' | 'suffix';
 
 export interface InputProps {
   /**
@@ -27,19 +27,28 @@ export interface InputProps {
   placeholder?: string;
   /** Always set it for personal data: `name`, `email`, `address-line1`, `postal-code`… */
   autocomplete?: string;
-  /** For example `numeric`. A `number` field defaults to `numeric`. */
-  inputmode?: string;
+  /**
+   * For example `numeric`. A `number` field defaults to `numeric`; `false` renders no `inputmode`
+   * at all, for a number field that needs the full keyboard (a decimal point or a minus sign).
+   */
+  inputmode?: string | false;
   /** For `type="number"`. */
   min?: number;
   /** For `type="number"`. */
   max?: number;
   /** For `type="number"`. */
   step?: number;
-  /** A decorative icon at the start of the field (`search`, `mail`, `discount`). */
+  /**
+   * A decorative icon at the start of the field (`search`, `mail`, `discount`). Not drawn when the
+   * `prefix` slot is given, which takes the start edge.
+   */
   leadingIcon?: IconComponent;
   /** Shows the clear button while there is a value. Defaults to `true` for `type="search"`. */
   clearable?: boolean;
-  /** Sets `aria-invalid="true"` and the error boundary. Comes from the `FieldWrapper` otherwise. */
+  /**
+   * Sets `aria-invalid="true"` and the error boundary. Comes from the `FieldWrapper` otherwise.
+   * While it is not invalid, an `aria-invalid` attribute the caller passes is kept.
+   */
   invalid?: boolean;
   /** `aria-describedby` ids, error id first. Comes from the `FieldWrapper` otherwise. */
   describedBy?: string;

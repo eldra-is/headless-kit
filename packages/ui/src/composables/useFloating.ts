@@ -7,8 +7,9 @@ import {
   useFloating as useFloatingUi,
   type Middleware,
   type Placement,
+  type ReferenceElement,
 } from '@floating-ui/vue';
-import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, ref, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue';
 
 /**
  * Where the panel goes.
@@ -18,7 +19,8 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
  * `above` always opens above — the footer's selectors, where below is off-screen by definition. The
  * remaining values are `@floating-ui/dom` placements for anything that wants to be explicit —
  * `top-end`/`bottom-end` are `Tooltip`'s own `align="end"`, added alongside the `-start` pair
- * already here for `align="start"`.
+ * already here for `align="start"`. The `left`/`right` family is for a panel that opens beside its
+ * reference (a submenu, a toolbar flyout); like every explicit placement it flips to the other side.
  */
 export type FloatingPlacement =
   | 'auto'
@@ -28,13 +30,26 @@ export type FloatingPlacement =
   | 'bottom-end'
   | 'top'
   | 'top-start'
-  | 'top-end';
+  | 'top-end'
+  | 'left'
+  | 'left-start'
+  | 'left-end'
+  | 'right'
+  | 'right-start'
+  | 'right-end';
 
 export interface UseFloatingOptions {
-  /** Default `'auto'` — below, flipping above when it does not fit. */
-  placement?: FloatingPlacement;
-  /** Gap between the reference and the panel, in pixels. Default `4` (the spec's 0.25rem). */
-  offset?: number;
+  /**
+   * Default `'auto'` — below, flipping above when it does not fit. A ref or getter is followed: the
+   * panel repositions when it changes.
+   */
+  placement?: MaybeRefOrGetter<FloatingPlacement>;
+  /** Gap between the reference and the panel, in pixels. Default `4` (the spec's 0.25rem). Followed
+   *  when a ref or getter. */
+  offset?: MaybeRefOrGetter<number | undefined>;
+  /** The least room `shift` keeps between the panel and the viewport edge, in pixels. Default `8`.
+   *  Followed when a ref or getter. */
+  padding?: MaybeRefOrGetter<number | undefined>;
   /**
    * Tie the panel's width to the reference's.
    *
@@ -88,6 +103,12 @@ const RESOLVED: Record<FloatingPlacement, { placement: Placement; flip: boolean 
   top: { placement: 'top', flip: true },
   'top-start': { placement: 'top-start', flip: true },
   'top-end': { placement: 'top-end', flip: true },
+  left: { placement: 'left', flip: true },
+  'left-start': { placement: 'left-start', flip: true },
+  'left-end': { placement: 'left-end', flip: true },
+  right: { placement: 'right', flip: true },
+  'right-start': { placement: 'right-start', flip: true },
+  'right-end': { placement: 'right-end', flip: true },
 };
 
 /**
@@ -112,14 +133,17 @@ const RESOLVED: Record<FloatingPlacement, { placement: Placement; flip: boolean 
  * const panel = ref<HTMLElement | null>(null);
  * const { styles, placement } = useFloating(trigger, panel, { matchWidth: true });
  * ```
+ *
+ * The reference may be a Floating UI **virtual element** (`{ getBoundingClientRect() }`), for a
+ * panel anchored to a caret or a pointer position rather than to a node; call `update()` after it
+ * moves, since nothing observes a virtual element's geometry.
  */
 export function useFloating(
-  reference: Ref<HTMLElement | null>,
+  reference: Readonly<Ref<ReferenceElement | null>>,
   floating: Ref<HTMLElement | null>,
   options: UseFloatingOptions = {}
 ): UseFloatingReturn {
-  const resolved = RESOLVED[options.placement ?? 'auto'];
-  const shouldFlip = options.flip ?? resolved.flip;
+  const resolved = computed(() => RESOLVED[toValue(options.placement) ?? 'auto']);
   const exactWidth = options.matchWidth === 'exact';
   const matchWidth = options.matchWidth === true || exactWidth;
 
@@ -127,21 +151,24 @@ export function useFloating(
   // position is computed — reading it back off the element would measure a different frame.
   const referenceWidth = ref(0);
 
-  const middleware: Middleware[] = [offset(options.offset ?? 4)];
-  if (shouldFlip) middleware.push(flip());
-  middleware.push(shift({ padding: 8 }));
-  if (matchWidth) {
-    middleware.push(
-      size({
-        apply({ rects }) {
-          referenceWidth.value = rects.reference.width;
-        },
-      })
-    );
-  }
+  const middleware = computed<Middleware[]>(() => {
+    const list: Middleware[] = [offset(toValue(options.offset) ?? 4)];
+    if (options.flip ?? resolved.value.flip) list.push(flip());
+    list.push(shift({ padding: toValue(options.padding) ?? 8 }));
+    if (matchWidth) {
+      list.push(
+        size({
+          apply({ rects }) {
+            referenceWidth.value = rects.reference.width;
+          },
+        })
+      );
+    }
+    return list;
+  });
 
   const position = useFloatingUi(reference, floating, {
-    placement: resolved.placement,
+    placement: computed(() => resolved.value.placement),
     strategy: options.strategy ?? 'absolute',
     transform: false,
     middleware,

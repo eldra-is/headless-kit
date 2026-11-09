@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { fadeInChangedValue } from '../../utils/valueFade';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * One value's text, with the refresh fade attached to it: `Price`'s amount and compare-at,
@@ -69,5 +72,5 @@ watch(
 </script>
 
 <template>
-  <span data-eldra-ui ref="spanRef">{{ text }}</span>
+  <span data-eldra-ui ref="spanRef" :data-eldra-scope="eldra.scope">{{ text }}</span>
 </template>

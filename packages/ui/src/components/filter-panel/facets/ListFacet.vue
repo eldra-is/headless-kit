@@ -32,6 +32,9 @@ import {
 } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
 import { FACET_COUNT, FACET_ROW_GUTTER, FACET_ROW_HOVER, type FacetProps } from './shared';
+import { useEldraScope } from '../../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FacetProps>(), {
   dense: false,
@@ -135,7 +138,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
 </script>
 
 <template>
-  <div data-eldra-ui class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
     <!-- Spec → Accessibility, Long lists: `<input type="search">` labelled "Search material
          values", placeholder "Search material", `aria-controls` pointing at the list. `Input`
          gives a `type="search"` field its clear button on its own. -->
@@ -155,6 +158,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
         <template #leadingIcon>
           <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named above. -->
           <svg
+            :data-eldra-scope="eldra.scope"
             class="size-4"
             viewBox="0 0 24 24"
             fill="none"
@@ -186,8 +190,10 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           }"
           @change="emit('toggle', row.value.value, $event)"
         >
-          <span class="min-w-0">{{ row.value.label }}</span>
-          <span data-part="count" :class="countClass">{{ row.value.count }}</span>
+          <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ row.value.label }}</span>
+          <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
+            row.value.count
+          }}</span>
         </Checkbox>
 
         <div
@@ -210,8 +216,10 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
             }"
             @change="emit('toggle', child.value, $event)"
           >
-            <span class="min-w-0">{{ child.label }}</span>
-            <span data-part="count" :class="countClass">{{ child.count }}</span>
+            <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ child.label }}</span>
+            <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
+              child.count
+            }}</span>
           </Checkbox>
         </div>
       </template>
@@ -244,6 +252,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
       {{ expanded ? m.filterPanelShowFewer : m.filterPanelShowAll(total) }}
       <template #trailingIcon>
         <svg
+          :data-eldra-scope="eldra.scope"
           class="duration-base size-4 transition-[rotate] ease-out motion-reduce:transition-none"
           :class="expanded ? 'rotate-180' : ''"
           viewBox="0 0 24 24"

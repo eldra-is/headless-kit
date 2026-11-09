@@ -20,6 +20,9 @@ import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { supportsFocusVisible } from './supportsFocusVisible';
 import type { TooltipProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * A short text label that names an icon-only trigger on hover and keyboard focus (spec "Tooltip").
@@ -454,6 +457,8 @@ const arrowStyle = computed<Record<string, string>>(() => ({
   <span
     ref="rootRef"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    :data-eldra-slot="eldra.slotHost('default')"
     data-part="root"
     :class="rootClass"
     @mouseenter="onRootMouseEnter"
@@ -472,6 +477,7 @@ const arrowStyle = computed<Record<string, string>>(() => ({
         ref="bubbleRef"
         role="tooltip"
         data-eldra-ui
+        :data-eldra-scope="eldra.scope"
         data-part="bubble"
         :data-placement="resolvedPlacement"
         :class="bubbleClass"

@@ -23,6 +23,9 @@ import { swatchInk } from '../swatchInk';
 import { isValueDisabled, isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
 import { FACET_COUNT, FACET_ROW_HOVER, FACET_SWATCH_GUTTER, type FacetProps } from './shared';
+import { useEldraScope } from '../../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FacetProps>(), {
   dense: false,
@@ -195,7 +198,7 @@ const valuesClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="values" :class="valuesClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="values" :class="valuesClass">
     <label
       v-for="value in values"
       :key="value.value"

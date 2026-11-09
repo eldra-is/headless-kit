@@ -116,6 +116,15 @@ function focusOut(from: Element, to: Element | null): void {
 // -------------------------------------------------------------------------------------------
 
 describe('MultiSelect — anatomy and parts', () => {
+  it('keeps at least the placeholder`s width once a value is chosen, adding no text', () => {
+    const wrapper = mount({ modelValue: ['sweaters'], placeholder: 'Choose categories' });
+    const stack = trigger(wrapper).querySelector('[data-part="summary"]')!.parentElement!;
+    expect(stack.getAttribute('data-placeholder')).toBe('Choose categories');
+    expect(stack.className).toContain('after:content-[attr(data-placeholder)]');
+    expect(stack.className).toContain('after:invisible');
+    expect(trigger(wrapper).textContent).not.toContain('Choose categories');
+  });
+
   it('renders a combobox trigger over a hidden native multiple select', () => {
     const wrapper = mount({ name: 'categories' });
     expect(wrapper.attributes('data-part')).toBe('root');
@@ -206,10 +215,11 @@ describe('MultiSelect — the listbox and its checkboxes', () => {
     // Every row draws a box; only the selected one is filled, and it holds the tick.
     const boxes = panel(wrapper).findAll('[data-part="optionCheck"]');
     expect(boxes).toHaveLength(CATEGORIES.length);
-    expect(boxes[1]?.classes()).toContain('bg-primary');
+    const FILLED = 'bg-[color:var(--eldra-select-panel-check,var(--color-primary))]';
+    expect(boxes[1]?.classes()).toContain(FILLED);
     // The tick is always drawn and scaled, so it can grow in over `duration-fast`.
     expect(boxes[1]?.find('svg').classes()).toContain('scale-100');
-    expect(boxes[0]?.classes()).not.toContain('bg-primary');
+    expect(boxes[0]?.classes()).not.toContain(FILLED);
     expect(boxes[0]?.find('svg').classes()).toContain('scale-0');
     // Selection is the box, not the check mark a single select ends its row with.
     expect(boxes[1]?.attributes('aria-hidden')).toBe('true');
@@ -737,6 +747,47 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
     expect(panel(wrapper).findAll('[data-testid="row"]')[0]?.text()).toBe('Sweaters/true');
   });
 
+  const TAG_ITEM =
+    '<span data-testid="own-chip">{{ params.option.label }}' +
+    '<button v-if="params.removable" type="button" data-testid="own-remove" ' +
+    ':aria-label="params.removeLabel" @click="params.remove">x</button></span>';
+
+  it('replaces the whole tag, remove button included, with tagItem', () => {
+    const wrapper = mount({ modelValue: ['sweaters', 'mugs'] }, { slots: { tagItem: TAG_ITEM } });
+    expect(tags(wrapper)).toHaveLength(2);
+    expect(wrapper.findAll('[data-testid="own-chip"]')[0]?.text()).toContain('Sweaters');
+    expect(wrapper.find('[data-part="tagRemove"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="own-remove"]').attributes('aria-label')).toBe(
+      enUS.removeTag('Sweaters')
+    );
+    // The `<li>` no longer draws a chip of its own.
+    expect(tags(wrapper)[0]?.classes()).not.toContain('pe-0.5');
+  });
+
+  it("removes through tagItem's remove and returns focus to the trigger", async () => {
+    const wrapper = mount({ modelValue: ['sweaters', 'mugs'] }, { slots: { tagItem: TAG_ITEM } });
+    const remove = wrapper.find('[data-testid="own-remove"]').element as HTMLButtonElement;
+    remove.focus();
+    remove.click();
+    await flush();
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([['mugs']]);
+    expect(document.activeElement).toBe(trigger(wrapper));
+  });
+
+  it.each(['disabled', 'readonly'])('tells tagItem the tag is not removable when %s', (state) => {
+    const wrapper = mount(
+      { modelValue: ['sweaters'], [state]: true },
+      { slots: { tagItem: TAG_ITEM } }
+    );
+    expect(wrapper.find('[data-testid="own-chip"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="own-remove"]').exists()).toBe(false);
+  });
+
+  it('has no axe violations with tagItem', async () => {
+    mount({ modelValue: ['sweaters', 'mugs'] }, { slots: { tagItem: TAG_ITEM } });
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
   it('takes its own message overrides', async () => {
     const wrapper = mount({
       modelValue: ['sweaters', 'cardigans', 'mugs'],
@@ -988,5 +1039,174 @@ describe('MultiSelect — the ring while the popover is open', () => {
     await press(triggerOf(wrapper));
     expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('true');
     expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+  });
+});
+
+describe('MultiSelect — tags inside the field', () => {
+  const INSIDE = { tagPlacement: 'inside' as const };
+  const field = (wrapper: Mounted) => wrapper.find('[data-part="field"]');
+
+  it('draws the tags and then the trigger inside one field, with no summary or list below', () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters', 'mugs'] });
+    const children = [...field(wrapper).element.children].map((el) => el.getAttribute('data-part'));
+    expect(children.slice(0, 2)).toEqual(['tags', 'trigger']);
+    expect(
+      field(wrapper)
+        .findAll('[data-part="tag"]')
+        .map((tag) => tag.text())
+    ).toEqual(['Sweaters', 'Mugs & cups']);
+    expect(wrapper.find('[data-part="summary"]').exists()).toBe(false);
+    expect(wrapper.findAll('[data-part="tags"]')).toHaveLength(1);
+    // The list keeps its role and name while `display: contents` lays its chips into the field.
+    const list = field(wrapper).find('[data-part="tags"]');
+    expect(list.attributes('role')).toBe('list');
+    expect(list.classes()).toContain('contents');
+  });
+
+  it('shows the placeholder in the trigger only while nothing is chosen', async () => {
+    const wrapper = mount({ ...INSIDE, modelValue: [], placeholder: 'Any category' });
+    expect(triggerOf(wrapper).find('[data-part="placeholder"]').text()).toBe('Any category');
+    await wrapper.setProps({ modelValue: ['sweaters'] });
+    expect(triggerOf(wrapper).find('[data-part="placeholder"]').exists()).toBe(false);
+  });
+
+  it('removes a tag from its button and returns focus to the trigger', async () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters', 'mugs'] });
+    await field(wrapper).find('[data-part="tagRemove"]').trigger('click');
+    await flush();
+    expect(wrapper.emitted('change')).toEqual([[['mugs']]]);
+    expect(document.activeElement).toBe(trigger(wrapper));
+  });
+
+  it('takes the last tag off with Backspace on the closed trigger; Delete still clears', async () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters', 'mugs'] });
+    trigger(wrapper).focus();
+    const event = await key(trigger(wrapper), { key: 'Backspace' });
+    expect(event.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('change')).toEqual([[['sweaters']]]);
+
+    const cleared = mount({ ...INSIDE, modelValue: ['sweaters', 'mugs'] });
+    trigger(cleared).focus();
+    await key(trigger(cleared), { key: 'Delete' });
+    expect(cleared.emitted('change')).toEqual([[[]]]);
+  });
+
+  it('opens from a press on the field around the tags, and not from a tag', async () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters'] });
+    await field(wrapper).find('[data-part="tag"]').trigger('pointerdown', { button: 0 });
+    await flush();
+    expect(trigger(wrapper).getAttribute('aria-expanded')).toBe('false');
+
+    await field(wrapper).trigger('pointerdown', { button: 0 });
+    await flush();
+    expect(trigger(wrapper).getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('keeps a press on a tag inside the open panel`s overlay', async () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters'] });
+    expect(field(wrapper).attributes('data-eldra-overlay-owner')).toBe(
+      `${trigger(wrapper).id}-panel`
+    );
+  });
+
+  it('keeps tags read-only when disabled or read-only', () => {
+    const wrapper = mount({ ...INSIDE, modelValue: ['sweaters'], readonly: true });
+    expect(field(wrapper).find('[data-part="tag"]').exists()).toBe(true);
+    expect(field(wrapper).find('[data-part="tagRemove"]').exists()).toBe(false);
+    expect(field(wrapper).find('[data-part="chevron"]').exists()).toBe(false);
+  });
+
+  it('leaves the default layout alone', () => {
+    const wrapper = mount({ modelValue: ['sweaters'] });
+    expect(wrapper.find('[data-part="field"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="summary"]').exists()).toBe(true);
+  });
+
+  it('has no axe violations', async () => {
+    mount({ ...INSIDE, modelValue: ['sweaters', 'mugs'] });
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+});
+
+describe('MultiSelect — a disabled option`s tag', () => {
+  const OPTIONS: SelectOption[] = [
+    { value: 'fixed', label: 'Fixed', disabled: true },
+    { value: 'free', label: 'Free' },
+  ];
+
+  it('has no remove button, in either placement, and Backspace skips it', async () => {
+    for (const tagPlacement of ['below', 'inside'] as const) {
+      const wrapper = mount({ options: OPTIONS, modelValue: ['free', 'fixed'], tagPlacement });
+      const tags = wrapper.findAll('[data-part="tag"]');
+      expect(tags.map((tag) => tag.find('[data-part="tagRemove"]').exists())).toEqual([
+        true,
+        false,
+      ]);
+    }
+
+    const wrapper = mount({
+      options: OPTIONS,
+      modelValue: ['free', 'fixed'],
+      tagPlacement: 'inside',
+    });
+    trigger(wrapper).focus();
+    await key(trigger(wrapper), { key: 'Backspace' });
+    expect(wrapper.emitted('change')).toEqual([[['fixed']]]);
+  });
+});
+
+describe('MultiSelect — a tag longer than its row', () => {
+  it('can shrink so its label truncates, in either placement', () => {
+    for (const tagPlacement of ['below', 'inside'] as const) {
+      const wrapper = mount({ modelValue: ['sweaters'], tagPlacement });
+      const tag = wrapper.find('[data-part="tag"]');
+      expect(tag.classes(), tagPlacement).toEqual(
+        expect.arrayContaining(['min-w-0', 'max-w-full'])
+      );
+      expect(tag.find('span').classes(), tagPlacement).toContain('truncate');
+      expect(tag.find('[data-part="tagRemove"]').classes(), tagPlacement).toContain('shrink-0');
+    }
+  });
+});
+
+describe('MultiSelect — inside tags over the trigger', () => {
+  it('stacks every tag and the "+N" above the trigger lying under them', () => {
+    const wrapper = mount({ tagPlacement: 'inside', modelValue: ['sweaters', 'mugs'] });
+    expect(wrapper.find('[data-part="field"]').classes()).toContain('isolate');
+    expect(triggerOf(wrapper).classes()).toEqual(expect.arrayContaining(['absolute', 'inset-0']));
+    for (const tag of wrapper.findAll('[data-part="tag"]')) {
+      expect(tag.classes()).toEqual(expect.arrayContaining(['relative', 'z-1']));
+    }
+  });
+});
+
+describe('MultiSelect — a disabled option in the panel', () => {
+  it('is muted with no strikethrough, and its chosen box is the disabled checked box', async () => {
+    const wrapper = mount({
+      options: [
+        { value: 'fixed', label: 'Fixed', disabled: true },
+        { value: 'free', label: 'Free' },
+      ],
+      modelValue: ['fixed', 'free'],
+    });
+    await press(triggerOf(wrapper));
+    const [fixed, free] = optionEls(wrapper);
+    expect(fixed!.classes()).toContain('cursor-not-allowed');
+    expect(fixed!.find('[data-part="optionLabel"]').classes()).not.toContain('line-through');
+    expect(fixed!.find('[data-part="optionCheck"]').classes()).toEqual(
+      expect.arrayContaining(['bg-muted', 'border-muted'])
+    );
+    expect(free!.find('[data-part="optionCheck"]').classes()).not.toContain('bg-muted');
+  });
+});
+
+describe('MultiSelect — the panel search field', () => {
+  it('draws no focus ring, since it holds focus the whole time the panel is open', async () => {
+    const wrapper = mount({ options: [{ value: 'a', label: 'A' }], searchable: true });
+    await press(triggerOf(wrapper));
+    const classes = [...search(wrapper).classList];
+    expect(classes.filter((name) => name.startsWith('eldra-focus'))).toEqual([]);
+    expect(classes).toContain('outline-none');
   });
 });

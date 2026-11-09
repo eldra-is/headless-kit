@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { computed, nextTick } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Comment, computed, defineComponent, h, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
@@ -621,6 +621,84 @@ describe('Checkbox — accessibility', () => {
   });
 });
 
+describe('Checkbox — a box with nothing to label', () => {
+  function rootOf(wrapper: Finder): HTMLElement {
+    return wrapper.find('[data-part="root"]').element as HTMLElement;
+  }
+
+  it('keeps the label column and gap whenever there is a label', () => {
+    const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
+    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
+    expect(rootOf(wrapper).className).toContain('gap-x-2.5');
+    expect(wrapper.find('[data-part="label"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('keeps them for a hint without a label, so the hint stays in its column', () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { hint: 'Pre-softened' },
+      attrs: { 'aria-label': 'Linen' },
+    });
+    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
+    expect(wrapper.find('[data-part="label"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('collapses to the box alone with no label and no hint, named by aria-label', () => {
+    const wrapper = mountWith(Checkbox, { attrs: { 'aria-label': 'Select Merino crew sweater' } });
+    const className = rootOf(wrapper).className;
+    expect(className).toContain('grid-cols-[auto]');
+    expect(className).toContain('gap-x-0');
+    expect(className).not.toContain('grid-cols-[auto_1fr]');
+    expect(className).not.toContain('gap-x-2.5');
+    expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
+    expect(input(wrapper).getAttribute('aria-label')).toBe('Select Merino crew sweater');
+    wrapper.unmount();
+  });
+
+  it('collapses when the default slot renders nothing (a v-if that is false)', async () => {
+    const Host = defineComponent({
+      props: { label: { type: String, default: undefined } },
+      setup(hostProps) {
+        return () =>
+          h(
+            Checkbox,
+            { 'aria-label': 'Select row' },
+            { default: () => (hostProps.label ? [h('span', hostProps.label)] : [h(Comment)]) }
+          );
+      },
+    });
+    const wrapper = mountWith(Host);
+    expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
+    await wrapper.setProps({ label: 'Row 1' });
+    expect(wrapper.find('[data-part="label"]').text()).toBe('Row 1');
+    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
+    wrapper.unmount();
+  });
+
+  it('warns in development when a box-only checkbox has no accessible name', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const unnamed = mountWith(Checkbox);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('<Checkbox> has no label'));
+    unnamed.unmount();
+    warn.mockClear();
+    const named = mountWith(Checkbox, { attrs: { 'aria-label': 'Select row' } });
+    const labelled = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
+    expect(warn).not.toHaveBeenCalled();
+    named.unmount();
+    labelled.unmount();
+    warn.mockRestore();
+  });
+
+  it('is axe-clean box-only, unchecked, checked and disabled', async () => {
+    for (const props of [{}, { modelValue: true }, { disabled: true }]) {
+      const wrapper = mountWith(Checkbox, { props, attrs: { 'aria-label': 'Select row' } });
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+});
+
 describe('CheckboxGroup — element and parts', () => {
   it('is a fieldset with a legend, its options and a data-part on every part', () => {
     const wrapper = mountWith(CheckboxGroup, {
@@ -1153,6 +1231,66 @@ describe('CheckboxGroup — the shared error row', () => {
       normalise(wrapper.find('[data-part="error"]').html())
     );
     group.unmount();
+    wrapper.unmount();
+  });
+});
+
+describe('Checkbox — requiredMark and error', () => {
+  it('renders exactly the row as root without either', () => {
+    const wrapper = mountWith(Checkbox, { slots: { default: 'Accept the terms' } });
+    expect(wrapper.element.tagName).toBe('LABEL');
+    expect(wrapper.find('[data-part="field"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("draws FieldWrapper's mark after the label, with a hidden Required when not native required", async () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { requiredMark: true },
+      slots: { default: 'Accept the terms' },
+    });
+    const label = wrapper.find('[data-part="label"]');
+    expect(label.find('[data-part="requiredMark"]').attributes('aria-hidden')).toBe('true');
+    expect(label.text()).toBe('Accept the terms*Required');
+    expect(wrapper.find('input').attributes('required')).toBeUndefined();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('drops the hidden Required when native required announces it', () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { requiredMark: true, required: true },
+      slots: { default: 'Accept the terms' },
+    });
+    expect(wrapper.find('[data-part="label"]').text()).toBe('Accept the terms*');
+    wrapper.unmount();
+  });
+
+  it('draws the error row outside the label, linked first and marking the box invalid', async () => {
+    const wrapper = mountWith(Checkbox, {
+      props: { error: 'Accept the terms to continue.', describedBy: 'note' },
+      slots: { default: 'Accept the terms' },
+    });
+    const field = wrapper.find('[data-part="field"]');
+    expect(field.exists()).toBe(true);
+    expect(field.attributes('data-eldra-ui')).toBeDefined();
+    const error = field.find('[data-part="error"]');
+    expect(error.text()).toBe('Accept the terms to continue.');
+    expect(wrapper.find('label').element.contains(error.element)).toBe(false);
+    const input = wrapper.find('input');
+    expect(input.attributes('aria-invalid')).toBe('true');
+    expect(input.attributes('aria-describedby')).toBe(`${error.attributes('id')} note`);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('keeps its own label inside a FieldWrapper with no visible label', async () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { error: 'Accept the terms to continue.' },
+      slots: { default: () => h(Checkbox, null, () => 'Accept the terms') },
+    });
+    expect(wrapper.find('label [data-part="label"]').text()).toBe('Accept the terms');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

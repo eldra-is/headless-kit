@@ -19,6 +19,9 @@ import Switch from '../../switch/Switch.vue';
 import { isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
 import { FACET_COUNT, type FacetProps } from './shared';
+import { useEldraScope } from '../../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FacetProps>(), {
   dense: false,
@@ -55,7 +58,7 @@ const countClass = computed(() => partClass(FACET_COUNT, props.classes, 'count')
 </script>
 
 <template>
-  <div data-eldra-ui data-part="values" :class="valuesClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="values" :class="valuesClass">
     <div
       v-for="value in values"
       :key="value.value"

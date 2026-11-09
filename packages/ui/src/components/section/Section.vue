@@ -3,6 +3,9 @@ import { computed, inject, provide, watchEffect } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { SECTION_KEY } from './context';
 import type { SectionBackground, SectionProps, SectionSpacing } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<SectionProps>(), {
   background: 'none',
@@ -115,7 +118,9 @@ const rootClass = computed(() =>
 <template>
   <component
     :is="rootTag"
+    :data-eldra-slot="eldra.slotHost('default')"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :data-section-bg="background"
     :data-section="inverts ? background : undefined"

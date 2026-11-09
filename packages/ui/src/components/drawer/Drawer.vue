@@ -22,6 +22,9 @@ import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import type { DrawerProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<DrawerProps>(), {
   modelValue: undefined,
@@ -256,6 +259,7 @@ const footerClass = computed(() =>
   <dialog
     ref="dialogEl"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-labelledby="title ? titleId : undefined"
@@ -264,8 +268,14 @@ const footerClass = computed(() =>
   >
     <div data-part="panel" :class="panelClass" :style="panelStyle">
       <div data-part="header" :class="headerClass">
-        <div :class="titleAreaClass">
-          <h2 v-if="title" :id="titleId" data-part="title" :class="titleClass">
+        <div :data-eldra-slot="eldra.slotHost('header')" :class="titleAreaClass">
+          <h2
+            v-if="title"
+            :data-eldra-scope="eldra.scope"
+            :id="titleId"
+            data-part="title"
+            :class="titleClass"
+          >
             {{ title }}
             <span v-if="count != null" data-part="count" :class="countClass">({{ count }})</span>
           </h2>
@@ -297,11 +307,16 @@ const footerClass = computed(() =>
         </button>
       </div>
 
-      <div data-part="body" :class="bodyClass">
+      <div :data-eldra-slot="eldra.slotHost('default')" data-part="body" :class="bodyClass">
         <slot />
       </div>
 
-      <div v-if="slots.footer" data-part="footer" :class="footerClass">
+      <div
+        v-if="slots.footer"
+        :data-eldra-slot="eldra.slotHost('footer')"
+        data-part="footer"
+        :class="footerClass"
+      >
         <slot name="footer" />
       </div>
     </div>

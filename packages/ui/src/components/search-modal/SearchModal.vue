@@ -48,6 +48,9 @@ import type {
   SearchSection,
   SearchSelectType,
 } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -849,6 +852,7 @@ const showClear = computed(() => text.value.length > 0);
   <dialog
     ref="dialogEl"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-label="accessibleName"

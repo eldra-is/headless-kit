@@ -6,6 +6,9 @@ import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { StockBadgeProps, StockLevel } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<StockBadgeProps>(), {
   quantity: undefined,
@@ -130,6 +133,7 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
 <template>
   <span
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-busy="revalidating ? 'true' : undefined"

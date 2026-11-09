@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, inject, useSlots } from 'vue';
+import { computed, h, inject, useSlots, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
+import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
-import type { SwitchProps, SwitchSize } from './types';
+import FieldError from '../field-wrapper/FieldError.vue';
+import RequiredMark from '../field-wrapper/RequiredMark.vue';
+import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
+import type { SwitchProps, SwitchSize, SwitchSlotProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -13,6 +20,9 @@ const props = withDefaults(defineProps<SwitchProps>(), {
   size: 'md',
   description: undefined,
   disabled: false,
+  requiredMark: false,
+  error: undefined,
+  invalid: false,
   id: undefined,
   name: undefined,
   classes: undefined,
@@ -22,6 +32,19 @@ const emit = defineEmits<{
   'update:modelValue': [checked: boolean];
   /** Spec "Switch" → Events: "`change`: fires with the new boolean after each toggle." */
   change: [checked: boolean];
+}>();
+
+defineSlots<{
+  /** The label. */
+  default?: () => unknown;
+  /** The second line under the label; `description` is its fallback. */
+  description?: () => unknown;
+  /** Replaces what the thumb draws (the check icon when on, nothing when off). */
+  thumb?: (props: SwitchSlotProps) => unknown;
+  /** Drawn on the track where the thumb rests when off, so it shows while the switch is on. */
+  trackStart?: (props: SwitchSlotProps) => unknown;
+  /** Drawn on the track where the thumb rests when on, so it shows while the switch is off. */
+  trackEnd?: (props: SwitchSlotProps) => unknown;
 }>();
 
 const slots = useSlots();
@@ -41,7 +64,8 @@ const field = inject(FIELD_KEY, null);
  * twice (once by the wrapper's `<label for>`, once by the switch's own content).
  */
 const isNamedByField = computed(
-  () => props.id === undefined && field?.value.labelsControl === true
+  () =>
+    props.id === undefined && field?.value.labelsControl === true && field.value.labelled !== false
 );
 
 /** The id. Taken from the field context only when that context labels its control (see above). */
@@ -61,9 +85,33 @@ const hasDescription = computed(
  * description — own id first, so it is what a screen reader hears first, then whatever the field
  * context adds.
  */
+const errorId = computed(() => `${controlId.value}-error`);
+const hasError = computed(() => Boolean(props.error));
+/** In error with a message (`error`) or without one (`invalid`), RadioGroup's own split. */
+const inError = computed(() => hasError.value || props.invalid);
 const describedBy = computed(() =>
-  joinIds(hasDescription.value && descriptionId.value, field?.value.describedBy)
+  joinIds(
+    hasError.value && errorId.value,
+    hasDescription.value && descriptionId.value,
+    field?.value.describedBy
+  )
 );
+const m = useMessages();
+
+/** The error row follows the switch (and its hidden mirror input) only when there is an error, so
+ *  a switch without one renders exactly the two nodes it always has. */
+const WithError: FunctionalComponent = (_props, { slots: own }) => {
+  const content = own.default?.() ?? [];
+  if (!hasError.value) return content;
+  return [
+    ...content,
+    h(
+      FieldError,
+      { id: errorId.value, rowClass: 'mt-1', classes: props.classes },
+      () => props.error
+    ),
+  ];
+};
 
 /** Controlled when the parent binds `modelValue`, self-managing when it does not. */
 const model = useControllableModel<boolean>(props, emit, () => false);
@@ -157,18 +205,54 @@ const THUMB_TRAVEL: Record<SwitchSize, string> = { md: 'translate-x-5', sm: 'tra
 /** Fill only changes with on/off, not with disabled (spec's States table repeats it unchanged). */
 const THUMB_OFF = 'bg-border-strong';
 const THUMB_ON = 'bg-primary-contrast text-primary';
+/** Ink for `thumb` slot content on the off thumb, which has no text colour of its own: `background`
+ *  on `border-strong` is the spec's own 4.5:1 pair. Only added when the slot is filled. */
+const THUMB_OFF_INK = 'text-background';
 
 const thumbClass = computed(() =>
   partClass(
     cx(
       THUMB_BASE,
       THUMB_SIZE[props.size],
-      model.value ? cx(THUMB_ON, THUMB_TRAVEL[props.size]) : THUMB_OFF
+      model.value
+        ? cx(THUMB_ON, THUMB_TRAVEL[props.size])
+        : cx(THUMB_OFF, slots.thumb !== undefined && THUMB_OFF_INK)
     ),
     props.classes,
     'thumb'
   )
 );
+
+const slotProps = computed<SwitchSlotProps>(() => ({
+  checked: model.value,
+  disabled: props.disabled,
+}));
+
+/**
+ * The `trackStart`/`trackEnd` boxes: the thumb's own size at the thumb's own two rest positions
+ * (the same offset, and the same travel for the end one), so track content sits exactly where the
+ * thumb is not and the thumb, painted after them, covers the one it rests on. Ink: on the `primary`
+ * track `primary-contrast`; off, and on a disabled track, `muted`.
+ */
+const TRACK_SLOT_BASE =
+  'pointer-events-none absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center ' +
+  'eldra-switch-thumb-offset';
+
+function trackSlotClass(end: boolean, part: 'trackStart' | 'trackEnd'): string {
+  return partClass(
+    cx(
+      TRACK_SLOT_BASE,
+      THUMB_SIZE[props.size],
+      end && THUMB_TRAVEL[props.size],
+      model.value && !props.disabled ? 'text-primary-contrast' : 'text-muted'
+    ),
+    props.classes,
+    part
+  );
+}
+
+const trackStartClass = computed(() => trackSlotClass(false, 'trackStart'));
+const trackEndClass = computed(() => trackSlotClass(true, 'trackEnd'));
 
 /** Spec "Switch" → Sizes: check icon 0.75rem/3px stroke at `md`, 0.625rem at `sm`. */
 const CHECK_SIZE: Record<SwitchSize, string> = { md: 'size-3', sm: 'size-2.5' };
@@ -205,56 +289,97 @@ const descriptionClass = computed(() =>
 </script>
 
 <template>
-  <button
-    type="button"
-    role="switch"
-    data-eldra-ui
-    data-part="root"
-    v-bind="$attrs"
-    :id="controlId"
-    :class="rootClass"
-    :aria-checked="model ? 'true' : 'false'"
-    :aria-describedby="describedBy"
-    :disabled="disabled || undefined"
-    @click="toggle"
-  >
-    <span data-part="track" :class="trackClass">
-      <span data-part="thumb" :class="thumbClass">
-        <svg
-          v-if="model"
-          :class="checkClass"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M2.5 6.5l2.5 2.5l4.5 -5.5" />
-        </svg>
-      </span>
-    </span>
-    <span v-if="!isNamedByField" data-part="label" :class="labelClass"><slot /></span>
-    <span
-      v-if="hasDescription"
-      :id="descriptionId"
-      data-part="description"
-      aria-hidden="true"
-      :class="descriptionClass"
+  <WithError>
+    <button
+      type="button"
+      role="switch"
+      data-eldra-ui
+      :data-eldra-scope="eldra.scope"
+      data-part="root"
+      v-bind="$attrs"
+      :id="controlId"
+      :class="rootClass"
+      :aria-checked="model ? 'true' : 'false'"
+      :aria-describedby="describedBy"
+      :aria-invalid="inError ? 'true' : undefined"
+      :disabled="disabled || undefined"
+      @click="toggle"
     >
-      <slot name="description">{{ description }}</slot>
-    </span>
-  </button>
-  <input
-    data-eldra-ui
-    type="checkbox"
-    hidden
-    tabindex="-1"
-    aria-hidden="true"
-    :name="name"
-    :checked="model"
-    :disabled="disabled || undefined"
-  />
+      <span data-part="track" :class="trackClass">
+        <span
+          v-if="$slots.trackStart"
+          :data-eldra-slot="eldra.slotHost('trackStart')"
+          data-part="trackStart"
+          aria-hidden="true"
+          :class="trackStartClass"
+        >
+          <slot name="trackStart" v-bind="slotProps" />
+        </span>
+        <span
+          v-if="$slots.trackEnd"
+          :data-eldra-slot="eldra.slotHost('trackEnd')"
+          data-part="trackEnd"
+          aria-hidden="true"
+          :class="trackEndClass"
+        >
+          <slot name="trackEnd" v-bind="slotProps" />
+        </span>
+        <span data-part="thumb" :class="thumbClass">
+          <span
+            v-if="$slots.thumb"
+            :data-eldra-slot="eldra.slotHost('thumb')"
+            aria-hidden="true"
+            class="pointer-events-none inline-flex"
+          >
+            <slot name="thumb" v-bind="slotProps" />
+          </span>
+          <svg
+            v-else-if="model"
+            :class="checkClass"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M2.5 6.5l2.5 2.5l4.5 -5.5" />
+          </svg>
+        </span>
+      </span>
+      <span
+        v-if="!isNamedByField"
+        :data-eldra-slot="eldra.slotHost('default')"
+        data-part="label"
+        :class="labelClass"
+        ><slot /><RequiredMark v-if="requiredMark" :classes="classes" /><VisuallyHidden
+          v-if="requiredMark"
+          >{{ m.required }}</VisuallyHidden
+        ></span
+      >
+      <span
+        v-if="hasDescription"
+        :data-eldra-slot="eldra.slotHost('description')"
+        :id="descriptionId"
+        data-part="description"
+        aria-hidden="true"
+        :class="descriptionClass"
+      >
+        <slot name="description">{{ description }}</slot>
+      </span>
+    </button>
+    <input
+      data-eldra-ui
+      :data-eldra-scope="eldra.scope"
+      type="checkbox"
+      hidden
+      tabindex="-1"
+      aria-hidden="true"
+      :name="name"
+      :checked="model"
+      :disabled="disabled || undefined"
+    />
+  </WithError>
 </template>

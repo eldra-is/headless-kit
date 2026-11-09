@@ -41,6 +41,10 @@
       "types": "./dist/vee-validate/index.d.ts",
       "import": "./dist/vee-validate.js"
     },
+    "./vue-i18n": {
+      "types": "./dist/vue-i18n/index.d.ts",
+      "import": "./dist/vue-i18n.js"
+    },
     "./messages/is-IS": {
       "types": "./dist/messages/is-IS.d.ts",
       "import": "./dist/messages/is-IS.js"
@@ -49,6 +53,7 @@
     "./tailwind.css": "./dist/tailwind.css",
     "./style.css": "./dist/style.css",
     "./components.css": "./dist/components.css",
+    "./scoped.css": "./dist/scoped.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -88,6 +93,9 @@
     "happy-dom": "^21.0.4",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
+    "postcss": "^8.5.32",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0",
     "storybook": "^10.2.19",
     "tailwindcss": "^4.1.14",
     "vee-validate": "^4.15.0",
@@ -95,14 +103,19 @@
     "vite-plugin-dts": "^5.1.0",
     "vitest-axe": "^0.1.0",
     "vue": "^3.5.30",
+    "vue-i18n": "^11.4.16",
     "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
     "vee-validate": "^4.12.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "vue-i18n": "^11.0.0"
   },
   "peerDependenciesMeta": {
     "vee-validate": {
+      "optional": true
+    },
+    "vue-i18n": {
       "optional": true
     }
   },

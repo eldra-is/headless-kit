@@ -4,6 +4,9 @@ import { cx, partClass } from '../../utils/cx';
 import { useMessages } from '../../composables/useMessages';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { LinkProps, LinkTone } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<LinkProps>(), {
   href: undefined,
@@ -140,8 +143,17 @@ const externalIconClass = computed(() =>
 </script>
 
 <template>
-  <component :is="tag" data-eldra-ui data-part="root" :class="rootClass" v-bind="rootAttrs">
-    <span data-part="label" :class="labelClass"><slot /></span>
+  <component
+    :is="tag"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    v-bind="rootAttrs"
+  >
+    <span :data-eldra-slot="eldra.slotHost('default')" data-part="label" :class="labelClass"
+      ><slot
+    /></span>
     <svg
       v-if="showArrow"
       data-part="arrow"

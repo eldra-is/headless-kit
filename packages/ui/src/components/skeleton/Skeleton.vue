@@ -3,6 +3,9 @@ import { computed, type StyleValue } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
 import type { SkeletonPart, SkeletonProps, SkeletonVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<SkeletonProps>(), {
   variant: 'text',
@@ -130,7 +133,14 @@ const lines = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" :style="rootStyle" v-bind="rootAria">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :style="rootStyle"
+    v-bind="rootAria"
+  >
     <div
       v-for="line in lines"
       :key="line.key"

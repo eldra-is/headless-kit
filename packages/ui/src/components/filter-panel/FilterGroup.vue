@@ -24,6 +24,9 @@ import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { FilterFacet, FilterPanelPart } from './types';
 import type { UiMessages } from '../../messages/en-US';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(
   defineProps<{
@@ -151,7 +154,13 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
 </script>
 
 <template>
-  <div data-eldra-ui data-part="group" :data-facet="facet.id" :class="groupClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="group"
+    :data-facet="facet.id"
+    :class="groupClass"
+  >
     <!-- The heading level is fixed at `h3` by the spec: the panel's own title is the `h2`. -->
     <h3 class="m-0">
       <button
@@ -176,7 +185,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
           :classes="{ root: badgeClass }"
           :hidden-suffix="m.selectedCount(count)"
         >
-          <span aria-hidden="true">{{ count }}</span>
+          <span :data-eldra-scope="eldra.scope" aria-hidden="true">{{ count }}</span>
         </Badge>
 
         <span v-if="summary.length > 0" data-part="summary" :class="summaryClass">
@@ -202,6 +211,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
     </h3>
 
     <fieldset
+      :data-eldra-slot="eldra.slotHost('default')"
       v-show="open"
       data-part="body"
       :id="panelId"

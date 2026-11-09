@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import type { PaginationProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<PaginationProps>(), {
   siblings: 1,
@@ -10,6 +13,11 @@ const props = withDefaults(defineProps<PaginationProps>(), {
   compact: false,
   linkAs: undefined,
   ariaLabel: undefined,
+  fixedLength: false,
+  disabled: false,
+  responsive: true,
+  showSinglePage: false,
+  messages: undefined,
   classes: undefined,
 });
 
@@ -20,11 +28,13 @@ const props = withDefaults(defineProps<PaginationProps>(), {
  */
 const emit = defineEmits<{ 'update:page': [page: number] }>();
 
-const m = useMessages();
+const m = useMessages(() => props.messages);
 
 /** Spec "Pagination" → Acceptance criteria: "Nothing renders when there's only one page." Also
  *  covers the defensive `0`/negative edge the spec does not name. */
-const visible = computed(() => props.totalPages > 1);
+const visible = computed(
+  () => props.totalPages > 1 || (props.showSinglePage && props.totalPages >= 1)
+);
 
 const navLabel = computed(() => props.ariaLabel ?? m.value.pagination);
 
@@ -48,11 +58,11 @@ function targetAttrs(page: number): Record<string, unknown> {
 }
 
 function onActivate(page: number): void {
-  if (!props.hrefForPage) emit('update:page', page);
+  if (!props.hrefForPage && !props.disabled) emit('update:page', page);
 }
 
-const prevDisabled = computed(() => props.page <= 1);
-const nextDisabled = computed(() => props.page >= props.totalPages);
+const prevDisabled = computed(() => props.disabled || props.page <= 1);
+const nextDisabled = computed(() => props.disabled || props.page >= props.totalPages);
 
 type PageNode = { type: 'page'; page: number } | { type: 'ellipsis'; after: number };
 
@@ -64,11 +74,20 @@ type PageNode = { type: 'page'; page: number } | { type: 'ellipsis'; after: numb
  * `totalPages`, `page` near either end, `siblings: 0`), so every edge case is the same one loop
  * instead of a special case each.
  */
-function buildWindow(page: number, totalPages: number, siblings: number): PageNode[] {
+function buildWindow(
+  page: number,
+  totalPages: number,
+  siblings: number,
+  fixedLength: boolean
+): PageNode[] {
   const shown = new Set<number>([1, totalPages]);
   const span = Math.max(siblings, 0);
-  for (let candidate = page - span; candidate <= page + span; candidate++) {
-    if (candidate >= 1 && candidate <= totalPages) shown.add(candidate);
+  if (fixedLength) {
+    addFixedWindow(shown, page, totalPages, span);
+  } else {
+    for (let candidate = page - span; candidate <= page + span; candidate++) {
+      if (candidate >= 1 && candidate <= totalPages) shown.add(candidate);
+    }
   }
   const sorted = [...shown].sort((a, b) => a - b);
   const nodes: PageNode[] = [];
@@ -82,18 +101,45 @@ function buildWindow(page: number, totalPages: number, siblings: number): PageNo
   return nodes;
 }
 
-const pageWindow = computed(() => buildWindow(props.page, props.totalPages, props.siblings));
+/**
+ * `fixedLength`'s window: `2 × span + 5` slots (first, its neighbour or "…", the window, the last's
+ * neighbour or "…", last). The window is clamped to pages 3 … `totalPages - 2`, so the neighbour
+ * slots always have a page or a gap of two or more to show.
+ */
+function addFixedWindow(shown: Set<number>, page: number, totalPages: number, span: number): void {
+  if (totalPages <= 2 * span + 5) {
+    for (let candidate = 1; candidate <= totalPages; candidate++) shown.add(candidate);
+    return;
+  }
+  const start = Math.min(Math.max(page - span, 3), totalPages - 2 - 2 * span);
+  const end = start + 2 * span;
+  for (let candidate = start; candidate <= end; candidate++) shown.add(candidate);
+  if (start === 3) shown.add(2);
+  if (end === totalPages - 2) shown.add(totalPages - 1);
+}
+
+const pageWindow = computed(() =>
+  buildWindow(props.page, props.totalPages, props.siblings, props.fixedLength)
+);
 
 const rootClass = computed(() => partClass('@container', props.classes, 'root'));
 
 /** Spec "Pagination" → Variants, Numbered: "Centred, wraps." Sizes: "Gap between items 0.25rem." */
 const numberedListClass = computed(() =>
   partClass(
-    'hidden @tablet:flex flex-wrap items-center justify-center gap-1',
+    cx(
+      props.responsive ? 'hidden @tablet:flex' : 'flex',
+      'flex-wrap items-center justify-center gap-1'
+    ),
     props.classes,
     'list'
   )
 );
+
+/** `responsive: false` keeps the numbered form at every width; `compact` still forces the compact
+ *  one. */
+const showCompact = computed(() => props.compact || props.responsive);
+const showNumbered = computed(() => !props.compact);
 
 /** Spec → Variants, Compact: "on one line." Below 48rem by default; forced on regardless of width
  *  when `compact` is set, in which case the numbered list above is never rendered at all. */
@@ -131,6 +177,29 @@ const currentClass = computed(() =>
   partClass(
     'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-semibold ' +
       'tabular-nums bg-primary text-primary-contrast cursor-pointer eldra-focus',
+    props.classes,
+    'current'
+  )
+);
+
+/**
+ * `disabled`: a page takes the spec's own "Disabled previous / next" treatment (`muted` at 60%,
+ * not a link, no pointer events); the current page keeps its weight and takes `Button`'s disabled
+ * fill (`surface-strong`, `muted` text), so it still reads as current without the `primary` call.
+ */
+const pageDisabledClass = computed(() =>
+  partClass(
+    'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-medium ' +
+      'tabular-nums text-muted/60 pointer-events-none',
+    props.classes,
+    'page'
+  )
+);
+
+const currentDisabledClass = computed(() =>
+  partClass(
+    'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-semibold ' +
+      'tabular-nums bg-surface-strong text-muted pointer-events-none',
     props.classes,
     'current'
   )
@@ -199,8 +268,15 @@ const compactStatusParts = computed(() =>
 </script>
 
 <template>
-  <nav v-if="visible" data-eldra-ui data-part="root" :class="rootClass" :aria-label="navLabel">
-    <ul v-if="!compact" data-part="list" :class="numberedListClass">
+  <nav
+    v-if="visible"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :aria-label="navLabel"
+  >
+    <ul v-if="showNumbered" data-part="list" :class="numberedListClass">
       <li data-part="item" :class="itemClass">
         <span
           v-if="prevDisabled"
@@ -261,6 +337,14 @@ const compactStatusParts = computed(() =>
           :class="ellipsisClass"
           aria-hidden="true"
           >…</span
+        >
+        <span
+          v-else-if="disabled"
+          :data-part="node.page === page ? 'current' : 'page'"
+          :class="node.page === page ? currentDisabledClass : pageDisabledClass"
+          :aria-current="node.page === page ? 'page' : undefined"
+          aria-disabled="true"
+          >{{ node.page }}</span
         >
         <component
           :is="itemTag"
@@ -325,7 +409,7 @@ const compactStatusParts = computed(() =>
       </li>
     </ul>
 
-    <div data-part="list" :class="compactListClass">
+    <div v-if="showCompact" data-part="list" :class="compactListClass">
       <span
         v-if="prevDisabled"
         data-part="prev"

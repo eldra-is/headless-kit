@@ -1,4 +1,4 @@
-import { computed, type ComputedRef } from 'vue';
+import { computed, ref, watch, type ComputedRef } from 'vue';
 import type { SelectOption } from './types';
 import { normalizeText } from './useListbox';
 
@@ -74,6 +74,12 @@ export function groupOptions(
   }));
 }
 
+/**
+ * The value of the "Create “query”" row a `creatable` control appends. A control character no
+ * merchant value holds, so it never collides with an option's own value.
+ */
+export const CREATE_VALUE = '\u0000eldra-create';
+
 export interface UseOptionListOptions {
   /** Every option the control was given, in the order the consumer wrote them. */
   options: () => SelectOption[];
@@ -82,28 +88,51 @@ export interface UseOptionListOptions {
   searchable: () => boolean;
   /** The control's own id, which the group headings' ids are built from. */
   controlId: () => string;
+  /** While loading, no row is visible or reachable. The native select still has every option. */
+  loading?: () => boolean;
+  /** Whether a query no label equals offers a "Create" row. */
+  creatable?: () => boolean;
+  /** How many rows to render at a time; `undefined` (or anything below 1) renders all of them. */
+  renderBatch?: () => number | undefined;
 }
 
 export interface UseOptionListReturn {
-  /** The visible options bucketed into the panel's sections. */
+  /** The rendered options bucketed into the panel's sections. */
   sections: ComputedRef<PanelSection[]>;
   /** *Every* option bucketed, for the hidden native select's `<optgroup>`s. */
   nativeSections: ComputedRef<PanelSection[]>;
-  /** The visible rows in DOM order — the section order, not the prop order, once groups interleave. */
+  /**
+   * Every row the keyboard can reach, in DOM order — the section order, not the prop order, once
+   * groups interleave — with the create row, when there is one, last. With `renderBatch` it runs
+   * past the rendered rows; reaching one renders it.
+   */
   listOptions: ComputedRef<SelectOption[]>;
   hasOptions: ComputedRef<boolean>;
   /** Per option value, where the query matched its label — or `null` when it did not. */
   highlights: ComputedRef<Map<string, MatchParts | null>>;
+  /** The "Create “query”" row, whose `label` is the trimmed query; `undefined` when there is none. */
+  createOption: ComputedRef<SelectOption | undefined>;
+  /** Render the next batch. The panel calls it when its list is scrolled near the end. */
+  renderMore: () => void;
+  /**
+   * Render every batch up to the row holding `value`, so a keyboard move past the rendered rows
+   * lands on a row that exists. Call it synchronously whenever the active row changes.
+   */
+  reveal: (value: string | undefined) => void;
+  /** Back to the first batch, for closing. */
+  resetBatch: () => void;
 }
 
 /**
- * The list a select panel shows: filtering, grouping and match highlighting.
+ * The list a select panel shows: filtering, grouping, match highlighting, the create row and the
+ * render batch.
  *
  * Shared by `Select` and `MultiSelect`, which differ in what choosing a row *does* and in nothing
- * about which rows there are. Pure derivation — no DOM, no state of its own.
+ * about which rows there are. No DOM; its one piece of state is how many rows are rendered.
  */
 export function useOptionList(options: UseOptionListOptions): UseOptionListReturn {
   const trimmedQuery = computed(() => (options.searchable() ? options.query().trim() : ''));
+  const loading = computed(() => options.loading?.() === true);
 
   /**
    * The options a query leaves, in the consumer's order. Not returned: every caller wants them
@@ -111,16 +140,80 @@ export function useOptionList(options: UseOptionListOptions): UseOptionListRetur
    * only be a way to disagree with those two.
    */
   const visibleOptions = computed(() => {
+    if (loading.value) return [];
     const trimmed = trimmedQuery.value;
     if (trimmed === '') return options.options();
-    return options.options().filter((option) => matchRange(option.label, trimmed) !== null);
+    const needle = normalizeText(trimmed);
+    return options
+      .options()
+      .filter(
+        (option) =>
+          matchRange(option.label, trimmed) !== null ||
+          option.keywords?.some((keyword) => normalizeText(keyword).includes(needle)) === true
+      );
   });
 
-  const sections = computed(() => groupOptions(visibleOptions.value, 'panel', options.controlId()));
+  /** Every visible option in DOM order, before the render batch cuts it. */
+  const orderedOptions = computed(() =>
+    groupOptions(visibleOptions.value, 'panel', options.controlId()).flatMap(
+      (section) => section.options
+    )
+  );
+
+  const batchSize = (): number => {
+    const size = options.renderBatch?.();
+    return size === undefined || !(size >= 1) ? Number.POSITIVE_INFINITY : Math.floor(size);
+  };
+  const rendered = ref(batchSize());
+  const resetBatch = (): void => {
+    rendered.value = batchSize();
+  };
+  const renderMore = (): void => {
+    if (rendered.value < orderedOptions.value.length) rendered.value += batchSize();
+  };
+  const reveal = (value: string | undefined): void => {
+    if (value === undefined || !Number.isFinite(rendered.value)) return;
+    const index = orderedOptions.value.findIndex((option) => option.value === value);
+    if (index < rendered.value) return;
+    const size = batchSize();
+    rendered.value = Math.ceil((index + 1) / size) * size;
+  };
+  watch(trimmedQuery, resetBatch);
+  watch(() => options.renderBatch?.(), resetBatch);
+
+  const renderedOptions = computed(() =>
+    Number.isFinite(rendered.value)
+      ? orderedOptions.value.slice(0, rendered.value)
+      : orderedOptions.value
+  );
+
+  const sections = computed(() =>
+    groupOptions(renderedOptions.value, 'panel', options.controlId())
+  );
   const nativeSections = computed(() =>
     groupOptions(options.options(), 'native', options.controlId())
   );
-  const listOptions = computed(() => sections.value.flatMap((section) => section.options));
+
+  /**
+   * Spec-free addition: a query no option's label already equals can be offered as a new option.
+   * Equal ignoring case and accents, the same comparison the search itself makes, so "Shirt" is
+   * not offered beside an existing "shirt".
+   */
+  const createOption = computed<SelectOption | undefined>(() => {
+    const trimmed = trimmedQuery.value;
+    if (options.creatable?.() !== true || loading.value || trimmed === '') return undefined;
+    const needle = normalizeText(trimmed);
+    if (options.options().some((option) => normalizeText(option.label) === needle)) {
+      return undefined;
+    }
+    return { value: CREATE_VALUE, label: trimmed };
+  });
+
+  const listOptions = computed(() =>
+    createOption.value === undefined
+      ? orderedOptions.value
+      : [...orderedOptions.value, createOption.value]
+  );
 
   /**
    * A `role="listbox"` may own only `option` and `group` children, so the "No matches" text is a
@@ -128,7 +221,7 @@ export function useOptionList(options: UseOptionListOptions): UseOptionListRetur
    * an `aria-required-children` violation, while a genuinely empty listbox is merely "needs
    * review". The listbox itself always renders whenever the panel does, empty or not, because
    * `aria-controls` is a *required* property of a `role="combobox"` and has to point at something
-   * real while the popup is showing.
+   * real while the popup is showing. The create row is an option, so it counts.
    */
   const hasOptions = computed(() => listOptions.value.length > 0);
 
@@ -140,7 +233,7 @@ export function useOptionList(options: UseOptionListOptions): UseOptionListRetur
   const highlights = computed(() => {
     const trimmed = trimmedQuery.value;
     return new Map(
-      listOptions.value.map((option) => {
+      renderedOptions.value.map((option) => {
         const range = trimmed === '' ? null : matchRange(option.label, trimmed);
         if (range === null) return [option.value, null] as const;
         const characters = [...option.label];
@@ -156,5 +249,15 @@ export function useOptionList(options: UseOptionListOptions): UseOptionListRetur
     );
   });
 
-  return { sections, nativeSections, listOptions, hasOptions, highlights };
+  return {
+    sections,
+    nativeSections,
+    listOptions,
+    hasOptions,
+    highlights,
+    createOption,
+    renderMore,
+    reveal,
+    resetBatch,
+  };
 }

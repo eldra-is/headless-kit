@@ -19,6 +19,9 @@ import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { histogramBarInRange } from './useFilterPanel';
 import type { FilterPanelPart } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(
   defineProps<{
@@ -79,7 +82,13 @@ function barClass(bar: Bar): string {
 </script>
 
 <template>
-  <div data-eldra-ui data-part="histogram" :class="rootClass" aria-hidden="true">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="histogram"
+    :class="rootClass"
+    aria-hidden="true"
+  >
     <span
       v-for="bar in drawn"
       :key="bar.index"

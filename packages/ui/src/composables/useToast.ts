@@ -10,6 +10,8 @@ export interface ToastOptions {
   text?: string;
   /** One action: a link (`{ label, href }`) or a button (`{ label, onActivate }`). */
   action?: ToastAction;
+  /** Shows the close button and closes on `Escape`. Default `true`. */
+  closable?: boolean;
   /** Auto-dismiss time in ms; `0` stays until closed. Ignored for `variant: "danger"` — it is
    *  always `0` (spec "Toast" -> Properties, `duration` row: "Danger is always `0`."). Defaults to
    *  the variant's own timing (see `DEFAULT_DURATION` below) when omitted. */
@@ -28,6 +30,7 @@ export interface ToastItem {
   title: string;
   text?: string;
   action?: ToastAction;
+  closable?: boolean;
   duration: number;
 }
 
@@ -51,6 +54,7 @@ export interface UseToastReturn {
  */
 const DEFAULT_DURATION: Record<ToastVariant, number> = {
   success: 6000,
+  info: 6000,
   warning: 10000,
   danger: 0,
 };
@@ -99,6 +103,7 @@ function show(options: ToastOptions): string {
     title: options.title,
     text: options.text,
     action: options.action,
+    closable: options.closable,
     duration: resolveDuration(variant, options.duration),
   };
 

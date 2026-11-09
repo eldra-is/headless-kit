@@ -11,6 +11,9 @@ import Skeleton from '../skeleton/Skeleton.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
 import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
 import type { ContentCardProps, ContentCardVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ContentCardProps>(), {
   image: null,
@@ -220,6 +223,7 @@ const arrowClass = CUE_ARROW_CLASS;
   <div
     v-if="loading"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     role="group"
@@ -234,7 +238,7 @@ const arrowClass = CUE_ARROW_CLASS;
     </div>
   </div>
 
-  <article v-else data-eldra-ui data-part="root" :class="rootClass">
+  <article v-else data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <!-- Spec → Anatomy, part 1: "Media (optional)". `alt` is left to `Image`'s own default
          (the media's own `alt`, then `""`) rather than forced here, so a card whose image adds
          real information can still describe it (spec → Accessibility, 1.1.1). -->
@@ -242,18 +246,39 @@ const arrowClass = CUE_ARROW_CLASS;
       <Image :media="image" :ratio="ratio" rounded="lg" />
     </div>
     <div data-part="body" :class="bodyClass">
-      <p v-if="hasEyebrow" data-part="eyebrow" :class="eyebrowClass">
+      <p
+        v-if="hasEyebrow"
+        :data-eldra-slot="eldra.slotHost('eyebrow')"
+        data-part="eyebrow"
+        :class="eyebrowClass"
+      >
         <slot name="eyebrow">{{ eyebrow }}</slot>
       </p>
       <component :is="headingTag" data-part="title" :class="titleClass">
-        <component :is="titleTag" data-part="titleLink" :class="titleLinkClass" v-bind="titleAttrs">
+        <component
+          :is="titleTag"
+          :data-eldra-slot="eldra.slotHost('title')"
+          data-part="titleLink"
+          :class="titleLinkClass"
+          v-bind="titleAttrs"
+        >
           <slot name="title">{{ title }}</slot>
         </component>
       </component>
-      <p v-if="hasExcerpt" data-part="excerpt" :class="excerptClass">
+      <p
+        v-if="hasExcerpt"
+        :data-eldra-slot="eldra.slotHost('excerpt')"
+        data-part="excerpt"
+        :class="excerptClass"
+      >
         <slot name="excerpt">{{ excerpt }}</slot>
       </p>
-      <p v-if="hasMetaLine" data-part="meta" :class="metaClass">
+      <p
+        v-if="hasMetaLine"
+        :data-eldra-slot="eldra.slotHost('meta')"
+        data-part="meta"
+        :class="metaClass"
+      >
         <slot name="meta">
           <time v-if="formattedDate" :datetime="date!">{{ formattedDate }}</time>
           <template v-if="formattedDate && meta"> · </template>
@@ -262,9 +287,16 @@ const arrowClass = CUE_ARROW_CLASS;
       </p>
       <!-- Spec → Accessibility: "The cue is `aria-hidden="true"` so the destination is not read
            twice. No separate 'Read more' link." -->
-      <span v-if="showCue" data-part="cue" :class="cueClass" aria-hidden="true">
+      <span
+        v-if="showCue"
+        :data-eldra-slot="eldra.slotHost('cue')"
+        data-part="cue"
+        :class="cueClass"
+        aria-hidden="true"
+      >
         <slot name="cue">{{ cue }}</slot>
         <svg
+          :data-eldra-scope="eldra.scope"
           :class="arrowClass"
           viewBox="0 0 24 24"
           fill="none"

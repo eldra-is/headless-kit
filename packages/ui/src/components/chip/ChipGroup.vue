@@ -3,6 +3,9 @@ import { computed, provide } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { CHIP_GROUP_KEY, type ChipGroupContext } from './context';
 import type { ChipGroupProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ChipGroupProps>(), {
   disabled: false,
@@ -52,7 +55,9 @@ const rootClass = computed(() => partClass(cx('flex flex-wrap gap-2'), props.cla
 
 <template>
   <div
+    :data-eldra-slot="eldra.slotHost('default')"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     role="group"
     :aria-label="ariaLabel"

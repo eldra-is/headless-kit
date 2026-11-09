@@ -5,6 +5,9 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import Avatar from './Avatar.vue';
 import type { AvatarGroupProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<AvatarGroupProps>(), {
   max: 3,
@@ -99,7 +102,14 @@ const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText')
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" role="group" :aria-labelledby="srTextId">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    role="group"
+    :aria-labelledby="srTextId"
+  >
     <span
       v-for="(person, index) in visiblePeople"
       :key="`${person.name}-${index}`"

@@ -1,6 +1,6 @@
 import type { VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { h, nextTick, type VNode } from 'vue';
+import { Comment, defineComponent, h, nextTick, renderSlot, type VNode } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { panelOf } from '../../../test/popover';
@@ -399,5 +399,150 @@ describe('dev warnings for a missing or ambiguous trigger', () => {
     mounted.push(wrapper as unknown as VueWrapper);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('no `trigger` slot content'));
     warn.mockRestore();
+  });
+});
+
+describe('a trigger passed down through a wrapper', () => {
+  /** A consumer wrapper forwarding its own `trigger` slot: the slot arrives as a fragment. */
+  const Wrapper = defineComponent({
+    setup(_, { slots }) {
+      return () =>
+        h(Popover, null, {
+          trigger: (p: TriggerSlotProps) => renderSlot(slots, 'trigger', p),
+          default: defaultPanel,
+        });
+    },
+  });
+
+  function mountWrapped() {
+    const wrapper = mountWith(Wrapper, {
+      slots: {
+        trigger: (p: TriggerSlotProps) => [
+          h(Comment, 'before'),
+          h('button', { ...p.attrs }, 'Wrapped'),
+        ],
+      },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    return wrapper;
+  }
+
+  it('finds the first element inside the fragment and wires it as the trigger', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const wrapper = mountWrapped();
+    const trigger = triggerOf(wrapper);
+    expect(trigger.textContent).toBe('Wrapped');
+    await press(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('has no axe violations', async () => {
+    const wrapper = mountWrapped();
+    expect(await axe(wrapper.element.parentElement ?? document.body)).toHaveNoViolations();
+  });
+});
+
+describe('a programmatic click on the trigger', () => {
+  it('toggles the panel, as a pointer click does', async () => {
+    const wrapper = mountPopover();
+    const trigger = triggerOf(wrapper);
+    trigger.click();
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(true);
+    trigger.click();
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(false);
+  });
+
+  it('still only focuses when a label naming the trigger forwards its click', async () => {
+    const wrapper = mountPopover();
+    const trigger = triggerOf(wrapper);
+    const label = document.createElement('label');
+    label.htmlFor = trigger.id;
+    label.textContent = 'Actions';
+    document.body.append(label);
+    hosts.push(label);
+    label.click();
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('holds a forwarded click that is a PointerEvent, as an engine sends for label.click()', async () => {
+    const wrapper = mountPopover();
+    const trigger = triggerOf(wrapper);
+    const label = document.createElement('label');
+    label.htmlFor = trigger.id;
+    const text = document.createElement('span');
+    text.textContent = 'Actions';
+    label.append(text);
+    document.body.append(label);
+    hosts.push(label);
+    // The label's own click, then the engine's forwarded one, in the same task.
+    text.click();
+    trigger.dispatchEvent(new PointerEvent('click', { bubbles: true, cancelable: true }));
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+
+    // The task is over: the next programmatic click is code's own again.
+    trigger.click();
+    await flush();
+    expect(panelOf(trigger).exists()).toBe(true);
+  });
+});
+
+describe('chrome colour variables', () => {
+  it('reads its own --eldra-popover-* colours, falling back to what the panel drew before', async () => {
+    const wrapper = mountPopover();
+    const trigger = triggerOf(wrapper);
+    await press(trigger);
+    const classes = panelOf(trigger).classes();
+    expect(classes).toContain('bg-[color:var(--eldra-popover-background,var(--color-background))]');
+    expect(classes).toContain('border-[color:var(--eldra-popover-border,var(--color-border))]');
+    // The panel set no colour before, so unset it still inherits: no fallback.
+    expect(classes).toContain('text-[color:var(--eldra-popover-text)]');
+    expect(classes).toContain('border');
+    expect(classes).not.toContain('bg-background');
+    expect(classes).not.toContain('border-border');
+  });
+
+  it('lets a consumer class on the panel part replace a variable-reading colour', async () => {
+    const wrapper = mountPopover({ classes: { panel: 'bg-surface' } });
+    const trigger = triggerOf(wrapper);
+    await press(trigger);
+    const classes = panelOf(trigger).classes();
+    expect(classes).toContain('bg-surface');
+    expect(classes.join(' ')).not.toContain('--eldra-popover-background');
+  });
+
+  it('never redefines a theme-wide colour variable on the panel', async () => {
+    const wrapper = mountPopover();
+    const trigger = triggerOf(wrapper);
+    await press(trigger);
+    expect(panelOf(trigger).element.outerHTML).not.toMatch(/--(eldra-)?color-[a-z-]+:/);
+  });
+
+  it('is axe-clean with the chrome recoloured through its variables', async () => {
+    const root = document.documentElement;
+    root.style.setProperty('--eldra-popover-background', '#1f2937');
+    root.style.setProperty('--eldra-popover-border', '#374151');
+    root.style.setProperty('--eldra-popover-text', '#f9fafb');
+    try {
+      const wrapper = mountPopover({ ariaLabel: 'Order actions' });
+      const trigger = triggerOf(wrapper);
+      await press(trigger);
+      expect(await axe(panelOf(trigger).element)).toHaveNoViolations();
+    } finally {
+      root.style.removeProperty('--eldra-popover-background');
+      root.style.removeProperty('--eldra-popover-border');
+      root.style.removeProperty('--eldra-popover-text');
+    }
   });
 });

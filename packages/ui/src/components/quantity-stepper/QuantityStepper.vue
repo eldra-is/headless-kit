@@ -33,6 +33,9 @@ import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { QuantityStepperProps, QuantityStepperSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -377,7 +380,7 @@ const inputClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <button
       type="button"
       data-part="decrease"

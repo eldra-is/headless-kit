@@ -2,6 +2,7 @@ import { IconDots, IconDownload, IconPencil, IconTrash } from '@tabler/icons-vue
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { getCurrentInstance, nextTick, onMounted } from 'vue';
 import Button from '../button/Button.vue';
+import Select from '../select/Select.vue';
 import Popover from './Popover.vue';
 
 /**
@@ -190,6 +191,62 @@ export const Above: Story = {
           </template>
           <template #default>
             <MenuContent />
+          </template>
+        </Popover>
+      </div>
+    `,
+  }),
+};
+
+/** `placement="right-start"`: a panel opening beside its trigger, a submenu or toolbar flyout. */
+export const Beside: Story = {
+  render: () => ({
+    components: { Popover, Button, MenuContent },
+    setup: () => {
+      openOnMount();
+      return {};
+    },
+    template: `
+      <div class="p-16">
+        <Popover placement="right-start" role="menu" aria-label="Row actions" haspopup="menu" labelled-by-trigger>
+          <template #trigger="{ attrs }">
+            <Button variant="outline" v-bind="attrs">More</Button>
+          </template>
+          <template #default>
+            <MenuContent />
+          </template>
+        </Popover>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * A `Select` opened from inside the panel: the popover stays open while its teleported listbox is
+ * used, and `focusOnOpen` puts focus on the field first.
+ */
+export const NestedSelect: Story = {
+  render: () => ({
+    components: { Popover, Button, Select },
+    setup: () => {
+      openOnMount();
+      const options = [
+        { value: 'open', label: 'Open' },
+        { value: 'paid', label: 'Paid' },
+        { value: 'void', label: 'Void' },
+      ];
+      return { options };
+    },
+    template: `
+      <div class="p-16">
+        <Popover role="dialog" aria-label="Filters" focus-on-open>
+          <template #trigger="{ attrs }">
+            <Button variant="outline" v-bind="attrs">Filters</Button>
+          </template>
+          <template #default>
+            <div class="w-64 p-3">
+              <Select :options="options" aria-label="Status" placeholder="Any status" />
+            </div>
           </template>
         </Popover>
       </div>

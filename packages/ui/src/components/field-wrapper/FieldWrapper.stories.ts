@@ -30,9 +30,15 @@ const meta = {
           '`counter`. Everything but `root`, `label` and `control` renders only when the prop or',
           'slot behind it is set.',
           '',
-          '**Slots**: `default` (the control), `label`, `help` and `error`. A slot is content, not',
-          'a different feature: `<template #error>` makes the field invalid and gets linked exactly',
-          'as the `error` prop does.',
+          '**Slots**: `default` (the control), `label`, `labelSuffix`, `help` and `error`. A slot is',
+          'content, not a different feature: `<template #error>` makes the field invalid and gets',
+          'linked exactly as the `error` prop does. `labelSuffix` follows the required or optional',
+          "mark inside the label, so its text is part of the control's name (a locale code, say);",
+          'keep interactive content out of it.',
+          '',
+          '**No visible label**: leave `label` out and the wrapper draws no `<label>` and provides',
+          '`labelled: false`; name the control with `aria-label`. A `counter` with no `max` shows the length',
+          'alone.',
           '',
           '**The wiring** (`FIELD_KEY`): the wrapper provides `{ id, labelId, describedBy, invalid,',
           'required, labelsControl }`, and `Input`, `Textarea` and every other control inject it.',
@@ -213,6 +219,32 @@ export const WithCounter: Story = {
           :counter="{ max: 3, value: 4 }"
         >
           <Input model-value="MHJ B" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * `labelSuffix` after the required mark, a field with no visible label named by `aria-label`, and a
+ * counter with no limit.
+ */
+export const LabelOptions: Story = {
+  args: { label: 'Title', required: true },
+  render: (args) => ({
+    components: { FieldWrapper, Input },
+    setup: () => ({ args, value: ref('Spring sale') }),
+    template: `
+      <div class="flex ${FRAME} flex-col gap-4">
+        <FieldWrapper v-bind="args">
+          <template #labelSuffix><span class="text-muted ms-1 font-normal">IS</span></template>
+          <Input v-model="value" />
+        </FieldWrapper>
+        <FieldWrapper error="Enter a link.">
+          <Input aria-label="Link address" placeholder="https://" />
+        </FieldWrapper>
+        <FieldWrapper label="Notes" :counter="{ value: value.length }">
+          <Input v-model="value" />
         </FieldWrapper>
       </div>
     `,

@@ -1,10 +1,31 @@
 <script setup lang="ts">
-import { computed, inject, ref, useSlots, watchPostEffect } from 'vue';
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  inject,
+  onMounted,
+  ref,
+  useAttrs,
+  h,
+  useSlots,
+  watchPostEffect,
+  type FunctionalComponent,
+  type VNode,
+} from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
+import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
+import FieldError from '../field-wrapper/FieldError.vue';
+import RequiredMark from '../field-wrapper/RequiredMark.vue';
+import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { CheckboxProps, CheckboxSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -19,6 +40,8 @@ const props = withDefaults(defineProps<CheckboxProps>(), {
   // would be an answer rather than "no opinion" (see Input.vue).
   invalid: undefined,
   required: undefined,
+  requiredMark: false,
+  error: undefined,
   disabled: false,
   controls: undefined,
   id: undefined,
@@ -33,6 +56,7 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const attrs = useAttrs();
 
 /** See Input.vue for the field-context rationale: any explicit prop wins over the wrapper. */
 const field = inject(FIELD_KEY, null);
@@ -49,7 +73,8 @@ const field = inject(FIELD_KEY, null);
  * clickable either way, because the control itself covers it (see `CONTROL` below).
  */
 const isNamedByField = computed(
-  () => props.id === undefined && field?.value.labelsControl === true
+  () =>
+    props.id === undefined && field?.value.labelsControl === true && field.value.labelled !== false
 );
 
 /**
@@ -67,8 +92,15 @@ const controlId = useUiId(
  * `<FieldWrapper error="…">` still describes its error when the control is given a `describedBy`
  * of its own. `joinIds` dedupes and drops the attribute when there is nothing to say.
  */
-const describedBy = computed(() => joinIds(props.describedBy, field?.value.describedBy));
-const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
+const errorId = computed(() => `${controlId.value}-error`);
+const hasError = computed(() => Boolean(props.error));
+const describedBy = computed(() =>
+  joinIds(hasError.value && errorId.value, props.describedBy, field?.value.describedBy)
+);
+const isInvalid = computed(
+  () => props.invalid ?? (hasError.value || undefined) ?? field?.value.invalid ?? false
+);
+const m = useMessages();
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
 
 const controlRef = ref<HTMLInputElement | null>(null);
@@ -178,13 +210,49 @@ const boxState = computed(() => {
   return isInvalid.value ? INVALID : UNCHECKED;
 });
 
-const rootClass = computed(() =>
-  partClass(
-    cx(ROOT, props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'),
+/** Whether slot output draws anything: a `v-if`'d-out label leaves only a comment node. */
+function hasContent(nodes: VNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === Comment) return false;
+    if (node.type === Text) return String(node.children ?? '').trim() !== '';
+    if (node.type === Fragment)
+      return Array.isArray(node.children) && hasContent(node.children as VNode[]);
+    return true;
+  });
+}
+
+/**
+ * Whether there is a label to lay out. Read during render (the root's class and the label's
+ * `v-if`), never in a `computed`, because it calls the slot. Without a label and a hint the row is
+ * the box alone: no label column, no box-to-text gap, so the control is as wide as its box (and
+ * `target-min`). Such a box takes its name from an `aria-label` on it, or from a `FieldWrapper`.
+ */
+function isLabelled(): boolean {
+  return hasHint.value || hasContent(slots.default?.() ?? []);
+}
+
+const BOX_ONLY = 'grid-cols-[auto] gap-x-0';
+
+function rootClass(labelled: boolean): string {
+  return partClass(
+    cx(ROOT, !labelled && BOX_ONLY, props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'),
     props.classes,
     'root'
-  )
-);
+  );
+}
+
+if (import.meta.env?.DEV) {
+  onMounted(() => {
+    const el = controlRef.value;
+    if (el === null || isNamedByField.value) return;
+    if (attrs['aria-label'] !== undefined || attrs['aria-labelledby'] !== undefined) return;
+    if ([...(el.labels ?? [])].some((label) => label.textContent?.trim())) return;
+    console.warn(
+      '[@eldrajs/ui] <Checkbox> has no label, so its box has no accessible name. Give it a ' +
+        'label in the default slot, or an `aria-label` for a box drawn on its own.'
+    );
+  });
+}
 
 /**
  * The control itself, stretched over the drawn box rather than `sr-only` in a corner of it.
@@ -244,6 +312,24 @@ const hintClass = computed(() =>
   partClass('text-body-sm text-muted col-start-2 min-w-0', props.classes, 'hint')
 );
 
+/**
+ * With an `error`, the row and its error message sit in one box (the `field` part), so the message
+ * stays outside the `<label>` and out of the control's name. Without one, the row is the root as
+ * it always was.
+ */
+const fieldClass = computed(() =>
+  partClass('grid w-fit max-w-full content-start gap-1', props.classes, 'field')
+);
+const Field: FunctionalComponent = (_props, { slots: own }) => {
+  const row = own.default?.()[0];
+  if (!hasError.value) return row;
+  const attrs = { 'data-eldra-ui': '', 'data-eldra-scope': eldra.scope, 'data-part': 'field' };
+  return h('div', { ...attrs, class: fieldClass.value }, [
+    row,
+    h(FieldError, { id: errorId.value, classes: props.classes }, () => props.error),
+  ]);
+};
+
 function onChange(event: Event): void {
   const el = event.target as HTMLInputElement;
   model.value = el.checked;
@@ -253,33 +339,35 @@ function onChange(event: Event): void {
 </script>
 
 <template>
-  <component
-    :is="isNamedByField ? 'span' : 'label'"
-    data-eldra-ui
-    data-part="root"
-    :class="rootClass"
-  >
-    <span data-part="box" :class="boxClass">
-      <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
+  <Field>
+    <component
+      :is="isNamedByField ? 'span' : 'label'"
+      data-eldra-ui
+      :data-eldra-scope="eldra.scope"
+      data-part="root"
+      :class="rootClass(isLabelled())"
+    >
+      <span data-part="box" :class="boxClass">
+        <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
            which is its appearance. -->
-      <input
-        ref="controlRef"
-        v-bind="$attrs"
-        :class="CONTROL"
-        type="checkbox"
-        :id="controlId"
-        :name="name"
-        :value="value"
-        :checked="model"
-        :required="isRequired || undefined"
-        :disabled="disabled || undefined"
-        :aria-invalid="isInvalid ? 'true' : undefined"
-        :aria-describedby="describedBy"
-        :aria-controls="controls"
-        :aria-checked="indeterminate ? 'mixed' : undefined"
-        @change="onChange"
-      />
-      <!-- The mark. The box is 0.625rem across and the viewBox 10 units, so one unit is one pixel
+        <input
+          ref="controlRef"
+          v-bind="$attrs"
+          :class="CONTROL"
+          type="checkbox"
+          :id="controlId"
+          :name="name"
+          :value="value"
+          :checked="model"
+          :required="isRequired || undefined"
+          :disabled="disabled || undefined"
+          :aria-invalid="isInvalid ? 'true' : undefined"
+          :aria-describedby="describedBy"
+          :aria-controls="controls"
+          :aria-checked="indeterminate ? 'mixed' : undefined"
+          @change="onChange"
+        />
+        <!-- The mark. The box is 0.625rem across and the viewBox 10 units, so one unit is one pixel
            of the mark at its drawn size: `stroke-width="2"` is the spec's 2px, and the dash is the
            spec's 0.625rem wide (10 × 2 units of ink).
 
@@ -289,27 +377,42 @@ function onChange(event: Event): void {
            tick (operator finding) — and the ratio was the reason. Ink (centreline plus a 1-unit
            round cap each side) is 9.5 × 7 units, inside the box at every edge. Decorative: the
            checked state is the input's, which assistive technology reads. -->
-      <svg
-        data-part="check"
-        :class="checkClass"
-        viewBox="0 0 10 10"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
+        <svg
+          data-part="check"
+          :class="checkClass"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
+          <path v-else data-mark="tick" d="M1.25 5l2.5 2.5l5 -5" />
+        </svg>
+      </span>
+
+      <span
+        v-if="isLabelled()"
+        :data-eldra-slot="eldra.slotHost('default')"
+        data-part="label"
+        :class="labelClass"
+        ><slot /><RequiredMark v-if="requiredMark" :classes="classes" /><VisuallyHidden
+          v-if="requiredMark && !isRequired"
+          >{{ m.required }}</VisuallyHidden
+        ></span
       >
-        <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
-        <path v-else data-mark="tick" d="M1.25 5l2.5 2.5l5 -5" />
-      </svg>
-    </span>
 
-    <span data-part="label" :class="labelClass"><slot /></span>
-
-    <span v-if="hasHint" data-part="hint" :class="hintClass">
-      <slot name="hint">{{ hint }}</slot>
-    </span>
-  </component>
+      <span
+        v-if="hasHint"
+        :data-eldra-slot="eldra.slotHost('hint')"
+        data-part="hint"
+        :class="hintClass"
+      >
+        <slot name="hint">{{ hint }}</slot>
+      </span>
+    </component>
+  </Field>
 </template>

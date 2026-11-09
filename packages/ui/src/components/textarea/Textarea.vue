@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, nextTick, onUpdated, ref, useSlots, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
+import { FIELD_ACTION_ROOM_REM, FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE } from '../input/classes';
+import { reassertValue } from '../input/reassertValue';
+import { useAdornmentRoom } from '../input/useAdornmentRoom';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { supportsFieldSizing } from './supportsFieldSizing';
 import type { TextareaProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -17,6 +23,7 @@ const props = withDefaults(defineProps<TextareaProps>(), {
   maxLength: undefined,
   counter: false,
   hardLimit: false,
+  clearable: false,
   minHeight: '5rem',
   invalid: undefined,
   required: undefined,
@@ -33,7 +40,11 @@ const emit = defineEmits<{
   /** Spec "Textarea" → Events: "`input`: fires with the new value on every keystroke." */
   input: [value: string];
   change: [value: string];
+  /** The clear button emptied the field. */
+  clear: [];
 }>();
+
+const slots = useSlots();
 
 const m = useMessages();
 
@@ -70,7 +81,11 @@ const model = useControllableModel<string>(props, emit, () => '');
  * literal utility — it becomes a CSS variable a class reads (`min-h-[var(--eldra-textarea-min-
  * height)]`), so the box always sizes to whatever the prop says, in rem, with no px anywhere.
  */
-const controlStyle = computed(() => ({ '--eldra-textarea-min-height': props.minHeight }));
+const controlStyle = computed(() => ({
+  '--eldra-textarea-min-height': props.minHeight,
+  ...(prefixRoom.value !== undefined && { paddingInlineStart: prefixRoom.value }),
+  ...(suffixRoom.value !== undefined && { paddingInlineEnd: suffixRoom.value }),
+}));
 
 /**
  * Spec "Textarea" → Variants, Auto-grow: `field-sizing: content` where supported, with a fallback
@@ -161,10 +176,36 @@ const rootClass = computed(() =>
   )
 );
 
+/**
+ * `Input`'s prefix and suffix rows, pinned to the first line rather than centred: 0.25rem from the
+ * top puts a 2rem action's middle on the first line's middle (0.5rem padding plus half a 1.5rem
+ * line). The control reserves one action's room on that side, as `Input`'s `md` size does.
+ */
+const ROW = 'absolute top-1 flex h-8 items-center gap-1';
+const hasPrefix = computed(() => slots.prefix !== undefined);
+/** Shown while there is a value, and never on a field that cannot be edited — as `Input`'s is. */
+const showClear = computed(
+  () => props.clearable && !props.disabled && !props.readonly && model.value.length > 0
+);
+const hasSuffix = computed(() => showClear.value || slots.suffix !== undefined);
+
+const prefixClass = computed(() => partClass(cx(ROW, 'start-1'), props.classes, 'prefix'));
+const suffixClass = computed(() => partClass(cx(ROW, 'end-1'), props.classes, 'suffix'));
+const clearButtonClass = computed(() =>
+  partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE.md), props.classes, 'clearButton')
+);
+
+const prefixRef = ref<HTMLElement | null>(null);
+const suffixRef = ref<HTMLElement | null>(null);
+const prefixRoom = useAdornmentRoom(prefixRef, () => FIELD_ACTION_ROOM_REM.md);
+const suffixRoom = useAdornmentRoom(suffixRef, () => FIELD_ACTION_ROOM_REM.md);
+
 const controlClass = computed(() =>
   partClass(
     cx(
       BASE,
+      hasPrefix.value && 'ps-10',
+      hasSuffix.value && 'pe-10',
       props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
       showsInvalid.value && INVALID
     ),
@@ -244,20 +285,52 @@ watch(limitZone, (zone) => {
   }
 });
 
+/** Puts the model back on the element when a controlled parent did not take the input. */
+function syncValue(): void {
+  const el = controlRef.value;
+  if (el === null || el.value === model.value) return;
+  reassertValue(el, model.value);
+  growFallback();
+}
+onUpdated(syncValue);
+
 function onInput(event: Event): void {
   const el = event.target as HTMLTextAreaElement;
   model.value = el.value;
   emit('input', el.value);
+  // Queued after the write, so it runs once the parent's own update has rendered, if it made one.
+  if (!(event as InputEvent).isComposing) void nextTick(syncValue);
 }
 
 /** Spec "Textarea" → Events: "`change`: fires with the committed value." */
 function onChange(event: Event): void {
   emit('change', (event.target as HTMLTextAreaElement).value);
 }
+
+/** Empties the field, says so, and returns focus to it — `Input`'s clear button exactly. */
+function onClear(): void {
+  model.value = '';
+  emit('input', '');
+  emit('clear');
+  controlRef.value?.focus();
+}
+
+/** `control` is the native `<textarea>`, for a wrapper that measures it or moves its caret. */
+defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+    <span
+      v-if="hasPrefix"
+      ref="prefixRef"
+      :data-eldra-slot="eldra.slotHost('prefix')"
+      data-part="prefix"
+      :class="prefixClass"
+    >
+      <slot name="prefix" />
+    </span>
+
     <textarea
       ref="controlRef"
       v-bind="$attrs"
@@ -273,11 +346,46 @@ function onChange(event: Event): void {
       :required="isRequired || undefined"
       :readonly="readonly || undefined"
       :disabled="disabled || undefined"
-      :aria-invalid="isInvalid ? 'true' : undefined"
+      :aria-invalid="isInvalid ? 'true' : ($attrs['aria-invalid'] as 'true' | 'false' | undefined)"
       :aria-describedby="describedBy"
       @input="onInput"
       @change="onChange"
     ></textarea>
+
+    <span
+      v-if="hasSuffix"
+      ref="suffixRef"
+      :data-eldra-slot="eldra.slotHost('suffix')"
+      data-part="suffix"
+      :class="suffixClass"
+    >
+      <button
+        v-if="showClear"
+        :data-eldra-scope="eldra.scope"
+        data-part="clearButton"
+        type="button"
+        :class="clearButtonClass"
+        :aria-label="m.clear"
+        @click="onClear"
+      >
+        <!-- Tabler's `x`, stroke 1.75, at 1.125rem, as on `Input`. -->
+        <svg
+          class="size-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M18 6l-12 12" />
+          <path d="M6 6l12 12" />
+        </svg>
+      </button>
+      <slot name="suffix" />
+    </span>
 
     <div v-if="showCounter" data-part="foot" :class="footClass">
       <span :id="counterId" data-part="counter" :class="counterClass">
