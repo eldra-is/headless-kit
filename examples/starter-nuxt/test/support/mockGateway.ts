@@ -65,7 +65,6 @@ interface MockProduct {
   minPrice: number;
   maxPrice: number;
   compareAtPrice?: number;
-  brand?: string;
   variants: MockVariant[];
 }
 
@@ -92,7 +91,6 @@ export const COLLECTION_HANDLE = 'the-winter-edit';
 
 export const PRODUCTS: MockProduct[] = [
   product(PRODUCT_HANDLE, 'Ash glaze mug', 42, {
-    brand: 'Northwind Ceramics',
     variants: [
       {
         id: `var-${PRODUCT_HANDLE}`,
@@ -234,7 +232,6 @@ const detailOf = (row: MockProduct): Record<string, unknown> => ({
   // already read. Both, with the same value, is what a live response looks like.
   primaryCategoryId: row.categoryId,
   categoryIds: [row.categoryId],
-  ...(row.brand === undefined ? {} : { brand: row.brand }),
   description: { text: `${row.title} — thrown by hand, glazed in ash.` },
   mediaLinks: [],
   options: [],

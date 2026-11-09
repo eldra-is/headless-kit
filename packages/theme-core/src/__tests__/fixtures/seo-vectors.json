@@ -10,14 +10,14 @@
       "expected": "About us · Sóley"
     },
     {
-      "name": "product with brand and price",
-      "pattern": "{{product.name}} - {{product.brand}} | {{site.name}}",
+      "name": "product with sku and price",
+      "pattern": "{{product.name}} - {{product.sku}} | {{site.name}}",
       "context": "catalog:product",
       "data": {
-        "product": { "name": "Ash glaze mug", "brand": "Kiln", "price": "2.800 kr." },
+        "product": { "name": "Ash glaze mug", "sku": "KILN-01", "price": "2.800 kr." },
         "site": { "name": "Sóley" }
       },
-      "expected": "Ash glaze mug - Kiln | Sóley"
+      "expected": "Ash glaze mug - KILN-01 | Sóley"
     },
     {
       "name": "empty trailing variable drops the separator",
@@ -35,9 +35,9 @@
     },
     {
       "name": "empty middle variable collapses doubled separators",
-      "pattern": "{{product.name}} | {{product.brand}} | {{site.name}}",
+      "pattern": "{{product.name}} | {{product.sku}} | {{site.name}}",
       "context": "catalog:product",
-      "data": { "product": { "name": "Mug", "brand": "" }, "site": { "name": "Sóley" } },
+      "data": { "product": { "name": "Mug", "sku": "" }, "site": { "name": "Sóley" } },
       "expected": "Mug | Sóley"
     },
     {

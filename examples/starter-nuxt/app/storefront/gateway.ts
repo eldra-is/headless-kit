@@ -239,8 +239,6 @@ interface RawProductDetails {
    * knows the response carries it rather than inferring the catalogue only ever assigns one.
    */
   categoryIds?: string[] | null;
-  /** Per-product brand, for `Product.brand` in the structured data. */
-  brand?: string | null;
   description?: Record<string, unknown>;
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
@@ -602,7 +600,6 @@ function mapProductDetails(
       ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
       : null,
     stock: variantStock(firstAvailable, stock),
-    brand: raw.brand?.trim() || null,
     // Each variant's own price and stock state, for the page's structured data: the same
     // `variantStock` rule the buy box's line uses, so the markup and the page cannot disagree.
     variants: variants.map((variant) => ({
