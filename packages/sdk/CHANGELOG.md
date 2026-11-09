@@ -14,7 +14,9 @@ platform repository.
   it patches `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Number.prototype.toLocaleString` and
   `Date.prototype.toLocale{,Date,Time}String` so Icelandic requests use this package's data; every
   other locale stays with the runtime. Opt-in, nothing runs on import; `{ force: true }` patches
-  runtimes that have Icelandic too, and the returned function restores the runtime.
+  runtimes that have Icelandic too (use it on both sides of a server render), and the function the
+  installing call returns restores the runtime; a repeat call is a no-op. Only dates in a UTC zone
+  are patched; a date in another zone, the runtime's default included, stays with the runtime.
 
 - **Campaign attribution (WS-546, contract 5.4.0).** `captureCampaignAttribution(url?)` keeps a
   landing URL's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` (as `campaignId`, only when

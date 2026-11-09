@@ -67,6 +67,16 @@ needed for text you format yourself. Unlike a polyfill that replaces `Intl` (for
 given data for, `en-GB` included, as US English, and its default locale is whichever locale's data
 loaded first.
 
+- **Only Icelandic dates in UTC are patched.** A date in another zone, the runtime's default
+  included, stays with the runtime, which on Chrome prints Icelandic in English. Pass
+  `timeZone: 'UTC'` (or set the page to UTC) where the date must read in Icelandic.
+- **On a server render, install it with `{ force: true }` on both sides.** Node has Icelandic, so
+  without `force` the server formats with ICU and the browser with this data, and the two can differ
+  (`GMT` against `UTC` for `Atlantic/Reykjavik`). Give dates an explicit UTC zone too, since the
+  server's default zone is not the visitor's.
+- **Only the call that installs it can remove it.** Its restore works once; a later call while it is
+  installed changes nothing and returns a function that does nothing.
+
 ## What it costs
 
 Each entry carries its own `is` and `en` data. Brotlied, as `.size-limit.cjs` budgets them: prices
@@ -81,6 +91,8 @@ from what Node or Safari's own `Intl` would print:
 
 - An English 12-hour time range repeats AM/PM (`2:05 PM – 3:05 PM`, ICU `2:05 – 3:05 PM`).
 - `timeZoneName` names the zone `UTC`, also for `Atlantic/Reykjavik` (ICU: `GMT`).
+- `Atlantic/Reykjavik` is formatted as UTC for every date. Iceland kept UTC−1 and summer time
+  until 1968, so a time before then reads an hour or more later than ICU prints it.
 - Rarer options: `calendar`, `dayPeriod`, `timeZoneName: 'shortOffset'`, `unit: 'percent'` and narrow
   language names follow formatjs, not ICU.
 

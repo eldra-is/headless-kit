@@ -48,6 +48,9 @@ const consumers = {
       export const price: string = formatPrice(1, 'ISK', 'is-IS');
       export const number: Intl.NumberFormat = numberFormat('en-US', { style: 'percent' });
       export const date: Intl.DateTimeFormat = dateTimeFormat('is-IS', { dateStyle: 'short' });
+      import { installIcelandicIntl } from '@eldrajs/sdk/format/intl';
+      const restoreIntl: () => void = installIcelandicIntl({ force: true });
+      restoreIntl();
       import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldrajs/sdk';
       import { eldra } from '@eldrajs/sdk/vite';
       // What the generated .eldra/web-studio/contract.ts does in a real project.

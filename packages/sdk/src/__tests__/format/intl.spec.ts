@@ -64,6 +64,52 @@ describe('installIcelandicIntl, where the runtime has no Icelandic', () => {
     expect(berlin.format(MOMENT)).not.toContain('október');
   });
 
+  it('throws for a style the method cannot draw, as the runtime does', () => {
+    expect(() =>
+      MOMENT.toLocaleDateString('is-IS', { timeStyle: 'short', timeZone: 'UTC' })
+    ).toThrow(TypeError);
+    expect(() =>
+      MOMENT.toLocaleTimeString('is-IS', { dateStyle: 'short', timeZone: 'UTC' })
+    ).toThrow(TypeError);
+  });
+
+  it('reads the intrinsic value of its receiver, as the runtime does', () => {
+    const date = new Date(MOMENT);
+    date.getTime = () => Number.NaN;
+    expect(date.toLocaleDateString('is-IS', { timeZone: 'UTC' })).toBe('12.10.2026');
+    const number = Object.assign(new Number(1234.5), { valueOf: () => 0 });
+    expect(number.toLocaleString('is-IS')).toBe('1.234,5');
+    expect(() => Number.prototype.toLocaleString.call('1', 'is-IS')).toThrow(TypeError);
+    expect(() => Date.prototype.toLocaleDateString.call({}, 'is-IS')).toThrow(TypeError);
+  });
+
+  it('keeps instanceof and subclasses working', () => {
+    expect(new Intl.NumberFormat('is-IS')).toBeInstanceOf(Intl.NumberFormat);
+    expect(new Intl.DateTimeFormat('is-IS', DATE)).toBeInstanceOf(Intl.DateTimeFormat);
+    expect({}).not.toBeInstanceOf(Intl.DateTimeFormat);
+    class Dates extends Intl.DateTimeFormat {}
+    class Numbers extends Intl.NumberFormat {}
+    expect(new Dates('en-GB', DATE)).toBeInstanceOf(Dates);
+    expect(new Numbers('de-DE').format(1234.5)).toBe('1.234,5');
+    expect(new Numbers('de-DE')).toBeInstanceOf(Numbers);
+  });
+
+  it('reads the runtime zone on every call, not once', () => {
+    const tz = process.env.TZ;
+    try {
+      process.env.TZ = 'Europe/Berlin';
+      expect(new Intl.DateTimeFormat('is-IS', { dateStyle: 'long' }).format(MOMENT)).not.toContain(
+        'október'
+      );
+      process.env.TZ = 'UTC';
+      expect(new Intl.DateTimeFormat('is-IS', { dateStyle: 'long' }).format(MOMENT)).toBe(
+        '12. október 2026'
+      );
+    } finally {
+      process.env.TZ = tz;
+    }
+  });
+
   it('answers supportedLocalesOf with Icelandic included', () => {
     expect(Intl.DateTimeFormat.supportedLocalesOf(['is-IS', 'en-GB'])).toEqual(['is-IS', 'en-GB']);
     expect(Intl.NumberFormat.supportedLocalesOf('is')).toEqual(['is']);
@@ -74,6 +120,12 @@ describe('installIcelandicIntl, where the runtime has no Icelandic', () => {
     installIcelandicIntl()();
     expect(Intl.DateTimeFormat).toBe(patched);
     uninstall();
+    // A second call must not undo a patch installed after the first.
+    const later = installIcelandicIntl();
+    uninstall();
+    expect(Intl.DateTimeFormat).not.toBe(patched);
+    expect(new Intl.DateTimeFormat('is-IS', DATE).format(MOMENT)).toBe('12. október 2026');
+    later();
     uninstall = () => {};
     // The runtime's silent English fallback, as before installing.
     expect(new Intl.DateTimeFormat('is-IS', DATE).format(MOMENT)).toBe('October 12, 2026');

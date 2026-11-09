@@ -98,9 +98,11 @@ Where the runtime has no Icelandic, it patches `Intl.NumberFormat`, `Intl.DateTi
 `Number.prototype.toLocaleString` and `Date.prototype.toLocale{,Date,Time}String` so a request for
 Icelandic is formatted from this package's data. Every other locale goes to the runtime untouched,
 so a browser on `en-GB` keeps `12/10/2026`. Where the runtime has Icelandic (Node, Safari, Firefox)
-it does nothing, unless `{ force: true }`. It returns a function that restores the runtime's `Intl`.
-Dates in a zone other than UTC stay with the runtime. Lists, relative times, names and sorting are not
-patched; use the functions above.
+it does nothing, unless `{ force: true }`; a server render installs it with `force` on both sides so
+the two match. The call that installs it returns a function that restores the runtime's `Intl`; a
+later call while it is installed returns one that does nothing. Dates in a zone other than UTC, the
+runtime's default included, stay with the runtime and can print in English; pass `timeZone: 'UTC'`.
+Lists, relative times, names and sorting are not patched; use the functions above.
 
 ## What is in the client
 

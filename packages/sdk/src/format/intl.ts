@@ -61,6 +61,13 @@ function withDefaults(
   defaults: 'date' | 'time' | 'all'
 ): Intl.DateTimeFormatOptions {
   const resolved = { ...options };
+  // The style a method cannot draw is a TypeError, as the runtime's own methods throw.
+  if (required === 'date' && resolved.timeStyle !== undefined) {
+    throw new TypeError('toLocaleDateString does not accept timeStyle');
+  }
+  if (required === 'time' && resolved.dateStyle !== undefined) {
+    throw new TypeError('toLocaleTimeString does not accept dateStyle');
+  }
   const has = (fields: readonly string[]) =>
     fields.some((field) => (resolved as Record<string, unknown>)[field] !== undefined);
   let needDefaults = true;
@@ -85,6 +92,9 @@ function withDefaults(
  * Covers numbers and dates. Dates in a zone other than UTC (Iceland's) stay with the runtime, since
  * the bundled data carries no time zones. Lists, relative times, names and sorting are not patched:
  * use `listFormat`, `relativeTimeFormat`, `displayNames` and `comparator` for those.
+ *
+ * Only the call that installs the patch can remove it, once; a call made while it is installed
+ * changes nothing and returns a function that does nothing.
  */
 export function installIcelandicIntl(options: InstallIcelandicIntlOptions = {}): Restore {
   const intl = Intl as unknown as Record<string, unknown>;
@@ -96,46 +106,76 @@ export function installIcelandicIntl(options: InstallIcelandicIntlOptions = {}):
     RuntimeDateTimeFormat.supportedLocalesOf(['is']).length > 0;
   if (runtimeHasIcelandic && !options.force) return () => {};
 
-  let runtimeZone: string | undefined;
-  /** The zone a date formatter would use: the one asked for, else the runtime's own. */
+  /**
+   * The zone a date formatter would use: the one asked for, else the runtime's own, read on every
+   * call because it can change while the page is open.
+   */
   const zoneOf = (dateOptions?: Intl.DateTimeFormatOptions) =>
-    dateOptions?.timeZone ??
-    (runtimeZone ??= new RuntimeDateTimeFormat().resolvedOptions().timeZone);
+    dateOptions?.timeZone ?? new RuntimeDateTimeFormat().resolvedOptions().timeZone;
   const icelandicNumbers = (locales: unknown) => wantsIcelandic(RuntimeNumberFormat, locales);
-  const icelandicDates = (locales: unknown, dateOptions?: Intl.DateTimeFormatOptions) =>
-    wantsIcelandic(RuntimeDateTimeFormat, locales) && isUtcZone(zoneOf(dateOptions));
-  const icelandicDateFormat = (dateOptions?: Intl.DateTimeFormatOptions) =>
-    dateTimeFormat('is', { ...dateOptions, timeZone: zoneOf(dateOptions) });
+  /** The UTC zone to format an Icelandic date in, or `undefined` when the runtime keeps it. */
+  const icelandicZone = (locales: unknown, dateOptions?: Intl.DateTimeFormatOptions) => {
+    if (!wantsIcelandic(RuntimeDateTimeFormat, locales)) return undefined;
+    const zone = zoneOf(dateOptions);
+    return isUtcZone(zone) ? zone : undefined;
+  };
+  /** The formatters this patch hands out, so `instanceof` recognises them as well as native ones. */
+  const bundled = new WeakSet<object>();
+  const handOut = <T extends object>(formatter: T): T => {
+    bundled.add(formatter);
+    return formatter;
+  };
+  const icelandicDateFormat = (dateOptions: Intl.DateTimeFormatOptions | undefined, zone: string) =>
+    handOut(dateTimeFormat('is', { ...dateOptions, timeZone: zone }));
 
+  // `new.target` is forwarded so a subclass of the patched constructor keeps its own prototype.
   const NumberFormat = function NumberFormat(
     locales?: string | string[],
     numberOptions?: Intl.NumberFormatOptions
   ) {
-    return icelandicNumbers(locales)
-      ? numberFormat('is', numberOptions)
-      : new RuntimeNumberFormat(locales, numberOptions);
+    if (icelandicNumbers(locales)) return handOut(numberFormat('is', numberOptions));
+    return Reflect.construct(
+      RuntimeNumberFormat,
+      [locales, numberOptions],
+      new.target ?? RuntimeNumberFormat
+    );
   } as unknown as typeof Intl.NumberFormat;
-  // Native instances stay `instanceof Intl.NumberFormat`.
-  Object.assign(NumberFormat, {
-    prototype: RuntimeNumberFormat.prototype,
-    supportedLocalesOf: supportedLocalesOf(RuntimeNumberFormat),
+  Object.defineProperties(NumberFormat, {
+    prototype: { value: RuntimeNumberFormat.prototype },
+    supportedLocalesOf: { value: supportedLocalesOf(RuntimeNumberFormat) },
+    [Symbol.hasInstance]: {
+      value: (value: unknown) =>
+        value instanceof RuntimeNumberFormat ||
+        (typeof value === 'object' && value !== null && bundled.has(value)),
+    },
   });
 
   const DateTimeFormat = function DateTimeFormat(
     locales?: string | string[],
     dateOptions?: Intl.DateTimeFormatOptions
   ) {
-    return icelandicDates(locales, dateOptions)
-      ? icelandicDateFormat(dateOptions)
-      : new RuntimeDateTimeFormat(locales, dateOptions);
+    const zone = icelandicZone(locales, dateOptions);
+    if (zone !== undefined) return icelandicDateFormat(dateOptions, zone);
+    return Reflect.construct(
+      RuntimeDateTimeFormat,
+      [locales, dateOptions],
+      new.target ?? RuntimeDateTimeFormat
+    );
   } as unknown as typeof Intl.DateTimeFormat;
-  Object.assign(DateTimeFormat, {
-    prototype: RuntimeDateTimeFormat.prototype,
-    supportedLocalesOf: supportedLocalesOf(RuntimeDateTimeFormat),
+  Object.defineProperties(DateTimeFormat, {
+    prototype: { value: RuntimeDateTimeFormat.prototype },
+    supportedLocalesOf: { value: supportedLocalesOf(RuntimeDateTimeFormat) },
+    [Symbol.hasInstance]: {
+      value: (value: unknown) =>
+        value instanceof RuntimeDateTimeFormat ||
+        (typeof value === 'object' && value !== null && bundled.has(value)),
+    },
   });
   (NumberFormat as unknown as Record<symbol, unknown>)[INSTALLED] = true;
 
   const numberToLocaleString = Number.prototype.toLocaleString;
+  const numberValueOf = Number.prototype.valueOf;
+  const dateGetTime = Date.prototype.getTime;
   const dateToLocaleString = Date.prototype.toLocaleString;
   const dateToLocaleDateString = Date.prototype.toLocaleDateString;
   const dateToLocaleTimeString = Date.prototype.toLocaleTimeString;
@@ -145,8 +185,10 @@ export function installIcelandicIntl(options: InstallIcelandicIntlOptions = {}):
     locales?: string | string[],
     numberOptions?: Intl.NumberFormatOptions
   ) {
+    // The intrinsic `valueOf`: no overridden coercion, and a TypeError for a non-number receiver.
+    const value = numberValueOf.call(this);
     return icelandicNumbers(locales)
-      ? numberFormat('is', numberOptions).format(Number(this))
+      ? numberFormat('is', numberOptions).format(value)
       : numberToLocaleString.call(this, locales, numberOptions);
   };
   const patchDate = (
@@ -159,11 +201,13 @@ export function installIcelandicIntl(options: InstallIcelandicIntlOptions = {}):
     defaults: 'date' | 'time' | 'all'
   ) =>
     function (this: Date, locales?: string | string[], dateOptions?: Intl.DateTimeFormatOptions) {
-      // An invalid date prints "Invalid Date" in every locale; the runtime says it.
-      if (Number.isNaN(this.getTime()) || !icelandicDates(locales, dateOptions)) {
-        return original.call(this, locales, dateOptions);
-      }
-      return icelandicDateFormat(withDefaults(dateOptions, required, defaults)).format(this);
+      // An invalid date prints "Invalid Date" in every locale; the runtime says it. The intrinsic
+      // `getTime` ignores an override, and throws for a non-Date receiver as the runtime does.
+      const zone = Number.isNaN(dateGetTime.call(this))
+        ? undefined
+        : icelandicZone(locales, dateOptions);
+      if (zone === undefined) return original.call(this, locales, dateOptions);
+      return icelandicDateFormat(withDefaults(dateOptions, required, defaults), zone).format(this);
     };
   Date.prototype.toLocaleString = patchDate(dateToLocaleString, 'any', 'all');
   Date.prototype.toLocaleDateString = patchDate(dateToLocaleDateString, 'date', 'date');
@@ -171,7 +215,10 @@ export function installIcelandicIntl(options: InstallIcelandicIntlOptions = {}):
   intl.NumberFormat = NumberFormat;
   intl.DateTimeFormat = DateTimeFormat;
 
+  let restored = false;
   return () => {
+    if (restored) return;
+    restored = true;
     intl.NumberFormat = RuntimeNumberFormat;
     intl.DateTimeFormat = RuntimeDateTimeFormat;
     Number.prototype.toLocaleString = numberToLocaleString;
