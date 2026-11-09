@@ -6,6 +6,9 @@ import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
 import { createPanelHeightAnimator, type PanelHeightAnimator } from './heightTransition';
 import type { AccordionItemProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<AccordionItemProps>(), {
   help: undefined,
@@ -275,7 +278,14 @@ const panelClass = computed(() =>
 </script>
 
 <template>
-  <a v-if="isLinkRow" data-eldra-ui data-part="root" :class="rootClass" :href="href">
+  <a
+    v-if="isLinkRow"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :href="href"
+  >
     <span class="min-w-0 flex-1">
       <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
       <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
@@ -285,6 +295,7 @@ const panelClass = computed(() =>
     v-else
     ref="detailsRef"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :name="detailsName"
@@ -313,7 +324,12 @@ const panelClass = computed(() =>
         <path d="M6 9l6 6l6 -6" />
       </svg>
     </summary>
-    <div ref="panelRef" data-part="panel" :class="panelClass">
+    <div
+      ref="panelRef"
+      :data-eldra-slot="eldra.slotHost('default')"
+      data-part="panel"
+      :class="panelClass"
+    >
       <slot />
     </div>
   </details>

@@ -1,11 +1,12 @@
 import { DOMWrapper, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { nextTick, reactive } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountWith } from '../../../test/mount';
 import { useToast } from '../../../composables/useToast';
 import Dialog from '../../dialog/Dialog.vue';
 import Toaster from '../Toaster.vue';
+import type { ToasterPosition } from '../types';
 
 /**
  * `Toaster`'s entire template is a `<Teleport>`, so — exactly like the Select/MultiSelect/
@@ -290,5 +291,142 @@ describe('Toaster — accessibility', () => {
     toast.show({ id: 'd', variant: 'danger', title: "Couldn't update your cart" });
     await nextTick();
     expect(await axe(region().element)).toHaveNoViolations();
+  });
+});
+
+describe('Toaster — an externally owned queue', () => {
+  function mountExternal(props: Record<string, unknown>): VueWrapper {
+    const wrapper = mountWith(Toaster, { props }) as unknown as VueWrapper;
+    mounted.push(wrapper);
+    return wrapper;
+  }
+
+  it('renders the given toasts, not the useToast queue, and keeps the two live regions apart', async () => {
+    useToast().show({ title: 'From the store' });
+    mountExternal({
+      toasts: [
+        { id: 'a', title: 'Saved', variant: 'info' },
+        { id: 'b', title: 'Could not publish', variant: 'danger' },
+      ],
+    });
+    await nextTick();
+    expect(toastTitles()).toEqual(['Saved', 'Could not publish']);
+    const alert = document.querySelector('[role="alert"]') as HTMLElement;
+    expect(list().element.contains(alert)).toBe(false);
+    expect(list().element.textContent).toContain('Saved');
+    expect(await axe(region().element)).toHaveNoViolations();
+  });
+
+  it('only emits dismiss on close, leaving the list and the store to their owners', async () => {
+    useToast().show({ id: 'store', title: 'From the store' });
+    const wrapper = mountExternal({ toasts: [{ id: 'a', title: 'Saved' }] });
+    await nextTick();
+    await toastCloseButtons()[0]!.trigger('click');
+    expect(wrapper.emitted('dismiss')).toEqual([['a', 'button']]);
+    expect(toastTitles()).toEqual(['Saved']);
+    expect(useToast().toasts.value.map((toast) => toast.id)).toEqual(['store']);
+  });
+
+  it('keeps no timer without a duration, and emits dismiss("timeout") with one', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountExternal({
+      toasts: [
+        { id: 'a', title: 'Saved' },
+        { id: 'b', title: 'Sent', duration: 1000 },
+      ],
+    });
+    await nextTick();
+    vi.advanceTimersByTime(60000);
+    expect(wrapper.emitted('dismiss')).toEqual([['b', 'timeout']]);
+  });
+
+  it('follows a list changed in place', async () => {
+    const queue = reactive([{ id: 'a', title: 'Saved' }]);
+    mountExternal({ toasts: queue });
+    await nextTick();
+    queue.push({ id: 'b', title: 'Sent' });
+    await nextTick();
+    expect(toastTitles()).toEqual(['Saved', 'Sent']);
+  });
+});
+
+describe('Toaster — position, maxVisible, newestOnTop, teleportTo', () => {
+  const THREE = [
+    { id: '1', title: 'One' },
+    { id: '2', title: 'Two' },
+    { id: '3', title: 'Three' },
+  ];
+
+  it('sits bottom-right by default', () => {
+    mount();
+    expect(region().classes()).toEqual(expect.arrayContaining(['right-4', 'bottom-4']));
+  });
+
+  it.each([
+    ['top-left', ['left-4', 'top-4']],
+    ['top-center', ['left-1/2', 'top-4', '-translate-x-1/2']],
+    ['top-right', ['right-4', 'top-4']],
+    ['bottom-left', ['left-4', 'bottom-4']],
+    ['bottom-center', ['left-1/2', 'bottom-4', '-translate-x-1/2']],
+  ] as [ToasterPosition, string[]][])('sits %s', (position, classes) => {
+    mounted.push(mountWith(Toaster, { props: { position } }) as unknown as VueWrapper);
+    expect(region().classes()).toEqual(expect.arrayContaining(classes));
+    expect(region().classes()).not.toContain(position.startsWith('top') ? 'bottom-4' : 'top-4');
+  });
+
+  it('keeps the newest maxVisible toasts', async () => {
+    mounted.push(
+      mountWith(Toaster, { props: { toasts: THREE, maxVisible: 2 } }) as unknown as VueWrapper
+    );
+    await nextTick();
+    expect(toastTitles()).toEqual(['Two', 'Three']);
+  });
+
+  it('draws the newest first with newestOnTop', async () => {
+    mounted.push(
+      mountWith(Toaster, { props: { toasts: THREE, newestOnTop: true } }) as unknown as VueWrapper
+    );
+    await nextTick();
+    expect(toastTitles()).toEqual(['Three', 'Two', 'One']);
+  });
+
+  it('teleports to teleportTo while no dialog is open', async () => {
+    const host = document.createElement('div');
+    host.id = 'toast-host';
+    document.body.appendChild(host);
+    mounted.push(
+      mountWith(Toaster, { props: { teleportTo: '#toast-host' } }) as unknown as VueWrapper
+    );
+    await nextTick();
+    expect(host.querySelector('[data-part="list"]')).not.toBeNull();
+  });
+});
+
+describe('Toaster — data-variant on every toast', () => {
+  it('marks each toast root with its variant, from the store and from an external queue', async () => {
+    useToast().show({ title: 'Stored', variant: 'warning' });
+    const store = mountWith(Toaster) as unknown as VueWrapper;
+    mounted.push(store);
+    await nextTick();
+    const variants = () =>
+      [...document.querySelectorAll('[data-part="root"][data-variant]')].map((el) =>
+        el.getAttribute('data-variant')
+      );
+    expect(variants()).toEqual(['warning']);
+    store.unmount();
+    mounted.splice(mounted.indexOf(store), 1);
+
+    const external = mountWith(Toaster, {
+      props: {
+        toasts: [
+          { id: 'a', title: 'Saved', variant: 'info' },
+          { id: 'b', title: 'Could not publish', variant: 'danger' },
+          { id: 'c', title: 'Sent' },
+        ],
+      },
+    }) as unknown as VueWrapper;
+    mounted.push(external);
+    await nextTick();
+    expect(variants().sort()).toEqual(['danger', 'info', 'success']);
   });
 });

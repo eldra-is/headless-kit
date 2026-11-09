@@ -24,6 +24,9 @@ import type {
   SiteFormValue,
 } from './types';
 import { useSiteForm } from './useSiteForm';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<SiteFormProps>(), {
   definition: undefined,
@@ -230,18 +233,30 @@ async function sendAnother(): Promise<void> {
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    :data-eldra-slot="eldra.slotHost('loading', 'failed')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <slot v-if="status === 'loading'" name="loading">
-      <p data-part="notice" role="status" :class="noticeClass">{{ m.formLoading }}</p>
+      <p :data-eldra-scope="eldra.scope" data-part="notice" role="status" :class="noticeClass">
+        {{ m.formLoading }}
+      </p>
     </slot>
 
     <slot v-else-if="status === 'failed' || !form" name="failed">
-      <p data-part="notice" role="alert" :class="noticeClass">{{ m.formLoadFailed }}</p>
+      <p :data-eldra-scope="eldra.scope" data-part="notice" role="alert" :class="noticeClass">
+        {{ m.formLoadFailed }}
+      </p>
     </slot>
 
     <div
       v-else-if="success"
       ref="successRoot"
+      :data-eldra-slot="eldra.slotHost('success')"
+      :data-eldra-scope="eldra.scope"
       data-part="success"
       role="status"
       tabindex="-1"
@@ -272,11 +287,23 @@ async function sendAnother(): Promise<void> {
       @submit="onSubmit"
     >
       <template v-if="formErrors.length > 0" #errorSummary>
-        <p v-for="(message, index) in formErrors" :key="index" class="m-0">{{ message }}</p>
+        <p
+          v-for="(message, index) in formErrors"
+          :key="index"
+          :data-eldra-scope="eldra.scope"
+          class="m-0"
+        >
+          {{ message }}
+        </p>
       </template>
 
       <template v-for="field in form.fields" :key="field.id">
-        <div v-if="isBooleanField(field)" data-part="field" :class="booleanFieldClass">
+        <div
+          v-if="isBooleanField(field)"
+          :data-eldra-scope="eldra.scope"
+          data-part="field"
+          :class="booleanFieldClass"
+        >
           <Checkbox
             :id="fieldId(field.id)"
             :model-value="values[field.id] === true"
@@ -337,7 +364,13 @@ async function sendAnother(): Promise<void> {
       </template>
 
       <!-- The honeypot: hidden from people and assistive technology, filled only by a bot. -->
-      <div v-if="form.honeypotField" class="sr-only" aria-hidden="true" inert>
+      <div
+        v-if="form.honeypotField"
+        :data-eldra-scope="eldra.scope"
+        class="sr-only"
+        aria-hidden="true"
+        inert
+      >
         <input
           v-model="honeypot"
           type="text"
@@ -349,6 +382,7 @@ async function sendAnother(): Promise<void> {
 
       <div
         v-if="form.turnstileSiteKey"
+        :data-eldra-scope="eldra.scope"
         :ref="setTurnstileRoot"
         data-part="turnstile"
         :class="turnstileClass"
@@ -356,6 +390,7 @@ async function sendAnother(): Promise<void> {
 
       <p
         v-if="form.consentText && layout === 'inline'"
+        :data-eldra-scope="eldra.scope"
         :id="consentId"
         data-part="consentText"
         :class="consentClass"
@@ -364,7 +399,12 @@ async function sendAnother(): Promise<void> {
       </p>
 
       <template #actions>
-        <div v-if="consentUnderButton" class="grid w-full gap-2">
+        <div
+          v-if="consentUnderButton"
+          :data-eldra-slot="eldra.slotHost('submit')"
+          :data-eldra-scope="eldra.scope"
+          class="grid w-full gap-2"
+        >
           <slot name="submit" :label="submitText" :submitting="submitting" :describedBy="consentId">
             <Button
               type="submit"
@@ -376,7 +416,12 @@ async function sendAnother(): Promise<void> {
               {{ submitText }}
             </Button>
           </slot>
-          <p :id="consentId" data-part="consentText" :class="consentClass">
+          <p
+            :data-eldra-scope="eldra.scope"
+            :id="consentId"
+            data-part="consentText"
+            :class="consentClass"
+          >
             {{ form.consentText }}
           </p>
         </div>

@@ -22,6 +22,8 @@ export interface TabsItem {
   title: string;
   /** The panel's plain-text content. Use the slots API instead for richer panel content. */
   content?: string;
+  /** Not selectable, skipped by the arrow keys and `Home`/`End`. See `TabProps.disabled`. */
+  disabled?: boolean;
 }
 
 export interface TabsProps {
@@ -56,6 +58,13 @@ export interface TabProps {
   /** The visible label. Also the default slot's fallback, the same shape `Button`'s `label` and
    *  default slot follow. */
   title?: string;
+  /**
+   * The tab cannot be selected: a click does nothing, the arrow keys and `Home`/`End` skip it, and
+   * it carries `aria-disabled="true"` rather than native `disabled`, so a disabled tab that is
+   * already selected stays the list's one tab stop. The default selection is the first tab that is
+   * not disabled. Defaults to `false`.
+   */
+  disabled?: boolean;
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<TabPart, string>>;
 }

@@ -1,4 +1,4 @@
-import { nextTick } from 'vue';
+import { defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { VueWrapper } from '@vue/test-utils';
 import { axe } from '../../../test/axe';
@@ -6,6 +6,7 @@ import { mountNarrow, mountWith } from '../../../test/mount';
 import Tab from '../Tab.vue';
 import TabPanel from '../TabPanel.vue';
 import Tabs from '../Tabs.vue';
+import { TABS_KEY } from '../context';
 import type { TabsItem } from '../types';
 
 /** The spec's own "Product information" tabs. */
@@ -389,6 +390,122 @@ describe('Tabs — narrow', () => {
   });
 });
 
+const WITH_DISABLED: TabsItem[] = [
+  { value: 'description', title: 'Description', content: 'A relaxed-fit crew neck sweater.' },
+  { value: 'materials', title: 'Materials & care', content: 'Hand wash cold.', disabled: true },
+  { value: 'shipping', title: 'Shipping & returns', content: 'Ships in 2-3 business days.' },
+];
+
+describe('Tabs — disabled tabs', () => {
+  it('marks a disabled tab aria-disabled, never native disabled, and leaves the others alone', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    const tabs = tabsOf(wrapper);
+    expect(tabs.map((tab) => tab.attributes('aria-disabled'))).toEqual([
+      undefined,
+      'true',
+      undefined,
+    ]);
+    expect(tabs[1]!.attributes('disabled')).toBeUndefined();
+    expect(tabs[1]!.classes()).toContain('cursor-not-allowed');
+  });
+
+  it('renders exactly as before when no tab is disabled', async () => {
+    const wrapper = await mount();
+    for (const tab of tabsOf(wrapper)) {
+      expect(tab.attributes('aria-disabled')).toBeUndefined();
+      expect(tab.classes()).toContain('cursor-pointer');
+    }
+  });
+
+  it('ignores a click on a disabled tab', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    await tabsOf(wrapper)[1]!.trigger('click');
+    expect(tabsOf(wrapper)[0]!.attributes('aria-selected')).toBe('true');
+    expect(tabsOf(wrapper)[1]!.attributes('aria-selected')).toBe('false');
+    expect(wrapper.emitted('change')).toBeUndefined();
+  });
+
+  it('skips a disabled tab with the arrow keys, both ways', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    const tabs = tabsOf(wrapper);
+    (tabs[0]!.element as HTMLElement).focus();
+    await tabs[0]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[2]!.element);
+    expect(tabs[2]!.attributes('aria-selected')).toBe('true');
+    await tabs[2]!.trigger('keydown', { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(tabs[0]!.element);
+  });
+
+  it('Home/End land on the first/last tab that is not disabled', async () => {
+    const items = [
+      { ...WITH_DISABLED[0]!, disabled: true },
+      WITH_DISABLED[2]!,
+      { value: 'reviews', title: 'Reviews', disabled: true },
+    ];
+    const wrapper = await mount({ items, modelValue: 'shipping' });
+    const tabs = tabsOf(wrapper);
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'Home' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+    await tabs[1]!.trigger('keydown', { key: 'End' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+  });
+
+  it('defaults to the first tab that is not disabled', async () => {
+    const items = [{ ...WITH_DISABLED[0]!, disabled: true }, ...WITH_DISABLED.slice(1)];
+    const wrapper = await mount({ items });
+    expect(tabsOf(wrapper).map((tab) => tab.attributes('aria-selected'))).toEqual([
+      'false',
+      'false',
+      'true',
+    ]);
+  });
+
+  it('keeps a selected disabled tab as the one tab stop, and moves nowhere when every tab is disabled', async () => {
+    const items = ITEMS.map((item) => ({ ...item, disabled: true }));
+    const wrapper = await mount({ items, modelValue: 'materials' });
+    const tabs = tabsOf(wrapper);
+    expect(tabs.map((tab) => tab.attributes('tabindex'))).toEqual(['-1', '0', '-1']);
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'ArrowRight' });
+    await tabs[1]!.trigger('keydown', { key: 'End' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+  });
+
+  it('draws a selected disabled underline tab with a muted bar, not the primary one', async () => {
+    const items = ITEMS.map((item) => ({ ...item, disabled: true }));
+    const wrapper = await mount({ items });
+    const indicators = wrapper.findAll('[data-part="indicator"]');
+    expect(indicators[0]!.classes()).toContain('bg-muted');
+    expect(indicators[0]!.classes()).not.toContain('bg-primary');
+  });
+
+  it('takes disabled on a standalone Tab in the slots API', async () => {
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Product information' },
+      slots: {
+        tabs: '<Tab value="a" title="A" /><Tab value="b" title="B" disabled />',
+        default: '<TabPanel value="a">A</TabPanel><TabPanel value="b">B</TabPanel>',
+      },
+      global: { components: { Tab, TabPanel } },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs[1]!.attributes('aria-disabled')).toBe('true');
+    await tabs[1]!.trigger('click');
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true');
+  });
+
+  it('has no axe violations with a disabled tab (underline and pills)', async () => {
+    const underline = await mount({ items: WITH_DISABLED });
+    expect(await axe(underline.element)).toHaveNoViolations();
+    const pills = await mount({ items: WITH_DISABLED, variant: 'pills' });
+    expect(await axe(pills.element)).toHaveNoViolations();
+  });
+});
+
 describe('Tabs — accessibility', () => {
   it('has no axe violations (underline)', async () => {
     const wrapper = await mount();
@@ -403,5 +520,55 @@ describe('Tabs — accessibility', () => {
   it('has no axe violations under manual activation', async () => {
     const wrapper = await mount({ activation: 'manual' });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});
+
+describe('Tabs — a registered entry without `disabled`', () => {
+  it('reads an entry registered without `disabled` as enabled, for selection and the arrow keys', async () => {
+    const CustomTab = defineComponent({
+      props: { value: { type: String, required: true } },
+      setup(props) {
+        const context = inject(TABS_KEY)!;
+        const el = ref<HTMLButtonElement | null>(null);
+        let unregister: (() => void) | undefined;
+        onMounted(() => {
+          unregister = context.register({ value: props.value, focus: () => el.value?.focus() });
+        });
+        onBeforeUnmount(() => unregister?.());
+        return () =>
+          h(
+            'button',
+            {
+              ref: el,
+              type: 'button',
+              role: 'tab',
+              id: context.tabId(props.value),
+              'aria-selected': context.isSelected(props.value) ? 'true' : 'false',
+              onKeydown: (event: KeyboardEvent) => {
+                if (event.key === 'ArrowRight') context.moveFocus(props.value, 1);
+              },
+            },
+            props.value
+          );
+      },
+    });
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Product information' },
+      slots: {
+        tabs: '<CustomTab value="custom" /><Tab value="materials">Materials</Tab>',
+        default:
+          '<TabPanel value="custom">Custom</TabPanel><TabPanel value="materials">Materials</TabPanel>',
+      },
+      global: { components: { CustomTab, Tab, TabPanel } },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const tabs = tabsOf(wrapper);
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true');
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[0]!.element);
+    await tabs[0]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
   });
 });

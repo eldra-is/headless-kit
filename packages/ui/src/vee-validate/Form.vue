@@ -8,6 +8,9 @@ import { useMessages } from '../composables/useMessages';
 import { API_ERRORS_KEY, FIELD_ANCHORS_KEY } from './context';
 import type { FormProps, FormSlotProps, FormValues } from './types';
 import { useControlProps } from './useFieldControl';
+import { useEldraScope } from '../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * `FormLayout` with a vee-validate form behind it.
@@ -255,8 +258,10 @@ const SUMMARY_LINK = 'underline';
   >
     <template v-if="showSummary" #errorSummary>
       <slot name="errorSummary" v-bind="slotProps">
-        <p :class="SUMMARY_TITLE">{{ m.formErrors(summary.length) }}</p>
-        <ul :class="SUMMARY_LIST">
+        <p :data-eldra-scope="eldra.scope" :class="SUMMARY_TITLE">
+          {{ m.formErrors(summary.length) }}
+        </p>
+        <ul :data-eldra-scope="eldra.scope" :class="SUMMARY_LIST">
           <li v-for="entry in summary" :key="entry.name">
             <a v-if="entry.href !== undefined" :href="entry.href" :class="SUMMARY_LINK">{{
               entry.message

@@ -13,6 +13,9 @@ import Skeleton from '../skeleton/Skeleton.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from '../card/stretchedLink';
 import type { ProductCardProduct, ProductCardProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ProductCardProps>(), {
   showVendor: false,
@@ -290,6 +293,7 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
   <div
     v-if="loading"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     role="group"
@@ -307,7 +311,7 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
     </div>
   </div>
 
-  <article v-else data-eldra-ui data-part="root" :class="rootClass">
+  <article v-else data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <div data-part="media" :class="mediaClass">
       <Image
         :media="product.featuredImage"

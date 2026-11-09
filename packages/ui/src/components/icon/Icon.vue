@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { partClass } from '../../utils/cx';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from './sizes';
 import type { IconProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<IconProps>(), {
   size: 'md',
@@ -25,6 +28,7 @@ const rootClass = computed(() =>
   <component
     :is="icon"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :stroke-width="ICON_STROKE_WIDTH"

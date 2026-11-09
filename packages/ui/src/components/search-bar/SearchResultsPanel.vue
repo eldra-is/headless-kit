@@ -3,6 +3,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import type { MatchParts } from '../select/useOptionList';
 import type { SearchBarPart, SearchRow, SearchSection } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * The `SearchBar`'s results panel: the non-modal popup below the field.
@@ -106,11 +109,18 @@ const panelClass = computed(() =>
       ? // Spec "Search modal" → Sizes, Panel row: "Inline, fills the remaining height and
         // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
         // this component already clips to the radius, so nothing here draws one.
-        'flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain p-2'
+        cx(
+          'flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain p-2',
+          'text-[color:var(--eldra-select-panel-text)]'
+        )
       : cx(
           'absolute z-popover flex flex-col overflow-y-auto overscroll-contain p-1.5',
           'eldra-search-panel-height',
-          'rounded-lg border border-border bg-background shadow-md',
+          'rounded-lg border shadow-md',
+          'border-[color:var(--eldra-select-panel-border,var(--color-border))]',
+          'bg-[color:var(--eldra-select-panel-background,var(--color-background))]',
+          // No fallback: unset, the colour is inherited exactly as before.
+          'text-[color:var(--eldra-select-panel-text)]',
           'animate-eldra-popover-in'
         ),
     props.classes,
@@ -123,7 +133,11 @@ const listboxClass = computed(() => partClass('flex flex-col', props.classes, 'l
 /** "0.125rem block padding. Each group after the first has a 1px `border` hairline above." */
 const sectionClass = (index: number): string =>
   partClass(
-    cx('py-0.5', index > 0 && 'border-border mt-1 border-t pt-1.5'),
+    cx(
+      'py-0.5',
+      index > 0 &&
+        'border-[color:var(--eldra-select-panel-border,var(--color-border))] mt-1 border-t pt-1.5'
+    ),
     props.classes,
     'section'
   );
@@ -131,7 +145,7 @@ const sectionClass = (index: number): string =>
 /** "0.75rem, 600, uppercase, 0.06em tracking, `muted`, min 1.75rem row, padding 0.25rem 0.5rem." */
 const headingClass = computed(() =>
   partClass(
-    'text-select-group text-muted flex min-h-7 items-center px-2 py-1',
+    'text-select-group flex min-h-7 items-center px-2 py-1 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
     props.classes,
     'sectionHeading'
   )
@@ -150,10 +164,13 @@ const rowClass = (row: SearchRow, part: SearchBarPart = 'item'): string =>
   partClass(
     cx(
       'flex min-h-10 scroll-my-1 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5',
-      'text-select-option text-text no-underline',
+      'text-select-option no-underline',
+      'text-[color:var(--eldra-select-panel-text,var(--color-text))]',
       // 'Minor rows ("Clear recent searches"): title 0.8125rem `muted`.'
-      row.kind === 'clearRecent' && 'text-caption text-muted',
-      isActive(row) && 'bg-surface-strong eldra-select-option-active'
+      row.kind === 'clearRecent' &&
+        'text-caption text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+      isActive(row) &&
+        'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))] eldra-select-option-active'
     ),
     props.classes,
     part
@@ -169,7 +186,9 @@ const imageClass = (row: SearchRow): string =>
   partClass(
     cx(
       'flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm',
-      row.item?.image === undefined ? 'bg-surface text-muted' : 'bg-surface-strong'
+      row.item?.image === undefined
+        ? 'bg-surface text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+        : 'bg-surface-strong'
     ),
     props.classes,
     'itemImage'
@@ -187,7 +206,8 @@ const metaClass = computed(() =>
 const arrowClass = computed(() => partClass('size-4 shrink-0', props.classes, 'itemArrow'));
 
 /** A recent row's own leading icon: "a 1.125rem `muted` leading icon instead" of a tile. */
-const LEADING_ICON = 'size-4.5 shrink-0 text-muted';
+const LEADING_ICON =
+  'size-4.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]';
 
 const recentClass = computed(() => partClass('', props.classes, 'recent'));
 const popularClass = computed(() =>
@@ -203,9 +223,14 @@ const chipClass = (row: SearchRow): string =>
   partClass(
     cx(
       'inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3',
-      'text-body-sm text-text no-underline',
+      'text-body-sm no-underline',
+      'text-[color:var(--eldra-select-panel-text,var(--color-text))]',
       isActive(row)
-        ? 'bg-surface-strong border-text eldra-select-option-active'
+        ? cx(
+            'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]',
+            'border-[color:var(--eldra-select-panel-text,var(--color-text))]',
+            'eldra-select-option-active'
+          )
         : 'border-border-strong'
     ),
     props.classes,
@@ -254,6 +279,7 @@ function onPanelMouseDown(event: MouseEvent): void {
     ref="root"
     :id="panelId"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="panel"
     :data-eldra-overlay-owner="panelId"
     :class="panelClass"
@@ -265,10 +291,19 @@ function onPanelMouseDown(event: MouseEvent): void {
     <!-- Spec → Panel views, `none`: the title, the advice, then the suggestion chips under it.
          A sibling of the listbox, and before it, because a listbox may own only options and groups
          while the chips below this message are options. -->
-    <div v-if="view === 'none'" data-part="empty" :class="emptyClass">
+    <div
+      v-if="view === 'none'"
+      :data-eldra-slot="eldra.slotHost('empty')"
+      data-part="empty"
+      :class="emptyClass"
+    >
       <slot name="empty">
         <p class="text-search-title m-0 break-words">{{ emptyTitle }}</p>
-        <p class="text-body-sm text-muted mt-1 mb-0">{{ emptyAdvice }}</p>
+        <p
+          class="text-body-sm mt-1 mb-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+        >
+          {{ emptyAdvice }}
+        </p>
       </slot>
     </div>
 
@@ -347,7 +382,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           >
             <!-- Tabler's `search` at 0.875rem, decorative: the chip is named by its text. -->
             <svg
-              class="text-muted size-3.5 shrink-0"
+              class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -373,6 +408,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           <a
             v-for="row in section.rows"
             :key="row.value"
+            :data-eldra-slot="eldra.slotHost('item')"
             :id="optionId(row.value)"
             :data-part="row.kind === 'clearRecent' ? 'clearRecent' : 'item'"
             role="option"
@@ -457,6 +493,7 @@ function onPanelMouseDown(event: MouseEvent): void {
             <template v-else>
               <!-- Tabler's `clock` for a recent row, `x` for the clear row. Both decorative. -->
               <svg
+                :data-eldra-scope="eldra.scope"
                 :class="LEADING_ICON"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -476,12 +513,15 @@ function onPanelMouseDown(event: MouseEvent): void {
                   <path d="M12 7v5l3 3" />
                 </template>
               </svg>
-              <span data-part="itemTitle" :class="titleClass">{{ row.label }}</span>
+              <span :data-eldra-scope="eldra.scope" data-part="itemTitle" :class="titleClass">{{
+                row.label
+              }}</span>
             </template>
 
             <!-- Spec → Sizes, Active arrow: "visible only on the active row". -->
             <svg
               v-if="isActive(row)"
+              :data-eldra-scope="eldra.scope"
               data-part="itemArrow"
               :class="arrowClass"
               viewBox="0 0 24 24"
@@ -521,7 +561,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           @mouseenter="emit('activate', row.value)"
         >
           <svg
-            class="text-muted size-3.5 shrink-0"
+            class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

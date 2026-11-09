@@ -7,9 +7,14 @@ import { useUiId } from '../../utils/id';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
 import { FIELD_KEY, type FieldContext } from './context';
 import FieldError from './FieldError.vue';
+import RequiredMark from './RequiredMark.vue';
 import type { FieldWrapperProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FieldWrapperProps>(), {
+  label: undefined,
   id: undefined,
   required: false,
   optional: false,
@@ -41,7 +46,7 @@ const errorId = computed(() => `${controlId.value}-error`);
 const counterId = computed(() => `${controlId.value}-counter`);
 
 /** Slots are not reactive; see `useSlotPresence` for the defect this avoids. */
-const slotContent = useSlotPresence(slots, ['error', 'help'] as const);
+const slotContent = useSlotPresence(slots, ['error', 'help', 'label'] as const);
 
 /**
  * A slot counts as content: `<template #error>` is a richer way of writing the `error` prop (a
@@ -51,6 +56,12 @@ const slotContent = useSlotPresence(slots, ['error', 'help'] as const);
 const hasError = computed(() => Boolean(props.error) || slotContent.value.error);
 const hasHelp = computed(() => Boolean(props.help) || slotContent.value.help);
 const hasCounter = computed(() => props.counter !== undefined);
+
+/**
+ * A field with no visible label is one whose control is named some other way (`aria-label`), so
+ * the wrapper draws no empty `<label>` for it. `label=""` still renders one, as it always has.
+ */
+const hasLabel = computed(() => props.label !== undefined || slotContent.value.label);
 const hasFoot = computed(() => hasHelp.value || hasCounter.value);
 
 /**
@@ -77,6 +88,7 @@ const describedBy = computed(() => {
 const context = computed<FieldContext>(() => ({
   id: controlId.value,
   labelId: labelId.value,
+  labelled: hasLabel.value,
   describedBy: describedBy.value,
   invalid: hasError.value,
   required: props.required,
@@ -114,7 +126,15 @@ const isInline = computed(() => layout?.value === 'inline' && !props.group);
 
 /** Spec "Field wrapper" → Properties: a counter with no `value` is an empty field, so "0 / max". */
 const count = computed(() => props.counter?.value ?? 0);
-const isOverLimit = computed(() => props.counter !== undefined && count.value > props.counter.max);
+const isOverLimit = computed(
+  () => props.counter?.max !== undefined && count.value > props.counter.max
+);
+/** With no `max` the counter is the length alone: there is no limit to read it against. */
+const counterText = computed(() =>
+  props.counter?.max === undefined
+    ? String(count.value)
+    : m.value.counter(count.value, props.counter.max)
+);
 
 /**
  * One root, two shapes. A `group` is a `<fieldset>` named by its `<legend>` and described as a
@@ -188,11 +208,6 @@ const LABEL_TYPE = 'text-label text-text block w-fit';
 const labelClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-0.5'), props.classes, 'label'));
 const legendClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-2 p-0'), props.classes, 'legend'));
 
-/** 0.125rem start margin, `danger`, inheriting the label's weight 600. */
-const requiredMarkClass = computed(() =>
-  partClass('text-danger ms-0.5', props.classes, 'requiredMark')
-);
-
 /** 0.25rem start margin, `muted`, weight 400 against the label's 600. */
 const optionalTextClass = computed(() =>
   partClass('text-muted ms-1 font-normal', props.classes, 'optionalText')
@@ -236,6 +251,7 @@ const counterClass = computed(() =>
     :is="group ? 'fieldset' : 'div'"
     :id="group ? controlId : undefined"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :tabindex="group ? -1 : undefined"
@@ -245,22 +261,29 @@ const counterClass = computed(() =>
     <LabelAndControl>
       <component
         :is="group ? 'legend' : 'label'"
+        v-if="hasLabel"
+        :data-eldra-slot="eldra.slotHost('label', 'labelSuffix')"
         :id="labelId"
         :for="group ? undefined : controlId"
         :data-part="group ? 'legend' : 'label'"
         :class="group ? legendClass : labelClass"
       >
         <slot name="label">{{ label }}</slot>
-        <!-- The asterisk is decorative: the control's native `required` is what announces it. -->
-        <span v-if="required" data-part="requiredMark" :class="requiredMarkClass" aria-hidden="true"
-          >*</span
-        >
-        <span v-else-if="optional" data-part="optionalText" :class="optionalTextClass"
+        <RequiredMark v-if="required" :classes="classes" />
+        <span
+          v-else-if="optional"
+          :data-eldra-scope="eldra.scope"
+          data-part="optionalText"
+          :class="optionalTextClass"
           >({{ m.optional }})</span
         >
+        <!-- After the marks, and inside the label: its text is part of the control's name. -->
+        <slot name="labelSuffix" />
       </component>
 
-      <div data-part="control" :class="controlClass"><slot /></div>
+      <div :data-eldra-slot="eldra.slotHost('default')" data-part="control" :class="controlClass">
+        <slot />
+      </div>
     </LabelAndControl>
 
     <!-- The error row is `FieldError`, shared with `CheckboxGroup`: the `error` and `errorIcon`
@@ -274,11 +297,17 @@ const counterClass = computed(() =>
     >
 
     <div v-if="hasFoot" data-part="foot" :class="footClass">
-      <span v-if="hasHelp" :id="helpId" data-part="help" :class="helpClass">
+      <span
+        v-if="hasHelp"
+        :data-eldra-slot="eldra.slotHost('help')"
+        :id="helpId"
+        data-part="help"
+        :class="helpClass"
+      >
         <slot name="help">{{ help }}</slot>
       </span>
       <span v-if="counter" :id="counterId" data-part="counter" :class="counterClass">
-        {{ m.counter(count, counter.max) }}
+        {{ counterText }}
       </span>
     </div>
   </component>

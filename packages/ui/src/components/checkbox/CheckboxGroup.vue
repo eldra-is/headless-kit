@@ -7,6 +7,9 @@ import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
 import Checkbox from './Checkbox.vue';
 import type { CheckboxGroupProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<CheckboxGroupProps>(), {
   modelValue: undefined,
@@ -88,6 +91,7 @@ const optionsClass = computed(() =>
 <template>
   <fieldset
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-describedby="describedBy"

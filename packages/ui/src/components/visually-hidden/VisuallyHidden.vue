@@ -2,6 +2,9 @@
 import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import type { VisuallyHiddenProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<VisuallyHiddenProps>(), {
   as: 'span',
@@ -21,7 +24,14 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <component :is="as" data-eldra-ui data-part="root" :class="rootClass">
+  <component
+    :is="as"
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <slot />
   </component>
 </template>

@@ -49,6 +49,9 @@ import {
   rangeValueToPercent,
   type RangeSliderMath,
 } from './useRangeSlider';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /** Spec "Range slider" → Properties. */
 const DEFAULT_MIN = 0;
@@ -573,7 +576,7 @@ const RANGE_DISABLED = 'bg-border';
  */
 const THUMB_BASE =
   'eldra-range-thumb absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ' +
-  'border-border-strong bg-background shadow-sm eldra-focus';
+  'border-border-strong bg-background eldra-focus';
 /**
  * Spec → States, "Thumb hover" row: "a 0.25rem halo of `text` at 8%, edge `text`". The halo is the
  * `eldra-range-thumb` utility's `::before`; the edge is this colour change. A plain
@@ -631,11 +634,12 @@ const inputClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <span v-if="label" :id="labelId" data-part="label" :class="labelClass">{{ label }}</span>
 
     <!-- The pair is one control, announced before either end is read (spec → Accessibility). -->
     <div
+      :data-eldra-slot="eldra.slotHost('track')"
       role="group"
       data-part="group"
       :class="groupClass"
@@ -650,6 +654,7 @@ const inputClass = computed(() =>
 
         <div
           ref="railEl"
+          :data-eldra-scope="eldra.scope"
           data-part="rail"
           :class="railClass"
           @pointerdown="onPointerDown"
@@ -689,7 +694,12 @@ const inputClass = computed(() =>
 
     <!-- The typed row (spec → Anatomy item 6). Each field takes the name of the thumb it mirrors;
          the word between them is punctuation, so it is hidden from assistive technology. -->
-    <div v-if="inputs" data-part="inputs" :class="inputsClass">
+    <div
+      v-if="inputs"
+      :data-eldra-slot="eldra.slotHost('inputs')"
+      data-part="inputs"
+      :class="inputsClass"
+    >
       <slot name="inputs" v-bind="inputsSlotProps">
         <template v-for="(thumb, index) in thumbs" :key="thumb.thumb">
           <span v-if="index === 1" data-part="separator" :class="separatorClass" aria-hidden="true">

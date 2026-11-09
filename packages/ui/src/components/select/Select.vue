@@ -6,12 +6,20 @@ import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
-import { optionIconClass, optionSwatchClass } from './panelParts';
+import {
+  optionIconClass,
+  optionSwatchClass,
+  TRIGGER_VALUE_CELL,
+  TRIGGER_VALUE_STACK,
+} from './panelParts';
 import SelectPanel from './SelectPanel.vue';
 import type { SelectOption, SelectProps, SelectSize } from './types';
 import { useListbox } from './useListbox';
-import { useOptionList } from './useOptionList';
+import { CREATE_VALUE, useOptionList } from './useOptionList';
 import { usePopover } from './usePopover';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -35,6 +43,9 @@ const props = withDefaults(defineProps<SelectProps>(), {
   readonly: false,
   placement: 'auto',
   teleport: true,
+  loading: false,
+  creatable: false,
+  renderBatch: undefined,
   messages: undefined,
   classes: undefined,
 });
@@ -49,6 +60,8 @@ const emit = defineEmits<{
   close: [];
   /** The search query, on every keystroke in the panel's search field. */
   search: [query: string];
+  /** The create row was chosen: the trimmed query, for the consumer to add as an option. */
+  create: [query: string];
 }>();
 
 const m = useMessages(() => props.messages);
@@ -69,7 +82,9 @@ const controlId = useUiId(
  * `id`-suffixed label element in the first place.
  */
 const labelledBy = computed(() =>
-  field?.value.labelsControl === true ? field.value.labelId : undefined
+  field?.value.labelsControl === true && field.value.labelled !== false
+    ? field.value.labelId
+    : undefined
 );
 /**
  * Spec "Select" → Accessibility: the popup is "labelled by the field label (`aria-labelledby`)".
@@ -107,13 +122,17 @@ const indexOfValue = computed(
   () => new Map(props.options.map((option, index) => [option.value, index]))
 );
 const optionId = (value: string): string =>
-  `${controlId.value}-o${indexOfValue.value.get(value) ?? 0}`;
+  value === CREATE_VALUE
+    ? `${controlId.value}-create`
+    : `${controlId.value}-o${indexOfValue.value.get(value) ?? 0}`;
 
 /** Controlled when the parent binds `modelValue`, self-managing when it does not. */
 const model = useControllableModel<string>(props, emit, () => '');
 
 /** Spec "Select" → Properties: "`true` when there are more than 10 options, else `false`". */
-const searchable = computed(() => props.searchable ?? props.options.length > 10);
+const searchable = computed(
+  () => props.searchable ?? (props.creatable || props.options.length > 10)
+);
 const placeholderText = computed(() => props.placeholder ?? m.value.selectPlaceholder);
 const searchPlaceholderText = computed(() => props.searchPlaceholder ?? m.value.search);
 
@@ -144,11 +163,24 @@ const searchRef = computed<HTMLInputElement | null>(
  * Filtering, grouping and match highlighting, shared with `MultiSelect` (see `useOptionList`).
  * Nothing about *which* rows a panel shows differs between the two controls.
  */
-const { sections, nativeSections, listOptions, hasOptions, highlights } = useOptionList({
+const {
+  sections,
+  nativeSections,
+  listOptions,
+  hasOptions,
+  highlights,
+  createOption,
+  renderMore,
+  reveal,
+  resetBatch,
+} = useOptionList({
   options: () => props.options,
   query: () => query.value,
   searchable: () => searchable.value,
   controlId: () => controlId.value,
+  loading: () => props.loading,
+  creatable: () => props.creatable,
+  renderBatch: () => props.renderBatch,
 });
 
 // --- opening and closing -------------------------------------------------------------------------
@@ -186,6 +218,7 @@ const {
   },
   onClose: () => {
     listbox.resetTypeahead();
+    resetBatch();
     // Spec "Select" → Behaviour, Search: "opening clears any old query and shows every option."
     // Cleared on the way *out* rather than on the way in, so the reset never races the active
     // option the next open picks.
@@ -217,6 +250,9 @@ const listbox = useListbox({
     return true;
   },
 });
+// Synchronous, so a keyboard move past the rendered batch has its row in the DOM before the panel
+// scrolls it into view.
+watch(listbox.activeValue, reveal, { flush: 'sync' });
 
 /**
  * What the panel marks as selected. A single select has exactly one value, and passing it as a
@@ -311,6 +347,11 @@ function commit(value: string): void {
 }
 
 function choose(option: SelectOption): void {
+  if (option.value === CREATE_VALUE) {
+    emit('create', option.label);
+    closePanel();
+    return;
+  }
   if (option.disabled === true) return;
   commit(option.value);
   closePanel();
@@ -429,7 +470,7 @@ const leadingIconClass = computed(() =>
 /** The chosen option's mark and label. 1.75rem of extra end padding while the clear button shows. */
 const valueClass = computed(() =>
   partClass(
-    cx('flex min-w-0 flex-1 items-center gap-2', showClear.value && 'pe-7'),
+    cx('flex min-w-0 flex-1 items-center gap-2', TRIGGER_VALUE_CELL, showClear.value && 'pe-7'),
     props.classes,
     'value'
   )
@@ -485,7 +526,7 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <button
       ref="triggerRef"
       v-bind="$attrs"
@@ -509,27 +550,36 @@ const emptyText = computed(() =>
       @click="onTriggerClick"
       @keydown="listbox.onKeydown"
     >
-      <span v-if="leadingIcon" data-part="leadingIcon" :class="leadingIconClass">
-        <Icon :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+      <span
+        v-if="leadingIcon || $slots.leading"
+        :data-eldra-slot="eldra.slotHost('leading')"
+        data-part="leadingIcon"
+        :class="leadingIconClass"
+      >
+        <slot name="leading" :option="selectedOption" :open="isOpen">
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+        </slot>
       </span>
 
-      <span v-if="selectedOption" data-part="value" :class="valueClass">
-        <slot name="value" :option="selectedOption">
-          <span
-            v-if="selectedOption.swatch"
-            data-part="optionSwatch"
-            :class="triggerSwatchClass"
-            :style="{ backgroundColor: selectedOption.swatch }"
-            aria-hidden="true"
-          />
-          <Icon
-            v-else-if="selectedOption.icon"
-            data-part="optionIcon"
-            :icon="selectedOption.icon"
-            :classes="{ root: triggerIconClass }"
-          />
-          <span class="min-w-0 flex-1 truncate">{{ selectedOption.label }}</span>
-        </slot>
+      <span v-if="selectedOption" :class="TRIGGER_VALUE_STACK" :data-placeholder="placeholderText">
+        <span :data-eldra-slot="eldra.slotHost('value')" data-part="value" :class="valueClass">
+          <slot name="value" :option="selectedOption">
+            <span
+              v-if="selectedOption.swatch"
+              data-part="optionSwatch"
+              :class="triggerSwatchClass"
+              :style="{ backgroundColor: selectedOption.swatch }"
+              aria-hidden="true"
+            />
+            <Icon
+              v-else-if="selectedOption.icon"
+              data-part="optionIcon"
+              :icon="selectedOption.icon"
+              :classes="{ root: triggerIconClass }"
+            />
+            <span class="min-w-0 flex-1 truncate">{{ selectedOption.label }}</span>
+          </slot>
+        </span>
       </span>
       <span v-else data-part="placeholder" :class="placeholderClass">{{ placeholderText }}</span>
 
@@ -602,6 +652,10 @@ const emptyText = computed(() =>
         :query="query"
         :search-placeholder="searchPlaceholderText"
         :empty-text="emptyText"
+        :loading="loading"
+        :loading-text="m.loading"
+        :create-option="createOption"
+        :create-text="createOption ? m.createOption(createOption.label) : undefined"
         :labelled-by="labelledBy"
         :fallback-label="fallbackLabel"
         :panel-style="panelStyle"
@@ -610,12 +664,17 @@ const emptyText = computed(() =>
         @search="setQuery"
         @select="choose"
         @activate="listbox.setActive"
+        @scroll-end="renderMore"
         @keydown="listbox.onKeydown"
       >
         <template v-if="$slots.option" #option="params">
           <slot name="option" v-bind="params" />
         </template>
+        <template v-if="$slots.optionContent" #optionContent="params">
+          <slot name="optionContent" v-bind="params" />
+        </template>
         <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+        <template v-if="$slots.loading" #loading><slot name="loading" /></template>
       </SelectPanel>
     </Teleport>
 

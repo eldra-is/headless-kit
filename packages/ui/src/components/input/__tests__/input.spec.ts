@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { IconDiscount, IconMail, IconSearch } from '@tabler/icons-vue';
-import { computed, nextTick, ref } from 'vue';
+import { computed, defineComponent, h, nextTick, ref, type Ref } from 'vue';
 import { axe } from '../../../test/axe';
+import type { VueWrapper } from '@vue/test-utils';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
 import Input from '../Input.vue';
@@ -16,6 +17,10 @@ const NAME = { 'aria-label': 'Email address' };
 /** Twice the length of the spec's own example value. */
 const LONG_VALUE =
   'maren.holt-jonsdottir+northwind-goods-newsletter@an-unusually-long-domain-name.example.com';
+
+/** The parent's half of `v-model` on a mounted wrapper: it takes every value the control emits. */
+const takeValue = (wrapper: () => VueWrapper) => (value: string) =>
+  void wrapper().setProps({ modelValue: value });
 
 function control(wrapper: { find: (s: string) => { element: Element } }): HTMLInputElement {
   return wrapper.find('[data-part="control"]').element as HTMLInputElement;
@@ -550,8 +555,13 @@ describe('Input — mask', () => {
   });
 
   it('emits the raw digits as the customer types', async () => {
-    const wrapper = mountWith(Input, {
-      props: { type: 'tel', mask: '(###) ###-####', modelValue: '' },
+    const wrapper: VueWrapper = mountWith(Input, {
+      props: {
+        type: 'tel',
+        mask: '(###) ###-####',
+        modelValue: '',
+        'onUpdate:modelValue': takeValue(() => wrapper),
+      },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -563,8 +573,13 @@ describe('Input — mask', () => {
   });
 
   it('formats partial input and drops characters the format has no slot for', async () => {
-    const wrapper = mountWith(Input, {
-      props: { type: 'tel', mask: '(###) ###-####', modelValue: '' },
+    const wrapper: VueWrapper = mountWith(Input, {
+      props: {
+        type: 'tel',
+        mask: '(###) ###-####',
+        modelValue: '',
+        'onUpdate:modelValue': takeValue(() => wrapper),
+      },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -576,8 +591,8 @@ describe('Input — mask', () => {
   });
 
   it('leaves the caret at the end after typing at the end', async () => {
-    const wrapper = mountWith(Input, {
-      props: { mask: 'A#A #A#', modelValue: '' },
+    const wrapper: VueWrapper = mountWith(Input, {
+      props: { mask: 'A#A #A#', modelValue: '', 'onUpdate:modelValue': takeValue(() => wrapper) },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -709,8 +724,13 @@ describe('Input — the mask and the caret', () => {
    * is a deliberate one rather than an accident, and so the comment in `Input.vue` stays honest.
    */
   it('resets the caret to the end after an edit in the middle of the value', async () => {
-    const wrapper = mountWith(Input, {
-      props: { type: 'tel', mask: '(###) ###-####', modelValue: '5551234567' },
+    const wrapper: VueWrapper = mountWith(Input, {
+      props: {
+        type: 'tel',
+        mask: '(###) ###-####',
+        modelValue: '5551234567',
+        'onUpdate:modelValue': takeValue(() => wrapper),
+      },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -814,6 +834,279 @@ describe('Input — the shared field recipe is what Input renders', () => {
     expect(classes).toContain(FIELD_LEADING_PAD);
     expect(classes).toContain(FIELD_TRAILING_PAD.md);
     expect(wrapper.find('[data-part="clearButton"]').classes()).toContain(FIELD_CLEAR_SIZE.md);
+    wrapper.unmount();
+  });
+});
+
+describe('Input — wrapper hooks', () => {
+  it('renders no inputmode on a number field when inputmode is false', () => {
+    const wrapper = mountWith(Input, { props: { type: 'number', inputmode: false }, attrs: NAME });
+    expect(control(wrapper).hasAttribute('inputmode')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps a caller aria-invalid while valid, and says "true" once invalid', async () => {
+    const wrapper = mountWith(Input, {
+      props: { invalid: false },
+      attrs: { ...NAME, 'aria-invalid': 'false' },
+    });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('false');
+    await wrapper.setProps({ invalid: true });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    await wrapper.setProps({ invalid: false });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('false');
+    wrapper.unmount();
+  });
+
+  it('exposes the native control and a focus method', () => {
+    const wrapper = mountWith(Input, { attrs: NAME, attachTo: document.body });
+    const vm = wrapper.vm as unknown as { control: HTMLInputElement | null; focus: () => void };
+    expect(vm.control).toBe(control(wrapper));
+    vm.focus();
+    expect(document.activeElement).toBe(control(wrapper));
+    wrapper.unmount();
+  });
+});
+
+/** Stubs the row's measured width, the one number `useAdornmentRoom` reads from layout. */
+function stubRowWidth(width: number): () => void {
+  const original = HTMLElement.prototype.getBoundingClientRect;
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    const rect = original.call(this);
+    const part = this.getAttribute('data-part');
+    if (part !== 'suffix' && part !== 'prefix') return rect;
+    return { ...rect.toJSON(), width, right: rect.left + width, toJSON: () => ({}) } as DOMRect;
+  };
+  return () => {
+    HTMLElement.prototype.getBoundingClientRect = original;
+  };
+}
+
+describe('Input — prefix slot', () => {
+  const CALENDAR = '<button type="button" aria-label="Open calendar">c</button>';
+
+  it('renders an interactive prefix row before the control, padded like the trailing side', async () => {
+    const { FIELD_PREFIX_PAD, FIELD_PREFIX_ROW } = await import('../classes');
+    const wrapper = mountWith(Input, {
+      props: { size: 'md' },
+      attrs: NAME,
+      slots: { prefix: CALENDAR },
+    });
+    const prefix = wrapper.find('[data-part="prefix"]');
+    expect(prefix.exists()).toBe(true);
+    expect(prefix.classes()).not.toContain('pointer-events-none');
+    for (const token of FIELD_PREFIX_ROW.split(' ')) expect(prefix.classes()).toContain(token);
+    expect(prefix.element.nextElementSibling).toBe(control(wrapper));
+    expect(control(wrapper).classList.contains(FIELD_PREFIX_PAD.md)).toBe(true);
+    expect(control(wrapper).classList.contains('ps-9')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each(SIZES)('reserves the %s trailing room at the start', async (size) => {
+    const { FIELD_PREFIX_PAD } = await import('../classes');
+    const wrapper = mountWith(Input, { props: { size }, attrs: NAME, slots: { prefix: CALENDAR } });
+    expect(control(wrapper).classList.contains(FIELD_PREFIX_PAD[size])).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('takes the start edge from a leading icon', () => {
+    const wrapper = mountWith(Input, {
+      props: { leadingIcon: IconMail },
+      attrs: NAME,
+      slots: { prefix: CALENDAR },
+    });
+    expect(wrapper.find('[data-part="leadingIcon"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="prefix"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('puts the prefix control before the input in tab order', () => {
+    const wrapper = mountWith(Input, { attrs: NAME, slots: { prefix: CALENDAR } });
+    const focusables = wrapper.findAll('button, input').map((w) => w.element.tagName);
+    expect(focusables).toEqual(['BUTTON', 'INPUT']);
+    wrapper.unmount();
+  });
+
+  it('accepts a classes.prefix override', () => {
+    const wrapper = mountWith(Input, {
+      props: { classes: { prefix: 'gap-0' } },
+      attrs: NAME,
+      slots: { prefix: CALENDAR },
+    });
+    expect(wrapper.find('[data-part="prefix"]').classes()).toContain('gap-0');
+    expect(wrapper.find('[data-part="prefix"]').classes()).not.toContain('gap-1');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with a prefix control', async () => {
+    const wrapper = mountWith(Input, {
+      props: { modelValue: '2026-11-08', clearable: true },
+      attrs: NAME,
+      slots: { prefix: CALENDAR },
+      attachTo: document.body,
+    });
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Input — prefix and suffix rows wider than one action', () => {
+  it('leaves the padding to the classes, with no inline style, while the row fits one action', async () => {
+    const restore = stubRowWidth(32);
+    try {
+      const wrapper = mountWith(Input, {
+        props: { modelValue: 'x', clearable: true },
+        attrs: NAME,
+        slots: { prefix: '<button type="button" aria-label="Open calendar">c</button>' },
+      });
+      await nextTick();
+      expect(control(wrapper).getAttribute('style')).toBeNull();
+      wrapper.unmount();
+    } finally {
+      restore();
+    }
+  });
+
+  it('renders no style at all on a plain field', async () => {
+    const wrapper = mountWith(Input, { attrs: NAME });
+    await nextTick();
+    expect(control(wrapper).hasAttribute('style')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('pushes the end padding to the row width plus 0.5rem when the suffix holds three actions', async () => {
+    const restore = stubRowWidth(96);
+    try {
+      const wrapper = mountWith(Input, {
+        props: { modelValue: 'secret', clearable: true, type: 'password' },
+        attrs: NAME,
+        slots: {
+          suffix:
+            '<span aria-hidden="true">s</span><button type="button" aria-label="Show password">e</button>',
+        },
+      });
+      await nextTick();
+      expect(control(wrapper).style.paddingInlineEnd).toBe('calc(96px + 0.5rem)');
+      expect(control(wrapper).style.paddingInlineStart).toBe('');
+      wrapper.unmount();
+    } finally {
+      restore();
+    }
+  });
+
+  it('pushes the start padding the same way for a wide prefix', async () => {
+    const restore = stubRowWidth(64);
+    try {
+      const wrapper = mountWith(Input, {
+        attrs: NAME,
+        slots: {
+          prefix:
+            '<button type="button" aria-label="Previous day">p</button><button type="button" aria-label="Open calendar">c</button>',
+        },
+      });
+      await nextTick();
+      expect(control(wrapper).style.paddingInlineStart).toBe('calc(64px + 0.5rem)');
+      wrapper.unmount();
+    } finally {
+      restore();
+    }
+  });
+
+  it('drops the measured padding once the row is gone', async () => {
+    const restore = stubRowWidth(96);
+    try {
+      const wrapper = mountWith(Input, {
+        props: { modelValue: 'x', clearable: true },
+        attrs: NAME,
+      });
+      await nextTick();
+      expect(control(wrapper).style.paddingInlineEnd).toBe('calc(96px + 0.5rem)');
+      await wrapper.setProps({ modelValue: '' });
+      await nextTick();
+      expect(control(wrapper).style.paddingInlineEnd).toBe('');
+      wrapper.unmount();
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('Input — a controlled parent that does not take the input', () => {
+  /** A real parent owning the value: `update` decides what, if anything, it keeps. */
+  function mountParent(initial: string, update: (value: Ref<string>, next: string) => void) {
+    const value = ref(initial);
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(Input, {
+          ...NAME,
+          modelValue: value.value,
+          'onUpdate:modelValue': (next: string) => update(value, next),
+        }),
+    });
+    return { value, wrapper: mountWith(Parent) };
+  }
+
+  async function type(wrapper: ReturnType<typeof mountWith>, next: string, caret = next.length) {
+    const el = wrapper.find('[data-part="control"]').element as HTMLInputElement;
+    el.focus();
+    el.value = next;
+    el.setSelectionRange(caret, caret);
+    await wrapper.find('[data-part="control"]').trigger('input');
+    await nextTick();
+    await nextTick();
+    return el;
+  }
+
+  const digits = (next: string) => next.replace(/\D/g, '');
+
+  it('shows what a parent that strips non-digits keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows what a parent that formats on the next tick keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      void nextTick(() => {
+        model.value = digits(next);
+      });
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows the old value when the parent rejects the change', async () => {
+    const { value, wrapper } = mountParent('Maren', () => {});
+    const el = await type(wrapper, 'Marent');
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    wrapper.unmount();
+  });
+
+  it('keeps the caret where a refused character was typed', async () => {
+    const { wrapper } = mountParent('1234', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a34', 3);
+    expect(el.value).toBe('1234');
+    expect([el.selectionStart, el.selectionEnd]).toEqual([2, 2]);
+    wrapper.unmount();
+  });
+
+  it('leaves a value the parent takes alone', async () => {
+    const { value, wrapper } = mountParent('', (model, next) => {
+      model.value = next;
+    });
+    const el = await type(wrapper, 'Maren', 2);
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    expect(el.selectionStart).toBe(2);
     wrapper.unmount();
   });
 });

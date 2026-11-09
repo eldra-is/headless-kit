@@ -229,7 +229,7 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of four CSS entries, depending on how the consuming project builds CSS:
+Pick one of five CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
 - `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
@@ -261,6 +261,15 @@ Pick one of four CSS entries, depending on how the consuming project builds CSS:
   Ark UI and Zag included, keep their defaults. `data-eldra-ui` is public, so a site can use it as a
   hook. The one exception: an element with its own `data-part` passed into a component's slot is
   inside the scope and gets the reset too.
+
+- `@eldrajs/ui/scoped.css` — for embedding the components in another Tailwind app, or beside this
+  package's own components on a page: theme variables renamed into `--eldra-tw-*`, every rule
+  inside `@scope ([data-eldra-scope])`, stopping at slot content. Call `provideEldraScope()` in the
+  wrapper or app root; the package README's "Embedding in another Tailwind app" has the rules.
+
+  ```css
+  @import '@eldrajs/ui/scoped.css';
+  ```
 
 ## Forms
 

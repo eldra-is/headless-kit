@@ -154,3 +154,19 @@ export const FIELD_LEADING_ICON =
  * merge-group registration is needed) rather than changing the shared default.
  */
 export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center gap-1';
+
+/**
+ * The start-edge mirror of `FIELD_SUFFIX_ROW`, for the `prefix` slot: interactive content (a
+ * calendar button) 0.25rem from the start edge, so unlike `FIELD_LEADING_ICON` it keeps the pointer.
+ */
+export const FIELD_PREFIX_ROW = 'absolute start-1 inset-y-0 my-auto flex items-center gap-1';
+
+/** The start padding a `prefix` row reserves: the trailing action's room, mirrored. */
+export const FIELD_PREFIX_PAD: Record<InputSize, string> = {
+  sm: 'ps-8',
+  md: 'ps-10',
+  lg: 'ps-10',
+};
+
+/** `FIELD_TRAILING_PAD`/`FIELD_PREFIX_PAD` in rem, for `useAdornmentRoom`'s comparison. */
+export const FIELD_ACTION_ROOM_REM: Record<InputSize, number> = { sm: 2, md: 2.5, lg: 2.5 };

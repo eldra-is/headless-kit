@@ -253,6 +253,27 @@ describe('Dialog — backdrop click', () => {
     wrapper.unmount();
   });
 
+  it('a press that starts inside the panel and ends on the backdrop does not close it', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    wrapper
+      .find('[data-part="panel"]')
+      .element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    root(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(true);
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('a press and release both on the backdrop closes it', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    root(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
   it('dismissable: false keeps a backdrop click from closing it', async () => {
     const wrapper = mountWith(Dialog, {
       props: { title: 'Unsaved changes', modelValue: true, dismissable: false },
@@ -696,6 +717,252 @@ describe('Dialog — accessibility', () => {
 
   it('is axe-clean closed', async () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — title slot', () => {
+  it('replaces the h2 with the slot, still the accessible name', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h3 class="text-center">Delete page?</h3>' },
+    });
+    const title = wrapper.find('[data-part="title"]').element;
+    expect(title.tagName).toBe('DIV');
+    expect(title.querySelector('h3')?.textContent).toBe('Delete page?');
+    expect(wrapper.find('h2').exists()).toBe(false);
+    expect(root(wrapper).getAttribute('aria-labelledby')).toBe(title.id);
+    wrapper.unmount();
+  });
+
+  it('wins over the title prop', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Prop title', modelValue: true },
+      slots: { title: '<h2>Slot title</h2>' },
+    });
+    expect(wrapper.findAll('[data-part="title"]')).toHaveLength(1);
+    expect(wrapper.find('[data-part="title"]').text()).toBe('Slot title');
+    wrapper.unmount();
+  });
+
+  it('fills the header row beside the close button', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h2>Delete page?</h2>' },
+    });
+    expect(wrapper.find('[data-part="title"]').classes()).toContain('flex-1');
+    expect(wrapper.find('[data-part="header"] [data-part="close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h2>Delete page?</h2>', default: '<p>This cannot be undone.</p>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — without a title', () => {
+  it('renders no title part and no aria-labelledby; the close button sits at the end', () => {
+    const wrapper = mountWith(Dialog, { props: { modelValue: true } });
+    expect(wrapper.find('[data-part="title"]').exists()).toBe(false);
+    expect(root(wrapper).hasAttribute('aria-labelledby')).toBe(false);
+    expect(wrapper.find('[data-part="header"]').classes()).toContain('justify-end');
+    expect(wrapper.find('[data-part="close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('takes its name from an aria-label on the component', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      attrs: { 'aria-label': 'Search' },
+      slots: { default: '<label for="q">Search</label><input id="q" type="search" />' },
+    });
+    expect(root(wrapper).getAttribute('aria-label')).toBe('Search');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('an aria-labelledby on the component replaces the title id', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Search', modelValue: true },
+      attrs: { 'aria-labelledby': 'outside-heading' },
+    });
+    expect(root(wrapper).getAttribute('aria-labelledby')).toBe('outside-heading');
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — closeButton', () => {
+  it('false renders no close button', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+    });
+    expect(wrapper.find('[data-part="close"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="title"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('false with no title renders no header, and the body takes the header padding', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true, closeButton: false },
+      attrs: { 'aria-label': 'Search' },
+    });
+    expect(wrapper.find('[data-part="header"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="body"]').classes()).toContain('pt-6');
+    wrapper.unmount();
+  });
+
+  it('false still closes on Esc', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+    });
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('false is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+      slots: { footer: '<button type="button">Continue</button>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — closeOnEscape', () => {
+  it('false ignores Esc: no cancel, no close, and the native close is prevented', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    const cancel = new Event('cancel', { cancelable: true });
+    root(wrapper).dispatchEvent(cancel);
+    await nextTick();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(root(wrapper).open).toBe(true);
+    expect(wrapper.emitted('cancel')).toBeUndefined();
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('false cancels the Escape keydown itself, so the browser never raises the close request', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    const key = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    root(wrapper).dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('leaves the Escape keydown alone by default, and other keys always', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    root(wrapper).dispatchEvent(esc);
+    expect(esc.defaultPrevented).toBe(false);
+    wrapper.unmount();
+    const off = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true, closeOnEscape: false },
+    });
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    root(off).dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    off.unmount();
+  });
+
+  it('is read on every press, so it can change while open', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    await wrapper.setProps({ closeOnEscape: true });
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    expect(wrapper.emitted('close')?.[0]).toEqual(['escape']);
+    wrapper.unmount();
+  });
+
+  it('false still closes from the close button', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    closeButton(wrapper).click();
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('false is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+      slots: { footer: '<button type="button">Cancel</button><button type="button">Pay</button>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — chrome colour variables', () => {
+  it('reads its own --eldra-dialog-* colours, falling back to the theme colours', () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Remove from cart?',
+        description: 'It goes back on the shelf.',
+        modelValue: true,
+      },
+    });
+    const classesOf = (part: string) => wrapper.find(`[data-part="${part}"]`).classes();
+    expect(classesOf('root')).toContain('text-[color:var(--eldra-dialog-text,var(--color-text))]');
+    expect(classesOf('root')).toContain(
+      'backdrop:bg-[var(--eldra-dialog-backdrop,var(--color-overlay))]'
+    );
+    expect(classesOf('panel')).toContain(
+      'bg-[var(--eldra-dialog-background,var(--color-background))]'
+    );
+    expect(classesOf('panel')).toContain(
+      'border-[color:var(--eldra-dialog-border,var(--color-border))]'
+    );
+    expect(classesOf('title')).toContain('text-[color:var(--eldra-dialog-text,var(--color-text))]');
+    expect(classesOf('description')).toContain(
+      'text-[color:var(--eldra-dialog-muted,var(--color-muted))]'
+    );
+    expect(classesOf('close').join(' ')).toContain(
+      'var(--eldra-dialog-text,var(--eldra-color-text))'
+    );
+    wrapper.unmount();
+  });
+
+  it('never redefines a theme-wide colour variable on the dialog itself', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true },
+      slots: { default: '<p class="text-muted">Body</p>' },
+    });
+    const html = wrapper.html();
+    expect(html).not.toMatch(/--(eldra-)?color-[a-z-]+:/);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean with the chrome recoloured through its variables', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Remove from cart?',
+        description: 'It goes back on the shelf.',
+        modelValue: true,
+      },
+      attrs: {
+        style:
+          '--eldra-dialog-background: #10151c; --eldra-dialog-text: #f5f7fa; --eldra-dialog-muted: #c3cad4; --eldra-dialog-border: #2b3440;',
+      },
+      attachTo: document.body,
+    });
+    await nextTick();
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

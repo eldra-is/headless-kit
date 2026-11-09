@@ -3,6 +3,9 @@ import { computed, inject, onMounted, onUpdated, ref } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabPanelProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TabPanelProps>(), { classes: undefined });
 
@@ -54,10 +57,12 @@ const panelClass = computed(() =>
 
 <template>
   <div
+    :data-eldra-slot="eldra.slotHost('default')"
     :id="context.panelId(value)"
     ref="el"
     role="tabpanel"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="panel"
     :aria-labelledby="context.tabId(value)"
     :hidden="!isSelected"

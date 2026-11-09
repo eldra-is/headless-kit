@@ -1,5 +1,14 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type CheckboxPart = 'root' | 'box' | 'check' | 'label' | 'hint';
+export type CheckboxPart =
+  | 'root'
+  | 'box'
+  | 'check'
+  | 'label'
+  | 'hint'
+  | 'requiredMark'
+  | 'field'
+  | 'error'
+  | 'errorIcon';
 
 /** The spec's two box sizes: 1.125rem and 1.5rem. */
 export type CheckboxSize = 'md' | 'lg';
@@ -25,6 +34,17 @@ export interface CheckboxProps {
   invalid?: boolean;
   /** Native `required`. Comes from the `FieldWrapper` otherwise. */
   required?: boolean;
+  /**
+   * Shows `FieldWrapper`'s `*` after the label text. Without native `required` the label also ends
+   * with the visually hidden "Required" message, so the mark is announced. Default `false`.
+   */
+  requiredMark?: boolean;
+  /**
+   * An error message drawn under the box in `FieldWrapper`'s error row, linked first in
+   * `aria-describedby`. Implies `invalid`. The row and the box are then wrapped in one element
+   * (the `field` part), which receives the root's place in the layout.
+   */
+  error?: string;
   /** Native `disabled`. */
   disabled?: boolean;
   /**

@@ -11,6 +11,9 @@ import {
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { PriceProps, PriceSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<PriceProps>(), {
   compareAt: undefined,
@@ -370,6 +373,7 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
 <template>
   <p
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :lang="lang ?? undefined"

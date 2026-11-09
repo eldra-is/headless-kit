@@ -187,3 +187,46 @@ describe('Toast — accessibility', () => {
     }
   });
 });
+
+describe('Toast — info and closable', () => {
+  it('draws the info variant in the text colour and stays polite', () => {
+    const wrapper = mountWith(Toast, {
+      props: { title: 'Prices update at midnight', variant: 'info' },
+    });
+    expect(wrapper.find('[data-part="icon"]').classes()).toContain('text-text');
+    expect(wrapper.attributes('role')).toBeUndefined();
+  });
+
+  it('renders no close button and ignores Escape when closable is false', async () => {
+    const wrapper = mountWith(Toast, { props: { title: 'Saving…', closable: false } });
+    expect(wrapper.find('[data-part="close"]').exists()).toBe(false);
+    await wrapper.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.emitted('close')).toBeUndefined();
+  });
+
+  it('has no axe violations as info and not closable', async () => {
+    const wrapper = mountWith(Toast, {
+      props: { title: 'Prices update at midnight', variant: 'info', closable: false },
+      attachTo: document.body,
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});
+
+describe('Toast — data-variant', () => {
+  it.each(['success', 'warning', 'danger', 'info'] as const)(
+    'puts variant %s on the root for a per-variant selector',
+    async (variant) => {
+      const wrapper = mountWith(Toast, { props: { title: 'Saved', variant } });
+      expect(wrapper.get('[data-part="root"]').attributes('data-variant')).toBe(variant);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  );
+
+  it('defaults to success', () => {
+    const wrapper = mountWith(Toast, { props: { title: 'Saved' } });
+    expect(wrapper.attributes('data-variant')).toBe('success');
+    wrapper.unmount();
+  });
+});

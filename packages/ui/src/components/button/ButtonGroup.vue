@@ -2,6 +2,9 @@
 import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import type { ButtonGroupProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ButtonGroupProps>(), {
   attached: false,
@@ -49,7 +52,14 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" :role="attached ? 'group' : undefined">
+  <div
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :role="attached ? 'group' : undefined"
+  >
     <slot />
   </div>
 </template>

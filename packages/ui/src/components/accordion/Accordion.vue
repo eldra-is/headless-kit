@@ -4,6 +4,9 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { ACCORDION_KEY, type AccordionContext } from './context';
 import type { AccordionProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<AccordionProps>(), {
   multiple: true,
@@ -36,7 +39,13 @@ const rootClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <slot />
   </div>
 </template>

@@ -54,6 +54,7 @@ export const isIS: UiMessages = {
   multiSelectPlaceholder: 'Allt',
   noResults: 'Engar niðurstöður',
   noMatchesFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,
+  createOption: (query: string) => `Búa til „${query}“`,
   noResultsFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,
   moreSelected: (n: number) => `+${n}`,
   removeTag: (label: string) => `Fjarlægja ${label}`,

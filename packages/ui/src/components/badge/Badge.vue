@@ -2,6 +2,9 @@
 import { computed, watchEffect } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import type { BadgeProps, BadgeTone } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<BadgeProps>(), {
   label: undefined,
@@ -96,7 +99,13 @@ if (import.meta.env?.DEV) {
 </script>
 
 <template>
-  <component :is="as ?? 'span'" data-eldra-ui data-part="root" :class="rootClass">
+  <component
+    :is="as ?? 'span'"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <component
       :is="icon"
       v-if="icon"
@@ -106,7 +115,7 @@ if (import.meta.env?.DEV) {
       aria-hidden="true"
       focusable="false"
     />
-    <span data-part="label" :class="labelClass">
+    <span :data-eldra-slot="eldra.slotHost('default')" data-part="label" :class="labelClass">
       <slot>{{ label }}</slot>
     </span>
     <span v-if="hiddenSuffix" data-part="hiddenSuffix" :class="hiddenSuffixClass">{{

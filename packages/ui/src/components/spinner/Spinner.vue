@@ -17,9 +17,16 @@
   component's own `aria-busy` and live region, never by this shape, so it is `aria-hidden` here
   rather than at each call site.
 -->
+<script setup lang="ts">
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
+</script>
+
 <template>
   <svg
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     class="animate-eldra-spin motion-reduce:animate-eldra-pulse"
     viewBox="0 0 18 18"
     fill="none"

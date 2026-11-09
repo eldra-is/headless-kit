@@ -8,6 +8,9 @@ import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
 import { focusInvalid } from './focusInvalid';
 import type { FormLayoutProps, FormLayoutSubmitPayload, FormLayoutVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FormLayoutProps>(), {
   layout: 'single',
@@ -215,6 +218,7 @@ function onSubmit(event: Event): void {
 <template>
   <form
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :action="action"
@@ -251,12 +255,23 @@ function onSubmit(event: Event): void {
         <path d="M12 8v4" />
         <path d="M12 16h.01" />
       </svg>
-      <div class="min-w-0"><slot name="errorSummary" /></div>
+      <div :data-eldra-slot="eldra.slotHost('errorSummary')" class="min-w-0">
+        <slot name="errorSummary" />
+      </div>
     </div>
 
-    <div data-part="fields" :class="fieldsClass"><slot /></div>
+    <div :data-eldra-slot="eldra.slotHost('default')" data-part="fields" :class="fieldsClass">
+      <slot />
+    </div>
 
-    <div v-if="hasActions" data-part="actions" :class="actionsClass"><slot name="actions" /></div>
+    <div
+      v-if="hasActions"
+      :data-eldra-slot="eldra.slotHost('actions')"
+      data-part="actions"
+      :class="actionsClass"
+    >
+      <slot name="actions" />
+    </div>
 
     <!-- Spec "Form layout" → States, Success: "announce it in a polite live region". Always in the
          DOM so a message set later is announced; empty until there is something to say. -->

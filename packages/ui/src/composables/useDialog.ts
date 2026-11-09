@@ -19,8 +19,10 @@ export interface UseDialogOptions {
   /** The `<dialog>` element itself. Must be a real `<dialog>`; every part of this composable is
    *  built on `HTMLDialogElement`'s own `showModal()`/`close()`/`cancel`/`close` contract. */
   dialog: Ref<HTMLDialogElement | null>;
-  /** Whether a backdrop click closes the dialog. `Esc` and `close()` always do. Default `true`. */
+  /** Whether a backdrop click closes the dialog. `close()` always does. Default `true`. */
   dismissable?: MaybeRefOrGetter<boolean>;
+  /** Whether `Esc` closes the dialog. Read on every key press. Default `true`. */
+  closeOnEscape?: MaybeRefOrGetter<boolean>;
   /**
    * Focused when the dialog opens from the keyboard, instead of the first meaningful control. After a tap or click
    * it is focused only when it is a text field or marked `autofocus`; otherwise the dialog itself takes focus.
@@ -143,9 +145,11 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
  *   rule: "`Esc` … always closes it") — but only while this dialog is the top of the stack; a lower
  *   one ignores it outright (`preventDefault()`ed, so even the platform's own default action cannot
  *   close it). `onCancel` is a notification, not a guard — it cannot prevent the close, matching
- *   the interface below (`() => void`, nothing to call `preventDefault()` on).
+ *   the interface below (`() => void`, nothing to call `preventDefault()` on). The one opt-out is
+ *   `closeOnEscape: false`, which ignores `Esc` the same way (no `onCancel`, no close).
  * - **Backdrop click**: a `click` whose `target` is the `<dialog>` element itself — not a
- *   descendant, which stops the target at that descendant — closes it when `dismissable` is `true`
+ *   descendant, which stops the target at that descendant, and not a press that began inside the
+ *   panel and was released on the backdrop — closes it when `dismissable` is `true`
  *   (default) **and** this dialog is the top of the stack; a lower dialog's own backdrop click
  *   (unreachable in a real browser, where the topmost modal's full-viewport surface covers it, but
  *   reachable from a test dispatching the event directly) does nothing. `dismissable` is read on
@@ -167,6 +171,7 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
 export function useDialog(options: UseDialogOptions): UseDialogReturn {
   const { open, setOpen, dialog } = options;
   const dismissable = (): boolean => toValue(options.dismissable) ?? true;
+  const closeOnEscape = (): boolean => toValue(options.closeOnEscape) ?? true;
 
   /** Whatever had focus right before this dialog opened. Restored once it actually closes. */
   let opener: HTMLElement | null = null;
@@ -229,6 +234,10 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
       event.preventDefault();
       return;
     }
+    if (!closeOnEscape()) {
+      event.preventDefault();
+      return;
+    }
     options.onCancel?.();
     // Never `dismissable`-gated: the shared modal rules make `Esc` close unconditionally.
     close('escape');
@@ -242,22 +251,47 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
     opener = null;
   }
 
+  // Chrome stops honouring `preventDefault()` on a repeated `cancel` without user activation in between; a cancelled
+  // `Escape` keydown never raises the close request at all.
+  function onNativeKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && !closeOnEscape()) event.preventDefault();
+  }
+
+  /**
+   * Where the last press began: `true` on the backdrop, `false` inside the panel, `null` when no
+   * press was seen (a click dispatched from code). A press that starts inside the panel and is
+   * released on the backdrop (selecting text, dragging) fires its `click` on the `<dialog>` too,
+   * and must not close it.
+   */
+  let pressOnBackdrop: boolean | null = null;
+
+  function onNativePointerdown(event: PointerEvent): void {
+    pressOnBackdrop = event.target === dialog.value;
+  }
+
   function onNativeClick(event: MouseEvent): void {
     const el = dialog.value;
+    const pressedOnBackdrop = pressOnBackdrop;
+    pressOnBackdrop = null;
     if (el === null || event.target !== el || !dismissable() || !isOpenDialog(el)) return;
+    if (pressedOnBackdrop === false) return;
     close('backdrop');
   }
 
   function attach(el: HTMLDialogElement): void {
     el.addEventListener('cancel', onNativeCancel);
     el.addEventListener('close', onNativeClose);
+    el.addEventListener('pointerdown', onNativePointerdown);
     el.addEventListener('click', onNativeClick);
+    el.addEventListener('keydown', onNativeKeydown);
   }
 
   function detach(el: HTMLDialogElement): void {
     el.removeEventListener('cancel', onNativeCancel);
     el.removeEventListener('close', onNativeClose);
+    el.removeEventListener('pointerdown', onNativePointerdown);
     el.removeEventListener('click', onNativeClick);
+    el.removeEventListener('keydown', onNativeKeydown);
   }
 
   function sync(value: boolean): void {

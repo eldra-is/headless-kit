@@ -4,6 +4,9 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import type { VariantPickerOption, VariantPickerProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<VariantPickerProps>(), {
   modelValue: undefined,
@@ -271,7 +274,7 @@ const soldOutPillLineClass = computed(() =>
 </script>
 
 <template>
-  <fieldset data-eldra-ui data-part="root" :class="rootClass">
+  <fieldset data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <legend data-part="legend" :class="legendClass">
       <span>{{ legendText }}: </span>
       <span data-part="legendValue" :class="legendValueClass">{{ legendValueText }}</span>

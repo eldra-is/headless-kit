@@ -22,8 +22,9 @@
  * `attrs` (`id`, `type: 'button'`, `aria-haspopup`, `aria-expanded`, `aria-controls`, `class` built
  * from `classes.trigger`, and the click/pointerdown pair below) for `v-bind="attrs"` onto whatever
  * element they render, plus `open`/`toggle` for a consumer who wants to build the click handling
- * themselves instead. **The slot's element is still cloned** (`cloneVNode`, the same technique
- * `Tooltip` uses) — not to graft attributes on this time, but to reach its real DOM node: `Esc` and
+ * themselves instead. **The slot's first element is still cloned** (`cloneVNode`, the same
+ * technique `Tooltip` uses), found through any fragment around it, such as a wrapper forwarding its
+ * own `<slot>` here — not to graft attributes on this time, but to reach its real DOM node: `Esc` and
  * `close()` have to put focus back on the *actual* trigger, and a `display: contents` wrapper is
  * never focusable, so `root` cannot stand in for it the way it can for everything else. A component
  * given as the trigger slot's root is unwrapped through its `$el`, so `<template #trigger="{ open,
@@ -57,6 +58,21 @@
  * always on here, since a menu or a form is exactly the kind of panel with real tab stops) and the
  * mouse are how a keyboard or pointer user gets to what is inside. `Esc` and an outside click still
  * close it and return focus to the trigger, same as every other popup in this package.
+ * `focusOnOpen` is the opt-in for a panel whose first tab stop is the obvious place to start.
+ *
+ * **A programmatic `trigger.click()` toggles it**, as a pointer click does; only a click a
+ * `<label>` forwards is held to focusing (`usePopover`'s `isProgrammaticClick`).
+ *
+ * **Keyboard activation opens it.** `usePopover`'s label-forwarded-click latch treats a click with
+ * no pointer press and `detail: 0` as forwarded from a `<label>` — but that is also exactly what a
+ * browser fires when `Enter` or `Space` activates a `<button>`. So `attrs` carries an `onKeydown`
+ * that marks the next such click as the keyboard's, and it toggles like a pointer click does.
+ *
+ * **Nested popups keep it open.** A `Select` or another `Popover` opened from inside this panel
+ * teleports its own panel elsewhere; `useOverlay` counts it as inside (its trigger, in this panel,
+ * is `aria-expanded` and `aria-controls` it), and `openRegistry` does not close this popover when
+ * it opens. A consumer's own teleported part claims it with `data-eldra-overlay-owner` set to this
+ * panel's id, or to the id of any element inside it.
  */
 import {
   Comment,
@@ -64,6 +80,8 @@ import {
   Text,
   cloneVNode,
   computed,
+  nextTick,
+  onBeforeUnmount,
   ref,
   useSlots,
   watch,
@@ -75,12 +93,29 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { usePopover } from '../select/usePopover';
 import type { PopoverProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<PopoverProps>(), {
   modelValue: undefined,
   placement: 'auto',
+  offset: undefined,
+  viewportPadding: undefined,
+  reference: undefined,
+  disabled: false,
+  haspopup: 'true',
+  labelledByTrigger: false,
+  openOnArrowDown: false,
+  focusOnOpen: false,
+  closeOnOutsideClick: true,
+  closeOnFocusOutside: undefined,
+  closeOnEscape: true,
+  returnFocus: true,
+  closeWhenTriggerHidden: false,
+  exclusive: true,
   matchWidth: undefined,
   ariaLabel: undefined,
   teleport: true,
@@ -106,6 +141,7 @@ const panelId = computed(() => `${controlId.value}-panel`);
  *  element rather than `root`. */
 const triggerEl = ref<HTMLElement | null>(null);
 const panelEl = ref<HTMLElement | null>(null);
+const anchor = computed(() => props.reference ?? null);
 
 const {
   isOpen,
@@ -114,13 +150,24 @@ const {
   teleportTo,
   teleportDisabled,
   open,
-  close,
+  close: closePopup,
   onTriggerPointerDown,
   onTriggerClick,
+  focusFirst,
+  update,
 } = usePopover({
   trigger: triggerEl,
   content: panelEl,
-  placement: props.placement,
+  anchor,
+  canOpen: () => !props.disabled,
+  placement: () => props.placement,
+  offset: () => props.offset,
+  padding: () => props.viewportPadding,
+  exclusive: () => props.exclusive,
+  closeOnOutsideClick: () => props.closeOnOutsideClick,
+  closeOnFocusOutside: () => props.closeOnFocusOutside ?? props.closeOnOutsideClick,
+  closeOnEscape: () => props.closeOnEscape,
+  returnFocus: () => props.returnFocus,
   matchWidth: props.matchWidth,
   teleport: props.teleport,
   // A menu's rows or a filter form's fields are exactly the "real tab stops" this restores the
@@ -135,7 +182,27 @@ const {
     emit('close');
   },
   openFromPointer: () => open(),
+  afterOpen: async () => {
+    if (!props.focusOnOpen) return;
+    await nextTick();
+    const panel = panelEl.value;
+    if (panel === null) return;
+    focusFirst();
+    if (!panel.contains(document.activeElement)) panel.focus();
+  },
 });
+
+/** Close, returning focus to the trigger unless `returnFocus` is off. */
+function close(): void {
+  closePopup(props.returnFocus);
+}
+
+watch(
+  () => props.disabled,
+  (disabled) => {
+    if (disabled) closePopup(false);
+  }
+);
 
 /**
  * A `v-model` write from outside — a parent's own "Open filters" button elsewhere on the page, or a
@@ -147,10 +214,10 @@ watch(
   () => props.modelValue,
   (value) => {
     if (value === undefined) return;
-    // `close(false)`: an external write is not the Esc/outside-click/trigger-click kind of
+    // `closePopup(false)`: an external write is not the Esc/outside-click/trigger-click kind of
     // closing that should also yank focus back — the caller may well have moved it on purpose.
     if (value) open();
-    else close(false);
+    else closePopup(false);
   },
   { immediate: true }
 );
@@ -160,6 +227,61 @@ function toggle(): void {
   else open();
 }
 
+// --- keyboard activation and ArrowDown ----------------------------------------------------------
+
+/** Set by `Enter`/`Space` on the trigger, so the `detail: 0` click they fire counts as a real one. */
+let keyboardActivation = false;
+
+function onTriggerKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Enter' || event.key === ' ') {
+    keyboardActivation = true;
+    return;
+  }
+  if (event.key === 'ArrowDown' && props.openOnArrowDown && !isOpen.value && !props.disabled) {
+    event.preventDefault();
+    open();
+  }
+}
+
+function onClick(event: MouseEvent): void {
+  const fromKeyboard = keyboardActivation && event.detail === 0;
+  keyboardActivation = false;
+  if (fromKeyboard) {
+    if (!props.disabled) toggle();
+    return;
+  }
+  onTriggerClick(event);
+}
+
+// --- closing once the trigger scrolls out of view ----------------------------------------------
+
+let triggerObserver: IntersectionObserver | null = null;
+
+function unobserveTrigger(): void {
+  triggerObserver?.disconnect();
+  triggerObserver = null;
+}
+
+watch(
+  [isOpen, triggerEl, () => props.closeWhenTriggerHidden],
+  ([opened, trigger, enabled]) => {
+    unobserveTrigger();
+    if (!opened || !enabled || trigger === null || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    triggerObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry !== undefined && !entry.isIntersecting) closePopup(false);
+      },
+      { threshold: 0 }
+    );
+    triggerObserver.observe(trigger);
+  },
+  { flush: 'post' }
+);
+
+onBeforeUnmount(unobserveTrigger);
+
 // --- the trigger's ARIA, wired through the `attrs` slot prop, and its real DOM node --------------
 
 const triggerClass = computed(() => partClass('', props.classes, 'trigger'));
@@ -167,22 +289,32 @@ const triggerClass = computed(() => partClass('', props.classes, 'trigger'));
 const triggerAttrs = computed(() => ({
   id: controlId.value,
   type: 'button' as const,
-  'aria-haspopup': 'true' as const,
+  'aria-haspopup': props.haspopup,
   'aria-expanded': isOpen.value ? ('true' as const) : ('false' as const),
   'aria-controls': panelId.value,
   'data-part': 'trigger' as const,
   class: triggerClass.value,
+  ...(props.disabled ? { disabled: true } : {}),
   onPointerdown: onTriggerPointerDown,
-  onClick: onTriggerClick,
+  onClick,
+  onKeydown: onTriggerKeydown,
 }));
 
-/** The first real vnode of the `trigger` slot's output — a stray whitespace/comment node is not
- *  the trigger. Shared with `Tooltip`'s own identical helper in spirit, not in code: the two clone
- *  for different reasons (see this file's own doc comment) and live in different components. */
-function firstElement(nodes: VNode[]): VNode | undefined {
-  return nodes.find(
-    (node) => node.type !== Comment && node.type !== Text && node.type !== Fragment
-  );
+/** `aria-labelledby` from `labelledByTrigger`; a fallthrough `aria-labelledby` still wins. */
+const panelLabelledBy = computed(() =>
+  props.labelledByTrigger && props.ariaLabel === undefined ? controlId.value : undefined
+);
+
+/** Every real vnode of the `trigger` slot's output, in order: a stray whitespace/comment node is
+ *  not the trigger, and a fragment (a wrapper component forwarding its own `<slot>` into this one,
+ *  or a `v-for`) is looked through rather than skipped. */
+function elements(nodes: VNode[]): VNode[] {
+  return nodes.flatMap((node) => {
+    if (node.type === Fragment) {
+      return Array.isArray(node.children) ? elements(node.children as VNode[]) : [];
+    }
+    return node.type === Comment || node.type === Text ? [] : [node];
+  });
 }
 
 /** A plain element ref is already an `HTMLElement`; a component ref is unwrapped through `$el`, so
@@ -209,17 +341,15 @@ function assignTriggerEl(value: Element | ComponentPublicInstance | null): void 
  */
 function Trigger(): VNode | null {
   const nodes = slots.trigger?.({ open: isOpen.value, toggle, attrs: triggerAttrs.value }) ?? [];
-  const original = firstElement(nodes);
+  const found = elements(nodes);
+  const original = found[0];
   if (original === undefined) {
-    if (import.meta.env?.DEV) {
+    if (import.meta.env?.DEV && props.reference == null) {
       console.warn('[@eldrajs/ui] <Popover> has no `trigger` slot content to attach itself to.');
     }
     return null;
   }
-  if (
-    import.meta.env?.DEV &&
-    nodes.filter((node) => node !== original).some((node) => firstElement([node]) !== undefined)
-  ) {
+  if (import.meta.env?.DEV && found.length > 1) {
     console.warn(
       '[@eldrajs/ui] <Popover> `trigger` slot has more than one element; only the first is wired ' +
         'up as the trigger.'
@@ -232,12 +362,26 @@ function Trigger(): VNode | null {
 
 // --- classes -------------------------------------------------------------------------------------
 
+defineExpose({
+  /** Open the panel, as a trigger click would. */
+  open: () => open(),
+  /** Close the panel, as the default slot's `close` would. */
+  close,
+  toggle,
+  /** Reposition now — after a virtual `reference` has moved. */
+  update,
+});
+
 const rootClass = computed(() => partClass('contents', props.classes, 'root'));
 
 const panelClass = computed(() =>
   partClass(
     cx(
-      'z-popover overflow-hidden rounded-md border border-border bg-background shadow-md',
+      'z-popover overflow-hidden rounded-md border shadow-md',
+      'border-[color:var(--eldra-popover-border,var(--color-border))]',
+      'bg-[color:var(--eldra-popover-background,var(--color-background))]',
+      // No fallback: unset, the panel's colour is inherited exactly as before.
+      'text-[color:var(--eldra-popover-text)]',
       'animate-eldra-popover-in'
     ),
     props.classes,
@@ -247,24 +391,34 @@ const panelClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    :data-eldra-slot="eldra.slotHost('trigger')"
+    data-part="root"
+    :class="rootClass"
+  >
     <component :is="Trigger" />
 
     <Teleport :to="teleportTo" :disabled="teleportDisabled">
       <div
         v-if="isOpen"
+        :data-eldra-slot="eldra.slotHost('default')"
         :id="panelId"
         ref="panelEl"
         data-eldra-ui
+        :data-eldra-scope="eldra.scope"
         data-part="panel"
         :data-eldra-overlay-owner="panelId"
         :class="panelClass"
         :style="panelStyle"
         :data-placement="resolvedPlacement"
         :aria-label="ariaLabel"
+        :aria-labelledby="panelLabelledBy"
+        :tabindex="focusOnOpen ? -1 : undefined"
         v-bind="$attrs"
       >
-        <slot :close="() => close()" />
+        <slot :close="() => close()" :open="isOpen" :toggle="toggle" />
       </div>
     </Teleport>
   </div>

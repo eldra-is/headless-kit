@@ -742,6 +742,10 @@
   inherits: false;
   initial-value: 0;
 }
+/* The ring's `box-shadow` ends with Tailwind's own shadow variables (`--tw-shadow`, `--tw-ring-shadow`
+   and the rest), each falling back to an empty shadow: a consumer's `shadow-*` or `ring-*` on the
+   same element is drawn under the ring rather than replaced by it, and with none set the list
+   paints exactly the ring. */
 @utility eldra-focus {
   /* Width 0 in every colour mode but forced colours, where the ring below is dropped by the UA. */
   outline: 0 solid transparent;
@@ -759,7 +763,12 @@
         in srgb,
         transparent,
         var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
-      );
+      ),
+    var(--tw-inset-shadow, 0 0 #0000),
+    var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000);
   transition:
     color var(--eldra-duration-fast) var(--eldra-ease-out),
     background-color var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -778,7 +787,12 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
-        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
+        var(--tw-inset-shadow, 0 0 #0000),
+        var(--tw-inset-ring-shadow, 0 0 #0000),
+        var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000),
+        var(--tw-shadow, 0 0 #0000);
     }
   }
   @media (forced-colors: active) {
@@ -794,7 +808,12 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
-        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
+        var(--tw-inset-shadow, 0 0 #0000),
+        var(--tw-inset-ring-shadow, 0 0 #0000),
+        var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000),
+        var(--tw-shadow, 0 0 #0000);
     }
   }
   @media (forced-colors: active) {
@@ -827,7 +846,12 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
-        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
+        var(--tw-inset-shadow, 0 0 #0000),
+        var(--tw-inset-ring-shadow, 0 0 #0000),
+        var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000),
+        var(--tw-shadow, 0 0 #0000);
     }
   }
   @media (forced-colors: active) {
@@ -855,7 +879,12 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
-        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus);
+        0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
+        var(--tw-inset-shadow, 0 0 #0000),
+        var(--tw-inset-ring-shadow, 0 0 #0000),
+        var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000),
+        var(--tw-shadow, 0 0 #0000);
     }
   }
   @media (forced-colors: active) {
@@ -886,9 +915,9 @@
     --eldra-focus-alpha: 1;
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
-        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 var(--eldra-focus-width) var(--eldra-color-focus),
         inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
-          var(--eldra-color-focus);
+          var(--eldra-color-focus-inner);
     }
   }
   @media (forced-colors: active) {
@@ -899,22 +928,24 @@
   }
 }
 
+/* The ring sits against the element's edge and its gap inside it, toward the content: every inset
+   ring is drawn inside a bordered container, where an outer gap read as padding. */
 @utility eldra-focus-inset {
   outline: 0 solid transparent;
   outline-offset: calc(-1 * (var(--eldra-focus-width) + var(--eldra-focus-offset)));
   --eldra-focus-alpha: 0;
   box-shadow:
-    inset 0 0 0 var(--eldra-focus-offset)
+    inset 0 0 0 var(--eldra-focus-width)
       color-mix(
         in srgb,
         transparent,
-        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
       ),
     inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
       color-mix(
         in srgb,
         transparent,
-        var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
       );
   transition:
     color var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -933,9 +964,9 @@
     --eldra-focus-alpha: 1;
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
-        inset 0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        inset 0 0 0 var(--eldra-focus-width) var(--eldra-color-focus),
         inset 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
-          var(--eldra-color-focus);
+          var(--eldra-color-focus-inner);
     }
   }
   @media (forced-colors: active) {

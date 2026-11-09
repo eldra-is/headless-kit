@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
+import { computed, inject, nextTick, ref, useAttrs, useSlots, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
-import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
 import SelectPanel from './SelectPanel.vue';
+import SelectTags from './SelectTags.vue';
+import { TRIGGER_VALUE_CELL, TRIGGER_VALUE_STACK } from './panelParts';
+import { useSummaryFit } from './useSummaryFit';
+import { useTagRows } from './useTagRows';
 import type { MultiSelectPart, MultiSelectProps, SelectOption, SelectSize } from './types';
 import { useListbox } from './useListbox';
-import { useOptionList } from './useOptionList';
+import { CREATE_VALUE, useOptionList } from './useOptionList';
 import { usePopover } from './usePopover';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -35,8 +41,13 @@ const props = withDefaults(defineProps<MultiSelectProps>(), {
   readonly: false,
   placement: 'auto',
   teleport: true,
+  loading: false,
+  creatable: false,
+  renderBatch: undefined,
   showTags: true,
-  maxSummary: 2,
+  tagPlacement: 'below',
+  maxTagRows: 2,
+  maxSummary: 'fit',
   messages: undefined,
   classes: undefined,
 });
@@ -53,6 +64,8 @@ const emit = defineEmits<{
   close: [];
   /** The search query, on every keystroke in the panel's search field. */
   search: [query: string];
+  /** The create row was chosen: the trimmed query, for the consumer to add as an option. */
+  create: [query: string];
 }>();
 
 const m = useMessages(() => props.messages);
@@ -64,9 +77,16 @@ const controlId = useUiId(
   () => props.id ?? (field?.value.labelsControl === true ? field.value.id : undefined)
 );
 const labelledBy = computed(() =>
-  field?.value.labelsControl === true ? field.value.labelId : undefined
+  field?.value.labelsControl === true && field.value.labelled !== false
+    ? field.value.labelId
+    : undefined
 );
 const attrs = useAttrs();
+const slots = useSlots();
+const fieldRef = ref<HTMLElement | null>(null);
+/** `tagPlacement: 'inside'`: the tags sit in the field, and the panel hangs off the whole field. */
+const inside = computed(() => props.tagPlacement === 'inside');
+const panelAnchor = computed(() => (inside.value ? fieldRef.value : null));
 const fallbackLabel = computed(() =>
   labelledBy.value === undefined && typeof attrs['aria-label'] === 'string'
     ? attrs['aria-label']
@@ -93,13 +113,17 @@ const indexOfValue = computed(
   () => new Map(props.options.map((option, index) => [option.value, index]))
 );
 const optionId = (value: string): string =>
-  `${controlId.value}-o${indexOfValue.value.get(value) ?? 0}`;
+  value === CREATE_VALUE
+    ? `${controlId.value}-create`
+    : `${controlId.value}-o${indexOfValue.value.get(value) ?? 0}`;
 
 /** Controlled when the parent binds `modelValue`, self-managing when it does not. */
 const model = useControllableModel<string[]>(props, emit, () => []);
 
 /** Spec "Select" → Properties: "`true` when there are more than 10 options, else `false`". */
-const searchable = computed(() => props.searchable ?? props.options.length > 10);
+const searchable = computed(
+  () => props.searchable ?? (props.creatable || props.options.length > 10)
+);
 const placeholderText = computed(() => props.placeholder ?? m.value.multiSelectPlaceholder);
 const searchPlaceholderText = computed(() => props.searchPlaceholder ?? m.value.search);
 
@@ -142,15 +166,41 @@ const showTagRemove = computed(() => !props.disabled && !props.readonly);
  * Spec "Multi-select" → States, Some selected: "the trigger lists the first 2 labels, comma-
  * separated and truncated with an ellipsis, plus a '+N' pill for the rest."
  */
+/** Out of flow and invisible, so the measured copy never moves or widens anything. */
+const SUMMARY_MEASURE =
+  'pointer-events-none invisible absolute start-0 top-0 flex items-center gap-2 overflow-hidden';
+const summaryRef = ref<HTMLElement | null>(null);
+const summaryRunRef = ref<HTMLElement | null>(null);
+const summaryPillRef = ref<HTMLElement | null>(null);
+const summaryFit = useSummaryFit(summaryRef, summaryRunRef, summaryPillRef, () =>
+  selectedOptions.value.map((option) => option.label)
+);
+/** `'fit'` measures the trigger (`useSummaryFit`); a consumer's `value` slot draws its own. */
+const fitsSummary = computed(() => props.maxSummary === 'fit' && !slots.value);
+const summaryCount = computed(() =>
+  props.maxSummary === 'fit' ? summaryFit.count.value : Math.max(0, props.maxSummary)
+);
 const summaryText = computed(() =>
   selectedOptions.value
-    .slice(0, Math.max(0, props.maxSummary))
+    .slice(0, summaryCount.value)
     .map((option) => option.label)
     .join(', ')
 );
-const moreCount = computed(() =>
-  Math.max(0, selectedOptions.value.length - Math.max(0, props.maxSummary))
+const moreCount = computed(() => Math.max(0, selectedOptions.value.length - summaryCount.value));
+
+const tagRows = useTagRows(
+  fieldRef,
+  () => props.maxTagRows,
+  () => inside.value,
+  () => model.value.join('\u0000')
 );
+/** The tags drawn: all of them below, and inside up to `maxTagRows` rows' worth. */
+const shownTags = computed(() =>
+  inside.value && tagRows.visible.value !== null
+    ? selectedOptions.value.slice(0, tagRows.visible.value)
+    : selectedOptions.value
+);
+const hiddenTagCount = computed(() => selectedOptions.value.length - shownTags.value.length);
 
 /** Spec → Accessibility: the footer count is "4 selected" / "None selected", announced politely. */
 const countText = computed(() =>
@@ -170,11 +220,24 @@ const searchRef = computed<HTMLInputElement | null>(
 
 // --- the list ----------------------------------------------------------------------------------
 
-const { sections, nativeSections, listOptions, hasOptions, highlights } = useOptionList({
+const {
+  sections,
+  nativeSections,
+  listOptions,
+  hasOptions,
+  highlights,
+  createOption,
+  renderMore,
+  reveal,
+  resetBatch,
+} = useOptionList({
   options: () => props.options,
   query: () => query.value,
   searchable: () => searchable.value,
   controlId: () => controlId.value,
+  loading: () => props.loading,
+  creatable: () => props.creatable,
+  renderBatch: () => props.renderBatch,
 });
 
 // --- opening and closing -------------------------------------------------------------------------
@@ -196,6 +259,7 @@ const {
   onTriggerClick,
 } = usePopover({
   trigger: triggerRef,
+  anchor: panelAnchor,
   content: panelRef,
   canOpen: () => !props.disabled && !props.readonly,
   placement: props.placement,
@@ -213,6 +277,7 @@ const {
   },
   onClose: () => {
     listbox.resetTypeahead();
+    resetBatch();
     if (query.value !== '') setQuery('');
     emit('close');
   },
@@ -256,6 +321,9 @@ const listbox = useListbox({
     return true;
   },
 });
+// Synchronous, so a keyboard move past the rendered batch has its row in the DOM before the panel
+// scrolls it into view.
+watch(listbox.activeValue, reveal, { flush: 'sync' });
 
 function onKeydown(event: KeyboardEvent): void {
   const wasOpen = isOpen.value;
@@ -269,7 +337,21 @@ function onKeydown(event: KeyboardEvent): void {
     hasSelection.value
   ) {
     event.preventDefault();
-    const last = selectedOptions.value.at(-1);
+    const last = [...selectedOptions.value].reverse().find((option) => !option.disabled);
+    if (last !== undefined) deselect(last.value);
+    return;
+  }
+  // Inside, the closed trigger sits after the tags like a chip input's caret, so `Backspace` takes
+  // the last one off rather than clearing everything (`Delete` still clears).
+  if (
+    !wasOpen &&
+    inside.value &&
+    event.key === 'Backspace' &&
+    showTagRemove.value &&
+    hasSelection.value
+  ) {
+    event.preventDefault();
+    const last = [...selectedOptions.value].reverse().find((option) => !option.disabled);
     if (last !== undefined) deselect(last.value);
     return;
   }
@@ -356,6 +438,11 @@ function commit(values: string[]): void {
 /** Spec "Multi-select" → Behaviour: "Toggling keeps the popover open, and the toggled row stays
  *  active." Changes apply immediately: "There is no pending state inside the popover." */
 function toggle(option: SelectOption): void {
+  if (option.value === CREATE_VALUE) {
+    emit('create', option.label);
+    setQuery('');
+    return;
+  }
   if (option.disabled === true || props.disabled || props.readonly) return;
   const values = model.value;
   const next = values.includes(option.value)
@@ -368,10 +455,21 @@ function toggle(option: SelectOption): void {
 /** Removing a tag "deselects that value, fires `change` and returns focus to the trigger". */
 function deselect(value: string): void {
   if (props.disabled || props.readonly) return;
+  if (props.options.find((option) => option.value === value)?.disabled) return;
   const next = model.value.filter((current) => current !== value);
   if (next.length === model.value.length) return;
   commit(next);
   if (next.length === 0) emit('clear');
+}
+
+/** A press on the inside field's own padding or gaps, not on a tag or button, opens like the trigger. */
+function onFieldPointerDown(event: PointerEvent): void {
+  if (!inside.value || props.disabled || props.readonly || event.button !== 0) return;
+  const target = event.target as Element | null;
+  if (target?.closest('button, a, input, [data-part="tag"]')) return;
+  event.preventDefault();
+  triggerRef.value?.focus();
+  triggerRef.value?.click();
 }
 
 function onTagRemove(value: string): void {
@@ -491,13 +589,80 @@ const triggerClass = computed(() =>
   )
 );
 
+/**
+ * `tagPlacement: 'inside'`: the field takes the trigger box's border, fill, states and ring (through
+ * `eldra-focus-proxy`, and while open through the expanded trigger inside it), wraps the tags and
+ * the trigger, and grows a row at a time. Its vertical padding centres a 1.75rem tag in each
+ * control height; the end padding keeps every row clear of the chevron, and of Clear while it shows.
+ */
+const FIELD_SIZE: Record<SelectSize, string> = {
+  sm: 'min-h-(--eldra-control-height-sm) py-px ps-0.75 text-control-sm',
+  md: 'min-h-(--eldra-control-height) py-1.25 ps-1.25 text-control max-md:text-control-mobile',
+  lg: 'min-h-(--eldra-control-height-lg) py-2.25 ps-2.25 text-control-lg',
+};
+
+const fieldClass = computed(() =>
+  inside.value
+    ? part(
+        cx(
+          'relative isolate flex w-full min-w-0 flex-wrap items-center gap-1.5 eldra-field-border',
+          'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-proxy',
+          'has-[[aria-expanded=true]]:[--eldra-focus-alpha:1]',
+          FIELD_SIZE[props.size],
+          showClear.value ? 'pe-15' : 'pe-9',
+          props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
+          !props.disabled && !props.readonly && isOpen.value && OPEN,
+          showsInvalid.value && INVALID
+        ),
+        'field'
+      )
+    : 'relative'
+);
+
+/** Inside, the trigger: under the tags across the field, or the placeholder's row with none. */
+const insideTriggerClass = computed(() =>
+  part(
+    cx(
+      'flex items-center bg-transparent text-start outline-none',
+      // With tags it shows nothing, so it leaves the flow and lies under them across the whole
+      // field: it never needs a row (or the gap before one), and a press on any empty part of the
+      // field lands on it. With none it is the row, holding the placeholder. The field draws the ring.
+      hasSelection.value
+        ? 'absolute inset-0 rounded-[inherit]'
+        : 'min-h-7 min-w-8 flex-1 self-stretch ps-1.5',
+      props.disabled ? 'cursor-not-allowed' : props.readonly ? 'cursor-default' : 'cursor-pointer'
+    ),
+    'trigger'
+  )
+);
+
+/** The inside field's chevron: out of the flow, at the end, centred however many rows there are. */
+const insideChevronClass = computed(() =>
+  part(
+    cx(
+      'pointer-events-none absolute end-2.5 inset-y-0 my-auto size-4.5 text-muted',
+      'transition-transform duration-base',
+      isOpen.value && 'rotate-180'
+    ),
+    'chevron'
+  )
+);
+
 const leadingIconClass = computed(() =>
   part('flex size-4.5 shrink-0 items-center justify-center text-muted', 'leadingIcon')
 );
 
 /** The summary row: the labels, then the "+N" pill. 1.75rem of end padding while Clear shows. */
 const summaryClass = computed(() =>
-  part(cx('flex min-w-0 flex-1 items-center gap-2', showClear.value && 'pe-7'), 'summary')
+  part(
+    cx(
+      'flex min-w-0 flex-1 items-center gap-2',
+      TRIGGER_VALUE_CELL,
+      fitsSummary.value && 'contain-inline-size',
+      showClear.value && 'pe-7'
+    ),
+    'summary'
+  )
 );
 
 /** Spec "Multi-select" → Sizes: min width 1.5rem, 1.25rem tall, 0.3125rem side padding. */
@@ -541,31 +706,26 @@ const clearButtonClass = computed(() =>
  * while the list scrolls."
  */
 const footerClass = computed(() =>
-  part('border-border bg-background flex shrink-0 items-center gap-2 border-t p-1.5 ps-3', 'footer')
+  part(
+    cx(
+      'flex shrink-0 items-center gap-2 border-t p-1.5 ps-3',
+      'border-[color:var(--eldra-select-panel-border,var(--color-border))]',
+      'bg-[color:var(--eldra-select-panel-background,var(--color-background))]'
+    ),
+    'footer'
+  )
 );
 
 const footerCountClass = computed(() =>
-  part('text-caption text-muted me-auto tabular-nums', 'footerCount')
+  part(
+    'text-caption me-auto tabular-nums text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    'footerCount'
+  )
 );
 
 /** Spec: "Clear = Button link sm (0.5rem side padding), Done = Button primary sm." */
 const footerClearClass = computed(() => part('px-2', 'footerClear'));
 const footerDoneClass = computed(() => part('', 'footerDone'));
-
-/**
- * Spec "Multi-select" → Sizes, Tags: "small chips: min 1.75rem tall, 0.8125rem text, 0.625rem start
- * padding, `surface-strong` fill, `radius-full`. … The list wraps with a 0.375rem gap, 0.25rem
- * below the control." The chip and its remove button are the same recipe `Chip`'s own `sm` size
- * draws — see `src/utils/tagRecipe.ts`.
- */
-const tagsClass = computed(() => part('mt-1 flex list-none flex-wrap gap-1.5 p-0', 'tags'));
-
-const tagClass = computed(() =>
-  part(cx(TAG_FILL, TAG_SHAPE, tagPadding(showTagRemove.value)), 'tag')
-);
-
-/** "Remove button 1.5rem circle with a 0.875rem icon (hover `text` at 11%)." */
-const tagRemoveClass = computed(() => part(TAG_REMOVE_BUTTON, 'tagRemove'));
 
 const emptyText = computed(() =>
   query.value.trim() === '' ? m.value.noResults : m.value.noMatchesFor(query.value.trim())
@@ -573,11 +733,49 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <!-- The trigger and its clear button share a positioning context of their own: the root also
          holds the tag list, and a clear button positioned against *that* would drift down the
          control as tags wrap onto a second line. -->
-    <div class="relative">
+    <div
+      ref="fieldRef"
+      :data-part="inside ? 'field' : undefined"
+      :class="fieldClass"
+      :data-eldra-overlay-owner="inside ? panelId : undefined"
+      @pointerdown="onFieldPointerDown"
+    >
+      <span
+        v-if="inside && (leadingIcon || $slots.leading)"
+        :data-eldra-slot="eldra.slotHost('leading')"
+        data-part="leadingIcon"
+        :class="leadingIconClass"
+      >
+        <slot name="leading" :options="selectedOptions" :open="isOpen">
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+        </slot>
+      </span>
+      <SelectTags
+        v-if="inside && hasSelection"
+        :id="tagsId"
+        :options="shownTags"
+        :label="m.selected"
+        :labelled-by="labelledBy"
+        :inside="inside"
+        :classes="classes"
+        :removable="showTagRemove"
+        :remove-label="m.removeTag"
+        :more="hiddenTagCount"
+        :more-label="m.moreSelected(hiddenTagCount)"
+        @remove="onTagRemove"
+        @deselect="deselect"
+      >
+        <template v-if="$slots.tagItem" #tagItem="params">
+          <slot name="tagItem" v-bind="params" />
+        </template>
+        <template v-if="$slots.tag" #tag="params">
+          <slot name="tag" v-bind="params" />
+        </template>
+      </SelectTags>
       <button
         ref="triggerRef"
         v-bind="$attrs"
@@ -585,7 +783,7 @@ const emptyText = computed(() =>
         type="button"
         role="combobox"
         :id="controlId"
-        :class="triggerClass"
+        :class="inside ? insideTriggerClass : triggerClass"
         aria-haspopup="listbox"
         :aria-expanded="isOpen ? 'true' : 'false'"
         :aria-controls="listboxId"
@@ -601,22 +799,66 @@ const emptyText = computed(() =>
         @click="onTriggerClick"
         @keydown="onKeydown"
       >
-        <span v-if="leadingIcon" data-part="leadingIcon" :class="leadingIconClass">
-          <Icon :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+        <span
+          v-if="!inside && (leadingIcon || $slots.leading)"
+          :data-eldra-slot="eldra.slotHost('leading')"
+          data-part="leadingIcon"
+          :class="leadingIconClass"
+        >
+          <slot name="leading" :options="selectedOptions" :open="isOpen">
+            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          </slot>
         </span>
 
-        <span v-if="hasSelection" data-part="summary" :class="summaryClass">
-          <slot name="value" :options="selectedOptions">
-            <span v-if="summaryText" class="min-w-0 truncate">{{ summaryText }}</span>
-            <span v-if="moreCount > 0" data-part="summaryMore" :class="summaryMoreClass">
-              {{ m.moreSelected(moreCount) }}
+        <template v-if="inside">
+          <span v-if="!hasSelection" data-part="placeholder" :class="placeholderClass">
+            {{ placeholderText }}
+          </span>
+        </template>
+        <span
+          v-else-if="hasSelection"
+          :class="TRIGGER_VALUE_STACK"
+          :data-placeholder="placeholderText"
+        >
+          <span
+            ref="summaryRef"
+            :data-eldra-slot="eldra.slotHost('value')"
+            data-part="summary"
+            :class="summaryClass"
+          >
+            <slot name="value" :options="selectedOptions">
+              <span v-if="summaryText" class="min-w-0 truncate">{{ summaryText }}</span>
+              <span v-if="moreCount > 0" data-part="summaryMore" :class="summaryMoreClass">
+                {{ m.moreSelected(moreCount) }}
+              </span>
+            </slot>
+          </span>
+          <!-- The copy useSummaryFit measures: every label on one line, and the widest pill. -->
+          <span
+            v-if="fitsSummary && summaryFit.mounted.value"
+            aria-hidden="true"
+            inert
+            :class="SUMMARY_MEASURE"
+          >
+            <span ref="summaryRunRef" class="whitespace-nowrap"
+              ><span v-for="(option, index) in selectedOptions" :key="option.value" data-label
+                >{{ index ? ', ' : '' }}{{ option.label }}</span
+              ></span
+            >
+            <span ref="summaryPillRef" :class="summaryMoreClass">
+              {{ m.moreSelected(selectedOptions.length) }}
             </span>
-          </slot>
+          </span>
         </span>
         <span v-else data-part="placeholder" :class="placeholderClass">{{ placeholderText }}</span>
 
         <!-- Spec "Select" → States, Read-only: "no chevron". -->
-        <span v-if="!readonly" data-part="chevron" :class="chevronClass" aria-hidden="true">
+        <span
+          v-if="!readonly && !inside"
+          data-part="chevron"
+          :class="chevronClass"
+          aria-hidden="true"
+        >
           <!-- Tabler's `chevron-down`, stroke 1.75. -->
           <svg
             class="size-4.5"
@@ -632,6 +874,26 @@ const emptyText = computed(() =>
           </svg>
         </span>
       </button>
+      <span
+        v-if="!readonly && inside"
+        data-part="chevron"
+        :class="insideChevronClass"
+        aria-hidden="true"
+      >
+        <!-- Tabler's `chevron-down`, stroke 1.75. -->
+        <svg
+          class="size-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          focusable="false"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </span>
 
       <!-- `data-eldra-overlay-owner` makes `useOverlay` count this button as part of the overlay,
            so reaching it never closes the popover — the spec's own Tab table says the popover stays
@@ -687,6 +949,10 @@ const emptyText = computed(() =>
         :query="query"
         :search-placeholder="searchPlaceholderText"
         :empty-text="emptyText"
+        :loading="loading"
+        :loading-text="m.loading"
+        :create-option="createOption"
+        :create-text="createOption ? m.createOption(createOption.label) : undefined"
         :labelled-by="labelledBy"
         :fallback-label="fallbackLabel"
         :panel-style="panelStyle"
@@ -695,15 +961,20 @@ const emptyText = computed(() =>
         @search="setQuery"
         @select="toggle"
         @activate="listbox.setActive"
+        @scroll-end="renderMore"
         @keydown="onKeydown"
       >
         <template v-if="$slots.option" #option="params">
           <slot name="option" v-bind="params" />
         </template>
+        <template v-if="$slots.optionContent" #optionContent="params">
+          <slot name="optionContent" v-bind="params" />
+        </template>
         <template v-if="$slots.empty" #empty><slot name="empty" /></template>
+        <template v-if="$slots.loading" #loading><slot name="loading" /></template>
 
         <template #footer>
-          <div data-part="footer" :class="footerClass">
+          <div :data-eldra-scope="eldra.scope" data-part="footer" :class="footerClass">
             <!-- Spec → Accessibility: the count is "an `aria-live="polite"` region, so every toggle
                  is confirmed without moving focus". -->
             <span data-part="footerCount" :class="footerCountClass" aria-live="polite">
@@ -734,46 +1005,28 @@ const emptyText = computed(() =>
       </SelectPanel>
     </Teleport>
 
-    <!-- Spec → Accessibility: "a `<ul>` named 'Selected <label>'. Each chip's remove control is a
-         real `<button type="button">` named 'Remove <label>'." -->
-    <ul
-      v-if="showTags && hasSelection"
+    <SelectTags
+      v-if="!inside && showTags && hasSelection"
       :id="tagsId"
-      data-part="tags"
-      :class="tagsClass"
-      :aria-label="m.selected"
-      :aria-labelledby="labelledBy ? `${tagsId} ${labelledBy}` : undefined"
+      :options="selectedOptions"
+      :label="m.selected"
+      :labelled-by="labelledBy"
+      :inside="inside"
+      :classes="classes"
+      :removable="showTagRemove"
+      :remove-label="m.removeTag"
+      :more="0"
+      more-label=""
+      @remove="onTagRemove"
+      @deselect="deselect"
     >
-      <li v-for="option in selectedOptions" :key="option.value" data-part="tag" :class="tagClass">
-        <slot name="tag" :option="option">
-          <span class="min-w-0 truncate">{{ option.label }}</span>
-        </slot>
-        <button
-          v-if="showTagRemove"
-          data-part="tagRemove"
-          type="button"
-          :class="tagRemoveClass"
-          :aria-label="m.removeTag(option.label)"
-          @click="onTagRemove(option.value)"
-        >
-          <!-- Tabler's `x` at 0.875rem. Decorative: the button is named above. -->
-          <svg
-            class="size-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M18 6l-12 12" />
-            <path d="M6 6l12 12" />
-          </svg>
-        </button>
-      </li>
-    </ul>
+      <template v-if="$slots.tagItem" #tagItem="params">
+        <slot name="tagItem" v-bind="params" />
+      </template>
+      <template v-if="$slots.tag" #tag="params">
+        <slot name="tag" v-bind="params" />
+      </template>
+    </SelectTags>
 
     <!-- Spec "Multi-select": "built from a native `<select multiple>` that stays hidden underneath,
          in sync, so forms post every selected value". -->

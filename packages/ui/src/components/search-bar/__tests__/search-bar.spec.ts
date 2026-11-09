@@ -796,9 +796,10 @@ describe('SearchBar', () => {
       const active = items[1];
       expect(active?.attributes('id')).toBe(field(wrapper).getAttribute('aria-activedescendant'));
       // A fill *and* an arrow, plus the active-descendant above: never colour alone.
-      expect(active?.classes()).toContain('bg-surface-strong');
+      const ACTIVE_FILL = 'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]';
+      expect(active?.classes()).toContain(ACTIVE_FILL);
       expect(active?.find('[data-part="itemArrow"]').exists()).toBe(true);
-      expect(items[0]?.classes()).not.toContain('bg-surface-strong');
+      expect(items[0]?.classes()).not.toContain(ACTIVE_FILL);
       expect(items[0]?.find('[data-part="itemArrow"]').exists()).toBe(false);
       expect(document.activeElement).toBe(field(wrapper));
     });
@@ -1172,5 +1173,66 @@ describe('SearchBar — the panel entrance', () => {
     expect(panel(wrapper).attributes('style')).toContain('--eldra-popover-origin: top left');
     // The slide is gone from the entrance, so the variable that drove it is not written either.
     expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
+  });
+});
+
+describe('SearchBar — panel colour variables', () => {
+  const BG = 'bg-[color:var(--eldra-select-panel-background,var(--color-background))]';
+  const BORDER = 'border-[color:var(--eldra-select-panel-border,var(--color-border))]';
+  const TEXT = 'text-[color:var(--eldra-select-panel-text,var(--color-text))]';
+  const MUTED = 'text-[color:var(--eldra-select-panel-muted,var(--color-muted))]';
+  const ACTIVE = 'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]';
+  const VARIABLES = {
+    '--eldra-select-panel-background': '#111827',
+    '--eldra-select-panel-border': '#374151',
+    '--eldra-select-panel-text': '#f9fafb',
+    '--eldra-select-panel-muted': '#d1d5db',
+    '--eldra-select-panel-active': '#1f2937',
+  };
+
+  afterEach(() => {
+    for (const name of Object.keys(VARIABLES)) document.documentElement.style.removeProperty(name);
+  });
+
+  it('reads the same --eldra-select-panel-* family as Select and MultiSelect', async () => {
+    const wrapper = mount({ recent: RECENT, popular: POPULAR });
+    await focusField(wrapper);
+    const root = panel(wrapper);
+    expect(root.classes()).toEqual(
+      expect.arrayContaining([BG, BORDER, 'text-[color:var(--eldra-select-panel-text)]'])
+    );
+    expect(root.classes()).not.toContain('bg-background');
+    const sections = root.findAll('[data-part="section"]');
+    expect(sections[1]?.classes()).toContain(BORDER);
+    expect(root.find('[data-part="sectionHeading"]').classes()).toContain(MUTED);
+    const recentRows = root.findAll('[data-part="recent"] [role="option"]');
+    expect(recentRows[0]?.classes()).toContain(TEXT);
+    expect(root.find('[data-part="clearRecent"]').classes()).toContain(MUTED);
+    expect(root.find('[data-part="chip"]').classes()).toContain(TEXT);
+
+    await key(wrapper, { key: 'ArrowDown' });
+    await flush();
+    expect(rows(wrapper).filter((row) => row.classes().includes(ACTIVE))).toHaveLength(1);
+  });
+
+  it('draws the no-results advice in the panel muted colour', async () => {
+    const wrapper = mount({ modelValue: 'teapot', results: EMPTY });
+    await focusField(wrapper);
+    expect(inPanel(wrapper, '[data-part="empty"] p:last-child').classes()).toContain(MUTED);
+  });
+
+  it('never redefines a theme-wide colour variable on the panel', async () => {
+    const wrapper = mount({ modelValue: 'mer', results: RESULTS });
+    await focusField(wrapper);
+    expect(panel(wrapper).element.outerHTML).not.toMatch(/--(eldra-)?color-[a-z-]+:/);
+  });
+
+  it('is axe-clean with the chrome recoloured through its variables', async () => {
+    for (const [name, value] of Object.entries(VARIABLES)) {
+      document.documentElement.style.setProperty(name, value);
+    }
+    const wrapper = mount({ modelValue: 'mer', results: RESULTS });
+    await focusField(wrapper);
+    expect(await axe(panel(wrapper).element)).toHaveNoViolations();
   });
 });

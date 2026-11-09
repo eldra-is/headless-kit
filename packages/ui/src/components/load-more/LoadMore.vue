@@ -5,6 +5,9 @@ import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import Spinner from '../spinner/Spinner.vue';
 import type { LoadMoreProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<LoadMoreProps>(), {
   noun: 'products',
@@ -72,7 +75,7 @@ const buttonClass = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <p :id="statusId" data-part="status" :class="statusClass" role="status" aria-live="polite">
       {{ m.showingOf(shown, total, noun) }}
     </p>

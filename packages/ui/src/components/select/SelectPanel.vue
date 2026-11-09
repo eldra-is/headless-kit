@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import Icon from '../icon/Icon.vue';
+import Spinner from '../spinner/Spinner.vue';
 import {
+  createOptionClass,
   emptyClass,
   groupClass,
   groupLabelClass,
   listboxClass,
+  loadingClass,
   optionBoxClass,
   optionCheckClass,
   optionClass,
@@ -21,6 +24,9 @@ import {
 } from './panelParts';
 import type { SelectOption } from './types';
 import type { MatchParts, PanelSection } from './useOptionList';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * The popover a `Select` and a `MultiSelect` both open: the search field, the listbox with its
@@ -71,6 +77,14 @@ const props = withDefaults(
     fallbackLabel?: string;
     /** Checkbox rows and `aria-multiselectable="true"`. */
     multiple?: boolean;
+    /** Draws the loading row in place of the list and the empty state. */
+    loading?: boolean;
+    /** The loading row's text. */
+    loadingText?: string;
+    /** The "Create “query”" row, last in the list; `undefined` draws none. */
+    createOption?: SelectOption;
+    /** The create row's text ("Create “teal”"). */
+    createText?: string;
     /** Inline position from `useFloating`, and the placement it resolved to. */
     panelStyle?: Record<string, string>;
     placement?: string;
@@ -81,6 +95,10 @@ const props = withDefaults(
     labelledBy: undefined,
     fallbackLabel: undefined,
     multiple: false,
+    loading: false,
+    loadingText: undefined,
+    createOption: undefined,
+    createText: undefined,
     panelStyle: undefined,
     placement: undefined,
     classes: undefined,
@@ -96,6 +114,8 @@ const emit = defineEmits<{
   activate: [value: string];
   /** A key pressed in the search field. The parent owns the keyboard. */
   keydown: [event: KeyboardEvent];
+  /** The list was scrolled to within a few rows of its end. */
+  scrollEnd: [];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -114,6 +134,22 @@ const optionSwatchClasses = computed(() => optionSwatchClass(props.classes));
 const optionIconClasses = computed(() => optionIconClass(props.classes));
 const optionCheckClasses = computed(() => optionCheckClass(props.classes));
 const emptyClasses = computed(() => emptyClass(props.classes));
+const loadingClasses = computed(() => loadingClass(props.classes));
+const createClasses = computed(() =>
+  props.createOption === undefined
+    ? ''
+    : createOptionClass(props.classes, { active: isActive(props.createOption) })
+);
+
+/** Within this many pixels of the end — two rows — the next render batch is asked for. */
+const SCROLL_END_SLACK = 80;
+
+function onListScroll(event: Event): void {
+  const list = event.currentTarget as HTMLElement;
+  if (list.scrollHeight - list.scrollTop - list.clientHeight <= SCROLL_END_SLACK) {
+    emit('scrollEnd');
+  }
+}
 
 const rowClass = (option: SelectOption): string =>
   optionClass(props.classes, option, {
@@ -178,8 +214,10 @@ function onPanelMouseDown(event: MouseEvent): void {
 <template>
   <div
     ref="root"
+    :data-eldra-slot="eldra.slotHost('footer')"
     :id="panelId"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="panel"
     :data-eldra-overlay-owner="panelId"
     :class="panelClasses"
@@ -187,10 +225,14 @@ function onPanelMouseDown(event: MouseEvent): void {
     :data-placement="placement"
     @mousedown="onPanelMouseDown"
   >
-    <div v-if="searchable" class="border-border relative shrink-0 border-b">
+    <div
+      v-if="searchable"
+      :data-eldra-scope="eldra.scope"
+      class="relative shrink-0 border-b border-[color:var(--eldra-select-panel-border,var(--color-border))]"
+    >
       <!-- Tabler's `search` at 1rem, 0.625rem from the start edge. -->
       <svg
-        class="text-muted pointer-events-none absolute inset-y-0 start-2.5 my-auto size-4"
+        class="pointer-events-none absolute inset-y-0 start-2.5 my-auto size-4 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -224,6 +266,7 @@ function onPanelMouseDown(event: MouseEvent): void {
     </div>
 
     <div
+      :data-eldra-scope="eldra.scope"
       :id="listboxId"
       data-part="listbox"
       role="listbox"
@@ -231,6 +274,8 @@ function onPanelMouseDown(event: MouseEvent): void {
       :aria-multiselectable="multiple ? 'true' : undefined"
       :aria-labelledby="labelledBy"
       :aria-label="fallbackLabel"
+      :aria-busy="loading ? 'true' : undefined"
+      @scroll.passive="onListScroll"
     >
       <div
         v-for="(section, sectionIndex) in sections"
@@ -253,6 +298,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         <div
           v-for="option in section.options"
           :key="option.value"
+          :data-eldra-slot="eldra.slotHost('option', 'optionContent')"
           :id="optionId(option.value)"
           data-part="option"
           role="option"
@@ -273,6 +319,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                  it. -->
             <span
               v-if="multiple"
+              :data-eldra-scope="eldra.scope"
               data-part="optionCheck"
               :class="boxClass(option)"
               aria-hidden="true"
@@ -297,46 +344,57 @@ function onPanelMouseDown(event: MouseEvent): void {
               </svg>
             </span>
 
-            <span
-              v-if="option.swatch"
-              data-part="optionSwatch"
-              :class="optionSwatchClasses"
-              :style="{ backgroundColor: option.swatch }"
-              aria-hidden="true"
-            />
-            <Icon
-              v-else-if="option.icon"
-              data-part="optionIcon"
-              :icon="option.icon"
-              :classes="{ root: optionIconClasses }"
-            />
-
-            <span class="min-w-0 flex-1">
-              <span data-part="optionLabel" :class="optionLabelClass(classes, option)">
-                <template v-if="highlights.get(option.value)"
-                  >{{ highlights.get(option.value)?.before
-                  }}<span class="eldra-select-match">{{ highlights.get(option.value)?.match }}</span
-                  >{{ highlights.get(option.value)?.after }}</template
-                >
-                <template v-else>{{ option.label }}</template>
-              </span>
-              <span v-if="option.hint" data-part="optionHint" :class="optionHintClasses">
-                {{ option.hint }}
-              </span>
-            </span>
-
-            <span
-              v-if="option.meta"
-              data-part="optionMeta"
-              :class="optionMetaClass(classes, option)"
+            <slot
+              name="optionContent"
+              :option="option"
+              :selected="isSelected(option)"
+              :active="isActive(option)"
+              :match="highlights.get(option.value) ?? null"
             >
-              {{ option.meta }}
-            </span>
+              <span
+                v-if="option.swatch"
+                data-part="optionSwatch"
+                :class="optionSwatchClasses"
+                :style="{ backgroundColor: option.swatch }"
+                aria-hidden="true"
+              />
+              <Icon
+                v-else-if="option.icon"
+                data-part="optionIcon"
+                :icon="option.icon"
+                :classes="{ root: optionIconClasses }"
+              />
+
+              <span class="min-w-0 flex-1">
+                <span data-part="optionLabel" :class="optionLabelClass(classes)">
+                  <template v-if="highlights.get(option.value)"
+                    >{{ highlights.get(option.value)?.before
+                    }}<span class="eldra-select-match">{{
+                      highlights.get(option.value)?.match
+                    }}</span
+                    >{{ highlights.get(option.value)?.after }}</template
+                  >
+                  <template v-else>{{ option.label }}</template>
+                </span>
+                <span v-if="option.hint" data-part="optionHint" :class="optionHintClasses">
+                  {{ option.hint }}
+                </span>
+              </span>
+
+              <span
+                v-if="option.meta"
+                data-part="optionMeta"
+                :class="optionMetaClass(classes, option)"
+              >
+                {{ option.meta }}
+              </span>
+            </slot>
 
             <!-- Spec "Select" → States, Option selected: "check mark in `text` (never colour
                  alone)". Decorative: `aria-selected` is what announces it. -->
             <svg
               v-if="!multiple && isSelected(option)"
+              :data-eldra-scope="eldra.scope"
               data-part="optionCheck"
               :class="optionCheckClasses"
               viewBox="0 0 24 24"
@@ -353,9 +411,65 @@ function onPanelMouseDown(event: MouseEvent): void {
           </slot>
         </div>
       </div>
+
+      <!-- An option like any other, so the arrow keys reach it and `Enter` chooses it; never
+           selected. -->
+      <div
+        v-if="createOption"
+        role="presentation"
+        :class="
+          sections.length > 0
+            ? 'mt-1 border-t border-[color:var(--eldra-select-panel-border,var(--color-border))] pt-1'
+            : undefined
+        "
+      >
+        <div
+          :id="optionId(createOption.value)"
+          data-part="createOption"
+          role="option"
+          aria-selected="false"
+          :class="createClasses"
+          @click="emit('select', createOption)"
+          @mouseenter="emit('activate', createOption.value)"
+        >
+          <!-- Tabler's `plus`. Decorative: the row's text names it. -->
+          <svg
+            :class="optionIconClasses"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M12 5l0 14" />
+            <path d="M5 12l14 0" />
+          </svg>
+          <span class="min-w-0 flex-1 truncate">{{ createText }}</span>
+        </div>
+      </div>
     </div>
 
-    <div v-if="!hasOptions" data-part="empty" :class="emptyClasses">
+    <div
+      v-if="loading"
+      :data-eldra-slot="eldra.slotHost('loading')"
+      :data-eldra-scope="eldra.scope"
+      data-part="loading"
+      role="status"
+      :class="loadingClasses"
+    >
+      <Spinner class="size-4" />
+      <slot name="loading">{{ loadingText }}</slot>
+    </div>
+    <div
+      v-else-if="!hasOptions"
+      :data-eldra-slot="eldra.slotHost('empty')"
+      :data-eldra-scope="eldra.scope"
+      data-part="empty"
+      :class="emptyClasses"
+    >
       <slot name="empty">{{ emptyText }}</slot>
     </div>
 

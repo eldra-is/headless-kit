@@ -137,6 +137,15 @@ async function key(
 // -------------------------------------------------------------------------------------------
 
 describe('Select — anatomy and parts', () => {
+  it('keeps at least the placeholder`s width once a value is chosen, adding no text', () => {
+    const wrapper = mount({ modelValue: 'care', placeholder: 'Choose a topic' });
+    const stack = trigger(wrapper).querySelector('[data-part="value"]')!.parentElement!;
+    expect(stack.getAttribute('data-placeholder')).toBe('Choose a topic');
+    expect(stack.className).toContain('after:content-[attr(data-placeholder)]');
+    expect(stack.className).toContain('after:invisible');
+    expect(trigger(wrapper).textContent).not.toContain('Choose a topic');
+  });
+
   it('renders a combobox trigger, a hidden native select, and no panel until it opens', () => {
     const wrapper = mount({ name: 'topic' });
     expect(wrapper.attributes('data-part')).toBe('root');
@@ -325,6 +334,29 @@ describe('Select — opening', () => {
     await flush();
     expect(panel(wrapper).exists()).toBe(false);
     expect(document.activeElement).toBe(trigger(wrapper));
+  });
+
+  it('opens and closes on a programmatic click()', async () => {
+    const wrapper = mount();
+    trigger(wrapper).click();
+    await flush();
+    expect(panel(wrapper).exists()).toBe(true);
+    trigger(wrapper).click();
+    await flush();
+    expect(panel(wrapper).exists()).toBe(false);
+  });
+
+  it('still only focuses when a label naming the trigger is clicked', async () => {
+    const wrapper = mount();
+    const label = document.createElement('label');
+    label.htmlFor = trigger(wrapper).id;
+    label.textContent = 'Colour';
+    document.body.append(label);
+    label.click();
+    await flush();
+    expect(panel(wrapper).exists()).toBe(false);
+    expect(document.activeElement).toBe(trigger(wrapper));
+    label.remove();
   });
 
   it('does not arm the next click with a press that was dragged off the trigger', async () => {

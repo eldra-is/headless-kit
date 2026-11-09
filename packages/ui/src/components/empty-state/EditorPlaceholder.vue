@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import Icon from '../icon/Icon.vue';
 import type { EditorPlaceholderProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<EditorPlaceholderProps>(), {
   icon: null,
@@ -43,7 +46,7 @@ const helpClass = computed(() => partClass('text-body-sm text-muted', props.clas
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <span v-if="icon" data-part="icon" :class="iconClass">
       <Icon :icon="icon" size="lg" />
     </span>

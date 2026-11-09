@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, useSlots } from 'vue';
+import { computed, inject, nextTick, onUpdated, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
@@ -8,6 +8,7 @@ import { applyMask, stripMask } from '../../utils/mask';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
 import {
+  FIELD_ACTION_ROOM_REM,
   FIELD_BASE,
   FIELD_CLEAR_BUTTON,
   FIELD_CLEAR_SIZE,
@@ -16,13 +17,20 @@ import {
   FIELD_LEADING_ICON,
   FIELD_LEADING_PAD,
   FIELD_LIVE,
+  FIELD_PREFIX_PAD,
+  FIELD_PREFIX_ROW,
   FIELD_READONLY,
   FIELD_SEARCH_APPEARANCE,
   FIELD_SIZE,
   FIELD_SUFFIX_ROW,
   FIELD_TRAILING_PAD,
 } from './classes';
+import { reassertValue } from './reassertValue';
 import type { InputProps } from './types';
+import { useAdornmentRoom } from './useAdornmentRoom';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -111,8 +119,10 @@ const showClear = computed(
 );
 const hasSuffixSlot = computed(() => slots.suffix !== undefined);
 const hasTrailing = computed(() => showClear.value || hasSuffixSlot.value);
+/** The interactive start row. It takes the start edge, so a `leadingIcon` is not drawn beside it. */
+const hasPrefix = computed(() => slots.prefix !== undefined);
 const hasLeading = computed(
-  () => props.leadingIcon !== undefined || slots.leadingIcon !== undefined
+  () => !hasPrefix.value && (props.leadingIcon !== undefined || slots.leadingIcon !== undefined)
 );
 
 /**
@@ -123,11 +133,12 @@ const hasLeading = computed(
  * enumeration, so the value is narrowed here rather than in the public type.
  */
 type NativeInputMode = 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url';
-const resolvedInputmode = computed<NativeInputMode | undefined>(
-  () =>
-    (props.inputmode ?? (props.type === 'number' ? 'numeric' : undefined)) as
-      | NativeInputMode
-      | undefined
+const resolvedInputmode = computed<NativeInputMode | undefined>(() =>
+  props.inputmode === false
+    ? undefined
+    : ((props.inputmode ?? (props.type === 'number' ? 'numeric' : undefined)) as
+        | NativeInputMode
+        | undefined)
 );
 
 /**
@@ -160,6 +171,7 @@ const controlClass = computed(() =>
       FIELD_BASE,
       FIELD_SIZE[props.size],
       hasLeading.value && FIELD_LEADING_PAD,
+      hasPrefix.value && FIELD_PREFIX_PAD[props.size],
       hasTrailing.value && FIELD_TRAILING_PAD[props.size],
       props.type === 'number' && 'tabular-nums',
       props.type === 'search' && FIELD_SEARCH_APPEARANCE,
@@ -176,6 +188,21 @@ const leadingIconClass = computed(() =>
 );
 
 const suffixClass = computed(() => partClass(FIELD_SUFFIX_ROW, props.classes, 'suffix'));
+const prefixClass = computed(() => partClass(FIELD_PREFIX_ROW, props.classes, 'prefix'));
+
+/**
+ * A prefix or suffix row wider than one action pushes the text clear of it (see
+ * `useAdornmentRoom`); with no row or one action the padding classes above stand alone.
+ */
+const prefixRef = ref<HTMLElement | null>(null);
+const suffixRef = ref<HTMLElement | null>(null);
+const prefixRoom = useAdornmentRoom(prefixRef, () => FIELD_ACTION_ROOM_REM[props.size]);
+const suffixRoom = useAdornmentRoom(suffixRef, () => FIELD_ACTION_ROOM_REM[props.size]);
+const controlStyle = computed(() =>
+  prefixRoom.value === undefined && suffixRoom.value === undefined
+    ? undefined
+    : { paddingInlineStart: prefixRoom.value, paddingInlineEnd: suffixRoom.value }
+);
 
 const clearButtonClass = computed(() =>
   partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE[props.size]), props.classes, 'clearButton')
@@ -184,9 +211,19 @@ const clearButtonClass = computed(() =>
 /** The types whose selection API a browser actually implements; `number` and `email` throw. */
 const SELECTABLE_TYPES = new Set(['text', 'search', 'tel', 'url', 'password']);
 
+/** Puts the displayed value back on the element when a controlled parent did not take the input. */
+const syncValue = () =>
+  reassertValue(controlRef.value, display.value, SELECTABLE_TYPES.has(props.type));
+onUpdated(syncValue);
+
 function onInput(event: Event): void {
   const element = event.target as HTMLInputElement;
+  writeInput(element);
+  // Queued after the write, so it runs once the parent's own update has rendered, if it made one.
+  if (!(event as InputEvent).isComposing) void nextTick(syncValue);
+}
 
+function writeInput(element: HTMLInputElement): void {
   if (props.mask === undefined) {
     model.value = element.value;
     return;
@@ -225,11 +262,28 @@ function onClear(): void {
   emit('clear');
   controlRef.value?.focus();
 }
+
+/** `control` is the native `<input>`, for a wrapper that measures it or moves its caret. */
+defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
-    <span v-if="hasLeading" data-part="leadingIcon" :class="leadingIconClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+    <span
+      v-if="hasPrefix"
+      ref="prefixRef"
+      :data-eldra-slot="eldra.slotHost('prefix')"
+      data-part="prefix"
+      :class="prefixClass"
+    >
+      <slot name="prefix" />
+    </span>
+    <span
+      v-else-if="hasLeading"
+      :data-eldra-slot="eldra.slotHost('leadingIcon')"
+      data-part="leadingIcon"
+      :class="leadingIconClass"
+    >
       <slot name="leadingIcon">
         <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
       </slot>
@@ -240,6 +294,7 @@ function onClear(): void {
       v-bind="$attrs"
       data-part="control"
       :class="controlClass"
+      :style="controlStyle"
       :id="controlId"
       :name="name"
       :type="type"
@@ -253,16 +308,23 @@ function onClear(): void {
       :required="isRequired || undefined"
       :readonly="readonly || undefined"
       :disabled="disabled || undefined"
-      :aria-invalid="isInvalid ? 'true' : undefined"
+      :aria-invalid="isInvalid ? 'true' : ($attrs['aria-invalid'] as 'true' | 'false' | undefined)"
       :aria-describedby="describedBy"
       @input="onInput"
       @focus="emit('focus', $event as FocusEvent)"
       @blur="emit('blur', $event as FocusEvent)"
     />
 
-    <span v-if="hasTrailing" data-part="suffix" :class="suffixClass">
+    <span
+      v-if="hasTrailing"
+      ref="suffixRef"
+      :data-eldra-slot="eldra.slotHost('suffix')"
+      data-part="suffix"
+      :class="suffixClass"
+    >
       <button
         v-if="showClear"
+        :data-eldra-scope="eldra.scope"
         data-part="clearButton"
         type="button"
         :class="clearButtonClass"

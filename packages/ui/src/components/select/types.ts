@@ -6,8 +6,8 @@ import type { IconComponent } from '../icon/types';
  *
  * Everything past `value`/`label` is the spec's "Rich options" variant: a `swatch` (a colour from
  * product data), an `icon`, a `hint` line under the label, a `meta` note aligned to the end, and
- * `disabled` for a sold-out choice — which the spec asks to *show*, struck through with its
- * reason, rather than hide.
+ * `disabled` for a choice that cannot change (sold out, or always on) — shown muted, with any reason
+ * in `hint` or `meta`, rather than hidden.
  */
 export interface SelectOption {
   /** The value posted, and the one `modelValue` holds when this option is chosen. */
@@ -26,8 +26,13 @@ export interface SelectOption {
   swatch?: string;
   /** A decorative icon for this option, shown in the row and in the trigger when it is chosen. */
   icon?: IconComponent;
-  /** Sold out / unavailable. Skipped by the arrow keys, cannot be chosen, struck through. */
+  /** Sold out, or fixed. Skipped by the arrow keys, cannot be toggled, drawn muted. */
   disabled?: boolean;
+  /**
+   * More words the search field matches this option by, beside its label (an icon's tags, a
+   * country's code). Never drawn: a row found through a keyword shows its label unhighlighted.
+   */
+  keywords?: string[];
 }
 
 /**
@@ -63,6 +68,8 @@ export type SelectPart =
   | 'optionIcon'
   | 'optionCheck'
   | 'empty'
+  | 'loading'
+  | 'createOption'
   | 'native';
 
 /** The shared control box, exactly as `Input`'s: 2rem, 2.5rem or 3rem tall. */
@@ -116,6 +123,24 @@ export interface SelectProps {
    * Read once, like `placement`.
    */
   teleport?: boolean | string;
+  /**
+   * Draws the panel's loading row ("Loading", with a spinner, in a polite status region) in place
+   * of the list, for options that are still being fetched. The list is not navigable meanwhile.
+   */
+  loading?: boolean;
+  /**
+   * Adds a "Create “query”" row at the end of the list while the search field holds a query that
+   * no option's label already equals (ignoring case and accents). Choosing it emits `create` with
+   * the trimmed query; adding the option, and choosing it, is the consumer's. Turns `searchable`
+   * on unless `searchable` says otherwise.
+   */
+  creatable?: boolean;
+  /**
+   * Renders the list this many rows at a time: the first batch on open, the next as the list is
+   * scrolled near its end or the keyboard moves past the last rendered row. Search still covers
+   * every option. For lists of thousands; unset renders every row.
+   */
+  renderBatch?: number;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
   /** Per-part class overrides, merged with `tailwind-merge`. */
@@ -143,6 +168,8 @@ export type MultiSelectPart =
   | 'tags'
   | 'tag'
   | 'tagRemove'
+  | 'tagMore'
+  | 'field'
   | 'footer'
   | 'footerCount'
   | 'footerClear'
@@ -163,8 +190,23 @@ export interface MultiSelectProps extends Omit<
   placeholder?: string;
   /** The removable tag list under the control. `false` for compact toolbars. */
   showTags?: boolean;
-  /** How many labels the trigger lists before the "+N" pill. Defaults to 2. */
-  maxSummary?: number;
+  /**
+   * Where the tags go. `'below'` (the default) lists them under the control and summarises the
+   * selection in the trigger; `'inside'` draws them in the field itself, which wraps and grows, with
+   * the trigger after the last tag. `showTags` and `maxSummary` apply to `'below'` only.
+   */
+  tagPlacement?: 'below' | 'inside';
+  /**
+   * With `tagPlacement: 'inside'`, how many rows of tags the field shows before the rest collapse
+   * into a "+N" tag. Defaults to 2; `0` shows every tag.
+   */
+  maxTagRows?: number;
+  /**
+   * How many labels the trigger lists before the "+N" pill. `'fit'` (the default) lists as many as
+   * fit the trigger's width, re-measured as it resizes, and never fewer than one; a number lists
+   * exactly that many.
+   */
+  maxSummary?: number | 'fit';
   /** Per-part class overrides, merged with `tailwind-merge`. */
   classes?: Partial<Record<MultiSelectPart, string>>;
 }

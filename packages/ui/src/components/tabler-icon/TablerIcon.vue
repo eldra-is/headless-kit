@@ -5,6 +5,9 @@ import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from '../icon/sizes';
 import { cachedTablerIcon, loadTablerIcon, warnTablerIconOnce } from './registry';
 import { tablerIconName } from './tablerIconName';
 import type { TablerIconProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TablerIconProps>(), {
   name: undefined,
@@ -81,5 +84,12 @@ const svgAttrs = computed(() => ({
 </script>
 
 <template>
-  <svg v-if="iconName !== null" ref="root" data-eldra-ui data-part="root" v-bind="svgAttrs" />
+  <svg
+    v-if="iconName !== null"
+    ref="root"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    v-bind="svgAttrs"
+  />
 </template>

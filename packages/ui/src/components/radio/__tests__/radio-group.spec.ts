@@ -691,3 +691,194 @@ describe('RadioGroup — accessibility', () => {
     wrapper.unmount();
   });
 });
+
+describe('RadioGroup — wrapper hooks', () => {
+  const HOOKED: RadioGroupOption[] = FIT.map((o) => ({
+    ...o,
+    optionAttrs: { class: `fit-${o.value}`, for: `fit-${o.value}`, 'data-id': o.value },
+    inputAttrs: { id: `fit-${o.value}`, class: 'fit-input', 'data-id': o.value, name: 'ignored' },
+  }));
+
+  it('puts each option’s own attributes on its label and its radio', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fit', options: HOOKED, name: 'fit' },
+    });
+    const label = option(wrapper, 1);
+    const input = radio(wrapper, 1);
+    expect(label.classList.contains('fit-regular')).toBe(true);
+    expect(label.getAttribute('data-part')).toBe('option');
+    expect((label as HTMLLabelElement).htmlFor).toBe('fit-regular');
+    expect(label.getAttribute('data-id')).toBe('regular');
+    expect(input.id).toBe('fit-regular');
+    expect(input.classList.contains('fit-input')).toBe(true);
+    expect(input.classList.contains('opacity-0')).toBe(true);
+    expect(input.getAttribute('data-id')).toBe('regular');
+    expect(input.name).toBe('fit');
+    wrapper.unmount();
+  });
+
+  it('accepts class overrides for the input and the dot', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fit', options: FIT, classes: { input: 'my-input', dot: 'my-dot' } },
+    });
+    expect(radio(wrapper).classList.contains('my-input')).toBe(true);
+    expect(radio(wrapper).nextElementSibling?.classList.contains('my-dot')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('draws the error state without an error row when invalid', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fit', options: FIT, invalid: true },
+    });
+    expect(radios(wrapper).every((r) => r.getAttribute('aria-invalid') === 'true')).toBe(true);
+    expect(wrapper.attributes('aria-invalid')).toBe('true');
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
+    expect(radio(wrapper).parentElement?.className).toContain('border-danger');
+    await wrapper.setProps({ invalid: false });
+    expect(radio(wrapper).hasAttribute('aria-invalid')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with hooks and invalid set', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fit', options: HOOKED, invalid: true },
+      attachTo: document.body,
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('RadioGroup — no legend', () => {
+  it('draws no legend and is named by the aria-label it passes to the fieldset', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { options: FIT },
+      attrs: { 'aria-label': 'Fit' },
+    });
+    expect(wrapper.find('legend').exists()).toBe(false);
+    expect(wrapper.element.tagName).toBe('FIELDSET');
+    expect(wrapper.attributes('aria-label')).toBe('Fit');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('can be named by aria-labelledby instead', async () => {
+    const heading = document.createElement('h2');
+    heading.id = 'fit-heading';
+    heading.textContent = 'Fit';
+    document.body.append(heading);
+    const wrapper = mountWith(RadioGroup, {
+      props: { options: FIT },
+      attrs: { 'aria-labelledby': 'fit-heading' },
+    });
+    expect(wrapper.attributes('aria-labelledby')).toBe('fit-heading');
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+    heading.remove();
+  });
+
+  it('still renders a legend for an empty string, and drops the required mark with it', () => {
+    const empty = mountWith(RadioGroup, { props: { legend: '', options: FIT } });
+    expect(empty.find('legend').exists()).toBe(true);
+    empty.unmount();
+
+    const none = mountWith(RadioGroup, {
+      props: { options: FIT, requiredMark: true },
+      attrs: { 'aria-label': 'Fit' },
+    });
+    expect(none.find('[data-part="requiredMark"]').exists()).toBe(false);
+    none.unmount();
+  });
+
+  it('renders the legend text exactly as before when nothing new is used', () => {
+    const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
+    expect(wrapper.find('legend').element.innerHTML).toBe('Gift wrap');
+    wrapper.unmount();
+  });
+});
+
+describe('RadioGroup — requiredMark', () => {
+  it('shows the FieldWrapper required mark in the legend without setting native required', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Gift wrap', options: GIFT_WRAP, requiredMark: true },
+    });
+    const mark = wrapper.find('legend [data-part="requiredMark"]');
+    expect(mark.text()).toBe('*');
+    expect(mark.attributes('aria-hidden')).toBe('true');
+    expect(mark.classes()).toEqual(expect.arrayContaining(['text-danger', 'ms-0.5']));
+    expect(radios(wrapper).some((r) => r.required)).toBe(false);
+    expect(wrapper.find('legend .sr-only').text()).toBe('Required');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('draws the very same mark as FieldWrapper', async () => {
+    const { default: FieldWrapper } = await import('../../field-wrapper/FieldWrapper.vue');
+    const field = mountWith(FieldWrapper, {
+      props: { label: 'Gift wrap', required: true },
+      slots: { default: '<input />' },
+    });
+    const group = mountWith(RadioGroup, {
+      props: { legend: 'Gift wrap', options: GIFT_WRAP, requiredMark: true },
+    });
+    expect(group.find('[data-part="requiredMark"]').html()).toBe(
+      field.find('[data-part="requiredMark"]').html()
+    );
+    field.unmount();
+    group.unmount();
+  });
+
+  it('adds only the mark when native required is set too, since the radios announce it', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Gift wrap', options: GIFT_WRAP, required: true, requiredMark: true },
+    });
+    expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(true);
+    expect(wrapper.find('legend .sr-only').exists()).toBe(false);
+    expect(radios(wrapper).every((r) => r.required)).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('shows no mark for required alone, as before', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Gift wrap', options: GIFT_WRAP, required: true },
+    });
+    expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('accepts a class override for the mark', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: {
+        legend: 'Gift wrap',
+        options: GIFT_WRAP,
+        requiredMark: true,
+        classes: { requiredMark: 'my-mark' },
+      },
+    });
+    expect(wrapper.find('[data-part="requiredMark"]').classes()).toContain('my-mark');
+    wrapper.unmount();
+  });
+});
+
+describe('RadioGroup — help', () => {
+  it('draws no help row without help', () => {
+    const wrapper = mountWith(RadioGroup, { props: { legend: 'Fit', options: FIT } });
+    expect(wrapper.find('[data-part="help"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('draws the help row after the error, described after it', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fit', options: FIT, error: 'Choose a fit.', help: 'Slim runs small.' },
+    });
+    const help = wrapper.find('[data-part="help"]');
+    const error = wrapper.find('[data-part="error"]');
+    expect(help.text()).toBe('Slim runs small.');
+    expect(help.classes()).toEqual(expect.arrayContaining(['text-field-note', 'text-muted']));
+    expect(wrapper.find('fieldset').attributes('aria-describedby')).toBe(
+      `${error.attributes('id')} ${help.attributes('id')}`
+    );
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});

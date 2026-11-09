@@ -54,6 +54,7 @@ export const componentNames = [
   'Price',
   'ProductCard',
   'QuantityStepper',
+  'Radio',
   'RadioGroup',
   'RangeSlider',
   'Rating',

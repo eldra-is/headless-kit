@@ -5,6 +5,9 @@ import { useUiId } from '../../utils/id';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from './useCarousel';
 import type { CarouselProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<CarouselProps>(), {
   perView: undefined,
@@ -266,6 +269,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
   <section
     ref="rootRef"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     aria-roledescription="carousel"
@@ -281,9 +285,18 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       {{ messages.slideInstructions }}
     </p>
 
-    <div v-if="controls === 'header' || $slots.header" data-part="header" :class="headerClass">
+    <div
+      v-if="controls === 'header' || $slots.header"
+      :data-eldra-slot="eldra.slotHost('header')"
+      data-part="header"
+      :class="headerClass"
+    >
       <slot name="header" />
-      <div v-if="controls === 'header'" class="flex shrink-0 items-center gap-2">
+      <div
+        v-if="controls === 'header'"
+        :data-eldra-scope="eldra.scope"
+        class="flex shrink-0 items-center gap-2"
+      >
         <span v-if="counter" data-part="counter" aria-hidden="true" :class="counterClass">
           {{ messages.counter(index + 1, count) }}
         </span>
@@ -350,6 +363,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
          keys inside"). `useCarousel`'s own `syncFocusModel` carries the rule; see the README. -->
     <div
       ref="trackRef"
+      :data-eldra-slot="eldra.slotHost('default')"
       data-part="track"
       :tabindex="trackFocusable ? 0 : undefined"
       :aria-label="messages.slides"

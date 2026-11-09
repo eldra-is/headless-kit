@@ -163,11 +163,14 @@ module.exports = [
   // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
   // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
   // Raised from 154 kB for `TablerIcon` (its icon data stays lazy, so is ignored here) and `SiteForm` with its `form*` messages.
+  // Raised 160 kB -> 172 kB for the wrapper options (Popover, Select/MultiSelect with inside tags and
+  // fit-to-width summaries, Toaster's external queue, Pagination, Radio, Button's static tag and `to`,
+  // the field chrome on standalone controls): measured at 167.87 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '160 kB',
+    limit: '172 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
@@ -183,15 +186,17 @@ module.exports = [
   // shapes, a swatch and its ring, a size tile in four states, a histogram bar and the
   // container-query switch to two colour columns. Measured at 13.63 kB with it, so this keeps a
   // little under a kilobyte of headroom rather than sitting on the number.
+  // Raised 14.5 kB -> 16 kB for the same wrapper options' parts and states (inside tags, `Radio`,
+  // the Popover and Toaster variants): measured at 15.04 kB (style.css) and 14.64 kB.
   {
     name: '@eldrajs/ui — style.css',
     path: 'packages/ui/dist/style.css',
-    limit: '14.5 kB',
+    limit: '16 kB',
   },
   {
     name: '@eldrajs/ui — components.css',
     path: 'packages/ui/dist/components.css',
-    limit: '14.5 kB',
+    limit: '16 kB',
   },
   {
     name: '@eldrajs/theme-vue — everything, without vue',

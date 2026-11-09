@@ -6,6 +6,9 @@ import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/
 import Avatar from '../avatar/Avatar.vue';
 import { CHIP_GROUP_KEY } from './context';
 import type { ChipProps, ChipSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ChipProps>(), {
   size: 'md',
@@ -300,6 +303,7 @@ const removeButtonClass = computed(() =>
   <component
     :is="rootTag"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :type="isInteractiveRoot ? 'button' : undefined"
@@ -310,7 +314,12 @@ const removeButtonClass = computed(() =>
     @click="onRootClick"
     @keydown="onRemoveKey"
   >
-    <span v-if="hasAvatar" data-part="avatar" :class="avatarWrapClass">
+    <span
+      v-if="hasAvatar"
+      :data-eldra-slot="eldra.slotHost('avatar')"
+      data-part="avatar"
+      :class="avatarWrapClass"
+    >
       <slot name="avatar">
         <Avatar
           :src="avatar"
@@ -325,7 +334,12 @@ const removeButtonClass = computed(() =>
         />
       </slot>
     </span>
-    <span v-else-if="hasIcon" data-part="icon" :class="iconWrapClass">
+    <span
+      v-else-if="hasIcon"
+      :data-eldra-slot="eldra.slotHost('icon')"
+      data-part="icon"
+      :class="iconWrapClass"
+    >
       <slot name="icon">
         <component
           :is="icon"
@@ -336,7 +350,7 @@ const removeButtonClass = computed(() =>
       </slot>
     </span>
 
-    <span data-part="label" :class="labelClass">
+    <span :data-eldra-slot="eldra.slotHost('default')" data-part="label" :class="labelClass">
       <slot>{{ label }}</slot>
     </span>
 

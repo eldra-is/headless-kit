@@ -3,6 +3,9 @@ import { computed, ref, watch, watchEffect } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { initialsFromName } from '../../utils/avatar';
 import type { AvatarProps, AvatarSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<AvatarProps>(), {
   src: null,
@@ -120,7 +123,13 @@ const iconClass = computed(() =>
 </script>
 
 <template>
-  <span data-eldra-ui data-part="root" :class="rootClass" v-bind="rootAria">
+  <span
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    v-bind="rootAria"
+  >
     <img
       v-if="showImage"
       data-part="image"

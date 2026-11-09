@@ -9,19 +9,25 @@
  * the full contract. This file only draws the anatomy and wires the three events a consumer needs
  * (`update:modelValue`, `cancel`, `close`).
  */
-import { computed, ref, useSlots } from 'vue';
+import { computed, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
 import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import type { DialogProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<DialogProps>(), {
   modelValue: undefined,
+  title: undefined,
   description: undefined,
   size: 'md',
   dismissable: true,
+  closeButton: true,
+  closeOnEscape: true,
   messages: undefined,
   classes: undefined,
 });
@@ -39,7 +45,15 @@ const emit = defineEmits<{
   close: [reason: string];
 }>();
 
-const slots = useSlots();
+const slots = defineSlots<{
+  /** The body, below the description. */
+  default?: () => unknown;
+  /** The action buttons. */
+  footer?: () => unknown;
+  /** Replaces the `<h2>` with markup of your own (an icon above the heading, a heading level the
+   *  page needs). Still the dialog's accessible name; bring your own heading element. */
+  title?: () => unknown;
+}>();
 const m = useMessages(() => props.messages);
 
 /** Controlled when the parent binds `v-model`, self-managing when it does not — the same model
@@ -58,6 +72,7 @@ const { close, isTop } = useDialog({
   },
   dialog: dialogEl,
   dismissable: () => props.dismissable,
+  closeOnEscape: () => props.closeOnEscape,
   onCancel: () => emit('cancel'),
 });
 
@@ -108,8 +123,9 @@ const rootClass = computed(() =>
       // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
       // *outer* display to block regardless of which inner value wins, so the auto-margin centring
       // is unaffected either way — only the flex-shrink behaviour on the child differs.
-      'hidden open:block m-auto border-0 bg-transparent p-0 text-text',
-      'backdrop:bg-overlay focus:outline-none',
+      'hidden open:block m-auto border-0 bg-transparent p-0',
+      'text-[color:var(--eldra-dialog-text,var(--color-text))]',
+      'backdrop:bg-[var(--eldra-dialog-backdrop,var(--color-overlay))] focus:outline-none',
       'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     props.classes,
@@ -127,7 +143,9 @@ const rootClass = computed(() =>
 const panelClass = computed(() =>
   partClass(
     cx(
-      'flex flex-col overflow-hidden rounded-lg border border-border bg-background shadow-md',
+      'flex flex-col overflow-hidden rounded-lg border shadow-md',
+      'border-[color:var(--eldra-dialog-border,var(--color-border))]',
+      'bg-[var(--eldra-dialog-background,var(--color-background))]',
       props.size === 'sm' ? 'eldra-dialog-width-sm' : 'eldra-dialog-width',
       'eldra-dialog-max-height'
     ),
@@ -136,12 +154,29 @@ const panelClass = computed(() =>
   )
 );
 
+const hasTitle = computed(() => props.title !== undefined || slots.title !== undefined);
+const hasHeader = computed(() => hasTitle.value || props.closeButton);
+
 const headerClass = computed(() =>
-  partClass('flex shrink-0 items-start justify-between gap-4 p-6 pb-0', props.classes, 'header')
+  partClass(
+    hasTitle.value
+      ? 'flex shrink-0 items-start justify-between gap-4 p-6 pb-0'
+      : 'flex shrink-0 items-start justify-end gap-4 p-6 pb-0',
+    props.classes,
+    'header'
+  )
 );
 
+// A slotted title fills the row so its own alignment (a centred heading) reaches the whole width.
 const titleClass = computed(() =>
-  partClass('min-w-0 text-dialog-title text-text', props.classes, 'title')
+  partClass(
+    cx(
+      'min-w-0 text-dialog-title text-[color:var(--eldra-dialog-text,var(--color-text))]',
+      slots.title !== undefined && 'flex-1'
+    ),
+    props.classes,
+    'title'
+  )
 );
 
 /**
@@ -159,9 +194,10 @@ const closeClass = computed(() =>
   partClass(
     cx(
       '-m-1 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-      'text-text eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'active:scale-[0.98] active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]'
+      'text-[color:var(--eldra-dialog-text,var(--color-text))] eldra-focus',
+      'hover:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_94%)]',
+      'active:scale-[0.98]',
+      'active:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_89%)]'
     ),
     props.classes,
     'close'
@@ -169,11 +205,19 @@ const closeClass = computed(() =>
 );
 
 const bodyClass = computed(() =>
-  partClass('min-h-0 flex-1 overflow-y-auto px-6 py-4', props.classes, 'body')
+  partClass(
+    cx('min-h-0 flex-1 overflow-y-auto px-6 py-4', !hasHeader.value && 'pt-6'),
+    props.classes,
+    'body'
+  )
 );
 
 const descriptionClass = computed(() =>
-  partClass('text-body text-muted', props.classes, 'description')
+  partClass(
+    'text-body text-[color:var(--eldra-dialog-muted,var(--color-muted))]',
+    props.classes,
+    'description'
+  )
 );
 
 const footerClass = computed(() =>
@@ -189,16 +233,29 @@ const footerClass = computed(() =>
   <dialog
     ref="dialogEl"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
-    :aria-labelledby="titleId"
+    :aria-labelledby="hasTitle ? titleId : undefined"
     :aria-describedby="description ? descriptionId : undefined"
     @close="onNativeClose"
   >
     <div data-part="panel" :class="panelClass">
-      <div data-part="header" :class="headerClass">
-        <h2 :id="titleId" data-part="title" :class="titleClass">{{ title }}</h2>
+      <div v-if="hasHeader" data-part="header" :class="headerClass">
+        <div
+          v-if="slots.title"
+          :data-eldra-slot="eldra.slotHost('title')"
+          :id="titleId"
+          data-part="title"
+          :class="titleClass"
+        >
+          <slot name="title" />
+        </div>
+        <h2 v-else-if="title !== undefined" :id="titleId" data-part="title" :class="titleClass">
+          {{ title }}
+        </h2>
         <button
+          v-if="closeButton"
           type="button"
           data-part="close"
           :class="closeClass"
@@ -223,14 +280,25 @@ const footerClass = computed(() =>
         </button>
       </div>
 
-      <div data-part="body" :class="bodyClass">
-        <p v-if="description" :id="descriptionId" data-part="description" :class="descriptionClass">
+      <div :data-eldra-slot="eldra.slotHost('default')" data-part="body" :class="bodyClass">
+        <p
+          v-if="description"
+          :data-eldra-scope="eldra.scope"
+          :id="descriptionId"
+          data-part="description"
+          :class="descriptionClass"
+        >
           {{ description }}
         </p>
         <slot />
       </div>
 
-      <div v-if="slots.footer" data-part="footer" :class="footerClass">
+      <div
+        v-if="slots.footer"
+        :data-eldra-slot="eldra.slotHost('footer')"
+        data-part="footer"
+        :class="footerClass"
+      >
         <slot name="footer" />
       </div>
     </div>

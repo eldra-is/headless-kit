@@ -8,6 +8,7 @@ import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withoutPreflight } from './components-css.mjs';
+import { scopeCss } from './scoped-css.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -19,4 +20,6 @@ await rm(join(dist, 'style.js'), { force: true });
 
 const style = await readFile(join(dist, 'style.css'), 'utf8');
 const reset = await readFile(join(root, 'src', 'styles', 'components-reset.css'), 'utf8');
-await writeFile(join(dist, 'components.css'), withoutPreflight(style, reset));
+const components = withoutPreflight(style, reset);
+await writeFile(join(dist, 'components.css'), components);
+await writeFile(join(dist, 'scoped.css'), scopeCss(components));

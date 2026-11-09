@@ -24,6 +24,9 @@ import type {
   NavMenuPlacement,
   NavMenuVariant,
 } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = defineProps<{
   item: NavMenuItem;
@@ -155,6 +158,7 @@ function listLabel(group: string | null, index: number): string | undefined {
     :is="navLinkTag(item, linkAs)"
     v-if="hasHref(item) && !omitOverview"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     :data-part="part('overview')"
     :class="overviewClass"
     v-bind="navLinkAttrs(item, linkAs)"
@@ -163,7 +167,12 @@ function listLabel(group: string | null, index: number): string | undefined {
     <VisuallyHidden v-if="item.newTab">{{ messages.opensInNewTab }}</VisuallyHidden>
   </component>
 
-  <div data-eldra-ui :data-part="part('columns')" :class="columnsClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    :data-part="part('columns')"
+    :class="columnsClass"
+  >
     <div
       v-for="(group, index) in groups"
       :key="index"
@@ -172,6 +181,7 @@ function listLabel(group: string | null, index: number): string | undefined {
     >
       <span
         v-if="group.group !== null"
+        :data-eldra-slot="eldra.slotHost('groupHeading')"
         :id="headingId(index)"
         :data-part="part('groupHeading')"
         :class="groupHeadingClass"
@@ -211,6 +221,7 @@ function listLabel(group: string | null, index: number): string | undefined {
         >
           <component
             :is="navLinkTag(link, linkAs)"
+            :data-eldra-slot="eldra.slotHost('panelItem')"
             :data-part="part('panelLink')"
             :class="panelLinkClass(link)"
             v-bind="navLinkAttrs(link, linkAs)"

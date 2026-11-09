@@ -428,3 +428,209 @@ describe('Pagination — narrow container', () => {
     wrapper.unmount();
   });
 });
+
+describe('Pagination — current page activation', () => {
+  it('emits update:page with the current page when it is activated again', async () => {
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12 } });
+    await (
+      numberedList(wrapper).querySelector('[data-part="current"]') as HTMLButtonElement
+    ).click();
+    expect(wrapper.emitted('update:page')?.[0]).toEqual([6]);
+    wrapper.unmount();
+  });
+});
+
+describe('Pagination — fixedLength', () => {
+  function items(root: Element): string[] {
+    return [
+      ...root.querySelectorAll('[data-part="page"], [data-part="current"], [data-part="ellipsis"]'),
+    ].map((el) => (el.getAttribute('data-part') === 'ellipsis' ? '…' : el.textContent!.trim()));
+  }
+
+  it('draws seven items on every page at siblings=1', () => {
+    for (const [page, expected] of [
+      [1, ['1', '2', '3', '4', '5', '…', '12']],
+      [4, ['1', '2', '3', '4', '5', '…', '12']],
+      [5, ['1', '…', '4', '5', '6', '…', '12']],
+      [6, ['1', '…', '5', '6', '7', '…', '12']],
+      [9, ['1', '…', '8', '9', '10', '11', '12']],
+      [12, ['1', '…', '8', '9', '10', '11', '12']],
+    ] as const) {
+      const wrapper = mountWith(Pagination, {
+        props: { page, totalPages: 12, fixedLength: true },
+      });
+      expect(items(numberedList(wrapper))).toEqual(expected);
+      wrapper.unmount();
+    }
+  });
+
+  it('shows every page when they fit in the fixed length', () => {
+    const wrapper = mountWith(Pagination, { props: { page: 1, totalPages: 7, fixedLength: true } });
+    expect(items(numberedList(wrapper))).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+    wrapper.unmount();
+  });
+
+  it('widens with siblings: nine items at siblings=2', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 1, totalPages: 20, siblings: 2, fixedLength: true },
+    });
+    expect(items(numberedList(wrapper))).toEqual(['1', '2', '3', '4', '5', '6', '7', '…', '20']);
+    wrapper.unmount();
+  });
+
+  it('leaves the default window unchanged without it', () => {
+    const wrapper = mountWith(Pagination, { props: { page: 1, totalPages: 12 } });
+    expect(items(numberedList(wrapper))).toEqual(['1', '2', '…', '12']);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, fixedLength: true },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Pagination — disabled', () => {
+  it('renders every control as a non-focusable span and keeps the current page marked', () => {
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, disabled: true } });
+    expect(wrapper.findAll('button')).toHaveLength(0);
+    const list = numberedList(wrapper);
+    for (const el of list.querySelectorAll(
+      '[data-part="page"], [data-part="current"], [data-part="prev"], [data-part="next"]'
+    )) {
+      expect(el.tagName).toBe('SPAN');
+      expect(el.getAttribute('aria-disabled')).toBe('true');
+      expect((el as HTMLElement).tabIndex).toBe(-1);
+    }
+    const current = list.querySelector('[data-part="current"]') as HTMLElement;
+    expect(current.textContent?.trim()).toBe('6');
+    expect(current.getAttribute('aria-current')).toBe('page');
+    expect(current.className).toContain('bg-surface-strong');
+    expect(pageNumbers(list)).toEqual(['1', '5', '6', '7', '12']);
+    wrapper.unmount();
+  });
+
+  it('renders no links with hrefForPage, and the compact arrows disabled too', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, disabled: true, hrefForPage: (n: number) => `?page=${n}` },
+    });
+    expect(wrapper.findAll('a')).toHaveLength(0);
+    for (const el of compactRow(wrapper).querySelectorAll(
+      '[data-part="prev"], [data-part="next"]'
+    )) {
+      expect(el.getAttribute('aria-disabled')).toBe('true');
+    }
+    wrapper.unmount();
+  });
+
+  it('emits nothing when clicked', async () => {
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, disabled: true } });
+    for (const el of wrapper.findAll('[data-part]')) await el.trigger('click');
+    expect(wrapper.emitted('update:page')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, disabled: true } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Pagination — responsive: false', () => {
+  it('renders only the numbered list, visible at every width', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, responsive: false },
+    });
+    expect(wrapper.find('div[data-part="list"]').exists()).toBe(false);
+    const list = numberedList(wrapper);
+    expect(list.classList.contains('hidden')).toBe(false);
+    expect(list.classList.contains('flex')).toBe(true);
+    expect(list.classList.contains('flex-wrap')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('still yields to compact when compact is set', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, responsive: false, compact: true },
+    });
+    expect(wrapper.find('ul[data-part="list"]').exists()).toBe(false);
+    expect(wrapper.find('div[data-part="list"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, responsive: false },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Pagination — showSinglePage', () => {
+  it('renders page 1 between disabled previous and next', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 1, totalPages: 1, showSinglePage: true },
+    });
+    const list = numberedList(wrapper);
+    expect(pageNumbers(list)).toEqual(['1']);
+    expect(list.querySelector('[data-part="current"]')?.getAttribute('aria-current')).toBe('page');
+    expect(list.querySelector('[data-part="prev"]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(list.querySelector('[data-part="next"]')?.getAttribute('aria-disabled')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('still renders nothing with no pages', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 1, totalPages: 0, showSinglePage: true },
+    });
+    expect(wrapper.find('nav').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 1, totalPages: 1, showSinglePage: true },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Pagination — messages prop', () => {
+  it('replaces the previous/next text in the numbered form and the arrow names in compact', () => {
+    const messages = { previousPage: 'Previous', nextPage: 'Next' };
+    const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, messages } });
+    const list = numberedList(wrapper);
+    expect(list.querySelector('[data-part="prev"]')?.textContent?.trim()).toBe('Previous');
+    expect(list.querySelector('[data-part="next"]')?.textContent?.trim()).toBe('Next');
+    const row = compactRow(wrapper);
+    expect(row.querySelector('[data-part="prev"]')?.getAttribute('aria-label')).toBe('Previous');
+    expect(row.querySelector('[data-part="next"]')?.getAttribute('aria-label')).toBe('Next');
+    wrapper.unmount();
+  });
+
+  it('wins over provided messages', () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, messages: { pagination: 'Pages' } },
+      global: { provide: { [MESSAGES_KEY as symbol]: isIS } },
+    });
+    expect(wrapper.get('nav').attributes('aria-label')).toBe('Pages');
+    expect(numberedList(wrapper).querySelector('[data-part="prev"]')?.textContent?.trim()).toBe(
+      'Fyrri síða'
+    );
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Pagination, {
+      props: { page: 6, totalPages: 12, messages: { previousPage: 'Previous', nextPage: 'Next' } },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});

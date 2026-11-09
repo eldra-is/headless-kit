@@ -54,6 +54,9 @@ import {
 } from './useFilterPanel';
 import type { AppliedFilter, FilterFacet, FilterPanelProps, FilterSelection } from './types';
 import type { UiMessages } from '../../messages/en-US';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FilterPanelProps>(), {
   modelValue: undefined,
@@ -289,6 +292,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
        should validate, and a native validation bubble over a filter would be nonsense. -->
   <form
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :aria-label="label ?? m.filterPanelLabel"
@@ -428,7 +432,12 @@ const groupId = (facet: FilterFacet, part: string): string =>
     <!-- Spec → Variants, `drawer` mode: "foot with **Clear all** and **Show N products**". The
          count is live from `resultCount`, which is the owning block's own pending-count read; with
          no count yet the button says the words without a number nobody can trust. -->
-    <div v-if="mode === 'drawer'" data-part="foot" :class="footClass">
+    <div
+      v-if="mode === 'drawer'"
+      :data-eldra-slot="eldra.slotHost('foot')"
+      data-part="foot"
+      :class="footClass"
+    >
       <slot
         name="foot"
         :selection="model"

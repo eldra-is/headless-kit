@@ -1,5 +1,12 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type TextareaPart = 'root' | 'control' | 'foot' | 'counter';
+export type TextareaPart =
+  | 'root'
+  | 'prefix'
+  | 'control'
+  | 'clearButton'
+  | 'suffix'
+  | 'foot'
+  | 'counter';
 
 export interface TextareaProps {
   /** The text (two-way). */
@@ -12,9 +19,18 @@ export interface TextareaProps {
   counter?: boolean;
   /** Also sets the native `maxlength`, so typing stops at the limit. */
   hardLimit?: boolean;
+  /**
+   * Shows `Input`'s clear button at the end of the first line while there is a value and the field
+   * can be edited. Clicking it empties the field, emits `clear` and returns focus. Defaults to
+   * `false`.
+   */
+  clearable?: boolean;
   /** Size to the expected answer, in rem. Defaults to `5rem` (about 3 lines). */
   minHeight?: string;
-  /** Sets `aria-invalid="true"`. Comes from the `FieldWrapper` otherwise. */
+  /**
+   * Sets `aria-invalid="true"`. Comes from the `FieldWrapper` otherwise. While it is not invalid,
+   * an `aria-invalid` attribute the caller passes is kept.
+   */
   invalid?: boolean;
   /** Native `required`. Comes from the `FieldWrapper` otherwise. */
   required?: boolean;

@@ -7,6 +7,9 @@ import Icon from '../icon/Icon.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
 import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
 import type { FeatureCardProps, FeatureCardVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FeatureCardProps>(), {
   href: null,
@@ -140,15 +143,22 @@ const arrowClass = CUE_ARROW_CLASS;
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
     <!-- Spec → Accessibility: "Icons are `aria-hidden="true"`; the title carries the meaning." -->
     <span data-part="iconTile" :class="iconTileClass" aria-hidden="true">
       <Icon :icon="icon" size="lg" />
     </span>
-    <component :is="headingTag" data-part="title" :class="titleClass">
+    <component
+      :is="headingTag"
+      :data-eldra-slot="eldra.slotHost('title')"
+      data-part="title"
+      :class="titleClass"
+    >
       <component
         v-if="hasHref"
         :is="titleTag"
+        :data-eldra-slot="eldra.slotHost('title')"
+        :data-eldra-scope="eldra.scope"
         data-part="titleLink"
         :class="titleLinkClass"
         v-bind="titleAttrs"
@@ -159,13 +169,20 @@ const arrowClass = CUE_ARROW_CLASS;
         ><slot name="title">{{ title }}</slot></template
       >
     </component>
-    <p data-part="body" :class="bodyClass">
+    <p :data-eldra-slot="eldra.slotHost('body')" data-part="body" :class="bodyClass">
       <slot name="body">{{ body }}</slot>
     </p>
     <!-- Spec → Accessibility: "Cue is `aria-hidden`." -->
-    <span v-if="hasHref" data-part="cue" :class="cueClass" aria-hidden="true">
+    <span
+      v-if="hasHref"
+      :data-eldra-slot="eldra.slotHost('cue')"
+      data-part="cue"
+      :class="cueClass"
+      aria-hidden="true"
+    >
       <slot name="cue">{{ resolvedCue }}</slot>
       <svg
+        :data-eldra-scope="eldra.scope"
         :class="arrowClass"
         viewBox="0 0 24 24"
         fill="none"

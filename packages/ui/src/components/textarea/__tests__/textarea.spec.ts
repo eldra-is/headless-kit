@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computed, createSSRApp, h, nextTick, ref } from 'vue';
+import { computed, createSSRApp, defineComponent, h, nextTick, ref, type Ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { axe } from '../../../test/axe';
+import type { VueWrapper } from '@vue/test-utils';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
 import * as supportsFieldSizingModule from '../supportsFieldSizing';
@@ -365,8 +366,13 @@ describe('Textarea — counter', () => {
   });
 
   it('allows typing past a soft limit', async () => {
-    const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 5, modelValue: '' },
+    const wrapper: VueWrapper = mountWith(Textarea, {
+      props: {
+        counter: true,
+        maxLength: 5,
+        modelValue: '',
+        'onUpdate:modelValue': (value: string) => void wrapper.setProps({ modelValue: value }),
+      },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -761,6 +767,225 @@ describe('Textarea — inside a group field wrapper', () => {
     expect(el.id).not.toBe('field-group');
     expect(el.id).toMatch(/^eldra-textarea-/);
     expect(el.required).toBe(true);
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — wrapper hooks', () => {
+  it('keeps a caller aria-invalid while valid, and says "true" once invalid', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { invalid: false },
+      attrs: { ...NAME, 'aria-invalid': 'false' },
+    });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('false');
+    await wrapper.setProps({ invalid: true });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('exposes the native control and a focus method', () => {
+    const wrapper = mountWith(Textarea, { attrs: NAME, attachTo: document.body });
+    const vm = wrapper.vm as unknown as { control: HTMLTextAreaElement | null; focus: () => void };
+    expect(vm.control).toBe(control(wrapper));
+    vm.focus();
+    expect(document.activeElement).toBe(control(wrapper));
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — clear button', () => {
+  it('renders no clear button by default', () => {
+    const wrapper = mountWith(Textarea, { props: { modelValue: 'Hello' }, attrs: NAME });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the clear button only while there is a value and the field can be edited', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: '', clearable: true },
+      attrs: NAME,
+    });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    await wrapper.setProps({ modelValue: 'Hello' });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(true);
+    await wrapper.setProps({ readonly: true });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    await wrapper.setProps({ readonly: false, disabled: true });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('names the button with the same message as Input, and is a type="button"', () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+    });
+    const button = wrapper.find('[data-part="clearButton"]');
+    expect(button.attributes('aria-label')).toBe('Clear');
+    expect(button.attributes('type')).toBe('button');
+    wrapper.unmount();
+  });
+
+  it('empties the field, emits clear and input, and returns focus to it', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      attachTo: document.body,
+    });
+    await wrapper.find('[data-part="clearButton"]').trigger('click');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['']);
+    expect(wrapper.emitted('input')?.at(-1)).toEqual(['']);
+    expect(wrapper.emitted('clear')).toHaveLength(1);
+    expect(document.activeElement).toBe(control(wrapper));
+    wrapper.unmount();
+  });
+
+  it('reserves one action of end room while the suffix row shows', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+    });
+    expect(control(wrapper).classList.contains('pe-10')).toBe(true);
+    await wrapper.setProps({ modelValue: '' });
+    expect(control(wrapper).classList.contains('pe-10')).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — prefix and suffix slots', () => {
+  it('renders the prefix before the control and the suffix after the clear button', () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      slots: {
+        prefix: '<button type="button" aria-label="Insert emoji">e</button>',
+        suffix: '<button type="button" aria-label="Dictate">d</button>',
+      },
+    });
+    const prefix = wrapper.find('[data-part="prefix"]');
+    expect(prefix.element.nextElementSibling).toBe(control(wrapper));
+    const order = wrapper.findAll('button, textarea').map((w) => w.attributes('aria-label'));
+    expect(order).toEqual(['Insert emoji', 'Gift message', 'Clear', 'Dictate']);
+    expect(control(wrapper).classList.contains('ps-10')).toBe(true);
+    expect(control(wrapper).classList.contains('pe-10')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('pins both rows to the first line', () => {
+    const wrapper = mountWith(Textarea, {
+      attrs: NAME,
+      slots: { prefix: '<span>a</span>', suffix: '<span>b</span>' },
+    });
+    expect(wrapper.find('[data-part="prefix"]').classes()).toEqual(
+      expect.arrayContaining(['absolute', 'top-1', 'start-1'])
+    );
+    expect(wrapper.find('[data-part="suffix"]').classes()).toEqual(
+      expect.arrayContaining(['absolute', 'top-1', 'end-1'])
+    );
+    wrapper.unmount();
+  });
+
+  it('keeps a bare Textarea free of rows and padding changes', () => {
+    const wrapper = mountWith(Textarea, { attrs: NAME });
+    expect(wrapper.find('[data-part="prefix"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+    expect(control(wrapper).classList.contains('pe-10')).toBe(false);
+    expect(control(wrapper).getAttribute('style')).toBe('--eldra-textarea-min-height: 5rem;');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with a clear button and both slots', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      slots: {
+        prefix: '<button type="button" aria-label="Insert emoji">e</button>',
+        suffix: '<button type="button" aria-label="Dictate">d</button>',
+      },
+      attachTo: document.body,
+    });
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — a controlled parent that does not take the input', () => {
+  /** A real parent owning the value: `update` decides what, if anything, it keeps. */
+  function mountParent(initial: string, update: (value: Ref<string>, next: string) => void) {
+    const value = ref(initial);
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(Textarea, {
+          ...NAME,
+          modelValue: value.value,
+          'onUpdate:modelValue': (next: string) => update(value, next),
+        }),
+    });
+    return { value, wrapper: mountWith(Parent) };
+  }
+
+  async function type(wrapper: ReturnType<typeof mountWith>, next: string, caret = next.length) {
+    const el = wrapper.find('[data-part="control"]').element as HTMLTextAreaElement;
+    el.focus();
+    el.value = next;
+    el.setSelectionRange(caret, caret);
+    await wrapper.find('[data-part="control"]').trigger('input');
+    await nextTick();
+    await nextTick();
+    return el;
+  }
+
+  const digits = (next: string) => next.replace(/\D/g, '');
+
+  it('shows what a parent that strips non-digits keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows what a parent that formats on the next tick keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      void nextTick(() => {
+        model.value = digits(next);
+      });
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows the old value when the parent rejects the change', async () => {
+    const { value, wrapper } = mountParent('Maren', () => {});
+    const el = await type(wrapper, 'Marent');
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    wrapper.unmount();
+  });
+
+  it('keeps the caret where a refused character was typed', async () => {
+    const { wrapper } = mountParent('1234', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a34', 3);
+    expect(el.value).toBe('1234');
+    expect([el.selectionStart, el.selectionEnd]).toEqual([2, 2]);
+    wrapper.unmount();
+  });
+
+  it('leaves a value the parent takes alone', async () => {
+    const { value, wrapper } = mountParent('', (model, next) => {
+      model.value = next;
+    });
+    const el = await type(wrapper, 'Maren', 2);
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    expect(el.selectionStart).toBe(2);
     wrapper.unmount();
   });
 });

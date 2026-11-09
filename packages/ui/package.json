@@ -49,6 +49,7 @@
     "./tailwind.css": "./dist/tailwind.css",
     "./style.css": "./dist/style.css",
     "./components.css": "./dist/components.css",
+    "./scoped.css": "./dist/scoped.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -88,6 +89,9 @@
     "happy-dom": "^21.0.4",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
+    "postcss": "^8.5.32",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0",
     "storybook": "^10.2.19",
     "tailwindcss": "^4.1.14",
     "vee-validate": "^4.15.0",

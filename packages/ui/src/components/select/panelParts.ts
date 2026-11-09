@@ -42,7 +42,11 @@ export function panelClass(classes: PanelClasses | undefined): string {
     cx(
       'absolute z-popover flex flex-col overflow-hidden',
       'eldra-select-panel-height eldra-select-panel-width',
-      'rounded-md border border-border bg-background shadow-md',
+      'rounded-md border shadow-md',
+      'border-[color:var(--eldra-select-panel-border,var(--color-border))]',
+      'bg-[color:var(--eldra-select-panel-background,var(--color-background))]',
+      // No fallback: unset, the colour is inherited exactly as before.
+      'text-[color:var(--eldra-select-panel-text)]',
       'animate-eldra-popover-in'
     ),
     classes,
@@ -50,13 +54,18 @@ export function panelClass(classes: PanelClasses | undefined): string {
   );
 }
 
-/** Spec "Select" → Sizes, Search field: 2.5rem tall, text from 2.125rem, inset focus ring. */
+/**
+ * Spec "Select" → Sizes, Search field: 2.5rem tall, text from 2.125rem. No focus ring (a README
+ * Deviation): focus sits here whenever the panel is open, so the caret and the active row show it.
+ */
 export function searchClass(classes: PanelClasses | undefined): string {
   return partClass(
     cx(
       'control-h w-full min-w-0 rounded-t-md bg-transparent ps-8.5 pe-3',
-      'text-control-sm max-md:text-control-mobile text-text placeholder:text-muted',
-      'eldra-focus-inset eldra-focus-inset-always'
+      'text-control-sm max-md:text-control-mobile',
+      'text-[color:var(--eldra-select-panel-text,var(--color-text))]',
+      'placeholder:text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+      'outline-none'
     ),
     classes,
     'search'
@@ -77,12 +86,23 @@ export function listboxClass(classes: PanelClasses | undefined, hasOptions: bool
 
 /** Spec: "Every group after the first gets a 1px `border` hairline and 0.25rem gap above it." */
 export function groupClass(classes: PanelClasses | undefined, index: number): string {
-  return partClass(cx(index > 0 && 'mt-1 border-t border-border'), classes, 'group');
+  return partClass(
+    cx(
+      index > 0 &&
+        'mt-1 border-t border-[color:var(--eldra-select-panel-border,var(--color-border))]'
+    ),
+    classes,
+    'group'
+  );
 }
 
 export function groupLabelClass(classes: PanelClasses | undefined, index: number): string {
   return partClass(
-    cx('text-select-group text-muted px-2 pb-1', index > 0 ? 'pt-2.5' : 'pt-2'),
+    cx(
+      'text-select-group px-2 pb-1',
+      'text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+      index > 0 ? 'pt-2.5' : 'pt-2'
+    ),
     classes,
     'groupLabel'
   );
@@ -105,22 +125,30 @@ export function optionClass(
       'flex min-h-9 scroll-my-1 items-center gap-2 rounded-sm px-2 py-1.5 text-select-option',
       // Forced colours replaces every fill and drops the weight difference, so the two states that
       // are otherwise carried by a fill and by weight each get a real boundary of their own there.
-      state.active && 'bg-surface-strong eldra-select-option-active',
+      state.active &&
+        'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))] eldra-select-option-active',
       state.selected && (state.multiple ? 'font-medium' : 'font-semibold'),
       state.selected && 'eldra-select-option-selected',
-      option.disabled === true ? 'text-muted cursor-not-allowed' : 'text-text cursor-pointer'
+      option.disabled === true
+        ? 'text-[color:var(--eldra-select-panel-muted,var(--color-muted))] cursor-not-allowed'
+        : 'text-[color:var(--eldra-select-panel-text,var(--color-text))] cursor-pointer'
     ),
     classes,
     'option'
   );
 }
 
-export function optionLabelClass(classes: PanelClasses | undefined, option: SelectOption): string {
-  return partClass(cx('block', option.disabled === true && 'line-through'), classes, 'optionLabel');
+/** A disabled row reads as disabled through the row's `muted` text and cursor, like `Checkbox`. */
+export function optionLabelClass(classes: PanelClasses | undefined): string {
+  return partClass('block', classes, 'optionLabel');
 }
 
 export function optionHintClass(classes: PanelClasses | undefined): string {
-  return partClass('text-caption text-muted block', classes, 'optionHint');
+  return partClass(
+    'text-caption block text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    classes,
+    'optionHint'
+  );
 }
 
 const META_TONE = {
@@ -132,7 +160,9 @@ export function optionMetaClass(classes: PanelClasses | undefined, option: Selec
   return partClass(
     cx(
       'ms-3 shrink-0 text-caption tabular-nums',
-      option.metaTone === undefined ? 'text-muted' : META_TONE[option.metaTone]
+      option.metaTone === undefined
+        ? 'text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+        : META_TONE[option.metaTone]
     ),
     classes,
     'optionMeta'
@@ -149,7 +179,11 @@ export function optionIconClass(classes: PanelClasses | undefined): string {
 
 /** Spec "Select" → States, Option selected: "check mark in `text` (never colour alone)". */
 export function optionCheckClass(classes: PanelClasses | undefined): string {
-  return partClass('size-4.5 shrink-0 text-text', classes, 'optionCheck');
+  return partClass(
+    'size-4.5 shrink-0 text-[color:var(--eldra-select-panel-check,var(--color-text))]',
+    classes,
+    'optionCheck'
+  );
 }
 
 /**
@@ -174,11 +208,20 @@ export function optionBoxClass(
       // `duration-fast`." No focus ring on this element, so nothing else owns its transition list;
       // reduced motion needs no class, because `tokens.css` zeroes the duration.
       'transition-colors duration-fast ease-out',
-      state.selected
-        ? 'bg-primary border-primary'
-        : state.disabled
-          ? 'bg-surface-strong border-border border-dashed'
-          : 'bg-background border-border-strong'
+      state.selected && state.disabled
+        ? // `Checkbox`'s own disabled checked box: `muted` fill and border, the tick kept.
+          'bg-muted border-muted'
+        : state.selected
+          ? cx(
+              'bg-[color:var(--eldra-select-panel-check,var(--color-primary))]',
+              'border-[color:var(--eldra-select-panel-check,var(--color-primary))]'
+            )
+          : state.disabled
+            ? 'bg-surface-strong border-border border-dashed'
+            : cx(
+                'bg-[color:var(--eldra-select-panel-background,var(--color-background))]',
+                'border-[color:var(--eldra-select-panel-check-border,var(--color-border-strong))]'
+              )
     ),
     classes,
     'optionCheck'
@@ -187,7 +230,44 @@ export function optionBoxClass(
 
 /** Spec "Select" → Sizes, Empty state: "0.875rem, `muted`, centred, padding 1rem 0.75rem". */
 export function emptyClass(classes: PanelClasses | undefined): string {
-  return partClass('px-3 py-4 text-center text-body-sm text-muted', classes, 'empty');
+  return partClass(
+    'px-3 py-4 text-center text-body-sm text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    classes,
+    'empty'
+  );
+}
+
+/**
+ * The loading row: the empty state's box, with the shared spinner before its text. It stands in
+ * for the list and the empty state while a `loading` control's options are being fetched.
+ */
+export function loadingClass(classes: PanelClasses | undefined): string {
+  return partClass(
+    'flex items-center justify-center gap-2 px-3 py-4 text-body-sm text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    classes,
+    'loading'
+  );
+}
+
+/**
+ * The "Create “query”" row of a `creatable` control: an option row's own box and active fill, with
+ * a `plus` where a row draws its mark. After other rows it sits under a group's hairline (drawn
+ * by `SelectPanel`), so it reads as an action rather than one more match.
+ */
+export function createOptionClass(
+  classes: PanelClasses | undefined,
+  state: { active: boolean }
+): string {
+  return partClass(
+    cx(
+      'flex min-h-9 scroll-my-1 items-center gap-2 rounded-sm px-2 py-1.5 text-select-option',
+      'text-[color:var(--eldra-select-panel-text,var(--color-text))] cursor-pointer',
+      state.active &&
+        'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))] eldra-select-option-active'
+    ),
+    classes,
+    'createOption'
+  );
 }
 
 /**
@@ -205,7 +285,22 @@ export function emptyClass(classes: PanelClasses | undefined): string {
  */
 export function optionTickClass(selected: boolean): string {
   return cx(
-    'text-primary-contrast pointer-events-none size-2 transition-transform duration-fast ease-out',
+    'text-[color:var(--eldra-select-panel-check-contrast,var(--color-primary-contrast))]',
+    'pointer-events-none size-2 transition-transform duration-fast ease-out',
     selected ? 'scale-100' : 'scale-0'
   );
 }
+
+/**
+ * The cell a trigger stacks its chosen value in, with an invisible copy of the placeholder
+ * (`data-placeholder`, drawn by `::after`) in the same grid cell: a content-sized trigger keeps at
+ * least its placeholder's width once a value is chosen, as a native input keeps its width. The copy
+ * is generated content under `visibility: hidden`, so it adds no text and no accessible name.
+ */
+export const TRIGGER_VALUE_STACK =
+  'relative grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] items-center ' +
+  'after:invisible after:col-start-1 after:row-start-1 after:truncate ' +
+  'after:content-[attr(data-placeholder)]';
+
+/** The chosen value inside `TRIGGER_VALUE_STACK`, in the cell the placeholder copy shares. */
+export const TRIGGER_VALUE_CELL = 'col-start-1 row-start-1';

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * A field's error row: the `alert-circle` icon and the message, as the design spec's Field wrapper
@@ -42,7 +45,7 @@ const errorIconClass = computed(() =>
 </script>
 
 <template>
-  <p :id="id" data-eldra-ui data-part="error" :class="errorClass">
+  <p :id="id" data-eldra-ui :data-eldra-scope="eldra.scope" data-part="error" :class="errorClass">
     <!-- Tabler's `alert-circle`, stroke 1.75, at 1rem. Decorative: the message is the text. -->
     <svg
       data-part="errorIcon"
@@ -60,6 +63,6 @@ const errorIconClass = computed(() =>
       <path d="M12 8v4" />
       <path d="M12 16h.01" />
     </svg>
-    <span><slot /></span>
+    <span :data-eldra-slot="eldra.slotHost('default')"><slot /></span>
   </p>
 </template>

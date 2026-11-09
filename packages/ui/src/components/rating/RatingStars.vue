@@ -3,6 +3,9 @@ import { computed } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { ratingStarStates } from '../../utils/rating';
 import type { RatingPart, RatingSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * The five-star row (spec "Rating" → Anatomy, part 1), factored out of `Rating.vue` because the
@@ -61,7 +64,13 @@ const OUTLINE_STROKE_WIDTH = 1.75;
 </script>
 
 <template>
-  <span data-eldra-ui data-part="stars" :class="starsClass" aria-hidden="true">
+  <span
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="stars"
+    :class="starsClass"
+    aria-hidden="true"
+  >
     <span v-for="(state, index) in starStates" :key="index" data-part="star" :class="starClass">
       <!--
         Empty star (spec "Rating" → States, "Empty star (and empty half)" row): `border-strong`

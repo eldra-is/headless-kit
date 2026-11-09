@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, inject, useSlots, watchEffect } from 'vue';
+import { Comment, Fragment, Text, computed, inject, useSlots, watchEffect, type VNode } from 'vue';
 import { cx, partClass } from '../../utils/cx';
 import { FORM_SUBMITTING_KEY } from '../form-layout/context';
 import Icon from '../icon/Icon.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { ButtonProps, ButtonSize, ButtonVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   size: 'md',
@@ -16,11 +19,14 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   icon: undefined,
   label: undefined,
   loading: false,
+  spinnerPlacement: 'overlay',
   block: false,
   pressed: undefined,
   disabled: false,
   classes: undefined,
   as: undefined,
+  to: undefined,
+  keepNameWhileLoading: false,
 });
 
 const emit = defineEmits<{ click: [event: MouseEvent] }>();
@@ -164,13 +170,28 @@ const isLink = computed(() => props.href !== undefined);
 /**
  * `as` follows `Link`'s contract exactly (see `Link.vue`): a string is used as the tag directly
  * and still receives `href`; a component receives the destination as its `to` prop instead,
- * matching Vue Router / NuxtLink's own contract. It only applies to the link form — with no
- * `href` this is a `<button>` and `as` is ignored, because a "button" that is really a router
- * link with no destination is not a thing the spec has.
+ * matching Vue Router / NuxtLink's own contract. A component `as` only applies to the link form
+ * — with no `href` (or `to`) this is a `<button>`, because a "button" that is really a router link
+ * with no destination is not a thing the spec has. A string tag with no `href` is `isStatic`.
  */
 const isComponentAs = computed(() => props.as !== undefined && typeof props.as !== 'string');
 
-const isSubmit = computed(() => !isLink.value && props.type === 'submit');
+/** An `as` component given its destination as `to` rather than `href` (a route object, say). */
+const isRouted = computed(() => !isLink.value && isComponentAs.value && props.to !== undefined);
+
+/**
+ * A string `as` other than `button`/`a` with no `href`: that tag with the button look and nothing
+ * interactive — no `type`, `disabled`, `tabindex`, `aria-pressed`, `aria-disabled` or `aria-label`,
+ * because a generic element takes none of them. For a button-looking part inside another control.
+ */
+const isStatic = computed(
+  () => !isLink.value && typeof props.as === 'string' && props.as !== 'button' && props.as !== 'a'
+);
+
+/** Whether the root is the native `<button>`: no `href`, no routed `as`, no static tag. */
+const isNativeButton = computed(() => !isLink.value && !isRouted.value && !isStatic.value);
+
+const isSubmit = computed(() => isNativeButton.value && props.type === 'submit');
 const submitting = computed(() => formSubmitting?.value === true);
 
 const isLoading = computed(() => props.loading || (submitting.value && isSubmit.value));
@@ -199,11 +220,13 @@ const routesThroughComponent = computed(
   () => isLink.value && isComponentAs.value && !isDisabled.value
 );
 const rootTag = computed(() => {
+  if (isRouted.value || isStatic.value) return props.as!;
   if (!isLink.value) return 'button';
   if (isComponentAs.value && isDisabled.value) return props.href === undefined ? 'span' : 'a';
   return props.as ?? 'a';
 });
 const linkAttrs = computed<Record<string, unknown>>(() => {
+  if (isRouted.value) return { to: props.to };
   if (!isLink.value) return {};
   return routesThroughComponent.value ? { to: props.href } : { href: props.href };
 });
@@ -242,20 +265,28 @@ const sizeClass = computed(() => {
  */
 const PRESS = 'active:scale-[0.98] motion-reduce:active:scale-100';
 
+/**
+ * The toggle-pressed fill (spec "Button" → States, toggle pressed): `surface-strong` with the
+ * `border-strong` boundary. The spec gives it to `outline`; `ghost` takes the same look, because a
+ * ghost toggle in a toolbar (bold, italic, a view switch) has no other way to show it is on, and
+ * the `border-strong` boundary is what keeps the state at 3:1 against the page (1.4.11) where the
+ * fill alone would not be. Only `pressed === true` draws it, so `aria-pressed="true"` and the look
+ * always go together. The filled variants already carry a fill, and `link` is a line box.
+ */
+const PRESSED_FILL = 'bg-surface-strong border-border-strong';
+const TOGGLE_VARIANTS: readonly ButtonVariant[] = ['outline', 'ghost'];
+
 const stateClass = computed(() =>
   isDisabled.value
     ? DISABLED[props.variant]
-    : // The toggle pressed state is a fill, not only a colour shift (1.4.1). The spec gives it for
-      // the outline variant, the one it calls a toggle button.
+    : // The toggle pressed state is a fill, not only a colour shift (1.4.1). See PRESSED_FILL.
       cx(
         VARIANT[props.variant],
         // A loading button is still clickable (the spec keeps it focusable and named), but the
         // action is already under way — pressing it again is not a thing that happens, so it gets
         // no press feedback, the same as a disabled one.
         props.variant !== 'link' && !isLoading.value && PRESS,
-        props.pressed === true &&
-          props.variant === 'outline' &&
-          'bg-surface-strong border-border-strong'
+        props.pressed === true && TOGGLE_VARIANTS.includes(props.variant) && PRESSED_FILL
       )
 );
 
@@ -273,12 +304,48 @@ const containerClass = computed(() =>
   )
 );
 
-/** Hidden, not removed: the label and icons keep their space so the width never jumps. */
-const hiddenWhileLoading = computed(() => (isLoading.value ? 'invisible' : ''));
+const isOverlaySpinner = computed(() => props.spinnerPlacement !== 'start');
+const isInlineSpinner = computed(() => isLoading.value && !isOverlaySpinner.value);
 
-const labelClass = computed(() =>
-  partClass(cx('whitespace-nowrap', hiddenWhileLoading.value), props.classes, 'label')
+/** Hidden, not removed: the label and icons keep their space so the width never jumps. An inline
+ *  spinner hides nothing: it takes the leading icon's place and the label stays readable. */
+const hiddenWhileLoading = computed(() =>
+  isLoading.value && isOverlaySpinner.value ? 'invisible' : ''
 );
+
+/** With `keepNameWhileLoading` the label is transparent instead, so it stays in the accessibility
+ *  tree and the slot content keeps naming the button. */
+const labelHiddenWhileLoading = computed(() =>
+  hiddenWhileLoading.value && props.keepNameWhileLoading ? 'opacity-0' : hiddenWhileLoading.value
+);
+
+/** Whether slot output holds anything but text, which then lays out in the button's own gap. */
+function hasElements(nodes: VNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === Comment || node.type === Text) return false;
+    if (node.type === Fragment)
+      return Array.isArray(node.children) && hasElements(node.children as VNode[]);
+    return true;
+  });
+}
+
+/**
+ * The label. Read during render, because it calls the slot. Plain text keeps the label an inline
+ * run; slot content with elements in it (an icon beside the text) makes the label a flex row with
+ * the container's own `gap`, so the icon sits exactly as `iconLeft` would.
+ */
+function labelClass(): string {
+  const rich = slots.default !== undefined && hasElements(slots.default());
+  return partClass(
+    cx(
+      'whitespace-nowrap',
+      rich && 'inline-flex items-center gap-[inherit]',
+      labelHiddenWhileLoading.value
+    ),
+    props.classes,
+    'label'
+  );
+}
 const leadingIconClass = computed(() =>
   partClass(cx('inline-flex shrink-0', hiddenWhileLoading.value), props.classes, 'leadingIcon')
 );
@@ -286,7 +353,13 @@ const trailingIconClass = computed(() =>
   partClass(cx('inline-flex shrink-0', hiddenWhileLoading.value), props.classes, 'trailingIcon')
 );
 const spinnerClass = computed(() =>
-  partClass('absolute inset-0 flex items-center justify-center', props.classes, 'spinner')
+  partClass(
+    isOverlaySpinner.value
+      ? 'absolute inset-0 flex items-center justify-center'
+      : 'inline-flex shrink-0',
+    props.classes,
+    'spinner'
+  )
 );
 
 /** An icon-only button draws `icon`; everything else draws `iconLeft`. */
@@ -294,7 +367,8 @@ const leadingIcon = computed(() =>
   props.iconOnly ? (props.icon ?? props.iconLeft) : props.iconLeft
 );
 const hasLeading = computed(
-  () => leadingIcon.value !== undefined || slots.leadingIcon !== undefined
+  () =>
+    !isInlineSpinner.value && (leadingIcon.value !== undefined || slots.leadingIcon !== undefined)
 );
 const hasTrailing = computed(
   () => !props.iconOnly && (props.iconRight !== undefined || slots.trailingIcon !== undefined)
@@ -305,7 +379,11 @@ const hasTrailing = computed(
  * and while loading the name becomes the loading label ("Adding to cart") because the visible one
  * is hidden.
  */
-const ariaLabel = computed(() => (props.iconOnly || isLoading.value ? props.label : undefined));
+const ariaLabel = computed(() =>
+  !isStatic.value && (props.iconOnly || (isLoading.value && isOverlaySpinner.value))
+    ? props.label
+    : undefined
+);
 
 /**
  * `aria-pressed` is a toggle-button state, and `button` is the only role that takes it — an `<a>`
@@ -313,12 +391,12 @@ const ariaLabel = computed(() => (props.iconOnly || isLoading.value ? props.labe
  * from the DOM rather than emitted onto a role that would make it invalid.
  */
 const ariaPressed = computed(() =>
-  isLink.value || props.pressed === undefined ? undefined : String(props.pressed)
+  !isNativeButton.value || props.pressed === undefined ? undefined : String(props.pressed)
 );
 
 if (import.meta.env?.DEV) {
   watchEffect(() => {
-    if (props.iconOnly && props.label === undefined) {
+    if (props.iconOnly && props.label === undefined && !isStatic.value) {
       console.warn(
         '[@eldrajs/ui] <Button icon-only> has no `label`, so it has no accessible name. ' +
           'Give it one that names the action and the object, e.g. ' +
@@ -328,18 +406,18 @@ if (import.meta.env?.DEV) {
   });
 
   /**
-   * The states table gives the toggle-pressed row a value for `outline` only, and "n/a" for every
-   * other variant: the pressed state has to be a fill, not a hue (1.4.1), and the other five
-   * either already have a fill or are meant to have none. `aria-pressed` is still emitted — the
-   * state is real and a screen reader should hear it — but the button will look identical pressed
-   * and unpressed, which is the bug worth naming.
+   * The toggle-pressed fill is drawn for `outline` and `ghost` only (see `PRESSED_FILL`): the
+   * pressed state has to be a fill, not a hue (1.4.1), and the other four either already have a
+   * fill or are meant to have none. `aria-pressed` is still emitted — the state is real and a
+   * screen reader should hear it — but the button will look identical pressed and unpressed,
+   * which is the bug worth naming.
    */
   watchEffect(() => {
-    if (props.pressed !== undefined && !isLink.value && props.variant !== 'outline') {
+    if (props.pressed !== undefined && !isLink.value && !TOGGLE_VARIANTS.includes(props.variant)) {
       console.warn(
         `[@eldrajs/ui] <Button variant="${props.variant}" pressed> shows no pressed state: the ` +
-          'design spec gives the toggle fill to the `outline` variant only, so this button looks ' +
-          'the same pressed and unpressed. Use variant="outline" for a toggle.'
+          'toggle fill is drawn for the `outline` and `ghost` variants only, so this button looks ' +
+          'the same pressed and unpressed. Use variant="outline" or "ghost" for a toggle.'
       );
     }
   });
@@ -361,7 +439,14 @@ if (import.meta.env?.DEV) {
    * easy to miss in a quick manual check.
    */
   watchEffect(() => {
-    if (isLoading.value && !props.iconOnly && props.label === undefined) {
+    if (
+      isLoading.value &&
+      isOverlaySpinner.value &&
+      !props.iconOnly &&
+      props.label === undefined &&
+      !isStatic.value &&
+      !(props.keepNameWhileLoading && slots.default !== undefined)
+    ) {
       console.warn(
         '[@eldrajs/ui] <Button loading> has no `label`, so it loses its accessible name while ' +
           'loading (the visible label is hidden). Give it one that describes the action in ' +
@@ -390,39 +475,69 @@ function onClick(event: MouseEvent): void {
  * way a disabled button is, and `preventDefault()` above so a pointer or programmatic click never
  * navigates.
  */
-const linkTabindex = computed(() => (isLink.value && isDisabled.value ? '-1' : undefined));
+/**
+ * A routed `as` component given `to` has no `href` to fall back to an `<a>` with when disabled, so
+ * it stays that component, whose own click listener navigates. Its click is handled in the
+ * capture phase, which reaches it first: Vue Router's handler skips a click whose default is
+ * already prevented.
+ */
+const rootListeners = computed(() =>
+  isRouted.value ? { clickCapture: onClick } : { click: onClick }
+);
+
+const isInertLink = computed(() => !isNativeButton.value && !isStatic.value && isDisabled.value);
+const linkTabindex = computed(() => (isInertLink.value ? '-1' : undefined));
 </script>
 
 <template>
   <component
     :is="rootTag"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="container"
     :class="containerClass"
-    :type="isLink ? undefined : type"
+    :type="isNativeButton ? type : undefined"
     v-bind="linkAttrs"
     :tabindex="linkTabindex"
-    :disabled="isLink ? undefined : isDisabled || undefined"
-    :aria-disabled="isLink && isDisabled ? 'true' : undefined"
+    :disabled="isNativeButton ? isDisabled || undefined : undefined"
+    :aria-disabled="isInertLink ? 'true' : undefined"
     :aria-busy="isLoading ? 'true' : undefined"
     :aria-pressed="ariaPressed"
     :aria-label="ariaLabel"
-    @click="onClick"
+    v-on="rootListeners"
   >
-    <span v-if="hasLeading" data-part="leadingIcon" :class="leadingIconClass">
+    <span v-if="isInlineSpinner" data-part="spinner" :class="spinnerClass">
+      <Spinner class="size-4.5" />
+    </span>
+    <span
+      v-if="hasLeading"
+      :data-eldra-slot="eldra.slotHost('leadingIcon')"
+      data-part="leadingIcon"
+      :class="leadingIconClass"
+    >
       <slot name="leadingIcon">
         <Icon v-if="leadingIcon" :icon="leadingIcon" />
       </slot>
     </span>
-    <span v-if="!iconOnly" data-part="label" :class="labelClass">
+    <span
+      v-if="!iconOnly"
+      :data-eldra-slot="eldra.slotHost('default')"
+      data-part="label"
+      :class="labelClass()"
+    >
       <slot>{{ label }}</slot>
     </span>
-    <span v-if="hasTrailing" data-part="trailingIcon" :class="trailingIconClass">
+    <span
+      v-if="hasTrailing"
+      :data-eldra-slot="eldra.slotHost('trailingIcon')"
+      data-part="trailingIcon"
+      :class="trailingIconClass"
+    >
       <slot name="trailingIcon">
         <Icon v-if="iconRight" :icon="iconRight" />
       </slot>
     </span>
-    <span v-if="isLoading" data-part="spinner" :class="spinnerClass">
+    <span v-if="isLoading && isOverlaySpinner" data-part="spinner" :class="spinnerClass">
       <!-- 1.125rem circle, 2px stroke in the label colour, one turn every 700ms; with reduced
            motion it pulses at 60-100% opacity instead (spec "Behaviour & motion"). The shape
            itself is `Spinner.vue`, shared with `LoadMore`, `Price` and `StockBadge`. -->
