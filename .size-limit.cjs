@@ -182,6 +182,14 @@ module.exports = [
     ignore: ['vue', 'tailwind-merge'],
     limit: '12 kB',
   },
+  // The vue-i18n adapter: one shape per message function, the conversion, and the list join.
+  // Measured at 3.83 kB.
+  {
+    name: '@eldrajs/ui/vue-i18n — everything, without vue, vue-i18n or the sdk',
+    path: 'packages/ui/dist/vue-i18n.js',
+    ignore: ['vue', 'vue-i18n', '@eldrajs/sdk'],
+    limit: '5 kB',
+  },
   // Raised 13.5 kB -> 14.5 kB for `FilterPanel`, which is mostly new CSS: a disclosure, five facet
   // shapes, a swatch and its ring, a size tile in four states, a histogram bar and the
   // container-query switch to two colour columns. Measured at 13.63 kB with it, so this keeps a

@@ -20,6 +20,7 @@ export default defineConfig({
         index: entry('./src/index.ts'),
         resolver: entry('./src/resolver.ts'),
         'vee-validate': entry('./src/vee-validate/index.ts'),
+        'vue-i18n': entry('./src/vue-i18n/index.ts'),
         'messages/is-IS': entry('./src/messages/is-IS.ts'),
         style: entry('./src/styles/style.ts'),
       },
@@ -30,6 +31,7 @@ export default defineConfig({
       external: [
         'vue',
         'vee-validate',
+        'vue-i18n',
         '@floating-ui/vue',
         'tailwind-merge',
         /^@eldrajs\/sdk(\/|$)/,

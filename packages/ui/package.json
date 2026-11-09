@@ -41,6 +41,10 @@
       "types": "./dist/vee-validate/index.d.ts",
       "import": "./dist/vee-validate.js"
     },
+    "./vue-i18n": {
+      "types": "./dist/vue-i18n/index.d.ts",
+      "import": "./dist/vue-i18n.js"
+    },
     "./messages/is-IS": {
       "types": "./dist/messages/is-IS.d.ts",
       "import": "./dist/messages/is-IS.js"
@@ -99,14 +103,19 @@
     "vite-plugin-dts": "^5.1.0",
     "vitest-axe": "^0.1.0",
     "vue": "^3.5.30",
+    "vue-i18n": "^11.4.16",
     "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
     "vee-validate": "^4.12.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "vue-i18n": "^11.0.0"
   },
   "peerDependenciesMeta": {
     "vee-validate": {
+      "optional": true
+    },
+    "vue-i18n": {
       "optional": true
     }
   },

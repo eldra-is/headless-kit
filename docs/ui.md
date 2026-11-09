@@ -280,6 +280,9 @@ ships `Form` (over `useForm` and `FormLayout`) and a `Field*` component per cont
 `useField`) — see `packages/ui/README.md`'s `./vee-validate` section for the exact list.
 `vee-validate ^4.12` is an optional peer; nothing else in the package imports it.
 
+The components' own text (close, clear, "N results"…) can come from the app's vue-i18n through the
+optional `@eldrajs/ui/vue-i18n` entry (`useEldraUiI18n()`); see the README's Messages section.
+
 ```vue
 <Form :validation-schema="schema" @submit="send">
   <template #default="{ errors }">
