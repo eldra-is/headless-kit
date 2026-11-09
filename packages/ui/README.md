@@ -371,6 +371,46 @@ import { isIS } from '@eldrajs/ui/messages/is-IS';
 app.provide(MESSAGES_KEY, isIS);
 ```
 
+### With vue-i18n
+
+The optional `@eldrajs/ui/vue-i18n` entry reads every message through the app's vue-i18n, so the
+kit is translated where the rest of the app is, and follows a locale switch. `vue-i18n ^11` is an
+optional peer; nothing else in the package imports it.
+
+```ts
+import { createI18n } from 'vue-i18n';
+import { enUS } from '@eldrajs/ui';
+import { isIS } from '@eldrajs/ui/messages/is-IS';
+import { icelandicPluralRule, toVueI18nMessages, useEldraUiI18n } from '@eldrajs/ui/vue-i18n';
+
+const i18n = createI18n({
+  legacy: false,
+  locale: 'is-IS',
+  fallbackLocale: 'en-US',
+  pluralRules: { 'is-IS': icelandicPluralRule }, // 21 is singular in Icelandic
+  messages: {
+    'en-US': { eldraUi: toVueI18nMessages(enUS) },
+    'is-IS': { eldraUi: toVueI18nMessages(isIS) },
+  },
+});
+
+// in the root component's setup(); or app.provide(MESSAGES_KEY, eldraUiI18nMessages(i18n.global))
+useEldraUiI18n();
+```
+
+- **Keys** live under `eldraUi` (option `prefix`): `eldraUi.close`, `eldraUi.createOption`, …
+  `toVueI18nMessages` turns any complete message set into them, so start a new language from
+  `toVueI18nMessages(enUS)` and translate the values.
+- **Values** are vue-i18n messages: `createOption` is `Create “{query}”`, `resultsCount` is
+  `{n} result | {n} results` (plural forms, picked by the count).
+- **Branches** that are not a count get a suffixed key of their own: `pageN` / `pageN_current`,
+  `resultsCount` / `resultsCount_query`, `viewAllResults_query`, `stockLow_unknown`,
+  `stockPreorder_date`, and `avatarGroup_more` (the "N more" entry the names list ends with).
+- **A key you leave out** falls back to the English default (option `fallback`), so a partial
+  translation is fine. The vue-i18n locale's own fallback chain is honoured first.
+- It needs vue-i18n's message compiler (the default build): the messages are strings merged at
+  runtime.
+
 ## Site forms
 
 `SiteForm` draws any form a merchant builds in Studio (Settings › Forms) from its public definition,

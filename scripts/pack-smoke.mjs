@@ -129,6 +129,19 @@ const consumers = {
       }
       // The optional entry: it resolves, its components really are components, and — the point of
       // it being optional — the root entry above loaded without vee-validate being touched.
+      // The other optional entry: the kit's messages read through a real vue-i18n.
+      const { eldraUiI18nMessages, icelandicPluralRule, toVueI18nMessages } = await import('@eldrajs/ui/vue-i18n');
+      const { createI18n } = await import('vue-i18n');
+      const i18n = createI18n({
+        legacy: false,
+        locale: 'is-IS',
+        pluralRules: { 'is-IS': icelandicPluralRule },
+        messages: { 'is-IS': { eldraUi: toVueI18nMessages(isIS) } },
+      });
+      const kit = eldraUiI18nMessages(i18n.global);
+      assert.equal(kit.close, isIS.close);
+      assert.equal(kit.charactersLeft(21), isIS.charactersLeft(21));
+      assert.equal(kit.resultsCount(3, 'peysa'), isIS.resultsCount(3, 'peysa'));
       const vee = await import('@eldrajs/ui/vee-validate');
       for (const name of ['Form', 'FieldInput', 'FieldSelect', 'FieldCheckboxGroup']) {
         const component = vee[name];
@@ -287,6 +300,8 @@ async function main() {
         'vue@^3',
         // `@eldrajs/ui`'s optional peer: the `./vee-validate` entry is only reachable with it.
         'vee-validate@^4',
+        // …and the `./vue-i18n` entry with this one.
+        'vue-i18n@^11',
         '@nuxt/kit@^4',
         ...Object.values(tarballs),
       ],
