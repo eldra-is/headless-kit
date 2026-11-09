@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.3.2...theme-core-v0.3.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **starter-nuxt:** products carry no brand; Product.brand is the shop's name (WS-789) ([#111](https://github.com/eldra-is/headless-kit/issues/111)) ([ce67f43](https://github.com/eldra-is/headless-kit/commit/ce67f43bb0efcb2ca67d7968a48dd116236e7c89))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.3.1...theme-core-v0.3.2) (2026-10-26)
 
 
