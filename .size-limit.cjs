@@ -76,6 +76,12 @@ module.exports = [
     path: 'packages/sdk/dist/format/display-names.js',
     limit: '32 kB',
   },
+  // The patch around the date and number entries: their data, plus a few hundred bytes of routing.
+  {
+    name: '@eldrajs/sdk/format/intl — installIcelandicIntl',
+    path: 'packages/sdk/dist/format/intl.js',
+    limit: '70 kB',
+  },
   {
     name: '@eldrajs/vue — RichText, without vue',
     path: 'packages/vue/dist/index.js',
