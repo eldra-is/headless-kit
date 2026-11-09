@@ -20,6 +20,11 @@ const consumers = {
       import { listFormat } from '@eldrajs/sdk/format/list';
       import { relativeTimeFormat } from '@eldrajs/sdk/format/relative-time';
       import { displayNames } from '@eldrajs/sdk/format/display-names';
+      import { installIcelandicIntl } from '@eldrajs/sdk/format/intl';
+      const restoreIntl = installIcelandicIntl({ force: true });
+      assert.equal(new Intl.DateTimeFormat('is-IS', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 12))), '12. október 2026');
+      assert.equal(new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 12))), '12/10/2026');
+      restoreIntl();
       assert.equal(formatPrice(12900, 'ISK', 'is-IS'), '12.900\u00a0kr.');
       assert.equal(formatPrice(12900, 'ISK', 'en-US'), 'ISK\u00a012,900');
       assert.equal(numberFormat('is-IS').format(1234.5), '1.234,5');

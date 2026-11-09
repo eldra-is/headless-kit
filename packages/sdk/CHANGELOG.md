@@ -9,6 +9,13 @@ platform repository.
 
 ## Unreleased
 
+- **`installIcelandicIntl()` (new entry `@eldrajs/sdk/format/intl`)** — Icelandic for code that calls
+  `Intl` itself (date pickers, vue-i18n, chart libraries). Where the runtime has no Icelandic data,
+  it patches `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Number.prototype.toLocaleString` and
+  `Date.prototype.toLocale{,Date,Time}String` so Icelandic requests use this package's data; every
+  other locale stays with the runtime. Opt-in, nothing runs on import; `{ force: true }` patches
+  runtimes that have Icelandic too, and the returned function restores the runtime.
+
 - **Campaign attribution (WS-546, contract 5.4.0).** `captureCampaignAttribution(url?)` keeps a
   landing URL's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` (as `campaignId`, only when
   it is a uuid) in `localStorage` for 30 days, replacing an earlier landing whole; nothing else, and

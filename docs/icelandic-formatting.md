@@ -54,11 +54,25 @@ hydration produce the same string. The starter's
 The `@eldrajs/ui` components (`Price`, `CurrencyInput`, `RangeSlider`, `ContentCard`'s date and the
 rest) already format through the package.
 
+## Code you do not control
+
+A date picker, vue-i18n's `n()`/`d()` and chart libraries call `Intl` themselves. For those, call
+`installIcelandicIntl()` from `@eldrajs/sdk/format/intl` once, before anything formats (a client
+plugin, the top of `main.ts`). Where the runtime lacks Icelandic, it routes Icelandic number and
+date requests to the same data the functions use and leaves every other locale to the runtime.
+
+It is opt-in on purpose. It patches globals, which a library should never do on import, and it is not
+needed for text you format yourself. Unlike a polyfill that replaces `Intl` (formatjs's
+`polyfill-force`), it does not change other locales: such a polyfill formats every locale it was not
+given data for, `en-GB` included, as US English, and its default locale is whichever locale's data
+loaded first.
+
 ## What it costs
 
 Each entry carries its own `is` and `en` data. Brotlied, as `.size-limit.cjs` budgets them: prices
 and numbers about 33 kB, dates 66 kB (numbers included), lists 11 kB, relative times 35 kB (numbers included), names
-30 kB; the comparator alone 0.5 kB. A bundler includes only the entries a page imports.
+30 kB; the comparator alone 0.5 kB; `installIcelandicIntl` 66 kB (the date entry's data, plus half a
+kilobyte). A bundler includes only the entries a page imports.
 
 ## Known differences from full ICU
 

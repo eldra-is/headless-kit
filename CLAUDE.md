@@ -81,7 +81,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `eldra-is/studio-media-worker` `src/index.ts`; change both together.
   `src/format/` is the `./format` entries (`./format/date`, `/list`, `/relative-time`,
   `/display-names`): Icelandic and English formatting that prints the same on every runtime
-  (`docs/icelandic-formatting.md`). The formatjs classes are devDependencies **bundled** into
+  (`docs/icelandic-formatting.md`). `./format/intl` is `installIcelandicIntl()`, the opt-in patch of
+  `Intl` for code that calls it directly; nothing in the package may call it on import. The formatjs classes are devDependencies **bundled** into
   `dist`, never runtime dependencies: each formatjs package ships every locale's data (344 MB
   installed for the five). `is`/`en` data lives in `src/format/data`, copied by `pnpm --filter
 @eldrajs/sdk format-data`; `check:format-data` in `lint:check` fails on drift.

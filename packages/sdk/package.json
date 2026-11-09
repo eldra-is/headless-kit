@@ -55,6 +55,10 @@
       "types": "./dist/format/display-names.d.ts",
       "import": "./dist/format/display-names.js"
     },
+    "./format/intl": {
+      "types": "./dist/format/intl.d.ts",
+      "import": "./dist/format/intl.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

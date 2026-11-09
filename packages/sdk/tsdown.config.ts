@@ -9,6 +9,7 @@ export default defineConfig({
     'format/list': 'src/format/list.ts',
     'format/relative-time': 'src/format/relative-time.ts',
     'format/display-names': 'src/format/display-names.ts',
+    'format/intl': 'src/format/intl.ts',
   },
   format: 'esm',
   platform: 'neutral',

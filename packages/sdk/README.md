@@ -83,6 +83,25 @@ same methods. `./format/list`, `./format/relative-time` and `./format/display-na
 Import only the entries you use; each carries its own data. The rules and what it costs are in
 [docs/icelandic-formatting.md](../../docs/icelandic-formatting.md).
 
+### Code that calls `Intl` itself
+
+A date picker, vue-i18n's `n()`/`d()` or a chart library formats with `Intl` directly. Opt in to
+Icelandic there with one call, before anything formats:
+
+```ts
+import { installIcelandicIntl } from '@eldrajs/sdk/format/intl';
+
+installIcelandicIntl();
+```
+
+Where the runtime has no Icelandic, it patches `Intl.NumberFormat`, `Intl.DateTimeFormat`,
+`Number.prototype.toLocaleString` and `Date.prototype.toLocale{,Date,Time}String` so a request for
+Icelandic is formatted from this package's data. Every other locale goes to the runtime untouched,
+so a browser on `en-GB` keeps `12/10/2026`. Where the runtime has Icelandic (Node, Safari, Firefox)
+it does nothing, unless `{ force: true }`. It returns a function that restores the runtime's `Intl`.
+Dates in a zone other than UTC stay with the runtime. Lists, relative times, names and sorting are not
+patched; use the functions above.
+
 ## What is in the client
 
 | Group       | Methods                                                                                                                |
