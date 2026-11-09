@@ -261,11 +261,13 @@ drop the stored id and start a new cart.
 
 ## Campaign attribution
 
-Call `captureCampaignAttribution()` in the browser on the first page and after every navigation:
-it keeps a campaign landing's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` for 30 days,
-and `cart.addItem` sends them with every add so the order is credited to the campaign. Campaign
-tags only, nothing about the visitor, and nothing on a server. A theme on `@eldrajs/theme-nuxt` gets
-this without code. Details in
+Call `captureCampaignAttribution()` in the browser on the first page and after every navigation,
+and `grantCampaignAttributionConsent()` / `withdrawCampaignAttributionConsent()` from your consent
+tool. Once the visitor agrees, the kit keeps a campaign landing's `utm_source`, `utm_medium`,
+`utm_campaign` and `utm_id` for 30 days, and `cart.addItem` sends them with every add so the order is
+credited to the campaign. Without consent nothing is kept. Campaign tags only, nothing about the
+visitor, and nothing on a server. A theme on `@eldrajs/theme-nuxt` captures without code and takes
+the consent answer from the window. Details in
 [`packages/sdk/README.md`](../packages/sdk/README.md#campaign-attribution).
 
 ## Errors

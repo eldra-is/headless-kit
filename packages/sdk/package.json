@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/sdk",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Framework-free client for the Eldra Web Studio public storefront API: CMS, catalog, cart, checkout handoff, orders, inventory. Types generated from your gateway's OpenAPI document and CMS schemas at build time.",
   "keywords": [
     "cms",
@@ -54,6 +54,10 @@
     "./format/display-names": {
       "types": "./dist/format/display-names.d.ts",
       "import": "./dist/format/display-names.js"
+    },
+    "./format/intl": {
+      "types": "./dist/format/intl.d.ts",
+      "import": "./dist/format/intl.js"
     },
     "./package.json": "./package.json"
   },
