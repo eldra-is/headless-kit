@@ -15,7 +15,10 @@ const meta = {
   component: Skeleton,
   tags: ['autodocs'],
   argTypes: {
-    variant: { control: 'inline-radio', options: ['text', 'title', 'circle', 'media', 'btn'] },
+    variant: {
+      control: 'inline-radio',
+      options: ['text', 'title', 'circle', 'media', 'btn', 'box'],
+    },
     lines: { control: { type: 'number', min: 1, max: 6 } },
     width: { control: 'text' },
     ratio: {
@@ -66,6 +69,21 @@ export const Text: Story = { args: { variant: 'text', lines: 3 } };
 
 /** One 60%-wide bar, taller than a text line — a heading placeholder. */
 export const Title: Story = { args: { variant: 'title' } };
+
+/**
+ * One plain shape, the component itself, sized however the placeholder needs: `width` / `height`,
+ * or classes on the component (`h-12 w-40 rounded-full`).
+ */
+export const Box: Story = {
+  render: () => ({
+    components: { Skeleton },
+    template: `<div class="flex flex-col gap-3">
+      <Skeleton variant="box" width="12rem" height="3rem" />
+      <Skeleton variant="box" class="h-24 w-full" />
+      <Skeleton variant="box" class="size-12 rounded-full" />
+    </div>`,
+  }),
+};
 
 /** A 2.5rem circle — an avatar placeholder. */
 export const Circle: Story = { args: { variant: 'circle' } };

@@ -510,46 +510,73 @@
   animation: eldra-pulse 1.2s var(--eldra-ease-out) infinite;
 }
 
-/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion): "Shimmer sweeps left to right over
-   1.4s, ease-out, infinitely… Reduced motion: shimmer removed; shapes are static." Shared
-   infrastructure rather than a `Price`-only rule: `Price`'s own loading state below is the first
-   consumer, and the `Skeleton` primitive (a later task) reuses this same utility for every shape.
-   The shape itself is a `surface-strong` fill (spec "Skeleton" → States, "Shape" row); the shimmer
-   is a `background`-coloured band at 60% strength (States, "Shimmer" row) that sweeps across it.
-   It is layered on with a `::after` that slides across rather than an animated
-   `background-position` on the shape's own fill, so the base fill and the moving highlight are
-   independent — reduced motion removes the highlight element outright (`display: none`) instead of
-   merely freezing it mid-sweep, which is what "shapes are static" asks for rather than an instant
-   jump to one frame of the animation. */
+/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion: "Shimmer sweeps left to right…
+   infinitely… Reduced motion: shimmer removed; shapes are static."). The shape is a
+   `surface-strong` fill (States, "Shape" row) with a `background`-coloured glare at 60% strength
+   (States, "Shimmer" row) laid on by a `::after` that slides across it, so reduced motion removes
+   the glare outright (`display: none`) rather than freezing it mid-sweep.
+
+   The glare sweeps for the first 1.8s of a 3s cycle and then rests, eased at both ends, and is a
+   soft band across the middle of the `::after` rather than a wash over the whole shape. The
+   spec's 1.4s `ease-out` sweep, back to back with no rest, lunged and then jumped back to the
+   start, which read as fast and mechanical (operator review, 2026-11-10; README Deviations).
+
+   Consumer knobs, each with the default below: `--eldra-skeleton-duration` (3s, the whole cycle),
+   `--eldra-skeleton-color` (`surface-strong`, the shape's fill) and `--eldra-skeleton-highlight`
+   (`background` at 60%, the glare). `Price`'s loading state shares the utility. */
 @keyframes eldra-shimmer {
-  from {
+  0% {
     transform: translateX(-100%);
   }
-  to {
+  60%,
+  100% {
     transform: translateX(100%);
   }
 }
 @utility eldra-skeleton {
   position: relative;
   overflow: hidden;
-  background-color: var(--eldra-color-surface-strong);
+  background-color: var(--eldra-skeleton-color, var(--eldra-color-surface-strong));
   &::after {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(
       90deg,
-      transparent,
-      color-mix(in oklab, var(--eldra-color-background), transparent 40%),
-      transparent
+      transparent 15%,
+      var(
+          --eldra-skeleton-highlight,
+          color-mix(in oklab, var(--eldra-color-background), transparent 40%)
+        )
+        50%,
+      transparent 85%
     );
-    animation: eldra-shimmer 1.4s var(--eldra-ease-out) infinite;
+    transform: translateX(-100%);
+    animation: eldra-shimmer var(--eldra-skeleton-duration, 3s) var(--eldra-ease-in-out) infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     &::after {
       display: none;
     }
   }
+}
+/* `Skeleton`'s `text` and `title` rows (spec "Skeleton" → Sizes: text "height 0.875rem, 0.3rem
+   margin above and below (one 1.5 line-height row)", title 1.5rem). Variables with the spec's
+   numbers as defaults, so a consumer sets a taller line for its own denser or larger type without
+   sizing every shape: `--eldra-skeleton-line-height`, `--eldra-skeleton-line-gap` and
+   `--eldra-skeleton-title-height`. */
+@utility eldra-skeleton-text {
+  height: var(--eldra-skeleton-line-height, 0.875rem);
+  margin-block: var(--eldra-skeleton-line-gap, 0.3rem);
+}
+@utility eldra-skeleton-title {
+  height: var(--eldra-skeleton-title-height, 1.5rem);
+}
+/* `Skeleton`'s `box`: one shape of any size, the component itself. Its height before a consumer
+   sizes it is `--eldra-skeleton-box-height`, so a bare box is visible rather than 0px tall; a
+   `height` prop (inline) or a height class (a later layer) wins over it. */
+@utility eldra-skeleton-box {
+  height: var(--eldra-skeleton-box-height, 1rem);
 }
 
 /* A value that is still on screen while a fresher one is being fetched (`Price`, `StockBadge` and,

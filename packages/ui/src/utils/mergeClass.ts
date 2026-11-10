@@ -30,6 +30,7 @@ type KitGroup =
   | 'eldra-select-option-selected'
   | 'eldra-variant-pill-selected-line'
   | 'eldra-skeleton'
+  | 'eldra-skeleton-text'
   | 'eldra-rating-half'
   | 'eldra-image-placeholder-hatch'
   | 'eldra-editor-placeholder-border'
@@ -122,7 +123,14 @@ const MERGE_CONFIG = {
       ],
       // Control heights (tailwind.css "Control heights and targets"): whole class names, not a
       // `h-*` suffix, but the same "h" group as Tailwind's own `h-*` scale.
-      h: ['control-h', 'control-h-sm', 'control-h-lg', 'eldra-range-track'],
+      h: [
+        'control-h',
+        'control-h-sm',
+        'control-h-lg',
+        'eldra-range-track',
+        'eldra-skeleton-title',
+        'eldra-skeleton-box',
+      ],
       // The Range slider rail's own touch band (tailwind.css "Range slider"): a `min-height` with
       // a container-query step, in Tailwind's own `min-h` group so a consumer's `min-h-0` on the
       // rail replaces it rather than landing beside it.
@@ -263,6 +271,8 @@ const MERGE_CONFIG = {
       // moving highlight `::after`, no stock Tailwind equivalent, so it gets its own group. Shared
       // by `Price`'s loading state and, later, `Skeleton` itself.
       'eldra-skeleton': ['eldra-skeleton'],
+      // A text row's height and its gap above and below: two properties, so a group of its own.
+      'eldra-skeleton-text': ['eldra-skeleton-text'],
       // The Rating half star's clip overlay (tailwind.css "Rating"): a one-off `clip-path` with no
       // stock Tailwind group, so it gets its own.
       'eldra-rating-half': ['eldra-rating-half'],

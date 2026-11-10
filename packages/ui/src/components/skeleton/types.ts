@@ -1,11 +1,15 @@
 import type { ImageRatio } from '../image/types';
 
-/** Spec "Skeleton" → Properties/Variants, `variant` row: the five shape primitives. */
-export type SkeletonVariant = 'text' | 'title' | 'circle' | 'media' | 'btn';
+/**
+ * Spec "Skeleton" → Properties/Variants, `variant` row: the five shape primitives, plus `box`, one
+ * plain shape that is the component itself, for a placeholder of any size (sized by `width`,
+ * `height`, `class` or `style`).
+ */
+export type SkeletonVariant = 'text' | 'title' | 'circle' | 'media' | 'btn' | 'box';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them:
  * the shimmering shape(s) inside the region wrapper — one `line` per text row, or one for every
- * other variant. The region wrapper itself is styled with `class`. */
+ * other variant but `box`, which has none (the root is the shape). The root is styled with `class`. */
 export type SkeletonPart = 'line';
 
 export interface SkeletonProps {
@@ -20,6 +24,12 @@ export interface SkeletonProps {
    * renders at the root's full (now definite) width instead of its own default percentage.
    */
   width?: string;
+  /**
+   * An explicit height for the whole component, e.g. `'3rem'`. Meant for `box`, whose root is the
+   * shape: unset, a box is `--eldra-skeleton-box-height` tall (default `1rem`). On the other
+   * variants it sizes the region wrapper only; their shapes keep their own heights.
+   */
+  height?: string;
   /** The frame's aspect preset. `media` only. Defaults to `'4x5'` (spec "Skeleton" → Sizes,
    * `media` row — matches the product card's own ratio). See `src/utils/ratio.ts`. */
   ratio?: ImageRatio;
