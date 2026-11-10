@@ -52,8 +52,8 @@ const forwardedAttrs = computed(() => {
 });
 
 /**
- * Shared box (spec "Button" → Anatomy and Behaviour & motion): 1px border that a variant may
- * colour, `radius-md` through the component's own variable, and the one focus ring.
+ * Shared box (spec "Button" → Anatomy and Behaviour & motion): a border that a variant may
+ * colour (see `BOX`), `radius-md` through the component's own variable, and the one focus ring.
  *
  * There is deliberately no `transition-*`/`duration-*` utility here. `eldra-focus` owns the
  * element's transition list — background, border, text colour and the press scale at
@@ -66,8 +66,9 @@ const BASE =
   'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center ' +
   'eldra:rounded-[var(--eldra-button-radius,var(--eldra-radius-md))] eldra:eldra-focus';
 
-/** The 1px border and no underline, except `link`, which is a borderless underlined line box. */
-const BOX = 'eldra:border eldra:no-underline';
+/** The border (`--eldra-button-border-width`, default 1px, see `eldra-button-border`) and no
+ *  underline, except `link`, which is a borderless underlined line box. */
+const BOX = 'eldra:eldra-button-border eldra:no-underline';
 const LINK_BOX = 'eldra:border-0';
 
 /**
@@ -338,7 +339,8 @@ const containerClass = computed(() =>
       sizeClass.value,
       stateClass.value,
       cursorClass.value,
-      props.block && 'eldra:w-full',
+      // `w-fit` so a flex column or grid cell does not stretch it; `block` is the full-width form.
+      props.block ? 'eldra:w-full' : 'eldra:w-fit',
     ],
     attrs.class
   )

@@ -33,7 +33,7 @@ export const FACET_COUNT =
  * changes the hover with it — the same shape `Switch`'s own hover fill uses.
  */
 export const FACET_ROW_HOVER =
-  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+  'eldra:eldra-transition-colors eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 
 /**
  * Spec → Sizes, Option row: "padding 0.25rem 0.5rem with a −0.5rem side margin (the hover tint

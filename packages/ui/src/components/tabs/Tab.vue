@@ -147,7 +147,7 @@ const tabClass = computed(() => [BASE, stateClass.value]);
  */
 const indicatorClass = computed(() => [
   'eldra:pointer-events-none eldra:absolute eldra:inset-x-2 eldra:bottom-0 eldra:h-[0.1875rem] eldra:rounded-t-full',
-  'eldra:transition-colors eldra:duration-fast eldra:ease-out',
+  'eldra:eldra-transition-colors',
   isSelected.value
     ? props.disabled
       ? 'eldra:bg-muted'

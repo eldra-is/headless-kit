@@ -242,9 +242,7 @@ describe('Tabs — indicator', () => {
   it('gives the underline variant a colour-only transition, never a slide', async () => {
     const wrapper = await mount();
     const classes = wrapper.get('[data-part="indicator"]').classes();
-    expect(classes).toEqual(
-      expect.arrayContaining(['eldra:transition-colors', 'eldra:duration-fast'])
-    );
+    expect(classes).toContain('eldra:eldra-transition-colors');
     expect(classes.some((name) => name.includes('translate') || name.includes('transform'))).toBe(
       false
     );

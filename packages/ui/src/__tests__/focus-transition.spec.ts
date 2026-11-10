@@ -137,9 +137,14 @@ describe('the focus ring owns its element transitions', () => {
       expect(rule).toMatch(/box-shadow:[^;]*transparent[^;]*;/);
       expect(rule).toContain('@supports not (color: color-mix(in srgb, red, red))');
 
-      // ...and the colour and press changes a control makes, at duration-fast, in the same
-      // shorthand — which is the whole point: one declaration, so nothing can replace half of it.
-      expect(rule).toContain('background-color var(--eldra-duration-fast)');
+      // ...and the colour and press changes a control makes, in the same shorthand — which is the
+      // whole point: one declaration, so nothing can replace half of it. Colours fade over
+      // duration-base, eased at both ends (at duration-fast ease-out a colour reads as a switch);
+      // the press stays duration-fast ease-out, so it still feels immediate.
+      expect(rule).toContain(
+        'background-color var(--eldra-duration-base) var(--eldra-ease-in-out)'
+      );
+      expect(rule).toContain('border-color var(--eldra-duration-base) var(--eldra-ease-in-out)');
       expect(rule).toContain('translate var(--eldra-duration-fast)');
       // The Button's press is `active:scale-[0.98]`, and Tailwind v4 compiles `scale-*` to the
       // independent `scale` property rather than to a `transform` shorthand — so `scale` has to be

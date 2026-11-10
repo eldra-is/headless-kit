@@ -23,8 +23,8 @@ const BASE = 'eldra:@container eldra:flex eldra:items-center';
 const LOOSE = 'eldra:flex-wrap eldra:gap-3';
 
 /**
- * Attached (a segmented control): gap 0, inner corners square, neighbours overlapping by 1px so
- * there is one shared boundary rather than two, and the focused button raised above its neighbours
+ * Attached (a segmented control): gap 0, inner corners square, neighbours overlapping by the
+ * button border width (`--eldra-button-border-width`, default 1px) so there is one shared boundary rather than two, and the focused button raised above its neighbours
  * so the focus ring is never covered (2.4.11). `role="group"` with an `aria-label` ("View") comes
  * from the attrs the consumer passes.
  *
@@ -34,11 +34,11 @@ const LOOSE = 'eldra:flex-wrap eldra:gap-3';
  * ring. `isolate` on the group keeps that `z-10` from escaping into the page's own layers.
  *
  * The corner and overlap rules are logical, not physical (`rounded-s-none`/`rounded-e-none`,
- * `-ms-px`), so the control reads correctly in an RTL document instead of squaring the wrong end.
+ * a negative `ms`), so the control reads correctly in an RTL document instead of squaring the wrong end.
  */
 const ATTACHED = [
   'eldra:gap-0 eldra:isolate',
-  'eldra:[&>*:not(:first-child)]:-ms-px',
+  'eldra:[&>*:not(:first-child)]:-ms-[var(--eldra-button-border-width,1px)]',
   'eldra:[&>*:not(:first-child)]:rounded-s-none',
   'eldra:[&>*:not(:last-child)]:rounded-e-none',
   'eldra:[&>*:focus-visible]:z-10',

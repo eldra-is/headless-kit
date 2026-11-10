@@ -160,12 +160,16 @@ const MERGE_CONFIG = {
       // The Tabs list's hidden scrollbar (tailwind.css "Tabs"): no stock group covers hiding a
       // scrollbar either, so it gets its own.
       'eldra-scrollbar-hide': ['eldra-scrollbar-hide'],
+      // The colour transition (tailwind.css "Colour changes"): a `transition` shorthand, so it
+      // replaces a stock `transition-*` beside it instead of the two fighting over one property.
+      transition: ['eldra-transition-colors'],
       // Border widths (tailwind.css "A field's own boundary" and "The Checkbox box"): whole class
       // names rather than a `border-*` suffix, but the same "border-w" group as Tailwind's own
       // `border`/`border-2`, so a consumer's `border-2` replaces them and — the reason the two
       // checkbox widths exist — the invalid width replaces the ordinary one.
       'border-w': [
         'eldra-field-border',
+        'eldra-button-border',
         'eldra-checkbox-border',
         'eldra-checkbox-border-invalid',
         'eldra-radio-card-border',

@@ -58,6 +58,7 @@
 
   --ease-out: var(--eldra-ease-out);
   --ease-in: var(--eldra-ease-in);
+  --ease-in-out: var(--eldra-ease-in-out);
 
   /* Container-query conditions cannot reference a custom property — `@container (width >=
      var(--x))` is invalid CSS — so Tailwind requires a literal length in the `--container-*` theme

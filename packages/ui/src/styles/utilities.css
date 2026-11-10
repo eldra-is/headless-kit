@@ -669,11 +669,11 @@
     var(--tw-ring-shadow, 0 0 #0000),
     var(--tw-shadow, 0 0 #0000);
   transition:
-    color var(--eldra-duration-fast) var(--eldra-ease-out),
-    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    background-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    border-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-thickness var(--eldra-duration-base) var(--eldra-ease-in-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
     scale var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -847,11 +847,11 @@
         var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
       );
   transition:
-    color var(--eldra-duration-fast) var(--eldra-ease-out),
-    background-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    border-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    text-decoration-color var(--eldra-duration-fast) var(--eldra-ease-out),
-    text-decoration-thickness var(--eldra-duration-fast) var(--eldra-ease-out),
+    color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    background-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    border-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-thickness var(--eldra-duration-base) var(--eldra-ease-in-out),
     translate var(--eldra-duration-fast) var(--eldra-ease-out),
     scale var(--eldra-duration-fast) var(--eldra-ease-out),
     opacity var(--eldra-duration-fast) var(--eldra-ease-out),
@@ -885,8 +885,34 @@
    from Tailwind's preflight (`*, ::before, ::after { border: 0 solid }`), which both the
    `tailwind.css` and the `style.css` route carry, so a width alone is a solid border and
    `border-dashed` still wins where a component asks for one. */
+/* Colour changes (hover, selection, a revealed colour) on an element that carries no
+   `eldra-focus*` utility, at the same timing that utility gives a control's colours:
+   `duration-base` and `ease-in-out`, so a colour fades rather than switches. One shorthand, so it
+   cannot sit beside a second `transition-*` on the same element. */
+@utility eldra-transition-colors {
+  transition:
+    color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    background-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    border-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-color var(--eldra-duration-base) var(--eldra-ease-in-out),
+    text-decoration-thickness var(--eldra-duration-base) var(--eldra-ease-in-out),
+    fill var(--eldra-duration-base) var(--eldra-ease-in-out),
+    stroke var(--eldra-duration-base) var(--eldra-ease-in-out);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
 @utility eldra-field-border {
   border-width: var(--eldra-field-border-width, 1px);
+}
+
+/* A Button's boundary (spec "Button" -> Anatomy: "1px border that a variant may colour"), a
+   variable for the same reason as the field's: `ButtonGroup`'s attached buttons overlap by exactly
+   this width, so a wider border still leaves one shared line. The height stays the size's control
+   height whatever the width, because the box is `border-box`. */
+@utility eldra-button-border {
+  border-width: var(--eldra-button-border-width, 1px);
 }
 
 /* The Checkbox box (spec "Checkbox" → Sizes: "Border | 1.5px", and → States, Error row: "**2px**

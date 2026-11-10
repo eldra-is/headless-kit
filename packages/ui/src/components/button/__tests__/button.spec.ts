@@ -711,7 +711,33 @@ describe('Button — states', () => {
       slots: { default: 'Checkout' },
     });
     expect(wrapper.classes()).toContain('eldra:w-full');
+    expect(wrapper.classes()).not.toContain('eldra:w-fit');
     wrapper.unmount();
+  });
+
+  it('fits its content by default, and a width class widens it', () => {
+    const fit = mountWith(Button, {
+      props: { variant: 'primary' },
+      slots: { default: 'Checkout' },
+    });
+    expect(fit.classes()).toContain('eldra:w-fit');
+    fit.unmount();
+    // A consumer width sits beside `eldra:w-fit` and wins by layer; a kit parent's replaces it.
+    const wide = mountWith(Button, {
+      props: { variant: 'primary' },
+      attrs: { class: 'w-full' },
+      slots: { default: 'Checkout' },
+    });
+    expect(wide.classes()).toContain('w-full');
+    wide.unmount();
+    const fromKit = mountWith(Button, {
+      props: { variant: 'primary' },
+      attrs: { class: 'eldra:w-full' },
+      slots: { default: 'Checkout' },
+    });
+    expect(fromKit.classes()).toContain('eldra:w-full');
+    expect(fromKit.classes()).not.toContain('eldra:w-fit');
+    fromKit.unmount();
   });
 
   /**
@@ -929,6 +955,29 @@ describe('Button — form submitting context', () => {
 });
 
 describe('Button — customisation', () => {
+  /**
+   * The border is `eldra-button-border`, not Tailwind's `border`: an attached `ButtonGroup`
+   * overlaps its buttons by `--eldra-button-border-width`, so the border has to read the same
+   * variable or a wider border would show as two lines between neighbours.
+   */
+  it('draws every bordered variant from the button border-width variable', () => {
+    for (const variant of VARIANTS) {
+      const wrapper = mountWith(Button, { props: { variant }, slots: { default: 'Save' } });
+      expect(wrapper.classes()).not.toContain('eldra:border');
+      if (variant === 'link') {
+        expect(wrapper.classes()).toContain('eldra:border-0');
+        expect(wrapper.classes()).not.toContain('eldra:eldra-button-border');
+      } else {
+        expect(wrapper.classes()).toContain('eldra:eldra-button-border');
+      }
+      wrapper.unmount();
+    }
+    const css = readFileSync(new NodeURL('../../../styles/utilities.css', import.meta.url), 'utf8');
+    expect(css).toMatch(
+      /@utility eldra-button-border \{\s*border-width: var\(--eldra-button-border-width, 1px\);/
+    );
+  });
+
   it('puts a consumer class on the button itself', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary' },
@@ -1124,11 +1173,13 @@ describe('ButtonGroup', () => {
     expect(wrapper.attributes('role')).toBe('group');
     expect(wrapper.attributes('aria-label')).toBe('View');
     expect(wrapper.classes()).toContain('eldra:gap-0');
-    // Inner corners square and neighbours overlapping by 1px, in logical properties: an RTL
-    // document squares the same *inner* ends, not the mirrored ones.
+    // Inner corners square and neighbours overlapping by the button border width, in logical
+    // properties: an RTL document squares the same *inner* ends, not the mirrored ones.
     expect(wrapper.classes()).toContain('eldra:[&>*:not(:first-child)]:rounded-s-none');
     expect(wrapper.classes()).toContain('eldra:[&>*:not(:last-child)]:rounded-e-none');
-    expect(wrapper.classes()).toContain('eldra:[&>*:not(:first-child)]:-ms-px');
+    expect(wrapper.classes()).toContain(
+      'eldra:[&>*:not(:first-child)]:-ms-[var(--eldra-button-border-width,1px)]'
+    );
     expect(wrapper.classes().join(' ')).not.toMatch(/rounded-[lr]-none|-ml-px/);
     // The focused button is raised so its ring is never covered by a neighbour. It has to be a
     // stacking raise: every Button is already `position: relative` (it positions its spinner), so
