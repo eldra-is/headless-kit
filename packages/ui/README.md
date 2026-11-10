@@ -27,47 +27,24 @@ entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
-Five CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
-starts from the same `--eldra-*` variables, so nothing here is a different theme, only a different
-delivery shape.
+The components come **prebuilt**: an app never compiles this package's styles and needs no Tailwind
+of its own to use them. Every class a component renders is `eldra:`-prefixed (`eldra:px-4`,
+`eldra:hover:bg-primary`), compiled with Tailwind's `prefix(eldra)`, and every theme variable it
+reads is `--eldra-*`. Nothing in the package's CSS uses a name an app's own Tailwind build uses, so
+the two never restyle each other's markup.
 
-- **`@eldrajs/ui/tokens.css`** — the `--eldra-*` variables only (colours, radii, spacing, type,
-  motion, z-index, and the one opacity — `--eldra-revalidating-opacity`), declared on `:root` with
-  the spec's defaults, plus a
-  `@media (prefers-reduced-motion: reduce)` rule that zeroes every duration variable.
-- **`@eldrajs/ui/tailwind.css`** — `tokens.css`, then a Tailwind v4 `@theme` block mapping its own
-  namespaces onto those variables (`--color-primary: var(--eldra-color-primary)`, `--radius-md`,
-  `--font-heading`, `--spacing-*`, `--shadow-*`, `--ease-*`) plus the package's custom utilities
-  (control heights, the `eldra-focus` ring, the type styles, motion and layer utilities) and a
-  `@source "../dist"` so a consumer's own Tailwind build scans the package's _compiled_ components.
-  For a project that already runs Tailwind v4, `main.css` (or equivalent) becomes:
+Five CSS entries ship. Every one starts from the same `--eldra-*` variables, so none is a different
+theme, only a different delivery shape.
 
-  ```css
-  @import 'tailwindcss';
-  @import '@eldrajs/ui/tailwind.css';
-  ```
-
-  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
-  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
-  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
-  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
-  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
-  Line height and tracking are plain longhands on purpose: the starter's own base rule
-  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
-  style.
-
-- **`@eldrajs/ui/style.css`** — the package's own compiled build of `tailwind.css` plus every
-  component's utilities, for a consumer with no Tailwind build of their own:
+- **`@eldrajs/ui/style.css`** — the tokens, Tailwind's preflight and every component's styles, for
+  a page built from this package:
 
   ```css
   @import '@eldrajs/ui/style.css';
   ```
 
-  This is also what a project whose own Tailwind build cannot share this package's utility prefix
-  (a `ui:`-prefixed theme, for example) reaches for.
-
 - **`@eldrajs/ui/components.css`** — `style.css` without Tailwind's preflight, for a site that has
-  its own stylesheet and adds a few components (a header menu, a cart drawer) to it:
+  its own stylesheet (or its own Tailwind) and adds components to it:
 
   ```css
   @import '@eldrajs/ui/components.css';
@@ -85,77 +62,91 @@ delivery shape.
   `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component family under both,
   the overlays open, and requires identical pixels.
 
-  **The `data-eldra-ui` marker.** Every component's outermost element carries `data-eldra-ui`, and
-  so does every element a component renders outside it: a `Select` or `MultiSelect` panel, a
-  `SearchBar` results panel, a `Popover` panel, a `Tooltip` bubble and the `Toaster` region, each
-  teleported out of its component. The reset reaches exactly those elements and the `data-part`
-  elements inside them, `:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero
-  specificity. `data-part` alone is not enough, because it is not this package's name: a site's
-  own `<h2 data-part="title">`, or any Ark UI or Zag component (which put `data-part` on every
-  element they render), keeps the browser's defaults. The attribute is public and stable, so a
-  site can use it as a hook too (`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global
-  link rule out of the components). One case stays inside the scope: an element carrying its own
-  `data-part` that the site passes into a component's slot (an Ark UI widget inside a `Dialog`,
-  say) is a `data-part` element inside a marked root, so it gets the reset as well.
+- **`@eldrajs/ui/tokens.css`** — the `--eldra-*` variables only (colours, radii, spacing, type,
+  motion, z-index, and the one opacity — `--eldra-revalidating-opacity`), declared on `:root` with
+  the spec's defaults, plus a `@media (prefers-reduced-motion: reduce)` rule that zeroes every
+  duration variable.
 
-  Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
-  regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS
-  restyles those elements inside the components too. Scope such rules (`.prose a`) or put the
-  site's stylesheet in a layer declared before the package's.
+- **`@eldrajs/ui/tailwind.css`** — for an app that runs Tailwind v4 and wants its **own** markup
+  on the same design tokens: `tokens.css`, then a `@theme` block mapping Tailwind's namespaces
+  onto those variables (`--color-primary: var(--eldra-color-primary)`, `--radius-md`,
+  `--font-heading`, `--spacing-*`, `--shadow-*`, `--ease-*`) and the package's custom utilities
+  (control heights, the `eldra-focus` ring, the type styles, motion and layer utilities). It builds
+  none of the components; import the prebuilt ones beside it. `theme.css` (the `@theme` block) and
+  `utilities.css` (the utilities) ship on their own too.
 
-- **`@eldrajs/ui/scoped.css`** — for embedding the components in another Tailwind app, or in a
-  page that already has this package's components of its own. See the next section.
+  ```css
+  @import 'tailwindcss';
+  @import '@eldrajs/ui/tailwind.css';
+  @import '@eldrajs/ui/components.css';
+  ```
 
-### Embedding in another Tailwind app
+  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
+  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
+  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
+  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
+  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
+  Line height and tracking are plain longhands on purpose: the starter's own base rule
+  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
+  style.
 
-The other entries compile to the same names any Tailwind build uses: theme variables
-(`--color-text`, `--spacing`, `--radius-md`) and utility classes (`p-4`, `text-text`). Next to an
-app's own Tailwind the two themes overwrite each other, and the app's markup inside a component's
-slot picks up this package's theme. `scoped.css` is `components.css` rewritten so it shares nothing
-with the page:
+### Overriding a component's classes
 
-```ts
-// In the setup() of a wrapper, or of the app root.
-import { provideEldraScope } from '@eldrajs/ui';
-provideEldraScope('studio'); // the name is yours; 'default' when left out
+The components' styles sit in `@layer components`, below Tailwind's `@layer utilities`, and both
+`style.css` and `components.css` declare the standard order (`properties, theme, base, components,
+utilities`), so it holds whichever stylesheet loads first. A class you put on a component, with
+`class` or a part of `classes`, is not prefixed: `tailwind-merge` drops the component's own class
+it conflicts with, and for anything left (a state variant, a custom utility) it wins by layer,
+whatever its specificity.
+
+```vue
+<Button class="px-8">Checkout</Button>
+<!-- renders class="eldra:control-h … px-8": eldra:px-4.5 is gone -->
 ```
 
-```css
-@import '@eldrajs/ui/scoped.css';
+- It wins in every state: a plain `bg-red-600` on a `Button` replaces its hover and active fills
+  too, because a utilities-layer rule beats any components-layer one. Write the states you want
+  (`bg-red-600 hover:bg-red-700`).
+- Your app's own Tailwind must generate the class (it is in your source, so it does). Without a
+  Tailwind of your own, any CSS of yours that is unlayered or in a layer declared after
+  `components` wins the same way.
+- The public `cx` and `partClass` exports are unprefixed, for an app's own markup and wrappers.
 
-/* Re-theme through the --eldra-* variables, on the scope: */
+### The `data-eldra-ui` marker
+
+Every component's outermost element carries `data-eldra-ui`, and so does every element a component
+renders outside it: a `Select` or `MultiSelect` panel, a `SearchBar` results panel, a `Popover`
+panel, a `Tooltip` bubble and the `Toaster` region, each teleported out of its component.
+`components.css`'s reset reaches exactly those elements and the `data-part` elements inside them,
+`:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero specificity. `data-part` alone is
+not enough, because it is not this package's name: a site's own `<h2 data-part="title">`, or any
+Ark UI or Zag component (which put `data-part` on every element they render), keeps the browser's
+defaults. The attribute is public and stable, so a site can use it as a hook too
+(`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global link rule out of the
+components). One case stays inside the scope: an element carrying its own `data-part` that the site
+passes into a component's slot (an Ark UI widget inside a `Dialog`, say) is a `data-part` element
+inside a marked root, so it gets the reset as well.
+
+A site's **unlayered** element rules beat the package's layered ones regardless of specificity: a
+global `a { color: … }` or `button { font: … }` restyles those elements inside the components too.
+Scope such rules (`.prose a`) or put them in a layer.
+
+### Theming a subtree
+
+`provideEldraScope(name)`, called in the `setup()` of a wrapper or an app root, makes every
+component below it render `data-eldra-scope="<name>"` on its root and on every part it teleports
+(panels, bubbles, dialogs, toasts), so the `--eldra-*` variables can be set for those components
+alone, teleported parts included:
+
+```css
 [data-eldra-scope='studio'] {
   --eldra-color-primary: #0b5cad;
 }
 ```
 
-- **Names.** Every theme variable is renamed into `--eldra-tw-*` (`--color-text` is
-  `--eldra-tw-color-text`) and every keyframes into `eldra-*`; `--eldra-*` and `--tw-*` keep
-  theirs. The page's own `--color-text` and `--spacing` are neither read nor overwritten.
-- **Scope.** Every component below `provideEldraScope` renders `data-eldra-scope="<name>"` on its
-  root and on every part it teleports (panels, bubbles, dialogs, toasts), and every rule in
-  `scoped.css` matches only inside `[data-eldra-scope]`. A page's own components of this package
-  (unscoped, on `components.css` or `style.css`) are never matched, and the token defaults sit on
-  the outermost scope root, not on `:root`, so neither side re-themes the other.
-- **Slots.** Every element holding slot content you passed in carries `data-eldra-slot` (a
-  `Button`'s label, a `Dialog`'s title, body and footer, a `Popover` panel, a `Popover` or
-  `Tooltip` root holding your trigger, a `Chip` label, a select option…), and the scope ends at its children: your markup there is styled by your own
-  CSS only, so a `class="text-text"` in a button label is your `text-text`. The package's own
-  elements beside your content carry `data-eldra-scope` and stay styled. The attribute renders
-  whenever the slot has content, with or without a provider, and never for a fallback.
-- **Cascade.** The file is unlayered, so it beats your layered preflight and utilities on the
-  components' own elements; your classes on a component still win through `classes`/`class`, which
-  `tailwind-merge` puts in place of the component's own. Your **unlayered** global rules still
-  reach the components' elements, as with the other entries.
-- **Limits.** A class of yours that has the same name as one of this package's (`p-4`) and is set
-  on a component's own element through `classes` resolves to this package's definition. Layout
-  rules a component gives its direct children (`ButtonGroup`'s joined corners, `FormLayout`'s
-  full-width and first-link actions) reach a child that is one of this package's components, not
-  an element of yours. It needs CSS `@scope`: Chrome 118 and Safari 17.4 or newer, and a Firefox that ships it.
-
-`scripts/scoped-css.mjs` is the transform; `src/styles/__tests__/componentsCss.browser.spec.ts`
-draws every component family, the overlays open, under `scoped.css` beside a Tailwind build whose
-theme disagrees on every shared name, and requires the same pixels as `style.css` alone.
+Every element holding slot content you passed in also carries `data-eldra-slot` (a `Button`'s
+label, a `Dialog`'s title, body and footer, a `Popover` panel…), whenever the slot has content and
+never for a fallback, as a hook for your own CSS.
 
 ## Fonts
 
@@ -3589,7 +3580,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   (2026-09-27). The component used to build interpolated arbitrary-property classes
   (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/`@content:` steps), and Tailwind has no
   runtime: it scans source _text_ for class names, and an interpolated value is never in that text.
-  A consumer's build (`@import '@eldrajs/ui/tailwind.css'`, whose `@source './'` scans `dist/*.js`)
+  A consumer's build (which then compiled the components from `dist/*.js`; they ship prebuilt now)
   therefore emitted no rule for any of the three, `eldra-carousel-slide`'s width formula fell back
   to its own `1`, and every carousel rendered one full-width slide — the starter's testimonials,
   product row, `split-carousel` hero and `carousel` gallery all at once. The package's own Storybook

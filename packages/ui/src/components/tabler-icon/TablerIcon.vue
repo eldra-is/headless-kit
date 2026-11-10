@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onServerPrefetch, shallowRef, useTemplateRef, watch } from 'vue';
-import { partClass } from '../../utils/cx';
+import { partClass } from '../../utils/kitClass';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from '../icon/sizes';
 import { cachedTablerIcon, loadTablerIcon, warnTablerIconOnce } from './registry';
 import { tablerIconName } from './tablerIconName';
@@ -72,7 +72,7 @@ const svgAttrs = computed(() => ({
   ...(iconName.value?.endsWith('Filled')
     ? FILLED
     : { ...OUTLINE, 'stroke-width': props.strokeWidth }),
-  class: partClass(`${ICON_SIZE_CLASS[props.size]} shrink-0`, props.classes, 'root'),
+  class: partClass(`${ICON_SIZE_CLASS[props.size]} eldra:shrink-0`, props.classes, 'root'),
   'aria-hidden': props.label === undefined ? true : undefined,
   role: props.label === undefined ? undefined : 'img',
   'aria-label': props.label,

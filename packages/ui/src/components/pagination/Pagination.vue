@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { PaginationProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -122,14 +122,14 @@ const pageWindow = computed(() =>
   buildWindow(props.page, props.totalPages, props.siblings, props.fixedLength)
 );
 
-const rootClass = computed(() => partClass('@container', props.classes, 'root'));
+const rootClass = computed(() => partClass('eldra:@container', props.classes, 'root'));
 
 /** Spec "Pagination" → Variants, Numbered: "Centred, wraps." Sizes: "Gap between items 0.25rem." */
 const numberedListClass = computed(() =>
   partClass(
     cx(
-      props.responsive ? 'hidden @tablet:flex' : 'flex',
-      'flex-wrap items-center justify-center gap-1'
+      props.responsive ? 'eldra:hidden eldra:@tablet:flex' : 'eldra:flex',
+      'eldra:flex-wrap eldra:items-center eldra:justify-center eldra:gap-1'
     ),
     props.classes,
     'list'
@@ -145,7 +145,10 @@ const showNumbered = computed(() => !props.compact);
  *  when `compact` is set, in which case the numbered list above is never rendered at all. */
 const compactListClass = computed(() =>
   partClass(
-    cx('flex items-center justify-center gap-2', !props.compact && '@tablet:hidden'),
+    cx(
+      'eldra:flex eldra:items-center eldra:justify-center eldra:gap-2',
+      !props.compact && 'eldra:@tablet:hidden'
+    ),
     props.classes,
     'list'
   )
@@ -161,9 +164,9 @@ const itemClass = computed(() => partClass('', props.classes, 'item'));
 const pageClass = computed(() =>
   partClass(
     cx(
-      'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-medium',
-      'tabular-nums text-text cursor-pointer eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
+      'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium',
+      'eldra:tabular-nums eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
     ),
     props.classes,
     'page'
@@ -175,8 +178,8 @@ const pageClass = computed(() =>
  *  assistive tech. */
 const currentClass = computed(() =>
   partClass(
-    'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-semibold ' +
-      'tabular-nums bg-primary text-primary-contrast cursor-pointer eldra-focus',
+    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
+      'eldra:tabular-nums eldra:bg-primary eldra:text-primary-contrast eldra:cursor-pointer eldra:eldra-focus',
     props.classes,
     'current'
   )
@@ -189,8 +192,8 @@ const currentClass = computed(() =>
  */
 const pageDisabledClass = computed(() =>
   partClass(
-    'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-medium ' +
-      'tabular-nums text-muted/60 pointer-events-none',
+    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium ' +
+      'eldra:tabular-nums eldra:text-muted/60 eldra:pointer-events-none',
     props.classes,
     'page'
   )
@@ -198,8 +201,8 @@ const pageDisabledClass = computed(() =>
 
 const currentDisabledClass = computed(() =>
   partClass(
-    'inline-flex min-w-10 min-h-10 items-center justify-center rounded-md px-2 font-semibold ' +
-      'tabular-nums bg-surface-strong text-muted pointer-events-none',
+    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
+      'eldra:tabular-nums eldra:bg-surface-strong eldra:text-muted eldra:pointer-events-none',
     props.classes,
     'current'
   )
@@ -208,7 +211,11 @@ const currentDisabledClass = computed(() =>
 /** Spec → Sizes: "Gap ('…'): min-width 2rem, centred." `min-w-8` is the 2rem the spec gives (8 ×
  *  the shared spacing unit). */
 const ellipsisClass = computed(() =>
-  partClass('inline-flex min-w-8 items-center justify-center text-muted', props.classes, 'ellipsis')
+  partClass(
+    'eldra:inline-flex eldra:min-w-8 eldra:items-center eldra:justify-center eldra:text-muted',
+    props.classes,
+    'ellipsis'
+  )
 );
 
 /** Spec → Sizes: "Previous / next: 2.5rem tall, padding 0 0.75rem, gap 0.25rem, 1rem chevron." The
@@ -216,35 +223,36 @@ const ellipsisClass = computed(() =>
  *  number. */
 const prevNextClass = computed(() =>
   cx(
-    'inline-flex control-h items-center gap-1 rounded-md px-3 font-medium text-text cursor-pointer',
-    'eldra-focus',
-    'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
+    'eldra:inline-flex eldra:control-h eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:font-medium eldra:text-text eldra:cursor-pointer',
+    'eldra:eldra-focus',
+    'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
   )
 );
 
 /** Spec → States, "Disabled previous / next": "`muted` at 60% opacity, not a link, no pointer
  *  events." `text-muted/60` is Tailwind's own opacity modifier over the shared `muted` token. */
 const prevNextDisabledClass =
-  'inline-flex control-h items-center gap-1 rounded-md px-3 font-medium text-muted/60 pointer-events-none';
+  'eldra:inline-flex eldra:control-h eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:font-medium eldra:text-muted/60 eldra:pointer-events-none';
 
 /** Spec → Sizes: "Compact arrows: 2.75rem square outline icon buttons." `target-touch` is the
  *  shared 2.75rem token/utility (also the minimum touch target elsewhere in this package). */
 const compactArrowClass = computed(() =>
   cx(
-    'inline-flex target-touch shrink-0 items-center justify-center rounded-md border',
-    'border-border-strong bg-background text-text cursor-pointer eldra-focus',
-    'hover:border-text hover:bg-surface'
+    'eldra:inline-flex eldra:target-touch eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md eldra:border',
+    'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
+    'eldra:hover:border-text eldra:hover:bg-surface'
   )
 );
 
 const compactArrowDisabledClass =
-  'inline-flex target-touch shrink-0 items-center justify-center rounded-md border ' +
-  'border-transparent text-muted/60 pointer-events-none';
+  'eldra:inline-flex eldra:target-touch eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md eldra:border ' +
+  'eldra:border-transparent eldra:text-muted/60 eldra:pointer-events-none';
 
 /** Spec → Sizes: "Compact status: 0.9375rem, padding 0 0.75rem, tabular numbers, no wrap." Reuses
  *  the shared `text-control` type style (also 0.9375rem, the form controls' own font size) rather
  *  than a new per-component variable for the identical number. */
-const compactStatusClass = 'text-control text-muted tabular-nums whitespace-nowrap px-3';
+const compactStatusClass =
+  'eldra:text-control eldra:text-muted eldra:tabular-nums eldra:whitespace-nowrap eldra:px-3';
 
 /**
  * Spec → States: "numbers `text` weight 600" inside the compact status sentence ("Page **2** of
@@ -285,7 +293,7 @@ const compactStatusParts = computed(() =>
           aria-disabled="true"
         >
           <svg
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -309,7 +317,7 @@ const compactStatusParts = computed(() =>
           @click="onActivate(page - 1)"
         >
           <svg
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -369,7 +377,7 @@ const compactStatusParts = computed(() =>
         >
           <span>{{ m.nextPage }}</span>
           <svg
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -393,7 +401,7 @@ const compactStatusParts = computed(() =>
         >
           <span>{{ m.nextPage }}</span>
           <svg
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -417,7 +425,7 @@ const compactStatusParts = computed(() =>
         aria-disabled="true"
       >
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -441,7 +449,7 @@ const compactStatusParts = computed(() =>
         @click="onActivate(page - 1)"
       >
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -469,7 +477,7 @@ const compactStatusParts = computed(() =>
         aria-disabled="true"
       >
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -493,7 +501,7 @@ const compactStatusParts = computed(() =>
         @click="onActivate(page + 1)"
       >
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

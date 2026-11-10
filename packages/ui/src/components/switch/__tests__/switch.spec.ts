@@ -175,20 +175,20 @@ describe('Switch — sizes', () => {
     const track = wrapper.find('[data-part="track"]').element.className;
     const thumb = wrapper.find('[data-part="thumb"]').element.className;
     if (size === 'md') {
-      expect(track).toContain('w-11');
-      expect(track).toContain('h-6');
-      expect(thumb).toContain('size-4');
+      expect(track).toContain('eldra:w-11');
+      expect(track).toContain('eldra:h-6');
+      expect(thumb).toContain('eldra:size-4');
     } else {
-      expect(track).toContain('w-9');
-      expect(track).toContain('h-5');
-      expect(thumb).toContain('size-3');
+      expect(track).toContain('eldra:w-9');
+      expect(track).toContain('eldra:h-5');
+      expect(thumb).toContain('eldra:size-3');
     }
     wrapper.unmount();
   });
 
   it('defaults to md', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'In stock only' } });
-    expect(wrapper.find('[data-part="track"]').element.className).toContain('w-11');
+    expect(wrapper.find('[data-part="track"]').element.className).toContain('eldra:w-11');
     wrapper.unmount();
   });
 });
@@ -201,9 +201,9 @@ describe('Switch — states', () => {
     });
     const track = wrapper.find('[data-part="track"]').element.className;
     const thumb = wrapper.find('[data-part="thumb"]').element.className;
-    expect(track).toContain('bg-background');
-    expect(track).toContain('border-border-strong');
-    expect(thumb).toContain('bg-border-strong');
+    expect(track).toContain('eldra:bg-background');
+    expect(track).toContain('eldra:border-border-strong');
+    expect(thumb).toContain('eldra:bg-border-strong');
     expect(wrapper.find('[data-part="thumb"] svg').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -215,11 +215,11 @@ describe('Switch — states', () => {
     });
     const track = wrapper.find('[data-part="track"]').element.className;
     const thumb = wrapper.find('[data-part="thumb"]').element.className;
-    expect(track).toContain('bg-primary');
-    expect(track).toContain('border-primary');
-    expect(thumb).toContain('bg-primary-contrast');
-    expect(thumb).toContain('text-primary');
-    expect(thumb).toContain('translate-x-5');
+    expect(track).toContain('eldra:bg-primary');
+    expect(track).toContain('eldra:border-primary');
+    expect(thumb).toContain('eldra:bg-primary-contrast');
+    expect(thumb).toContain('eldra:text-primary');
+    expect(thumb).toContain('eldra:translate-x-5');
     expect(wrapper.find('[data-part="thumb"] svg').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -233,10 +233,10 @@ describe('Switch — states', () => {
     const track = wrapper.find('[data-part="track"]').element.className;
     const label = wrapper.find('[data-part="label"]').element.className;
     expect(btn.disabled).toBe(true);
-    expect(track).toContain('bg-surface-strong');
-    expect(track).toContain('border-dashed');
-    expect(label).toContain('text-muted');
-    expect(btn.className).toContain('cursor-not-allowed');
+    expect(track).toContain('eldra:bg-surface-strong');
+    expect(track).toContain('eldra:border-dashed');
+    expect(label).toContain('eldra:text-muted');
+    expect(btn.className).toContain('eldra:cursor-not-allowed');
     wrapper.unmount();
   });
 
@@ -247,9 +247,9 @@ describe('Switch — states', () => {
     });
     const track = wrapper.find('[data-part="track"]').element.className;
     const thumb = wrapper.find('[data-part="thumb"]').element.className;
-    expect(track).toContain('bg-muted');
-    expect(track).not.toContain('border-dashed');
-    expect(thumb).toContain('bg-primary-contrast');
+    expect(track).toContain('eldra:bg-muted');
+    expect(track).not.toContain('eldra:border-dashed');
+    expect(thumb).toContain('eldra:bg-primary-contrast');
     expect(wrapper.find('[data-part="thumb"] svg').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -269,26 +269,26 @@ describe('Switch — focus ring and motion', () => {
   it('carries the standard focus ring on the root, at the spec radius-sm corner', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     const cls = root(wrapper).className;
-    expect(cls).toContain('eldra-focus');
-    expect(cls).toContain('rounded-sm');
+    expect(cls).toContain('eldra:eldra-focus');
+    expect(cls).toContain('eldra:rounded-sm');
     wrapper.unmount();
   });
 
   it('the thumb transitions only translate, with a reduced-motion fallback', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     const cls = wrapper.find('[data-part="thumb"]').element.className;
-    expect(cls).toContain('transition-[translate]');
-    expect(cls).toContain('duration-fast');
-    expect(cls).toContain('motion-reduce:transition-none');
+    expect(cls).toContain('eldra:transition-[translate]');
+    expect(cls).toContain('eldra:duration-fast');
+    expect(cls).toContain('eldra:motion-reduce:transition-none');
     wrapper.unmount();
   });
 
   it('the track fills over duration-fast too, with a reduced-motion fallback', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     const cls = wrapper.find('[data-part="track"]').element.className;
-    expect(cls).toContain('transition-colors');
-    expect(cls).toContain('duration-fast');
-    expect(cls).toContain('motion-reduce:transition-none');
+    expect(cls).toContain('eldra:transition-colors');
+    expect(cls).toContain('eldra:duration-fast');
+    expect(cls).toContain('eldra:motion-reduce:transition-none');
     wrapper.unmount();
   });
 });
@@ -460,7 +460,7 @@ describe('Switch — inside a real FieldWrapper', () => {
 describe('Switch — content and layout', () => {
   it('is at least 1.5rem tall (target-min)', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
-    expect(root(wrapper).className).toContain('target-min');
+    expect(root(wrapper).className).toContain('eldra:target-min');
     wrapper.unmount();
   });
 
@@ -533,7 +533,7 @@ describe('Switch — thumb and track slots', () => {
     expect(wrapper.find('[data-part="trackStart"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="trackEnd"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="thumb"] svg path').exists()).toBe(true);
-    expect(wrapper.find('[data-part="thumb"]').classes()).not.toContain('text-background');
+    expect(wrapper.find('[data-part="thumb"]').classes()).not.toContain('eldra:text-background');
     wrapper.unmount();
   });
 
@@ -547,7 +547,7 @@ describe('Switch — thumb and track slots', () => {
     });
     const thumb = () => wrapper.get('[data-part="thumb"]');
     expect(thumb().get('i').attributes('data-checked')).toBe('false');
-    expect(thumb().classes()).toContain('text-background');
+    expect(thumb().classes()).toContain('eldra:text-background');
     await wrapper.setProps({ modelValue: true, disabled: true });
     expect(thumb().get('i').attributes('data-checked')).toBe('true');
     expect(thumb().get('i').attributes('data-disabled')).toBe('true');
@@ -565,12 +565,12 @@ describe('Switch — thumb and track slots', () => {
       });
       const start = wrapper.get('[data-part="trackStart"]');
       const end = wrapper.get('[data-part="trackEnd"]');
-      const thumbSize = size === 'md' ? 'size-4' : 'size-3';
-      const travel = size === 'md' ? 'translate-x-5' : 'translate-x-4';
+      const thumbSize = size === 'md' ? 'eldra:size-4' : 'eldra:size-3';
+      const travel = size === 'md' ? 'eldra:translate-x-5' : 'eldra:translate-x-4';
       for (const box of [start, end]) {
         expect(box.attributes('aria-hidden')).toBe('true');
         expect(box.classes()).toEqual(
-          expect.arrayContaining(['absolute', 'eldra-switch-thumb-offset', thumbSize])
+          expect.arrayContaining(['eldra:absolute', 'eldra:eldra-switch-thumb-offset', thumbSize])
         );
         expect(box.find('[data-test="sun"]').exists()).toBe(true);
       }
@@ -593,11 +593,11 @@ describe('Switch — thumb and track slots', () => {
       slots: { default: 'Dark mode', trackStart: SUN },
     });
     const start = () => wrapper.get('[data-part="trackStart"]');
-    expect(start().classes()).toContain('text-muted');
+    expect(start().classes()).toContain('eldra:text-muted');
     await wrapper.setProps({ modelValue: true });
-    expect(start().classes()).toContain('text-primary-contrast');
+    expect(start().classes()).toContain('eldra:text-primary-contrast');
     await wrapper.setProps({ disabled: true });
-    expect(start().classes()).toContain('text-muted');
+    expect(start().classes()).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 

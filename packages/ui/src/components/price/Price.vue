@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import {
@@ -53,7 +53,7 @@ const isRevalidating = computed(() => props.revalidating && !props.loading);
  * gone, which on a price is exactly the thing not to do. See `src/utils/valueFade.ts` for the
  * rest — why one element rather than a keyed `<Transition>`, and how reduced motion is answered.
  */
-const dim = computed(() => (isRevalidating.value ? 'eldra-revalidating' : ''));
+const dim = computed(() => (isRevalidating.value ? 'eldra:eldra-revalidating' : ''));
 
 const ambientLocale = useEldraUiLocale();
 const ambientCurrency = useEldraUiCurrency();
@@ -220,27 +220,22 @@ const fromLabel = computed(() => props.labels?.from ?? messages.value.from);
  * "inherits parent (1rem by default)") — see `text-price-sm`/`text-price-lg` in `tailwind.css`.
  */
 const SIZE_CLASS: Record<PriceSize, string> = {
-  sm: 'text-price-sm',
+  sm: 'eldra:text-price-sm',
   md: '',
-  lg: 'text-price-lg',
+  lg: 'eldra:text-price-lg',
 };
 
 /**
  * Spec "Section" → "Colour switching on primary and accent sections": "Price … (outside cards)
- * inherit `primary-contrast`/`accent-contrast`; sale colour dropped." The same
- * `group-data-[section=…]/section:` mechanism `Button` and `Link` already use — a coloured
- * `Section` (a later task) renders `class="group/section" data-section="primary|accent"`, and a
- * `Card` between it and a `Price` shadows the named group with its own unprefixed `group/section`
- * (no `data-section`), which is what keeps a card's own price on the card's normal colours per the
- * same rule ("Cards … keep their own `background` fill and normal colours"). These utilities are
+ * inherit `primary-contrast`/`accent-contrast`; sale colour dropped." The same `section-primary:` /
+ * `section-accent:` variants `Button` and `Link` use: they match below any element with
+ * `data-section="primary|accent"` (a coloured `Section`, or an app's own). These utilities are
  * layered on top of every part's own colour class rather than replacing it, so on an ordinary
- * section they do nothing at all; only a `Section` ancestor with a matching `data-section` turns
- * them on, in which case they win in the generated stylesheet regardless of source order the same
- * way `Link`'s `SECTION` constant already does.
+ * section they do nothing at all, and on a coloured one they win over it, as `Link`'s `SECTION`
+ * constant does.
  */
 const SECTION =
-  'group-data-[section=primary]/section:text-primary-contrast ' +
-  'group-data-[section=accent]/section:text-accent-contrast';
+  'eldra:section-primary:text-primary-contrast ' + 'eldra:section-accent:text-accent-contrast';
 
 /**
  * `w-full` applies only while `loading`. The skeleton below is `w-[35%]`, and a percentage width
@@ -254,8 +249,8 @@ const SECTION =
 const rootClass = computed(() =>
   partClass(
     cx(
-      'inline-flex flex-wrap items-baseline gap-x-2 gap-y-0',
-      props.loading && 'w-full',
+      'eldra:inline-flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-2 eldra:gap-y-0',
+      props.loading && 'eldra:w-full',
       SIZE_CLASS[props.size]
     ),
     props.classes,
@@ -266,7 +261,12 @@ const rootClass = computed(() =>
 /** Spec "Price" → States: Regular current is `text`; Sale current is `accent`. */
 const currentClass = computed(() =>
   partClass(
-    cx('text-price-current', isSale.value ? 'text-accent' : 'text-text', SECTION, dim.value),
+    cx(
+      'eldra:text-price-current',
+      isSale.value ? 'eldra:text-accent' : 'eldra:text-text',
+      SECTION,
+      dim.value
+    ),
     props.classes,
     'current'
   )
@@ -275,7 +275,11 @@ const currentClass = computed(() =>
 /** Spec "Price" → Anatomy, part 3: a real `<s>`, `muted`, struck through at 1px. */
 const compareAtClass = computed(() =>
   partClass(
-    cx('text-price-secondary text-muted line-through decoration-1', SECTION, dim.value),
+    cx(
+      'eldra:text-price-secondary eldra:text-muted eldra:line-through eldra:decoration-1',
+      SECTION,
+      dim.value
+    ),
     props.classes,
     'compareAt'
   )
@@ -283,14 +287,22 @@ const compareAtClass = computed(() =>
 
 /** Spec "Price" → States, "From / unit" row: label `muted`. */
 const fromClass = computed(() =>
-  partClass(cx('text-price-secondary text-muted', SECTION, dim.value), props.classes, 'from')
+  partClass(
+    cx('eldra:text-price-secondary eldra:text-muted', SECTION, dim.value),
+    props.classes,
+    'from'
+  )
 );
 
 const unitClass = computed(() =>
-  partClass(cx('text-price-unit text-muted basis-full', SECTION, dim.value), props.classes, 'unit')
+  partClass(
+    cx('eldra:text-price-unit eldra:text-muted eldra:basis-full', SECTION, dim.value),
+    props.classes,
+    'unit'
+  )
 );
 
-const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'srText'));
 
 /**
  * The two elements the fade plays on: an inner span per money value (`ValueText`), carrying
@@ -315,7 +327,7 @@ const compareAtValueClass = computed(() => partClass('', props.classes, 'compare
  */
 const skeletonClass = computed(() =>
   partClass(
-    'eldra-skeleton inline-block align-middle rounded-sm h-[0.85em] w-[35%]',
+    'eldra:eldra-skeleton eldra:inline-block eldra:align-middle eldra:rounded-sm eldra:h-[0.85em] eldra:w-[35%]',
     props.classes,
     'skeleton'
   )
@@ -343,7 +355,7 @@ const skeletonClass = computed(() =>
  */
 const spinnerClass = computed(() =>
   partClass(
-    'pointer-events-none relative -ms-2 flex h-[1em] w-0 shrink-0 self-center text-muted',
+    'eldra:pointer-events-none eldra:relative eldra:-ms-2 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:self-center eldra:text-muted',
     props.classes,
     'spinner'
   )
@@ -366,7 +378,7 @@ const spinnerClass = computed(() =>
  * separately. `aria-busy` and the visual state are unaffected — the value is still marked busy,
  * the caller has simply taken over the sentence.
  */
-const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
+const srStatusClass = computed(() => partClass('eldra:sr-only', props.classes, 'srStatus'));
 const srStatusText = computed(() => (isRevalidating.value ? messages.value.updatingPrice : ''));
 </script>
 
@@ -410,7 +422,7 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
             :class="compareAtValueClass"
             :text="formattedCompareAt" /></s></template
       ><span v-if="isRevalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true"
-        ><Spinner class="absolute start-[0.25em] top-0 size-[1em]" /></span
+        ><Spinner class="eldra:absolute eldra:start-[0.25em] eldra:top-0 eldra:size-[1em]" /></span
       ><template v-if="unitPrice"
         >{{ ' ' }}<span data-part="unit" :class="unitClass">{{ formattedUnitLine }}</span></template
       >

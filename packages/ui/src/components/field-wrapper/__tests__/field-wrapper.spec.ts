@@ -94,7 +94,7 @@ describe('FieldWrapper — parts', () => {
       slots: { default: CONTROL },
       global: inLayout('two'),
     });
-    expect(wrapper.classes()).toContain('content-start');
+    expect(wrapper.classes()).toContain('eldra:content-start');
     wrapper.unmount();
   });
 
@@ -104,7 +104,7 @@ describe('FieldWrapper — parts', () => {
       slots: { default: CONTROL },
     });
     expect(wrapper.classes()).toContain('gap-6');
-    expect(wrapper.classes()).not.toContain('gap-1');
+    expect(wrapper.classes()).not.toContain('eldra:gap-1');
     wrapper.unmount();
   });
 });
@@ -229,8 +229,8 @@ describe('FieldWrapper — help, error and describedBy', () => {
       props: { label: 'Phone', error: 'Enter at least 10 digits.' },
       slots: { default: CONTROL },
     });
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('text-text');
-    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('text-danger');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:text-text');
+    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('eldra:text-danger');
     wrapper.unmount();
   });
 
@@ -264,8 +264,8 @@ describe('FieldWrapper — counter', () => {
     });
     const counter = wrapper.find('[data-part="counter"]');
     expect(counter.text()).toBe('2 / 3');
-    expect(counter.classes()).toContain('text-muted');
-    expect(counter.classes()).toContain('font-normal');
+    expect(counter.classes()).toContain('eldra:text-muted');
+    expect(counter.classes()).toContain('eldra:font-normal');
     wrapper.unmount();
   });
 
@@ -284,8 +284,8 @@ describe('FieldWrapper — counter', () => {
       slots: { default: CONTROL },
     });
     const counter = wrapper.find('[data-part="counter"]');
-    expect(counter.classes()).toContain('text-danger');
-    expect(counter.classes()).toContain('font-semibold');
+    expect(counter.classes()).toContain('eldra:text-danger');
+    expect(counter.classes()).toContain('eldra:font-semibold');
     wrapper.unmount();
   });
 
@@ -341,13 +341,19 @@ describe('FieldWrapper — the fieldset group variant', () => {
     const legend = wrapper.find('[data-part="legend"]');
     expect(legend.element.tagName).toBe('LEGEND');
     expect(legend.text()).toContain('What are you shopping for?');
-    expect(legend.classes()).toContain('text-label');
+    expect(legend.classes()).toContain('eldra:text-label');
     // The spec's fieldset variant: no border, no padding, no min-width, 0.75rem grid gap, and a
     // 0.5rem bottom margin on the legend.
     expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['grid', 'gap-3', 'border-0', 'p-0', 'min-w-0'])
+      expect.arrayContaining([
+        'eldra:grid',
+        'eldra:gap-3',
+        'eldra:border-0',
+        'eldra:p-0',
+        'eldra:min-w-0',
+      ])
     );
-    expect(legend.classes()).toContain('mb-2');
+    expect(legend.classes()).toContain('eldra:mb-2');
     // There is no single control, so there is no `<label for>` either.
     expect(wrapper.find('label[for]').exists()).toBe(false);
     wrapper.unmount();
@@ -466,8 +472,8 @@ describe('FieldWrapper — the fieldset group variant', () => {
       slots: { default: OPTIONS },
       global: inLayout('inline'),
     });
-    expect(wrapper.classes()).not.toContain('contents');
-    expect(wrapper.classes()).toContain('grid');
+    expect(wrapper.classes()).not.toContain('eldra:contents');
+    expect(wrapper.classes()).toContain('eldra:grid');
     wrapper.unmount();
   });
 
@@ -488,7 +494,7 @@ describe('FieldWrapper — full width', () => {
       slots: { default: CONTROL },
       global: inLayout('two'),
     });
-    expect(wrapper.classes()).toContain('@two-col:col-span-2');
+    expect(wrapper.classes()).toContain('eldra:@two-col:col-span-2');
     wrapper.unmount();
   });
 
@@ -499,14 +505,14 @@ describe('FieldWrapper — full width', () => {
         slots: { default: CONTROL },
         global: inLayout(layout),
       });
-      expect(wrapper.classes(), layout).not.toContain('@two-col:col-span-2');
+      expect(wrapper.classes(), layout).not.toContain('eldra:@two-col:col-span-2');
       wrapper.unmount();
     }
     const alone = mountWith(FieldWrapper, {
       props: { label: 'Address', full: true },
       slots: { default: CONTROL },
     });
-    expect(alone.classes()).not.toContain('@two-col:col-span-2');
+    expect(alone.classes()).not.toContain('eldra:@two-col:col-span-2');
     alone.unmount();
   });
 
@@ -516,7 +522,7 @@ describe('FieldWrapper — full width', () => {
       slots: { default: CONTROL },
       global: inLayout('two'),
     });
-    expect(wrapper.classes()).not.toContain('@two-col:col-span-2');
+    expect(wrapper.classes()).not.toContain('eldra:@two-col:col-span-2');
     wrapper.unmount();
   });
 });
@@ -528,10 +534,10 @@ describe('FieldWrapper — inside an inline form', () => {
       slots: { default: CONTROL },
       global: inLayout('inline'),
     });
-    expect(wrapper.classes()).toContain('contents');
-    expect(wrapper.classes()).not.toContain('grid');
+    expect(wrapper.classes()).toContain('eldra:contents');
+    expect(wrapper.classes()).not.toContain('eldra:grid');
     const group = wrapper.find('[data-part="label"]').element.parentElement as HTMLElement;
-    expect(group.className).toContain('flex-[1_1_14rem]');
+    expect(group.className).toContain('eldra:flex-[1_1_14rem]');
     expect(wrapper.find('[data-part="control"]').element.parentElement).toBe(group);
     wrapper.unmount();
   });
@@ -544,8 +550,8 @@ describe('FieldWrapper — inside an inline form', () => {
     });
     for (const part of ['error', 'foot']) {
       const classes = wrapper.find(`[data-part="${part}"]`).classes();
-      expect(classes, part).toContain('basis-full');
-      expect(classes, part).toContain('order-1');
+      expect(classes, part).toContain('eldra:basis-full');
+      expect(classes, part).toContain('eldra:order-1');
     }
     wrapper.unmount();
   });
@@ -557,8 +563,8 @@ describe('FieldWrapper — inside an inline form', () => {
         slots: { default: CONTROL },
         global: inLayout(layout),
       });
-      expect(wrapper.classes(), layout).toContain('grid');
-      expect(wrapper.classes(), layout).not.toContain('contents');
+      expect(wrapper.classes(), layout).toContain('eldra:grid');
+      expect(wrapper.classes(), layout).not.toContain('eldra:contents');
       // No grouping box at all: the label and the control are the root grid's own first two rows.
       expect(wrapper.find('[data-part="label"]').element.parentElement, layout).toBe(
         wrapper.element
@@ -566,7 +572,7 @@ describe('FieldWrapper — inside an inline form', () => {
       expect(wrapper.find('[data-part="control"]').element.parentElement, layout).toBe(
         wrapper.element
       );
-      expect(wrapper.find('[data-part="foot"]').classes(), layout).not.toContain('order-1');
+      expect(wrapper.find('[data-part="foot"]').classes(), layout).not.toContain('eldra:order-1');
       wrapper.unmount();
     }
   });
@@ -915,8 +921,8 @@ describe('FieldWrapper — counter without a limit', () => {
     });
     const counter = wrapper.find('[data-part="counter"]');
     expect(counter.text()).toBe('120');
-    expect(counter.classes()).toContain('text-muted');
-    expect(counter.classes()).not.toContain('text-danger');
+    expect(counter.classes()).toContain('eldra:text-muted');
+    expect(counter.classes()).not.toContain('eldra:text-danger');
     expect(wrapper.find('input').attributes('aria-describedby')).toBe(counter.attributes('id'));
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();

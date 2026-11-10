@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { TABS_KEY, type TabsContext, type TabsEntry } from './context';
 import Tab from './Tab.vue';
@@ -108,7 +108,7 @@ provide(TABS_KEY, context);
 /** `min-w-0` is the usual flex/grid fix (see `RadioGroup`'s own root): without it, a `Tabs` inside
  *  a flex row never shrinks below its content's natural width, and the list's own `overflow-x-auto`
  *  (below) never gets a chance to engage. */
-const rootClass = computed(() => partClass('min-w-0', props.classes, 'root'));
+const rootClass = computed(() => partClass('eldra:min-w-0', props.classes, 'root'));
 
 /**
  * The room the pills list keeps for a focused tab's ring, on both axes, plus the scroll padding
@@ -126,11 +126,11 @@ const rootClass = computed(() => partClass('min-w-0', props.classes, 'root'));
  * `dist/` and asserts all five of these declarations come out of it.
  */
 const PILLS_RING_RESERVE =
-  'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  '-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  'px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  '-mx-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  'scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]';
+  'eldra:py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:-mx-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]';
 
 /**
  * Spec "Tabs" → Anatomy, point 1 and → Sizes: the list "scrolls horizontally when the tabs
@@ -179,10 +179,10 @@ const PILLS_RING_RESERVE =
 const listClass = computed(() =>
   partClass(
     cx(
-      'flex items-center overflow-x-auto eldra-scrollbar-hide',
+      'eldra:flex eldra:items-center eldra:overflow-x-auto eldra:eldra-scrollbar-hide',
       props.variant === 'underline'
-        ? 'gap-1 border-b border-border'
-        : cx('gap-2', PILLS_RING_RESERVE)
+        ? 'eldra:gap-1 eldra:border-b eldra:border-border'
+        : cx('eldra:gap-2', PILLS_RING_RESERVE)
     ),
     props.classes,
     'list'

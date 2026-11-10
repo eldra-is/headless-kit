@@ -31,7 +31,7 @@ describe('Accordion — element and structure', () => {
     });
     expect(wrapper.element.tagName).toBe('DIV');
     expect(wrapper.attributes('data-part')).toBe('root');
-    expect(wrapper.classes()).toContain('border-t');
+    expect(wrapper.classes()).toContain('eldra:border-t');
     wrapper.unmount();
   });
 
@@ -42,7 +42,7 @@ describe('Accordion — element and structure', () => {
       global: { components: { AccordionItem } },
     });
     expect(wrapper.classes()).toContain('border-t-0');
-    expect(wrapper.classes()).not.toContain('border-t');
+    expect(wrapper.classes()).not.toContain('eldra:border-t');
     wrapper.unmount();
   });
 });

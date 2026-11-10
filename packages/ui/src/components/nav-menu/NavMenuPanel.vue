@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
 import type { UiMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {
@@ -66,12 +66,12 @@ function panelPartClass(base: string, name: NavMenuPanelPart): string {
 
 /** A bar entry's colour at rest, and what a link adds on hover and as the current page. */
 const BAR_ENTRY: Record<NavMenuVariant, string> = {
-  ghost: 'text-text',
-  muted: 'text-muted',
+  ghost: 'eldra:text-text',
+  muted: 'eldra:text-muted',
 };
 const BAR_LINK: Record<NavMenuVariant, string> = {
-  ghost: 'hover:bg-surface',
-  muted: 'hover:text-text aria-[current=page]:text-text',
+  ghost: 'eldra:hover:bg-surface',
+  muted: 'eldra:hover:text-text eldra:aria-[current=page]:text-text',
 };
 
 function headingId(index: number): string {
@@ -81,10 +81,10 @@ function headingId(index: number): string {
 const overviewClass = computed(() =>
   panelPartClass(
     cx(
-      'flex rounded-md text-body font-semibold eldra-focus',
+      'eldra:flex eldra:rounded-md eldra:text-body eldra:font-semibold eldra:eldra-focus',
       bar.value
-        ? cx('mb-2 px-3 py-2', BAR_ENTRY[props.variant], BAR_LINK[props.variant])
-        : 'py-2.5 text-text',
+        ? cx('eldra:mb-2 eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant], BAR_LINK[props.variant])
+        : 'eldra:py-2.5 eldra:text-text',
       CURRENT_PAGE
     ),
     'overview'
@@ -94,7 +94,9 @@ const overviewClass = computed(() =>
 const columnsClass = computed(() => {
   if (!grouped.value) return panelPartClass('', 'columns');
   return panelPartClass(
-    bar.value ? 'grid eldra-nav-menu-columns gap-6' : 'flex flex-col gap-4',
+    bar.value
+      ? 'eldra:grid eldra:eldra-nav-menu-columns eldra:gap-6'
+      : 'eldra:flex eldra:flex-col eldra:gap-4',
     'columns'
   );
 });
@@ -104,20 +106,28 @@ function groupMeta(name: string | null): NavMenuGroup | undefined {
 }
 
 const groupLinkClass = computed(() =>
-  panelPartClass(cx('rounded-sm eldra-focus hover:text-text', CURRENT_PAGE), 'groupLink')
+  panelPartClass(
+    cx('eldra:rounded-sm eldra:eldra-focus eldra:hover:text-text', CURRENT_PAGE),
+    'groupLink'
+  )
 );
 
-const groupClass = computed(() => panelPartClass('flex min-w-0 flex-col', 'group'));
+const groupClass = computed(() =>
+  panelPartClass('eldra:flex eldra:min-w-0 eldra:flex-col', 'group')
+);
 
 const groupHeadingClass = computed(() =>
-  panelPartClass(cx('pb-1 text-overline text-muted', bar.value && 'px-3'), 'groupHeading')
+  panelPartClass(
+    cx('eldra:pb-1 eldra:text-overline eldra:text-muted', bar.value && 'eldra:px-3'),
+    'groupHeading'
+  )
 );
 
 const panelListClass = computed(() =>
   panelPartClass(
     mega.value && !grouped.value
-      ? 'grid eldra-nav-menu-columns gap-x-6 gap-y-0.5'
-      : 'flex flex-col gap-0.5',
+      ? 'eldra:grid eldra:eldra-nav-menu-columns eldra:gap-x-6 eldra:gap-y-0.5'
+      : 'eldra:flex eldra:flex-col eldra:gap-0.5',
     'panelList'
   )
 );
@@ -127,9 +137,11 @@ const panelItemClass = computed(() => panelPartClass('', 'panelItem'));
 function panelLinkClass(link: NavMenuLink): string {
   return panelPartClass(
     cx(
-      'flex flex-col gap-0.5 rounded-md',
-      bar.value ? cx('px-3 py-2', BAR_ENTRY[props.variant]) : 'py-2.5 text-text',
-      hasHref(link) && 'eldra-focus',
+      'eldra:flex eldra:flex-col eldra:gap-0.5 eldra:rounded-md',
+      bar.value
+        ? cx('eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant])
+        : 'eldra:py-2.5 eldra:text-text',
+      hasHref(link) && 'eldra:eldra-focus',
       hasHref(link) && bar.value && BAR_LINK[props.variant],
       CURRENT_PAGE
     ),
@@ -138,10 +150,15 @@ function panelLinkClass(link: NavMenuLink): string {
 }
 
 const panelLabelClass = computed(() =>
-  panelPartClass('flex flex-wrap items-center gap-x-2 gap-y-1 text-body font-medium', 'panelLabel')
+  panelPartClass(
+    'eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-x-2 eldra:gap-y-1 eldra:text-body eldra:font-medium',
+    'panelLabel'
+  )
 );
 
-const descriptionClass = computed(() => panelPartClass('text-body-sm text-muted', 'description'));
+const descriptionClass = computed(() =>
+  panelPartClass('eldra:text-body-sm eldra:text-muted', 'description')
+);
 
 const badgeClasses = computed(() => {
   const badge = props.classes?.[part('badge')];

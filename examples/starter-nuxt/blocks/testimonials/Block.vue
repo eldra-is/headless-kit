@@ -35,13 +35,12 @@
  * never modelled by this block's fields, only a 1–5 average per item.
  *
  * On a `primary` section the head (heading/summary/link) and each review's stars invert through
- * `Section`'s own `group-data-[section=primary]/section:` mechanism (`Link`/`RatingStars`'s own
- * copy of it) — but the spec also says "cards stay light, with normal colours inside" for
- * `grid`/`carousel`, and that mechanism has no idea a card sits in between: it matches the
- * *nearest* `.group/section` ancestor, not by DOM distance or intervening background colour. Each
- * card is therefore marked `class="group/section"` itself, with no `data-section` — the same
- * "mark a surface by hand" tool `cta`'s own accent `banner` panel uses to *start* a new inverted
- * scope, used here in reverse to *stop* one, so a card's own `Rating`/product `Link` never read the
+ * `Section`'s own `data-section="primary"`, which `Link`/`RatingStars` read through the package's
+ * `section-primary:` variant — but the spec also says "cards stay light, with normal colours
+ * inside" for `grid`/`carousel`, and that variant has no idea a card sits in between: it stops only
+ * at a nearer element with another `data-section`. Each card is therefore marked
+ * `data-section="none"` — the same "mark a surface by hand" tool `cta`'s own accent `banner` panel
+ * uses to *start* a new inverted scope, used here in reverse to *stop* one, so a card's own `Rating`/product `Link` never read the
  * outer primary section at all. `single-large` has no such card (the review sits directly on the
  * section's own ground), so its `Rating` is deliberately left to invert normally — the one place in
  * this package's whole component set where that on-primary star/link inversion actually renders
@@ -310,7 +309,8 @@ const cardBackgroundClass = computed(() =>
         -->
         <div v-for="(item, index) in renderedItems" :key="index" class="h-full">
           <figure
-            class="group/section flex h-full flex-col gap-5 rounded-lg p-6"
+            data-section="none"
+            class="flex h-full flex-col gap-5 rounded-lg p-6"
             :class="cardBackgroundClass"
           >
             <template v-if="isEditing && isItemEmpty(item)">
@@ -362,7 +362,8 @@ const cardBackgroundClass = computed(() =>
         <figure
           v-for="(item, index) in renderedItems"
           :key="index"
-          class="group/section flex h-full flex-col gap-5 rounded-lg p-6"
+          data-section="none"
+          class="flex h-full flex-col gap-5 rounded-lg p-6"
           :class="[cardBackgroundClass, isSingleItem ? 'mx-auto w-full max-w-[36rem]' : '']"
         >
           <template v-if="isEditing && isItemEmpty(item)">

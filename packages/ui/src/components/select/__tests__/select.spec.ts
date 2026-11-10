@@ -141,8 +141,8 @@ describe('Select — anatomy and parts', () => {
     const wrapper = mount({ modelValue: 'care', placeholder: 'Choose a topic' });
     const stack = trigger(wrapper).querySelector('[data-part="value"]')!.parentElement!;
     expect(stack.getAttribute('data-placeholder')).toBe('Choose a topic');
-    expect(stack.className).toContain('after:content-[attr(data-placeholder)]');
-    expect(stack.className).toContain('after:invisible');
+    expect(stack.className).toContain('eldra:after:content-[attr(data-placeholder)]');
+    expect(stack.className).toContain('eldra:after:invisible');
     expect(trigger(wrapper).textContent).not.toContain('Choose a topic');
   });
 
@@ -214,18 +214,18 @@ describe('Select — anatomy and parts', () => {
     expect(wrapper.classes()).toContain('mt-4');
     expect(trigger(wrapper).className).toContain('text-body-lg');
     // `text-control` and the override are one merge group, so only the override survives.
-    expect(trigger(wrapper).className).not.toContain('text-control ');
+    expect(trigger(wrapper).className).not.toContain('eldra:text-control ');
 
     await press(triggerOf(wrapper));
     const option = optionEls(wrapper)[0]?.element as HTMLElement;
     expect(option.className).toContain('px-6');
-    expect(option.className).not.toContain('px-2 ');
+    expect(option.className).not.toContain('eldra:px-2 ');
     // `eldra-select-panel-height` is in Tailwind's own `max-h` group, so `max-h-64` replaces it
     // and leaves the width clamp alone.
     const panelClass = panel(wrapper).element.className;
     expect(panelClass).toContain('max-h-64');
-    expect(panelClass).not.toContain('eldra-select-panel-height');
-    expect(panelClass).toContain('eldra-select-panel-width');
+    expect(panelClass).not.toContain('eldra:eldra-select-panel-height');
+    expect(panelClass).toContain('eldra:eldra-select-panel-width');
   });
 
   it('puts fall-through attributes on the trigger, not on the root', () => {
@@ -237,12 +237,12 @@ describe('Select — anatomy and parts', () => {
 
   it('shows cursor-pointer on a live trigger, and cursor-default on a read-only one (operator report, 2026-09-25)', () => {
     const wrapper = mount();
-    expect(trigger(wrapper).className).toContain('cursor-pointer');
-    expect(trigger(wrapper).className).not.toContain('cursor-default');
+    expect(trigger(wrapper).className).toContain('eldra:cursor-pointer');
+    expect(trigger(wrapper).className).not.toContain('eldra:cursor-default');
 
     const readonly = mount({ readonly: true, modelValue: 'care' });
-    expect(trigger(readonly).className).toContain('cursor-default');
-    expect(trigger(readonly).className).not.toContain('cursor-pointer');
+    expect(trigger(readonly).className).toContain('eldra:cursor-default');
+    expect(trigger(readonly).className).not.toContain('eldra:cursor-pointer');
   });
 });
 
@@ -486,15 +486,15 @@ describe('Select — moving and choosing', () => {
     await press(triggerOf(wrapper));
     const rows = optionEls(wrapper);
     // The selected row is the active one on open, so it carries both.
-    expect(rows[2]?.classes()).toContain('eldra-select-option-active');
-    expect(rows[2]?.classes()).toContain('eldra-select-option-selected');
-    expect(rows[0]?.classes()).not.toContain('eldra-select-option-active');
-    expect(rows[0]?.classes()).not.toContain('eldra-select-option-selected');
+    expect(rows[2]?.classes()).toContain('eldra:eldra-select-option-active');
+    expect(rows[2]?.classes()).toContain('eldra:eldra-select-option-selected');
+    expect(rows[0]?.classes()).not.toContain('eldra:eldra-select-option-active');
+    expect(rows[0]?.classes()).not.toContain('eldra:eldra-select-option-selected');
 
     await rows[0]?.trigger('mouseenter');
-    expect(optionEls(wrapper)[0]?.classes()).toContain('eldra-select-option-active');
-    expect(optionEls(wrapper)[2]?.classes()).not.toContain('eldra-select-option-active');
-    expect(optionEls(wrapper)[2]?.classes()).toContain('eldra-select-option-selected');
+    expect(optionEls(wrapper)[0]?.classes()).toContain('eldra:eldra-select-option-active');
+    expect(optionEls(wrapper)[2]?.classes()).not.toContain('eldra:eldra-select-option-active');
+    expect(optionEls(wrapper)[2]?.classes()).toContain('eldra:eldra-select-option-selected');
   });
 
   it('marks the selected option with aria-selected and a check', async () => {
@@ -675,7 +675,7 @@ describe('Select — searching', () => {
     await panel(wrapper).find('[data-part="search"]').trigger('input');
     await flush();
 
-    const marks = panel(wrapper).findAll('.eldra-select-match');
+    const marks = panel(wrapper).findAll('.eldra\\:eldra-select-match');
     expect(marks.map((mark) => mark.text())).toEqual(['ic']);
     expect(panel(wrapper).find('[data-part="optionLabel"]').text()).toBe('Mexico');
   });
@@ -773,7 +773,7 @@ describe('Select — clearing', () => {
       trigger(wrapper).compareDocumentPosition(clear.element) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-    expect(clear.classes()).toContain('cursor-pointer');
+    expect(clear.classes()).toContain('eldra:cursor-pointer');
   });
 
   it('clears on click, emits clear and change, and returns focus to the trigger', async () => {
@@ -938,7 +938,7 @@ describe('Select — placement and width', () => {
   it('plays one entrance animation, growing from the corner it is anchored by', async () => {
     const below = mount();
     await press(triggerOf(below));
-    expect(panel(below).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(below).classes()).toContain('eldra:animate-eldra-popover-in');
     expect(panel(below).attributes('style')).toContain('--eldra-popover-origin: top left');
     // The slide the entrance used to carry is gone (operator decision: fade and scale only), so the
     // variable that drove it must not be written either — a panel still setting it would claim the
@@ -950,8 +950,8 @@ describe('Select — placement and width', () => {
     const above = mount({ placement: 'above' });
     await press(triggerOf(above));
     // The same class — a second `animation-name` would restart the animation when `auto` flips.
-    expect(panel(above).classes()).toContain('animate-eldra-popover-in');
-    expect(panel(above).classes()).not.toContain('animate-eldra-popover-in-above');
+    expect(panel(above).classes()).toContain('eldra:animate-eldra-popover-in');
+    expect(panel(above).classes()).not.toContain('eldra:animate-eldra-popover-in-above');
     expect(panel(above).attributes('style')).toContain('--eldra-popover-origin: bottom left');
     expect(panel(above).attributes('style')).not.toContain('--eldra-popover-slide');
   });
@@ -1142,7 +1142,7 @@ describe('Select — long content and narrow containers', () => {
       attrs: NAME,
     });
     mounted.push(wrapper as unknown as VueWrapper);
-    expect(wrapper.find('[data-part="value"] span').classes()).toContain('truncate');
+    expect(wrapper.find('[data-part="value"] span').classes()).toContain('eldra:truncate');
     await press(wrapper.find('[data-part="trigger"]'));
     expect(panel(wrapper).find('[data-part="optionHint"]').exists()).toBe(true);
     expect(panel(wrapper).find('[data-part="optionMeta"]').exists()).toBe(true);
@@ -1162,8 +1162,8 @@ describe('Select — the ring while the popover is open', () => {
     const classes = triggerOf(wrapper).classes();
     // Both: the modifier only turns the alpha on, and the ring, the transition and the
     // reduced-motion rule all live in `eldra-focus`.
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-open');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-open');
   });
 
   it('keys it to the trigger’s own aria-expanded, so nothing has to be kept in sync', async () => {
@@ -1172,7 +1172,7 @@ describe('Select — the ring while the popover is open', () => {
     await press(triggerOf(wrapper));
     expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('true');
     // The class does not change — the state does, and the CSS reads it.
-    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+    expect(triggerOf(wrapper).classes()).toContain('eldra:eldra-focus-open');
     await press(triggerOf(wrapper));
     expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('false');
   });

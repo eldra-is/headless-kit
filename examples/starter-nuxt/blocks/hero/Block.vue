@@ -7,7 +7,7 @@
  *    with the image first below that.
  *  - `image-background`: a full-bleed image behind a full `overlay` scrim, copy bottom-left. The
  *    `Section` itself takes `background="primary"` once there is an image — `@eldrajs/ui`'s own
- *    `group-data-[section=primary]/section:` mechanism is what inverts `Button` (and, via
+ *    `data-section="primary"` inversion is what inverts `Button` (and, via
  *    `Section`'s base `text-primary-contrast`, the plain copy text) onto the scrim, so nothing
  *    here hand-rolls the inversion. With no image yet (`mock.json` never seeds media — see
  *    `docs/starter-kit.md`) there is nothing to scrim, so the ground falls back to

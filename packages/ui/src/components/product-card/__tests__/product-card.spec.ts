@@ -78,7 +78,7 @@ describe('ProductCard — element and parts', () => {
 
   it('clamps the title to two lines', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.get('[data-part="title"]').classes()).toContain('line-clamp-2');
+    expect(wrapper.get('[data-part="title"]').classes()).toContain('eldra:line-clamp-2');
     wrapper.unmount();
   });
 });
@@ -95,19 +95,19 @@ describe('ProductCard — the stretched link', () => {
   it('underlines the title at rest, thickening on hover (operator decision: all links underlined)', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const link = wrapper.get('[data-part="link"]').classes();
-    expect(link).toContain('underline');
-    expect(link).not.toContain('no-underline');
-    expect(link).toContain('hover:decoration-2');
+    expect(link).toContain('eldra:underline');
+    expect(link).not.toContain('eldra:no-underline');
+    expect(link).toContain('eldra:hover:decoration-2');
     wrapper.unmount();
   });
 
   it('covers the card with an ::after pseudo-element rather than the link box alone', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const link = wrapper.get('[data-part="link"]');
-    expect(link.classes()).toContain('after:absolute');
-    expect(link.classes()).toContain('after:inset-0');
+    expect(link.classes()).toContain('eldra:after:absolute');
+    expect(link.classes()).toContain('eldra:after:inset-0');
     // Anchored to the card, not itself: the link carries no `relative` of its own.
-    expect(link.classes()).not.toContain('relative');
+    expect(link.classes()).not.toContain('eldra:relative');
     wrapper.unmount();
   });
 
@@ -120,21 +120,21 @@ describe('ProductCard — the stretched link', () => {
    */
   it('suppresses the native outline the same way ContentCard/FeatureCard do (shared stretchedLink.ts)', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.get('[data-part="link"]').classes()).toContain('outline-none');
+    expect(wrapper.get('[data-part="link"]').classes()).toContain('eldra:outline-none');
     wrapper.unmount();
   });
 
   it('draws the proxy focus ring on the root, not on the link', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.classes()).toContain('eldra-focus-proxy');
-    expect(wrapper.classes()).toContain('eldra-focus');
-    expect(wrapper.get('[data-part="link"]').classes()).not.toContain('eldra-focus-proxy');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus-proxy');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
+    expect(wrapper.get('[data-part="link"]').classes()).not.toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
   it('gives the root radius-lg corners for the ring to follow', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.classes()).toContain('rounded-lg');
+    expect(wrapper.classes()).toContain('eldra:rounded-lg');
     wrapper.unmount();
   });
 
@@ -161,8 +161,8 @@ describe('ProductCard — quick add', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const button = wrapper.get('[data-part="quickAdd"]');
     expect(button.element.tagName).toBe('BUTTON');
-    expect(button.classes()).toContain('relative');
-    expect(button.classes()).toContain('z-10');
+    expect(button.classes()).toContain('eldra:relative');
+    expect(button.classes()).toContain('eldra:z-10');
     wrapper.unmount();
   });
 
@@ -217,7 +217,7 @@ describe('ProductCard — quick add', () => {
 
   it('is at least 2.5rem tall (Button md, control-h)', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.get('[data-part="quickAdd"]').classes()).toContain('control-h');
+    expect(wrapper.get('[data-part="quickAdd"]').classes()).toContain('eldra:control-h');
     wrapper.unmount();
   });
 });
@@ -227,13 +227,13 @@ describe('ProductCard — sold out', () => {
 
   it('dims the media to 60% opacity', () => {
     const wrapper = mountWith(ProductCard, { props: { product: soldOut } });
-    expect(wrapper.get('[data-part="media"] img').classes()).toContain('opacity-60');
+    expect(wrapper.get('[data-part="media"] img').classes()).toContain('eldra:opacity-60');
     wrapper.unmount();
   });
 
   it('does not dim the media for an available product', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
-    expect(wrapper.get('[data-part="media"] img').classes()).not.toContain('opacity-60');
+    expect(wrapper.get('[data-part="media"] img').classes()).not.toContain('eldra:opacity-60');
     wrapper.unmount();
   });
 
@@ -242,7 +242,7 @@ describe('ProductCard — sold out', () => {
     const badges = wrapper.findAll('[data-part="badges"] [data-part="root"]');
     expect(badges).toHaveLength(1);
     expect(badges[0]?.text()).toBe('Sold out');
-    expect(badges[0]?.classes()).toContain('border-border-strong');
+    expect(badges[0]?.classes()).toContain('eldra:border-border-strong');
     wrapper.unmount();
   });
 
@@ -482,11 +482,11 @@ describe('ProductCard — image ratio', () => {
   it('scales the image on hover, off the card root, and drops it under reduced motion', () => {
     const wrapper = mountWith(ProductCard, { props: { product: PRODUCT } });
     const img = wrapper.get('[data-part="media"] img');
-    expect(img.classes()).toContain('group-hover:scale-[1.03]');
-    expect(img.classes()).toContain('motion-reduce:transition-none');
+    expect(img.classes()).toContain('eldra:group-hover:scale-[1.03]');
+    expect(img.classes()).toContain('eldra:motion-reduce:transition-none');
     // The hover trigger is the card root's own `:hover` (`group`), not a `group-has-*` on the
     // stretched link — see `rootClass`'s own comment.
-    expect(wrapper.classes()).toContain('group');
+    expect(wrapper.classes()).toContain('eldra:group');
   });
 });
 
@@ -593,7 +593,7 @@ describe('ProductCard — narrow container', () => {
     const wrapper = mountNarrow(ProductCard, {
       props: { product: { ...PRODUCT, title: LONG_TITLE } },
     });
-    expect(wrapper.get('[data-part="title"]').classes()).toContain('line-clamp-2');
+    expect(wrapper.get('[data-part="title"]').classes()).toContain('eldra:line-clamp-2');
     wrapper.unmount();
   });
 });

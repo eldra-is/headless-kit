@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import { chromium, type Browser, type Page } from '@playwright/test';
-import { compile } from '@tailwindcss/node';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import { compileKitCss } from '../../../test/kitCss';
 import RangeSlider from '../RangeSlider.vue';
 
 /**
@@ -46,8 +45,6 @@ import RangeSlider from '../RangeSlider.vue';
 const NARROW_WIDTH = 320;
 /** Comfortably past 48rem (768px), so the same markup takes the other branch. */
 const WIDE_WIDTH = 900;
-
-const stylesDir = fileURLToPath(new URL('../../../styles/', import.meta.url));
 
 /**
  * The real component's HTML, with the minimum thumb at the very start of the track — the position
@@ -229,7 +226,7 @@ const TOUCH = '44px';
 const MIN_TARGET = '24px';
 
 beforeAll(async () => {
-  // The package's real Tailwind entry — `@theme`, the `--eldra-*` tokens it imports, the
+  // The package's own stylesheet, compiled as `style.css` builds it — `@theme`, the `--eldra-*` tokens it imports, the
   // `eldra-focus` ring and the range slider's own utilities — compiled over exactly the classes
   // this markup uses.
   const candidates = new Set<string>();
@@ -237,11 +234,7 @@ beforeAll(async () => {
   for (const match of html.matchAll(/class="([^"]*)"/g)) {
     for (const name of match[1]!.split(/\s+/)) if (name) candidates.add(name);
   }
-  const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';\n`, {
-    base: stylesDir,
-    onDependency() {},
-  });
-  css = compiler.build([...candidates]);
+  css = await compileKitCss(candidates);
   browser = await chromium.launch();
 }, 120_000);
 

@@ -18,7 +18,7 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { cx, partClass } from '../../../utils/kitClass';
 import { swatchInk } from '../swatchInk';
 import { isValueDisabled, isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
@@ -62,7 +62,7 @@ function nameOf(value: FilterFacetValue): string {
  */
 function markClass(value: FilterFacetValue): string {
   const ink = swatchInk(value.swatch);
-  return ink === 'text' ? 'text-text' : 'text-focus-inner';
+  return ink === 'text' ? 'eldra:text-text' : 'eldra:text-focus-inner';
 }
 
 /* ------------------------------------------------------------------ classes */
@@ -77,13 +77,15 @@ function markClass(value: FilterFacetValue): string {
  * ancestor (`FilterPanel`'s root is `@container`), and that is the spec's own rule: the width of
  * the column the panel sits in, not the viewport. A 15rem sidebar therefore keeps one column.
  */
-const ROWS_BASE = 'grid min-w-0 grid-cols-1 gap-x-6 gap-y-0.5 @min-[26rem]:grid-cols-2';
+const ROWS_BASE =
+  'eldra:grid eldra:min-w-0 eldra:grid-cols-1 eldra:gap-x-6 eldra:gap-y-0.5 eldra:@min-[26rem]:grid-cols-2';
 
 /**
  * Spec → Sizes, Swatch tile row: "Grid of `repeat(auto-fill, minmax(4.25rem, 1fr))`, gaps 0.75rem
  * (rows) × 0.5rem."
  */
-const TILES_BASE = 'grid min-w-0 grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] gap-x-2 gap-y-3';
+const TILES_BASE =
+  'eldra:grid eldra:min-w-0 eldra:grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] eldra:gap-x-2 eldra:gap-y-3';
 
 /**
  * Spec → Sizes, Swatch row: "Min 2.25rem tall, padding 0.25rem 0.375rem with a −0.375rem side
@@ -93,20 +95,20 @@ const TILES_BASE = 'grid min-w-0 grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr)
  * written beside it (`src/__tests__/focus-transition.spec.ts`).
  */
 const ROW_BASE =
-  `relative flex min-h-9 min-w-0 items-center gap-2.5 rounded-sm py-1 ${FACET_SWATCH_GUTTER} ` +
-  'eldra-focus eldra-focus-proxy';
+  `eldra:relative eldra:flex eldra:min-h-9 eldra:min-w-0 eldra:items-center eldra:gap-2.5 eldra:rounded-sm eldra:py-1 ${FACET_SWATCH_GUTTER} ` +
+  'eldra:eldra-focus eldra:eldra-focus-proxy';
 
 /**
  * Spec → Sizes, Swatch tile row: "Each tile is a centred column: padding 0.375rem 0.25rem, gap
  * 0.375rem."
  */
 const TILE_BASE =
-  'relative flex min-w-0 flex-col items-center gap-1.5 rounded-sm px-1 py-1.5 ' +
-  'eldra-focus eldra-focus-proxy';
+  'eldra:relative eldra:flex eldra:min-w-0 eldra:flex-col eldra:items-center eldra:gap-1.5 eldra:rounded-sm eldra:px-1 eldra:py-1.5 ' +
+  'eldra:eldra-focus eldra:eldra-focus-proxy';
 
 /** Spec → States, "Value with 0 products (disabled)": "no hover tint". */
-const ROW_ENABLED = `cursor-pointer ${FACET_ROW_HOVER}`;
-const ROW_DISABLED = 'cursor-not-allowed';
+const ROW_ENABLED = `eldra:cursor-pointer ${FACET_ROW_HOVER}`;
+const ROW_DISABLED = 'eldra:cursor-not-allowed';
 
 /**
  * The ring shape: the 2px gap is this element's padding and the ring is a real border on it, at
@@ -115,30 +117,30 @@ const ROW_DISABLED = 'cursor-not-allowed';
  * layouts' different swatch sizes (1.5rem and 2.25rem) to one declaration each.
  */
 const RING_BASE =
-  'relative inline-flex shrink-0 rounded-full border-solid p-0.5 eldra-filter-swatch-ring';
-const RING_REST = 'border-transparent';
+  'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:rounded-full eldra:border-solid eldra:p-0.5 eldra:eldra-filter-swatch-ring';
+const RING_REST = 'eldra:border-transparent';
 /** Spec → States, "Swatch, checked": "2px `background` gap + 1.5px `text` ring". */
-const RING_SELECTED = 'border-text';
+const RING_SELECTED = 'eldra:border-text';
 
 /** Spec → Sizes: the disc itself, 1.5rem in a row and 2.25rem in a tile. */
-const SWATCH_BASE = 'block rounded-full eldra-filter-swatch-edge';
+const SWATCH_BASE = 'eldra:block eldra:rounded-full eldra:eldra-filter-swatch-edge';
 /** Spec → States, "Value with 0 products": "swatch at 45% opacity". */
-const SWATCH_DISABLED = 'opacity-45';
+const SWATCH_DISABLED = 'eldra:opacity-45';
 
 /** Spec → Sizes, Swatch row: "Check mark 0.875rem, stroke weight 3"; tile: "check mark 1.125rem". */
-const MARK_BASE = 'pointer-events-none absolute inset-0 m-auto';
+const MARK_BASE = 'eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:m-auto';
 
 /** Spec → States: the name is bold when the value is checked, `muted` when nothing is left. */
-const NAME_BASE = 'min-w-0 break-words text-control';
+const NAME_BASE = 'eldra:min-w-0 eldra:break-words eldra:text-control';
 
 /** Spec → Sizes, Swatch tile row: "name 0.8125rem, count 0.75rem", both centred. */
-const TILE_NAME_BASE = 'min-w-0 break-words text-center text-caption';
-const TILE_COUNT_BASE = 'text-center text-filter-tile-count tabular-nums';
+const TILE_NAME_BASE = 'eldra:min-w-0 eldra:break-words eldra:text-center eldra:text-caption';
+const TILE_COUNT_BASE = 'eldra:text-center eldra:text-filter-tile-count eldra:tabular-nums';
 
 /** The control, invisible but focusable, stretched over the whole row or tile. */
 const CONTROL =
-  'absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0 ' +
-  'disabled:cursor-not-allowed';
+  'eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0 ' +
+  'eldra:disabled:cursor-not-allowed';
 
 function rowClass(value: FilterFacetValue): string {
   const base = tiles.value ? TILE_BASE : ROW_BASE;
@@ -155,7 +157,11 @@ function ringClass(value: FilterFacetValue): string {
 
 function swatchClass(value: FilterFacetValue): string {
   return partClass(
-    cx(SWATCH_BASE, tiles.value ? 'size-9' : 'size-6', disabled(value) && SWATCH_DISABLED),
+    cx(
+      SWATCH_BASE,
+      tiles.value ? 'eldra:size-9' : 'eldra:size-6',
+      disabled(value) && SWATCH_DISABLED
+    ),
     props.classes,
     'swatch'
   );
@@ -163,7 +169,7 @@ function swatchClass(value: FilterFacetValue): string {
 
 function markPartClass(value: FilterFacetValue): string {
   return partClass(
-    cx(MARK_BASE, tiles.value ? 'size-4.5' : 'size-3.5', markClass(value)),
+    cx(MARK_BASE, tiles.value ? 'eldra:size-4.5' : 'eldra:size-3.5', markClass(value)),
     props.classes,
     'swatchMark'
   );
@@ -173,8 +179,8 @@ function nameClass(value: FilterFacetValue): string {
   return partClass(
     cx(
       tiles.value ? TILE_NAME_BASE : NAME_BASE,
-      selected(value) && 'font-semibold',
-      disabled(value) ? 'text-muted' : 'text-text'
+      selected(value) && 'eldra:font-semibold',
+      disabled(value) ? 'eldra:text-muted' : 'eldra:text-text'
     ),
     props.classes,
     tiles.value ? 'tileLabel' : 'rowLabel'
@@ -182,12 +188,16 @@ function nameClass(value: FilterFacetValue): string {
 }
 
 const countClass = computed(() =>
-  partClass(tiles.value ? cx(TILE_COUNT_BASE, 'text-muted') : FACET_COUNT, props.classes, 'count')
+  partClass(
+    tiles.value ? cx(TILE_COUNT_BASE, 'eldra:text-muted') : FACET_COUNT,
+    props.classes,
+    'count'
+  )
 );
 
 const strikeClass = computed(() =>
   partClass(
-    'pointer-events-none absolute inset-0 size-full text-text',
+    'eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:size-full eldra:text-text',
     props.classes,
     'swatchStrike'
   )

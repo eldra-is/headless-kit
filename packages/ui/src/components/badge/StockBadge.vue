@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
@@ -48,10 +48,10 @@ const ICON_STROKE_WIDTH = 2.25;
  * text colour set here.
  */
 const LEVEL_TEXT_CLASS: Record<StockLevel, string> = {
-  in: 'text-success',
-  low: 'text-warning',
-  out: 'text-danger',
-  preorder: 'text-muted',
+  in: 'eldra:text-success',
+  low: 'eldra:text-warning',
+  out: 'eldra:text-danger',
+  preorder: 'eldra:text-muted',
 };
 
 const defaultMessage = computed<string>(() => {
@@ -82,17 +82,20 @@ const text = computed(() => props.message ?? defaultMessage.value);
  * whenever they change, on the element that already holds the new wording, with nothing fading
  * out — see `src/utils/valueFade.ts`.
  */
-const dim = computed(() => (props.revalidating ? 'eldra-revalidating' : ''));
+const dim = computed(() => (props.revalidating ? 'eldra:eldra-revalidating' : ''));
 
 const rootClass = computed(() =>
   partClass(
-    cx('inline-flex items-center gap-1.5 text-stock-status', LEVEL_TEXT_CLASS[props.level]),
+    cx(
+      'eldra:inline-flex eldra:items-center eldra:gap-1.5 eldra:text-stock-status',
+      LEVEL_TEXT_CLASS[props.level]
+    ),
     props.classes,
     'root'
   )
 );
 const iconClass = computed(() =>
-  partClass(cx('size-4.5 shrink-0', dim.value), props.classes, 'icon')
+  partClass(cx('eldra:size-4.5 eldra:shrink-0', dim.value), props.classes, 'icon')
 );
 const labelClass = computed(() => partClass(dim.value, props.classes, 'label'));
 
@@ -110,7 +113,7 @@ const labelValueClass = computed(() => partClass('', props.classes, 'labelValue'
  */
 const spinnerClass = computed(() =>
   partClass(
-    'pointer-events-none relative -ms-1.5 flex h-[1em] w-0 shrink-0 items-center text-muted',
+    'eldra:pointer-events-none eldra:relative eldra:-ms-1.5 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:items-center eldra:text-muted',
     props.classes,
     'spinner'
   )
@@ -126,7 +129,7 @@ const spinnerClass = computed(() =>
  * false` drops it outright for a page that says it once itself (see `Price.vue`); `aria-busy` and
  * the visual state stay.
  */
-const srStatusClass = computed(() => partClass('sr-only', props.classes, 'srStatus'));
+const srStatusClass = computed(() => partClass('eldra:sr-only', props.classes, 'srStatus'));
 const srStatusText = computed(() => (props.revalidating ? messages.value.updatingStock : ''));
 </script>
 
@@ -156,7 +159,7 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
       ><ValueText data-part="labelValue" :class="labelValueClass" :text="text"
     /></span>
     <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
-      <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
+      <Spinner class="eldra:absolute eldra:start-[0.25em] eldra:top-0 eldra:size-[1em]" />
     </span>
     <span v-if="announce" data-part="srStatus" :class="srStatusClass" aria-live="polite">{{
       srStatusText

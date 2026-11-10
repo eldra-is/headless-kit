@@ -2,7 +2,7 @@
 import { computed, ref, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { VariantPickerOption, VariantPickerProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -98,7 +98,11 @@ function onChange(option: VariantPickerOption): void {
  * narrow container (the `Narrow` story) from forcing the fieldset wider than its own column.
  */
 const rootClass = computed(() =>
-  partClass(cx('block min-w-0 rounded-none border-0 p-0'), props.classes, 'root')
+  partClass(
+    cx('eldra:block eldra:min-w-0 eldra:rounded-none eldra:border-0 eldra:p-0'),
+    props.classes,
+    'root'
+  )
 );
 
 /**
@@ -110,19 +114,25 @@ const rootClass = computed(() =>
  */
 const legendClass = computed(() =>
   partClass(
-    cx('mb-3 flex w-fit items-baseline gap-2 text-variant-legend font-semibold text-text'),
+    cx(
+      'eldra:mb-3 eldra:flex eldra:w-fit eldra:items-baseline eldra:gap-2 eldra:text-variant-legend eldra:font-semibold eldra:text-text'
+    ),
     props.classes,
     'legend'
   )
 );
 
 const legendValueClass = computed(() =>
-  partClass(cx('text-variant-legend font-normal text-muted'), props.classes, 'legendValue')
+  partClass(
+    cx('eldra:text-variant-legend eldra:font-normal eldra:text-muted'),
+    props.classes,
+    'legendValue'
+  )
 );
 
 /** Spec "Variant picker" → Anatomy, point 3: "wraps, 0.5rem (`space-2`) gap." */
 const optionsClass = computed(() =>
-  partClass(cx('flex flex-wrap gap-2'), props.classes, 'options')
+  partClass(cx('eldra:flex eldra:flex-wrap eldra:gap-2'), props.classes, 'options')
 );
 
 /**
@@ -131,7 +141,7 @@ const optionsClass = computed(() =>
  * exactly as `RadioGroup`'s row does.
  */
 const optionClass = computed(() =>
-  partClass(cx('group inline-flex cursor-pointer'), props.classes, 'option')
+  partClass(cx('eldra:group eldra:inline-flex eldra:cursor-pointer'), props.classes, 'option')
 );
 
 /**
@@ -142,23 +152,25 @@ const optionClass = computed(() =>
  * rather than on the hidden input.
  */
 const PILL_BASE =
-  'relative inline-flex min-w-12 items-center justify-center control-h rounded-md px-4 ' +
-  'eldra-variant-pill-border eldra-focus eldra-focus-proxy';
+  'eldra:relative eldra:inline-flex eldra:min-w-12 eldra:items-center eldra:justify-center eldra:control-h eldra:rounded-md eldra:px-4 ' +
+  'eldra:eldra-variant-pill-border eldra:eldra-focus eldra:eldra-focus-proxy';
 
 /** Spec "Variant picker" → States, table rows "Default"/"Hover": `background` fill, 1px
  * `border-strong` at rest, 1px `text` on hover. */
-const PILL_DEFAULT = 'bg-background border-border-strong group-hover:border-text';
+const PILL_DEFAULT = 'eldra:bg-background eldra:border-border-strong eldra:group-hover:border-text';
 /** States, "Selected" row: `primary` fill and border. The fill alone already carries the state, so
  * the 1px border underneath the (invisible-against-the-fill) real border needs no colour of its
  * own beyond matching the fill. */
-const PILL_SELECTED = 'bg-primary border-primary';
+const PILL_SELECTED = 'eldra:bg-primary eldra:border-primary';
 /** States, "Sold out" row: `background` fill, 1px **dashed** `border-strong` — the diagonal line
  * itself is the separate `soldOutLine` part, drawn on top. */
-const PILL_SOLD_OUT = 'bg-background border-dashed border-border-strong group-hover:border-text';
+const PILL_SOLD_OUT =
+  'eldra:bg-background eldra:border-dashed eldra:border-border-strong eldra:group-hover:border-text';
 /** States, "Sold out + selected" row: `surface-strong` fill, **2px** solid `text`. The real border
  * and the `eldra-variant-pill-selected-line` inset line share the same `text` colour so the two
  * 1px layers read as one 2px boundary rather than two different-coloured rings. */
-const PILL_SOLD_OUT_SELECTED = 'bg-surface-strong border-text eldra-variant-pill-selected-line';
+const PILL_SOLD_OUT_SELECTED =
+  'eldra:bg-surface-strong eldra:border-text eldra:eldra-variant-pill-selected-line';
 
 function pillState(option: VariantPickerOption): string {
   const selected = isSelected(option.value);
@@ -170,8 +182,11 @@ function pillState(option: VariantPickerOption): string {
  * selected, `text` sold-out-and-selected. Same shorthand-free reasoning as the legend above. */
 function pillLabelState(option: VariantPickerOption): string {
   const selected = isSelected(option.value);
-  if (!option.available) return selected ? 'font-semibold text-text' : 'font-medium text-muted';
-  return selected ? 'font-semibold text-primary-contrast' : 'font-medium text-text';
+  if (!option.available)
+    return selected ? 'eldra:font-semibold eldra:text-text' : 'eldra:font-medium eldra:text-muted';
+  return selected
+    ? 'eldra:font-semibold eldra:text-primary-contrast'
+    : 'eldra:font-medium eldra:text-text';
 }
 
 /**
@@ -184,14 +199,14 @@ function pillLabelState(option: VariantPickerOption): string {
  * native radio and the proxy focus ring live on this same shape, same as the pill above.
  */
 const SWATCH_BASE =
-  'relative inline-flex size-11 shrink-0 items-center justify-center rounded-full p-0.75 ' +
-  'eldra-variant-swatch-ring eldra-focus eldra-focus-proxy';
+  'eldra:relative eldra:inline-flex eldra:size-11 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:p-0.75 ' +
+  'eldra:eldra-variant-swatch-ring eldra:eldra-focus eldra:eldra-focus-proxy';
 /** States, "Swatch" column, "Default"/"Hover" rows: transparent at rest, `border-strong` ring on
  * hover. */
-const SWATCH_RING_DEFAULT = 'border-transparent group-hover:border-border-strong';
+const SWATCH_RING_DEFAULT = 'eldra:border-transparent eldra:group-hover:border-border-strong';
 /** States, "Selected" and "Sold out + selected" rows: "2px ring `text`" either way — the sold-out
  * line is a separate part drawn on top, so the ring itself only ever depends on selection. */
-const SWATCH_RING_SELECTED = 'border-text';
+const SWATCH_RING_SELECTED = 'eldra:border-text';
 
 function radioClass(option: VariantPickerOption): string {
   const base =
@@ -211,7 +226,9 @@ function radioClass(option: VariantPickerOption): string {
  */
 const swatchClass = computed(() =>
   partClass(
-    cx('block size-full rounded-full border-border-strong eldra-variant-swatch-edge'),
+    cx(
+      'eldra:block eldra:size-full eldra:rounded-full eldra:border-border-strong eldra:eldra-variant-swatch-edge'
+    ),
     props.classes,
     'swatch'
   )
@@ -222,7 +239,7 @@ const swatchClass = computed(() =>
  * carries only the size and line, for the same shorthand-free reason `text-variant-legend` does.
  */
 function pillLabelClass(option: VariantPickerOption): string {
-  return partClass(cx('text-variant-pill', pillLabelState(option)), props.classes, 'label');
+  return partClass(cx('eldra:text-variant-pill', pillLabelState(option)), props.classes, 'label');
 }
 
 /**
@@ -230,7 +247,7 @@ function pillLabelClass(option: VariantPickerOption): string {
  * inside the label"; → Accessibility: "the colour name is visually hidden text inside the label, so
  * it isn't conveyed by colour alone (1.4.1)."
  */
-const swatchLabelClass = computed(() => partClass(cx('sr-only'), props.classes, 'label'));
+const swatchLabelClass = computed(() => partClass(cx('eldra:sr-only'), props.classes, 'label'));
 
 function labelClass(option: VariantPickerOption): string {
   return props.type === 'swatches' ? swatchLabelClass.value : pillLabelClass(option);
@@ -252,7 +269,7 @@ function labelClass(option: VariantPickerOption): string {
  */
 const soldOutSwatchLineClass = computed(() =>
   partClass(
-    cx('pointer-events-none absolute inset-0 size-full text-text'),
+    cx('eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:size-full eldra:text-text'),
     props.classes,
     'soldOutLine'
   )
@@ -266,7 +283,9 @@ const soldOutSwatchLineClass = computed(() =>
  */
 const soldOutPillLineClass = computed(() =>
   partClass(
-    cx('pointer-events-none absolute inset-0 size-full text-border-strong'),
+    cx(
+      'eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:size-full eldra:text-border-strong'
+    ),
     props.classes,
     'soldOutLine'
   )
@@ -295,7 +314,7 @@ const soldOutPillLineClass = computed(() =>
                behaviour with no key handling of any kind here. -->
           <input
             :ref="(el) => (radioRefs[index] = el as HTMLInputElement | null)"
-            class="absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0"
+            class="eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0"
             type="radio"
             :name="name"
             :value="option.value"
@@ -364,7 +383,7 @@ const soldOutPillLineClass = computed(() =>
           </svg>
           <span data-part="label" :class="labelClass(option)">
             {{ option.label
-            }}<span v-if="!option.available" class="sr-only">, {{ soldOutSuffix }}</span>
+            }}<span v-if="!option.available" class="eldra:sr-only">, {{ soldOutSuffix }}</span>
           </span>
         </span>
       </label>

@@ -351,9 +351,9 @@ export {
   useEldraUiLocale,
 } from './composables/useLocale';
 
-// The marker `@eldrajs/ui/scoped.css` styles under: a wrapper calls `provideEldraScope()` and every
-// component below it renders `data-eldra-scope` on its roots and `data-eldra-slot` on the elements
-// holding the wrapper's slot content (README, "Embedding in another Tailwind app").
+// A theming scope: a wrapper calls `provideEldraScope()` and every component below it renders
+// `data-eldra-scope` on its roots and `data-eldra-slot` on the elements holding the wrapper's slot
+// content (README, "Theming a subtree").
 export { ELDRA_SCOPE_KEY, provideEldraScope } from './composables/useEldraScope';
 
 // Composables

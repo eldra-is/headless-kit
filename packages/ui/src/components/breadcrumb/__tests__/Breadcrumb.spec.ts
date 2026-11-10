@@ -105,8 +105,8 @@ describe('Breadcrumb — link underline', () => {
     const links = wrapper.findAll('[data-part="link"]');
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) {
-      expect(link.classes()).toContain('underline');
-      expect(link.classes()).not.toContain('no-underline');
+      expect(link.classes()).toContain('eldra:underline');
+      expect(link.classes()).not.toContain('eldra:no-underline');
     }
     wrapper.unmount();
   });
@@ -114,7 +114,7 @@ describe('Breadcrumb — link underline', () => {
   it('leaves the current page as plain text with no underline utility at all', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: PRODUCT_TRAIL } });
     const current = wrapper.get('[data-part="current"]');
-    expect(current.classes()).not.toContain('underline');
+    expect(current.classes()).not.toContain('eldra:underline');
     wrapper.unmount();
   });
 });
@@ -155,11 +155,11 @@ describe('Breadcrumb — separator geometry', () => {
     const separators = wrapper.findAll('[data-part="separator"]');
     for (const separator of separators) {
       const classes = separator.classes();
-      expect(classes).toContain('h-6');
-      expect(classes).toContain('items-center');
-      expect(classes).toContain('self-start');
+      expect(classes).toContain('eldra:h-6');
+      expect(classes).toContain('eldra:items-center');
+      expect(classes).toContain('eldra:self-start');
       expect(classes).not.toContain('mt-1.875');
-      expect(classes).not.toContain('self-center');
+      expect(classes).not.toContain('eldra:self-center');
     }
     wrapper.unmount();
   });
@@ -171,9 +171,9 @@ describe('Breadcrumb — separator geometry', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: SHORT_TRAIL } });
     const current = wrapper.get('[data-part="current"]');
     const link = wrapper.get('[data-part="link"]');
-    expect(current.classes()).toContain('target-min');
-    expect(current.classes()).toContain('items-center');
-    expect(link.classes()).toContain('target-min');
+    expect(current.classes()).toContain('eldra:target-min');
+    expect(current.classes()).toContain('eldra:items-center');
+    expect(link.classes()).toContain('eldra:target-min');
     wrapper.unmount();
   });
 
@@ -197,8 +197,8 @@ describe('Breadcrumb — separator geometry', () => {
     const [beforeLink] = separators;
     const beforeCurrent = separators[separators.length - 1]!;
     expect([...beforeLink!.classes()].sort()).toEqual([...beforeCurrent.classes()].sort());
-    expect(beforeCurrent.classes()).toContain('h-6');
-    expect(beforeCurrent.classes()).toContain('self-start');
+    expect(beforeCurrent.classes()).toContain('eldra:h-6');
+    expect(beforeCurrent.classes()).toContain('eldra:self-start');
     wrapper.unmount();
   });
 
@@ -212,8 +212,8 @@ describe('Breadcrumb — separator geometry', () => {
     for (const separator of separators) {
       const svg = separator.find('svg');
       expect(svg.exists()).toBe(true);
-      expect(svg.classes()).toContain('size-4');
-      expect(svg.classes()).not.toContain('size-1.5');
+      expect(svg.classes()).toContain('eldra:size-4');
+      expect(svg.classes()).not.toContain('eldra:size-1.5');
     }
     wrapper.unmount();
   });
@@ -238,7 +238,7 @@ describe('Breadcrumb — collapse rule', () => {
     for (const li of items) {
       const text = li.text();
       const isHiddenLevel = hiddenLabels.some((label) => text.includes(label));
-      expect(li.classes().includes('@max-tablet:hidden')).toBe(isHiddenLevel);
+      expect(li.classes().includes('eldra:@max-tablet:hidden')).toBe(isHiddenLevel);
     }
     wrapper.unmount();
   });
@@ -247,7 +247,7 @@ describe('Breadcrumb — collapse rule', () => {
     const wrapper = mountWith(Breadcrumb, { props: { items: PRODUCT_TRAIL.slice(0, 3) } });
     expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
     for (const li of wrapper.findAll('li')) {
-      expect(li.classes()).not.toContain('@max-tablet:hidden');
+      expect(li.classes()).not.toContain('eldra:@max-tablet:hidden');
     }
     wrapper.unmount();
   });
@@ -264,7 +264,7 @@ describe('Breadcrumb — collapse rule', () => {
     );
     const hiddenLinks = wrapper
       .findAll('[data-part="link"]')
-      .filter((link) => link.element.closest('li')?.classList.contains('@max-tablet:hidden'));
+      .filter((link) => link.element.closest('li')?.classList.contains('eldra:@max-tablet:hidden'));
     expect(hiddenLinks.map((link) => link.text())).toEqual(['Tableware', 'Serving', 'Bowls']);
     wrapper.unmount();
   });
@@ -389,7 +389,7 @@ describe('Breadcrumb — expand', () => {
 
     expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
     for (const li of wrapper.findAll('li')) {
-      expect(li.classes()).not.toContain('@max-tablet:hidden');
+      expect(li.classes()).not.toContain('eldra:@max-tablet:hidden');
     }
 
     const links = wrapper.findAll('[data-part="link"]');
@@ -480,7 +480,7 @@ describe('Breadcrumb — expand', () => {
     // Nothing in this component measures width with JavaScript, so "resizing" is simulated by
     // asserting the collapse class never comes back once `expanded` flips — there is no code path
     // that could reintroduce it.
-    expect(wrapper.html()).not.toContain('@max-tablet:hidden');
+    expect(wrapper.html()).not.toContain('eldra:@max-tablet:hidden');
   });
 });
 
@@ -606,7 +606,7 @@ describe('Breadcrumb — customisation', () => {
     });
     const link = wrapper.get('[data-part="link"]');
     expect(link.classes()).toContain('text-accent');
-    expect(link.classes()).not.toContain('text-muted');
+    expect(link.classes()).not.toContain('eldra:text-muted');
     wrapper.unmount();
   });
 });

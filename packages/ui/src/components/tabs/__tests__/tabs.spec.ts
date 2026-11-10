@@ -242,7 +242,9 @@ describe('Tabs — indicator', () => {
   it('gives the underline variant a colour-only transition, never a slide', async () => {
     const wrapper = await mount();
     const classes = wrapper.get('[data-part="indicator"]').classes();
-    expect(classes).toEqual(expect.arrayContaining(['transition-colors', 'duration-fast']));
+    expect(classes).toEqual(
+      expect.arrayContaining(['eldra:transition-colors', 'eldra:duration-fast'])
+    );
     expect(classes.some((name) => name.includes('translate') || name.includes('transform'))).toBe(
       false
     );
@@ -252,11 +254,11 @@ describe('Tabs — indicator', () => {
     const wrapper = await mount();
     const indicatorOf = (index: number) =>
       wrapper.findAll('[data-part="indicator"]')[index]!.classes();
-    expect(indicatorOf(0)).toContain('bg-primary');
-    expect(indicatorOf(1)).toContain('bg-transparent');
+    expect(indicatorOf(0)).toContain('eldra:bg-primary');
+    expect(indicatorOf(1)).toContain('eldra:bg-transparent');
     await tabsOf(wrapper)[1]!.trigger('click');
-    expect(indicatorOf(0)).toContain('bg-transparent');
-    expect(indicatorOf(1)).toContain('bg-primary');
+    expect(indicatorOf(0)).toContain('eldra:bg-transparent');
+    expect(indicatorOf(1)).toContain('eldra:bg-primary');
   });
 
   it('renders no indicator part in the pills variant', async () => {
@@ -270,9 +272,9 @@ describe('Tabs — variants', () => {
     const wrapper = await mount({ variant: 'pills' });
     const tabs = tabsOf(wrapper);
     expect(tabs[0]!.classes()).toEqual(
-      expect.arrayContaining(['bg-primary', 'border-primary', 'rounded-full'])
+      expect.arrayContaining(['eldra:bg-primary', 'eldra:border-primary', 'eldra:rounded-full'])
     );
-    expect(tabs[1]!.classes()).toEqual(expect.arrayContaining(['border-border-strong']));
+    expect(tabs[1]!.classes()).toEqual(expect.arrayContaining(['eldra:border-border-strong']));
   });
 });
 
@@ -384,9 +386,9 @@ describe('Tabs — narrow', () => {
     mounted.push(wrapper as unknown as VueWrapper);
     await nextTick();
     const list = wrapper.get('[role="tablist"]');
-    expect(list.classes()).toContain('overflow-x-auto');
-    expect(list.classes()).toContain('eldra-scrollbar-hide');
-    expect(list.classes()).not.toContain('flex-wrap');
+    expect(list.classes()).toContain('eldra:overflow-x-auto');
+    expect(list.classes()).toContain('eldra:eldra-scrollbar-hide');
+    expect(list.classes()).not.toContain('eldra:flex-wrap');
   });
 });
 
@@ -406,14 +408,14 @@ describe('Tabs — disabled tabs', () => {
       undefined,
     ]);
     expect(tabs[1]!.attributes('disabled')).toBeUndefined();
-    expect(tabs[1]!.classes()).toContain('cursor-not-allowed');
+    expect(tabs[1]!.classes()).toContain('eldra:cursor-not-allowed');
   });
 
   it('renders exactly as before when no tab is disabled', async () => {
     const wrapper = await mount();
     for (const tab of tabsOf(wrapper)) {
       expect(tab.attributes('aria-disabled')).toBeUndefined();
-      expect(tab.classes()).toContain('cursor-pointer');
+      expect(tab.classes()).toContain('eldra:cursor-pointer');
     }
   });
 
@@ -477,8 +479,8 @@ describe('Tabs — disabled tabs', () => {
     const items = ITEMS.map((item) => ({ ...item, disabled: true }));
     const wrapper = await mount({ items });
     const indicators = wrapper.findAll('[data-part="indicator"]');
-    expect(indicators[0]!.classes()).toContain('bg-muted');
-    expect(indicators[0]!.classes()).not.toContain('bg-primary');
+    expect(indicators[0]!.classes()).toContain('eldra:bg-muted');
+    expect(indicators[0]!.classes()).not.toContain('eldra:bg-primary');
   });
 
   it('takes disabled on a standalone Tab in the slots API', async () => {

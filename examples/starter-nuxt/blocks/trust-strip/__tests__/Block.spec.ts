@@ -121,7 +121,7 @@ describe('trust-strip block', () => {
   it('labels the section with the hidden h2', () => {
     const wrapper = mountBlock(mock);
     const heading = wrapper.get('h2');
-    expect(heading.classes()).toContain('sr-only');
+    expect(heading.classes()).toContain('eldra:sr-only');
     expect(wrapper.get('section').attributes('aria-labelledby')).toBe(heading.attributes('id'));
     expect(heading.text()).toBe('Why shop with Northwind');
   });

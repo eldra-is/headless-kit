@@ -565,7 +565,7 @@ const barSurfaceStyle = { [HEADER_SURFACE_VAR]: 'var(--color-background)' };
  * top padding, and the header must never trigger that rule against the block that follows it (a
  * Hero, most often) — the header is fixed chrome that always sits at the page's own ground, not a
  * coloured band the padding-collapse rule is meant to read as one continuous band with its
- * neighbour. It also never needs `Section`'s `group/section` colour-inversion machinery: `background`
+ * neighbour. It also never needs `Section`'s `data-section` colour-inversion machinery: `background`
  * is always `none` here, and transparent-over-hero mode is handled entirely by `barRootClasses`
  * above, not by `Section`'s `primary`/`accent` invert. `@container` is kept directly on this root so
  * `Container` and every `@content:`/`@tablet:` variant below still measure the header's own width.

@@ -68,22 +68,22 @@ describe('Badge — element and parts', () => {
 describe('Badge — tones', () => {
   it('fills a neutral badge with the surface-strong role', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Hand-glazed' } });
-    expect(wrapper.classes()).toContain('bg-surface-strong');
-    expect(wrapper.classes()).toContain('text-text');
+    expect(wrapper.classes()).toContain('eldra:bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:text-text');
     wrapper.unmount();
   });
 
   it('fills a primary badge with the primary role', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Bestseller', tone: 'primary' } });
-    expect(wrapper.classes()).toContain('bg-primary');
-    expect(wrapper.classes()).toContain('text-primary-contrast');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
+    expect(wrapper.classes()).toContain('eldra:text-primary-contrast');
     wrapper.unmount();
   });
 
   it('fills an accent badge with the accent role', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Gift ready', tone: 'accent' } });
-    expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).toContain('text-accent-contrast');
+    expect(wrapper.classes()).toContain('eldra:bg-accent');
+    expect(wrapper.classes()).toContain('eldra:text-accent-contrast');
     wrapper.unmount();
   });
 
@@ -91,15 +91,15 @@ describe('Badge — tones', () => {
     'fills a %s badge with a background-on-fill pair',
     (tone) => {
       const wrapper = mountWith(Badge, { props: { label: 'Paid', tone, icon: IconCircleCheck } });
-      expect(wrapper.classes()).toContain(`bg-${tone}`);
-      expect(wrapper.classes()).toContain('text-background');
+      expect(wrapper.classes()).toContain(`eldra:bg-${tone}`);
+      expect(wrapper.classes()).toContain('eldra:text-background');
       wrapper.unmount();
     }
   );
 
   it('defaults to the neutral tone', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Knitwear' } });
-    expect(wrapper.classes()).toContain('bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 });
@@ -109,9 +109,9 @@ describe('Badge — variant precedence', () => {
     const wrapper = mountWith(Badge, {
       props: { label: 'Sale', variant: 'sale', tone: 'success' },
     });
-    expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).toContain('text-accent-contrast');
-    expect(wrapper.classes()).not.toContain('bg-success');
+    expect(wrapper.classes()).toContain('eldra:bg-accent');
+    expect(wrapper.classes()).toContain('eldra:text-accent-contrast');
+    expect(wrapper.classes()).not.toContain('eldra:bg-success');
     wrapper.unmount();
   });
 
@@ -119,15 +119,15 @@ describe('Badge — variant precedence', () => {
     const wrapper = mountWith(Badge, {
       props: { label: 'New', variant: 'new', tone: 'danger' },
     });
-    expect(wrapper.classes()).toContain('bg-primary');
-    expect(wrapper.classes()).toContain('text-primary-contrast');
-    expect(wrapper.classes()).not.toContain('bg-danger');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
+    expect(wrapper.classes()).toContain('eldra:text-primary-contrast');
+    expect(wrapper.classes()).not.toContain('eldra:bg-danger');
     wrapper.unmount();
   });
 
   it('leaves tone alone when variant is none', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Bestseller', tone: 'primary' } });
-    expect(wrapper.classes()).toContain('bg-primary');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 });
@@ -135,10 +135,10 @@ describe('Badge — variant precedence', () => {
 describe('Badge — outline', () => {
   it('replaces the fill with the background/border-strong boundary', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Sold out', outline: true } });
-    expect(wrapper.classes()).toContain('bg-background');
-    expect(wrapper.classes()).toContain('border-border-strong');
-    expect(wrapper.classes()).toContain('text-text');
-    expect(wrapper.classes()).not.toContain('bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:bg-background');
+    expect(wrapper.classes()).toContain('eldra:border-border-strong');
+    expect(wrapper.classes()).toContain('eldra:text-text');
+    expect(wrapper.classes()).not.toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 
@@ -146,15 +146,15 @@ describe('Badge — outline', () => {
     const wrapper = mountWith(Badge, {
       props: { label: 'Organic cotton', tone: 'accent', outline: true, icon: IconLeaf },
     });
-    expect(wrapper.classes()).toContain('bg-background');
-    expect(wrapper.classes()).not.toContain('bg-accent');
+    expect(wrapper.classes()).toContain('eldra:bg-background');
+    expect(wrapper.classes()).not.toContain('eldra:bg-accent');
     wrapper.unmount();
   });
 
   it('draws the boundary inside the box with a real 1px border, not a fixed height', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Sold out', outline: true } });
-    expect(wrapper.classes()).toContain('border');
-    expect(wrapper.classes()).toContain('min-h-6');
+    expect(wrapper.classes()).toContain('eldra:border');
+    expect(wrapper.classes()).toContain('eldra:min-h-6');
     expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)h-6(\s|$)/);
     wrapper.unmount();
   });
@@ -163,16 +163,16 @@ describe('Badge — outline', () => {
 describe('Badge — pill', () => {
   it('rounds fully and widens the padding', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Knitwear', pill: true } });
-    expect(wrapper.classes()).toContain('rounded-full');
-    expect(wrapper.classes()).toContain('px-2.5');
-    expect(wrapper.classes()).not.toContain('rounded-sm');
+    expect(wrapper.classes()).toContain('eldra:rounded-full');
+    expect(wrapper.classes()).toContain('eldra:px-2.5');
+    expect(wrapper.classes()).not.toContain('eldra:rounded-sm');
     wrapper.unmount();
   });
 
   it('takes the small radius and narrower padding by default', () => {
     const wrapper = mountWith(Badge, { props: { label: 'Knitwear' } });
-    expect(wrapper.classes()).toContain('rounded-sm');
-    expect(wrapper.classes()).toContain('px-2');
+    expect(wrapper.classes()).toContain('eldra:rounded-sm');
+    expect(wrapper.classes()).toContain('eldra:px-2');
     wrapper.unmount();
   });
 
@@ -180,8 +180,8 @@ describe('Badge — pill', () => {
     const wrapper = mountWith(Badge, {
       props: { label: 'Gift ready', tone: 'accent', pill: true },
     });
-    expect(wrapper.classes()).toContain('rounded-full');
-    expect(wrapper.classes()).toContain('bg-accent');
+    expect(wrapper.classes()).toContain('eldra:rounded-full');
+    expect(wrapper.classes()).toContain('eldra:bg-accent');
     wrapper.unmount();
   });
 });
@@ -201,7 +201,7 @@ describe('Badge — icon', () => {
       props: { label: 'Paid', tone: 'success', icon: IconCircleCheck },
     });
     const icon = wrapper.get('[data-part="icon"]');
-    expect(icon.classes()).toContain('size-3.5');
+    expect(icon.classes()).toContain('eldra:size-3.5');
     expect(icon.attributes('stroke-width')).toBe('2.25');
     wrapper.unmount();
   });
@@ -253,7 +253,7 @@ describe('Badge — hidden suffix', () => {
   it('renders the suffix visually hidden and includes it in the accessible text', () => {
     const wrapper = mountWith(Badge, { props: { label: '−20%', hiddenSuffix: ' off' } });
     const suffix = wrapper.get('[data-part="hiddenSuffix"]');
-    expect(suffix.classes()).toContain('sr-only');
+    expect(suffix.classes()).toContain('eldra:sr-only');
     expect(suffix.text()).toBe('off');
     // The whole badge's text content is what a screen reader announces: label + hidden suffix.
     expect(wrapper.text().replace(/\s+/g, ' ')).toBe('−20% off');
@@ -273,7 +273,7 @@ describe('Badge — customisation', () => {
       props: { label: 'Knitwear', classes: { root: 'bg-accent' } },
     });
     expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('bg-surface-strong');
+    expect(wrapper.classes()).not.toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 
@@ -297,7 +297,7 @@ describe('Badge — customisation', () => {
 describe('Badge — content', () => {
   it('never wraps a long label', () => {
     const wrapper = mountWith(Badge, { props: { label: LONG_LABEL } });
-    expect(wrapper.classes()).toContain('whitespace-nowrap');
+    expect(wrapper.classes()).toContain('eldra:whitespace-nowrap');
     expect(wrapper.get('[data-part="label"]').text()).toBe(LONG_LABEL);
     wrapper.unmount();
   });

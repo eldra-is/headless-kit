@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, type Component, type ComponentPublicInstance } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { BreadcrumbItem, BreadcrumbProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -179,10 +179,14 @@ async function expand(): Promise<void> {
  * drop the container-query class entirely — visible at every width, matching "for the rest of the
  * page view" above.
  */
-const rootClass = computed(() => partClass('@container', props.classes, 'root'));
+const rootClass = computed(() => partClass('eldra:@container', props.classes, 'root'));
 
 const listClass = computed(() =>
-  partClass('flex flex-wrap list-none gap-x-1 gap-y-1 p-0 m-0', props.classes, 'list')
+  partClass(
+    'eldra:flex eldra:flex-wrap eldra:list-none eldra:gap-x-1 eldra:gap-y-1 eldra:p-0 eldra:m-0',
+    props.classes,
+    'list'
+  )
 );
 
 /** `collapsible` items (the middle run) carry the container-query hidden class only while the
@@ -192,14 +196,21 @@ const listClass = computed(() =>
  *  same way. */
 function itemClass(collapsible: boolean): string {
   return partClass(
-    cx('inline-flex items-start gap-2', collapsible && !expanded.value && '@max-tablet:hidden'),
+    cx(
+      'eldra:inline-flex eldra:items-start eldra:gap-2',
+      collapsible && !expanded.value && 'eldra:@max-tablet:hidden'
+    ),
     props.classes,
     'item'
   );
 }
 
 const ellipsisItemClass = computed(() =>
-  partClass('hidden @max-tablet:inline-flex @max-tablet:items-start', props.classes, 'item')
+  partClass(
+    'eldra:hidden eldra:@max-tablet:inline-flex eldra:@max-tablet:items-start',
+    props.classes,
+    'item'
+  )
 );
 
 /**
@@ -245,7 +256,9 @@ const ellipsisItemClass = computed(() =>
  */
 function separatorClass(): string {
   return partClass(
-    cx('inline-flex items-center justify-center self-start h-6 mx-0.5 shrink-0 text-muted'),
+    cx(
+      'eldra:inline-flex eldra:items-center eldra:justify-center eldra:self-start eldra:h-6 eldra:mx-0.5 eldra:shrink-0 eldra:text-muted'
+    ),
     props.classes,
     'separator'
   );
@@ -271,10 +284,10 @@ function separatorClass(): string {
 const linkClass = computed(() =>
   partClass(
     cx(
-      'inline-flex items-center target-min eldra-link-radius eldra-focus',
-      'text-body-sm text-muted hover:text-text',
-      'underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
-      'hover:decoration-2 hover:decoration-current'
+      'eldra:inline-flex eldra:items-center eldra:target-min eldra:eldra-link-radius eldra:eldra-focus',
+      'eldra:text-body-sm eldra:text-muted eldra:hover:text-text',
+      'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+      'eldra:hover:decoration-2 eldra:hover:decoration-current'
     ),
     props.classes,
     'link'
@@ -291,7 +304,7 @@ const linkClass = computed(() =>
  */
 const currentClass = computed(() =>
   partClass(
-    'inline-flex items-center target-min text-body-sm text-text font-medium',
+    'eldra:inline-flex eldra:items-center eldra:target-min eldra:text-body-sm eldra:text-text eldra:font-medium',
     props.classes,
     'current'
   )
@@ -309,9 +322,9 @@ const currentClass = computed(() =>
 const ellipsisClass = computed(() =>
   partClass(
     cx(
-      'target-min px-1 rounded-sm eldra-focus font-semibold tracking-[0.08em] text-body-sm',
-      'text-muted cursor-pointer',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] hover:text-text'
+      'eldra:target-min eldra:px-1 eldra:rounded-sm eldra:eldra-focus eldra:font-semibold eldra:tracking-[0.08em] eldra:text-body-sm',
+      'eldra:text-muted eldra:cursor-pointer',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] eldra:hover:text-text'
     ),
     props.classes,
     'ellipsis'
@@ -366,7 +379,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -391,7 +404,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -422,7 +435,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -458,7 +471,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            class="eldra:size-4 eldra:shrink-0"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />

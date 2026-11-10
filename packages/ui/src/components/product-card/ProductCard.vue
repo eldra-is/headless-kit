@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import Image from '../image/Image.vue';
@@ -143,12 +143,16 @@ function onQuickAdd(): void {
  * (see `linkClass`), so no `:has()`/`group-has-*` trick is needed.
  */
 const rootClass = computed(() =>
-  partClass(cx(CARD_FOCUS_PROXY, 'flex h-full min-w-56 flex-col'), props.classes, 'root')
+  partClass(
+    cx(CARD_FOCUS_PROXY, 'eldra:flex eldra:h-full eldra:min-w-56 eldra:flex-col'),
+    props.classes,
+    'root'
+  )
 );
 
 /** The media's own positioning context for the absolutely placed badge stack (spec "Product
  * card" → Sizes, "Badge stack" row). */
-const mediaClass = computed(() => partClass('relative', props.classes, 'media'));
+const mediaClass = computed(() => partClass('eldra:relative', props.classes, 'media'));
 
 /**
  * `Image`'s own `media` part (the `<img>`/`<video>`, not `Image`'s root) — passed through
@@ -164,8 +168,8 @@ const mediaClass = computed(() => partClass('relative', props.classes, 'media'))
  */
 const imageMediaClass = computed(() =>
   cx(
-    'transition-transform duration-base ease-out group-hover:scale-[1.03] motion-reduce:transition-none',
-    isSoldOut.value && 'opacity-60'
+    'eldra:transition-transform eldra:duration-base eldra:ease-out eldra:group-hover:scale-[1.03] eldra:motion-reduce:transition-none',
+    isSoldOut.value && 'eldra:opacity-60'
   )
 );
 
@@ -175,7 +179,11 @@ const imageMediaClass = computed(() =>
  * though badges are never inside its box in normal flow anyway).
  */
 const badgesClass = computed(() =>
-  partClass('absolute left-3 top-3 z-10 flex flex-wrap gap-1', props.classes, 'badges')
+  partClass(
+    'eldra:absolute eldra:left-3 eldra:top-3 eldra:z-10 eldra:flex eldra:flex-wrap eldra:gap-1',
+    props.classes,
+    'badges'
+  )
 );
 
 /**
@@ -185,15 +193,17 @@ const badgesClass = computed(() =>
  * (spec "Product card" → Sizes, "Body gap" row: "0.25rem").
  */
 const bodyClass = computed(() =>
-  partClass('mt-3 flex flex-1 flex-col gap-1', props.classes, 'body')
+  partClass('eldra:mt-3 eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-1', props.classes, 'body')
 );
 
-const vendorClass = computed(() => partClass('text-caption text-muted', props.classes, 'vendor'));
+const vendorClass = computed(() =>
+  partClass('eldra:text-caption eldra:text-muted', props.classes, 'vendor')
+);
 
 /** Spec "Product card" → Sizes, "Title" row: "1rem, line-height 1.4, weight 600, clamp 2 lines" —
  * exactly `text-card-title` (`tailwind.css`), reused rather than a near-duplicate utility. */
 const titleClass = computed(() =>
-  partClass('text-card-title text-text line-clamp-2', props.classes, 'title')
+  partClass('eldra:text-card-title eldra:text-text eldra:line-clamp-2', props.classes, 'title')
 );
 
 /**
@@ -218,8 +228,8 @@ const titleClass = computed(() =>
 const linkClass = computed(() =>
   partClass(
     cx(
-      'text-text underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
-      'hover:decoration-2 hover:decoration-current',
+      'eldra:text-text eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+      'eldra:hover:decoration-2 eldra:hover:decoration-current',
       STRETCHED_LINK,
       STRETCHED_LINK_OUTLINE
     ),
@@ -243,7 +253,7 @@ const ratingClass = computed(() => partClass('', props.classes, 'rating'));
 const stockLineClass = computed(() => partClass('', props.classes, 'stockLine'));
 
 const swatchesClass = computed(() =>
-  partClass('flex items-center gap-1.5', props.classes, 'swatches')
+  partClass('eldra:flex eldra:items-center eldra:gap-1.5', props.classes, 'swatches')
 );
 
 /** Spec "Product card" → Sizes, "Colour dots" row: "0.875rem circles ... a 1px inset hairline
@@ -252,13 +262,17 @@ const swatchesClass = computed(() =>
  * real border rather than a shadow. The one per-item colour the spec allows (`swatch`, from
  * product data) is set as an inline style by the template, never a class. */
 const swatchClass = computed(() =>
-  partClass('size-3.5 shrink-0 rounded-full border border-text/25', props.classes, 'swatch')
+  partClass(
+    'eldra:size-3.5 eldra:shrink-0 eldra:rounded-full eldra:border eldra:border-text/25',
+    props.classes,
+    'swatch'
+  )
 );
 
 /** Spec "Product card" → Sizes, "Colour dots" row: "'+N' (0.8125rem, `muted`)" — `text-caption`
  * is exactly that size. */
 const swatchOverflowClass = computed(() =>
-  partClass('text-caption text-muted', props.classes, 'swatchOverflow')
+  partClass('eldra:text-caption eldra:text-muted', props.classes, 'swatchOverflow')
 );
 
 /**
@@ -271,7 +285,9 @@ const swatchOverflowClass = computed(() =>
  * otherwise let source order decide, and the link is later in the DOM here) — this is what makes
  * "clicking quick add never navigates" true regardless of DOM order.
  */
-const quickAddClass = computed(() => partClass('relative z-10 mt-5', props.classes, 'quickAdd'));
+const quickAddClass = computed(() =>
+  partClass('eldra:relative eldra:z-10 eldra:mt-5', props.classes, 'quickAdd')
+);
 
 /**
  * The loading root's own class (spec "Product card" → Variants, Loading row). The loading branch
@@ -286,7 +302,9 @@ const quickAddClass = computed(() => partClass('relative z-10 mt-5', props.class
  * of `wrapper.element`/`.classes()`, not the card's own root — confirmed the hard way while
  * writing this component's own tests, which is why the explanation lives here instead.
  */
-const skeletonClass = computed(() => partClass('flex h-full flex-col', props.classes, 'skeleton'));
+const skeletonClass = computed(() =>
+  partClass('eldra:flex eldra:h-full eldra:flex-col', props.classes, 'skeleton')
+);
 </script>
 
 <template>
@@ -302,12 +320,12 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
   >
     <div data-part="skeleton" :class="skeletonClass">
       <Skeleton variant="media" :ratio="ratio" />
-      <div class="mt-3 flex flex-1 flex-col gap-1">
-        <Skeleton variant="text" :classes="{ line: 'w-[80%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[35%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[50%]' }" />
+      <div class="eldra:mt-3 eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-1">
+        <Skeleton variant="text" :classes="{ line: 'eldra:w-[80%]' }" />
+        <Skeleton variant="text" :classes="{ line: 'eldra:w-[35%]' }" />
+        <Skeleton variant="text" :classes="{ line: 'eldra:w-[50%]' }" />
       </div>
-      <Skeleton variant="btn" class="mt-5" />
+      <Skeleton variant="btn" class="eldra:mt-5" />
     </div>
   </div>
 

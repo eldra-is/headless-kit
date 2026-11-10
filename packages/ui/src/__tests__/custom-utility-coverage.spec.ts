@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 // `source-scan.spec.ts` document).
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { cx } from '../utils/cx';
+import { cx as publicCx } from '../utils/cx';
+import { cx as kitCx } from '../utils/kitClass';
 
 /**
  * `src/utils/cx.ts` extends `tailwind-merge` with a class group for every custom `@utility` this
@@ -15,23 +16,33 @@ import { cx } from '../utils/cx';
  * both instead of collapsing to one — a duplicate that only showed up as a slightly longer `class`
  * attribute, never a test failure.
  *
- * This spec parses every `@utility <name>` out of `tailwind.css` and calls `cx(name, name)` for
+ * This spec parses every `@utility <name>` out of `utilities.css` and calls `cx(name, name)` for
  * each: an unregistered utility keeps both copies (two tokens), a registered one — whether in its
  * own group or folded into a stock one — collapses to one. That is a general enough probe to catch
- * the next utility someone adds to `tailwind.css` and forgets to register here, regardless of
- * which group it belongs in.
+ * the next utility someone adds to `utilities.css` and forgets to register here, regardless of
+ * which group it belongs in. Every probe runs twice: through the public `cx` on the bare name a
+ * consumer writes, and through the package's own `cx` on the `eldra:` name a component writes.
  */
-const tailwindCssPath = fileURLToPath(new NodeURL('../styles/tailwind.css', import.meta.url));
-const source = readFileSync(tailwindCssPath, 'utf8');
-const utilityNames = [...source.matchAll(/^@utility\s+([\w-]+)\s*\{/gm)].map((match) => match[1]);
+const utilitiesCssPath = fileURLToPath(new NodeURL('../styles/utilities.css', import.meta.url));
+const themeCssPath = fileURLToPath(new NodeURL('../styles/theme.css', import.meta.url));
+const source = readFileSync(utilitiesCssPath, 'utf8');
+const themeSource = readFileSync(themeCssPath, 'utf8');
+const utilityNames = [...source.matchAll(/^@utility\s+([\w-]+)\s*\{/gm)].map((match) => match[1]!);
+
+const MERGES = [
+  { label: 'public cx', cx: publicCx, p: '' },
+  { label: 'kit cx', cx: kitCx, p: 'eldra:' },
+] as const;
 
 describe('every custom @utility is covered by the cx() merge config', () => {
   it('finds the utilities to check', () => {
     expect(utilityNames.length).toBeGreaterThan(10);
   });
 
-  it.each(utilityNames)('cx(%s, %s) collapses to one token', (name) => {
-    expect(cx(name, name)).toBe(name);
+  describe.each(MERGES)('$label', ({ cx, p }) => {
+    it.each(utilityNames)('cx(%s, %s) collapses to one token', (name) => {
+      expect(cx(p + name, p + name)).toBe(p + name);
+    });
   });
 });
 
@@ -57,20 +68,22 @@ describe('every custom text-* utility keeps stock font-size behaviour, not stock
     expect(textUtilityNames.length).toBeGreaterThan(10);
   });
 
-  it.each(textUtilityNames)('cx(%s, text-lg) lets the stock font size win', (name) => {
-    expect(cx(name, 'text-lg')).toBe('text-lg');
-  });
+  describe.each(MERGES)('$label', ({ cx, p }) => {
+    it.each(textUtilityNames)('cx(%s, text-lg) lets the stock font size win', (name) => {
+      expect(cx(p + name, `${p}text-lg`)).toBe(`${p}text-lg`);
+    });
 
-  it.each(textUtilityNames)(
-    'cx(%s, text-red-500) keeps both — a text colour is not a font size',
-    (name) => {
-      expect(cx(name, 'text-red-500')).toBe(`${name} text-red-500`);
-    }
-  );
+    it.each(textUtilityNames)(
+      'cx(%s, text-red-500) keeps both — a text colour is not a font size',
+      (name) => {
+        expect(cx(p + name, `${p}text-red-500`)).toBe(`${p}${name} ${p}text-red-500`);
+      }
+    );
 
-  it.each(textUtilityNames)('cx(%s, font-semibold) keeps both — a weight adjusts it', (name) => {
-    expect(cx(name, 'font-semibold')).toBe(`${name} font-semibold`);
-    expect(cx('font-medium', name)).toBe(`font-medium ${name}`);
+    it.each(textUtilityNames)('cx(%s, font-semibold) keeps both — a weight adjusts it', (name) => {
+      expect(cx(p + name, `${p}font-semibold`)).toBe(`${p}${name} ${p}font-semibold`);
+      expect(cx(`${p}font-medium`, p + name)).toBe(`${p}font-medium ${p}${name}`);
+    });
   });
 });
 
@@ -84,7 +97,7 @@ const THEME_PREFIXES: Record<string, { prefixes: string[]; stock: string }> = {
   ease: { prefixes: ['ease'], stock: 'linear' },
   container: { prefixes: ['w', 'min-w', 'max-w', 'basis'], stock: 'full' },
 };
-const themeBlock = /^@theme \{([\s\S]*?)^\}/m.exec(source)?.[1] ?? '';
+const themeBlock = /^@theme \{([\s\S]*?)^\}/m.exec(themeSource)?.[1] ?? '';
 const themeKeys = [...themeBlock.matchAll(/^\s*--([a-z]+)-([\w-]+):/gm)]
   .filter(([, , key]) => key !== '*')
   .map(([, namespace, key]) => [namespace!, key!] as const);
@@ -101,8 +114,10 @@ describe('every @theme scale key merges with its own scale in cx()', () => {
     expect(unknown).toEqual([]);
   });
 
-  it.each(themeCases)('%s and %s replace each other', (kit, stock) => {
-    expect(cx(kit, stock)).toBe(stock);
-    expect(cx(stock, kit)).toBe(kit);
+  describe.each(MERGES)('$label', ({ cx, p }) => {
+    it.each(themeCases)('%s and %s replace each other', (kit, stock) => {
+      expect(cx(p + kit, p + stock)).toBe(p + stock);
+      expect(cx(p + stock, p + kit)).toBe(p + kit);
+    });
   });
 });

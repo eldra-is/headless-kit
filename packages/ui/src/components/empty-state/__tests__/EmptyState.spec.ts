@@ -79,15 +79,15 @@ describe('EmptyState — roles', () => {
 describe('EmptyState — plain', () => {
   it('drops the border and background when plain', () => {
     const wrapper = mountWith(EmptyState, { props: { title: 'No saved items yet', plain: true } });
-    expect(wrapper.classes()).not.toContain('border-dashed');
-    expect(wrapper.classes()).not.toContain('bg-background');
+    expect(wrapper.classes()).not.toContain('eldra:border-dashed');
+    expect(wrapper.classes()).not.toContain('eldra:bg-background');
     wrapper.unmount();
   });
 
   it('draws the dashed border and background by default', () => {
     const wrapper = mountWith(EmptyState, { props: { title: 'Your cart is empty' } });
-    expect(wrapper.classes()).toContain('border-dashed');
-    expect(wrapper.classes()).toContain('bg-background');
+    expect(wrapper.classes()).toContain('eldra:border-dashed');
+    expect(wrapper.classes()).toContain('eldra:bg-background');
     wrapper.unmount();
   });
 });
@@ -137,8 +137,8 @@ describe('EmptyState — icons', () => {
 
   it('colours the icon text for empty and noResults', () => {
     const wrapper = mountWith(EmptyState, { props: { title: 'Your cart is empty' } });
-    expect(wrapper.get('[data-part="icon"]').classes()).toContain('text-text');
-    expect(wrapper.get('[data-part="icon"]').classes()).not.toContain('text-danger');
+    expect(wrapper.get('[data-part="icon"]').classes()).toContain('eldra:text-text');
+    expect(wrapper.get('[data-part="icon"]').classes()).not.toContain('eldra:text-danger');
     wrapper.unmount();
   });
 
@@ -146,13 +146,13 @@ describe('EmptyState — icons', () => {
     const builtIn = mountWith(EmptyState, {
       props: { variant: 'error', title: "We couldn't load these products" },
     });
-    expect(builtIn.get('[data-part="icon"]').classes()).toContain('text-danger');
+    expect(builtIn.get('[data-part="icon"]').classes()).toContain('eldra:text-danger');
     builtIn.unmount();
 
     const custom = mountWith(EmptyState, {
       props: { variant: 'error', title: 'Failed', icon: IconHeart },
     });
-    expect(custom.get('[data-part="icon"]').classes()).toContain('text-danger');
+    expect(custom.get('[data-part="icon"]').classes()).toContain('eldra:text-danger');
     custom.unmount();
   });
 });
@@ -235,7 +235,7 @@ describe('EmptyState — long content and narrow container', () => {
       props: { variant: 'error', title: "We couldn't load these products", text: LONG_TEXT },
     });
     expect(wrapper.get('[data-part="text"]').text()).toBe(LONG_TEXT);
-    expect(wrapper.get('[data-part="text"]').classes()).toContain('max-w-[36ch]');
+    expect(wrapper.get('[data-part="text"]').classes()).toContain('eldra:max-w-[36ch]');
     wrapper.unmount();
   });
 

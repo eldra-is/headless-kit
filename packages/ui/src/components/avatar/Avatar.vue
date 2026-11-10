@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { initialsFromName } from '../../utils/avatar';
 import type { AvatarProps, AvatarSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -22,29 +22,29 @@ const props = withDefaults(defineProps<AvatarProps>(), {
  * already a token-backed utility.
  */
 const SIZE_CLASS: Record<AvatarSize, string> = {
-  sm: 'size-8',
-  md: 'size-10',
-  lg: 'size-14',
-  xl: 'size-24',
+  sm: 'eldra:size-8',
+  md: 'eldra:size-10',
+  lg: 'eldra:size-14',
+  xl: 'eldra:size-24',
 };
 
 /** Initials type (spec "Avatar" → Sizes, "Initials (38% of diameter)" column) — see the
  * `text-avatar-initials-*` utilities in `tailwind.css` for why each size is a per-component
  * variable rather than a class-level arbitrary value. */
 const INITIALS_TEXT_CLASS: Record<AvatarSize, string> = {
-  sm: 'text-avatar-initials-sm',
-  md: 'text-avatar-initials-md',
-  lg: 'text-avatar-initials-lg',
-  xl: 'text-avatar-initials-xl',
+  sm: 'eldra:text-avatar-initials-sm',
+  md: 'eldra:text-avatar-initials-md',
+  lg: 'eldra:text-avatar-initials-lg',
+  xl: 'eldra:text-avatar-initials-xl',
 };
 
 /** The user-icon fallback's size (spec "Avatar" → Sizes: "Icon: 1.5rem in lg (scale
  * proportionally)") — see the `eldra-avatar-icon-*` utilities in `tailwind.css`. */
 const ICON_SIZE_CLASS: Record<AvatarSize, string> = {
-  sm: 'eldra-avatar-icon-sm',
-  md: 'eldra-avatar-icon-md',
-  lg: 'eldra-avatar-icon-lg',
-  xl: 'eldra-avatar-icon-xl',
+  sm: 'eldra:eldra-avatar-icon-sm',
+  md: 'eldra:eldra-avatar-icon-md',
+  lg: 'eldra:eldra-avatar-icon-lg',
+  xl: 'eldra:eldra-avatar-icon-xl',
 };
 
 /** `AvatarProps.src` accepts the same shorthand `ImageMedia['src']` is — a bare URL string — so a
@@ -104,7 +104,7 @@ const rootAria = computed(() =>
 const rootClass = computed(() =>
   partClass(
     cx(
-      'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-strong',
+      'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-full eldra:bg-surface-strong',
       SIZE_CLASS[props.size]
     ),
     props.classes,
@@ -112,13 +112,17 @@ const rootClass = computed(() =>
   )
 );
 const imageClass = computed(() =>
-  partClass(cx('block h-full w-full object-cover'), props.classes, 'image')
+  partClass(cx('eldra:block eldra:h-full eldra:w-full eldra:object-cover'), props.classes, 'image')
 );
 const initialsClass = computed(() =>
-  partClass(cx('text-text select-none', INITIALS_TEXT_CLASS[props.size]), props.classes, 'initials')
+  partClass(
+    cx('eldra:text-text eldra:select-none', INITIALS_TEXT_CLASS[props.size]),
+    props.classes,
+    'initials'
+  )
 );
 const iconClass = computed(() =>
-  partClass(cx('text-text', ICON_SIZE_CLASS[props.size]), props.classes, 'icon')
+  partClass(cx('eldra:text-text', ICON_SIZE_CLASS[props.size]), props.classes, 'icon')
 );
 </script>
 

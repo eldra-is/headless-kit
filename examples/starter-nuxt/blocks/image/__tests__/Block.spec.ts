@@ -144,7 +144,7 @@ describe('image block', () => {
     it('gives the inset ring class at width: full, and the outer ring elsewhere', () => {
       const full = mountImage({ ...linked, width: 'full' });
       expect(full.get('a').classes()).toContain('eldra-focus-inset');
-      expect(full.get('a').classes()).not.toContain('eldra-focus');
+      expect(full.get('a').classes()).not.toContain('eldra:eldra-focus');
 
       const content = mountImage({ ...linked, width: 'content' });
       expect(content.get('a').classes()).not.toContain('eldra-focus-inset');
@@ -159,26 +159,26 @@ describe('image block', () => {
   describe('width: full', () => {
     it('renders no Container around the image (edge to edge, no radius)', () => {
       const wrapper = mountImage({ ...withImage, width: 'full' });
-      expect(wrapper.get('[data-part="frame"]').classes()).not.toContain('rounded-lg');
-      expect(wrapper.get('[data-part="frame"]').classes()).not.toContain('rounded-xl');
+      expect(wrapper.get('[data-part="frame"]').classes()).not.toContain('eldra:rounded-lg');
+      expect(wrapper.get('[data-part="frame"]').classes()).not.toContain('eldra:rounded-xl');
     });
 
     it('sits the caption inside a content-width grid, not against the screen edge', () => {
       const wrapper = mountImage({ ...withImage, width: 'full' });
-      expect(wrapper.get('figcaption').classes()).toContain('eldra-container-content');
+      expect(wrapper.get('figcaption').classes()).toContain('eldra:eldra-container-content');
     });
   });
 
   it('applies the lg radius at every width for narrow', () => {
     const wrapper = mountImage({ ...withImage, width: 'narrow' });
-    expect(wrapper.get('[data-part="frame"]').classes()).toContain('rounded-lg');
+    expect(wrapper.get('[data-part="frame"]').classes()).toContain('eldra:rounded-lg');
   });
 
   it('switches content/wide to the xl radius from 48rem', () => {
     for (const width of ['content', 'wide'] as const) {
       const wrapper = mountImage({ ...withImage, width });
       const frame = wrapper.get('[data-part="frame"]').classes();
-      expect(frame).toContain('rounded-lg');
+      expect(frame).toContain('eldra:rounded-lg');
       expect(frame).toContain('@tablet:rounded-xl');
     }
   });

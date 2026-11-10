@@ -2,7 +2,7 @@
 import { computed, h, inject, useSlots, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -107,7 +107,7 @@ const WithError: FunctionalComponent = (_props, { slots: own }) => {
     ...content,
     h(
       FieldError,
-      { id: errorId.value, rowClass: 'mt-1', classes: props.classes },
+      { id: errorId.value, rowClass: 'eldra:mt-1', classes: props.classes },
       () => props.error
     ),
   ];
@@ -142,12 +142,12 @@ function toggle(): void {
  * `src/__tests__/focus-transition.spec.ts`.
  */
 const ROOT =
-  'group grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-0.5 w-fit max-w-full target-min ' +
-  'rounded-sm border-0 bg-transparent p-0 text-start eldra-focus';
+  'group eldra:grid eldra:grid-cols-[auto_1fr] eldra:items-center eldra:gap-x-3 eldra:gap-y-0.5 eldra:w-fit eldra:max-w-full eldra:target-min ' +
+  'eldra:rounded-sm eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-start eldra:eldra-focus';
 
 const rootClass = computed(() =>
   partClass(
-    cx(ROOT, props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'),
+    cx(ROOT, props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer'),
     props.classes,
     'root'
   )
@@ -164,17 +164,20 @@ const rootClass = computed(() =>
  * — exactly like the thumb below, and Link's arrow — it may carry its own transition.
  */
 const TRACK_BASE =
-  'relative inline-flex shrink-0 rounded-[var(--eldra-switch-radius,var(--eldra-radius-full))] ' +
-  'eldra-switch-track-border transition-colors duration-fast ease-out motion-reduce:transition-none';
-const TRACK_SIZE: Record<SwitchSize, string> = { md: 'w-11 h-6', sm: 'w-9 h-5' };
+  'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:rounded-[var(--eldra-switch-radius,var(--eldra-radius-full))] ' +
+  'eldra:eldra-switch-track-border eldra:transition-colors eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none';
+const TRACK_SIZE: Record<SwitchSize, string> = {
+  md: 'eldra:w-11 eldra:h-6',
+  sm: 'eldra:w-9 eldra:h-5',
+};
 
 /** Spec "Switch" → States. Only `:hover` (nothing here can express it in JavaScript) is a variant. */
-const TRACK_OFF = 'bg-background border-border-strong group-hover:border-text';
+const TRACK_OFF = 'eldra:bg-background eldra:border-border-strong eldra:group-hover:border-text';
 const TRACK_ON =
-  'bg-primary border-primary ' +
-  'group-hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]';
-const TRACK_DISABLED_OFF = 'bg-surface-strong border-border-strong border-dashed';
-const TRACK_DISABLED_ON = 'bg-muted border-muted';
+  'eldra:bg-primary eldra:border-primary ' +
+  'eldra:group-hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]';
+const TRACK_DISABLED_OFF = 'eldra:bg-surface-strong eldra:border-border-strong eldra:border-dashed';
+const TRACK_DISABLED_ON = 'eldra:bg-muted eldra:border-muted';
 
 const trackState = computed(() => {
   if (props.disabled) return model.value ? TRACK_DISABLED_ON : TRACK_DISABLED_OFF;
@@ -196,18 +199,21 @@ const trackClass = computed(() =>
  * it may carry its own transition, exactly as Link's arrow does.
  */
 const THUMB_BASE =
-  'absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center ' +
-  'rounded-[var(--eldra-switch-radius,var(--eldra-radius-full))] eldra-switch-thumb-offset ' +
-  'transition-[translate] duration-fast ease-out motion-reduce:transition-none';
-const THUMB_SIZE: Record<SwitchSize, string> = { md: 'size-4', sm: 'size-3' };
-const THUMB_TRAVEL: Record<SwitchSize, string> = { md: 'translate-x-5', sm: 'translate-x-4' };
+  'eldra:absolute eldra:top-1/2 eldra:-translate-y-1/2 eldra:inline-flex eldra:items-center eldra:justify-center ' +
+  'eldra:rounded-[var(--eldra-switch-radius,var(--eldra-radius-full))] eldra:eldra-switch-thumb-offset ' +
+  'eldra:transition-[translate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none';
+const THUMB_SIZE: Record<SwitchSize, string> = { md: 'eldra:size-4', sm: 'eldra:size-3' };
+const THUMB_TRAVEL: Record<SwitchSize, string> = {
+  md: 'eldra:translate-x-5',
+  sm: 'eldra:translate-x-4',
+};
 
 /** Fill only changes with on/off, not with disabled (spec's States table repeats it unchanged). */
-const THUMB_OFF = 'bg-border-strong';
-const THUMB_ON = 'bg-primary-contrast text-primary';
+const THUMB_OFF = 'eldra:bg-border-strong';
+const THUMB_ON = 'eldra:bg-primary-contrast eldra:text-primary';
 /** Ink for `thumb` slot content on the off thumb, which has no text colour of its own: `background`
  *  on `border-strong` is the spec's own 4.5:1 pair. Only added when the slot is filled. */
-const THUMB_OFF_INK = 'text-background';
+const THUMB_OFF_INK = 'eldra:text-background';
 
 const thumbClass = computed(() =>
   partClass(
@@ -235,8 +241,8 @@ const slotProps = computed<SwitchSlotProps>(() => ({
  * track `primary-contrast`; off, and on a disabled track, `muted`.
  */
 const TRACK_SLOT_BASE =
-  'pointer-events-none absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center ' +
-  'eldra-switch-thumb-offset';
+  'eldra:pointer-events-none eldra:absolute eldra:top-1/2 eldra:-translate-y-1/2 eldra:inline-flex eldra:items-center eldra:justify-center ' +
+  'eldra:eldra-switch-thumb-offset';
 
 function trackSlotClass(end: boolean, part: 'trackStart' | 'trackEnd'): string {
   return partClass(
@@ -244,7 +250,7 @@ function trackSlotClass(end: boolean, part: 'trackStart' | 'trackEnd'): string {
       TRACK_SLOT_BASE,
       THUMB_SIZE[props.size],
       end && THUMB_TRAVEL[props.size],
-      model.value && !props.disabled ? 'text-primary-contrast' : 'text-muted'
+      model.value && !props.disabled ? 'eldra:text-primary-contrast' : 'eldra:text-muted'
     ),
     props.classes,
     part
@@ -255,18 +261,25 @@ const trackStartClass = computed(() => trackSlotClass(false, 'trackStart'));
 const trackEndClass = computed(() => trackSlotClass(true, 'trackEnd'));
 
 /** Spec "Switch" → Sizes: check icon 0.75rem/3px stroke at `md`, 0.625rem at `sm`. */
-const CHECK_SIZE: Record<SwitchSize, string> = { md: 'size-3', sm: 'size-2.5' };
-const checkClass = computed(() => cx('pointer-events-none', CHECK_SIZE[props.size]));
+const CHECK_SIZE: Record<SwitchSize, string> = { md: 'eldra:size-3', sm: 'eldra:size-2.5' };
+const checkClass = computed(() => cx('eldra:pointer-events-none', CHECK_SIZE[props.size]));
 
 /**
  * The label (spec "Switch" → Sizes: "Label | 1rem" at `md`, "0.875rem / 1.5" at `sm` — the second
  * number matches `text-body-sm` exactly, so `sm` reuses it rather than a near-identical utility).
  */
-const LABEL_SIZE: Record<SwitchSize, string> = { md: 'text-switch-label', sm: 'text-body-sm' };
+const LABEL_SIZE: Record<SwitchSize, string> = {
+  md: 'eldra:text-switch-label',
+  sm: 'eldra:text-body-sm',
+};
 
 const labelClass = computed(() =>
   partClass(
-    cx(LABEL_SIZE[props.size], 'col-start-2 min-w-0', props.disabled ? 'text-muted' : 'text-text'),
+    cx(
+      LABEL_SIZE[props.size],
+      'eldra:col-start-2 eldra:min-w-0',
+      props.disabled ? 'eldra:text-muted' : 'eldra:text-text'
+    ),
     props.classes,
     'label'
   )
@@ -284,7 +297,11 @@ const labelClass = computed(() =>
  * that target, which is the standard technique for a description that must not double as the name.
  */
 const descriptionClass = computed(() =>
-  partClass('text-switch-description text-muted col-start-2', props.classes, 'description')
+  partClass(
+    'eldra:text-switch-description eldra:text-muted eldra:col-start-2',
+    props.classes,
+    'description'
+  )
 );
 </script>
 
@@ -329,7 +346,7 @@ const descriptionClass = computed(() =>
             v-if="$slots.thumb"
             :data-eldra-slot="eldra.slotHost('thumb')"
             aria-hidden="true"
-            class="pointer-events-none inline-flex"
+            class="eldra:pointer-events-none eldra:inline-flex"
           >
             <slot name="thumb" v-bind="slotProps" />
           </span>

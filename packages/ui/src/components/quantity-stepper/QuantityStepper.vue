@@ -25,7 +25,7 @@ import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
@@ -298,10 +298,11 @@ function onKeydown(event: KeyboardEvent): void {
  * `select/panelParts.ts`'s own comment for the same technique on the select panel).
  */
 const ROOT_BASE =
-  'relative inline-flex items-stretch w-fit max-w-full overflow-hidden bg-background ' +
-  'rounded-[var(--eldra-stepper-radius,var(--eldra-radius-md))] eldra-field-border border-border-strong';
+  'eldra:relative eldra:inline-flex eldra:items-stretch eldra:w-fit eldra:max-w-full eldra:overflow-hidden eldra:bg-background ' +
+  'eldra:rounded-[var(--eldra-stepper-radius,var(--eldra-radius-md))] eldra:eldra-field-border eldra:border-border-strong';
 /** Spec "Quantity stepper" → States, "Disabled (sold out)" row, Group column. */
-const ROOT_DISABLED = 'bg-surface-strong border-border border-dashed cursor-not-allowed';
+const ROOT_DISABLED =
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:cursor-not-allowed';
 
 const rootClass = computed(() =>
   partClass(cx(ROOT_BASE, props.disabled && ROOT_DISABLED), props.classes, 'root')
@@ -316,11 +317,11 @@ const rootClass = computed(() =>
  * neighbour" → draw the ring just inside the edge).
  */
 const BUTTON_BASE =
-  'relative inline-flex shrink-0 items-center justify-center border-0 bg-transparent ' +
-  'eldra-focus-inset';
+  'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:border-0 eldra:bg-transparent ' +
+  'eldra:eldra-focus-inset';
 const BUTTON_SIZE: Record<QuantityStepperSize, string> = {
-  md: 'control-h aspect-square',
-  sm: 'control-h-sm aspect-square',
+  md: 'eldra:control-h eldra:aspect-square',
+  sm: 'eldra:control-h-sm eldra:aspect-square',
 };
 /**
  * Spec States, "Button hover" row: "fill `text` at 6%" — the same mix Button.vue's `ghost`
@@ -329,11 +330,11 @@ const BUTTON_SIZE: Record<QuantityStepperSize, string> = {
  * `BUTTON_DISABLED` below already carry `cursor-not-allowed` and replace this state outright.
  */
 const BUTTON_HOVER =
-  'text-text cursor-pointer hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+  'eldra:text-text eldra:cursor-pointer eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 /** Spec States, "At min / at max" row: "icon `muted` at 55% opacity ... no hover fill." */
-const BUTTON_AT_LIMIT = 'text-muted opacity-55 cursor-not-allowed';
+const BUTTON_AT_LIMIT = 'eldra:text-muted eldra:opacity-55 eldra:cursor-not-allowed';
 /** Spec States, "Disabled (sold out)" row, Buttons column: "both disabled." */
-const BUTTON_DISABLED = 'text-muted cursor-not-allowed';
+const BUTTON_DISABLED = 'eldra:text-muted eldra:cursor-not-allowed';
 
 function buttonClass(atLimit: boolean): string {
   return cx(
@@ -349,7 +350,7 @@ const increaseClass = computed(() =>
   partClass(buttonClass(atMax.value), props.classes, 'increase')
 );
 
-const ICON_SIZE: Record<QuantityStepperSize, string> = { md: 'size-5', sm: 'size-4' };
+const ICON_SIZE: Record<QuantityStepperSize, string> = { md: 'eldra:size-5', sm: 'eldra:size-4' };
 const iconClass = computed(() => ICON_SIZE[props.size]);
 
 /**
@@ -361,14 +362,14 @@ const iconClass = computed(() => ICON_SIZE[props.size]);
  * per the same "Inset variant" note as the buttons.
  */
 const INPUT_BASE =
-  'min-w-0 border-0 bg-transparent text-center tabular-nums text-text ' +
-  'eldra-focus-inset eldra-focus-inset-always';
+  'eldra:min-w-0 eldra:border-0 eldra:bg-transparent eldra:text-center eldra:tabular-nums eldra:text-text ' +
+  'eldra:eldra-focus-inset eldra:eldra-focus-inset-always';
 const INPUT_SIZE: Record<QuantityStepperSize, string> = {
-  md: 'w-11 text-stepper-value',
-  sm: 'w-9 text-stepper-value-sm',
+  md: 'eldra:w-11 eldra:text-stepper-value',
+  sm: 'eldra:w-9 eldra:text-stepper-value-sm',
 };
 /** Spec States, "Disabled (sold out)" row, Input column: "muted." */
-const INPUT_DISABLED = 'text-muted cursor-not-allowed';
+const INPUT_DISABLED = 'eldra:text-muted eldra:cursor-not-allowed';
 
 const inputClass = computed(() =>
   partClass(

@@ -65,13 +65,13 @@ describe('FormLayout — element and parts', () => {
       slots: { default: () => field('Name') },
     });
     expect(wrapper.classes()).toContain('gap-8');
-    expect(wrapper.classes()).not.toContain('gap-4');
+    expect(wrapper.classes()).not.toContain('eldra:gap-4');
     wrapper.unmount();
   });
 
   it('is a container, so the md Buttons inside it grow on a narrow form and not a narrow page', () => {
     const wrapper = mountWith(FormLayout, { slots: { default: () => field('Name') } });
-    expect(wrapper.classes()).toContain('@container');
+    expect(wrapper.classes()).toContain('eldra:@container');
     wrapper.unmount();
   });
 });
@@ -416,7 +416,7 @@ describe('FormLayout — the error summary and the status region', () => {
     expect(summary.exists()).toBe(true);
     expect(summary.attributes('role')).toBe('alert');
     expect(summary.classes()).toEqual(
-      expect.arrayContaining(['border', 'border-danger', 'bg-surface'])
+      expect.arrayContaining(['eldra:border', 'eldra:border-danger', 'eldra:bg-surface'])
     );
     // Above the fields, below the heading.
     const children = [...wrapper.element.children].map((el) => el.getAttribute('data-part'));
@@ -455,7 +455,7 @@ describe('FormLayout — the error summary and the status region', () => {
     expect(status.exists()).toBe(true);
     expect(status.attributes('role')).toBe('status');
     expect(status.attributes('aria-live')).toBe('polite');
-    expect(status.classes()).toContain('sr-only');
+    expect(status.classes()).toContain('eldra:sr-only');
     expect(status.text()).toBe('');
 
     await wrapper.setProps({ statusMessage: "Thanks, you're subscribed." });
@@ -538,7 +538,9 @@ describe('FormLayout — layouts', () => {
       props: { ariaLabel: 'Test' },
       slots: { default: () => field('Name') },
     });
-    expect(wrapper.find('[data-part="fields"]').classes()).not.toContain('@two-col:grid-cols-2');
+    expect(wrapper.find('[data-part="fields"]').classes()).not.toContain(
+      'eldra:@two-col:grid-cols-2'
+    );
     wrapper.unmount();
   });
 
@@ -549,9 +551,9 @@ describe('FormLayout — layouts', () => {
     });
     const fields = wrapper.find('[data-part="fields"]').classes();
     // One column by default; the second column is a container query, so below 36rem it stacks.
-    expect(fields).toContain('grid');
-    expect(fields).toContain('@two-col:grid-cols-2');
-    expect(fields).not.toContain('grid-cols-2');
+    expect(fields).toContain('eldra:grid');
+    expect(fields).toContain('eldra:@two-col:grid-cols-2');
+    expect(fields).not.toContain('eldra:grid-cols-2');
     wrapper.unmount();
   });
 
@@ -565,7 +567,9 @@ describe('FormLayout — layouts', () => {
     });
     // `fields` and `actions` are rows of the form's own single-column grid, so the actions row
     // spans the field columns without a span utility of its own.
-    expect(wrapper.find('[data-part="actions"]').classes()).not.toContain('@two-col:grid-cols-2');
+    expect(wrapper.find('[data-part="actions"]').classes()).not.toContain(
+      'eldra:@two-col:grid-cols-2'
+    );
     expect(wrapper.find('[data-part="fields"]').element.parentElement).toBe(wrapper.element);
     expect(wrapper.find('[data-part="actions"]').element.parentElement).toBe(wrapper.element);
     wrapper.unmount();
@@ -583,21 +587,21 @@ describe('FormLayout — layouts', () => {
         actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Subscribe'),
       },
     });
-    expect(wrapper.classes()).toContain('flex-wrap');
-    expect(wrapper.classes()).toContain('items-end');
+    expect(wrapper.classes()).toContain('eldra:flex-wrap');
+    expect(wrapper.classes()).toContain('eldra:items-end');
     // The `fields` box and the field's own root flatten away, so the label-and-control group, the
     // error and the foot row are items of this one flex row — alongside the button.
-    expect(wrapper.find('[data-part="fields"]').classes()).toContain('contents');
+    expect(wrapper.find('[data-part="fields"]').classes()).toContain('eldra:contents');
     expect(wrapper.find('[data-part="fields"] > [data-part="root"]').classes()).toContain(
-      'contents'
+      'eldra:contents'
     );
     const group = wrapper.find('[data-part="label"]').element.parentElement as HTMLElement;
-    expect(group.className).toContain('flex-[1_1_14rem]');
+    expect(group.className).toContain('eldra:flex-[1_1_14rem]');
     // ...and the error and the foot wrap onto full-width rows of their own, after the button.
     for (const part of ['error', 'foot']) {
       const classes = wrapper.find(`[data-part="${part}"]`).classes();
-      expect(classes, part).toContain('basis-full');
-      expect(classes, part).toContain('order-1');
+      expect(classes, part).toContain('eldra:basis-full');
+      expect(classes, part).toContain('eldra:order-1');
     }
     wrapper.unmount();
   });
@@ -608,9 +612,9 @@ describe('FormLayout — layouts', () => {
       slots: { default: () => field('Email address', { help: 'One letter a month.' }) },
     });
     const root = wrapper.find('[data-part="fields"] > [data-part="root"]');
-    expect(root.classes()).toContain('grid');
-    expect(root.classes()).not.toContain('contents');
-    expect(wrapper.find('[data-part="foot"]').classes()).not.toContain('basis-full');
+    expect(root.classes()).toContain('eldra:grid');
+    expect(root.classes()).not.toContain('eldra:contents');
+    expect(wrapper.find('[data-part="foot"]').classes()).not.toContain('eldra:basis-full');
     wrapper.unmount();
   });
 
@@ -629,9 +633,9 @@ describe('FormLayout — layouts', () => {
     const actions = wrapper.find('[data-part="actions"]').classes();
     // The row ends its content; the tertiary link — the only <a> the spec's actions row holds, and
     // always first — pushes itself away, which is the spec's space-between without a caller class.
-    expect(actions).toContain('justify-end');
-    expect(actions).toContain('[&>a:first-child]:me-auto');
-    expect(wrapper.find('[data-part="actions"] > a').classes()).not.toContain('me-auto');
+    expect(actions).toContain('eldra:justify-end');
+    expect(actions).toContain('eldra:[&>a:first-child]:me-auto');
+    expect(wrapper.find('[data-part="actions"] > a').classes()).not.toContain('eldra:me-auto');
     wrapper.unmount();
   });
 
@@ -649,8 +653,8 @@ describe('FormLayout — layouts', () => {
     const actions = wrapper.find('[data-part="actions"]').classes();
     // DOM order is secondary then primary (the primary is last on wide layouts); the narrow
     // container reverses the visual order so the primary is on top, and every button fills it.
-    expect(actions).toContain('@max-two-col:flex-col-reverse');
-    expect(actions).toContain('@max-two-col:*:w-full');
+    expect(actions).toContain('eldra:@max-two-col:flex-col-reverse');
+    expect(actions).toContain('eldra:@max-two-col:*:w-full');
     wrapper.unmount();
   });
 });
@@ -716,8 +720,8 @@ describe('FormLayout — fields inside it', () => {
     });
     const fields = wrapper.findAll('[data-part="fields"] > [data-part="root"]');
     expect(fields).toHaveLength(2);
-    expect(fields[0]?.classes()).not.toContain('@two-col:col-span-2');
-    expect(fields[1]?.classes()).toContain('@two-col:col-span-2');
+    expect(fields[0]?.classes()).not.toContain('eldra:@two-col:col-span-2');
+    expect(fields[1]?.classes()).toContain('eldra:@two-col:col-span-2');
     wrapper.unmount();
   });
 

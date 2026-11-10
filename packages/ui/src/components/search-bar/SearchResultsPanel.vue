@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { MatchParts } from '../select/useOptionList';
 import type { SearchBarPart, SearchRow, SearchSection } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -110,33 +110,35 @@ const panelClass = computed(() =>
         // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
         // this component already clips to the radius, so nothing here draws one.
         cx(
-          'flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain p-2',
-          'text-[color:var(--eldra-select-panel-text)]'
+          'eldra:flex eldra:h-full eldra:min-h-0 eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-2',
+          'eldra:text-[color:var(--eldra-select-panel-text)]'
         )
       : cx(
-          'absolute z-popover flex flex-col overflow-y-auto overscroll-contain p-1.5',
-          'eldra-search-panel-height',
-          'rounded-lg border shadow-md',
-          'border-[color:var(--eldra-select-panel-border,var(--color-border))]',
-          'bg-[color:var(--eldra-select-panel-background,var(--color-background))]',
+          'eldra:absolute eldra:z-popover eldra:flex eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-1.5',
+          'eldra:eldra-search-panel-height',
+          'eldra:rounded-lg eldra:border eldra:shadow-md',
+          'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
+          'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]',
           // No fallback: unset, the colour is inherited exactly as before.
-          'text-[color:var(--eldra-select-panel-text)]',
-          'animate-eldra-popover-in'
+          'eldra:text-[color:var(--eldra-select-panel-text)]',
+          'eldra:animate-eldra-popover-in'
         ),
     props.classes,
     'panel'
   )
 );
 
-const listboxClass = computed(() => partClass('flex flex-col', props.classes, 'listbox'));
+const listboxClass = computed(() =>
+  partClass('eldra:flex eldra:flex-col', props.classes, 'listbox')
+);
 
 /** "0.125rem block padding. Each group after the first has a 1px `border` hairline above." */
 const sectionClass = (index: number): string =>
   partClass(
     cx(
-      'py-0.5',
+      'eldra:py-0.5',
       index > 0 &&
-        'border-[color:var(--eldra-select-panel-border,var(--color-border))] mt-1 border-t pt-1.5'
+        'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))] eldra:mt-1 eldra:border-t eldra:pt-1.5'
     ),
     props.classes,
     'section'
@@ -145,7 +147,7 @@ const sectionClass = (index: number): string =>
 /** "0.75rem, 600, uppercase, 0.06em tracking, `muted`, min 1.75rem row, padding 0.25rem 0.5rem." */
 const headingClass = computed(() =>
   partClass(
-    'text-select-group flex min-h-7 items-center px-2 py-1 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    'eldra:text-select-group eldra:flex eldra:min-h-7 eldra:items-center eldra:px-2 eldra:py-1 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
     props.classes,
     'sectionHeading'
   )
@@ -163,14 +165,14 @@ const headingClass = computed(() =>
 const rowClass = (row: SearchRow, part: SearchBarPart = 'item'): string =>
   partClass(
     cx(
-      'flex min-h-10 scroll-my-1 cursor-pointer items-center gap-3 rounded-md px-2 py-1.5',
-      'text-select-option no-underline',
-      'text-[color:var(--eldra-select-panel-text,var(--color-text))]',
+      'eldra:flex eldra:min-h-10 eldra:scroll-my-1 eldra:cursor-pointer eldra:items-center eldra:gap-3 eldra:rounded-md eldra:px-2 eldra:py-1.5',
+      'eldra:text-select-option eldra:no-underline',
+      'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
       // 'Minor rows ("Clear recent searches"): title 0.8125rem `muted`.'
       row.kind === 'clearRecent' &&
-        'text-caption text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+        'eldra:text-caption eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
       isActive(row) &&
-        'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))] eldra-select-option-active'
+        'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))] eldra:eldra-select-option-active'
     ),
     props.classes,
     part
@@ -178,40 +180,54 @@ const rowClass = (row: SearchRow, part: SearchBarPart = 'item'): string =>
 
 /** "See all" is 600 with the arrow always showing, 0.25rem below the last group. */
 const viewAllClass = computed(() =>
-  props.viewAll === undefined ? '' : cx(rowClass(props.viewAll, 'viewAll'), 'mt-1 font-semibold')
+  props.viewAll === undefined
+    ? ''
+    : cx(rowClass(props.viewAll, 'viewAll'), 'eldra:mt-1 eldra:font-semibold')
 );
 
 /** "Thumbnail / icon tile: 2.5rem square, `radius-sm`. Thumbnails sit on `surface-strong`." */
 const imageClass = (row: SearchRow): string =>
   partClass(
     cx(
-      'flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm',
+      'eldra:flex eldra:size-10 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-sm',
       row.item?.image === undefined
-        ? 'bg-surface text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
-        : 'bg-surface-strong'
+        ? 'eldra:bg-surface eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]'
+        : 'eldra:bg-surface-strong'
     ),
     props.classes,
     'itemImage'
   );
 
 /** "Title and sub truncate with an ellipsis on one line." */
-const titleClass = computed(() => partClass('min-w-0 flex-1 truncate', props.classes, 'itemTitle'));
+const titleClass = computed(() =>
+  partClass('eldra:min-w-0 eldra:flex-1 eldra:truncate', props.classes, 'itemTitle')
+);
 
 /** "Meta: 0.875rem 600 tabular." */
 const metaClass = computed(() =>
-  partClass('ms-3 shrink-0 text-search-meta tabular-nums', props.classes, 'itemMeta')
+  partClass(
+    'eldra:ms-3 eldra:shrink-0 eldra:text-search-meta eldra:tabular-nums',
+    props.classes,
+    'itemMeta'
+  )
 );
 
 /** "1rem `arrow-right`, `text`, at the end of the row. Visible only on the active row." */
-const arrowClass = computed(() => partClass('size-4 shrink-0', props.classes, 'itemArrow'));
+const arrowClass = computed(() =>
+  partClass('eldra:size-4 eldra:shrink-0', props.classes, 'itemArrow')
+);
 
 /** A recent row's own leading icon: "a 1.125rem `muted` leading icon instead" of a tile. */
 const LEADING_ICON =
-  'size-4.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]';
+  'eldra:size-4.5 eldra:shrink-0 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]';
 
 const recentClass = computed(() => partClass('', props.classes, 'recent'));
 const popularClass = computed(() =>
-  partClass('flex flex-wrap gap-1.5 px-2 pt-1 pb-2', props.classes, 'popular')
+  partClass(
+    'eldra:flex eldra:flex-wrap eldra:gap-1.5 eldra:px-2 eldra:pt-1 eldra:pb-2',
+    props.classes,
+    'popular'
+  )
 );
 
 /**
@@ -222,25 +238,29 @@ const popularClass = computed(() =>
 const chipClass = (row: SearchRow): string =>
   partClass(
     cx(
-      'inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3',
-      'text-body-sm no-underline',
-      'text-[color:var(--eldra-select-panel-text,var(--color-text))]',
+      'eldra:inline-flex eldra:min-h-8 eldra:cursor-pointer eldra:items-center eldra:gap-1.5 eldra:rounded-full eldra:border eldra:px-3',
+      'eldra:text-body-sm eldra:no-underline',
+      'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
       isActive(row)
         ? cx(
-            'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]',
-            'border-[color:var(--eldra-select-panel-text,var(--color-text))]',
-            'eldra-select-option-active'
+            'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))]',
+            'eldra:border-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
+            'eldra:eldra-select-option-active'
           )
-        : 'border-border-strong'
+        : 'eldra:border-border-strong'
     ),
     props.classes,
     'chip'
   );
 
 /** "No-results message: centred, padding 1.5rem 1rem 0.75rem. Title 1rem 600 … advice 0.875rem." */
-const emptyClass = computed(() => partClass('px-4 pt-6 pb-3 text-center', props.classes, 'empty'));
+const emptyClass = computed(() =>
+  partClass('eldra:px-4 eldra:pt-6 eldra:pb-3 eldra:text-center', props.classes, 'empty')
+);
 
-const loadingClass = computed(() => partClass('flex flex-col gap-1', props.classes, 'loading'));
+const loadingClass = computed(() =>
+  partClass('eldra:flex eldra:flex-col eldra:gap-1', props.classes, 'loading')
+);
 
 /** The three skeleton rows: "a 2.5rem square + two text lines". */
 const SKELETON_ROWS = [0, 1, 2];
@@ -298,9 +318,9 @@ function onPanelMouseDown(event: MouseEvent): void {
       :class="emptyClass"
     >
       <slot name="empty">
-        <p class="text-search-title m-0 break-words">{{ emptyTitle }}</p>
+        <p class="eldra:text-search-title eldra:m-0 eldra:break-words">{{ emptyTitle }}</p>
         <p
-          class="text-body-sm mt-1 mb-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+          class="eldra:text-body-sm eldra:mt-1 eldra:mb-0 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]"
         >
           {{ emptyAdvice }}
         </p>
@@ -312,13 +332,13 @@ function onPanelMouseDown(event: MouseEvent): void {
       <div
         v-for="row in SKELETON_ROWS"
         :key="row"
-        class="flex min-h-10 items-center gap-3 px-2 py-1.5"
+        class="eldra:flex eldra:min-h-10 eldra:items-center eldra:gap-3 eldra:px-2 eldra:py-1.5"
         aria-hidden="true"
       >
-        <span class="bg-surface-strong size-10 shrink-0 rounded-sm" />
-        <span class="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span class="bg-surface-strong h-2.5 w-3/4 rounded-sm" />
-          <span class="bg-surface-strong h-2.5 w-1/3 rounded-sm" />
+        <span class="eldra:bg-surface-strong eldra:size-10 eldra:shrink-0 eldra:rounded-sm" />
+        <span class="eldra:flex eldra:min-w-0 eldra:flex-1 eldra:flex-col eldra:gap-1.5">
+          <span class="eldra:bg-surface-strong eldra:h-2.5 eldra:w-3/4 eldra:rounded-sm" />
+          <span class="eldra:bg-surface-strong eldra:h-2.5 eldra:w-1/3 eldra:rounded-sm" />
         </span>
       </div>
     </div>
@@ -382,7 +402,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           >
             <!-- Tabler's `search` at 0.875rem, decorative: the chip is named by its text. -->
             <svg
-              class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+              class="eldra:size-3.5 eldra:shrink-0 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -426,7 +446,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                     v-if="row.item.image"
                     :src="row.item.image"
                     :alt="row.item.imageAlt ?? ''"
-                    class="size-full object-cover"
+                    class="eldra:size-full eldra:object-cover"
                   />
                   <!-- The icon tile, at the spec's 1.125rem: Tabler's `photo` for a product with
                        no image (the Imagery foundation's own placeholder icon), `package` for a
@@ -434,7 +454,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                        page. Decorative: the row is named by its title. -->
                   <svg
                     v-else
-                    class="size-4.5"
+                    class="eldra:size-4.5"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -477,9 +497,9 @@ function onPanelMouseDown(event: MouseEvent): void {
                 <span data-part="itemTitle" :class="titleClass">
                   <template v-if="highlights.get(row.value)"
                     >{{ highlights.get(row.value)?.before
-                    }}<mark class="eldra-select-match bg-transparent text-inherit">{{
-                      highlights.get(row.value)?.match
-                    }}</mark
+                    }}<mark
+                      class="eldra:eldra-select-match eldra:bg-transparent eldra:text-inherit"
+                      >{{ highlights.get(row.value)?.match }}</mark
                     >{{ highlights.get(row.value)?.after }}</template
                   >
                   <template v-else>{{ row.label }}</template>
@@ -546,7 +566,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         v-if="looseChips.length > 0"
         data-part="popular"
         role="presentation"
-        :class="[popularClass, 'justify-center']"
+        :class="[popularClass, 'eldra:justify-center']"
       >
         <a
           v-for="row in looseChips"
@@ -561,7 +581,7 @@ function onPanelMouseDown(event: MouseEvent): void {
           @mouseenter="emit('activate', row.value)"
         >
           <svg
-            class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+            class="eldra:size-3.5 eldra:shrink-0 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -591,7 +611,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         @click="emit('select', viewAll, $event)"
         @mouseenter="emit('activate', viewAll.value)"
       >
-        <span class="min-w-0 flex-1 truncate">{{ viewAll.label }}</span>
+        <span class="eldra:min-w-0 eldra:flex-1 eldra:truncate">{{ viewAll.label }}</span>
         <!-- Always visible on this row, unlike every other. -->
         <svg
           data-part="itemArrow"

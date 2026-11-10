@@ -2,7 +2,7 @@
 import { computed, provide, useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
@@ -75,7 +75,7 @@ const hasErrorSummary = computed(() => present.value.errorSummary);
  * every Button on the shared control-height scale instead, so nothing inside this form measures
  * this container for that purpose any more.
  */
-const ROOT_BASE = '@container w-full';
+const ROOT_BASE = 'eldra:@container eldra:w-full';
 
 /**
  * Spec "Form layout" → Anatomy: "form (grid, 1rem row gap)". The inline form is the one exception:
@@ -83,11 +83,11 @@ const ROOT_BASE = '@container w-full';
  * ("inline form (flex, wraps, bottom-aligned)", 0.5rem gap).
  */
 const ROOT: Record<FormLayoutVariant, string> = {
-  single: 'grid gap-4',
-  two: 'grid gap-4',
+  single: 'eldra:grid eldra:gap-4',
+  two: 'eldra:grid eldra:gap-4',
   // 0.5rem between the field and the button; 0.25rem between the control row and the help or
   // error row below it, which is the Field wrapper's own rhythm carried onto the form's row.
-  inline: 'flex flex-wrap items-end gap-x-2 gap-y-1',
+  inline: 'eldra:flex eldra:flex-wrap eldra:items-end eldra:gap-x-2 eldra:gap-y-1',
 };
 
 /**
@@ -101,12 +101,12 @@ const ROOT: Record<FormLayoutVariant, string> = {
  * row.
  */
 const FIELDS: Record<FormLayoutVariant, string> = {
-  single: 'grid gap-4',
-  two: 'grid gap-4 @two-col:grid-cols-2',
+  single: 'eldra:grid eldra:gap-4',
+  two: 'eldra:grid eldra:gap-4 eldra:@two-col:grid-cols-2',
   // `display: contents` in the inline row: the field's label-and-control group, its error and its
   // foot row become items of the form's own flex row, which is what lets the button sit level with
   // the control while the error takes a full-width row below both (see `FieldWrapper.vue`).
-  inline: 'contents',
+  inline: 'eldra:contents',
 };
 
 /**
@@ -125,13 +125,14 @@ const FIELDS: Record<FormLayoutVariant, string> = {
  * container's visual order flips. `*:w-full` is the `block` button the spec asks for, applied from
  * the row so a caller does not have to set it per button for one breakpoint.
  */
-const ACTIONS_BASE = 'flex flex-wrap items-center gap-3 [&>a:first-child]:me-auto';
+const ACTIONS_BASE =
+  'eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-3 eldra:[&>a:first-child]:me-auto';
 const ACTIONS_STACKED =
-  '@max-two-col:flex-col-reverse @max-two-col:items-stretch @max-two-col:gap-2 @max-two-col:*:w-full';
+  'eldra:@max-two-col:flex-col-reverse eldra:@max-two-col:items-stretch eldra:@max-two-col:gap-2 eldra:@max-two-col:*:w-full';
 const ACTIONS: Record<FormLayoutVariant, string> = {
-  single: `justify-end pt-1 ${ACTIONS_STACKED}`,
-  two: `justify-end pt-1 ${ACTIONS_STACKED}`,
-  inline: 'shrink-0 gap-2',
+  single: `eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  two: `eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  inline: 'eldra:shrink-0 eldra:gap-2',
 };
 
 const rootClass = computed(() =>
@@ -147,7 +148,7 @@ const rootClass = computed(() =>
 const headingTag = useHeadingTag(() => props.headingLevel);
 const headingClass = computed(() =>
   partClass(
-    cx('text-h4 text-text', props.layout === 'inline' && 'basis-full'),
+    cx('eldra:text-h4 eldra:text-text', props.layout === 'inline' && 'eldra:basis-full'),
     props.classes,
     'heading'
   )
@@ -161,8 +162,8 @@ const headingClass = computed(() =>
  */
 const errorSummaryClass = computed(() =>
   partClass(
-    'text-body-sm text-text border-danger bg-surface flex items-start gap-2 ' +
-      'rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] border p-3',
+    'eldra:text-body-sm eldra:text-text eldra:border-danger eldra:bg-surface eldra:flex eldra:items-start eldra:gap-2 ' +
+      'eldra:rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] eldra:border eldra:p-3',
     props.classes,
     'errorSummary'
   )
@@ -241,7 +242,7 @@ function onSubmit(event: Event): void {
     <div v-if="hasErrorSummary" data-part="errorSummary" :class="errorSummaryClass" role="alert">
       <!-- Tabler's `alert-circle`, stroke 1.75, at 1.25rem. Decorative: the list is the message. -->
       <svg
-        class="text-danger mt-0.5 size-5 shrink-0"
+        class="eldra:text-danger eldra:mt-0.5 eldra:size-5 eldra:shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -255,7 +256,7 @@ function onSubmit(event: Event): void {
         <path d="M12 8v4" />
         <path d="M12 16h.01" />
       </svg>
-      <div :data-eldra-slot="eldra.slotHost('errorSummary')" class="min-w-0">
+      <div :data-eldra-slot="eldra.slotHost('errorSummary')" class="eldra:min-w-0">
         <slot name="errorSummary" />
       </div>
     </div>

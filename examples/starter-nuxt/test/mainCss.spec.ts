@@ -41,6 +41,13 @@ describe('main.css', () => {
     expect(mainCss).toMatch(/^@source\s+'\.\.\/\.\.\/blocks';/m);
   });
 
+  it("ships the package's components prebuilt, below this file's own utilities", async () => {
+    const css = await build(['w-full']);
+    expect(mainCss).toMatch(/^@import '@eldrajs\/ui\/components\.css';$/m);
+    expect(css).toMatch(/@layer components\s*\{[^]*\.eldra\\:inline-flex/);
+    expect(css).toMatch(/^@layer theme, base, components, utilities;$/m);
+  });
+
   it('emits the dialog backdrop from the overlay token', async () => {
     const css = await build(['backdrop:bg-overlay']);
     expect(css).toContain('::backdrop');

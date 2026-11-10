@@ -1,8 +1,7 @@
-import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
-import { isBuilt, itFailsWithoutDist } from '../../../test/built';
+import { compileKitCss } from '../../../test/kitCss';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { enUS } from '../../../messages/en-US';
 import { currentDialog } from '../../../composables/dialogStack';
@@ -45,9 +44,9 @@ describe('Lightbox — element and structure', () => {
     expect(root(wrapper).tagName).toBe('DIALOG');
     expect(wrapper.attributes('data-part')).toBe('root');
     expect(wrapper.attributes('aria-label')).toBe('Merino crew sweater, images');
-    expect(root(wrapper).className).toContain('inset-0');
-    expect(root(wrapper).className).toContain('h-full');
-    expect(root(wrapper).className).toContain('w-full');
+    expect(root(wrapper).className).toContain('eldra:inset-0');
+    expect(root(wrapper).className).toContain('eldra:h-full');
+    expect(root(wrapper).className).toContain('eldra:w-full');
     wrapper.unmount();
   });
 
@@ -141,7 +140,7 @@ describe('Lightbox — element and structure', () => {
     await settle();
     const slideClassName = wrapper.find('[data-part="slide"]').element.className;
     expect(slideClassName).toContain('px-4');
-    expect(slideClassName).not.toContain('px-16');
+    expect(slideClassName).not.toContain('eldra:px-16');
     wrapper.unmount();
   });
 
@@ -160,9 +159,11 @@ describe('Lightbox — element and structure', () => {
     };
 
     // Bar = 0.75rem padding twice + the 2.5rem close button (2.75rem below 48rem).
-    expect(await stageClassName({ images: IMAGES.slice(0, 1) })).toContain('pb-16 max-md:pb-17');
-    expect(await stageClassName({ images: IMAGES })).toContain('pb-16 max-md:pb-17');
-    expect(await stageClassName({ images: IMAGES, thumbnails: true })).not.toContain('pb-16');
+    expect(await stageClassName({ images: IMAGES.slice(0, 1) })).toContain(
+      'eldra:pb-16 eldra:max-md:pb-17'
+    );
+    expect(await stageClassName({ images: IMAGES })).toContain('eldra:pb-16 eldra:max-md:pb-17');
+    expect(await stageClassName({ images: IMAGES, thumbnails: true })).not.toContain('eldra:pb-16');
   });
 });
 
@@ -566,7 +567,7 @@ describe('Lightbox — narrow', () => {
       props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true, thumbnails: true },
     });
     await settle();
-    expect(root(wrapper).className).toContain('fixed');
+    expect(root(wrapper).className).toContain('eldra:fixed');
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
@@ -660,8 +661,8 @@ describe('Lightbox — pointer drag', () => {
     const classes = wrapper.find('[data-part="track"]').element.className;
     expect(classes).toContain('data-[dragging=true]:scroll-auto');
     expect(classes).toContain('data-[dragging=true]:select-none');
-    expect(classes).toContain('touch-pan-x');
-    expect(classes).toContain('touch-pan-y');
+    expect(classes).toContain('eldra:touch-pan-x');
+    expect(classes).toContain('eldra:touch-pan-y');
     wrapper.unmount();
   });
 
@@ -686,30 +687,16 @@ describe('Lightbox — pointer drag', () => {
   });
 });
 
-describe('Lightbox — built CSS', () => {
-  const distDir = fileURLToPath(new NodeURL('../../../../dist/', import.meta.url));
-  const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
-
-  it.runIf(built)(
-    'the close button grows below a 48rem viewport through a real @media query',
-    async () => {
-      const { compile } = await import('@tailwindcss/node');
-      const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
-        base: distDir,
-        onDependency() {},
-      });
-      const css = compiler.build(['max-md:size-11']);
-      expect(css).toContain('@media (width < 48rem)');
-      expect(css).not.toContain('@container');
-      const mediaStart = css.indexOf('@media (width < 48rem)');
-      const mediaBlock = css.slice(mediaStart, css.indexOf('}', css.indexOf('{', mediaStart)) + 1);
-      // `size-11` compiles to `calc(var(--spacing) * 11)` (2.75rem at the stock `--spacing: 0.25rem`),
-      // not the literal number — the stock Tailwind scale, not a value this package wrote.
-      expect(mediaBlock).toContain('width: calc(var(--spacing) * 11);');
-      expect(mediaBlock).toContain('height: calc(var(--spacing) * 11);');
-    }
-  );
-
-  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
-  itFailsWithoutDist(built);
+describe('Lightbox — compiled CSS', () => {
+  it('the close button grows below a 48rem viewport through a real @media query', async () => {
+    const css = await compileKitCss(['eldra:max-md:size-11']);
+    expect(css).toContain('@media (width < 48rem)');
+    expect(css).not.toContain('@container');
+    const mediaStart = css.indexOf('@media (width < 48rem)');
+    const mediaBlock = css.slice(mediaStart, css.indexOf('}', css.indexOf('{', mediaStart)) + 1);
+    // `size-11` compiles to `calc(0.25rem * 11)` (the theme is inlined): the stock Tailwind
+    // scale, not a value this package wrote.
+    expect(mediaBlock).toContain('width: calc(0.25rem * 11);');
+    expect(mediaBlock).toContain('height: calc(0.25rem * 11);');
+  });
 });

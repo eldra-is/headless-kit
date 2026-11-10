@@ -72,15 +72,15 @@ describe('EditorPlaceholder — inline', () => {
     const wrapper = mountWith(EditorPlaceholder, {
       props: { label: 'Add a heading', inline: true },
     });
-    expect(wrapper.classes()).toContain('p-4');
-    expect(wrapper.classes()).not.toContain('p-8');
+    expect(wrapper.classes()).toContain('eldra:p-4');
+    expect(wrapper.classes()).not.toContain('eldra:p-8');
     wrapper.unmount();
   });
 
   it('uses the full padding by default', () => {
     const wrapper = mountWith(EditorPlaceholder, { props: { label: 'Add products' } });
-    expect(wrapper.classes()).toContain('p-8');
-    expect(wrapper.classes()).not.toContain('p-4');
+    expect(wrapper.classes()).toContain('eldra:p-8');
+    expect(wrapper.classes()).not.toContain('eldra:p-4');
     wrapper.unmount();
   });
 });

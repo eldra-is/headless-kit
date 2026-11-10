@@ -72,11 +72,11 @@ describe('Section — element and aria naming', () => {
 
 describe('Section — background', () => {
   it.each<[SectionBackground, string[]]>([
-    ['none', ['bg-background', 'text-text']],
-    ['surface', ['bg-surface', 'text-text']],
-    ['surface-strong', ['bg-surface-strong', 'text-text']],
-    ['primary', ['bg-primary', 'text-primary-contrast']],
-    ['accent', ['bg-accent', 'text-accent-contrast']],
+    ['none', ['eldra:bg-background', 'eldra:text-text']],
+    ['surface', ['eldra:bg-surface', 'eldra:text-text']],
+    ['surface-strong', ['eldra:bg-surface-strong', 'eldra:text-text']],
+    ['primary', ['eldra:bg-primary', 'eldra:text-primary-contrast']],
+    ['accent', ['eldra:bg-accent', 'eldra:text-accent-contrast']],
   ])('applies the %s ground fill and text colour', (background, classNames) => {
     const wrapper = mountWith(Section, { props: { background } });
     for (const className of classNames) expect(wrapper.classes()).toContain(className);
@@ -85,26 +85,26 @@ describe('Section — background', () => {
 
   it('defaults to none', () => {
     const wrapper = mountWith(Section);
-    expect(wrapper.classes()).toContain('bg-background');
+    expect(wrapper.classes()).toContain('eldra:bg-background');
     wrapper.unmount();
   });
 
   it.each<SectionBackground>(['primary', 'accent'])(
-    'marks a %s ground with data-section and group/section for the inversion mechanism',
+    'marks a %s ground with data-section for the section-primary/section-accent variants',
     (background) => {
       const wrapper = mountWith(Section, { props: { background } });
       expect(wrapper.attributes('data-section')).toBe(background);
-      expect(wrapper.classes()).toContain('group/section');
+      expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(eldra:)?group\/section(\s|$)/);
       wrapper.unmount();
     }
   );
 
   it.each<SectionBackground>(['none', 'surface', 'surface-strong'])(
-    'never marks a %s ground with data-section or group/section',
+    'never marks a %s ground with data-section',
     (background) => {
       const wrapper = mountWith(Section, { props: { background } });
       expect(wrapper.attributes('data-section')).toBeUndefined();
-      expect(wrapper.classes()).not.toContain('group/section');
+      expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)(eldra:)?group\/section(\s|$)/);
       wrapper.unmount();
     }
   );
@@ -121,9 +121,9 @@ describe('Section — background', () => {
 
 describe('Section — spacing', () => {
   it.each<[SectionSpacing, string[]]>([
-    ['sm', ['pt-[var(--eldra-section-sm)]', 'pb-[var(--eldra-section-sm)]']],
-    ['md', ['pt-[var(--eldra-section-md)]', 'pb-[var(--eldra-section-md)]']],
-    ['lg', ['pt-[var(--eldra-section-lg)]', 'pb-[var(--eldra-section-lg)]']],
+    ['sm', ['eldra:pt-[var(--eldra-section-sm)]', 'eldra:pb-[var(--eldra-section-sm)]']],
+    ['md', ['eldra:pt-[var(--eldra-section-md)]', 'eldra:pb-[var(--eldra-section-md)]']],
+    ['lg', ['eldra:pt-[var(--eldra-section-lg)]', 'eldra:pb-[var(--eldra-section-lg)]']],
   ])('applies the %s padding-block tokens', (spacing, classNames) => {
     const wrapper = mountWith(Section, { props: { spacing } });
     for (const className of classNames) expect(wrapper.classes()).toContain(className);
@@ -132,13 +132,13 @@ describe('Section — spacing', () => {
 
   it('defaults to md', () => {
     const wrapper = mountWith(Section);
-    expect(wrapper.classes()).toContain('pt-[var(--eldra-section-md)]');
+    expect(wrapper.classes()).toContain('eldra:pt-[var(--eldra-section-md)]');
     wrapper.unmount();
   });
 
   it('applies no padding utility for none', () => {
     const wrapper = mountWith(Section, { props: { spacing: 'none' } });
-    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)p[tb]-/);
+    expect(wrapper.classes().join(' ')).not.toMatch(/(^|\s)eldra:p[tb]-/);
     wrapper.unmount();
   });
 });
@@ -146,7 +146,7 @@ describe('Section — spacing', () => {
 describe('Section — container context', () => {
   it('is a @container, so descendant container queries measure it, not the viewport', () => {
     const wrapper = mountWith(Section);
-    expect(wrapper.classes()).toContain('@container');
+    expect(wrapper.classes()).toContain('eldra:@container');
     wrapper.unmount();
   });
 });
@@ -195,7 +195,7 @@ describe('Section — customisation', () => {
       props: { background: 'surface', classes: { root: 'bg-accent' } },
     });
     expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('bg-surface');
+    expect(wrapper.classes()).not.toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 });

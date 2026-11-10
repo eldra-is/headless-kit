@@ -178,7 +178,7 @@ describe('SearchBar', () => {
       expect(clear.exists()).toBe(true);
       expect(clear.attributes('aria-label')).toBe(enUS.clear);
       // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-      expect(clear.classes()).toContain('cursor-pointer');
+      expect(clear.classes()).toContain('eldra:cursor-pointer');
       await clear.trigger('click');
       expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['']);
       await wrapper.setProps({ modelValue: '' });
@@ -487,7 +487,7 @@ describe('SearchBar', () => {
       expect(row.find('[data-part="itemMeta"]').text()).toBe('$96.00');
       // The match is marked by weight and underline, not colour: a <mark> with our own class.
       expect(row.find('mark').text()).toBe('Mer');
-      expect(row.find('mark').classes()).toContain('eldra-select-match');
+      expect(row.find('mark').classes()).toContain('eldra:eldra-select-match');
     });
 
     it('marks a match that differs by case and accent', async () => {
@@ -796,7 +796,8 @@ describe('SearchBar', () => {
       const active = items[1];
       expect(active?.attributes('id')).toBe(field(wrapper).getAttribute('aria-activedescendant'));
       // A fill *and* an arrow, plus the active-descendant above: never colour alone.
-      const ACTIVE_FILL = 'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]';
+      const ACTIVE_FILL =
+        'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))]';
       expect(active?.classes()).toContain(ACTIVE_FILL);
       expect(active?.find('[data-part="itemArrow"]').exists()).toBe(true);
       expect(items[0]?.classes()).not.toContain(ACTIVE_FILL);
@@ -1044,11 +1045,11 @@ describe('SearchBar', () => {
     });
 
     it('grows the field and rounds it fully in the lg and pill variants', () => {
-      expect(field(mount()).className).toContain('control-h');
+      expect(field(mount()).className).toContain('eldra:control-h');
       const large = mount({ size: 'lg' });
-      expect(field(large).className).toContain('control-h-lg');
+      expect(field(large).className).toContain('eldra:control-h-lg');
       const pill = mount({ pill: true });
-      expect(field(pill).className).toContain('rounded-full');
+      expect(field(pill).className).toContain('eldra:rounded-full');
     });
   });
 
@@ -1103,7 +1104,7 @@ describe('SearchBar', () => {
       await input.trigger('focus');
       await flush();
       expect(panel(wrapper).exists()).toBe(true);
-      expect(inPanel(wrapper, '[data-part="itemTitle"]').classes()).toContain('truncate');
+      expect(inPanel(wrapper, '[data-part="itemTitle"]').classes()).toContain('eldra:truncate');
       expect(await axe(document.body)).toHaveNoViolations();
     });
   });
@@ -1142,7 +1143,9 @@ describe('SearchBar — the field is Input’s field', () => {
     }
     // The md override is a *viewport* rule, so a focused field never zooms on iOS. That is the
     // half the old copy had spelled out itself and could therefore have lost on its own.
-    expect(mount().find('[data-part="field"]').classes()).toContain('max-md:text-control-mobile');
+    expect(mount().find('[data-part="field"]').classes()).toContain(
+      'eldra:max-md:text-control-mobile'
+    );
   });
 
   it('carries Input’s live boundary, hover and focus colours', async () => {
@@ -1155,8 +1158,10 @@ describe('SearchBar — the field is Input’s field', () => {
 
   it('keeps its own pill radius, which replaces Input’s rather than landing beside it', () => {
     const classes = mount({ pill: true }).find('[data-part="field"]').classes();
-    expect(classes).toContain('rounded-full');
-    expect(classes).not.toContain('rounded-[var(--eldra-input-radius,var(--eldra-radius-md))]');
+    expect(classes).toContain('eldra:rounded-full');
+    expect(classes).not.toContain(
+      'eldra:rounded-[var(--eldra-input-radius,var(--eldra-radius-md))]'
+    );
   });
 });
 
@@ -1169,7 +1174,7 @@ describe('SearchBar — the panel entrance', () => {
   it('carries the entrance utility and the origin the keyframes read', async () => {
     const wrapper = mount({ recent: RECENT });
     await focusField(wrapper);
-    expect(panel(wrapper).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(wrapper).classes()).toContain('eldra:animate-eldra-popover-in');
     expect(panel(wrapper).attributes('style')).toContain('--eldra-popover-origin: top left');
     // The slide is gone from the entrance, so the variable that drove it is not written either.
     expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
@@ -1177,11 +1182,12 @@ describe('SearchBar — the panel entrance', () => {
 });
 
 describe('SearchBar — panel colour variables', () => {
-  const BG = 'bg-[color:var(--eldra-select-panel-background,var(--color-background))]';
-  const BORDER = 'border-[color:var(--eldra-select-panel-border,var(--color-border))]';
-  const TEXT = 'text-[color:var(--eldra-select-panel-text,var(--color-text))]';
-  const MUTED = 'text-[color:var(--eldra-select-panel-muted,var(--color-muted))]';
-  const ACTIVE = 'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]';
+  const BG = 'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]';
+  const BORDER = 'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]';
+  const TEXT = 'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]';
+  const MUTED = 'eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]';
+  const ACTIVE =
+    'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))]';
   const VARIABLES = {
     '--eldra-select-panel-background': '#111827',
     '--eldra-select-panel-border': '#374151',
@@ -1199,9 +1205,9 @@ describe('SearchBar — panel colour variables', () => {
     await focusField(wrapper);
     const root = panel(wrapper);
     expect(root.classes()).toEqual(
-      expect.arrayContaining([BG, BORDER, 'text-[color:var(--eldra-select-panel-text)]'])
+      expect.arrayContaining([BG, BORDER, 'eldra:text-[color:var(--eldra-select-panel-text)]'])
     );
-    expect(root.classes()).not.toContain('bg-background');
+    expect(root.classes()).not.toContain('eldra:bg-background');
     const sections = root.findAll('[data-part="section"]');
     expect(sections[1]?.classes()).toContain(BORDER);
     expect(root.find('[data-part="sectionHeading"]').classes()).toContain(MUTED);

@@ -492,12 +492,13 @@ describe('components.css', () => {
 
 /**
  * A consumer that runs Tailwind itself, with a theme that disagrees with the kit's on every name
- * they share and every utility the kit compiles, so each collision `scoped.css` removes would show.
+ * they share, compiling every utility the kit uses under its unprefixed name: each one would
+ * restyle a component if the kit's classes were not `eldra:`-prefixed.
  */
 async function consumerTailwind(): Promise<string> {
   const candidates = new Set<string>();
   for (const [, name] of stylesheet('components.css').matchAll(/\.((?:\\.|[\w-])+)/g))
-    candidates.add(name!.replace(/\\(.)/g, '$1'));
+    candidates.add(name!.replace(/\\(.)/g, '$1').replace(/^eldra:/, ''));
   const compiler = await compile(
     `@import 'tailwindcss';
 @theme {
@@ -508,35 +509,29 @@ async function consumerTailwind(): Promise<string> {
 }`,
     { base: packageRoot, onDependency() {} }
   );
-  return compiler.build([...candidates, 'text-text', 'p-4', 'border', 'bg-surface']);
+  return compiler.build([...candidates, 'text-text', 'p-4', 'border', 'bg-surface', 'w-[333px]']);
 }
 
-/** Renders a sample under `provideEldraScope(name)`, the way a wrapper does. */
-const scoped = (render: () => VNode, name = 'studio') =>
-  defineComponent({
-    setup() {
-      ui.provideEldraScope(name);
-      return render;
-    },
-  });
-
-describe('scoped.css', () => {
+describe('components.css in a consumer Tailwind app', () => {
   let consumer = '';
   beforeAll(async () => {
     if (built) consumer = await consumerTailwind();
   }, 60_000);
-  // The consumer's stylesheet last, so it wins every tie the kit's does not win by being unlayered.
-  const inConsumerApp = () => `${stylesheet('scoped.css')}\n${consumer}`;
+  // Both orders: the layers, not the order, decide who wins.
+  const ORDERS = [
+    ['kit first', () => `${stylesheet('components.css')}\n${consumer}`],
+    ['kit last', () => `${consumer}\n${stylesheet('components.css')}`],
+  ] as const;
 
-  it.runIf(built).each(SAMPLES)(
-    'draws a scoped %s in a consumer Tailwind app exactly as style.css does alone',
-    async (_name, render, modal = false) => {
-      const shot = async (css: string, markup: string) => {
+  it.runIf(built).each(SAMPLES.flatMap((s) => ORDERS.map((o) => [s[0], o[0], s, o[1]] as const)))(
+    'draws %s (%s) exactly as style.css does alone',
+    async (_name, _order, [, render, modal = false], css) => {
+      const shot = async (sheet: string, markup: string) => {
         const page = await browser.newPage({
           viewport: { width: 1100, height: 700 },
           reducedMotion: 'reduce',
         });
-        await page.setContent(documentWith(css, `<div class="frame">${markup}</div>`));
+        await page.setContent(documentWith(sheet, `<div class="frame">${markup}</div>`));
         if (modal) {
           await page.evaluate(() => {
             for (const dialog of document.querySelectorAll('dialog')) dialog.showModal();
@@ -547,19 +542,36 @@ describe('scoped.css', () => {
         await page.close();
         return png;
       };
-      const plain = await renderToString(createSSRApp({ render }));
-      const markup = await renderToString(createSSRApp(scoped(render)));
-      expect(markup).toContain('data-eldra-scope="studio"');
-      const reference = await shot(stylesheet('style.css'), plain);
-      expect(Buffer.compare(await shot(inConsumerApp(), markup), reference)).toBe(0);
+      const markup = await renderToString(createSSRApp({ render }));
+      const reference = await shot(stylesheet('style.css'), markup);
+      expect(Buffer.compare(await shot(css(), markup), reference)).toBe(0);
     }
   );
 
   it.runIf(built).each(OVERLAY_SAMPLES.map((sample) => [sample.name, sample] as const))(
-    'draws a scoped %s open, teleported parts too, exactly as style.css does alone',
+    'draws %s open, teleported parts too, exactly as style.css does alone',
     async (_name, sample) => {
       const reference = await shotOpen(sample, stylesheet('style.css'));
-      expect(Buffer.compare(await shotOpen(sample, inConsumerApp(), 'studio'), reference)).toBe(0);
+      expect(Buffer.compare(await shotOpen(sample, ORDERS[1][1]()), reference)).toBe(0);
+    }
+  );
+
+  it.runIf(built).each(ORDERS)(
+    "lets a consumer class on a component beat the kit's own (%s)",
+    async (_order, css) => {
+      const markup = await renderToString(
+        createSSRApp({
+          render: () => h(ui.Button, { variant: 'primary', class: 'w-[333px] p-4' }, () => 'Add'),
+        })
+      );
+      const page = await browser.newPage();
+      await page.setContent(documentWith(css(), markup));
+      const style = await page.evaluate(() => {
+        const s = getComputedStyle(document.querySelector('button')!);
+        return [s.width, s.paddingTop];
+      });
+      expect(style).toEqual(['333px', '4px']);
+      await page.close();
     }
   );
 
@@ -568,10 +580,10 @@ describe('scoped.css', () => {
     async () => {
       const label = () => h('span', { id: 'mine', class: 'text-text p-4' }, 'Mine');
       const markup = await renderToString(
-        createSSRApp(scoped(() => h(ui.Button, { variant: 'secondary' }, label)))
+        createSSRApp({ render: () => h(ui.Button, { variant: 'secondary' }, label) })
       );
       const page = await browser.newPage();
-      await page.setContent(documentWith(inConsumerApp(), markup));
+      await page.setContent(documentWith(ORDERS[1][1](), markup));
       const read = (selector: string) =>
         page.evaluate((s) => {
           const style = getComputedStyle(document.querySelector(s)!);
@@ -579,7 +591,6 @@ describe('scoped.css', () => {
         }, selector);
       expect(await read('#mine')).toBe('rgb(1, 2, 3) 4px');
       expect(await read('[data-part="label"]')).not.toBe('rgb(1, 2, 3) 4px');
-      expect(await page.locator('[data-part="label"]').getAttribute('data-eldra-slot')).toBe('');
       await page.close();
     }
   );
@@ -619,9 +630,9 @@ describe('scoped.css', () => {
   it.runIf(built).each(CONSUMER_SLOTS)(
     "leaves the consumer's own element in a %s to the consumer's Tailwind",
     async (_name, render) => {
-      const markup = await renderToString(createSSRApp(scoped(render)));
+      const markup = await renderToString(createSSRApp({ render }));
       const page = await browser.newPage();
-      await page.setContent(documentWith(inConsumerApp(), `<div class="frame">${markup}</div>`));
+      await page.setContent(documentWith(ORDERS[0][1](), `<div class="frame">${markup}</div>`));
       const style = await page.evaluate(() => {
         const s = getComputedStyle(document.getElementById('mine')!);
         return [s.color, s.borderTopWidth, s.paddingTop, s.backgroundColor];
@@ -631,38 +642,36 @@ describe('scoped.css', () => {
     }
   );
 
-  it.runIf(built)(
-    "re-themes through --eldra-* on its scope, and never a host page's own components",
-    async () => {
-      const button = () => h(ui.Button, { variant: 'primary' }, () => 'Add');
-      const host = await renderToString(createSSRApp({ render: button }));
-      const embedded = await renderToString(createSSRApp(scoped(button, 'toolbar')));
-      // Reduced motion zeroes the colour transition, so a re-theme reads at once.
-      const page = await browser.newPage({ reducedMotion: 'reduce' });
-      const css =
-        `${stylesheet('components.css')}\n:root { --eldra-color-primary: rgb(0, 128, 0); }\n` +
-        `${stylesheet('scoped.css')}\n` +
-        "[data-eldra-scope='toolbar'] { --eldra-color-accent: rgb(0, 0, 128); }";
-      await page.setContent(
-        documentWith(css, `<div id="host">${host}</div><div id="embedded">${embedded}</div>`)
+  it.runIf(built)('re-themes through --eldra-* on :root and on a scope root', async () => {
+    const button = () => h(ui.Button, { variant: 'primary' }, () => 'Add');
+    const host = await renderToString(createSSRApp({ render: button }));
+    const embedded = await renderToString(
+      createSSRApp(
+        defineComponent({
+          setup() {
+            ui.provideEldraScope('toolbar');
+            return button;
+          },
+        })
+      )
+    );
+    const page = await browser.newPage({ reducedMotion: 'reduce' });
+    const css =
+      `${stylesheet('components.css')}\n${consumer}\n` +
+      ':root { --eldra-color-primary: rgb(0, 128, 0); }\n' +
+      "[data-eldra-scope='toolbar'] { --eldra-color-primary: rgb(0, 0, 128); }";
+    await page.setContent(
+      documentWith(css, `<div id="host">${host}</div><div id="embedded">${embedded}</div>`)
+    );
+    const background = (id: string) =>
+      page.evaluate(
+        (i) => getComputedStyle(document.querySelector(`#${i} button`)!).backgroundColor,
+        id
       );
-      const background = (id: string) =>
-        page.evaluate(
-          (i) => getComputedStyle(document.querySelector(`#${i} button`)!).backgroundColor,
-          id
-        );
-      expect(await background('host')).toBe('rgb(0, 128, 0)');
-      expect(await background('embedded')).toBe('rgb(36, 32, 28)');
-      await page.evaluate(() =>
-        document
-          .querySelector('#embedded [data-eldra-scope]')!
-          .setAttribute('style', '--eldra-color-primary: rgb(9, 9, 9)')
-      );
-      expect(await background('embedded')).toBe('rgb(9, 9, 9)');
-      expect(await background('host')).toBe('rgb(0, 128, 0)');
-      await page.close();
-    }
-  );
+    expect(await background('host')).toBe('rgb(0, 128, 0)');
+    expect(await background('embedded')).toBe('rgb(0, 0, 128)');
+    await page.close();
+  });
 
   itFailsWithoutDist(built);
 });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Spinner from '../spinner/Spinner.vue';
 import type { LoadMoreProps } from './types';
@@ -34,23 +34,28 @@ const meterPercent = computed(() => {
 
 /** Spec → Sizes, "Load-more stack": "centred, gap 0.75rem." */
 const rootClass = computed(() =>
-  partClass('flex flex-col items-center gap-3', props.classes, 'root')
+  partClass('eldra:flex eldra:flex-col eldra:items-center eldra:gap-3', props.classes, 'root')
 );
 
 /** Spec → Sizes, "Load-more status": "0.875rem, tabular numbers" — the shared `text-body-sm` type
  *  style is the same 0.875rem, so this needs no per-component variable of its own. Accessibility:
  *  "the status `<p aria-live="polite">`." */
 const statusClass = computed(() =>
-  partClass('text-body-sm text-muted tabular-nums text-center', props.classes, 'status')
+  partClass(
+    'eldra:text-body-sm eldra:text-muted eldra:tabular-nums eldra:text-center',
+    props.classes,
+    'status'
+  )
 );
 
 /** Spec → Sizes, "Load-more meter": "`min(14rem, 100%)` × 0.25rem, `radius-full`." `max-w-56` is
  *  the 14rem the spec gives (56 × the shared 0.25rem spacing unit), paired with `w-full` for the
  *  "100%" half of the `min()` on a narrower container. States: "track `surface-strong` … fill
  *  `text`." Accessibility: "the meter is `aria-hidden`." */
-const meterTrackClass = 'h-1 w-full max-w-56 overflow-hidden rounded-full bg-surface-strong';
+const meterTrackClass =
+  'eldra:h-1 eldra:w-full eldra:max-w-56 eldra:overflow-hidden eldra:rounded-full eldra:bg-surface-strong';
 const meterFillClass =
-  'h-full rounded-full bg-text transition-[width] duration-base ease-out motion-reduce:transition-none';
+  'eldra:h-full eldra:rounded-full eldra:bg-text eldra:transition-[width] eldra:duration-base eldra:ease-out eldra:motion-reduce:transition-none';
 
 /**
  * Spec → Sizes: "Load more button: outline button" — the same recipe `Button`'s own `outline`
@@ -63,10 +68,10 @@ const meterFillClass =
 const buttonClass = computed(() =>
   partClass(
     cx(
-      'relative inline-flex items-center justify-center control-h gap-2 rounded-md border px-4.5',
-      'border-border-strong bg-background text-text text-button-md cursor-pointer',
-      'eldra-focus hover:border-text hover:bg-surface',
-      'active:scale-[0.98] motion-reduce:active:scale-100'
+      'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:control-h eldra:gap-2 eldra:rounded-md eldra:border eldra:px-4.5',
+      'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:text-button-md eldra:cursor-pointer',
+      'eldra:eldra-focus eldra:hover:border-text eldra:hover:bg-surface',
+      'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100'
     ),
     props.classes,
     'button'
@@ -95,7 +100,7 @@ const buttonClass = computed(() =>
     >
       <!-- Same spinner circle Button draws, from the same `Spinner.vue`: 1.125rem, 2px stroke,
            one turn every 700ms; with reduced motion it pulses 60–100% opacity instead. -->
-      <Spinner v-if="pending" class="size-4.5" />
+      <Spinner v-if="pending" class="eldra:size-4.5" />
       <span>{{ m.loadMore }}</span>
     </button>
   </div>

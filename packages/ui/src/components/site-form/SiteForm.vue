@@ -2,7 +2,7 @@
 import { computed, nextTick, reactive, ref, watch, type ComponentPublicInstance } from 'vue';
 import { provideEldraUiMessages, useMessages } from '../../composables/useMessages';
 import type { UiMessages } from '../../messages/en-US';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Checkbox from '../checkbox/Checkbox.vue';
@@ -134,11 +134,16 @@ const successMessage = computed(
 );
 
 const spansRow = computed(() =>
-  cx(layout.value === 'two' && '@two-col:col-span-2', layout.value === 'inline' && 'basis-full')
+  cx(
+    layout.value === 'two' && 'eldra:@two-col:col-span-2',
+    layout.value === 'inline' && 'eldra:basis-full'
+  )
 );
 
 const rootClass = computed(() => partClass('', props.classes, 'root'));
-const noticeClass = computed(() => partClass('text-body-sm text-muted', props.classes, 'notice'));
+const noticeClass = computed(() =>
+  partClass('eldra:text-body-sm eldra:text-muted', props.classes, 'notice')
+);
 const layoutClasses = computed(() => ({
   root: props.classes?.form,
   heading: props.classes?.heading,
@@ -158,14 +163,21 @@ const controlClasses = computed(() => ({ control: props.classes?.control }));
 const selectClasses = computed(() => ({ trigger: props.classes?.control }));
 const checkboxClasses = computed(() => ({ root: props.classes?.checkbox }));
 const booleanFieldClass = computed(() =>
-  partClass(cx('grid gap-1', spansRow.value), props.classes, 'field')
+  partClass(cx('eldra:grid eldra:gap-1', spansRow.value), props.classes, 'field')
 );
 const turnstileClass = computed(() =>
-  partClass(cx(spansRow.value, layout.value === 'inline' && 'order-2'), props.classes, 'turnstile')
+  partClass(
+    cx(spansRow.value, layout.value === 'inline' && 'eldra:order-2'),
+    props.classes,
+    'turnstile'
+  )
 );
 const consentClass = computed(() =>
   partClass(
-    cx('text-body-sm text-muted', layout.value === 'inline' && 'order-3 basis-full'),
+    cx(
+      'eldra:text-body-sm eldra:text-muted',
+      layout.value === 'inline' && 'eldra:order-3 eldra:basis-full'
+    ),
     props.classes,
     'consentText'
   )
@@ -175,19 +187,19 @@ const consentUnderButton = computed(
 );
 const submitClasses = computed(() => ({
   container: partClass(
-    consentUnderButton.value ? '@two-col:justify-self-end' : '',
+    consentUnderButton.value ? 'eldra:@two-col:justify-self-end' : '',
     props.classes,
     'submit'
   ),
 }));
 const successClass = computed(() =>
-  partClass('grid gap-1 focus:outline-none', props.classes, 'success')
+  partClass('eldra:grid eldra:gap-1 eldra:focus:outline-none', props.classes, 'success')
 );
 const successTitleClass = computed(() =>
-  partClass('text-body text-text font-semibold', props.classes, 'successTitle')
+  partClass('eldra:text-body eldra:text-text eldra:font-semibold', props.classes, 'successTitle')
 );
 const successMessageClass = computed(() =>
-  partClass('text-body text-muted', props.classes, 'successMessage')
+  partClass('eldra:text-body eldra:text-muted', props.classes, 'successMessage')
 );
 
 const successRoot = ref<HTMLElement | null>(null);
@@ -291,7 +303,7 @@ async function sendAnother(): Promise<void> {
           v-for="(message, index) in formErrors"
           :key="index"
           :data-eldra-scope="eldra.scope"
-          class="m-0"
+          class="eldra:m-0"
         >
           {{ message }}
         </p>
@@ -367,7 +379,7 @@ async function sendAnother(): Promise<void> {
       <div
         v-if="form.honeypotField"
         :data-eldra-scope="eldra.scope"
-        class="sr-only"
+        class="eldra:sr-only"
         aria-hidden="true"
         inert
       >
@@ -403,7 +415,7 @@ async function sendAnother(): Promise<void> {
           v-if="consentUnderButton"
           :data-eldra-slot="eldra.slotHost('submit')"
           :data-eldra-scope="eldra.scope"
-          class="grid w-full gap-2"
+          class="eldra:grid eldra:w-full eldra:gap-2"
         >
           <slot name="submit" :label="submitText" :submitting="submitting" :describedBy="consentId">
             <Button

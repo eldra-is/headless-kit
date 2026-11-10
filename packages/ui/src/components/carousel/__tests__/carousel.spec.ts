@@ -136,7 +136,7 @@ describe('Carousel — element and structure', () => {
     });
     await settle();
     expect(track(wrapper).className).toContain('gap-8');
-    expect(track(wrapper).className).not.toContain('gap-4');
+    expect(track(wrapper).className).not.toContain('eldra:gap-4');
     wrapper.unmount();
   });
 });
@@ -161,7 +161,7 @@ describe('Carousel — slide labelling', () => {
       expect(slide.getAttribute('role')).toBe('group');
       expect(slide.getAttribute('aria-roledescription')).toBe('slide');
       expect(slide.getAttribute('aria-label')).toBe(enUS.slideOf(i + 1, 3));
-      expect(slide.classList.contains('eldra-carousel-slide')).toBe(true);
+      expect(slide.classList.contains('eldra:eldra-carousel-slide')).toBe(true);
     });
     wrapper.unmount();
   });
@@ -249,7 +249,7 @@ describe('Carousel — perView CSS variables', () => {
     });
     await settle();
     expect(perView(wrapper)).toEqual({ base: '1', md: '1', lg: '1' });
-    expect(track(wrapper).className).toContain('eldra-carousel-track');
+    expect(track(wrapper).className).toContain('eldra:eldra-carousel-track');
     wrapper.unmount();
   });
 
@@ -672,7 +672,7 @@ describe('Carousel — roving focus', () => {
     // so a `-1` there would have no reader — and would make a click on the card's padding focus
     // the `<li>` itself.
     for (const slide of slides) expect(slide.getAttribute('tabindex')).toBeNull();
-    for (const slide of slides) expect(slide.classList.contains('eldra-focus')).toBe(false);
+    for (const slide of slides) expect(slide.classList.contains('eldra:eldra-focus')).toBe(false);
     for (const slide of slides.slice(1)) {
       for (const control of controlsOf(slide)) {
         expect(control.getAttribute('tabindex')).toBe('-1');
@@ -697,7 +697,7 @@ describe('Carousel — roving focus', () => {
     const slides = slidesOf(wrapper);
     expect(slides[0]?.getAttribute('tabindex')).toBe('0');
     // The package's own focus ring, on the one stop that has no control of its own to bring one.
-    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
     expect(slides[1]?.getAttribute('tabindex')).toBeNull();
     expect(tabbableIn(track(wrapper))).toEqual([slides[0]]);
 
@@ -706,10 +706,10 @@ describe('Carousel — roving focus', () => {
     // Slide 1 keeps the stop it can still take — a `-1`, so the arrows and a click can reach it
     // and `Tab` cannot — and loses the ring with the stop.
     expect(slides[0]?.getAttribute('tabindex')).toBe('-1');
-    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
     // Slide 2 has a link, so the link is the entry point and the slide element carries nothing.
     expect(slides[1]?.getAttribute('tabindex')).toBeNull();
-    expect(slides[1]?.classList.contains('eldra-focus')).toBe(false);
+    expect(slides[1]?.classList.contains('eldra:eldra-focus')).toBe(false);
     expect(tabbableIn(track(wrapper))).toEqual([slides[1]?.querySelector('a')]);
     wrapper.unmount();
   });
@@ -954,7 +954,7 @@ describe('Carousel — roving focus', () => {
     const instructions = wrapper.find('[data-part="instructions"]');
     expect(instructions.exists()).toBe(true);
     expect(instructions.text()).toBe(enUS.slideInstructions);
-    expect(instructions.classes()).toContain('sr-only');
+    expect(instructions.classes()).toContain('eldra:sr-only');
     // On the root, so it is read on entering the group and not once per slide the arrows walk
     // through; no slide carries a description of its own.
     expect(wrapper.attributes('aria-describedby')).toBe(instructions.attributes('id'));
@@ -1113,7 +1113,7 @@ describe('Carousel — roving focus', () => {
     await settle();
     await settle();
     expect(slides[0]?.getAttribute('tabindex')).toBe('0');
-    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
     expect(tabbableIn(track(wrapper))).toEqual([slides[0]]);
     wrapper.unmount();
   });
@@ -1168,7 +1168,7 @@ describe('Carousel — roving focus', () => {
     await settle();
     const slides = slidesOf(wrapper);
     expect(slides[0]?.getAttribute('tabindex')).toBe('0');
-    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
     expect(tabbableIn(track(wrapper))).toEqual([slides[0]]);
 
     await wrapper.find('[data-part="track"]').trigger('keydown', { key: 'ArrowRight' });
@@ -1205,7 +1205,7 @@ describe('Carousel — roving focus', () => {
     expect(trackEl.getAttribute('tabindex')).toBeNull();
     for (const slide of slides) {
       expect(slide.getAttribute('tabindex')).toBeNull();
-      expect(slide.classList.contains('eldra-focus')).toBe(false);
+      expect(slide.classList.contains('eldra:eldra-focus')).toBe(false);
     }
     expect(tabbableIn(trackEl)).toHaveLength(0);
     wrapper.unmount();
@@ -1320,7 +1320,7 @@ describe('Carousel — roving focus', () => {
     await settle();
     for (const slide of slidesOf(wrapper)) {
       expect(slide.classList.contains('eldra-focus')).toBe(true);
-      expect(slide.classList.contains('eldra-focus-proxy')).toBe(true);
+      expect(slide.classList.contains('eldra:eldra-focus-proxy')).toBe(true);
     }
     wrapper.unmount();
   });
@@ -1345,11 +1345,11 @@ describe('Carousel — roving focus', () => {
     await settle();
     const slides = slidesOf(wrapper);
     expect(slides[0]?.getAttribute('tabindex')).toBe('0');
-    expect(slides[0]?.classList.contains('eldra-focus')).toBe(true);
-    expect(slides[0]?.classList.contains('eldra-focus-proxy')).toBe(false);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
+    expect(slides[0]?.classList.contains('eldra:eldra-focus-proxy')).toBe(false);
     // And the slide that holds the link rings neither way: its card is what carries a ring.
-    expect(slides[1]?.classList.contains('eldra-focus')).toBe(false);
-    expect(slides[1]?.classList.contains('eldra-focus-proxy')).toBe(false);
+    expect(slides[1]?.classList.contains('eldra:eldra-focus')).toBe(false);
+    expect(slides[1]?.classList.contains('eldra:eldra-focus-proxy')).toBe(false);
     wrapper.unmount();
   });
 
@@ -1479,8 +1479,8 @@ describe('Carousel — pointer drag', () => {
     const classes = track(wrapper).className;
     expect(classes).toContain('data-[dragging=true]:scroll-auto');
     expect(classes).toContain('data-[dragging=true]:select-none');
-    expect(classes).toContain('touch-pan-x');
-    expect(classes).toContain('touch-pan-y');
+    expect(classes).toContain('eldra:touch-pan-x');
+    expect(classes).toContain('eldra:touch-pan-y');
     wrapper.unmount();
   });
 

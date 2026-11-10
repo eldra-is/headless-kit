@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Avatar from './Avatar.vue';
 import type { AvatarGroupProps } from './types';
@@ -25,10 +25,10 @@ const messages = useMessages();
 const ITEM_SIZE = 'sm';
 /** `Avatar.vue`'s own `size-8` for `sm` — needed again here so the item wrapper (which draws the
  * overlap and the ring) is exactly the avatar's own box, not a guess at its size. */
-const ITEM_SIZE_CLASS = 'size-8';
+const ITEM_SIZE_CLASS = 'eldra:size-8';
 /** 25% of the `sm` diameter (spec "Avatar" → Sizes: "each following avatar is pulled back by 25%
  * of the diameter") — `size-8` is 2rem, so `-ml-2` (0.5rem) is exact, not a derived literal. */
-const OVERLAP_CLASS = '-ml-2';
+const OVERLAP_CLASS = 'eldra:-ml-2';
 
 /**
  * Spec "Avatar" → Anatomy, part 3: "up to three avatars plus a '+N' counter avatar"; → Acceptance
@@ -71,12 +71,14 @@ const groupLabel = computed(() =>
 );
 const srTextId = useUiId('avatar-group-label');
 
-const rootClass = computed(() => partClass(cx('inline-flex items-center'), props.classes, 'root'));
+const rootClass = computed(() =>
+  partClass(cx('eldra:inline-flex eldra:items-center'), props.classes, 'root')
+);
 
 function itemClass(index: number): string {
   return partClass(
     cx(
-      'inline-flex shrink-0 items-center justify-center rounded-full ring-2 ring-background',
+      'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:ring-2 eldra:ring-background',
       ITEM_SIZE_CLASS,
       index > 0 && OVERLAP_CLASS
     ),
@@ -88,8 +90,8 @@ function itemClass(index: number): string {
 const moreClass = computed(() =>
   partClass(
     cx(
-      'inline-flex shrink-0 items-center justify-center rounded-full bg-surface-strong ' +
-        'text-text ring-2 ring-background text-avatar-initials-sm',
+      'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:bg-surface-strong ' +
+        'eldra:text-text eldra:ring-2 eldra:ring-background eldra:text-avatar-initials-sm',
       ITEM_SIZE_CLASS,
       visiblePeople.value.length > 0 && OVERLAP_CLASS
     ),
@@ -98,7 +100,7 @@ const moreClass = computed(() =>
   )
 );
 
-const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'srText'));
 </script>
 
 <template>

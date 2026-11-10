@@ -24,7 +24,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
@@ -228,9 +228,9 @@ const rootClass = computed(() =>
       // shrink-to-fit ambiguity for a flex container to resolve differently here — but `open:block`
       // costs nothing and keeps every modal root that never needed `flex` on the same, proven-safe
       // choice rather than two different justifications for the same fix).
-      'hidden open:block fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-0 text-background',
-      'backdrop:bg-overlay focus:outline-none',
-      'animate-eldra-lightbox-in motion-reduce:animate-eldra-dialog-in-reduced'
+      'eldra:hidden eldra:open:block eldra:fixed eldra:inset-0 eldra:m-0 eldra:h-full eldra:max-h-none eldra:w-full eldra:max-w-none eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-background',
+      'eldra:backdrop:bg-overlay eldra:focus:outline-none',
+      'eldra:animate-eldra-lightbox-in eldra:motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     props.classes,
     'root'
@@ -247,7 +247,7 @@ const rootClass = computed(() =>
 const panelClass = computed(() =>
   partClass(
     cx(
-      'flex h-full w-full flex-col bg-[color-mix(in_oklab,var(--eldra-color-text)_94%,transparent)]'
+      'eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:bg-[color-mix(in_oklab,var(--eldra-color-text)_94%,transparent)]'
     ),
     props.classes,
     'panel'
@@ -255,10 +255,10 @@ const panelClass = computed(() =>
 );
 
 const barClass =
-  'flex shrink-0 items-center justify-between gap-4 px-4 py-3 text-body-sm text-background';
+  'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-between eldra:gap-4 eldra:px-4 eldra:py-3 eldra:text-body-sm eldra:text-background';
 
 const counterClass = computed(() =>
-  partClass('tabular-nums text-background', props.classes, 'counter')
+  partClass('eldra:tabular-nums eldra:text-background', props.classes, 'counter')
 );
 
 /**
@@ -273,10 +273,10 @@ const counterClass = computed(() =>
 const closeClass = computed(() =>
   partClass(
     cx(
-      'inline-flex size-10 max-md:size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-      'text-background eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
-      'active:scale-[0.98] active:bg-[color-mix(in_oklab,var(--eldra-color-background)_20%,transparent)]'
+      'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+      'eldra:text-background eldra:eldra-focus',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
+      'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-background)_20%,transparent)]'
     ),
     props.classes,
     'close'
@@ -288,11 +288,11 @@ const closeClass = computed(() =>
  *  actually scroll within the flex column rather than growing the whole panel. */
 const stageClass = computed(() =>
   cx(
-    'relative min-h-0 flex-1',
+    'eldra:relative eldra:min-h-0 eldra:flex-1',
     // With no thumbnail strip below, the stage mirrors the bar's height (0.75rem padding twice plus
     // the 2.5rem close button, 2.75rem below 48rem) so the image sits centred with equal space
     // above and below instead of running to the viewport's bottom edge.
-    !showThumbnails.value && 'pb-16 max-md:pb-17'
+    !showThumbnails.value && 'eldra:pb-16 eldra:max-md:pb-17'
   )
 );
 
@@ -319,11 +319,11 @@ const TRACK_STYLE = carouselPerViewStyle({ base: 1 });
 const trackClass = computed(() =>
   partClass(
     cx(
-      'flex h-full touch-pan-x touch-pan-y cursor-grab snap-x snap-mandatory overflow-x-auto overscroll-x-contain',
-      'scroll-smooth motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus',
-      '[--eldra-focus-offset:4px] data-[dragging=true]:cursor-grabbing data-[dragging=true]:snap-none',
-      'data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
-      'eldra-carousel-track'
+      'eldra:flex eldra:h-full eldra:touch-pan-x eldra:touch-pan-y eldra:cursor-grab eldra:snap-x eldra:snap-mandatory eldra:overflow-x-auto eldra:overscroll-x-contain',
+      'eldra:scroll-smooth eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus',
+      'eldra:[--eldra-focus-offset:4px] eldra:data-[dragging=true]:cursor-grabbing eldra:data-[dragging=true]:snap-none',
+      'eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
+      'eldra:eldra-carousel-track'
     ),
     props.classes,
     'track'
@@ -357,18 +357,21 @@ const trackClass = computed(() =>
  * outer width is still exactly the track's own (border-box already includes the padding) — so the
  * peek disappears and the image alone loses the 4rem the arrows need.
  */
-const slideClass = computed(() => partClass('flex h-full px-16', props.classes, 'slide'));
+const slideClass = computed(() =>
+  partClass('eldra:flex eldra:h-full eldra:px-16', props.classes, 'slide')
+);
 
 /** The `<figure>` Image itself renders (given `caption`) — sized to fill the slide and centre its
  *  frame both ways, `flex-col` so the (`flex-1`) frame and the (`shrink-0`) caption stack. */
-const imageRootClass = 'flex h-full w-full flex-col items-center';
+const imageRootClass = 'eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:items-center';
 
-const imageFrameClass = 'w-auto max-w-full flex-1 min-h-0 rounded-md';
+const imageFrameClass = 'eldra:w-auto eldra:max-w-full eldra:flex-1 eldra:min-h-0 eldra:rounded-md';
 
 /** Spec "Sizes": "Caption: 0.875rem, centred, padding 0.75rem 1rem 1rem" — overriding `Image`'s own
  *  default caption style (`text-caption text-muted mt-2`, sized/coloured for a light card ground)
  *  for this component's dark one. */
-const imageCaptionClass = 'mt-0 shrink-0 px-4 pt-3 pb-4 text-center text-body-sm text-background';
+const imageCaptionClass =
+  'eldra:mt-0 eldra:shrink-0 eldra:px-4 eldra:pt-3 eldra:pb-4 eldra:text-center eldra:text-body-sm eldra:text-background';
 
 /**
  * Spec "Sizes": "Arrows: 2.75rem circles, 1px outline, 0.75rem from the stage edges, centred
@@ -378,19 +381,19 @@ const imageCaptionClass = 'mt-0 shrink-0 px-4 pt-3 pb-4 text-center text-body-sm
  * whole-button `opacity-*`, which would fade the border too.
  */
 const ARROW_BASE = cx(
-  'absolute top-1/2 inline-flex size-11 shrink-0 -translate-y-1/2 cursor-pointer items-center',
-  'justify-center rounded-full border text-background eldra-focus',
-  'border-[color-mix(in_oklab,var(--eldra-color-background)_70%,transparent)]',
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
-  'disabled:cursor-not-allowed disabled:text-background/45',
-  'disabled:hover:bg-transparent'
+  'eldra:absolute eldra:top-1/2 eldra:inline-flex eldra:size-11 eldra:shrink-0 eldra:-translate-y-1/2 eldra:cursor-pointer eldra:items-center',
+  'eldra:justify-center eldra:rounded-full eldra:border eldra:text-background eldra:eldra-focus',
+  'eldra:border-[color-mix(in_oklab,var(--eldra-color-background)_70%,transparent)]',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
+  'eldra:disabled:cursor-not-allowed eldra:disabled:text-background/45',
+  'eldra:disabled:hover:bg-transparent'
 );
-const prevClass = computed(() => partClass(cx(ARROW_BASE, 'left-3'), props.classes, 'prev'));
-const nextClass = computed(() => partClass(cx(ARROW_BASE, 'right-3'), props.classes, 'next'));
+const prevClass = computed(() => partClass(cx(ARROW_BASE, 'eldra:left-3'), props.classes, 'prev'));
+const nextClass = computed(() => partClass(cx(ARROW_BASE, 'eldra:right-3'), props.classes, 'next'));
 
 const thumbnailsClass = computed(() =>
   partClass(
-    'flex shrink-0 items-center justify-center gap-2 overflow-x-auto px-4 pt-2 pb-4',
+    'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:gap-2 eldra:overflow-x-auto eldra:px-4 eldra:pt-2 eldra:pb-4',
     props.classes,
     'thumbnails'
   )
@@ -407,9 +410,9 @@ const thumbnailsClass = computed(() =>
 const thumbnailClass = computed(() =>
   partClass(
     cx(
-      'inline-flex size-12 shrink-0 cursor-pointer overflow-hidden rounded-sm opacity-60 eldra-focus',
-      'hover:opacity-100',
-      'aria-[current=true]:opacity-100 aria-[current=true]:outline-2 aria-[current=true]:outline-background aria-[current=true]:outline-offset-2'
+      'eldra:inline-flex eldra:size-12 eldra:shrink-0 eldra:cursor-pointer eldra:overflow-hidden eldra:rounded-sm eldra:opacity-60 eldra:eldra-focus',
+      'eldra:hover:opacity-100',
+      'eldra:aria-[current=true]:opacity-100 eldra:aria-[current=true]:outline-2 eldra:aria-[current=true]:outline-background eldra:aria-[current=true]:outline-offset-2'
     ),
     props.classes,
     'thumbnail'
@@ -442,7 +445,7 @@ const thumbnailClass = computed(() =>
           @click="onCloseClick"
         >
           <svg
-            class="size-4"
+            class="eldra:size-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -470,7 +473,7 @@ const thumbnailClass = computed(() =>
           @click="prev"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -533,7 +536,7 @@ const thumbnailClass = computed(() =>
           @click="next"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

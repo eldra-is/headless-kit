@@ -229,27 +229,21 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of five CSS entries, depending on how the consuming project builds CSS:
+The components ship prebuilt: a project never compiles the package's styles and needs no Tailwind
+to use them. Every class a component renders is `eldra:`-prefixed and every variable it reads is
+`--eldra-*`, so nothing collides with a project's own Tailwind. The styles sit in
+`@layer components`, below Tailwind's `utilities`, so a class you put on a component (`class`,
+`classes`) wins over the component's own.
 
-- `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
-- `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
-  utilities, for a project that runs Tailwind v4 itself:
-
-  ```css
-  @import 'tailwindcss';
-  @import '@eldrajs/ui/tailwind.css';
-  ```
-
-- `@eldrajs/ui/style.css` — the package's own compiled stylesheet, for a project with no Tailwind
-  build of its own:
+- `@eldrajs/ui/style.css` — the compiled components with Tailwind's page-wide reset, for a page
+  built from the package:
 
   ```css
   @import '@eldrajs/ui/style.css';
   ```
 
-- `@eldrajs/ui/components.css` — the same stylesheet without Tailwind's page-wide reset, for a site
-  with its own CSS that adds a few components: its own headings, lists and links keep their
-  browser defaults.
+- `@eldrajs/ui/components.css` — the same without the page-wide reset, for a site with its own CSS
+  or its own Tailwind: its own headings, lists and links keep their defaults.
 
   ```css
   @import '@eldrajs/ui/components.css';
@@ -262,14 +256,20 @@ Pick one of five CSS entries, depending on how the consuming project builds CSS:
   hook. The one exception: an element with its own `data-part` passed into a component's slot is
   inside the scope and gets the reset too.
 
-- `@eldrajs/ui/scoped.css` — for embedding the components in another Tailwind app, or beside this
-  package's own components on a page: theme variables renamed into `--eldra-tw-*`, every rule
-  inside `@scope ([data-eldra-scope])`, stopping at slot content. Call `provideEldraScope()` in the
-  wrapper or app root; the package README's "Embedding in another Tailwind app" has the rules.
+- `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
+- `@eldrajs/ui/tailwind.css` — for a project running Tailwind v4 whose own markup should use the
+  same tokens: the tokens, a `@theme` block and the package's utilities. It builds no component,
+  so import the prebuilt ones beside it:
 
   ```css
-  @import '@eldrajs/ui/scoped.css';
+  @import 'tailwindcss';
+  @import '@eldrajs/ui/tailwind.css';
+  @import '@eldrajs/ui/components.css';
   ```
+
+`provideEldraScope(name)` marks every component below it with `data-eldra-scope="<name>"`,
+teleported parts included, so `[data-eldra-scope='<name>'] { --eldra-color-primary: … }` re-themes
+those alone. The package README's "Styles" section has the details.
 
 ## Forms
 

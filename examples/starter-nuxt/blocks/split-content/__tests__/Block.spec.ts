@@ -67,7 +67,7 @@ describe('split-content block', () => {
    */
   it('the block root is a Section (a query container)', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
-    expect(wrapper.get('section').classes()).toContain('@container');
+    expect(wrapper.get('section').classes()).toContain('eldra:@container');
   });
 
   it('renders rows as an ordered role=list, one h2 heading per row', () => {
@@ -219,7 +219,7 @@ describe('split-content block', () => {
   it('applies the xl radius to every row image frame', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
     for (const frame of wrapper.findAll('[data-part="frame"]')) {
-      expect(frame.classes()).toContain('rounded-xl');
+      expect(frame.classes()).toContain('eldra:rounded-xl');
     }
   });
 });

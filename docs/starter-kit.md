@@ -38,6 +38,7 @@ Tailwind root:
 ```css
 @import 'tailwindcss';
 @import '@eldrajs/ui/tailwind.css';
+@import '@eldrajs/ui/components.css';
 @source '../../blocks';
 ```
 
@@ -56,11 +57,11 @@ The second import is the package's Tailwind entry (see
 [packages/ui/README.md](../packages/ui/README.md#styles)): the `--eldra-*` variables with the
 spec's defaults, a `@theme` block naming them in Tailwind's own namespaces (`--color-primary`,
 `--radius-md`, `--font-heading`, `--shadow-md`, the type styles), the package's utilities
-(`eldra-focus`, `control-h`, `text-body`, …) and a `@source './'` so this build also scans
-`@eldrajs/ui`'s compiled components — without that last part a class only the package's `dist/*.js`
-uses would never be emitted into the theme's stylesheet. It resolves out of `node_modules` through
-Tailwind's own CSS resolver; unlike `virtual:eldra/tailwind-theme.css` above, there is nothing
-virtual about it.
+(`eldra-focus`, `control-h`, `text-body`, …), for the theme's own markup. The third is the
+package's components, prebuilt: every class `eldra:`-prefixed, in `@layer components`, so a class
+a block puts on a component wins over the component's own. Both resolve out of `node_modules`
+through Tailwind's own CSS resolver; unlike `virtual:eldra/tailwind-theme.css` above, there is
+nothing virtual about them.
 
 **Two files declare `--eldra-color-*`, and the order matters.** The package's defaults come in
 through the import above; the theme's own values — `tokens.json`, plus any site override, what
@@ -140,10 +141,11 @@ Three things a theme has to keep on its own side of that boundary:
   tag — is what keeps `blocks/**` free of Nuxt globals. Note a `Button` with `href` has no `as` in
   the spec and always renders a plain `<a>`: a button-shaped CTA is a document navigation.
 - **Coloured grounds announce themselves.** A section (or card) whose background is the `primary`
-  or `accent` token carries `class="group/section" data-section="primary|accent"`; the package's
-  components read it and invert their own colours, so no block hand-writes a contrast colour for a
-  button or link. `Section` does it from its `background` prop; a block that colours its own inner
-  surface (the `cta` block's card) marks that surface the same way by hand.
+  or `accent` token carries `data-section="primary|accent"`; the package's components read the
+  nearest one and invert their own colours, so no block hand-writes a contrast colour for a button
+  or link. `Section` does it from its `background` prop; a block that colours its own inner
+  surface (the `cta` block's card) marks that surface the same way by hand, and a light card on a
+  coloured section (`testimonials`) carries `data-section="none"` to stop the inversion.
 
 `app/plugins/eldra-ui-messages.ts` provides the package's own strings (`Close`, `Clear`, "opens in
 a new tab", …) for the active content locale, from `app/i18n/uiMessages.ts`, plus `Price`'s number

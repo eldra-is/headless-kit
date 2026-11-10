@@ -21,7 +21,11 @@ import UnitInput from '../components/unit-input/UnitInput.vue';
  * the shared utility for its size, and `target-touch` never appears anywhere in the tree.
  */
 
-const HEIGHT_UTILITY = { sm: 'control-h-sm', md: 'control-h', lg: 'control-h-lg' } as const;
+const HEIGHT_UTILITY = {
+  sm: 'eldra:control-h-sm',
+  md: 'eldra:control-h',
+  lg: 'eldra:control-h-lg',
+} as const;
 
 const OPTIONS: SelectOption[] = [
   { value: 'order', label: "An order I've placed" },
@@ -43,7 +47,7 @@ function allElements(root: Element): Element[] {
 function expectNoTargetTouch(root: Element): void {
   for (const element of allElements(root)) {
     for (const className of element.classList) {
-      expect(className === 'target-touch' || className.endsWith(':target-touch')).toBe(false);
+      expect(className === 'eldra:target-touch' || className.endsWith(':target-touch')).toBe(false);
     }
   }
 }

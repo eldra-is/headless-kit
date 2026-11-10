@@ -2,7 +2,7 @@
 /**
  * A focused band asking the visitor to do one thing (spec `02-blocks.md` 745–856). `variant`:
  *  - `primary`: full-width `primary` band, centred copy — `Section background="primary"` already
- *    marks `class="group/section" data-section="primary"` on its own root, which is the package's
+ *    marks `data-section="primary"` on its own root, which is the package's
  *    own signal that inverts `Button` (a `primary-contrast` fill with `primary` text; `outline`
  *    becomes a transparent `currentColor` box) with no hand-written colour in this block.
  *  - `subtle`: the same centred layout on `Section background="surface"` (no inversion — only
@@ -13,7 +13,7 @@
  *    inverts, so this panel carries no `data-section` at all. With no image it falls back to the
  *    same centred `subtle`-style copy, inside the panel.
  *  - `banner`: a compact `accent` panel the block marks **by hand**
- *    (`class="group/section" data-section="accent"` on the panel `<div>`, not the `Section`, whose
+ *    (`data-section="accent"` on the panel `<div>`, not the `Section`, whose
  *    own `background` stays `none` here per the design spec's Section table) — that hand-written
  *    marker is what inverts the one button the same way `Section`'s own `data-section` does
  *    elsewhere. No eyebrow, no secondary action; heading keeps the `h2` tag but is styled at the
@@ -30,8 +30,8 @@
  * is no `--eldra-control-height-*` step at exactly 2.75rem either) below `@tablet` (48rem of the
  * block's own width), `control-h-lg` (3rem) from `@tablet` on. `cx`'s custom `twMerge` config
  * registers `control-h`/`control-h-sm`/`control-h-lg` as one conflicting group
- * (`packages/ui/src/utils/cx.ts`), so the override cleanly replaces `size="lg"`'s own base
- * `control-h-lg` at the unprefixed (mobile) level without touching its `@tablet:`-scoped one.
+ * (`packages/ui/src/utils/cx.ts`), so the override cleanly replaces `size="lg"`'s own
+ * `eldra:control-h-lg` instead of sitting beside it.
  *
  * Full-width-below-`@tablet` buttons elsewhere use the same base/`@tablet:` class pair every other
  * rebuilt block's own container-query classes use (`w-full @tablet:w-auto` on `Button`'s own
@@ -141,7 +141,7 @@ const showButtonHint = computed(() => isEditing.value && !hasPrimaryCta.value);
       <!-- banner: compact accent row, hand-marked so the package inverts its one button -->
       <div
         v-if="isBanner"
-        class="group/section bg-accent text-accent-contrast @tablet:flex-row @tablet:flex-wrap @tablet:items-center @tablet:justify-between @tablet:gap-x-8 @tablet:gap-y-5 @tablet:px-12 @tablet:py-8 flex flex-col gap-4 rounded-xl p-6"
+        class="bg-accent text-accent-contrast @tablet:flex-row @tablet:flex-wrap @tablet:items-center @tablet:justify-between @tablet:gap-x-8 @tablet:gap-y-5 @tablet:px-12 @tablet:py-8 flex flex-col gap-4 rounded-xl p-6"
         data-section="accent"
       >
         <div class="grid max-w-[40rem] gap-2 text-left">

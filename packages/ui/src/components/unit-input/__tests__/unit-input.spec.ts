@@ -154,7 +154,7 @@ describe('UnitInput — rendering (ported)', () => {
     const clear = wrapper.find('button[aria-label="Clear"]');
     expect(clear.exists()).toBe(true);
     // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-    expect(clear.classes()).toContain('cursor-pointer');
+    expect(clear.classes()).toContain('eldra:cursor-pointer');
     wrapper.unmount();
   });
 });
@@ -361,8 +361,8 @@ describe('UnitInput — accessibility (ported)', () => {
   it('carries the focus ring on the field for keyboard users (2.4.13)', () => {
     const wrapper = mount();
     const classes = wrapper.find('[data-part="control"]').classes();
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-always');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-always');
     wrapper.unmount();
   });
 });
@@ -727,10 +727,12 @@ describe('UnitInput — the field wrapper', () => {
 
   it('draws the error boundary on the field, and drops it when disabled', async () => {
     const wrapper = mount({ unit: 'kilometer', invalid: true });
-    expect(wrapper.find('[data-part="field"]').classes()).toContain('eldra-field-invalid');
+    expect(wrapper.find('[data-part="field"]').classes()).toContain('eldra:eldra-field-invalid');
 
     await wrapper.setProps({ disabled: true });
-    expect(wrapper.find('[data-part="field"]').classes()).not.toContain('eldra-field-invalid');
+    expect(wrapper.find('[data-part="field"]').classes()).not.toContain(
+      'eldra:eldra-field-invalid'
+    );
     // `aria-invalid` stays: the field is still invalid, it just cannot be fixed here.
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
     wrapper.unmount();
@@ -748,7 +750,7 @@ describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', ()
       expect(controlClasses).toContain(token);
     }
     // The single-action padding must not also be present.
-    expect(controlClasses).not.toContain('pe-10');
+    expect(controlClasses).not.toContain('eldra:pe-10');
 
     const pairTokens = FIELD_ACTION_PAIR_SIZE.md.split(' ');
     const clearClasses = wrapper.find('[data-part="clearButton"]').classes();
@@ -758,8 +760,8 @@ describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', ()
       expect(handleClasses).toContain(token);
     }
     // The single-action size (size-8) must not also be present.
-    expect(clearClasses).not.toContain('size-8');
-    expect(handleClasses).not.toContain('size-8');
+    expect(clearClasses).not.toContain('eldra:size-8');
+    expect(handleClasses).not.toContain('eldra:size-8');
     wrapper.unmount();
   });
 
@@ -767,20 +769,20 @@ describe('UnitInput — trailing action pairs (operator report, 2026-09-25)', ()
     const wrapper = mount({ modelValue: 5, clearable: true, enableDragAdjust: true });
     await nextTick();
     const suffixClasses = wrapper.find('[data-part="suffix"]').classes();
-    expect(suffixClasses).toContain('gap-0');
-    expect(suffixClasses).not.toContain('gap-1');
+    expect(suffixClasses).toContain('eldra:gap-0');
+    expect(suffixClasses).not.toContain('eldra:gap-1');
     wrapper.unmount();
   });
 
   it('keeps the shared gap-1 row with only one action showing (fix)', async () => {
     const clearOnly = mount({ modelValue: 5, clearable: true });
     await nextTick();
-    expect(clearOnly.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    expect(clearOnly.find('[data-part="suffix"]').classes()).toContain('eldra:gap-1');
     clearOnly.unmount();
 
     const dragOnly = mount({ modelValue: 5, enableDragAdjust: true });
     await nextTick();
-    expect(dragOnly.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    expect(dragOnly.find('[data-part="suffix"]').classes()).toContain('eldra:gap-1');
     dragOnly.unmount();
   });
 

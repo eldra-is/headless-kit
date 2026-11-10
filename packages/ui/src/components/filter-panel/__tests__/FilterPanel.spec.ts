@@ -99,9 +99,9 @@ describe('FilterPanel — structure, roles and names', () => {
   it('renders the facet name at weight 600, not the body weight', () => {
     const wrapper = mountWith(FilterPanel, { props: { facets: ALL_FACETS, currency: 'USD' } });
     const label = group(wrapper, 'category').find('[data-part="groupLabel"]');
-    expect(label.classes()).toContain('text-filter-trigger');
-    expect(label.classes()).not.toContain('font-semibold');
-    expect(label.classes()).not.toContain('text-control');
+    expect(label.classes()).toContain('eldra:text-filter-trigger');
+    expect(label.classes()).not.toContain('eldra:font-semibold');
+    expect(label.classes()).not.toContain('eldra:text-control');
     wrapper.unmount();
   });
 
@@ -115,7 +115,7 @@ describe('FilterPanel — structure, roles and names', () => {
       expect(body.attributes('id')).toBe(controls);
       const legend = body.find('legend');
       expect(legend.text()).toBe(facet.label);
-      expect(legend.classes()).toContain('sr-only');
+      expect(legend.classes()).toContain('eldra:sr-only');
     }
     wrapper.unmount();
   });
@@ -151,14 +151,14 @@ describe('FilterPanel — structure, roles and names', () => {
   /** Spec → Sizes, Group row: a rule above the first group only when something sits above it. */
   it('draws the top rule on the first group only when there is a head above it', () => {
     const withHead = mountWith(FilterPanel, { props: { facets: [CATEGORY_FACET, COLOUR_FACET] } });
-    expect(group(withHead, 'category').classes()).toContain('border-t');
-    expect(group(withHead, 'colour').classes()).not.toContain('border-t');
+    expect(group(withHead, 'category').classes()).toContain('eldra:border-t');
+    expect(group(withHead, 'colour').classes()).not.toContain('eldra:border-t');
     withHead.unmount();
 
     const headless = mountWith(FilterPanel, {
       props: { facets: [CATEGORY_FACET, COLOUR_FACET], showHead: false },
     });
-    expect(group(headless, 'category').classes()).not.toContain('border-t');
+    expect(group(headless, 'category').classes()).not.toContain('eldra:border-t');
     headless.unmount();
   });
 
@@ -260,12 +260,12 @@ describe('FilterPanel — the badge and the collapsed summary', () => {
     // A facet with a selection always starts open, so this one is opened by `collapsed` losing to
     // the selection — collapse it by hand to read the collapsed state, then open it again.
     expect(trigger(wrapper, 'colour').getAttribute('aria-expanded')).toBe('true');
-    expect(summary.classes()).toContain('invisible');
+    expect(summary.classes()).toContain('eldra:invisible');
 
     await group(wrapper, 'colour').find('[data-part="trigger"]').trigger('click');
     expect(trigger(wrapper, 'colour').getAttribute('aria-expanded')).toBe('false');
     expect(group(wrapper, 'colour').find('[data-part="summary"]').classes()).not.toContain(
-      'invisible'
+      'eldra:invisible'
     );
     wrapper.unmount();
   });
@@ -579,7 +579,7 @@ describe('FilterPanel — classes', () => {
     const triggerClasses = wrapper.find('[data-part="trigger"]').classes();
     expect(triggerClasses).toContain('py-6');
     // `tailwind-merge` replaces rather than appends: the part's own `py-3` is gone.
-    expect(triggerClasses).not.toContain('py-3');
+    expect(triggerClasses).not.toContain('eldra:py-3');
     expect(wrapper.find('[data-part="count"]').classes()).toContain('text-danger');
     wrapper.unmount();
   });

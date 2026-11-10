@@ -70,7 +70,7 @@ describe('quote block', () => {
   it('the block root is a labelled <section> that measures its own width (@container)', () => {
     const wrapper = mountBlock(mock);
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
     expect(section.attributes('aria-labelledby')).toBeTruthy();
   });
 
@@ -79,7 +79,7 @@ describe('quote block', () => {
     const heading = wrapper.get(`#${wrapper.get('section').attributes('aria-labelledby')}`);
     expect(heading.element.tagName).toBe('H2');
     expect(heading.text()).toBe(`Quote from ${mock.name}`);
-    expect(heading.classes()).toContain('sr-only');
+    expect(heading.classes()).toContain('eldra:sr-only');
 
     const figure = wrapper.get('figure');
     const blockquote = figure.get('blockquote');
@@ -150,7 +150,7 @@ describe('quote block', () => {
     expect(link.text()).toBe(mock.role);
     expect(link.attributes('href')).toBe(sourceLinkHref);
     expect(link.attributes('aria-label')).toBe(mock.sourceLinkLabel);
-    expect(link.classes()).toContain('eldra-focus');
+    expect(link.classes()).toContain('eldra:eldra-focus');
     const focusable = Array.from(wrapper.element.querySelectorAll('a, button, input, [tabindex]'));
     expect(focusable).toContain(link.element);
   });
@@ -167,7 +167,9 @@ describe('quote block', () => {
   it('has no italic class anywhere in the block', () => {
     const wrapper = mountBlock(withMedia);
     for (const element of wrapper.element.querySelectorAll('*')) {
-      expect(Array.from(element.classList)).not.toContain('italic');
+      expect(Array.from(element.classList, (token) => token.replace(/^eldra:/, ''))).not.toContain(
+        'italic'
+      );
     }
   });
 
@@ -259,6 +261,7 @@ describe('quote block', () => {
     });
     const link = wrapper.get('figcaption a');
     expect(link.classes()).not.toContain('block');
+    expect(link.classes()).not.toContain('eldra:block');
     expect(link.element.parentElement?.tagName).toBe('P');
     expect(link.text()).toBe(mock.role);
   });

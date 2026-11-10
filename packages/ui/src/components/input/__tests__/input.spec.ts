@@ -91,7 +91,7 @@ describe('Input — element and parts', () => {
     expect(wrapper.classes()).toContain('mt-4');
     expect(control(wrapper).className).toContain('text-body-lg');
     // The consumer's font size replaces the component's, it does not land beside it.
-    expect(control(wrapper).className.split(/\s+/)).not.toContain('text-control');
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:text-control');
     expect(wrapper.find('[data-part="clearButton"]').classes()).toContain('opacity-50');
     wrapper.unmount();
   });
@@ -199,7 +199,7 @@ describe('Input — native attributes', () => {
   it('gives a number field inputmode="numeric" and tabular numerals', () => {
     const wrapper = mountWith(Input, { props: { type: 'number' }, attrs: NAME });
     expect(control(wrapper).getAttribute('inputmode')).toBe('numeric');
-    expect(control(wrapper).className).toContain('tabular-nums');
+    expect(control(wrapper).className).toContain('eldra:tabular-nums');
     wrapper.unmount();
   });
 
@@ -231,9 +231,9 @@ describe('Input — native attributes', () => {
 
 describe('Input — sizes', () => {
   it.each([
-    ['sm', 'control-h-sm', 'text-control-sm'],
-    ['md', 'control-h', 'text-control'],
-    ['lg', 'control-h-lg', 'text-control-lg'],
+    ['sm', 'eldra:control-h-sm', 'eldra:text-control-sm'],
+    ['md', 'eldra:control-h', 'eldra:text-control'],
+    ['lg', 'eldra:control-h-lg', 'eldra:text-control-lg'],
   ] as const)('%s uses the spec height and text size', (size, height, text) => {
     const wrapper = mountWith(Input, { props: { size }, attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
@@ -244,19 +244,19 @@ describe('Input — sizes', () => {
 
   it('defaults to md', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
-    expect(control(wrapper).className.split(/\s+/)).toContain('control-h');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:control-h');
     wrapper.unmount();
   });
 
   it('raises md text to 1rem below a 48rem viewport, so iOS never zooms in', () => {
     const wrapper = mountWith(Input, { props: { size: 'md' }, attrs: NAME });
-    expect(control(wrapper).className.split(/\s+/)).toContain('max-md:text-control-mobile');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:max-md:text-control-mobile');
     wrapper.unmount();
   });
 
   it.each(SIZES)('%s keeps its control height, with no touch-target growth', (size) => {
     const wrapper = mountWith(Input, { props: { size }, attrs: NAME });
-    expect(control(wrapper).className).not.toContain('target-touch');
+    expect(control(wrapper).className).not.toContain('eldra:target-touch');
     wrapper.unmount();
   });
 });
@@ -265,20 +265,20 @@ describe('Input — leading icon and suffix', () => {
   it('renders the leading icon decoratively and out of the pointer path', () => {
     const wrapper = mountWith(Input, { props: { leadingIcon: IconMail }, attrs: NAME });
     const icon = wrapper.find('[data-part="leadingIcon"]');
-    expect(icon.classes()).toContain('pointer-events-none');
+    expect(icon.classes()).toContain('eldra:pointer-events-none');
     expect(icon.find('svg').attributes('aria-hidden')).toBe('true');
     wrapper.unmount();
   });
 
   it('makes room for the leading icon with the spec start padding', () => {
     const wrapper = mountWith(Input, { props: { leadingIcon: IconDiscount }, attrs: NAME });
-    expect(control(wrapper).className.split(/\s+/)).toContain('ps-9');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:ps-9');
     wrapper.unmount();
   });
 
   it('leaves the start padding alone with no leading icon', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
-    expect(control(wrapper).className).not.toContain('ps-9');
+    expect(control(wrapper).className).not.toContain('eldra:ps-9');
     wrapper.unmount();
   });
 
@@ -296,7 +296,7 @@ describe('Input — leading icon and suffix', () => {
       attrs: NAME,
       slots: { suffix: '<span>kg</span>' },
     });
-    expect(control(wrapper).className.split(/\s+/)).toContain('pe-10');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:pe-10');
     wrapper.unmount();
   });
 
@@ -311,7 +311,7 @@ describe('Input — leading icon and suffix', () => {
       slots: { suffix: '<span>kg</span>' },
     });
     expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(true);
-    expect(wrapper.find('[data-part="suffix"]').classes()).toContain('gap-1');
+    expect(wrapper.find('[data-part="suffix"]').classes()).toContain('eldra:gap-1');
     wrapper.unmount();
   });
 });
@@ -359,7 +359,7 @@ describe('Input — clear button', () => {
     expect(button.attributes('aria-label')).toBe('Clear');
     expect(button.find('svg').attributes('aria-hidden')).toBe('true');
     // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-    expect(button.classes()).toContain('cursor-pointer');
+    expect(button.classes()).toContain('eldra:cursor-pointer');
     wrapper.unmount();
   });
 
@@ -404,15 +404,15 @@ describe('Input — states', () => {
   it('sets aria-invalid and the 2px danger boundary when invalid', () => {
     const wrapper = mountWith(Input, { props: { invalid: true }, attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
-    expect(control(wrapper).className).toContain('border-danger');
-    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    expect(control(wrapper).className).toContain('eldra:border-danger');
+    expect(wrapper.classes()).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('sets no aria-invalid when valid', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBeNull();
-    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
@@ -421,9 +421,9 @@ describe('Input — states', () => {
     const el = control(wrapper);
     expect(el.disabled).toBe(true);
     const classes = el.className.split(/\s+/);
-    expect(classes).toContain('border-dashed');
-    expect(classes).toContain('bg-surface-strong');
-    expect(classes).toContain('cursor-not-allowed');
+    expect(classes).toContain('eldra:border-dashed');
+    expect(classes).toContain('eldra:bg-surface-strong');
+    expect(classes).toContain('eldra:cursor-not-allowed');
     wrapper.unmount();
   });
 
@@ -444,15 +444,15 @@ describe('Input — states', () => {
     expect(el.disabled).toBe(false);
     el.focus();
     expect(document.activeElement).toBe(el);
-    expect(el.className.split(/\s+/)).toContain('bg-surface');
+    expect(el.className.split(/\s+/)).toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 
   it('carries the text-field focus ring, which shows on any focus', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-always');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-always');
     wrapper.unmount();
   });
 
@@ -465,15 +465,15 @@ describe('Input — states', () => {
   it('draws the hover and focus boundary in text, per the states table', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
     const classes = control(wrapper).className;
-    expect(classes).toContain('border-border-strong');
-    expect(classes).toContain('hover:border-text');
-    expect(classes).toContain('focus:border-text');
+    expect(classes).toContain('eldra:border-border-strong');
+    expect(classes).toContain('eldra:hover:border-text');
+    expect(classes).toContain('eldra:focus:border-text');
     wrapper.unmount();
   });
 
   it('draws the placeholder in muted', () => {
     const wrapper = mountWith(Input, { props: { placeholder: 'you@example.com' }, attrs: NAME });
-    expect(control(wrapper).className).toContain('placeholder:text-muted');
+    expect(control(wrapper).className).toContain('eldra:placeholder:text-muted');
     wrapper.unmount();
   });
 });
@@ -628,7 +628,7 @@ describe('Input — content and layout', () => {
   it('renders long content without clipping the field', () => {
     const wrapper = mountWith(Input, { props: { modelValue: LONG_VALUE }, attrs: NAME });
     expect(control(wrapper).value).toBe(LONG_VALUE);
-    expect(control(wrapper).className).toContain('w-full');
+    expect(control(wrapper).className).toContain('eldra:w-full');
     wrapper.unmount();
   });
 
@@ -638,7 +638,7 @@ describe('Input — content and layout', () => {
       attrs: NAME,
     });
     expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(true);
-    expect(wrapper.classes()).toContain('w-full');
+    expect(wrapper.classes()).toContain('eldra:w-full');
     wrapper.unmount();
   });
 });
@@ -688,24 +688,24 @@ describe('Input — the invalid boundary against the other states', () => {
   it('draws its boundary from the field border-width variable', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).toContain('eldra-field-border');
-    expect(classes).not.toContain('border');
+    expect(classes).toContain('eldra:eldra-field-border');
+    expect(classes).not.toContain('eldra:border');
     wrapper.unmount();
   });
 
   it('drops every invalid style on a disabled field', () => {
     const wrapper = mountWith(Input, { props: { invalid: true, disabled: true }, attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).not.toContain('border-danger');
-    expect(classes).toContain('border-dashed');
-    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    expect(classes).not.toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:border-dashed');
+    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('keeps the invalid boundary on a read-only field', () => {
     const wrapper = mountWith(Input, { props: { invalid: true, readonly: true }, attrs: NAME });
-    expect(control(wrapper).className.split(/\s+/)).toContain('border-danger');
-    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:border-danger');
+    expect(wrapper.classes()).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
@@ -817,11 +817,11 @@ describe('Input — the shared field recipe is what Input renders', () => {
     // `:hover` rule can never win a live boundary back on a dead field.
     const disabled = control({ disabled: true });
     for (const token of tokensOf(FIELD_DISABLED)) expect(disabled).toContain(token);
-    expect(disabled).not.toContain('border-border-strong');
+    expect(disabled).not.toContain('eldra:border-border-strong');
 
     const readonly = control({ readonly: true });
     for (const token of tokensOf(FIELD_READONLY)) expect(readonly).toContain(token);
-    expect(readonly).not.toContain('border-border-strong');
+    expect(readonly).not.toContain('eldra:border-border-strong');
   });
 
   it('renders the decoration paddings from the recipe, not numbers of its own', async () => {
@@ -894,11 +894,11 @@ describe('Input — prefix slot', () => {
     });
     const prefix = wrapper.find('[data-part="prefix"]');
     expect(prefix.exists()).toBe(true);
-    expect(prefix.classes()).not.toContain('pointer-events-none');
+    expect(prefix.classes()).not.toContain('eldra:pointer-events-none');
     for (const token of FIELD_PREFIX_ROW.split(' ')) expect(prefix.classes()).toContain(token);
     expect(prefix.element.nextElementSibling).toBe(control(wrapper));
     expect(control(wrapper).classList.contains(FIELD_PREFIX_PAD.md)).toBe(true);
-    expect(control(wrapper).classList.contains('ps-9')).toBe(false);
+    expect(control(wrapper).classList.contains('eldra:ps-9')).toBe(false);
     wrapper.unmount();
   });
 
@@ -934,7 +934,7 @@ describe('Input — prefix slot', () => {
       slots: { prefix: CALENDAR },
     });
     expect(wrapper.find('[data-part="prefix"]').classes()).toContain('gap-0');
-    expect(wrapper.find('[data-part="prefix"]').classes()).not.toContain('gap-1');
+    expect(wrapper.find('[data-part="prefix"]').classes()).not.toContain('eldra:gap-1');
     wrapper.unmount();
   });
 

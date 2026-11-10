@@ -77,7 +77,7 @@ describe('UiImage', () => {
       },
     });
     const img = wrapper.get('[data-part="media"]');
-    expect(img.classes()).toContain('object-cover');
+    expect(img.classes()).toContain('eldra:object-cover');
     expect(img.attributes('style')).toContain('object-position: 25% 75%');
     expect(img.attributes('data-eldra-framing')).toBeUndefined();
   });
@@ -134,13 +134,13 @@ describe('UiImage', () => {
     it('applies no radius class by default', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
-      expect(frame.classes()).not.toContain('rounded-lg');
-      expect(frame.classes()).not.toContain('rounded-xl');
+      expect(frame.classes()).not.toContain('eldra:rounded-lg');
+      expect(frame.classes()).not.toContain('eldra:rounded-xl');
     });
 
     it.each(['lg', 'xl'] as const)('forwards rounded="%s" to the frame', (rounded) => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero', rounded } });
-      expect(wrapper.get('[data-part="frame"]').classes()).toContain(`rounded-${rounded}`);
+      expect(wrapper.get('[data-part="frame"]').classes()).toContain(`eldra:rounded-${rounded}`);
     });
   });
 
@@ -158,7 +158,7 @@ describe('UiImage', () => {
       const frame = wrapper.get('[data-part="frame"]');
       expect(frame.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full']));
       const media = wrapper.get('[data-part="media"]');
-      expect(media.classes()).toContain('object-cover');
+      expect(media.classes()).toContain('eldra:object-cover');
     });
 
     it('resolves to ratio="auto" (no forced aspect-ratio) while filling', () => {
@@ -183,11 +183,13 @@ describe('UiImage', () => {
     it('defaults to cover: the frame stays w-full, the media stays h-full w-full object-cover — unchanged', () => {
       const wrapper = mount(UiImage, { props: { src: '/demo/hero.svg', alt: 'Hero' } });
       const frame = wrapper.get('[data-part="frame"]');
-      expect(frame.classes()).toContain('w-full');
+      expect(frame.classes()).toContain('eldra:w-full');
       expect(frame.classes()).not.toContain('w-auto');
       const media = wrapper.get('[data-part="media"]');
-      expect(media.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full', 'object-cover']));
-      expect(media.classes()).not.toContain('object-contain');
+      expect(media.classes()).toEqual(
+        expect.arrayContaining(['eldra:h-full', 'eldra:w-full', 'eldra:object-cover'])
+      );
+      expect(media.classes()).not.toContain('eldra:object-contain');
     });
 
     /**
@@ -208,7 +210,7 @@ describe('UiImage', () => {
       });
       const frame = wrapper.get('[data-part="frame"]');
       expect(frame.classes()).toEqual(expect.arrayContaining(['w-auto', 'max-w-full']));
-      expect(frame.classes()).not.toContain('w-full');
+      expect(frame.classes()).not.toContain('eldra:w-full');
       const media = wrapper.get('[data-part="media"]');
       expect(media.classes()).toEqual(
         expect.arrayContaining([
@@ -219,9 +221,9 @@ describe('UiImage', () => {
           'max-h-[inherit]',
         ])
       );
-      expect(media.classes()).not.toContain('object-cover');
-      expect(media.classes()).not.toContain('h-full');
-      expect(media.classes()).not.toContain('w-full');
+      expect(media.classes()).not.toContain('eldra:object-cover');
+      expect(media.classes()).not.toContain('eldra:h-full');
+      expect(media.classes()).not.toContain('eldra:w-full');
     });
 
     it("composes with a caller-supplied classes.frame height cap (the lightbox's max-h-[85vh])", () => {
@@ -254,7 +256,7 @@ describe('UiImage', () => {
       });
       const frame = wrapper.get('[data-part="frame"]');
       expect(frame.classes()).toContain('max-h-[85vh]');
-      expect(frame.classes()).toContain('rounded-lg');
+      expect(frame.classes()).toContain('eldra:rounded-lg');
     });
 
     it("lets the caller's own classes.frame win over fill's forced h-full w-full", () => {

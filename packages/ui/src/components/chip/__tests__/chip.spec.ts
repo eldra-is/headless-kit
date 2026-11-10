@@ -170,16 +170,16 @@ describe('Chip — selectable', () => {
 
   it('fills selected with the primary role and sets aria-pressed', async () => {
     const wrapper = mountWith(Chip, { props: { label: 'Wool', selectable: true, selected: true } });
-    expect(wrapper.classes()).toContain('bg-primary');
-    expect(wrapper.classes()).toContain('text-primary-contrast');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
+    expect(wrapper.classes()).toContain('eldra:text-primary-contrast');
     expect(wrapper.attributes('aria-pressed')).toBe('true');
     wrapper.unmount();
   });
 
   it('fills unselected with the surface-strong role', () => {
     const wrapper = mountWith(Chip, { props: { label: 'Wool', selectable: true } });
-    expect(wrapper.classes()).toContain('bg-surface-strong');
-    expect(wrapper.classes()).toContain('text-text');
+    expect(wrapper.classes()).toContain('eldra:bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:text-text');
     wrapper.unmount();
   });
 
@@ -217,9 +217,9 @@ describe('Chip — selectable', () => {
     const wrapper = mountWith(Chip, {
       props: { label: 'Wool', selectable: true, disabled: true, selected: true },
     });
-    expect(wrapper.classes()).toContain('bg-surface-strong');
-    expect(wrapper.classes()).toContain('text-muted');
-    expect(wrapper.classes()).toContain('cursor-not-allowed');
+    expect(wrapper.classes()).toContain('eldra:bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:text-muted');
+    expect(wrapper.classes()).toContain('eldra:cursor-not-allowed');
     wrapper.unmount();
   });
 });
@@ -227,14 +227,14 @@ describe('Chip — selectable', () => {
 describe('Chip — sizes', () => {
   it('defaults to md', () => {
     const wrapper = mountWith(Chip, { props: { label: 'Wool' } });
-    expect(wrapper.classes()).toContain('min-h-9');
+    expect(wrapper.classes()).toContain('eldra:min-h-9');
     wrapper.unmount();
   });
 
   it('draws the sm size at the MultiSelect tag row height', () => {
     const wrapper = mountWith(Chip, { props: { label: 'Wool', size: 'sm' } });
-    expect(wrapper.classes()).toContain('min-h-7');
-    expect(wrapper.classes()).toContain('text-caption');
+    expect(wrapper.classes()).toContain('eldra:min-h-7');
+    expect(wrapper.classes()).toContain('eldra:text-caption');
     wrapper.unmount();
   });
 });
@@ -253,8 +253,8 @@ describe('Chip — icon and avatar', () => {
     const wrapper = mountWith(Chip, { props: { label: 'Ingrid Solberg', avatar: '/ingrid.jpg' } });
     const avatarWrap = wrapper.get('[data-part="avatar"]');
     const avatarRoot = avatarWrap.get('[data-part="root"]');
-    expect(avatarRoot.classes()).toContain('size-4');
-    expect(avatarRoot.classes()).not.toContain('size-8');
+    expect(avatarRoot.classes()).toContain('eldra:size-4');
+    expect(avatarRoot.classes()).not.toContain('eldra:size-8');
     wrapper.unmount();
   });
 
@@ -283,8 +283,8 @@ describe('Chip — icon and avatar', () => {
     await img.trigger('error');
     const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('text-[0.33rem]');
-    expect(initials.classes()).not.toContain('text-avatar-initials-sm');
+    expect(initials.classes()).toContain('eldra:text-[0.33rem]');
+    expect(initials.classes()).not.toContain('eldra:text-avatar-initials-sm');
     wrapper.unmount();
   });
 
@@ -296,7 +296,7 @@ describe('Chip — icon and avatar', () => {
     await img.trigger('error');
     const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('text-[0.38rem]');
+    expect(initials.classes()).toContain('eldra:text-[0.38rem]');
     wrapper.unmount();
   });
 
@@ -307,7 +307,7 @@ describe('Chip — icon and avatar', () => {
     const initials = wrapper.find('[data-part="avatar"] [data-part="initials"]');
     expect(initials.exists()).toBe(true);
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('text-[0.33rem]');
+    expect(initials.classes()).toContain('eldra:text-[0.33rem]');
     wrapper.unmount();
   });
 });
@@ -315,13 +315,13 @@ describe('Chip — icon and avatar', () => {
 describe('Chip — content', () => {
   it('never wraps a long label', () => {
     const wrapper = mountWith(Chip, { props: { label: LONG_LABEL } });
-    expect(wrapper.classes()).toContain('whitespace-nowrap');
+    expect(wrapper.classes()).toContain('eldra:whitespace-nowrap');
     wrapper.unmount();
   });
 
   it('renders inside a narrow container without overflowing', () => {
     const wrapper = mountNarrow(Chip, { props: { label: LONG_LABEL, removable: true } });
-    expect(wrapper.classes()).toContain('max-w-full');
+    expect(wrapper.classes()).toContain('eldra:max-w-full');
     wrapper.unmount();
   });
 });

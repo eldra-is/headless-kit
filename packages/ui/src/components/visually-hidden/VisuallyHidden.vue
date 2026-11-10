@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { VisuallyHiddenProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -19,7 +19,11 @@ const props = withDefaults(defineProps<VisuallyHiddenProps>(), {
  * from screen readers.
  */
 const rootClass = computed(() =>
-  partClass(cx('sr-only', props.focusable && 'focus:not-sr-only'), props.classes, 'root')
+  partClass(
+    cx('eldra:sr-only', props.focusable && 'eldra:focus:not-sr-only'),
+    props.classes,
+    'root'
+  )
 );
 </script>
 

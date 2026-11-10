@@ -11,7 +11,7 @@ import {
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useOverlay } from '../../composables/useOverlay';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import AccordionItem from '../accordion/AccordionItem.vue';
 import Drawer from '../drawer/Drawer.vue';
@@ -255,21 +255,21 @@ defineExpose({ close });
 
 // Static strings, so Tailwind's source scan sees every variant.
 const BAR_DISPLAY: Record<Exclude<NavMenuCollapse, 'always'>, string> = {
-  md: 'hidden md:block',
-  lg: 'hidden lg:block',
-  xl: 'hidden xl:block',
-  '@tablet': 'hidden @tablet:block',
-  '@content': 'hidden @content:block',
-  '@wide': 'hidden @wide:block',
-  never: 'block',
+  md: 'eldra:hidden eldra:md:block',
+  lg: 'eldra:hidden eldra:lg:block',
+  xl: 'eldra:hidden eldra:xl:block',
+  '@tablet': 'eldra:hidden eldra:@tablet:block',
+  '@content': 'eldra:hidden eldra:@content:block',
+  '@wide': 'eldra:hidden eldra:@wide:block',
+  never: 'eldra:block',
 };
 const TOGGLE_DISPLAY: Record<Exclude<NavMenuCollapse, 'never'>, string> = {
-  md: 'md:hidden',
-  lg: 'lg:hidden',
-  xl: 'xl:hidden',
-  '@tablet': '@tablet:hidden',
-  '@content': '@content:hidden',
-  '@wide': '@wide:hidden',
+  md: 'eldra:md:hidden',
+  lg: 'eldra:lg:hidden',
+  xl: 'eldra:xl:hidden',
+  '@tablet': 'eldra:@tablet:hidden',
+  '@content': 'eldra:@content:hidden',
+  '@wide': 'eldra:@wide:hidden',
   always: '',
 };
 
@@ -278,23 +278,26 @@ const PANEL_TRANSITION = {
   enterActiveClass: '',
   enterToClass: '',
   leaveFromClass: '',
-  leaveActiveClass: 'pointer-events-none transition-opacity duration-fast ease-in',
-  leaveToClass: 'opacity-0',
+  leaveActiveClass:
+    'eldra:pointer-events-none eldra:transition-opacity eldra:duration-fast eldra:ease-in',
+  leaveToClass: 'eldra:opacity-0',
 };
 
-const HOVER_FILL = 'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+const HOVER_FILL = 'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 
 /** A top-level entry's colours at rest, hovered, open (`aria-expanded`) and current. */
 const ENTRY_VARIANT: Record<NavMenuVariant, string> = {
   ghost:
-    'text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
-    'aria-expanded:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+    'eldra:text-text eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
+    'eldra:aria-expanded:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
   muted:
-    'text-muted hover:text-text aria-expanded:text-text aria-[current=page]:text-text ' +
-    'data-[current]:text-text',
+    'eldra:text-muted eldra:hover:text-text eldra:aria-expanded:text-text eldra:aria-[current=page]:text-text ' +
+    'eldra:data-[current]:text-text',
 };
 
-const rootClass = computed(() => partClass('relative flex items-center', props.classes, 'root'));
+const rootClass = computed(() =>
+  partClass('eldra:relative eldra:flex eldra:items-center', props.classes, 'root')
+);
 
 const navClass = computed(() =>
   partClass(
@@ -305,20 +308,20 @@ const navClass = computed(() =>
 );
 
 const listClass = computed(() =>
-  partClass('flex flex-wrap items-center gap-1', props.classes, 'list')
+  partClass('eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-1', props.classes, 'list')
 );
 
 function itemClass(item: NavMenuItem): string {
   return partClass(
-    hasPanel(item) && panelLayout(item) === 'dropdown' ? 'relative' : '',
+    hasPanel(item) && panelLayout(item) === 'dropdown' ? 'eldra:relative' : '',
     props.classes,
     'item'
   );
 }
 
 const TOP_LEVEL =
-  'inline-flex min-h-10 cursor-pointer items-center gap-1 rounded-md px-3 text-body font-medium ' +
-  'eldra-focus';
+  'eldra:inline-flex eldra:min-h-10 eldra:cursor-pointer eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:text-body eldra:font-medium ' +
+  'eldra:eldra-focus';
 
 const linkClass = computed(() =>
   partClass(cx(TOP_LEVEL, ENTRY_VARIANT[props.variant], CURRENT_PAGE), props.classes, 'link')
@@ -329,7 +332,7 @@ const triggerClass = computed(() =>
     cx(
       TOP_LEVEL,
       ENTRY_VARIANT[props.variant],
-      'data-[current]:underline data-[current]:decoration-2 data-[current]:underline-offset-[0.2em]'
+      'eldra:data-[current]:underline eldra:data-[current]:decoration-2 eldra:data-[current]:underline-offset-[0.2em]'
     ),
     props.classes,
     'trigger'
@@ -339,9 +342,9 @@ const triggerClass = computed(() =>
 function triggerIconClass(open: boolean): string {
   return partClass(
     cx(
-      'inline-flex size-4 shrink-0 items-center justify-center',
-      'transition-[rotate] duration-fast ease-out motion-reduce:transition-none',
-      open && 'rotate-180'
+      'eldra:inline-flex eldra:size-4 eldra:shrink-0 eldra:items-center eldra:justify-center',
+      'eldra:transition-[rotate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+      open && 'eldra:rotate-180'
     ),
     props.classes,
     'triggerIcon'
@@ -351,8 +354,8 @@ function triggerIconClass(open: boolean): string {
 function panelClass(item: NavMenuItem): string {
   return partClass(
     cx(
-      'absolute top-full z-popover eldra-nav-menu-panel',
-      panelLayout(item) === 'mega' ? 'inset-x-0' : 'start-0'
+      'eldra:absolute eldra:top-full eldra:z-popover eldra:eldra-nav-menu-panel',
+      panelLayout(item) === 'mega' ? 'eldra:inset-x-0' : 'eldra:start-0'
     ),
     props.classes,
     'panel'
@@ -362,8 +365,8 @@ function panelClass(item: NavMenuItem): string {
 function contentClass(item: NavMenuItem): string {
   return partClass(
     cx(
-      'rounded-lg border border-border bg-background text-text shadow-md animate-eldra-popover-in',
-      panelLayout(item) === 'mega' ? 'p-6' : 'eldra-nav-menu-dropdown p-2'
+      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-popover-in',
+      panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2'
     ),
     props.classes,
     'content'
@@ -372,8 +375,8 @@ function contentClass(item: NavMenuItem): string {
 
 const footerClass = computed(() =>
   partClass(
-    'mt-4 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-border pt-4 ' +
-      'empty:hidden',
+    'eldra:mt-4 eldra:flex eldra:flex-wrap eldra:items-center eldra:justify-between eldra:gap-x-8 eldra:gap-y-3 eldra:border-t eldra:border-border eldra:pt-4 ' +
+      'eldra:empty:hidden',
     props.classes,
     'footer'
   )
@@ -382,8 +385,8 @@ const footerClass = computed(() =>
 const toggleClass = computed(() =>
   partClass(
     cx(
-      'inline-flex size-10 max-md:size-11 shrink-0 cursor-pointer items-center justify-center',
-      'rounded-md text-text eldra-focus',
+      'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center',
+      'eldra:rounded-md eldra:text-text eldra:eldra-focus',
       HOVER_FILL,
       props.collapseBelow === 'never' ? '' : TOGGLE_DISPLAY[props.collapseBelow]
     ),
@@ -392,7 +395,7 @@ const toggleClass = computed(() =>
   )
 );
 
-const toggleIconClass = computed(() => partClass('size-5', props.classes, 'toggleIcon'));
+const toggleIconClass = computed(() => partClass('eldra:size-5', props.classes, 'toggleIcon'));
 
 const drawerClasses = computed(() => ({
   root: props.classes?.drawerRoot,
@@ -405,14 +408,19 @@ const drawerClasses = computed(() => ({
 
 const sections = computed(() => props.drawerLayout === 'sections');
 
-const drawerListClass = computed(() => partClass('flex flex-col', props.classes, 'drawerList'));
+const drawerListClass = computed(() =>
+  partClass('eldra:flex eldra:flex-col', props.classes, 'drawerList')
+);
 
 // Every top-level row in the drawer, link, accordion row or section heading, is this tall.
-const DRAWER_ROW = 'eldra-nav-menu-drawer-row';
+const DRAWER_ROW = 'eldra:eldra-nav-menu-drawer-row';
 
 function drawerItemClass(item: NavMenuItem): string {
-  if (!hasPanel(item)) return partClass('border-b border-border', props.classes, 'drawerItem');
-  const section = sections.value ? 'flex flex-col border-b border-border pb-4' : '';
+  if (!hasPanel(item))
+    return partClass('eldra:border-b eldra:border-border', props.classes, 'drawerItem');
+  const section = sections.value
+    ? 'eldra:flex eldra:flex-col eldra:border-b eldra:border-border eldra:pb-4'
+    : '';
   return partClass(section, props.classes, 'drawerItem');
 }
 
@@ -420,8 +428,8 @@ function drawerSectionHeadingClass(item: NavMenuItem): string {
   return partClass(
     cx(
       DRAWER_ROW,
-      'flex w-full items-center rounded-sm py-4 text-accordion-title text-text',
-      hasHref(item) && cx('eldra-focus', CURRENT_PAGE)
+      'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4 eldra:text-accordion-title eldra:text-text',
+      hasHref(item) && cx('eldra:eldra-focus', CURRENT_PAGE)
     ),
     props.classes,
     'drawerSectionHeading'
@@ -432,8 +440,8 @@ const drawerLinkClass = computed(() =>
   partClass(
     cx(
       DRAWER_ROW,
-      'flex w-full items-center rounded-sm py-4',
-      'text-accordion-title text-text eldra-focus',
+      'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4',
+      'eldra:text-accordion-title eldra:text-text eldra:eldra-focus',
       CURRENT_PAGE
     ),
     props.classes,
@@ -443,7 +451,7 @@ const drawerLinkClass = computed(() =>
 
 const drawerNestClass = computed(() =>
   partClass(
-    'flex flex-col ms-1 border-s border-border eldra-nav-menu-drawer-nest',
+    'eldra:flex eldra:flex-col eldra:ms-1 eldra:border-s eldra:border-border eldra:eldra-nav-menu-drawer-nest',
     props.classes,
     'drawerNest'
   )
@@ -451,7 +459,7 @@ const drawerNestClass = computed(() =>
 
 const accordionClasses = computed(() => ({
   summary: cx(DRAWER_ROW, props.classes?.drawerTrigger),
-  panel: cx('max-w-none pb-4 text-text', props.classes?.drawerPanel),
+  panel: cx('eldra:max-w-none eldra:pb-4 eldra:text-text', props.classes?.drawerPanel),
 }));
 </script>
 
@@ -501,7 +509,7 @@ const accordionClasses = computed(() => ({
                 <slot name="triggerIcon" :item="item" :open="openIndex === index">
                   <!-- Tabler's `chevron-down`. -->
                   <svg
-                    class="size-full"
+                    class="eldra:size-full"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"

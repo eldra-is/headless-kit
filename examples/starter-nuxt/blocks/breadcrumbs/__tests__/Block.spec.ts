@@ -118,7 +118,7 @@ describe('breadcrumbs block', () => {
     async (container) => {
       const wrapper = mountBlock({ ...mock, container });
       const wideOrContent =
-        container === 'wide' ? 'eldra-container-wide' : 'eldra-container-content';
+        container === 'wide' ? 'eldra:eldra-container-wide' : 'eldra:eldra-container-content';
       expect(wrapper.getComponent(Container).classes()).toContain(wideOrContent);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
@@ -189,20 +189,20 @@ describe('breadcrumbs block', () => {
 
       const hiddenLevels = wrapper
         .findAll('[data-part="item"]')
-        .filter((item) => item.classes().includes('@max-tablet:hidden'));
+        .filter((item) => item.classes().includes('eldra:@max-tablet:hidden'));
       expect(hiddenLevels.map((item) => item.text())).toEqual(['Kitchen', 'Table & serving']);
     });
 
     it('reaches Home, then the "…" button, then the parent, in that order', () => {
-      // The collapsed middle levels carry `@max-tablet:hidden` (a container-query class jsdom does
-      // not evaluate — there is no real layout — so "reaches" is asserted the same way the
-      // package's own Breadcrumb.spec.ts does: by document order over the levels that are *not*
-      // collapse-hidden, which below the 48rem collapse threshold is exactly the operable Tab path
-      // a real browser gives (a `display:none` element is never a Tab stop).
+      // The collapsed middle levels carry `eldra:@max-tablet:hidden` (a container-query class
+      // jsdom does not evaluate — there is no real layout — so "reaches" is asserted the same way
+      // the package's own Breadcrumb.spec.ts does: by document order over the levels that are
+      // *not* collapse-hidden, which below the 48rem collapse threshold is exactly the operable Tab
+      // path a real browser gives (a `display:none` element is never a Tab stop).
       const wrapper = mountBlock(deepTrailData);
       const visibleFocusable = wrapper
         .findAll('[data-part="item"]')
-        .filter((item) => !item.classes().includes('@max-tablet:hidden'))
+        .filter((item) => !item.classes().includes('eldra:@max-tablet:hidden'))
         .map((item) => {
           const link = item.find('[data-part="link"]');
           if (link.exists()) return link.text();
@@ -239,7 +239,7 @@ describe('breadcrumbs block', () => {
 
       expect(wrapper.find('[data-part="ellipsis"]').exists()).toBe(false);
       for (const item of wrapper.findAll('[data-part="item"]')) {
-        expect(item.classes()).not.toContain('@max-tablet:hidden');
+        expect(item.classes()).not.toContain('eldra:@max-tablet:hidden');
       }
 
       const links = wrapper.findAll('[data-part="link"]');

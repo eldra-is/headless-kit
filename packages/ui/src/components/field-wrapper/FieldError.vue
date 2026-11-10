@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -32,7 +32,10 @@ const props = defineProps<{
 
 const errorClass = computed(() =>
   partClass(
-    cx('text-field-note text-danger flex items-start gap-1.25 font-medium', props.rowClass),
+    cx(
+      'eldra:text-field-note eldra:text-danger eldra:flex eldra:items-start eldra:gap-1.25 eldra:font-medium',
+      props.rowClass
+    ),
     props.classes,
     'error'
   )
@@ -40,7 +43,7 @@ const errorClass = computed(() =>
 
 /** 1rem, nudged 0.1em down so it sits on the text rather than above it. */
 const errorIconClass = computed(() =>
-  partClass('size-4 shrink-0 translate-y-[0.1em]', props.classes, 'errorIcon')
+  partClass('eldra:size-4 eldra:shrink-0 eldra:translate-y-[0.1em]', props.classes, 'errorIcon')
 );
 </script>
 

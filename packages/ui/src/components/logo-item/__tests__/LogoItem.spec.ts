@@ -120,8 +120,8 @@ describe('LogoItem — wordmark fallback', () => {
   it('lets a long wordmark wrap instead of forcing no-wrap', () => {
     const wrapper = mountInList({ name: LONG_NAME });
     const wordmark = wrapper.get('[data-part="wordmark"]');
-    expect(wordmark.classes()).not.toContain('whitespace-nowrap');
-    expect(wordmark.classes()).toContain('text-balance');
+    expect(wordmark.classes()).not.toContain('eldra:whitespace-nowrap');
+    expect(wordmark.classes()).toContain('eldra:text-balance');
     expect(wordmark.text()).toBe(LONG_NAME);
     wrapper.unmount();
   });
@@ -222,41 +222,43 @@ describe('LogoItem — greyscale/hover treatment', () => {
   it('renders the image greyscale, higher contrast, at 75% opacity by default', () => {
     const wrapper = mountInList({ name: 'Kiln Street', logo: LOGO });
     const img = wrapper.get('[data-part="image"]');
-    expect(img.classes()).toContain('grayscale');
-    expect(img.classes()).toContain('contrast-[1.1]');
-    expect(img.classes()).toContain('opacity-75');
+    expect(img.classes()).toContain('eldra:grayscale');
+    expect(img.classes()).toContain('eldra:contrast-[1.1]');
+    expect(img.classes()).toContain('eldra:opacity-75');
     wrapper.unmount();
   });
 
   it('raises the image to full opacity on hover only when linked', () => {
     const linked = mountInList({ name: 'Kiln Street', logo: LOGO, href: '/x' });
-    expect(linked.get('[data-part="image"]').classes()).toContain('group-hover:opacity-100');
+    expect(linked.get('[data-part="image"]').classes()).toContain('eldra:group-hover:opacity-100');
     linked.unmount();
 
     const unlinked = mountInList({ name: 'Kiln Street', logo: LOGO });
-    expect(unlinked.get('[data-part="image"]').classes()).not.toContain('group-hover:opacity-100');
+    expect(unlinked.get('[data-part="image"]').classes()).not.toContain(
+      'eldra:group-hover:opacity-100'
+    );
     unlinked.unmount();
   });
 
   it('turns the wordmark from muted to text on hover only when linked', () => {
     const linked = mountInList({ name: 'Kiln Street', href: '/x' });
     const linkedWordmark = linked.get('[data-part="wordmark"]');
-    expect(linkedWordmark.classes()).toContain('text-muted');
-    expect(linkedWordmark.classes()).toContain('group-hover:text-text');
+    expect(linkedWordmark.classes()).toContain('eldra:text-muted');
+    expect(linkedWordmark.classes()).toContain('eldra:group-hover:text-text');
     linked.unmount();
 
     const unlinked = mountInList({ name: 'Kiln Street' });
     const unlinkedWordmark = unlinked.get('[data-part="wordmark"]');
-    expect(unlinkedWordmark.classes()).toContain('text-muted');
-    expect(unlinkedWordmark.classes()).not.toContain('group-hover:text-text');
+    expect(unlinkedWordmark.classes()).toContain('eldra:text-muted');
+    expect(unlinkedWordmark.classes()).not.toContain('eldra:group-hover:text-text');
     unlinked.unmount();
   });
 
   it('puts the focus ring on the linked cell with radius-md corners', () => {
     const wrapper = mountInList({ name: 'Kiln Street', href: '/x' });
     const cell = wrapper.get('[data-part="root"]');
-    expect(cell.classes()).toContain('eldra-focus');
-    expect(cell.classes()).toContain('rounded-md');
+    expect(cell.classes()).toContain('eldra:eldra-focus');
+    expect(cell.classes()).toContain('eldra:rounded-md');
     wrapper.unmount();
   });
 
@@ -269,9 +271,9 @@ describe('LogoItem — greyscale/hover treatment', () => {
 
   it('cells are at least 4rem tall', () => {
     const wrapper = mountInList({ name: 'Kiln Street' });
-    expect(wrapper.get('li').classes()).toContain('min-h-16');
+    expect(wrapper.get('li').classes()).toContain('eldra:min-h-16');
     const linked = mountInList({ name: 'Kiln Street', href: '/x' });
-    expect(linked.get('[data-part="root"]').classes()).toContain('min-h-16');
+    expect(linked.get('[data-part="root"]').classes()).toContain('eldra:min-h-16');
     linked.unmount();
     wrapper.unmount();
   });
@@ -282,7 +284,7 @@ describe('LogoItem — customisation', () => {
     const wrapper = mountInList({ name: 'Kiln Street', classes: { root: 'min-h-24' } });
     const cell = wrapper.get('[data-part="root"]');
     expect(cell.classes()).toContain('min-h-24');
-    expect(cell.classes()).not.toContain('min-h-16');
+    expect(cell.classes()).not.toContain('eldra:min-h-16');
     wrapper.unmount();
   });
 

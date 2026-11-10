@@ -2,7 +2,7 @@
 import { computed, h, inject, ref, watchPostEffect, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -116,16 +116,28 @@ function onChange(option: RadioGroupOption): void {
  * a 0.75rem (`space-3`) gap, and the legend has a 0.5rem (`space-2`) bottom margin."
  */
 const rootClass = computed(() =>
-  partClass('grid min-w-0 content-start gap-3 rounded-none border-0 p-0', props.classes, 'root')
+  partClass(
+    'eldra:grid eldra:min-w-0 eldra:content-start eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0',
+    props.classes,
+    'root'
+  )
 );
 
 /** `FieldWrapper`'s help type: 0.8125rem / 1.45, weight 400, `muted`. */
 const helpClass = computed(() =>
-  partClass('text-field-note text-muted min-w-0 font-normal', props.classes, 'help')
+  partClass(
+    'eldra:text-field-note eldra:text-muted eldra:min-w-0 eldra:font-normal',
+    props.classes,
+    'help'
+  )
 );
 
 const legendClass = computed(() =>
-  partClass('text-label text-text mb-2 block w-fit p-0', props.classes, 'legend')
+  partClass(
+    'eldra:text-label eldra:text-text eldra:mb-2 eldra:block eldra:w-fit eldra:p-0',
+    props.classes,
+    'legend'
+  )
 );
 
 /**
@@ -153,8 +165,10 @@ const Legend: FunctionalComponent = () =>
 const optionsClass = computed(() =>
   partClass(
     cx(
-      'flex min-w-0',
-      props.layout === 'row' ? 'flex-row flex-wrap gap-x-6 gap-y-2' : 'flex-col gap-2'
+      'eldra:flex eldra:min-w-0',
+      props.layout === 'row'
+        ? 'eldra:flex-row eldra:flex-wrap eldra:gap-x-6 eldra:gap-y-2'
+        : 'eldra:flex-col eldra:gap-2'
     ),
     props.classes,
     'options'
@@ -169,12 +183,12 @@ const optionsClass = computed(() =>
  * card a different number than the radio's 1.5px, so it cannot share the checkbox's utility.
  */
 const CARD_OPTION =
-  'group relative grid w-full grid-cols-[auto_1fr_auto] items-start gap-x-2.5 gap-y-0.5 ' +
-  'min-h-14 rounded-md px-4 py-3 eldra-radio-card-border';
+  'eldra:group eldra:relative eldra:grid eldra:w-full eldra:grid-cols-[auto_1fr_auto] eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 ' +
+  'eldra:min-h-14 eldra:rounded-md eldra:px-4 eldra:py-3 eldra:eldra-radio-card-border';
 
-const CARD_UNSELECTED = 'bg-background border-border-strong hover:border-text';
-const CARD_SELECTED = 'bg-surface border-primary eldra-radio-card-selected';
-const CARD_INVALID = 'bg-background border-danger hover:border-danger';
+const CARD_UNSELECTED = 'eldra:bg-background eldra:border-border-strong eldra:hover:border-text';
+const CARD_SELECTED = 'eldra:bg-surface eldra:border-primary eldra:eldra-radio-card-selected';
+const CARD_INVALID = 'eldra:bg-background eldra:border-danger eldra:hover:border-danger';
 /**
  * Spec has no dedicated "selected and in error" card row; this follows the same reading `Checkbox`
  * gives an invalid checked box (Decision: it keeps its fill and swaps only the border colour) —
@@ -182,11 +196,11 @@ const CARD_INVALID = 'bg-background border-danger hover:border-danger';
  * this, so one utility draws both the `primary` and the `danger` version of the same line.
  */
 const CARD_INVALID_SELECTED =
-  'bg-surface border-danger eldra-radio-card-selected ' +
-  '[--eldra-radio-card-selected-color:var(--eldra-color-danger)]';
+  'eldra:bg-surface eldra:border-danger eldra:eldra-radio-card-selected ' +
+  'eldra:[--eldra-radio-card-selected-color:var(--eldra-color-danger)]';
 /** Spec "Radio group" → States, Disabled selected row: "as disabled" — the card draws no special
  * selected look once it is also disabled; only the radio inside it keeps a distinct look. */
-const CARD_DISABLED = 'bg-background border-border border-dashed';
+const CARD_DISABLED = 'eldra:bg-background eldra:border-border eldra:border-dashed';
 
 function cardState(option: RadioGroupOption): string {
   if (option.disabled) return CARD_DISABLED;
@@ -234,8 +248,8 @@ const hintClass = computed(() => partClass(HINT, props.classes, 'hint'));
 function metaClass(option: RadioGroupOption): string {
   return partClass(
     cx(
-      'text-card-title col-start-3 min-w-0 justify-self-end tabular-nums whitespace-nowrap',
-      option.disabled ? 'text-muted' : 'text-text'
+      'eldra:text-card-title eldra:col-start-3 eldra:min-w-0 eldra:justify-self-end eldra:tabular-nums eldra:whitespace-nowrap',
+      option.disabled ? 'eldra:text-muted' : 'eldra:text-text'
     ),
     props.classes,
     'meta'

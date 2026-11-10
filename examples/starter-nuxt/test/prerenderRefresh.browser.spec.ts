@@ -154,7 +154,7 @@ async function visit(path: string): Promise<Visit> {
       samples.push(
         await page.evaluate(() => ({
           busy: document.querySelectorAll('[aria-busy="true"]').length,
-          dimmed: document.querySelectorAll('.eldra-revalidating').length,
+          dimmed: document.querySelectorAll('.eldra\\:eldra-revalidating').length,
           spinners: document.querySelectorAll('[data-part="spinner"]').length,
           announced: [...document.querySelectorAll('[role="status"]')].filter((node) =>
             /Updating/i.test((node as HTMLElement).textContent ?? '')

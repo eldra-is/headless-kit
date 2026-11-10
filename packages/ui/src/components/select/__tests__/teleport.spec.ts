@@ -121,8 +121,8 @@ describe('the popover panels are teleported out of their control', () => {
     // Unchanged by the move: the width floor and the entrance the keyframes read.
     expect(panel.attributes('style')).toContain('min-width');
     expect(panel.attributes('style')).toContain('--eldra-popover-origin');
-    expect(panel.classes()).toContain('animate-eldra-popover-in');
-    expect(panel.classes()).toContain('z-popover');
+    expect(panel.classes()).toContain('eldra:animate-eldra-popover-in');
+    expect(panel.classes()).toContain('eldra:z-popover');
   });
 
   it('marks the panel as part of its overlay', async () => {

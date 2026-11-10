@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { partClass } from '../../utils/cx';
+import { partClass } from '../../utils/kitClass';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from './sizes';
 import type { IconProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<IconProps>(), {
 // must stay single-root, or `<component :is>` ends up inside a fragment and the
 // class and ARIA attributes land on nothing.
 const rootClass = computed(() =>
-  partClass(`${ICON_SIZE_CLASS[props.size]} shrink-0`, props.classes, 'root')
+  partClass(`${ICON_SIZE_CLASS[props.size]} eldra:shrink-0`, props.classes, 'root')
 );
 </script>
 

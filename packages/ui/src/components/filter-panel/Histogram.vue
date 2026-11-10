@@ -16,7 +16,7 @@
  * otherwise draw twenty-four flat lines.
  */
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { histogramBarInRange } from './useFilterPanel';
 import type { FilterPanelPart } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -62,13 +62,13 @@ const drawn = computed<Bar[]>(() =>
  * so the bars span precisely the track's own width whatever that reservation currently is, which a
  * literal 0.625rem would only match while the thumb stayed 1.25rem.
  */
-const ROOT_BASE = 'mb-1 flex h-10 w-full items-end gap-0.5';
+const ROOT_BASE = 'eldra:mb-1 eldra:flex eldra:h-10 eldra:w-full eldra:items-end eldra:gap-0.5';
 
 /** Spec → States, Range: "histogram bars between the thumbs `border-strong`, outside
  *  `surface-strong`." */
-const BAR_BASE = 'flex-1 eldra-filter-histogram-bar';
-const BAR_INSIDE = 'bg-border-strong';
-const BAR_OUTSIDE = 'bg-surface-strong';
+const BAR_BASE = 'eldra:flex-1 eldra:eldra-filter-histogram-bar';
+const BAR_INSIDE = 'eldra:bg-border-strong';
+const BAR_OUTSIDE = 'eldra:bg-surface-strong';
 
 const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'histogram'));
 

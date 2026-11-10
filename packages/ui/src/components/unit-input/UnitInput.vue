@@ -39,7 +39,7 @@ import {
 } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { createNumberFormat } from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
@@ -720,13 +720,16 @@ const hasLeading = computed(
 /** The same rule as `Input`'s: a disabled field keeps its dead boundary and drops the danger one. */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() => partClass('block w-full', props.classes, 'root'));
+const rootClass = computed(() => partClass('eldra:block eldra:w-full', props.classes, 'root'));
 const labelClass = computed(() =>
-  partClass('text-label text-text mb-1 block', props.classes, 'label')
+  partClass('eldra:text-label eldra:text-text eldra:mb-1 eldra:block', props.classes, 'label')
 );
 const fieldClass = computed(() =>
   partClass(
-    cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'),
+    cx(
+      'eldra:relative eldra:block eldra:w-full',
+      showsInvalid.value && 'eldra:eldra-field-invalid'
+    ),
     props.classes,
     'field'
   )
@@ -739,7 +742,7 @@ const controlClass = computed(() =>
       hasLeading.value && FIELD_LEADING_PAD,
       hasTrailing.value &&
         (isActionPair.value ? FIELD_TRAILING_PAD_PAIR[props.size] : FIELD_TRAILING_PAD[props.size]),
-      'tabular-nums',
+      'eldra:tabular-nums',
       props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
       showsInvalid.value && FIELD_INVALID
     ),
@@ -757,7 +760,7 @@ const leadingIconClass = computed(() =>
  * group, so `cx` needs no new merge-group registration for this).
  */
 const suffixClass = computed(() =>
-  partClass(cx(FIELD_SUFFIX_ROW, isActionPair.value && 'gap-0'), props.classes, 'suffix')
+  partClass(cx(FIELD_SUFFIX_ROW, isActionPair.value && 'eldra:gap-0'), props.classes, 'suffix')
 );
 const actionSize = computed(() =>
   isActionPair.value ? FIELD_ACTION_PAIR_SIZE[props.size] : FIELD_CLEAR_SIZE[props.size]
@@ -768,8 +771,8 @@ const clearButtonClass = computed(() =>
 const dragHandleClass = computed(() =>
   partClass(
     cx(
-      'inline-flex shrink-0 cursor-ns-resize touch-none items-center justify-center',
-      'text-muted hover:text-text select-none',
+      'eldra:inline-flex eldra:shrink-0 eldra:cursor-ns-resize eldra:touch-none eldra:items-center eldra:justify-center',
+      'eldra:text-muted eldra:hover:text-text eldra:select-none',
       actionSize.value
     ),
     props.classes,
@@ -796,7 +799,7 @@ defineExpose({ formatValue });
         :class="leadingIconClass"
       >
         <slot name="leadingIcon">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
         </slot>
       </span>
 
@@ -848,7 +851,7 @@ defineExpose({ formatValue });
         >
           <!-- Tabler's `x`, stroke 1.75, at 1.125rem. Decorative: the button is named by aria-label. -->
           <svg
-            class="size-4.5"
+            class="eldra:size-4.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -881,7 +884,7 @@ defineExpose({ formatValue });
         >
           <!-- Tabler's `arrows-move-vertical`, stroke 1.75, at 1.125rem. -->
           <svg
-            class="size-4.5"
+            class="eldra:size-4.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

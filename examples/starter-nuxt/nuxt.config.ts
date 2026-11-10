@@ -118,10 +118,11 @@ export default defineNuxtConfig({
     // entry's `@theme` block is not merged into the Tailwind root defined by
     // the first — both verified with a real `nuxi generate` run.
     // main.css is `@import 'tailwindcss'` followed by
-    // `@import '@eldrajs/ui/tailwind.css'` instead, which that same resolver
-    // finds in node_modules like any other package file, and which carries the
-    // whole `--color-<role>: var(--eldra-color-<role>)` mapping — so no colour
-    // block is generated into the theme any more.
+    // `@import '@eldrajs/ui/tailwind.css'` and `@eldrajs/ui/components.css`
+    // instead, which that same resolver finds in node_modules like any other
+    // package file; the first carries the whole
+    // `--color-<role>: var(--eldra-color-<role>)` mapping — so no colour block is
+    // generated into the theme any more — and the second the prebuilt components.
     tailwind: false,
     // What Core seeds a site with on its first deploy, built from
     // `pages/*.page.json` — see `app/templates.ts`, and `docs/starter-kit.md`

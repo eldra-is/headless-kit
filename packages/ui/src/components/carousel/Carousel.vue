@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from './useCarousel';
@@ -104,16 +104,20 @@ watch(canNext, (can) => {
 defineExpose({ pause, resume, toggle, playing, index, count, goTo, next, prev, focusItem });
 
 const rootClass = computed(() =>
-  partClass(cx('@container flex flex-col gap-4'), props.classes, 'root')
+  partClass(cx('eldra:@container eldra:flex eldra:flex-col eldra:gap-4'), props.classes, 'root')
 );
 
 const headerClass = computed(() =>
-  partClass(cx('flex items-center justify-between gap-4'), props.classes, 'header')
+  partClass(
+    cx('eldra:flex eldra:items-center eldra:justify-between eldra:gap-4'),
+    props.classes,
+    'header'
+  )
 );
 
 /** `sr-only` keeps the hint out of the layout entirely — absolutely positioned, so it is not a
  *  flex item of the root's own `flex-col gap-4` and adds no gap above the header. */
-const instructionsClass = computed(() => partClass('sr-only', props.classes, 'instructions'));
+const instructionsClass = computed(() => partClass('eldra:sr-only', props.classes, 'instructions'));
 
 /**
  * Spec "Carousel" → Sizes: "Track focus ring: the standard ring with a 4px `focus-inner` gap
@@ -184,16 +188,16 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
 const trackClass = computed(() =>
   partClass(
     cx(
-      'relative flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
-      'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
-      'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      '-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      'px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      '-mx-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      'scroll-px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
-      'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
-      'eldra-carousel-track'
+      'eldra:relative eldra:flex eldra:touch-pan-x eldra:touch-pan-y eldra:gap-4 eldra:overflow-x-auto eldra:overscroll-x-contain eldra:snap-x eldra:snap-mandatory eldra:scroll-smooth',
+      'eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus eldra:[--eldra-focus-offset:4px]',
+      'eldra:py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      'eldra:-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+      'eldra:px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+      'eldra:-mx-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+      'eldra:scroll-px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+      props.draggable && 'eldra:cursor-grab eldra:data-[dragging=true]:cursor-grabbing',
+      'eldra:data-[dragging=true]:snap-none eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
+      'eldra:eldra-carousel-track'
     ),
     props.classes,
     'track'
@@ -217,20 +221,20 @@ const trackStyle = computed(() => carouselPerViewStyle(props.perView));
  *  and `not-allowed` at an end. Hand-rolled rather than `<Button icon-only>`: no `Button` size is
  *  2.75rem, and this shape (a full circle, not `radius-md`) is unique to this component. */
 const ARROW_BASE =
-  'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border ' +
-  'border-border-strong bg-background text-text eldra-focus ' +
-  'hover:border-text hover:bg-surface disabled:cursor-not-allowed disabled:opacity-45 ' +
-  'disabled:hover:border-border-strong disabled:hover:bg-background';
+  'eldra:inline-flex eldra:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-full eldra:border ' +
+  'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:eldra-focus ' +
+  'eldra:hover:border-text eldra:hover:bg-surface eldra:disabled:cursor-not-allowed eldra:disabled:opacity-45 ' +
+  'eldra:disabled:hover:border-border-strong eldra:disabled:hover:bg-background';
 const prevClass = computed(() => partClass(ARROW_BASE, props.classes, 'prev'));
 const nextClass = computed(() => partClass(ARROW_BASE, props.classes, 'next'));
 
-const dotsClass = computed(() => partClass('flex items-center', props.classes, 'dots'));
+const dotsClass = computed(() => partClass('eldra:flex eldra:items-center', props.classes, 'dots'));
 /** Spec "Carousel" → Sizes, Dot row: "1.5rem square target ... no gap between dot targets" — the
  *  target itself is a plain `size-6` button; `eldra-carousel-dot` (see `tailwind.css`) draws the
  *  visible ring/pill inside it. */
 const dotClass = computed(() =>
   partClass(
-    'inline-flex size-6 shrink-0 cursor-pointer items-center justify-center eldra-focus',
+    'eldra:inline-flex eldra:size-6 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:eldra-focus',
     props.classes,
     'dot'
   )
@@ -240,7 +244,11 @@ const dotClass = computed(() =>
  *  `text-body-sm` is already exactly 0.875rem/400 (see `tokens.css`); `min-w-14` is the stock
  *  spacing scale's 3.5rem. Accessibility: "`aria-hidden` (dots and slide labels already say it)". */
 const counterClass = computed(() =>
-  partClass('min-w-14 text-center text-body-sm text-muted tabular-nums', props.classes, 'counter')
+  partClass(
+    'eldra:min-w-14 eldra:text-center eldra:text-body-sm eldra:text-muted eldra:tabular-nums',
+    props.classes,
+    'counter'
+  )
 );
 
 /** Spec "Carousel" → Sizes, "Pause / Play" row: "small outline button (2rem tall)" — `Button`'s
@@ -253,9 +261,9 @@ const counterClass = computed(() =>
 const pauseClass = computed(() =>
   partClass(
     cx(
-      'inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border',
-      'control-h-sm px-3 text-button-sm',
-      'border-border-strong bg-background text-text eldra-focus hover:border-text hover:bg-surface'
+      'eldra:inline-flex eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:gap-1.5 eldra:rounded-md eldra:border',
+      'eldra:control-h-sm eldra:px-3 eldra:text-button-sm',
+      'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:eldra-focus eldra:hover:border-text eldra:hover:bg-surface'
     ),
     props.classes,
     'pause'
@@ -295,7 +303,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <div
         v-if="controls === 'header'"
         :data-eldra-scope="eldra.scope"
-        class="flex shrink-0 items-center gap-2"
+        class="eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2"
       >
         <span v-if="counter" data-part="counter" aria-hidden="true" :class="counterClass">
           {{ messages.counter(index + 1, count) }}
@@ -310,7 +318,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -333,7 +341,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -375,7 +383,10 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <slot />
     </div>
 
-    <div v-if="showBelowRow" class="flex items-center justify-between gap-4">
+    <div
+      v-if="showBelowRow"
+      class="eldra:flex eldra:items-center eldra:justify-between eldra:gap-4"
+    >
       <button
         v-if="showPause"
         type="button"
@@ -399,12 +410,15 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           :aria-label="messages.goToSlide(dotNumber)"
           @click="goTo(dotNumber - 1)"
         >
-          <span class="eldra-carousel-dot" />
+          <span class="eldra:eldra-carousel-dot" />
         </button>
       </div>
       <span v-else />
 
-      <div v-if="controls === 'below'" class="flex shrink-0 items-center gap-2">
+      <div
+        v-if="controls === 'below'"
+        class="eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2"
+      >
         <button
           ref="prevButtonRef"
           type="button"
@@ -415,7 +429,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -441,7 +455,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -2,7 +2,7 @@
 import { computed, inject, nextTick, ref, useAttrs, useSlots, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
@@ -168,7 +168,7 @@ const showTagRemove = computed(() => !props.disabled && !props.readonly);
  */
 /** Out of flow and invisible, so the measured copy never moves or widens anything. */
 const SUMMARY_MEASURE =
-  'pointer-events-none invisible absolute start-0 top-0 flex items-center gap-2 overflow-hidden';
+  'eldra:pointer-events-none eldra:invisible eldra:absolute eldra:start-0 eldra:top-0 eldra:flex eldra:items-center eldra:gap-2 eldra:overflow-hidden';
 const summaryRef = ref<HTMLElement | null>(null);
 const summaryRunRef = ref<HTMLElement | null>(null);
 const summaryPillRef = ref<HTMLElement | null>(null);
@@ -547,7 +547,13 @@ const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 const part = (base: string, name: MultiSelectPart): string => partClass(base, props.classes, name);
 
 const rootClass = computed(() =>
-  part(cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'), 'root')
+  part(
+    cx(
+      'eldra:relative eldra:block eldra:w-full',
+      showsInvalid.value && 'eldra:eldra-field-invalid'
+    ),
+    'root'
+  )
 );
 
 /**
@@ -556,13 +562,13 @@ const rootClass = computed(() =>
  * comment for why a pointer-opened trigger needs it).
  */
 const TRIGGER_BASE =
-  'flex w-full min-w-0 items-center gap-2 text-start eldra-field-border ' +
-  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-open';
+  'eldra:flex eldra:w-full eldra:min-w-0 eldra:items-center eldra:gap-2 eldra:text-start eldra:eldra-field-border ' +
+  'eldra:rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-open';
 
 const SIZE: Record<SelectSize, string> = {
-  sm: 'control-h-sm ps-2.25 pe-2.5 text-control-sm',
-  md: 'control-h ps-2.75 pe-2.5 text-control max-md:text-control-mobile',
-  lg: 'control-h-lg ps-2.75 pe-2.5 text-control-lg',
+  sm: 'eldra:control-h-sm eldra:ps-2.25 eldra:pe-2.5 eldra:text-control-sm',
+  md: 'eldra:control-h eldra:ps-2.75 eldra:pe-2.5 eldra:text-control eldra:max-md:text-control-mobile',
+  lg: 'eldra:control-h-lg eldra:ps-2.75 eldra:pe-2.5 eldra:text-control-lg',
 };
 
 /**
@@ -570,11 +576,13 @@ const SIZE: Record<SelectSize, string> = {
  * Tailwind v4 preflight's `button { cursor: default }`; read-only keeps `cursor-default` (it opens
  * no popover) and disabled keeps `cursor-not-allowed`.
  */
-const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-pointer';
-const OPEN = 'border-text';
-const INVALID = 'border-danger hover:border-danger';
-const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
-const READONLY = 'bg-surface border-border text-text cursor-default';
+const LIVE =
+  'eldra:bg-background eldra:border-border-strong eldra:hover:border-text eldra:text-text eldra:cursor-pointer';
+const OPEN = 'eldra:border-text';
+const INVALID = 'eldra:border-danger eldra:hover:border-danger';
+const DISABLED =
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:text-muted eldra:cursor-not-allowed';
+const READONLY = 'eldra:bg-surface eldra:border-border eldra:text-text eldra:cursor-default';
 
 const triggerClass = computed(() =>
   part(
@@ -596,41 +604,45 @@ const triggerClass = computed(() =>
  * control height; the end padding keeps every row clear of the chevron, and of Clear while it shows.
  */
 const FIELD_SIZE: Record<SelectSize, string> = {
-  sm: 'min-h-(--eldra-control-height-sm) py-px ps-0.75 text-control-sm',
-  md: 'min-h-(--eldra-control-height) py-1.25 ps-1.25 text-control max-md:text-control-mobile',
-  lg: 'min-h-(--eldra-control-height-lg) py-2.25 ps-2.25 text-control-lg',
+  sm: 'eldra:min-h-(--eldra-control-height-sm) eldra:py-px eldra:ps-0.75 eldra:text-control-sm',
+  md: 'eldra:min-h-(--eldra-control-height) eldra:py-1.25 eldra:ps-1.25 eldra:text-control eldra:max-md:text-control-mobile',
+  lg: 'eldra:min-h-(--eldra-control-height-lg) eldra:py-2.25 eldra:ps-2.25 eldra:text-control-lg',
 };
 
 const fieldClass = computed(() =>
   inside.value
     ? part(
         cx(
-          'relative isolate flex w-full min-w-0 flex-wrap items-center gap-1.5 eldra-field-border',
-          'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-proxy',
-          'has-[[aria-expanded=true]]:[--eldra-focus-alpha:1]',
+          'eldra:relative eldra:isolate eldra:flex eldra:w-full eldra:min-w-0 eldra:flex-wrap eldra:items-center eldra:gap-1.5 eldra:eldra-field-border',
+          'eldra:rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-proxy',
+          'eldra:has-[[aria-expanded=true]]:[--eldra-focus-alpha:1]',
           FIELD_SIZE[props.size],
-          showClear.value ? 'pe-15' : 'pe-9',
+          showClear.value ? 'eldra:pe-15' : 'eldra:pe-9',
           props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
           !props.disabled && !props.readonly && isOpen.value && OPEN,
           showsInvalid.value && INVALID
         ),
         'field'
       )
-    : 'relative'
+    : 'eldra:relative'
 );
 
 /** Inside, the trigger: under the tags across the field, or the placeholder's row with none. */
 const insideTriggerClass = computed(() =>
   part(
     cx(
-      'flex items-center bg-transparent text-start outline-none',
+      'eldra:flex eldra:items-center eldra:bg-transparent eldra:text-start eldra:outline-none',
       // With tags it shows nothing, so it leaves the flow and lies under them across the whole
       // field: it never needs a row (or the gap before one), and a press on any empty part of the
       // field lands on it. With none it is the row, holding the placeholder. The field draws the ring.
       hasSelection.value
-        ? 'absolute inset-0 rounded-[inherit]'
-        : 'min-h-7 min-w-8 flex-1 self-stretch ps-1.5',
-      props.disabled ? 'cursor-not-allowed' : props.readonly ? 'cursor-default' : 'cursor-pointer'
+        ? 'eldra:absolute eldra:inset-0 eldra:rounded-[inherit]'
+        : 'eldra:min-h-7 eldra:min-w-8 eldra:flex-1 eldra:self-stretch eldra:ps-1.5',
+      props.disabled
+        ? 'eldra:cursor-not-allowed'
+        : props.readonly
+          ? 'eldra:cursor-default'
+          : 'eldra:cursor-pointer'
     ),
     'trigger'
   )
@@ -640,26 +652,29 @@ const insideTriggerClass = computed(() =>
 const insideChevronClass = computed(() =>
   part(
     cx(
-      'pointer-events-none absolute end-2.5 inset-y-0 my-auto size-4.5 text-muted',
-      'transition-transform duration-base',
-      isOpen.value && 'rotate-180'
+      'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:size-4.5 eldra:text-muted',
+      'eldra:transition-transform eldra:duration-base',
+      isOpen.value && 'eldra:rotate-180'
     ),
     'chevron'
   )
 );
 
 const leadingIconClass = computed(() =>
-  part('flex size-4.5 shrink-0 items-center justify-center text-muted', 'leadingIcon')
+  part(
+    'eldra:flex eldra:size-4.5 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:text-muted',
+    'leadingIcon'
+  )
 );
 
 /** The summary row: the labels, then the "+N" pill. 1.75rem of end padding while Clear shows. */
 const summaryClass = computed(() =>
   part(
     cx(
-      'flex min-w-0 flex-1 items-center gap-2',
+      'eldra:flex eldra:min-w-0 eldra:flex-1 eldra:items-center eldra:gap-2',
       TRIGGER_VALUE_CELL,
-      fitsSummary.value && 'contain-inline-size',
-      showClear.value && 'pe-7'
+      fitsSummary.value && 'eldra:contain-inline-size',
+      showClear.value && 'eldra:pe-7'
     ),
     'summary'
   )
@@ -668,21 +683,27 @@ const summaryClass = computed(() =>
 /** Spec "Multi-select" → Sizes: min width 1.5rem, 1.25rem tall, 0.3125rem side padding. */
 const summaryMoreClass = computed(() =>
   part(
-    'bg-surface-strong text-text inline-flex h-5 min-w-6 shrink-0 items-center justify-center ' +
-      'rounded-full px-1.25 text-select-pill',
+    'eldra:bg-surface-strong eldra:text-text eldra:inline-flex eldra:h-5 eldra:min-w-6 eldra:shrink-0 eldra:items-center eldra:justify-center ' +
+      'eldra:rounded-full eldra:px-1.25 eldra:text-select-pill',
     'summaryMore'
   )
 );
 
 const placeholderClass = computed(() =>
-  part(cx('min-w-0 flex-1 truncate text-muted', showClear.value && 'pe-7'), 'placeholder')
+  part(
+    cx(
+      'eldra:min-w-0 eldra:flex-1 eldra:truncate eldra:text-muted',
+      showClear.value && 'eldra:pe-7'
+    ),
+    'placeholder'
+  )
 );
 
 const chevronClass = computed(() =>
   part(
     cx(
-      'size-4.5 shrink-0 text-muted transition-transform duration-base',
-      isOpen.value && 'rotate-180'
+      'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-transform eldra:duration-base',
+      isOpen.value && 'eldra:rotate-180'
     ),
     'chevron'
   )
@@ -691,10 +712,10 @@ const chevronClass = computed(() =>
 const clearButtonClass = computed(() =>
   part(
     cx(
-      'absolute end-8 inset-y-0 my-auto inline-flex size-6 cursor-pointer items-center justify-center',
-      'rounded-sm text-muted hover:text-text',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra-focus'
+      'eldra:absolute eldra:end-8 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:size-6 eldra:cursor-pointer eldra:items-center eldra:justify-center',
+      'eldra:rounded-sm eldra:text-muted eldra:hover:text-text',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+      'eldra:eldra-focus'
     ),
     'clearButton'
   )
@@ -708,9 +729,9 @@ const clearButtonClass = computed(() =>
 const footerClass = computed(() =>
   part(
     cx(
-      'flex shrink-0 items-center gap-2 border-t p-1.5 ps-3',
-      'border-[color:var(--eldra-select-panel-border,var(--color-border))]',
-      'bg-[color:var(--eldra-select-panel-background,var(--color-background))]'
+      'eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2 eldra:border-t eldra:p-1.5 eldra:ps-3',
+      'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
+      'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]'
     ),
     'footer'
   )
@@ -718,13 +739,13 @@ const footerClass = computed(() =>
 
 const footerCountClass = computed(() =>
   part(
-    'text-caption me-auto tabular-nums text-[color:var(--eldra-select-panel-muted,var(--color-muted))]',
+    'eldra:text-caption eldra:me-auto eldra:tabular-nums eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
     'footerCount'
   )
 );
 
 /** Spec: "Clear = Button link sm (0.5rem side padding), Done = Button primary sm." */
-const footerClearClass = computed(() => part('px-2', 'footerClear'));
+const footerClearClass = computed(() => part('eldra:px-2', 'footerClear'));
 const footerDoneClass = computed(() => part('', 'footerDone'));
 
 const emptyText = computed(() =>
@@ -751,7 +772,7 @@ const emptyText = computed(() =>
         :class="leadingIconClass"
       >
         <slot name="leading" :options="selectedOptions" :open="isOpen">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
         </slot>
       </span>
       <SelectTags
@@ -806,7 +827,7 @@ const emptyText = computed(() =>
           :class="leadingIconClass"
         >
           <slot name="leading" :options="selectedOptions" :open="isOpen">
-            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
           </slot>
         </span>
 
@@ -827,7 +848,7 @@ const emptyText = computed(() =>
             :class="summaryClass"
           >
             <slot name="value" :options="selectedOptions">
-              <span v-if="summaryText" class="min-w-0 truncate">{{ summaryText }}</span>
+              <span v-if="summaryText" class="eldra:min-w-0 eldra:truncate">{{ summaryText }}</span>
               <span v-if="moreCount > 0" data-part="summaryMore" :class="summaryMoreClass">
                 {{ m.moreSelected(moreCount) }}
               </span>
@@ -840,7 +861,7 @@ const emptyText = computed(() =>
             inert
             :class="SUMMARY_MEASURE"
           >
-            <span ref="summaryRunRef" class="whitespace-nowrap"
+            <span ref="summaryRunRef" class="eldra:whitespace-nowrap"
               ><span v-for="(option, index) in selectedOptions" :key="option.value" data-label
                 >{{ index ? ', ' : '' }}{{ option.label }}</span
               ></span
@@ -861,7 +882,7 @@ const emptyText = computed(() =>
         >
           <!-- Tabler's `chevron-down`, stroke 1.75. -->
           <svg
-            class="size-4.5"
+            class="eldra:size-4.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -882,7 +903,7 @@ const emptyText = computed(() =>
       >
         <!-- Tabler's `chevron-down`, stroke 1.75. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -914,7 +935,7 @@ const emptyText = computed(() =>
       >
         <!-- Tabler's `x` at 1rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4"
+          class="eldra:size-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

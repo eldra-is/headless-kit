@@ -237,7 +237,7 @@ describe('order-status block', () => {
         const badge = badgeFor(wrapper, word);
         expect(badge.classes()).toContain(`text-${tone}`);
         expect(badge.classes()).toContain(`border-${tone}`);
-        expect(badge.classes()).not.toContain('text-text');
+        expect(badge.classes()).not.toContain('eldra:text-text');
       }
     );
 

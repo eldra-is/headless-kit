@@ -3,7 +3,7 @@ import type { NavMenuItem, NavMenuLink, NavMenuPanelLayout } from './types';
 
 /** How the page the visitor is on is marked, on every kind of link the menu draws. */
 export const CURRENT_PAGE =
-  'aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[0.2em]';
+  'eldra:aria-[current=page]:underline eldra:aria-[current=page]:decoration-2 eldra:aria-[current=page]:underline-offset-[0.2em]';
 
 /** A run of panel entries under one column heading; `group` is `null` for entries without one. */
 export interface NavMenuLinkRun {

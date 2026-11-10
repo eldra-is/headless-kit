@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import {
   FIELD_BASE,
@@ -701,8 +701,8 @@ onBeforeUnmount(() => {
 
 const part = (base: string, name: SearchBarPart): string => partClass(base, props.classes, name);
 
-const rootClass = computed(() => part('relative block w-full', 'root'));
-const formClass = computed(() => part('relative block w-full', 'form'));
+const rootClass = computed(() => part('eldra:relative eldra:block eldra:w-full', 'root'));
+const formClass = computed(() => part('eldra:relative eldra:block eldra:w-full', 'form'));
 
 /**
  * The field (spec "Search bar" → Sizes, and "Actions and forms" → Compact controls): the same box
@@ -724,8 +724,8 @@ const formClass = computed(() => part('relative block w-full', 'form'));
  * the `max-md:` mobile override, which is a viewport rule so iOS never zooms into a focused field.
  */
 const SIZE: Record<SearchBarSize, string> = {
-  md: `control-h ps-9.5 pe-11 ${FIELD_TEXT.md}`,
-  lg: `control-h-lg ps-11 pe-11 ${FIELD_TEXT.lg}`,
+  md: `eldra:control-h eldra:ps-9.5 eldra:pe-11 ${FIELD_TEXT.md}`,
+  lg: `eldra:control-h-lg eldra:ps-11 eldra:pe-11 ${FIELD_TEXT.lg}`,
 };
 
 const fieldClass = computed(() =>
@@ -737,7 +737,7 @@ const fieldClass = computed(() =>
       SIZE[props.size],
       // The pill's radius replaces the box's own through `tailwind-merge`, rather than the box
       // shipping without one.
-      props.pill && 'rounded-full ps-10',
+      props.pill && 'eldra:rounded-full eldra:ps-10',
       FIELD_LIVE
     ),
     'field'
@@ -745,12 +745,12 @@ const fieldClass = computed(() =>
 );
 
 /** "Search icon: `muted`, decorative", 1.125rem at 0.75rem (md) or 1.25rem at 0.875rem (lg). */
-const ICON_SIZE: Record<SearchBarSize, string> = { md: 'size-4.5', lg: 'size-5' };
+const ICON_SIZE: Record<SearchBarSize, string> = { md: 'eldra:size-4.5', lg: 'eldra:size-5' };
 const leadingIconClass = computed(() =>
   part(
     cx(
-      'pointer-events-none absolute inset-y-0 my-auto flex items-center justify-center text-muted',
-      props.size === 'lg' || props.pill ? 'start-3.5' : 'start-3',
+      'eldra:pointer-events-none eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:flex eldra:items-center eldra:justify-center eldra:text-muted',
+      props.size === 'lg' || props.pill ? 'eldra:start-3.5' : 'eldra:start-3',
       ICON_SIZE[props.size]
     ),
     'leadingIcon'
@@ -766,8 +766,8 @@ const clearButtonClass = computed(() =>
   part(
     cx(
       FIELD_CLEAR_BUTTON,
-      'absolute end-1 inset-y-0 my-auto size-8',
-      props.pill ? 'rounded-full' : 'rounded-sm'
+      'eldra:absolute eldra:end-1 eldra:inset-y-0 eldra:my-auto eldra:size-8',
+      props.pill ? 'eldra:rounded-full' : 'eldra:rounded-sm'
     ),
     'clearButton'
   )
@@ -780,9 +780,9 @@ const clearButtonClass = computed(() =>
  */
 const shortcutHintClass = computed(() =>
   part(
-    'pointer-events-none absolute end-2.5 inset-y-0 my-auto inline-flex h-5 min-w-5 ' +
-      'items-center justify-center rounded-sm border border-border-strong bg-surface px-1 ' +
-      'text-search-kbd text-muted',
+    'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:h-5 eldra:min-w-5 ' +
+      'eldra:items-center eldra:justify-center eldra:rounded-sm eldra:border eldra:border-border-strong eldra:bg-surface eldra:px-1 ' +
+      'eldra:text-search-kbd eldra:text-muted',
     'shortcutHint'
   )
 );
@@ -799,7 +799,7 @@ const shortcutHintClass = computed(() =>
  */
 const busyClass = computed(() =>
   part(
-    'pointer-events-none absolute end-10 inset-y-0 my-auto inline-flex items-center text-muted',
+    'eldra:pointer-events-none eldra:absolute eldra:end-10 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:items-center eldra:text-muted',
     'busy'
   )
 );
@@ -865,7 +865,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       />
 
       <span v-if="loadingShown" data-part="busy" :class="busyClass">
-        <Spinner class="size-4.5" />
+        <Spinner class="eldra:size-4.5" />
       </span>
 
       <button
@@ -878,7 +878,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       >
         <!-- Tabler's `x` at 1.125rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

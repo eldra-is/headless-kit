@@ -84,8 +84,8 @@ describe('LoadMore — the button hides once shown reaches total', () => {
   it('carries cursor-pointer and the standard focus ring', () => {
     const wrapper = mountWith(LoadMore, { props: { shown: 24, total: 96 } });
     const cls = wrapper.get('[data-part="button"]').classes();
-    expect(cls).toContain('cursor-pointer');
-    expect(cls).toContain('eldra-focus');
+    expect(cls).toContain('eldra:cursor-pointer');
+    expect(cls).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 });
@@ -152,7 +152,7 @@ describe('LoadMore — classes prop', () => {
     expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-6');
     const statusClasses = wrapper.get('[data-part="status"]').classes();
     expect(statusClasses).toContain('text-body');
-    expect(statusClasses).not.toContain('text-body-sm');
+    expect(statusClasses).not.toContain('eldra:text-body-sm');
     wrapper.unmount();
   });
 });
@@ -182,8 +182,8 @@ describe('LoadMore — narrow container', () => {
     const wrapper = mountNarrow(LoadMore, { props: { shown: 24, total: 96 } });
     expect(wrapper.find('[data-part="root"]').exists()).toBe(true);
     const track = wrapper.find('[aria-hidden="true"]').element as HTMLElement;
-    expect(track.className).toContain('w-full');
-    expect(track.className).toContain('max-w-56');
+    expect(track.className).toContain('eldra:w-full');
+    expect(track.className).toContain('eldra:max-w-56');
     wrapper.unmount();
   });
 });

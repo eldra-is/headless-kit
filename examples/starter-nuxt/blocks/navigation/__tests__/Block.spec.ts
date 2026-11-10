@@ -1412,12 +1412,14 @@ describe('header block (navigation apiId)', () => {
     });
     const trigger = wrapper.findAll('button').find((b) => b.text().includes('Workshop'))!;
     // Ungrouped children still make a sheet across the header, not a dropdown under the trigger.
-    expect(wrapper.get(`#${trigger.attributes('aria-controls')}`).classes()).toContain('inset-x-0');
+    expect(wrapper.get(`#${trigger.attributes('aria-controls')}`).classes()).toContain(
+      'eldra:inset-x-0'
+    );
     const footer = wrapper.get(`#${trigger.attributes('aria-controls')} [data-part="footer"]`);
     // `:empty` as a browser reads it (jsdom counts Vue's empty anchors; `@eldrajs/ui`'s browser spec proves it).
     expect(footer.element.children).toHaveLength(0);
     expect(footer.element.textContent).toBe('');
-    expect(footer.classes()).toContain('empty:hidden');
+    expect(footer.classes()).toContain('eldra:empty:hidden');
   });
 
   it('is axe-clean in every variant with the drawer open, and with a mega-menu open where the bar has one', async () => {
@@ -1447,7 +1449,7 @@ describe('header block (navigation apiId)', () => {
     expect(toggle.classes().some((token) => token.endsWith(':hidden'))).toBe(false);
     // The default variant hides it once the bar has room for its links.
     const bar = mountBlock(resolved.data).get('[data-part="toggle"]');
-    expect(bar.classes()).toContain('@content:hidden');
+    expect(bar.classes()).toContain('eldra:@content:hidden');
   });
 
   it('renders 8 links with no overflow markup errors', async () => {
@@ -1487,32 +1489,33 @@ describe('header block (navigation apiId)', () => {
       expect(wrapper.get('[data-eldra-header-bar]').classes()).toContain('relative');
       const root = [...menuRoot(wrapper).classList];
       expect(root).toContain('contents');
-      expect(root).not.toContain('relative');
+      expect(root).not.toContain('eldra:relative');
       // …and no row of the bar may reclaim it, or the panel would hang under its own item again.
       for (const row of wrapper.findAll('[data-part="item"]')) {
-        expect(row.classes()).not.toContain('relative');
+        expect(row.classes()).not.toContain('eldra:relative');
       }
 
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
       const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
       // Flush under the bar: no offset of its own.
-      for (const token of ['absolute', 'top-full', 'inset-x-0', 'pt-0']) {
+      for (const token of ['eldra:absolute', 'eldra:top-full', 'eldra:inset-x-0', 'pt-0']) {
         expect(panel.classes()).toContain(token);
       }
       // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
-      expect(panel.classes()).not.toContain('w-screen');
-      expect(panel.classes().some((token) => token.startsWith('max-w-'))).toBe(false);
+      const panelTokens = panel.classes().map((token) => token.replace(/^eldra:/, ''));
+      expect(panelTokens).not.toContain('w-screen');
+      expect(panelTokens.some((token) => token.startsWith('max-w-'))).toBe(false);
       // The bar's own bottom border is the sheet's top edge, so only the other three sides and corners are drawn.
       const sheet = panel.get('[data-part="content"]').classes();
       for (const token of [
-        'border',
+        'eldra:border',
         'border-t-0',
-        'border-border',
+        'eldra:border-border',
         'rounded-none',
         'rounded-b-lg',
         'shadow-(--eldra-shadow-float)',
-        'p-6',
+        'eldra:p-6',
         '@wide:p-8',
       ]) {
         expect(sheet).toContain(token);
@@ -1522,9 +1525,10 @@ describe('header block (navigation apiId)', () => {
       // the panel's own edges — 24px, 32px once the container passes `wide`. The browser case
       // measures what this produces; here it is only the arrangement.
       const columns = panel.get('[data-part="columns"]').classes();
-      for (const token of ['grid', 'grid-cols-12', 'gap-6']) {
+      for (const token of ['eldra:grid', 'grid-cols-12', 'gap-6']) {
         expect(columns).toContain(token);
       }
+      expect(sheet).not.toContain('eldra:py-8');
       expect(sheet).not.toContain('py-8');
       wrapper.unmount();
     });
@@ -1557,7 +1561,7 @@ describe('header block (navigation apiId)', () => {
       expect(viewAll.attributes('aria-label')).toBe('View all Knitwear');
       // Right-aligned under a rule across the content width: it follows the columns, outside their grid.
       const row = viewAll.element.parentElement!;
-      for (const token of ['justify-end', 'border-t', 'border-border', 'pt-4']) {
+      for (const token of ['justify-end', 'eldra:border-t', 'eldra:border-border', 'eldra:pt-4']) {
         expect([...row.classList]).toContain(token);
       }
       expect(row.previousElementSibling?.getAttribute('data-part')).toBe('columns');
@@ -1584,7 +1588,7 @@ describe('header block (navigation apiId)', () => {
       const sheet = wrapper.get(`#${knitwear.attributes('aria-controls')} [data-part="content"]`);
       expect(sheet.classes()).toContain('bg-(--eldra-header-surface)');
       // And no ground token of its own left behind to drift away from the bar's.
-      expect(sheet.classes()).not.toContain('bg-background');
+      expect(sheet.classes()).not.toContain('eldra:bg-background');
       wrapper.unmount();
     });
 
@@ -1611,7 +1615,7 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
       expect(panel().get('[data-part="content"]').classes(), 'enter').toContain(
-        'animate-eldra-popover-in'
+        'eldra:animate-eldra-popover-in'
       );
 
       await knitwear.trigger('click');
@@ -1619,10 +1623,10 @@ describe('header block (navigation apiId)', () => {
       // of a `<Transition>` over a bare `v-show` — but a click on the fading sheet goes through it.
       expect(knitwear.attributes('aria-expanded')).toBe('false');
       for (const token of [
-        'pointer-events-none',
-        'transition-opacity',
-        'duration-fast',
-        'ease-in',
+        'eldra:pointer-events-none',
+        'eldra:transition-opacity',
+        'eldra:duration-fast',
+        'eldra:ease-in',
       ]) {
         expect(panel().classes(), 'leave').toContain(token);
       }

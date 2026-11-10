@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -64,12 +64,20 @@ function toggle(value: string, checked: boolean): void {
  * with a 0.75rem (`space-3`) gap, and the legend has a 0.5rem (`space-2`) bottom margin."
  */
 const rootClass = computed(() =>
-  partClass('grid min-w-0 content-start gap-3 rounded-none border-0 p-0', props.classes, 'root')
+  partClass(
+    'eldra:grid eldra:min-w-0 eldra:content-start eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0',
+    props.classes,
+    'root'
+  )
 );
 
 /** The same type style as a `FieldWrapper` label, with a `<legend>`'s default padding removed. */
 const legendClass = computed(() =>
-  partClass('text-label text-text mb-2 block w-fit p-0', props.classes, 'legend')
+  partClass(
+    'eldra:text-label eldra:text-text eldra:mb-2 eldra:block eldra:w-fit eldra:p-0',
+    props.classes,
+    'legend'
+  )
 );
 
 /**
@@ -79,8 +87,10 @@ const legendClass = computed(() =>
 const optionsClass = computed(() =>
   partClass(
     cx(
-      'flex min-w-0',
-      props.layout === 'row' ? 'flex-row flex-wrap gap-x-6 gap-y-2' : 'flex-col gap-2'
+      'eldra:flex eldra:min-w-0',
+      props.layout === 'row'
+        ? 'eldra:flex-row eldra:flex-wrap eldra:gap-x-6 eldra:gap-y-2'
+        : 'eldra:flex-col eldra:gap-2'
     ),
     props.classes,
     'options'

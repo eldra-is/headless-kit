@@ -2,7 +2,7 @@
 import { computed, h, inject, provide, useSlots, type FunctionalComponent } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
 import { FIELD_KEY, type FieldContext } from './context';
@@ -164,10 +164,10 @@ const counterText = computed(() =>
 const rootClass = computed(() =>
   partClass(
     cx(
-      'grid content-start gap-1',
-      props.group && 'min-w-0 gap-3 rounded-none border-0 p-0',
-      isInline.value && 'contents',
-      spansBothColumns.value && '@two-col:col-span-2'
+      'eldra:grid eldra:content-start eldra:gap-1',
+      props.group && 'eldra:min-w-0 eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0',
+      isInline.value && 'eldra:contents',
+      spansBothColumns.value && 'eldra:@two-col:col-span-2'
     ),
     props.classes,
     'root'
@@ -189,12 +189,13 @@ const rootClass = computed(() =>
  * duplicated `v-if`/`v-else` pair of the same two elements is exactly the kind of thing that drifts
  * apart later. It carries no `data-part`, because it is not one of the spec's parts.
  */
-const GROUP_INLINE = 'grid min-w-0 flex-[1_1_14rem] content-start gap-1';
+const GROUP_INLINE =
+  'eldra:grid eldra:min-w-0 eldra:flex-[1_1_14rem] eldra:content-start eldra:gap-1';
 const LabelAndControl: FunctionalComponent = (_props, { slots: own }) =>
   isInline.value ? h('div', { class: GROUP_INLINE }, own.default?.()) : (own.default?.() ?? []);
 
 /** In an inline row the error and the foot take a full-width row of their own, below the button. */
-const INLINE_ROW = 'order-1 w-full basis-full';
+const INLINE_ROW = 'eldra:order-1 eldra:w-full eldra:basis-full';
 
 /**
  * Spec "Field wrapper" → States: the label is `text` in every state, including error — "Don't turn
@@ -204,22 +205,29 @@ const INLINE_ROW = 'order-1 w-full basis-full';
  * The legend is the same type style with the fieldset variant's own 0.5rem bottom margin, and with
  * the `padding-inline` a `<legend>` carries by default removed.
  */
-const LABEL_TYPE = 'text-label text-text block w-fit';
-const labelClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-0.5'), props.classes, 'label'));
-const legendClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-2 p-0'), props.classes, 'legend'));
+const LABEL_TYPE = 'eldra:text-label eldra:text-text eldra:block eldra:w-fit';
+const labelClass = computed(() =>
+  partClass(cx(LABEL_TYPE, 'eldra:mb-0.5'), props.classes, 'label')
+);
+const legendClass = computed(() =>
+  partClass(cx(LABEL_TYPE, 'eldra:mb-2 eldra:p-0'), props.classes, 'legend')
+);
 
 /** 0.25rem start margin, `muted`, weight 400 against the label's 600. */
 const optionalTextClass = computed(() =>
-  partClass('text-muted ms-1 font-normal', props.classes, 'optionalText')
+  partClass('eldra:text-muted eldra:ms-1 eldra:font-normal', props.classes, 'optionalText')
 );
 
 /** The control's row. `min-w-0` because a grid item's default `auto` floor would let it overflow. */
-const controlClass = computed(() => partClass('min-w-0', props.classes, 'control'));
+const controlClass = computed(() => partClass('eldra:min-w-0', props.classes, 'control'));
 
 /** Spec "Field wrapper" → Sizes, Foot row: "help and counter on one line, 0.75rem gap". */
 const footClass = computed(() =>
   partClass(
-    cx('flex flex-wrap items-baseline gap-x-3 gap-y-1', isInline.value && INLINE_ROW),
+    cx(
+      'eldra:flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-3 eldra:gap-y-1',
+      isInline.value && INLINE_ROW
+    ),
     props.classes,
     'foot'
   )
@@ -227,7 +235,11 @@ const footClass = computed(() =>
 
 /** 0.8125rem / 1.45, weight 400, `muted`. */
 const helpClass = computed(() =>
-  partClass('text-field-note text-muted min-w-0 font-normal', props.classes, 'help')
+  partClass(
+    'eldra:text-field-note eldra:text-muted eldra:min-w-0 eldra:font-normal',
+    props.classes,
+    'help'
+  )
 );
 
 /**
@@ -237,8 +249,10 @@ const helpClass = computed(() =>
 const counterClass = computed(() =>
   partClass(
     cx(
-      'text-counter ms-auto shrink-0 tabular-nums whitespace-nowrap',
-      isOverLimit.value ? 'text-danger font-semibold' : 'text-muted font-normal'
+      'eldra:text-counter eldra:ms-auto eldra:shrink-0 eldra:tabular-nums eldra:whitespace-nowrap',
+      isOverLimit.value
+        ? 'eldra:text-danger eldra:font-semibold'
+        : 'eldra:text-muted eldra:font-normal'
     ),
     props.classes,
     'counter'

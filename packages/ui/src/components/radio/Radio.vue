@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useSlots } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import {
   HINT,
   INPUT,
@@ -67,7 +67,7 @@ const optionClass = computed(() =>
   partClass(
     cx(
       PLAIN_OPTION,
-      !hasLabel.value && !hasHint.value && 'grid-cols-[auto] gap-x-0',
+      !hasLabel.value && !hasHint.value && 'eldra:grid-cols-[auto] eldra:gap-x-0',
       optionCursor(props.disabled)
     ),
     props.classes,

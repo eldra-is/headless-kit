@@ -20,6 +20,16 @@ before picking one up so the shape can be agreed first.
   developers using it beyond a changelog line — `@deprecated` in the types, a one-time development
   warning, `npm deprecate` on old versions — before the first deprecation ships.
 
+### UI
+
+- **Per-component stylesheets.** Ship each component's CSS as its own file
+  (`@eldrajs/ui/css/button.css`, …) beside the whole-package `components.css`, so a site that uses
+  three components loads three components' rules. The classes are already `eldra:`-prefixed and
+  layered, so the split is a build step: compile each SFC's candidates on their own against the
+  shared theme, and emit the shared theme, reset and keyframes once.
+- **Retire `data-eldra-slot`.** It marked where `scoped.css` stopped styling; with prefixed classes
+  nothing reads it. Drop it once no consumer selects by it.
+
 ### Documentation
 
 - **A build-a-storefront guide** that instructs rather than describes, written against the

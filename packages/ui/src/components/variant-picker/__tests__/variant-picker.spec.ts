@@ -317,7 +317,7 @@ describe('VariantPicker — sold out', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const soldOutLabel = wrapper.findAll('[data-part="label"]')[3];
     expect(soldOutLabel.text()).toBe('L, sold out');
-    const hidden = soldOutLabel.find('.sr-only');
+    const hidden = soldOutLabel.find('.eldra\\:sr-only');
     expect(hidden.exists()).toBe(true);
     expect(hidden.text()).toBe(', sold out');
     wrapper.unmount();
@@ -327,7 +327,7 @@ describe('VariantPicker — sold out', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const label = wrapper.findAll('[data-part="label"]')[0];
     expect(label.text()).toBe('XS');
-    expect(label.find('.sr-only').exists()).toBe(false);
+    expect(label.find('.eldra\\:sr-only').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -349,7 +349,7 @@ describe('VariantPicker — sold out', () => {
   it('draws the pill sold-out line with a dashed border and a constant-width SVG stroke', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const soldOutRadio = wrapper.findAll('[data-part="radio"]')[3];
-    expect(soldOutRadio.classes()).toContain('border-dashed');
+    expect(soldOutRadio.classes()).toContain('eldra:border-dashed');
     const line = soldOutRadio.find('[data-part="soldOutLine"]');
     expect(line.element.tagName.toLowerCase()).toBe('svg');
     const svgLine = line.find('line');
@@ -363,9 +363,9 @@ describe('VariantPicker — sold out', () => {
       props: { name: 'Size', options: SIZES, modelValue: 'l' },
     });
     const radioEl = wrapper.findAll('[data-part="radio"]')[3];
-    expect(radioEl.classes()).toContain('bg-surface-strong');
-    expect(radioEl.classes()).toContain('eldra-variant-pill-selected-line');
-    expect(radioEl.classes()).not.toContain('border-dashed');
+    expect(radioEl.classes()).toContain('eldra:bg-surface-strong');
+    expect(radioEl.classes()).toContain('eldra:eldra-variant-pill-selected-line');
+    expect(radioEl.classes()).not.toContain('eldra:border-dashed');
     wrapper.unmount();
   });
 });
@@ -395,8 +395,8 @@ describe('VariantPicker — swatches', () => {
       props: { name: 'Colour', type: 'swatches', options: COLOURS },
     });
     const swatch = wrapper.find('[data-part="swatch"]');
-    expect(swatch.classes()).toContain('border-border-strong');
-    expect(swatch.classes()).toContain('eldra-variant-swatch-edge');
+    expect(swatch.classes()).toContain('eldra:border-border-strong');
+    expect(swatch.classes()).toContain('eldra:eldra-variant-swatch-edge');
     wrapper.unmount();
   });
 
@@ -405,8 +405,8 @@ describe('VariantPicker — swatches', () => {
       props: { name: 'Colour', type: 'swatches', options: COLOURS, modelValue: 'moss' },
     });
     const radios_ = wrapper.findAll('[data-part="radio"]');
-    expect(radios_[2].classes()).toContain('border-text');
-    expect(radios_[0].classes()).toContain('border-transparent');
+    expect(radios_[2].classes()).toContain('eldra:border-text');
+    expect(radios_[0].classes()).toContain('eldra:border-transparent');
     wrapper.unmount();
   });
 
@@ -415,7 +415,7 @@ describe('VariantPicker — swatches', () => {
       props: { name: 'Colour', type: 'swatches', options: COLOURS },
     });
     const label = wrapper.find('[data-part="label"]');
-    expect(label.classes()).toContain('sr-only');
+    expect(label.classes()).toContain('eldra:sr-only');
     expect(label.text()).toBe('Oatmeal');
     wrapper.unmount();
   });
@@ -441,8 +441,8 @@ describe('VariantPicker — sizes and targets', () => {
   it('keeps a pill at the minimum control height and width', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const radioEl = wrapper.find('[data-part="radio"]');
-    expect(radioEl.classes()).toContain('control-h');
-    expect(radioEl.classes()).toContain('min-w-12');
+    expect(radioEl.classes()).toContain('eldra:control-h');
+    expect(radioEl.classes()).toContain('eldra:min-w-12');
     wrapper.unmount();
   });
 
@@ -450,7 +450,7 @@ describe('VariantPicker — sizes and targets', () => {
     const wrapper = mountWith(VariantPicker, {
       props: { name: 'Colour', type: 'swatches', options: COLOURS },
     });
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('size-11');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:size-11');
     wrapper.unmount();
   });
 });
@@ -459,8 +459,8 @@ describe('VariantPicker — the focus ring', () => {
   it('draws the ring on the pill, in every type', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const classes = wrapper.find('[data-part="radio"]').classes();
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-proxy');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
@@ -469,14 +469,14 @@ describe('VariantPicker — the focus ring', () => {
       props: { name: 'Colour', type: 'swatches', options: COLOURS },
     });
     const classes = wrapper.find('[data-part="radio"]').classes();
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-proxy');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
   it('puts no ring on the visually hidden input itself', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
-    expect(radio(wrapper).className).not.toContain('eldra-focus');
+    expect(radio(wrapper).className).not.toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 });
@@ -526,8 +526,8 @@ describe('VariantPicker — content and layout', () => {
   it('wraps the options row rather than overflowing', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-wrap');
-    expect(classes).toContain('gap-2');
+    expect(classes).toContain('eldra:flex-wrap');
+    expect(classes).toContain('eldra:gap-2');
     wrapper.unmount();
   });
 
@@ -545,15 +545,15 @@ describe('VariantPicker — content and layout', () => {
     });
     expect(radios(wrapper)).toHaveLength(5);
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-wrap');
+    expect(classes).toContain('eldra:flex-wrap');
     wrapper.unmount();
   });
 
   it('keeps the fieldset free of its default border and padding', () => {
     const wrapper = mountWith(VariantPicker, { props: { name: 'Size', options: SIZES } });
     const classes = wrapper.classes();
-    expect(classes).toContain('border-0');
-    expect(classes).toContain('p-0');
+    expect(classes).toContain('eldra:border-0');
+    expect(classes).toContain('eldra:p-0');
     wrapper.unmount();
   });
 });

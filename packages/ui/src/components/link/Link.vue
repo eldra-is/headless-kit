@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useMessages } from '../../composables/useMessages';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { LinkProps, LinkTone } from './types';
@@ -58,7 +58,7 @@ const rootAttrs = computed(() => {
 /**
  * Shared box (spec "Link" → Anatomy, Sizes, Behaviour & motion): the one focus ring at the spec's
  * 2px corner radius. `group` (unnamed) is the hover scope the standalone arrow reads — distinct
- * from the ancestor `group/section` a coloured Section provides. No `no-underline` here any more
+ * from the ancestor `data-section` a coloured Section provides. No `no-underline` here any more
  * (Deviation, operator direction 2026-09-26): every variant is underlined at rest by default now
  * — see `UNDERLINE_REST`/`UNDERLINE_OPT_OUT` below and the README's Deviations entry.
  *
@@ -67,12 +67,12 @@ const rootAttrs = computed(() => {
  * the ring growing in. The arrow below is a *different* element, so it keeps its own transition.
  * See `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`.
  */
-const BASE = 'group eldra-focus eldra-link-radius';
+const BASE = 'eldra:group eldra:eldra-focus eldra:eldra-link-radius';
 
 /** Spec "Link" → States: `text` by default, `muted` turning `text` on hover. */
 const TONE: Record<LinkTone, string> = {
-  default: 'text-text',
-  muted: 'text-muted hover:text-text',
+  default: 'eldra:text-text',
+  muted: 'eldra:text-muted eldra:hover:text-text',
 };
 
 /**
@@ -80,8 +80,7 @@ const TONE: Record<LinkTone, string> = {
  * colour outright, same shape as Button's ghost/link variants.
  */
 const SECTION =
-  'group-data-[section=primary]/section:text-primary-contrast ' +
-  'group-data-[section=accent]/section:text-accent-contrast';
+  'eldra:section-primary:text-primary-contrast ' + 'eldra:section-accent:text-accent-contrast';
 
 /**
  * The default recipe, every variant alike (Deviation, operator direction 2026-09-26: "all link
@@ -93,8 +92,8 @@ const SECTION =
  * the underline never needs its own colour rule.
  */
 const UNDERLINE_REST =
-  'underline decoration-1 decoration-current/55 underline-offset-[0.2em] ' +
-  'hover:decoration-2 hover:decoration-current active:decoration-2 active:decoration-current';
+  'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em] ' +
+  'eldra:hover:decoration-2 eldra:hover:decoration-current eldra:active:decoration-2 eldra:active:decoration-current';
 
 /**
  * The `underline: false` opt-out (spec's own "no underline at rest" standalone shape, kept
@@ -102,10 +101,11 @@ const UNDERLINE_REST =
  * 2px through `:active`. For a navigation bar whose design removes the rest-state underline — the
  * one case the operator's decision explicitly carves out.
  */
-const STANDALONE_LAYOUT = 'inline-flex items-center gap-1 target-min font-semibold';
+const STANDALONE_LAYOUT =
+  'eldra:inline-flex eldra:items-center eldra:gap-1 eldra:target-min eldra:font-semibold';
 const UNDERLINE_OPT_OUT =
-  'no-underline hover:underline hover:decoration-1 hover:decoration-current ' +
-  'hover:underline-offset-[0.2em] active:underline active:decoration-2 active:underline-offset-[0.2em]';
+  'eldra:no-underline eldra:hover:underline eldra:hover:decoration-1 eldra:hover:decoration-current ' +
+  'eldra:hover:underline-offset-[0.2em] eldra:active:underline eldra:active:decoration-2 eldra:active:underline-offset-[0.2em]';
 
 const rootClass = computed(() => {
   if (!hasHref.value) return partClass('', props.classes, 'root');
@@ -124,9 +124,9 @@ const labelClass = computed(() => partClass('', props.classes, 'label'));
 const arrowClass = computed(() =>
   partClass(
     cx(
-      'inline-block shrink-0 size-4.5',
-      'transition-[translate] duration-fast ease-out motion-reduce:transition-none',
-      'group-hover:translate-x-0.5'
+      'eldra:inline-block eldra:shrink-0 eldra:size-4.5',
+      'eldra:transition-[translate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+      'eldra:group-hover:translate-x-0.5'
     ),
     props.classes,
     'arrow'
@@ -138,7 +138,11 @@ const arrowClass = computed(() =>
  * both `em`, so they follow the surrounding font size rather than being pixel literals.
  */
 const externalIconClass = computed(() =>
-  partClass('inline-block align-[-0.1em] ml-[0.15em] size-3.5', props.classes, 'externalIcon')
+  partClass(
+    'eldra:inline-block eldra:align-[-0.1em] eldra:ml-[0.15em] eldra:size-3.5',
+    props.classes,
+    'externalIcon'
+  )
 );
 </script>
 

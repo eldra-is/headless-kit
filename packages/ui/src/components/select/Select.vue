@@ -2,7 +2,7 @@
 import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
@@ -404,7 +404,10 @@ const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
 const rootClass = computed(() =>
   partClass(
-    cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'),
+    cx(
+      'eldra:relative eldra:block eldra:w-full',
+      showsInvalid.value && 'eldra:eldra-field-invalid'
+    ),
     props.classes,
     'root'
   )
@@ -424,13 +427,13 @@ const rootClass = computed(() =>
  * sync and closing fades it back out over `eldra-focus`'s own transition.
  */
 const TRIGGER_BASE =
-  'flex w-full min-w-0 items-center gap-2 text-start eldra-field-border ' +
-  'rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-open';
+  'eldra:flex eldra:w-full eldra:min-w-0 eldra:items-center eldra:gap-2 eldra:text-start eldra:eldra-field-border ' +
+  'eldra:rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-open';
 
 const SIZE: Record<SelectSize, string> = {
-  sm: 'control-h-sm ps-2.25 pe-2.5 text-control-sm',
-  md: 'control-h ps-2.75 pe-2.5 text-control max-md:text-control-mobile',
-  lg: 'control-h-lg ps-2.75 pe-2.5 text-control-lg',
+  sm: 'eldra:control-h-sm eldra:ps-2.25 eldra:pe-2.5 eldra:text-control-sm',
+  md: 'eldra:control-h eldra:ps-2.75 eldra:pe-2.5 eldra:text-control eldra:max-md:text-control-mobile',
+  lg: 'eldra:control-h-lg eldra:ps-2.75 eldra:pe-2.5 eldra:text-control-lg',
 };
 
 /**
@@ -439,11 +442,13 @@ const SIZE: Record<SelectSize, string> = {
  * Tailwind v4 preflight's `button { cursor: default }`; read-only keeps `cursor-default` (it opens
  * no popover) and disabled keeps `cursor-not-allowed`.
  */
-const LIVE = 'bg-background border-border-strong hover:border-text text-text cursor-pointer';
-const OPEN = 'border-text';
-const INVALID = 'border-danger hover:border-danger';
-const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
-const READONLY = 'bg-surface border-border text-text cursor-default';
+const LIVE =
+  'eldra:bg-background eldra:border-border-strong eldra:hover:border-text eldra:text-text eldra:cursor-pointer';
+const OPEN = 'eldra:border-text';
+const INVALID = 'eldra:border-danger eldra:hover:border-danger';
+const DISABLED =
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:text-muted eldra:cursor-not-allowed';
+const READONLY = 'eldra:bg-surface eldra:border-border eldra:text-text eldra:cursor-default';
 
 const triggerClass = computed(() =>
   partClass(
@@ -461,7 +466,7 @@ const triggerClass = computed(() =>
 
 const leadingIconClass = computed(() =>
   partClass(
-    'flex size-4.5 shrink-0 items-center justify-center text-muted',
+    'eldra:flex eldra:size-4.5 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:text-muted',
     props.classes,
     'leadingIcon'
   )
@@ -470,7 +475,11 @@ const leadingIconClass = computed(() =>
 /** The chosen option's mark and label. 1.75rem of extra end padding while the clear button shows. */
 const valueClass = computed(() =>
   partClass(
-    cx('flex min-w-0 flex-1 items-center gap-2', TRIGGER_VALUE_CELL, showClear.value && 'pe-7'),
+    cx(
+      'eldra:flex eldra:min-w-0 eldra:flex-1 eldra:items-center eldra:gap-2',
+      TRIGGER_VALUE_CELL,
+      showClear.value && 'eldra:pe-7'
+    ),
     props.classes,
     'value'
   )
@@ -478,7 +487,10 @@ const valueClass = computed(() =>
 
 const placeholderClass = computed(() =>
   partClass(
-    cx('min-w-0 flex-1 truncate text-muted', showClear.value && 'pe-7'),
+    cx(
+      'eldra:min-w-0 eldra:flex-1 eldra:truncate eldra:text-muted',
+      showClear.value && 'eldra:pe-7'
+    ),
     props.classes,
     'placeholder'
   )
@@ -488,8 +500,8 @@ const placeholderClass = computed(() =>
 const chevronClass = computed(() =>
   partClass(
     cx(
-      'size-4.5 shrink-0 text-muted transition-transform duration-base',
-      isOpen.value && 'rotate-180'
+      'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-transform eldra:duration-base',
+      isOpen.value && 'eldra:rotate-180'
     ),
     props.classes,
     'chevron'
@@ -505,10 +517,10 @@ const chevronClass = computed(() =>
 const clearButtonClass = computed(() =>
   partClass(
     cx(
-      'absolute end-8 inset-y-0 my-auto inline-flex size-6 cursor-pointer items-center justify-center',
-      'rounded-sm text-muted hover:text-text',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra-focus'
+      'eldra:absolute eldra:end-8 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:size-6 eldra:cursor-pointer eldra:items-center eldra:justify-center',
+      'eldra:rounded-sm eldra:text-muted eldra:hover:text-text',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+      'eldra:eldra-focus'
     ),
     props.classes,
     'clearButton'
@@ -557,7 +569,7 @@ const emptyText = computed(() =>
         :class="leadingIconClass"
       >
         <slot name="leading" :option="selectedOption" :open="isOpen">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
         </slot>
       </span>
 
@@ -577,7 +589,9 @@ const emptyText = computed(() =>
               :icon="selectedOption.icon"
               :classes="{ root: triggerIconClass }"
             />
-            <span class="min-w-0 flex-1 truncate">{{ selectedOption.label }}</span>
+            <span class="eldra:min-w-0 eldra:flex-1 eldra:truncate">{{
+              selectedOption.label
+            }}</span>
           </slot>
         </span>
       </span>
@@ -587,7 +601,7 @@ const emptyText = computed(() =>
       <span v-if="!readonly" data-part="chevron" :class="chevronClass" aria-hidden="true">
         <!-- Tabler's `chevron-down`, stroke 1.75. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -613,7 +627,7 @@ const emptyText = computed(() =>
     >
       <!-- Tabler's `x` at 1rem. Decorative: the button is named by its label. -->
       <svg
-        class="size-4"
+        class="eldra:size-4"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

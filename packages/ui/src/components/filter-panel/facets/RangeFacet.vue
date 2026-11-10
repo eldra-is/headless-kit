@@ -24,7 +24,7 @@
 import { computed, ref, watch } from 'vue';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../../composables/useLocale';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { cx, partClass } from '../../../utils/kitClass';
 import { formatCurrency, formatNumber } from '../../../utils/number-format';
 import CurrencyInput from '../../currency-input/CurrencyInput.vue';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
@@ -159,13 +159,15 @@ watch(pair, (next) => {
  * of that grid and sits in its first column, a third of the width, with both fields clipped. The
  * 0.75rem above is that element's, not this one's, which is why there is no margin here.
  */
-const FIELDS_BASE = 'col-span-full grid grid-cols-[1fr_auto_1fr] items-end gap-2';
+const FIELDS_BASE =
+  'eldra:col-span-full eldra:grid eldra:grid-cols-[1fr_auto_1fr] eldra:items-end eldra:gap-2';
 /** Spec → Sizes: 'Label "Min" / "Max" 0.75rem weight 500 `muted`, 0.125rem above its Input sm.' */
-const FIELD_LABEL = 'mb-0.5 block text-filter-tile-count font-medium text-muted';
+const FIELD_LABEL =
+  'eldra:mb-0.5 eldra:block eldra:text-filter-tile-count eldra:font-medium eldra:text-muted';
 /** A `FieldWrapper` draws its own gap between label and control; the label recipe owns it here. */
-const FIELD_WRAPPER = 'gap-0';
+const FIELD_WRAPPER = 'eldra:gap-0';
 /** Spec → Sizes: "Tabular figures." The unit inside the box is the field's own. */
-const FIELD_CONTROL = 'tabular-nums';
+const FIELD_CONTROL = 'eldra:tabular-nums';
 /**
  * Spec → Sizes: "En dash between the fields in `muted`." Punctuation, so it is hidden. The row is
  * bottom-aligned, so the dash is a box as tall as the sm control sitting on the same baseline as
@@ -173,19 +175,19 @@ const FIELD_CONTROL = 'tabular-nums';
  * with the labels above the fields instead.
  */
 const SEPARATOR_BASE =
-  'self-end flex control-h-sm items-center justify-center text-body-sm text-muted';
+  'eldra:self-end eldra:flex eldra:control-h-sm eldra:items-center eldra:justify-center eldra:text-body-sm eldra:text-muted';
 /**
  * Spec → Sizes, Histogram and Range rows: the track and the bars are inset by the thumb's radius,
  * not by half a touch target — the slider's own default keeps a 44px band inside its box, which
  * leaves a 15rem sidebar's track at two thirds of the width. The rail keeps its height, so the
  * press band is unchanged; only the ends move out to the panel's edges.
  */
-const SLIDER_CLASSES = { group: 'eldra-range-gutter-thumb' } as const;
+const SLIDER_CLASSES = { group: 'eldra:eldra-range-gutter-thumb' } as const;
 
 const fieldsClass = computed(() => partClass(FIELDS_BASE, props.classes, 'fields'));
 const separatorClass = computed(() => partClass(SEPARATOR_BASE, props.classes, 'separator'));
 const fieldClass = computed(() => partClass('', props.classes, 'field'));
-const rangeClass = computed(() => partClass('min-w-0', props.classes, 'range'));
+const rangeClass = computed(() => partClass('eldra:min-w-0', props.classes, 'range'));
 
 /** `CurrencyInput` draws its own label, so the money field needs one bag. */
 const MONEY_CLASSES = computed(() => ({

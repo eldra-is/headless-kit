@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, provide } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { ACCORDION_KEY, type AccordionContext } from './context';
 import type { AccordionProps } from './types';
@@ -34,7 +34,11 @@ provide(ACCORDION_KEY, context);
  * including the line below the last item, so the list needs no bottom border of its own here.
  */
 const rootClass = computed(() =>
-  partClass(cx('flex flex-col border-t border-border'), props.classes, 'root')
+  partClass(
+    cx('eldra:flex eldra:flex-col eldra:border-t eldra:border-border'),
+    props.classes,
+    'root'
+  )
 );
 </script>
 

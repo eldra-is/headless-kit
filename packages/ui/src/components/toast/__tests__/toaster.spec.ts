@@ -94,7 +94,7 @@ describe('Toaster — the region', () => {
 
   it('applies its own width utility, capped at 100vw - 2rem on any viewport', () => {
     mount();
-    expect(region().classes()).toContain('eldra-toast-width');
+    expect(region().classes()).toContain('eldra:eldra-toast-width');
   });
 });
 
@@ -118,7 +118,7 @@ describe('Toaster — the two live regions are never nested', () => {
     mount();
     useToast().show({ variant: 'danger', title: "Couldn't update your cart" });
     await nextTick();
-    expect(list().classes()).toContain('hidden');
+    expect(list().classes()).toContain('eldra:hidden');
   });
 });
 
@@ -359,19 +359,21 @@ describe('Toaster — position, maxVisible, newestOnTop, teleportTo', () => {
 
   it('sits bottom-right by default', () => {
     mount();
-    expect(region().classes()).toEqual(expect.arrayContaining(['right-4', 'bottom-4']));
+    expect(region().classes()).toEqual(expect.arrayContaining(['eldra:right-4', 'eldra:bottom-4']));
   });
 
   it.each([
-    ['top-left', ['left-4', 'top-4']],
-    ['top-center', ['left-1/2', 'top-4', '-translate-x-1/2']],
-    ['top-right', ['right-4', 'top-4']],
-    ['bottom-left', ['left-4', 'bottom-4']],
-    ['bottom-center', ['left-1/2', 'bottom-4', '-translate-x-1/2']],
+    ['top-left', ['eldra:left-4', 'eldra:top-4']],
+    ['top-center', ['eldra:left-1/2', 'eldra:top-4', 'eldra:-translate-x-1/2']],
+    ['top-right', ['eldra:right-4', 'eldra:top-4']],
+    ['bottom-left', ['eldra:left-4', 'eldra:bottom-4']],
+    ['bottom-center', ['eldra:left-1/2', 'eldra:bottom-4', 'eldra:-translate-x-1/2']],
   ] as [ToasterPosition, string[]][])('sits %s', (position, classes) => {
     mounted.push(mountWith(Toaster, { props: { position } }) as unknown as VueWrapper);
     expect(region().classes()).toEqual(expect.arrayContaining(classes));
-    expect(region().classes()).not.toContain(position.startsWith('top') ? 'bottom-4' : 'top-4');
+    expect(region().classes()).not.toContain(
+      position.startsWith('top') ? 'eldra:bottom-4' : 'eldra:top-4'
+    );
   });
 
   it('keeps the newest maxVisible toasts', async () => {

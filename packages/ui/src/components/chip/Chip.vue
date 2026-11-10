@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import Avatar from '../avatar/Avatar.vue';
 import { CHIP_GROUP_KEY } from './context';
@@ -178,24 +178,24 @@ if (import.meta.env?.DEV) {
  */
 const SHAPE: Record<ChipSize, string> = {
   sm: TAG_SHAPE,
-  md: 'inline-flex min-h-9 items-center gap-1.5 rounded-full text-body-sm',
+  md: 'eldra:inline-flex eldra:min-h-9 eldra:items-center eldra:gap-1.5 eldra:rounded-full eldra:text-body-sm',
 };
 
 function padding(size: ChipSize, hasRemoveButton: boolean): string {
   if (size === 'sm') return tagPadding(hasRemoveButton);
-  return hasRemoveButton ? 'ps-3 pe-1' : 'px-3';
+  return hasRemoveButton ? 'eldra:ps-3 eldra:pe-1' : 'eldra:px-3';
 }
 
 /** The leading visual's (icon or avatar) size, matched to the chip's own scale. */
-const LEADING_SIZE: Record<ChipSize, string> = { sm: 'size-3.5', md: 'size-4' };
+const LEADING_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-3.5', md: 'eldra:size-4' };
 
 /** Badge's own icon stroke reasoning applies here too: a 0.875rem icon needs a heavier stroke
  * than the package's stock 1.75 to stay legible at that size; `md`'s 1rem icon uses the stock
  * weight `Icon.vue` itself uses. */
 const ICON_STROKE_WIDTH: Record<ChipSize, number> = { sm: 2.25, md: 1.75 };
 
-const REMOVE_SIZE: Record<ChipSize, string> = { sm: 'size-6', md: 'size-7' };
-const REMOVE_ICON_SIZE: Record<ChipSize, string> = { sm: 'size-3.5', md: 'size-4' };
+const REMOVE_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-6', md: 'eldra:size-7' };
+const REMOVE_ICON_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-3.5', md: 'eldra:size-4' };
 
 /**
  * Fill (derived from Badge's States table and Button's press/hover formulas): `surface-strong` at
@@ -210,15 +210,15 @@ const REMOVE_ICON_SIZE: Record<ChipSize, string> = { sm: 'size-3.5', md: 'size-4
  * "badges are static; they have no hover" rule and `MultiSelect`'s own tag (no hover on the pill
  * itself, only on its remove button) both already follow.
  */
-const FILL_SELECTED = 'bg-primary text-primary-contrast';
-const FILL_DISABLED = 'bg-surface-strong text-muted cursor-not-allowed';
+const FILL_SELECTED = 'eldra:bg-primary eldra:text-primary-contrast';
+const FILL_DISABLED = 'eldra:bg-surface-strong eldra:text-muted eldra:cursor-not-allowed';
 /** Button's own `primary` hover mix: 14% toward `background`. */
 const HOVER_SELECTED =
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]';
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]';
 /** Button's own `ghost` hover mix, adapted for a solid fill rather than a transparent one: 6%
  *  toward `text` instead of a 94%-transparent overlay of it. */
 const HOVER_BASE =
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-surface-strong),var(--eldra-color-text)_6%)]';
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-surface-strong),var(--eldra-color-text)_6%)]';
 
 const fillClass = computed(() => {
   if (effectiveDisabled.value) return FILL_DISABLED;
@@ -229,12 +229,12 @@ const fillClass = computed(() => {
 
 /** Button's own press, verbatim: the whole control scales to 98% rather than moving, felt rather
  *  than seen (see `Button.vue`'s own comment for why). */
-const PRESS = 'active:scale-[0.98] motion-reduce:active:scale-100';
+const PRESS = 'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100';
 
 const interactionClass = computed(() => {
   if (effectiveDisabled.value) return '';
-  if (isInteractiveRoot.value) return cx('cursor-pointer eldra-focus', PRESS);
-  if (isFocusableRoot.value) return 'eldra-focus';
+  if (isInteractiveRoot.value) return cx('eldra:cursor-pointer eldra:eldra-focus', PRESS);
+  if (isFocusableRoot.value) return 'eldra:eldra-focus';
   return '';
 });
 
@@ -245,7 +245,7 @@ const rootClass = computed(() =>
       padding(props.size, props.removable),
       fillClass.value,
       interactionClass.value,
-      'whitespace-nowrap max-w-full'
+      'eldra:whitespace-nowrap eldra:max-w-full'
     ),
     props.classes,
     'root'
@@ -259,7 +259,9 @@ const hasIcon = computed(
   () => !hasAvatar.value && (props.icon !== undefined || slots.icon !== undefined)
 );
 
-const avatarWrapClass = computed(() => partClass('inline-flex shrink-0', props.classes, 'avatar'));
+const avatarWrapClass = computed(() =>
+  partClass('eldra:inline-flex eldra:shrink-0', props.classes, 'avatar')
+);
 const avatarSizeClass = computed(() => LEADING_SIZE[props.size]);
 
 /**
@@ -276,23 +278,29 @@ const avatarSizeClass = computed(() => LEADING_SIZE[props.size]);
  * otherwise have set — `tailwind-merge` drops that whole utility once its font-size conflicts with
  * the override, not just the size.
  */
-const AVATAR_ICON_CLASS: Record<ChipSize, string> = { sm: 'size-1.5', md: 'size-1.75' };
+const AVATAR_ICON_CLASS: Record<ChipSize, string> = { sm: 'eldra:size-1.5', md: 'eldra:size-1.75' };
 const AVATAR_INITIALS_CLASS: Record<ChipSize, string> = {
-  sm: 'text-[0.33rem] leading-none font-semibold',
-  md: 'text-[0.38rem] leading-none font-semibold',
+  sm: 'eldra:text-[0.33rem] eldra:leading-none eldra:font-semibold',
+  md: 'eldra:text-[0.38rem] eldra:leading-none eldra:font-semibold',
 };
 const avatarIconClass = computed(() => AVATAR_ICON_CLASS[props.size]);
 const avatarInitialsClass = computed(() => AVATAR_INITIALS_CLASS[props.size]);
 
 const iconWrapClass = computed(() =>
-  partClass(cx(LEADING_SIZE[props.size], 'shrink-0'), props.classes, 'icon')
+  partClass(cx(LEADING_SIZE[props.size], 'eldra:shrink-0'), props.classes, 'icon')
 );
 
-const labelClass = computed(() => partClass('min-w-0 truncate', props.classes, 'label'));
+const labelClass = computed(() =>
+  partClass('eldra:min-w-0 eldra:truncate', props.classes, 'label')
+);
 
 const removeButtonClass = computed(() =>
   partClass(
-    cx(TAG_REMOVE_BUTTON, REMOVE_SIZE[props.size], effectiveDisabled.value && 'cursor-not-allowed'),
+    cx(
+      TAG_REMOVE_BUTTON,
+      REMOVE_SIZE[props.size],
+      effectiveDisabled.value && 'eldra:cursor-not-allowed'
+    ),
     props.classes,
     'removeButton'
   )

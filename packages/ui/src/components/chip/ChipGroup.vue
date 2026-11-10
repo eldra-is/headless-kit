@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, provide } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { CHIP_GROUP_KEY, type ChipGroupContext } from './context';
 import type { ChipGroupProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -50,7 +50,9 @@ provide(CHIP_GROUP_KEY, context);
  * group of chips uses, distinct from `space-3`'s "gap inside control groups" (`ButtonGroup`'s own
  * loose `gap-3`), which is a wider gap for a row of whole controls rather than a row of chips.
  */
-const rootClass = computed(() => partClass(cx('flex flex-wrap gap-2'), props.classes, 'root'));
+const rootClass = computed(() =>
+  partClass(cx('eldra:flex eldra:flex-wrap eldra:gap-2'), props.classes, 'root')
+);
 </script>
 
 <template>

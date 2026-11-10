@@ -228,10 +228,10 @@ describe('NavMenu — panels', () => {
     expect(shop!.getAttribute('aria-expanded')).toBe('false');
     expect([...panel(wrapper, 0).classList]).toEqual(
       expect.arrayContaining([
-        'pointer-events-none',
-        'transition-opacity',
-        'duration-fast',
-        'ease-in',
+        'eldra:pointer-events-none',
+        'eldra:transition-opacity',
+        'eldra:duration-fast',
+        'eldra:ease-in',
       ])
     );
     wrapper.unmount();
@@ -302,10 +302,10 @@ describe('NavMenu — panel content', () => {
   it('spans the menu for a mega panel and hangs a dropdown under its own item', () => {
     const wrapper = mount();
     const [shopItem, journalItem] = wrapper.findAll('[data-part="item"]');
-    expect(shopItem!.classes()).not.toContain('relative');
-    expect(panel(wrapper, 0).className).toContain('inset-x-0');
-    expect(journalItem!.classes()).toContain('relative');
-    expect(panel(wrapper, 1).className).toContain('start-0');
+    expect(shopItem!.classes()).not.toContain('eldra:relative');
+    expect(panel(wrapper, 0).className).toContain('eldra:inset-x-0');
+    expect(journalItem!.classes()).toContain('eldra:relative');
+    expect(panel(wrapper, 1).className).toContain('eldra:start-0');
     wrapper.unmount();
   });
 
@@ -333,7 +333,7 @@ describe('NavMenu — panel content', () => {
     );
     const footer = (index: number): HTMLElement =>
       panel(wrapper, index).querySelector('[data-part="footer"]')!;
-    expect(footer(0).classList).toContain('empty:hidden');
+    expect(footer(0).classList).toContain('eldra:empty:hidden');
     expect(footer(0).matches(':empty')).toBe(false);
     expect(footer(1).matches(':empty')).toBe(true);
     wrapper.unmount();
@@ -619,10 +619,10 @@ describe('NavMenu — narrow screens', () => {
   it('collapses below lg by default: bar hidden below, menu button hidden above', () => {
     const wrapper = mount();
     expect(wrapper.get('[data-part="nav"]').classes()).toEqual(
-      expect.arrayContaining(['hidden', 'lg:block'])
+      expect.arrayContaining(['eldra:hidden', 'eldra:lg:block'])
     );
     const toggle = wrapper.get('[data-part="toggle"]');
-    expect(toggle.classes()).toContain('lg:hidden');
+    expect(toggle.classes()).toContain('eldra:lg:hidden');
     expect(toggle.attributes('aria-label')).toBe('Menu');
     expect(toggle.attributes('aria-haspopup')).toBe('dialog');
     expect(toggle.attributes('aria-expanded')).toBe('false');
@@ -631,7 +631,7 @@ describe('NavMenu — narrow screens', () => {
 
   it('never collapses with collapseBelow="never", and renders no drawer', () => {
     const wrapper = mount({ collapseBelow: 'never' });
-    expect(wrapper.get('[data-part="nav"]').classes()).toEqual(['block']);
+    expect(wrapper.get('[data-part="nav"]').classes()).toEqual(['eldra:block']);
     expect(wrapper.find('[data-part="toggle"]').exists()).toBe(false);
     expect(wrapper.find('dialog').exists()).toBe(false);
     wrapper.unmount();
@@ -639,9 +639,12 @@ describe('NavMenu — narrow screens', () => {
 
   it('collapses against the nearest container with an @ breakpoint', () => {
     const wrapper = mount({ collapseBelow: '@content' });
-    expect(wrapper.get('[data-part="nav"]').classes()).toEqual(['hidden', '@content:block']);
+    expect(wrapper.get('[data-part="nav"]').classes()).toEqual([
+      'eldra:hidden',
+      'eldra:@content:block',
+    ]);
     const toggle = wrapper.get('[data-part="toggle"]').classes();
-    expect(toggle).toContain('@content:hidden');
+    expect(toggle).toContain('eldra:@content:hidden');
     expect(toggle.some((token) => /^(md|lg|xl):/.test(token))).toBe(false);
     wrapper.unmount();
   });
@@ -888,15 +891,15 @@ describe('NavMenu — drawer layouts and entries', () => {
       ...dialog.querySelector(`[data-part="${part}"]`)!.classList,
     ];
     expect([...dialog.classList]).toContain('backdrop:bg-transparent');
-    expect([...dialog.classList]).not.toContain('backdrop:bg-overlay');
+    expect([...dialog.classList]).not.toContain('eldra:backdrop:bg-overlay');
     expect(classesOf('panel')).toContain('h-auto');
-    expect(classesOf('panel')).not.toContain('h-full');
+    expect(classesOf('panel')).not.toContain('eldra:h-full');
     expect(classesOf('header')).toContain('min-h-0');
-    expect(classesOf('header')).not.toContain('min-h-16');
+    expect(classesOf('header')).not.toContain('eldra:min-h-16');
     expect(classesOf('close')).toContain('size-8');
-    expect(classesOf('close')).not.toContain('size-10');
+    expect(classesOf('close')).not.toContain('eldra:size-10');
     expect(classesOf('body')).toContain('p-4');
-    expect(classesOf('body')).not.toContain('p-6');
+    expect(classesOf('body')).not.toContain('eldra:p-6');
     expect(classesOf('drawerSectionHeading')).toContain('pt-5');
     wrapper.unmount();
   });
@@ -940,11 +943,11 @@ describe('NavMenu — slots that know where they render', () => {
     expect(icon().element.querySelector('svg')).toBeNull();
     expect(icon().text()).toBe('Shop:false');
     expect(icon().attributes('aria-hidden')).toBe('true');
-    expect(icon().classes()).not.toContain('rotate-180');
+    expect(icon().classes()).not.toContain('eldra:rotate-180');
     triggers(wrapper)[0]!.click();
     await nextTick();
     expect(icon().text()).toBe('Shop:true');
-    expect(icon().classes()).toContain('rotate-180');
+    expect(icon().classes()).toContain('eldra:rotate-180');
     expect(triggers(wrapper)[0]!.textContent!.trim()).toBe('ShopShop:true');
     wrapper.unmount();
   });
@@ -964,13 +967,13 @@ describe('NavMenu — customisation', () => {
       classes: { trigger: 'px-6', columns: 'grid-cols-5', content: 'rounded-none', root: 'static' },
     });
     expect(wrapper.get('[data-part="root"]').classes()).toContain('static');
-    expect(wrapper.get('[data-part="root"]').classes()).not.toContain('relative');
+    expect(wrapper.get('[data-part="root"]').classes()).not.toContain('eldra:relative');
     const trigger = wrapper.get('[data-part="trigger"]').classes();
     expect(trigger).toContain('px-6');
-    expect(trigger).not.toContain('px-3');
+    expect(trigger).not.toContain('eldra:px-3');
     const columns = panel(wrapper, 0).querySelector('[data-part="columns"]')!.classList;
     expect(columns.contains('grid-cols-5')).toBe(true);
-    expect(columns.contains('eldra-nav-menu-columns')).toBe(false);
+    expect(columns.contains('eldra:eldra-nav-menu-columns')).toBe(false);
     wrapper.unmount();
   });
 });
@@ -983,21 +986,25 @@ describe('NavMenu — variants', () => {
   }
 
   /** A class that changes weight in some state but not at rest would shift the text. */
-  const STATE_WEIGHT = /^(hover|aria-expanded|aria-\[current=page\]|data-\[current\]):font-/;
+  const STATE_WEIGHT = /^eldra:(hover|aria-expanded|aria-\[current=page\]|data-\[current\]):font-/;
 
   it('defaults to ghost: text colour, filled on hover and while open', () => {
     const wrapper = mount({ modelValue: 0 });
     for (const part of ['trigger', 'link']) {
       const classes = wrapper.get(`[data-part="${part}"]`).classes();
       expect(classes, part).toEqual(
-        expect.arrayContaining(['text-text', `hover:bg-${FILL}`, `aria-expanded:bg-${FILL}`])
+        expect.arrayContaining([
+          'eldra:text-text',
+          `eldra:hover:bg-${FILL}`,
+          `eldra:aria-expanded:bg-${FILL}`,
+        ])
       );
-      expect(classes, part).not.toContain('text-muted');
+      expect(classes, part).not.toContain('eldra:text-muted');
     }
     const panelLinks = panel(wrapper, 0).querySelectorAll('a[data-part="panelLink"]');
     for (const link of panelLinks) {
       expect([...link.classList]).toEqual(
-        expect.arrayContaining(['text-text', 'hover:bg-surface'])
+        expect.arrayContaining(['eldra:text-text', 'eldra:hover:bg-surface'])
       );
     }
     wrapper.unmount();
@@ -1008,22 +1015,26 @@ describe('NavMenu — variants', () => {
     const trigger = wrapper.get('[data-part="trigger"]').classes();
     expect(trigger).toEqual(
       expect.arrayContaining([
-        'text-muted',
-        'hover:text-text',
-        'aria-expanded:text-text',
-        'data-[current]:text-text',
+        'eldra:text-muted',
+        'eldra:hover:text-text',
+        'eldra:aria-expanded:text-text',
+        'eldra:data-[current]:text-text',
       ])
     );
     const link = wrapper.get('[data-part="link"]').classes();
     expect(link).toEqual(
-      expect.arrayContaining(['text-muted', 'hover:text-text', 'aria-[current=page]:text-text'])
+      expect.arrayContaining([
+        'eldra:text-muted',
+        'eldra:hover:text-text',
+        'eldra:aria-[current=page]:text-text',
+      ])
     );
     // The current page keeps its underline: colour alone is not enough to mark it.
-    expect(link).toContain('aria-[current=page]:underline');
+    expect(link).toContain('eldra:aria-[current=page]:underline');
 
     const bar = wrapper.get('[data-part="nav"]').element;
     for (const token of [...partClasses(bar, 'trigger'), ...partClasses(bar, 'link')]) {
-      expect(token).not.toMatch(/^(hover|aria-expanded):bg-/);
+      expect(token).not.toMatch(/^eldra:(hover|aria-expanded):bg-/);
       expect(token).not.toMatch(STATE_WEIGHT);
     }
     wrapper.unmount();
@@ -1034,23 +1045,27 @@ describe('NavMenu — variants', () => {
     const links = [...panel(wrapper, 0).querySelectorAll<HTMLElement>('[data-part="panelLink"]')];
     for (const link of links.filter((el) => el.tagName === 'A')) {
       expect([...link.classList]).toEqual(
-        expect.arrayContaining(['text-muted', 'hover:text-text', 'aria-[current=page]:text-text'])
+        expect.arrayContaining([
+          'eldra:text-muted',
+          'eldra:hover:text-text',
+          'eldra:aria-[current=page]:text-text',
+        ])
       );
     }
     const glass = links.find((el) => el.tagName === 'SPAN')!;
-    expect([...glass.classList]).toContain('text-muted');
-    expect([...glass.classList]).not.toContain('hover:text-text');
+    expect([...glass.classList]).toContain('eldra:text-muted');
+    expect([...glass.classList]).not.toContain('eldra:hover:text-text');
 
     await wrapper.setProps({ modelValue: 1 });
     const overview = wrapper.get('[data-part="overview"]').classes();
-    expect(overview).toEqual(expect.arrayContaining(['text-muted', 'hover:text-text']));
+    expect(overview).toEqual(expect.arrayContaining(['eldra:text-muted', 'eldra:hover:text-text']));
 
     for (const token of [
       ...partClasses(panel(wrapper, 0), 'panelLink'),
       ...partClasses(panel(wrapper, 1), 'panelLink'),
       ...overview,
     ]) {
-      expect(token).not.toMatch(/^hover:bg-/);
+      expect(token).not.toMatch(/^eldra:hover:bg-/);
       expect(token).not.toMatch(STATE_WEIGHT);
     }
     wrapper.unmount();
@@ -1076,7 +1091,7 @@ describe('NavMenu — variants', () => {
     const wrapper = mount({ variant: 'muted', classes: { link: 'text-primary' } });
     const link = wrapper.get('[data-part="link"]').classes();
     expect(link).toContain('text-primary');
-    expect(link).not.toContain('text-muted');
+    expect(link).not.toContain('eldra:text-muted');
     wrapper.unmount();
   });
 

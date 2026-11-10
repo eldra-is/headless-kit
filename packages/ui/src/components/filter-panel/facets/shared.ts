@@ -23,7 +23,8 @@ export interface FacetProps {
  * the end." The same count sits at the end of a swatch row and a switch row, so it is written
  * once.
  */
-export const FACET_COUNT = 'ms-auto shrink-0 text-caption text-muted tabular-nums';
+export const FACET_COUNT =
+  'eldra:ms-auto eldra:shrink-0 eldra:text-caption eldra:text-muted eldra:tabular-nums';
 
 /**
  * Spec → States, "Option row, hover" and "Swatch row/tile, hover": "`text` at 6%".
@@ -32,14 +33,14 @@ export const FACET_COUNT = 'ms-auto shrink-0 text-caption text-muted tabular-num
  * changes the hover with it — the same shape `Switch`'s own hover fill uses.
  */
 export const FACET_ROW_HOVER =
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 
 /**
  * Spec → Sizes, Option row: "padding 0.25rem 0.5rem with a −0.5rem side margin (the hover tint
  * bleeds into the gutter)". The negative margin is what lets the tint reach past the panel's own
  * text edge, so a hovered row reads as a row rather than as a highlighted label.
  */
-export const FACET_ROW_GUTTER = '-mx-2 px-2';
+export const FACET_ROW_GUTTER = 'eldra:-mx-2 eldra:px-2';
 
 /** The same, at the swatch row's own tighter 0.375rem padding (spec → Sizes, Swatch row). */
-export const FACET_SWATCH_GUTTER = '-mx-1.5 px-1.5';
+export const FACET_SWATCH_GUTTER = 'eldra:-mx-1.5 eldra:px-1.5';

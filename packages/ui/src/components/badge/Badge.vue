@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { BadgeProps, BadgeTone } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -41,14 +41,14 @@ const effectiveTone = computed<BadgeTone>(() => {
  * combining with it. A badge is never both a coloured fill and an outline at once.
  */
 const TONE_CLASS: Record<BadgeTone, string> = {
-  neutral: 'bg-surface-strong text-text',
-  primary: 'bg-primary text-primary-contrast',
-  accent: 'bg-accent text-accent-contrast',
-  success: 'bg-success text-background',
-  warning: 'bg-warning text-background',
-  danger: 'bg-danger text-background',
+  neutral: 'eldra:bg-surface-strong eldra:text-text',
+  primary: 'eldra:bg-primary eldra:text-primary-contrast',
+  accent: 'eldra:bg-accent eldra:text-accent-contrast',
+  success: 'eldra:bg-success eldra:text-background',
+  warning: 'eldra:bg-warning eldra:text-background',
+  danger: 'eldra:bg-danger eldra:text-background',
 };
-const OUTLINE_CLASS = 'bg-background text-text border-border-strong';
+const OUTLINE_CLASS = 'eldra:bg-background eldra:text-text eldra:border-border-strong';
 
 const colorClass = computed(() =>
   props.outline ? OUTLINE_CLASS : TONE_CLASS[effectiveTone.value]
@@ -63,8 +63,8 @@ const colorClass = computed(() =>
 const rootClass = computed(() =>
   partClass(
     cx(
-      'inline-flex items-center min-h-6 gap-1 border border-transparent text-badge whitespace-nowrap',
-      props.pill ? 'rounded-full px-2.5' : 'rounded-sm px-2',
+      'eldra:inline-flex eldra:items-center eldra:min-h-6 eldra:gap-1 eldra:border eldra:border-transparent eldra:text-badge eldra:whitespace-nowrap',
+      props.pill ? 'eldra:rounded-full eldra:px-2.5' : 'eldra:rounded-sm eldra:px-2',
       colorClass.value
     ),
     props.classes,
@@ -72,9 +72,9 @@ const rootClass = computed(() =>
   )
 );
 
-const iconClass = computed(() => partClass('size-3.5 shrink-0', props.classes, 'icon'));
+const iconClass = computed(() => partClass('eldra:size-3.5 eldra:shrink-0', props.classes, 'icon'));
 const labelClass = computed(() => partClass('', props.classes, 'label'));
-const hiddenSuffixClass = computed(() => partClass('sr-only', props.classes, 'hiddenSuffix'));
+const hiddenSuffixClass = computed(() => partClass('eldra:sr-only', props.classes, 'hiddenSuffix'));
 
 if (import.meta.env?.DEV) {
   /**

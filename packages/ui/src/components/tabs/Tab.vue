@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -82,19 +82,19 @@ function onKeydown(event: KeyboardEvent): void {
  * so the weight is a separate `font-medium`/`font-semibold` utility paired with it here instead.
  */
 const BASE =
-  'relative inline-flex items-center justify-center whitespace-nowrap cursor-pointer ' +
-  'target-touch px-4 text-variant-pill';
+  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:whitespace-nowrap eldra:cursor-pointer ' +
+  'eldra:target-touch eldra:px-4 eldra:text-variant-pill';
 
 /** States (spec "Tabs" → States, Underline column). Hover text on the tint stays `text`, per the
  *  spec's own contrast row ("hover text on the 6% tint 15.0:1"). */
 const UNDERLINE = computed(() =>
   cx(
-    'rounded-t-sm eldra-focus-inset',
+    'eldra:rounded-t-sm eldra:eldra-focus-inset',
     isSelected.value
-      ? 'font-semibold text-text'
+      ? 'eldra:font-semibold eldra:text-text'
       : cx(
-          'font-medium text-muted hover:text-text',
-          'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
+          'eldra:font-medium eldra:text-muted eldra:hover:text-text',
+          'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
         )
   )
 );
@@ -104,12 +104,12 @@ const UNDERLINE = computed(() =>
  *  comment — so the border only needs a colour when unselected. */
 const PILLS = computed(() =>
   cx(
-    'rounded-full border eldra-focus',
+    'eldra:rounded-full eldra:border eldra:eldra-focus',
     isSelected.value
-      ? 'border-primary bg-primary font-semibold text-primary-contrast'
+      ? 'eldra:border-primary eldra:bg-primary eldra:font-semibold eldra:text-primary-contrast'
       : cx(
-          'border-border-strong font-medium text-muted hover:text-text',
-          'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
+          'eldra:border-border-strong eldra:font-medium eldra:text-muted eldra:hover:text-text',
+          'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
         )
   )
 );
@@ -123,16 +123,18 @@ const PILLS = computed(() =>
  */
 const UNDERLINE_DISABLED = computed(() =>
   cx(
-    'rounded-t-sm eldra-focus-inset cursor-not-allowed',
-    isSelected.value ? 'font-semibold text-muted' : 'font-medium text-muted/60'
+    'eldra:rounded-t-sm eldra:eldra-focus-inset eldra:cursor-not-allowed',
+    isSelected.value
+      ? 'eldra:font-semibold eldra:text-muted'
+      : 'eldra:font-medium eldra:text-muted/60'
   )
 );
 const PILLS_DISABLED = computed(() =>
   cx(
-    'rounded-full border eldra-focus cursor-not-allowed',
+    'eldra:rounded-full eldra:border eldra:eldra-focus eldra:cursor-not-allowed',
     isSelected.value
-      ? 'border-transparent bg-surface-strong font-semibold text-muted'
-      : 'border-border font-medium text-muted/60'
+      ? 'eldra:border-transparent eldra:bg-surface-strong eldra:font-semibold eldra:text-muted'
+      : 'eldra:border-border eldra:font-medium eldra:text-muted/60'
   )
 );
 
@@ -155,9 +157,13 @@ const tabClass = computed(() => partClass(cx(BASE, stateClass.value), props.clas
 const indicatorClass = computed(() =>
   partClass(
     cx(
-      'pointer-events-none absolute inset-x-2 bottom-0 h-[0.1875rem] rounded-t-full',
-      'transition-colors duration-fast ease-out',
-      isSelected.value ? (props.disabled ? 'bg-muted' : 'bg-primary') : 'bg-transparent'
+      'eldra:pointer-events-none eldra:absolute eldra:inset-x-2 eldra:bottom-0 eldra:h-[0.1875rem] eldra:rounded-t-full',
+      'eldra:transition-colors eldra:duration-fast eldra:ease-out',
+      isSelected.value
+        ? props.disabled
+          ? 'eldra:bg-muted'
+          : 'eldra:bg-primary'
+        : 'eldra:bg-transparent'
     ),
     props.classes,
     'indicator'

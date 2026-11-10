@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, provide, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { SECTION_KEY } from './context';
 import type { SectionBackground, SectionProps, SectionSpacing } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -38,14 +38,14 @@ if (import.meta.env?.DEV) {
 /**
  * Spec "Container and section" → Variants: the ground fill, and the text colour it establishes for
  * any plain text a block writes with no colour of its own (a component like `Button`/`Link`/`Price`
- * inverts itself through the `group-data-[section=…]/section:` mechanism below instead).
+ * inverts itself through the `section-primary:`/`section-accent:` variants below instead).
  */
 const BACKGROUND: Record<SectionBackground, string> = {
-  none: 'bg-background text-text',
-  surface: 'bg-surface text-text',
-  'surface-strong': 'bg-surface-strong text-text',
-  primary: 'bg-primary text-primary-contrast',
-  accent: 'bg-accent text-accent-contrast',
+  none: 'eldra:bg-background eldra:text-text',
+  surface: 'eldra:bg-surface eldra:text-text',
+  'surface-strong': 'eldra:bg-surface-strong eldra:text-text',
+  primary: 'eldra:bg-primary eldra:text-primary-contrast',
+  accent: 'eldra:bg-accent eldra:text-accent-contrast',
 };
 
 /**
@@ -55,17 +55,17 @@ const BACKGROUND: Record<SectionBackground, string> = {
  */
 const SPACING: Record<SectionSpacing, string> = {
   none: '',
-  sm: 'pt-[var(--eldra-section-sm)] pb-[var(--eldra-section-sm)]',
-  md: 'pt-[var(--eldra-section-md)] pb-[var(--eldra-section-md)]',
-  lg: 'pt-[var(--eldra-section-lg)] pb-[var(--eldra-section-lg)]',
+  sm: 'eldra:pt-[var(--eldra-section-sm)] eldra:pb-[var(--eldra-section-sm)]',
+  md: 'eldra:pt-[var(--eldra-section-md)] eldra:pb-[var(--eldra-section-md)]',
+  lg: 'eldra:pt-[var(--eldra-section-lg)] eldra:pb-[var(--eldra-section-lg)]',
 };
 
 /**
  * Spec "Container and section" → "Colour switching on primary and accent sections": only these two
  * grounds broadcast the inversion signal `Button`, `Link`, `Price` and `Rating` already read
- * (`group-data-[section=primary|accent]/section:`, see e.g. `Button.vue`). `none`/`surface`/
+ * (`section-primary:`/`section-accent:`, see e.g. `Button.vue`). `none`/`surface`/
  * `surface-strong` mark themselves with `data-section-bg` only, for the adjacent-background rule —
- * never `data-section` or `group/section`, so a `Card` (a later component) sitting on one of them
+ * never `data-section`, so a `Card` (a later component) sitting on one of them
  * is never mistaken for a coloured ground by a `Price` inside it.
  */
 const INVERTS: ReadonlySet<SectionBackground> = new Set(['primary', 'accent']);
@@ -103,12 +103,7 @@ const resolvedAriaLabel = computed(() => (hasLabel.value ? props.ariaLabel! : un
  */
 const rootClass = computed(() =>
   partClass(
-    cx(
-      '@container',
-      BACKGROUND[props.background],
-      SPACING[props.spacing],
-      inverts.value && 'group/section'
-    ),
+    cx('eldra:@container', BACKGROUND[props.background], SPACING[props.spacing]),
     props.classes,
     'root'
   )

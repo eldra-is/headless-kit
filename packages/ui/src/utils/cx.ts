@@ -34,7 +34,7 @@ export type ClassValue = string | false | null | undefined | Record<string, bool
  * utility that is never added here (as `eldra-link-radius` first shipped) is caught by a test
  * instead of shipping unmerged.
  */
-const twMerge = extendTailwindMerge<
+type KitGroup =
   | 'target-min'
   | 'target-touch'
   | 'eldra-scrollbar-hide'
@@ -64,8 +64,9 @@ const twMerge = extendTailwindMerge<
   | 'eldra-range-thumb'
   | 'eldra-filter-swatch-edge'
   | 'eldra-filter-histogram-bar'
-  | 'eldra-nav-menu-dropdown'
->({
+  | 'eldra-nav-menu-dropdown';
+
+const MERGE_CONFIG = {
   extend: {
     // tailwind.css `@theme` keys that are not t-shirt sizes, so `shadow-float`/`w-narrow` merge too.
     theme: {
@@ -342,7 +343,17 @@ const twMerge = extendTailwindMerge<
       ],
     },
   },
-});
+};
+
+const twMerge = extendTailwindMerge<KitGroup>(MERGE_CONFIG);
+
+/**
+ * The same merge for the package's own classes, which carry the `eldra:` prefix (`eldra:px-4`) so
+ * no app's own utilities can match a component's element by name. Internal: components build their
+ * classes through `kitClass.ts`; the exported `cx` and `partClass` stay unprefixed for a
+ * consumer's own markup.
+ */
+export const kitMerge = extendTailwindMerge<KitGroup>({ ...MERGE_CONFIG, prefix: 'eldra' });
 
 /**
  * Flattens one `cx` input into the class names it contributes.
@@ -381,9 +392,14 @@ function flattenClassValue(input: unknown, out: string[]): void {
  * component's `px-4` instead of landing beside it and losing to source order.
  */
 export function cx(...inputs: ClassValue[]): string {
+  return mergeWith(twMerge, inputs);
+}
+
+/** Internal: flattens `inputs` and merges them with `merge` (`twMerge`, or `kitMerge`). */
+export function mergeWith(merge: (classes: string) => string, inputs: readonly unknown[]): string {
   const parts: string[] = [];
   for (const input of inputs) flattenClassValue(input, parts);
-  return twMerge(parts.join(' '));
+  return merge(parts.join(' '));
 }
 
 /**
@@ -424,7 +440,7 @@ const warnedArrayParts = new Set<string>();
  * nothing at runtime: this is a wrong-shape-of-prop mistake a developer fixes
  * once, never a condition a visitor's browser should spend anything on.
  */
-function warnArrayClassesValue(part: string): void {
+export function warnArrayClassesValue(part: string): void {
   if (!import.meta.env?.DEV) return;
   const component = currentComponentName();
   const key = `${component}.${part}`;

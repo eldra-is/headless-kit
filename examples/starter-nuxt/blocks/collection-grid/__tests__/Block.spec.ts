@@ -290,7 +290,7 @@ const SEEDED_GROUPS = 5;
 /** The grid's single visually hidden live region for the volatile refresh. The count line above
  *  and `LoadMore`'s own "Showing N of M" are the block's other `role="status"` elements, and both
  *  are visible — this is the only hidden one. */
-const liveRegion = (wrapper: VueWrapper) => wrapper.get('p.sr-only[role="status"]');
+const liveRegion = (wrapper: VueWrapper) => wrapper.get('p.eldra\\:sr-only[role="status"]');
 /** The grid itself: the list of product cards (never the skeleton list, which is aria-hidden). */
 const cards = (wrapper: VueWrapper) =>
   wrapper.findAll('ul[aria-labelledby]:not([aria-hidden]) > li');
@@ -388,7 +388,7 @@ describe('collection-grid block', () => {
       const h2 = wrapper
         .findAll('h2')
         .find((candidate) => candidate.text() === enUS.grid.products)!;
-      expect(h2.classes()).toContain('sr-only');
+      expect(h2.classes()).toContain('eldra:sr-only');
 
       const titles = wrapper.findAll('h3');
       expect(titles.some((title) => title.text() === 'Merino crew sweater')).toBe(true);
@@ -421,7 +421,7 @@ describe('collection-grid block', () => {
         const { trigger, panel } = panelFor(wrapper, legend);
         expect(trigger.attributes('aria-expanded')).toBe('true');
         expect(panel.element.tagName).toBe('FIELDSET');
-        expect(panel.get('legend').classes()).toContain('sr-only');
+        expect(panel.get('legend').classes()).toContain('eldra:sr-only');
       }
     });
 
@@ -488,12 +488,12 @@ describe('collection-grid block', () => {
       const dot = row.get('span');
       const name = row.get('[data-part="rowLabel"]');
 
-      expect(dot.classes()).toContain('border-transparent');
-      expect(name.classes()).not.toContain('font-semibold');
+      expect(dot.classes()).toContain('eldra:border-transparent');
+      expect(name.classes()).not.toContain('eldra:font-semibold');
       await input.setValue(true);
 
-      expect(dot.classes()).toContain('border-text');
-      expect(name.classes()).toContain('font-semibold');
+      expect(dot.classes()).toContain('eldra:border-text');
+      expect(name.classes()).toContain('eldra:font-semibold');
     });
 
     /**
@@ -1249,7 +1249,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
       const soldOut = cards(wrapper).find((card) => card.text().includes('Linen tea towels'))!;
       expect(soldOut.text()).toContain('Sold out');
-      expect(soldOut.get('img').classes()).toContain('opacity-60');
+      expect(soldOut.get('img').classes()).toContain('eldra:opacity-60');
     });
 
     /**
@@ -1293,7 +1293,7 @@ describe('collection-grid block', () => {
       const loadMore = wrapper.get('[data-part="button"]');
       const bar = wrapper
         .findAll('div[aria-hidden="true"]')
-        .find((div) => div.classes().includes('rounded-full'))!;
+        .find((div) => div.classes().includes('eldra:rounded-full'))!;
       expect(bar.attributes('aria-hidden')).toBe('true');
 
       loadMore.element.focus();
@@ -1432,9 +1432,9 @@ describe('collection-grid block', () => {
       // background fill, supplied by the Drawer's own chrome.
       expect(footer.classes()).toContain('grid');
       expect(footer.classes()).toContain('grid-cols-[auto_1fr]');
-      expect(footer.classes()).not.toContain('flex');
-      expect(footer.classes()).toContain('border-t');
-      expect(footer.classes()).toContain('bg-background');
+      expect(footer.classes()).not.toContain('eldra:flex');
+      expect(footer.classes()).toContain('eldra:border-t');
+      expect(footer.classes()).toContain('eldra:bg-background');
 
       const footerButtons = footer.findAll('button');
       expect(footerButtons.map((button) => button.text())).toEqual([
@@ -2600,7 +2600,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       expect(liveRegion(wrapper).text()).toBe(enUS.storefront.updatingValues);
-      expect(wrapper.findAll('p.sr-only[role="status"]')).toHaveLength(1);
+      expect(wrapper.findAll('p.eldra\\:sr-only[role="status"]')).toHaveLength(1);
       // `announce: false` on every card — the per-value regions are gone, not merely empty.
       expect(wrapper.findAll('[data-part="srStatus"]')).toHaveLength(0);
       expect(

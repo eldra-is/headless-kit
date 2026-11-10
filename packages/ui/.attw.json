@@ -4,6 +4,7 @@
     "./tailwind.css",
     "./style.css",
     "./components.css",
-    "./scoped.css"
+    "./theme.css",
+    "./utilities.css"
   ]
 }

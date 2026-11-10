@@ -3,7 +3,7 @@ import { computed, useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import Button from '../button/Button.vue';
 import type { EmptyStateProps, EmptyStateVariant } from './types';
@@ -75,8 +75,9 @@ const headingTag = useHeadingTag(() => props.headingLevel);
 const rootClass = computed(() =>
   partClass(
     cx(
-      'flex flex-col items-center justify-center gap-3 px-6 py-12 text-center',
-      !props.plain && 'rounded-lg border border-dashed border-border-strong bg-background'
+      'eldra:flex eldra:flex-col eldra:items-center eldra:justify-center eldra:gap-3 eldra:px-6 eldra:py-12 eldra:text-center',
+      !props.plain &&
+        'eldra:rounded-lg eldra:border eldra:border-dashed eldra:border-border-strong eldra:bg-background'
     ),
     props.classes,
     'root'
@@ -93,8 +94,8 @@ const rootClass = computed(() =>
 const iconClass = computed(() =>
   partClass(
     cx(
-      'flex size-14 shrink-0 items-center justify-center rounded-full bg-surface-strong',
-      props.variant === 'error' ? 'text-danger' : 'text-text'
+      'eldra:flex eldra:size-14 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:bg-surface-strong',
+      props.variant === 'error' ? 'eldra:text-danger' : 'eldra:text-text'
     ),
     props.classes,
     'icon'
@@ -102,19 +103,23 @@ const iconClass = computed(() =>
 );
 
 const titleClass = computed(() =>
-  partClass('text-empty-state-title text-text', props.classes, 'title')
+  partClass('eldra:text-empty-state-title eldra:text-text', props.classes, 'title')
 );
 
 /** 36ch max-width (spec → Sizes, "Text" row) is a content measure, not a design token — the same
  * literal-arbitrary-value shape `Price.vue`'s `w-[35%]` documents. */
 const textClass = computed(() =>
-  partClass('max-w-[36ch] text-body text-muted', props.classes, 'text')
+  partClass('eldra:max-w-[36ch] eldra:text-body eldra:text-muted', props.classes, 'text')
 );
 
 /** Actions (spec → Sizes): 0.75rem gap between parts, plus an extra 0.5rem above the actions row
  * specifically — `mt-2` on top of `root`'s own `gap-3`, rather than folded into it. */
 const actionsClass = computed(() =>
-  partClass('mt-2 flex flex-wrap items-center justify-center gap-3', props.classes, 'actions')
+  partClass(
+    'eldra:mt-2 eldra:flex eldra:flex-wrap eldra:items-center eldra:justify-center eldra:gap-3',
+    props.classes,
+    'actions'
+  )
 );
 </script>
 
@@ -130,14 +135,14 @@ const actionsClass = computed(() =>
       <component
         :is="icon"
         v-if="icon"
-        class="size-7"
+        class="eldra:size-7"
         :stroke-width="ICON_STROKE_WIDTH"
         aria-hidden="true"
         focusable="false"
       />
       <svg
         v-else
-        class="size-7"
+        class="eldra:size-7"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

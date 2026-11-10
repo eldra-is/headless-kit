@@ -158,10 +158,10 @@ describe('Avatar — decorative and standalone accessibility', () => {
 
 describe('Avatar — sizes', () => {
   const SIZES: Array<[AvatarSize, string, string]> = [
-    ['sm', 'size-8', 'text-avatar-initials-sm'],
-    ['md', 'size-10', 'text-avatar-initials-md'],
-    ['lg', 'size-14', 'text-avatar-initials-lg'],
-    ['xl', 'size-24', 'text-avatar-initials-xl'],
+    ['sm', 'eldra:size-8', 'eldra:text-avatar-initials-sm'],
+    ['md', 'eldra:size-10', 'eldra:text-avatar-initials-md'],
+    ['lg', 'eldra:size-14', 'eldra:text-avatar-initials-lg'],
+    ['xl', 'eldra:size-24', 'eldra:text-avatar-initials-xl'],
   ];
 
   it.each(SIZES)('renders %s as %s diameter with %s initials type', (size, diameter, initials) => {
@@ -173,7 +173,7 @@ describe('Avatar — sizes', () => {
 
   it('defaults to md', () => {
     const wrapper = mountWith(Avatar, { props: { name: 'Maya Okafor' } });
-    expect(wrapper.classes()).toContain('size-10');
+    expect(wrapper.classes()).toContain('eldra:size-10');
     wrapper.unmount();
   });
 });

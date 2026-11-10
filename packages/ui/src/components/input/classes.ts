@@ -33,8 +33,8 @@ import type { InputSize } from './types';
  * See `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`.
  */
 export const FIELD_BASE =
-  'block w-full min-w-0 eldra-field-border bg-background text-text placeholder:text-muted ' +
-  'rounded-[var(--eldra-input-radius,var(--eldra-radius-md))] eldra-focus eldra-focus-always';
+  'eldra:block eldra:w-full eldra:min-w-0 eldra:eldra-field-border eldra:bg-background eldra:text-text eldra:placeholder:text-muted ' +
+  'eldra:rounded-[var(--eldra-input-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-always';
 
 /**
  * The type style per size (spec "Input" → Sizes). Its own constant because `SearchBar`'s two sizes
@@ -43,9 +43,9 @@ export const FIELD_BASE =
  * is the half that had gone missing from the copy.
  */
 export const FIELD_TEXT: Record<InputSize, string> = {
-  sm: 'text-control-sm',
-  md: 'text-control max-md:text-control-mobile',
-  lg: 'text-control-lg',
+  sm: 'eldra:text-control-sm',
+  md: 'eldra:text-control eldra:max-md:text-control-mobile',
+  lg: 'eldra:text-control-lg',
 };
 
 /**
@@ -55,9 +55,9 @@ export const FIELD_TEXT: Record<InputSize, string> = {
  * inside the spec's box at every size.
  */
 export const FIELD_SIZE: Record<InputSize, string> = {
-  sm: `control-h-sm py-0.75 px-2.25 ${FIELD_TEXT.sm}`,
-  md: `control-h py-1.75 px-2.75 ${FIELD_TEXT.md}`,
-  lg: `control-h-lg py-2.75 px-2.75 ${FIELD_TEXT.lg}`,
+  sm: `eldra:control-h-sm eldra:py-0.75 eldra:px-2.25 ${FIELD_TEXT.sm}`,
+  md: `eldra:control-h eldra:py-1.75 eldra:px-2.75 ${FIELD_TEXT.md}`,
+  lg: `eldra:control-h-lg eldra:py-2.75 eldra:px-2.75 ${FIELD_TEXT.lg}`,
 };
 
 /**
@@ -67,16 +67,16 @@ export const FIELD_SIZE: Record<InputSize, string> = {
  * not fit a 2rem sm box, so sm uses a 1.5rem button (still the 2.5.8 target minimum) and 2rem of
  * end padding to match.
  */
-export const FIELD_LEADING_PAD = 'ps-9';
+export const FIELD_LEADING_PAD = 'eldra:ps-9';
 export const FIELD_TRAILING_PAD: Record<InputSize, string> = {
-  sm: 'pe-8',
-  md: 'pe-10',
-  lg: 'pe-10',
+  sm: 'eldra:pe-8',
+  md: 'eldra:pe-10',
+  lg: 'eldra:pe-10',
 };
 export const FIELD_CLEAR_SIZE: Record<InputSize, string> = {
-  sm: 'size-6',
-  md: 'size-8',
-  lg: 'size-8',
+  sm: 'eldra:size-6',
+  md: 'eldra:size-8',
+  lg: 'eldra:size-8',
 };
 
 /**
@@ -93,14 +93,14 @@ export const FIELD_CLEAR_SIZE: Record<InputSize, string> = {
  * both of them plus the row's own 0.25rem inset from the edge.
  */
 export const FIELD_TRAILING_PAD_PAIR: Record<InputSize, string> = {
-  sm: 'pe-14',
-  md: 'pe-14',
-  lg: 'pe-14',
+  sm: 'eldra:pe-14',
+  md: 'eldra:pe-14',
+  lg: 'eldra:pe-14',
 };
 export const FIELD_ACTION_PAIR_SIZE: Record<InputSize, string> = {
-  sm: 'w-6 h-6',
-  md: 'w-6 h-8',
-  lg: 'w-6 h-8',
+  sm: 'eldra:w-6 eldra:h-6',
+  md: 'eldra:w-6 eldra:h-8',
+  lg: 'eldra:w-6 eldra:h-8',
 };
 
 /**
@@ -109,16 +109,18 @@ export const FIELD_ACTION_PAIR_SIZE: Record<InputSize, string> = {
  * The error row's second 1px line is drawn by the root's `eldra-field-invalid` pseudo-element,
  * because the ring already owns this element's `outline` and `box-shadow`.
  */
-export const FIELD_LIVE = 'border-border-strong hover:border-text focus:border-text';
-export const FIELD_INVALID = 'border-danger hover:border-danger focus:border-danger';
+export const FIELD_LIVE =
+  'eldra:border-border-strong eldra:hover:border-text eldra:focus:border-text';
+export const FIELD_INVALID =
+  'eldra:border-danger eldra:hover:border-danger eldra:focus:border-danger';
 export const FIELD_DISABLED =
-  'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
-export const FIELD_READONLY = 'bg-surface border-border text-text';
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:text-muted eldra:cursor-not-allowed';
+export const FIELD_READONLY = 'eldra:bg-surface eldra:border-border eldra:text-text';
 
 /** Spec "Input" → Variants, `search`: "The browser's own clear button is hidden." */
 export const FIELD_SEARCH_APPEARANCE =
-  '[&::-webkit-search-cancel-button]:appearance-none ' +
-  '[&::-webkit-search-decoration]:appearance-none';
+  'eldra:[&::-webkit-search-cancel-button]:appearance-none ' +
+  'eldra:[&::-webkit-search-decoration]:appearance-none';
 
 /**
  * A ghost icon button at the field's end edge (spec "Input" → Anatomy): square, `muted`, the ring.
@@ -128,15 +130,15 @@ export const FIELD_SEARCH_APPEARANCE =
  * the default arrow rather than a pointer.
  */
 export const FIELD_CLEAR_BUTTON =
-  'inline-flex shrink-0 items-center justify-center rounded-[var(--eldra-radius-sm)] ' +
-  'text-muted hover:text-text cursor-pointer ' +
-  'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
-  'eldra-focus';
+  'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-[var(--eldra-radius-sm)] ' +
+  'eldra:text-muted eldra:hover:text-text eldra:cursor-pointer ' +
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
+  'eldra:eldra-focus';
 
 /** 1.125rem, `muted`, 0.6875rem from the start edge, and out of the pointer's way. */
 export const FIELD_LEADING_ICON =
-  'absolute start-2.75 inset-y-0 my-auto flex h-4.5 w-4.5 items-center justify-center ' +
-  'text-muted pointer-events-none';
+  'eldra:absolute eldra:start-2.75 eldra:inset-y-0 eldra:my-auto eldra:flex eldra:h-4.5 eldra:w-4.5 eldra:items-center eldra:justify-center ' +
+  'eldra:text-muted eldra:pointer-events-none';
 
 /**
  * The end-edge area, 0.25rem from the edge (spec "Input" → Anatomy, "Trailing action"). The clear
@@ -153,19 +155,21 @@ export const FIELD_LEADING_ICON =
  * (`cx(FIELD_SUFFIX_ROW, isActionPair && 'gap-0')` — `gap-*` is a stock tailwind-merge group, so no
  * merge-group registration is needed) rather than changing the shared default.
  */
-export const FIELD_SUFFIX_ROW = 'absolute end-1 inset-y-0 my-auto flex items-center gap-1';
+export const FIELD_SUFFIX_ROW =
+  'eldra:absolute eldra:end-1 eldra:inset-y-0 eldra:my-auto eldra:flex eldra:items-center eldra:gap-1';
 
 /**
  * The start-edge mirror of `FIELD_SUFFIX_ROW`, for the `prefix` slot: interactive content (a
  * calendar button) 0.25rem from the start edge, so unlike `FIELD_LEADING_ICON` it keeps the pointer.
  */
-export const FIELD_PREFIX_ROW = 'absolute start-1 inset-y-0 my-auto flex items-center gap-1';
+export const FIELD_PREFIX_ROW =
+  'eldra:absolute eldra:start-1 eldra:inset-y-0 eldra:my-auto eldra:flex eldra:items-center eldra:gap-1';
 
 /** The start padding a `prefix` row reserves: the trailing action's room, mirrored. */
 export const FIELD_PREFIX_PAD: Record<InputSize, string> = {
-  sm: 'ps-8',
-  md: 'ps-10',
-  lg: 'ps-10',
+  sm: 'eldra:ps-8',
+  md: 'eldra:ps-10',
+  lg: 'eldra:ps-10',
 };
 
 /** `FIELD_TRAILING_PAD`/`FIELD_PREFIX_PAD` in rem, for `useAdornmentRoom`'s comparison. */

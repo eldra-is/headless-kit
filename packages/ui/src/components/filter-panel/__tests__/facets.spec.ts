@@ -265,8 +265,8 @@ describe('ColourFacet — swatches', () => {
     const wrapper = mount([COLOUR_FACET]);
     const row = wrapper.find('[data-part="row"][data-value="brown"]');
     expect(row.element.tagName).toBe('LABEL');
-    expect(row.classes()).toContain('eldra-focus');
-    expect(row.classes()).toContain('eldra-focus-proxy');
+    expect(row.classes()).toContain('eldra:eldra-focus');
+    expect(row.classes()).toContain('eldra:eldra-focus-proxy');
     const swatch = row.find('[data-part="swatch"]');
     expect(swatch.attributes('aria-hidden')).toBe('true');
     expect(swatch.attributes('style')).toContain(NORTHWIND_COLOURS.brown);
@@ -292,10 +292,10 @@ describe('ColourFacet — swatches', () => {
     });
     const ink = (value: string): string[] =>
       wrapper.find(`[data-value="${value}"]`).find('[data-part="swatchMark"]').classes();
-    expect(ink('natural')).toContain('text-text');
-    expect(ink('brown')).toContain('text-focus-inner');
+    expect(ink('natural')).toContain('eldra:text-text');
+    expect(ink('brown')).toContain('eldra:text-focus-inner');
     // A gradient counts as dark, however pale the colours inside it are.
-    expect(ink('multi')).toContain('text-focus-inner');
+    expect(ink('multi')).toContain('eldra:text-focus-inner');
     wrapper.unmount();
   });
 
@@ -304,13 +304,17 @@ describe('ColourFacet — swatches', () => {
     const wrapper = mount([COLOUR_FACET], { modelValue: { colour: ['brown'] } });
     const checked = wrapper.find('[data-value="brown"]');
     expect(checked.find('[data-part="swatchMark"]').exists()).toBe(true);
-    expect(checked.find('[data-part="rowLabel"]').classes()).toContain('font-semibold');
-    expect(checked.find('.eldra-filter-swatch-ring').classes()).toContain('border-text');
+    expect(checked.find('[data-part="rowLabel"]').classes()).toContain('eldra:font-semibold');
+    expect(checked.find('.eldra\\:eldra-filter-swatch-ring').classes()).toContain(
+      'eldra:border-text'
+    );
 
     const unchecked = wrapper.find('[data-value="black"]');
     expect(unchecked.find('[data-part="swatchMark"]').exists()).toBe(false);
-    expect(unchecked.find('[data-part="rowLabel"]').classes()).not.toContain('font-semibold');
-    expect(unchecked.find('.eldra-filter-swatch-ring').classes()).toContain('border-transparent');
+    expect(unchecked.find('[data-part="rowLabel"]').classes()).not.toContain('eldra:font-semibold');
+    expect(unchecked.find('.eldra\\:eldra-filter-swatch-ring').classes()).toContain(
+      'eldra:border-transparent'
+    );
     wrapper.unmount();
   });
 
@@ -322,7 +326,7 @@ describe('ColourFacet — swatches', () => {
     expect(rows).toHaveLength(7);
     const navy = wrapper.find('[data-value="navy"]');
     expect(navy.find('[data-part="swatchStrike"]').exists()).toBe(true);
-    expect(navy.find('[data-part="swatch"]').classes()).toContain('opacity-45');
+    expect(navy.find('[data-part="swatch"]').classes()).toContain('eldra:opacity-45');
     expect(input(wrapper, 'navy').disabled).toBe(true);
     expect(wrapper.find('[data-value="brown"]').find('[data-part="swatchStrike"]').exists()).toBe(
       false
@@ -338,8 +342,8 @@ describe('ColourFacet — swatches', () => {
   it('keeps one column until the panel itself is 26rem wide', () => {
     const wrapper = mount([COLOUR_FACET]);
     const values = wrapper.find('[data-part="values"]').classes();
-    expect(values).toContain('grid-cols-1');
-    expect(values).toContain('@min-[26rem]:grid-cols-2');
+    expect(values).toContain('eldra:grid-cols-1');
+    expect(values).toContain('eldra:@min-[26rem]:grid-cols-2');
     wrapper.unmount();
   });
 
@@ -420,14 +424,14 @@ describe('SizeFacet — tiles and systems', () => {
   it('fills and bolds a checked tile, and dashes and strikes an unavailable one', () => {
     const wrapper = mount([SIZE_FACET], { modelValue: { size: ['m'] } });
     const checked = wrapper.find('[data-value="m"]').classes();
-    expect(checked).toContain('bg-primary');
-    expect(checked).toContain('font-semibold');
-    expect(checked).toContain('text-primary-contrast');
+    expect(checked).toContain('eldra:bg-primary');
+    expect(checked).toContain('eldra:font-semibold');
+    expect(checked).toContain('eldra:text-primary-contrast');
 
     const unavailable = wrapper.find('[data-value="xxl"]').classes();
-    expect(unavailable).toContain('border-dashed');
-    expect(unavailable).toContain('line-through');
-    expect(unavailable).toContain('text-muted');
+    expect(unavailable).toContain('eldra:border-dashed');
+    expect(unavailable).toContain('eldra:line-through');
+    expect(unavailable).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 
@@ -561,11 +565,13 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
   it('centres the en dash on the fields and lets the track reach the panel edges', () => {
     const wrapper = mount([PRICE_FACET], { modelValue: { price: [80, 160] } });
     const separator = wrapper.find('[data-part="separator"]').classes();
-    expect(separator).toEqual(expect.arrayContaining(['self-end', 'control-h-sm', 'items-center']));
-    expect(separator).not.toContain('self-center');
+    expect(separator).toEqual(
+      expect.arrayContaining(['eldra:self-end', 'eldra:control-h-sm', 'eldra:items-center'])
+    );
+    expect(separator).not.toContain('eldra:self-center');
     const group = wrapper.find('[data-part="range"] [role="group"][data-part="group"]').classes();
-    expect(group).toContain('eldra-range-gutter-thumb');
-    expect(group).not.toContain('eldra-range-gutter');
+    expect(group).toContain('eldra:eldra-range-gutter-thumb');
+    expect(group).not.toContain('eldra:eldra-range-gutter');
     wrapper.unmount();
   });
 
@@ -865,8 +871,8 @@ describe('the shapes the spec draws by default', () => {
     const counts = wrapper.findAll('[data-part="count"]');
     expect(counts.length).toBeGreaterThan(5);
     for (const count of counts) {
-      expect(count.classes()).toContain('ms-auto');
-      expect(count.classes()).toContain('tabular-nums');
+      expect(count.classes()).toContain('eldra:ms-auto');
+      expect(count.classes()).toContain('eldra:tabular-nums');
     }
     wrapper.unmount();
   });
@@ -902,7 +908,7 @@ describe('the shapes the spec draws by default', () => {
    */
   it('spans the slider’s own inputs grid rather than sitting in its first column', () => {
     const wrapper = mount([PRICE_FACET]);
-    expect(wrapper.find('[data-part="fields"]').classes()).toContain('col-span-full');
+    expect(wrapper.find('[data-part="fields"]').classes()).toContain('eldra:col-span-full');
     wrapper.unmount();
   });
 

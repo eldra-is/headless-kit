@@ -29,7 +29,7 @@ import { computed, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Chip from '../chip/Chip.vue';
@@ -243,7 +243,7 @@ function chipMessages(chip: AppliedFilter): Partial<UiMessages> {
  * and body, the foot — which also lets a group's rule span the panel edge to edge the way the
  * spec draws it.
  */
-const ROOT_BASE = '@container min-w-0 text-control text-text';
+const ROOT_BASE = 'eldra:@container eldra:min-w-0 eldra:text-control eldra:text-text';
 
 /**
  * The gutter the rows' own bleed needs, and it is load-bearing. The spec gives every option and
@@ -254,28 +254,28 @@ const ROOT_BASE = '@container min-w-0 text-control text-text';
  * (`filterPanelRing.browser.spec.ts` measures exactly that). With it, a row's text and the head's
  * text align on the same 0.5rem, because the row's negative margin is the same 0.5rem back out.
  */
-const FILTER_GUTTER = 'px-2';
+const FILTER_GUTTER = 'eldra:px-2';
 /** Spec → Sizes, Head row: "Flex row, space-between, 0.75rem gap, 0.75rem below." */
-const HEAD_BASE = `mb-3 flex min-w-0 items-center justify-between gap-3 ${FILTER_GUTTER}`;
+const HEAD_BASE = `eldra:mb-3 eldra:flex eldra:min-w-0 eldra:items-center eldra:justify-between eldra:gap-3 ${FILTER_GUTTER}`;
 /** Spec → Sizes, Head row: "Title 1.125rem heading font, weight 600, line height 1.35." */
-const TITLE_BASE = 'm-0 min-w-0 text-h4 text-text';
+const TITLE_BASE = 'eldra:m-0 eldra:min-w-0 eldra:text-h4 eldra:text-text';
 /** Spec → Sizes, Active filters row: "Wrapping row, 0.375rem gaps, 0.75rem below." */
-const APPLIED_BASE = `mb-3 flex list-none flex-wrap gap-1.5 py-0 ${FILTER_GUTTER}`;
+const APPLIED_BASE = `eldra:mb-3 eldra:flex eldra:list-none eldra:flex-wrap eldra:gap-1.5 eldra:py-0 ${FILTER_GUTTER}`;
 /**
  * Spec → Sizes, Drawer foot: "2 columns (`auto | 1fr`), 0.75rem gap." The `1fr` track is
  * `minmax(0, 1fr)`: a `1fr` track is never narrower than its content, and the primary button's
  * one-line label is content, so with a wide-rendering font the foot ran past a 320px drawer
  * rather than letting that label wrap.
  */
-const FOOT_BASE = `mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-3 ${FILTER_GUTTER}`;
+const FOOT_BASE = `eldra:mt-4 eldra:grid eldra:grid-cols-[auto_minmax(0,1fr)] eldra:gap-3 ${FILTER_GUTTER}`;
 /** The default foot's primary label may wrap: the drawer is narrow and the count is live. */
-const FOOT_APPLY_CLASSES = { label: 'whitespace-normal' } as const;
+const FOOT_APPLY_CLASSES = { label: 'eldra:whitespace-normal' } as const;
 
 const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
 const headClass = computed(() => partClass(HEAD_BASE, props.classes, 'head'));
 /** `tabindex="-1"` and no focus ring: focus arrives here only programmatically, after Clear all. */
 const titleClass = computed(() =>
-  partClass(cx(TITLE_BASE, 'outline-none'), props.classes, 'title')
+  partClass(cx(TITLE_BASE, 'eldra:outline-none'), props.classes, 'title')
 );
 const clearClass = computed(() => partClass('', props.classes, 'clear'));
 const appliedClass = computed(() => partClass(APPLIED_BASE, props.classes, 'applied'));
@@ -335,7 +335,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
         :key="`${chip.facetId}:${chip.value}`"
         :ref="(el) => (chipEls[index] = el as HTMLElement | null)"
         data-part="chip"
-        class="min-w-0"
+        class="eldra:min-w-0"
       >
         <!-- `data-part` goes on the `<li>`, not on `<Chip>`: Vue applies fallthrough attributes
              after a child's own template bindings, so a bare `data-part` here would *replace*

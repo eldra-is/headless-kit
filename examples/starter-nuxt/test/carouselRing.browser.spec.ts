@@ -149,14 +149,14 @@ describe('a focused card in the product carousel', () => {
     }
     const state = await page.evaluate(() => {
       const active = document.activeElement as HTMLElement;
-      const ringed = active.closest('.eldra-focus') as HTMLElement | null;
+      const ringed = active.closest('.eldra\\:eldra-focus') as HTMLElement | null;
       return {
         focusedTag: active.tagName,
         focusVisible: active.matches(':focus-visible'),
         // The ring is on the card, not on the focused link inside it: `eldra-focus-proxy`'s
         // `:has(:focus-visible)` is what lights it from the link's own focus.
         ringedPart: ringed?.getAttribute('data-part'),
-        ringedProxy: ringed?.classList.contains('eldra-focus-proxy'),
+        ringedProxy: ringed?.classList.contains('eldra:eldra-focus-proxy'),
         alpha: ringed
           ? getComputedStyle(ringed).getPropertyValue('--eldra-focus-alpha').trim()
           : null,

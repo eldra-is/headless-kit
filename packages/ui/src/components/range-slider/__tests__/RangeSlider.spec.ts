@@ -722,9 +722,9 @@ describe('RangeSlider — classes', () => {
     });
     expect(wrapper.find('[data-part="root"]').classes()).toContain('gap-6');
     expect(wrapper.find('[data-part="label"]').classes()).toContain('text-h4');
-    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('text-label');
+    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('eldra:text-label');
     expect(wrapper.find('[data-part="track"]').classes()).toContain('bg-surface');
-    expect(wrapper.find('[data-part="track"]').classes()).not.toContain('bg-surface-strong');
+    expect(wrapper.find('[data-part="track"]').classes()).not.toContain('eldra:bg-surface-strong');
     expect(wrapper.find('[data-part="range"]').classes()).toContain('bg-accent');
     expect(thumb(wrapper, 'min').classList.contains('bg-primary')).toBe(true);
     expect(wrapper.find('[data-part="separator"]').classes()).toContain('text-text');
@@ -734,23 +734,23 @@ describe('RangeSlider — classes', () => {
   it('changes a live thumb edge on hover, and never a disabled one', () => {
     const live = mountWith(RangeSlider, { props: { label: 'Price' } });
     // Spec → States, "Thumb hover": "a 0.25rem halo of `text` at 8%, edge `text`".
-    expect(thumb(live, 'min').classList.contains('hover:border-text')).toBe(true);
-    expect(thumb(live, 'min').classList.contains('border-border-strong')).toBe(true);
+    expect(thumb(live, 'min').classList.contains('eldra:hover:border-text')).toBe(true);
+    expect(thumb(live, 'min').classList.contains('eldra:border-border-strong')).toBe(true);
     live.unmount();
 
     const dead = mountWith(RangeSlider, { props: { label: 'Price', disabled: true } });
     // A dead thumb must not light up under the pointer: the hover variant is a different
     // tailwind-merge group from the rest colour, so it has to be absent rather than overridden.
-    expect(thumb(dead, 'min').classList.contains('hover:border-text')).toBe(false);
-    expect(thumb(dead, 'min').classList.contains('border-border')).toBe(true);
+    expect(thumb(dead, 'min').classList.contains('eldra:hover:border-text')).toBe(false);
+    expect(thumb(dead, 'min').classList.contains('eldra:border-border')).toBe(true);
     dead.unmount();
   });
 
   it('is a width container, so its own touch rules measure the control, not the viewport', () => {
     const wrapper = mountWith(RangeSlider);
-    expect(wrapper.find('[data-part="root"]').classes()).toContain('@container');
-    expect(wrapper.find('[data-part="rail"]').classes()).toContain('eldra-range-rail');
-    expect(thumb(wrapper, 'min').classList.contains('eldra-range-thumb')).toBe(true);
+    expect(wrapper.find('[data-part="root"]').classes()).toContain('eldra:@container');
+    expect(wrapper.find('[data-part="rail"]').classes()).toContain('eldra:eldra-range-rail');
+    expect(thumb(wrapper, 'min').classList.contains('eldra:eldra-range-thumb')).toBe(true);
     wrapper.unmount();
   });
 });

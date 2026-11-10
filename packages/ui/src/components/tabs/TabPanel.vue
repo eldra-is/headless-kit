@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUpdated, ref } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabPanelProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -51,7 +51,7 @@ const tabindexAttr = computed(() => (hasFocusable.value ? undefined : '0'));
  *  the ring sitting 4px outside the panel" — see `eldra-focus`'s own tokens — so no override is
  *  needed beyond the utility itself, at the panel's own `radius-sm` corner. */
 const panelClass = computed(() =>
-  partClass(cx('rounded-sm pt-6 eldra-focus'), props.classes, 'panel')
+  partClass(cx('eldra:rounded-sm eldra:pt-6 eldra:eldra-focus'), props.classes, 'panel')
 );
 </script>
 

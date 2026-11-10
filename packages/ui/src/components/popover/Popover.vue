@@ -89,7 +89,7 @@ import {
   type VNode,
 } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { usePopover } from '../select/usePopover';
 import type { PopoverProps } from './types';
@@ -372,17 +372,17 @@ defineExpose({
   update,
 });
 
-const rootClass = computed(() => partClass('contents', props.classes, 'root'));
+const rootClass = computed(() => partClass('eldra:contents', props.classes, 'root'));
 
 const panelClass = computed(() =>
   partClass(
     cx(
-      'z-popover overflow-hidden rounded-md border shadow-md',
-      'border-[color:var(--eldra-popover-border,var(--color-border))]',
-      'bg-[color:var(--eldra-popover-background,var(--color-background))]',
+      'eldra:z-popover eldra:overflow-hidden eldra:rounded-md eldra:border eldra:shadow-md',
+      'eldra:border-[color:var(--eldra-popover-border,var(--eldra-color-border))]',
+      'eldra:bg-[color:var(--eldra-popover-background,var(--eldra-color-background))]',
       // No fallback: unset, the panel's colour is inherited exactly as before.
-      'text-[color:var(--eldra-popover-text)]',
-      'animate-eldra-popover-in'
+      'eldra:text-[color:var(--eldra-popover-text)]',
+      'eldra:animate-eldra-popover-in'
     ),
     props.classes,
     'panel'

@@ -13,7 +13,7 @@ import { computed, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import type { DialogProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -123,10 +123,10 @@ const rootClass = computed(() =>
       // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
       // *outer* display to block regardless of which inner value wins, so the auto-margin centring
       // is unaffected either way — only the flex-shrink behaviour on the child differs.
-      'hidden open:block m-auto border-0 bg-transparent p-0',
-      'text-[color:var(--eldra-dialog-text,var(--color-text))]',
-      'backdrop:bg-[var(--eldra-dialog-backdrop,var(--color-overlay))] focus:outline-none',
-      'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
+      'eldra:hidden eldra:open:block eldra:m-auto eldra:border-0 eldra:bg-transparent eldra:p-0',
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
+      'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))] eldra:focus:outline-none',
+      'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     props.classes,
     'root'
@@ -143,11 +143,11 @@ const rootClass = computed(() =>
 const panelClass = computed(() =>
   partClass(
     cx(
-      'flex flex-col overflow-hidden rounded-lg border shadow-md',
-      'border-[color:var(--eldra-dialog-border,var(--color-border))]',
-      'bg-[var(--eldra-dialog-background,var(--color-background))]',
-      props.size === 'sm' ? 'eldra-dialog-width-sm' : 'eldra-dialog-width',
-      'eldra-dialog-max-height'
+      'eldra:flex eldra:flex-col eldra:overflow-hidden eldra:rounded-lg eldra:border eldra:shadow-md',
+      'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]',
+      'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]',
+      props.size === 'sm' ? 'eldra:eldra-dialog-width-sm' : 'eldra:eldra-dialog-width',
+      'eldra:eldra-dialog-max-height'
     ),
     props.classes,
     'panel'
@@ -160,8 +160,8 @@ const hasHeader = computed(() => hasTitle.value || props.closeButton);
 const headerClass = computed(() =>
   partClass(
     hasTitle.value
-      ? 'flex shrink-0 items-start justify-between gap-4 p-6 pb-0'
-      : 'flex shrink-0 items-start justify-end gap-4 p-6 pb-0',
+      ? 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-between eldra:gap-4 eldra:p-6 eldra:pb-0'
+      : 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-end eldra:gap-4 eldra:p-6 eldra:pb-0',
     props.classes,
     'header'
   )
@@ -171,8 +171,8 @@ const headerClass = computed(() =>
 const titleClass = computed(() =>
   partClass(
     cx(
-      'min-w-0 text-dialog-title text-[color:var(--eldra-dialog-text,var(--color-text))]',
-      slots.title !== undefined && 'flex-1'
+      'eldra:min-w-0 eldra:text-dialog-title eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
+      slots.title !== undefined && 'eldra:flex-1'
     ),
     props.classes,
     'title'
@@ -193,11 +193,11 @@ const titleClass = computed(() =>
 const closeClass = computed(() =>
   partClass(
     cx(
-      '-m-1 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-      'text-[color:var(--eldra-dialog-text,var(--color-text))] eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_94%)]',
-      'active:scale-[0.98]',
-      'active:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_89%)]'
+      'eldra:-m-1 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))] eldra:eldra-focus',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_94%)]',
+      'eldra:active:scale-[0.98]',
+      'eldra:active:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_89%)]'
     ),
     props.classes,
     'close'
@@ -206,7 +206,10 @@ const closeClass = computed(() =>
 
 const bodyClass = computed(() =>
   partClass(
-    cx('min-h-0 flex-1 overflow-y-auto px-6 py-4', !hasHeader.value && 'pt-6'),
+    cx(
+      'eldra:min-h-0 eldra:flex-1 eldra:overflow-y-auto eldra:px-6 eldra:py-4',
+      !hasHeader.value && 'eldra:pt-6'
+    ),
     props.classes,
     'body'
   )
@@ -214,7 +217,7 @@ const bodyClass = computed(() =>
 
 const descriptionClass = computed(() =>
   partClass(
-    'text-body text-[color:var(--eldra-dialog-muted,var(--color-muted))]',
+    'eldra:text-body eldra:text-[color:var(--eldra-dialog-muted,var(--eldra-color-muted))]',
     props.classes,
     'description'
   )
@@ -222,7 +225,7 @@ const descriptionClass = computed(() =>
 
 const footerClass = computed(() =>
   partClass(
-    'flex shrink-0 flex-wrap items-center justify-end gap-3 px-6 pt-4 pb-6',
+    'eldra:flex eldra:shrink-0 eldra:flex-wrap eldra:items-center eldra:justify-end eldra:gap-3 eldra:px-6 eldra:pt-4 eldra:pb-6',
     props.classes,
     'footer'
   )
@@ -264,7 +267,7 @@ const footerClass = computed(() =>
         >
           <!-- Tabler's `x`, 1.75 stroke, matching Select's own clear button. -->
           <svg
-            class="size-4"
+            class="eldra:size-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

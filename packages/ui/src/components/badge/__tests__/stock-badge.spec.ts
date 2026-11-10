@@ -108,10 +108,10 @@ describe('StockBadge — default copy per level', () => {
 
 describe('StockBadge — colour and icon per level', () => {
   it.each([
-    ['in', 'text-success'],
-    ['low', 'text-warning'],
-    ['out', 'text-danger'],
-    ['preorder', 'text-muted'],
+    ['in', 'eldra:text-success'],
+    ['low', 'eldra:text-warning'],
+    ['out', 'eldra:text-danger'],
+    ['preorder', 'eldra:text-muted'],
   ] as Array<[StockLevel, string]>)('colours %s with %s', (level, expected) => {
     const wrapper = mountWith(StockBadge, { props: { level } });
     expect(wrapper.classes()).toContain(expected);
@@ -178,17 +178,19 @@ describe('StockBadge — revalidating', () => {
     expect(spinner.attributes('aria-hidden')).toBe('true');
     // Zero width, with the negative inline-start margin that cancels the root's own gap: the
     // spinner is drawn in the space after the value without reserving any of it.
-    expect(spinner.classes()).toContain('w-0');
-    expect(spinner.get('svg').classes()).toContain('absolute');
+    expect(spinner.classes()).toContain('eldra:w-0');
+    expect(spinner.get('svg').classes()).toContain('eldra:absolute');
     plain.unmount();
     busy.unmount();
   });
 
   it('dims the icon and the label through the revalidating opacity token', () => {
     const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
-    expect(wrapper.get('[data-part="icon"]').classes()).toContain('eldra-revalidating');
-    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra-revalidating');
-    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="icon"]').classes()).toContain('eldra:eldra-revalidating');
+    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra:eldra-revalidating');
+    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain(
+      'eldra:eldra-revalidating'
+    );
     wrapper.unmount();
   });
 
@@ -196,7 +198,7 @@ describe('StockBadge — revalidating', () => {
     const wrapper = mountWith(StockBadge, { props: { level: 'in' } });
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
     expect(wrapper.attributes('aria-busy')).toBeUndefined();
-    expect(wrapper.get('[data-part="label"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="label"]').classes()).not.toContain('eldra:eldra-revalidating');
     wrapper.unmount();
   });
 
@@ -205,7 +207,7 @@ describe('StockBadge — revalidating', () => {
     const status = wrapper.get('[data-part="srStatus"]');
     expect(status.text()).toBe('');
     expect(status.attributes('aria-live')).toBe('polite');
-    expect(status.classes()).toContain('sr-only');
+    expect(status.classes()).toContain('eldra:sr-only');
     await wrapper.setProps({ revalidating: true });
     expect(wrapper.get('[data-part="srStatus"]').text()).toBe('Updating stock');
     wrapper.unmount();
@@ -226,8 +228,8 @@ describe('StockBadge — revalidating', () => {
   it('turns the spinner, and pulses it under reduced motion', () => {
     const wrapper = mountWith(StockBadge, { props: { level: 'in', revalidating: true } });
     const svg = wrapper.get('[data-part="spinner"] svg');
-    expect(svg.classes()).toContain('animate-eldra-spin');
-    expect(svg.classes()).toContain('motion-reduce:animate-eldra-pulse');
+    expect(svg.classes()).toContain('eldra:animate-eldra-spin');
+    expect(svg.classes()).toContain('eldra:motion-reduce:animate-eldra-pulse');
     wrapper.unmount();
   });
 
@@ -239,7 +241,7 @@ describe('StockBadge — revalidating', () => {
     expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
     expect(wrapper.attributes('aria-busy')).toBe('true');
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
-    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="label"]').classes()).toContain('eldra:eldra-revalidating');
     wrapper.unmount();
   });
 

@@ -188,7 +188,7 @@ describe('announcement-bar block', () => {
   it('the link is identifiable by its underline, not colour alone', () => {
     const wrapper = mountAnnouncement({ ...mock, linkHref: '/pages/shipping' });
     const link = wrapper.get('a');
-    expect(link.classes()).toContain('underline');
+    expect(link.classes()).toContain('eldra:underline');
   });
 
   it('renders no editor placeholder (or anything else) for an empty message outside the editor', () => {

@@ -482,8 +482,8 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
         unpark(item);
         // Nothing inside any slide can take focus, so a slide carrying the ring is itself the stop
         // and its own `:focus-visible` lights it — no proxy, unless the consumer named one.
-        item.classList.toggle('eldra-focus', consumerRing);
-        item.classList.toggle('eldra-focus-proxy', consumerProxy);
+        item.classList.toggle('eldra:eldra-focus', consumerRing);
+        item.classList.toggle('eldra:eldra-focus-proxy', consumerProxy);
         return;
       }
       const active = i === index.value;
@@ -505,7 +505,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       // The package's own ring, on the one element that can be focused without having a ring of its
       // own already (every control brings one). Added and removed with the stop, so a slide that
       // stops being the entry point does not keep a ring for a focus it can no longer take.
-      item.classList.toggle('eldra-focus', stands || consumerRing);
+      item.classList.toggle('eldra:eldra-focus', stands || consumerRing);
       /*
        * **A ring on a slide whose entry point is a control inside it (2026-10-04).** `eldra-focus`
        * is keyed to the element's *own* `:focus-visible`, and a slide that holds a control is not
@@ -523,7 +523,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
        * card, where the stretched link lives. The proxy is only ever added beside a ring the
        * consumer asked for — a row whose cards already ring themselves should not ask for one.
        */
-      item.classList.toggle('eldra-focus-proxy', consumerProxy || (!stands && consumerRing));
+      item.classList.toggle('eldra:eldra-focus-proxy', consumerProxy || (!stands && consumerRing));
       for (const el of own) {
         if (active) unpark(el);
         else park(el);
@@ -572,7 +572,7 @@ export function useCarousel(options: UseCarouselOptions): UseCarouselReturn {
       if (child.tagName !== 'LI') child.setAttribute('role', 'group');
       child.setAttribute('aria-roledescription', 'slide');
       child.setAttribute('aria-label', format(i + 1, total));
-      child.classList.add('eldra-carousel-slide');
+      child.classList.add('eldra:eldra-carousel-slide');
       if (extraClass) {
         for (const name of extraClass.split(/\s+/).filter(Boolean)) child.classList.add(name);
       }

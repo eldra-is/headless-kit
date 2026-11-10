@@ -37,10 +37,10 @@ describe('Rating — rounding (star fill)', () => {
     const stars = wrapper.findAll('[data-part="star"]');
     for (const star of stars.slice(0, 4)) {
       expect(star.findAll('svg')).toHaveLength(1);
-      expect(star.get('svg').classes()).toContain('text-text');
+      expect(star.get('svg').classes()).toContain('eldra:text-text');
     }
     expect(stars[4]?.findAll('svg')).toHaveLength(1);
-    expect(stars[4]?.get('svg').classes()).toContain('text-border-strong');
+    expect(stars[4]?.get('svg').classes()).toContain('eldra:text-border-strong');
     expect(wrapper.get('[data-part="value"]').text()).toBe('4.0');
     wrapper.unmount();
   });
@@ -54,7 +54,7 @@ describe('Rating — rounding (star fill)', () => {
     const half = stars[4];
     expect(half?.findAll('svg')).toHaveLength(2);
     const filledOverlay = half?.findAll('svg')[1];
-    expect(filledOverlay?.classes()).toContain('eldra-rating-half');
+    expect(filledOverlay?.classes()).toContain('eldra:eldra-rating-half');
     expect(wrapper.get('[data-part="value"]').text()).toBe('4.5');
     wrapper.unmount();
   });
@@ -62,7 +62,7 @@ describe('Rating — rounding (star fill)', () => {
   it('renders every star empty for a value of 0', () => {
     const wrapper = mountWith(Rating, { props: { value: 0, count: 10 } });
     for (const star of wrapper.findAll('[data-part="star"]')) {
-      expect(star.get('svg').classes()).toContain('text-border-strong');
+      expect(star.get('svg').classes()).toContain('eldra:text-border-strong');
     }
     wrapper.unmount();
   });
@@ -70,7 +70,7 @@ describe('Rating — rounding (star fill)', () => {
   it('renders every star full for a value of 5', () => {
     const wrapper = mountWith(Rating, { props: { value: 5, count: 10 } });
     for (const star of wrapper.findAll('[data-part="star"]')) {
-      expect(star.get('svg').classes()).toContain('text-text');
+      expect(star.get('svg').classes()).toContain('eldra:text-text');
     }
     wrapper.unmount();
   });
@@ -201,26 +201,26 @@ describe('Rating — linked variant', () => {
 
   it('underlines the linked count', () => {
     const wrapper = mountWith(Rating, { props: { value: 4.5, count: 128, href: '#reviews' } });
-    expect(wrapper.get('[data-part="count"]').classes()).toContain('underline');
+    expect(wrapper.get('[data-part="count"]').classes()).toContain('eldra:underline');
     wrapper.unmount();
   });
 
   it('does not underline the count when not linked', () => {
     const wrapper = mountWith(Rating, { props: { value: 4.5, count: 128 } });
-    expect(wrapper.get('[data-part="count"]').classes()).not.toContain('underline');
+    expect(wrapper.get('[data-part="count"]').classes()).not.toContain('eldra:underline');
     wrapper.unmount();
   });
 
   it('draws the proxy focus ring on the root, not on the link itself', () => {
     const wrapper = mountWith(Rating, { props: { value: 4.5, count: 128, href: '#reviews' } });
-    expect(wrapper.classes()).toContain('eldra-focus-proxy');
-    expect(wrapper.get('[data-part="link"]').classes()).not.toContain('eldra-focus-proxy');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus-proxy');
+    expect(wrapper.get('[data-part="link"]').classes()).not.toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
   it('is at least 1.5rem tall (target-min) once linked', () => {
     const wrapper = mountWith(Rating, { props: { value: 4.5, count: 128, href: '#reviews' } });
-    expect(wrapper.classes()).toContain('target-min');
+    expect(wrapper.classes()).toContain('eldra:target-min');
     wrapper.unmount();
   });
 
@@ -331,19 +331,19 @@ describe('Rating — narrow container', () => {
   it('renders without overflowing in a 20rem container', () => {
     const wrapper = mountNarrow(Rating, { props: { value: 4.5, count: 128 } });
     expect(wrapper.findAll('[data-part="star"]')).toHaveLength(5);
-    expect(wrapper.classes()).toContain('inline-flex');
+    expect(wrapper.classes()).toContain('eldra:inline-flex');
     wrapper.unmount();
   });
 
   it('wraps instead of overflowing, defensively, for an extreme review count', () => {
     const wrapper = mountNarrow(Rating, { props: { value: 4.5, count: 999_999_999 } });
-    expect(wrapper.classes()).toContain('flex-wrap');
+    expect(wrapper.classes()).toContain('eldra:flex-wrap');
     wrapper.unmount();
   });
 
   it('wraps the linked form too', () => {
     const wrapper = mountWith(Rating, { props: { value: 4.5, count: 128, href: '#reviews' } });
-    expect(wrapper.get('[data-part="link"]').classes()).toContain('flex-wrap');
+    expect(wrapper.get('[data-part="link"]').classes()).toContain('eldra:flex-wrap');
     wrapper.unmount();
   });
 

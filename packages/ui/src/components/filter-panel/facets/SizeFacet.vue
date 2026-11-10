@@ -16,7 +16,7 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { cx, partClass } from '../../../utils/kitClass';
 import Link from '../../link/Link.vue';
 import {
   isValueDisabled,
@@ -68,11 +68,12 @@ function nameOf(value: FilterFacetValue): string {
  * Spec → Sizes, Size-system sub-heading row: "0.75rem weight 600, uppercase, 0.06em letter
  * spacing, `muted`; 0.75rem above (none for the first) and 0.5rem below."
  */
-const SUBHEADING_BASE = 'mb-2 block text-filter-subheading text-muted';
-const SUBHEADING_NOT_FIRST = 'mt-3';
+const SUBHEADING_BASE = 'eldra:mb-2 eldra:block eldra:text-filter-subheading eldra:text-muted';
+const SUBHEADING_NOT_FIRST = 'eldra:mt-3';
 
 /** Spec → Sizes, Size tile row: "Grid of `repeat(auto-fill, minmax(3.25rem, 1fr))`, gap 0.375rem." */
-const TILES_BASE = 'grid min-w-0 grid-cols-[repeat(auto-fill,minmax(3.25rem,1fr))] gap-1.5';
+const TILES_BASE =
+  'eldra:grid eldra:min-w-0 eldra:grid-cols-[repeat(auto-fill,minmax(3.25rem,1fr))] eldra:gap-1.5';
 
 /**
  * Spec → Sizes, Size tile row: "Tile min height `control-height` (2.5rem), 0 0.375rem padding, 1px
@@ -84,28 +85,29 @@ const TILES_BASE = 'grid min-w-0 grid-cols-[repeat(auto-fill,minmax(3.25rem,1fr)
  * the ring's own `background-color`/`border-color` entries.
  */
 const TILE_BASE =
-  'relative flex min-w-0 control-h items-center justify-center rounded-md border px-1.5 ' +
-  'text-center text-label whitespace-nowrap tabular-nums eldra-focus eldra-focus-proxy';
+  'eldra:relative eldra:flex eldra:min-w-0 eldra:control-h eldra:items-center eldra:justify-center eldra:rounded-md eldra:border eldra:px-1.5 ' +
+  'eldra:text-center eldra:text-label eldra:whitespace-nowrap eldra:tabular-nums eldra:eldra-focus eldra:eldra-focus-proxy';
 
 /** Spec → States, "Size tile, hover": `background` fill, `text` border. */
-const TILE_REST = 'cursor-pointer border-border-strong bg-background text-text hover:border-text';
+const TILE_REST =
+  'eldra:cursor-pointer eldra:border-border-strong eldra:bg-background eldra:text-text eldra:hover:border-text';
 /** Spec → States, "Size tile, checked": `primary` fill and border, `primary-contrast` weight 600. */
 const TILE_SELECTED =
-  'cursor-pointer border-primary bg-primary font-semibold text-primary-contrast';
+  'eldra:cursor-pointer eldra:border-primary eldra:bg-primary eldra:font-semibold eldra:text-primary-contrast';
 /**
  * Spec → States, "Value with 0 products (disabled)": "size tile `surface`", "size tile dashed
  * `border-strong`", "`muted`; size label struck through (1px)".
  */
 const TILE_DISABLED =
-  'cursor-not-allowed border-dashed border-border-strong bg-surface text-muted line-through';
+  'eldra:cursor-not-allowed eldra:border-dashed eldra:border-border-strong eldra:bg-surface eldra:text-muted eldra:line-through';
 
 /** Spec → Sizes, Size guide row: "Link, 0.8125rem, 0.5rem below the tiles." */
-const SIZE_GUIDE_BASE = 'mt-2 inline-block text-caption';
+const SIZE_GUIDE_BASE = 'eldra:mt-2 eldra:inline-block eldra:text-caption';
 
 /** The control, invisible but focusable, stretched over the whole tile. */
 const CONTROL =
-  'absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0 ' +
-  'disabled:cursor-not-allowed';
+  'eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0 ' +
+  'eldra:disabled:cursor-not-allowed';
 
 function tileState(value: FilterFacetValue): string {
   if (selected(value)) return TILE_SELECTED;
@@ -130,7 +132,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="eldra:min-w-0">
     <template v-for="(group, index) in groups" :key="group.key ?? ''">
       <!-- Only a system that has a name gets a heading. A `<p>` rather than a heading element: it
            labels a grid inside a `<fieldset>` the group's own `<legend>` already names, and a

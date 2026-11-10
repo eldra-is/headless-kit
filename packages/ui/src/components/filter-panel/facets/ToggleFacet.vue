@@ -14,7 +14,7 @@
  * inside, it would become part of the switch's name and be read as though it were the state.
  */
 import { computed } from 'vue';
-import { partClass } from '../../../utils/cx';
+import { partClass } from '../../../utils/kitClass';
 import Switch from '../../switch/Switch.vue';
 import { isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
@@ -40,7 +40,7 @@ function selected(value: FilterFacetValue): boolean {
 /* ------------------------------------------------------------------ classes */
 
 /** Spec → Sizes, Switch row: "consecutive rows 0.25rem apart." */
-const VALUES_BASE = 'flex min-w-0 flex-col gap-1';
+const VALUES_BASE = 'eldra:flex eldra:min-w-0 eldra:flex-col eldra:gap-1';
 /**
  * Spec → Sizes, Switch row: "Min 2.25rem tall, space-between, 0.75rem gap."
  *
@@ -48,9 +48,10 @@ const VALUES_BASE = 'flex min-w-0 flex-col gap-1';
  * what the switch *would* leave, and a facet that would leave nothing is still a facet a shopper
  * may be switching off again.
  */
-const ROW_BASE = 'flex min-h-9 min-w-0 items-center justify-between gap-3';
+const ROW_BASE =
+  'eldra:flex eldra:min-h-9 eldra:min-w-0 eldra:items-center eldra:justify-between eldra:gap-3';
 /** Spec → Sizes, Switch row: "label 0.9375rem." */
-const SWITCH_LABEL = 'text-control text-text';
+const SWITCH_LABEL = 'eldra:text-control eldra:text-text';
 
 const valuesClass = computed(() => partClass(VALUES_BASE, props.classes, 'values'));
 const rowClass = computed(() => partClass(ROW_BASE, props.classes, 'switchRow'));

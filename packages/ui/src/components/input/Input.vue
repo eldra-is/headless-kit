@@ -2,7 +2,7 @@
 import { computed, inject, nextTick, onUpdated, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { applyMask, stripMask } from '../../utils/mask';
 import { FIELD_KEY } from '../field-wrapper/context';
@@ -159,7 +159,10 @@ const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
 const rootClass = computed(() =>
   partClass(
-    cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'),
+    cx(
+      'eldra:relative eldra:block eldra:w-full',
+      showsInvalid.value && 'eldra:eldra-field-invalid'
+    ),
     props.classes,
     'root'
   )
@@ -173,7 +176,7 @@ const controlClass = computed(() =>
       hasLeading.value && FIELD_LEADING_PAD,
       hasPrefix.value && FIELD_PREFIX_PAD[props.size],
       hasTrailing.value && FIELD_TRAILING_PAD[props.size],
-      props.type === 'number' && 'tabular-nums',
+      props.type === 'number' && 'eldra:tabular-nums',
       props.type === 'search' && FIELD_SEARCH_APPEARANCE,
       props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
       showsInvalid.value && FIELD_INVALID
@@ -285,7 +288,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       :class="leadingIconClass"
     >
       <slot name="leadingIcon">
-        <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+        <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
       </slot>
     </span>
 
@@ -333,7 +336,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       >
         <!-- Tabler's `x`, stroke 1.75, at 1.125rem. Decorative: the button is named by aria-label. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

@@ -31,6 +31,6 @@ export function expectClosedModalRendersNothing(
   open: 'flex' | 'block' = 'flex'
 ): void {
   expect(root.hasAttribute('open')).toBe(false);
-  expect(root.classList.contains('hidden')).toBe(true);
-  expect(root.classList.contains(`open:${open}`)).toBe(true);
+  expect(root.classList.contains('eldra:hidden')).toBe(true);
+  expect(root.classList.contains(`eldra:open:${open}`)).toBe(true);
 }

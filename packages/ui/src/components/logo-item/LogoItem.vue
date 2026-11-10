@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import type { LogoItemProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -88,8 +88,8 @@ const hasLogo = computed(() => Boolean(props.logo));
 const rootClass = computed(() =>
   partClass(
     cx(
-      'flex flex-col items-center justify-center min-h-16 py-3 px-4 text-center',
-      hasHref.value && 'group rounded-md eldra-focus'
+      'eldra:flex eldra:flex-col eldra:items-center eldra:justify-center eldra:min-h-16 eldra:py-3 eldra:px-4 eldra:text-center',
+      hasHref.value && 'eldra:group eldra:rounded-md eldra:eldra-focus'
     ),
     props.classes,
     'root'
@@ -108,11 +108,11 @@ const rootClass = computed(() =>
 const imageClass = computed(() =>
   partClass(
     cx(
-      'block h-auto w-auto object-contain grayscale contrast-[1.1] opacity-75',
-      'max-h-[var(--eldra-logo-image-max-height,2.5rem)]',
-      'max-w-[var(--eldra-logo-image-max-width,9rem)]',
-      'transition-opacity duration-fast ease-out motion-reduce:transition-none',
-      hasHref.value && 'group-hover:opacity-100'
+      'eldra:block eldra:h-auto eldra:w-auto eldra:object-contain eldra:grayscale eldra:contrast-[1.1] eldra:opacity-75',
+      'eldra:max-h-[var(--eldra-logo-image-max-height,2.5rem)]',
+      'eldra:max-w-[var(--eldra-logo-image-max-width,9rem)]',
+      'eldra:transition-opacity eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+      hasHref.value && 'eldra:group-hover:opacity-100'
     ),
     props.classes,
     'image'
@@ -132,16 +132,16 @@ const imageClass = computed(() =>
 const wordmarkClass = computed(() =>
   partClass(
     cx(
-      'text-logo-wordmark text-balance text-muted',
-      'transition-colors duration-fast ease-out motion-reduce:transition-none',
-      hasHref.value && 'group-hover:text-text'
+      'eldra:text-logo-wordmark eldra:text-balance eldra:text-muted',
+      'eldra:transition-colors eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+      hasHref.value && 'eldra:group-hover:text-text'
     ),
     props.classes,
     'wordmark'
   )
 );
 
-const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'srText'));
 </script>
 
 <template>

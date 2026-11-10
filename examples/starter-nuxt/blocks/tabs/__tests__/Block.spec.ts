@@ -252,8 +252,8 @@ describe('tabs block', () => {
   it('carries the mobile bleed and sideways-scroll classes on the tab row', () => {
     const wrapper = mountBlock(mock);
     const list = wrapper.get('[role="tablist"]');
-    expect(list.classes()).toContain('overflow-x-auto');
-    expect(list.classes()).toContain('eldra-scrollbar-hide');
+    expect(list.classes()).toContain('eldra:overflow-x-auto');
+    expect(list.classes()).toContain('eldra:eldra-scrollbar-hide');
     expect(list.classes()).toContain('-mx-[var(--eldra-gutter-mobile)]');
     expect(list.classes()).toContain('px-[var(--eldra-gutter-mobile)]');
     expect(list.classes()).toContain('scroll-px-[var(--eldra-gutter-mobile)]');

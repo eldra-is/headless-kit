@@ -219,10 +219,10 @@ describe('SiteForm: drawing a definition', () => {
   it('puts a one-field form on one row only when asked for inline, and only for a text-like field', () => {
     const { client } = fakeClient();
     const inline = mountForm({ definition: NEWSLETTER, client, layout: 'inline' });
-    expect(inline.find('form').classes()).toContain('flex');
+    expect(inline.find('form').classes()).toContain('eldra:flex');
 
     const fallsBack = mountForm({ definition: CONTACT, client, layout: 'inline' });
-    expect(fallsBack.find('form').classes()).toContain('grid');
+    expect(fallsBack.find('form').classes()).toContain('eldra:grid');
   });
 
   it('has no axe violations, empty or with errors', async () => {

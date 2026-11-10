@@ -30,7 +30,7 @@ import { isOpenDialog } from '../../composables/dialogStack';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { FIELD_CLEAR_BUTTON, FIELD_SEARCH_APPEARANCE } from '../input/classes';
 import { useListbox } from '../select/useListbox';
@@ -721,22 +721,25 @@ const part = (base: string, name: SearchModalPart): string => partClass(base, pr
 const rootClass = computed(() =>
   part(
     cx(
-      'hidden open:flex max-w-none flex-col overflow-hidden border-0 bg-background p-0 text-text',
-      'eldra-search-modal-position',
-      'eldra-search-modal-width',
-      'eldra-search-modal-max-height',
-      'max-md:h-screen',
-      'rounded-lg border border-border shadow-md',
-      'max-md:rounded-none max-md:border-0 max-md:shadow-none',
-      'backdrop:bg-overlay focus:outline-none',
-      'animate-eldra-dialog-in motion-reduce:animate-eldra-dialog-in-reduced'
+      'eldra:hidden eldra:open:flex eldra:max-w-none eldra:flex-col eldra:overflow-hidden eldra:border-0 eldra:bg-background eldra:p-0 eldra:text-text',
+      'eldra:eldra-search-modal-position',
+      'eldra:eldra-search-modal-width',
+      'eldra:eldra-search-modal-max-height',
+      'eldra:max-md:h-screen',
+      'eldra:rounded-lg eldra:border eldra:border-border eldra:shadow-md',
+      'eldra:max-md:rounded-none eldra:max-md:border-0 eldra:max-md:shadow-none',
+      'eldra:backdrop:bg-overlay eldra:focus:outline-none',
+      'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced'
     ),
     'root'
   )
 );
 
 const formClass = computed(() =>
-  part('relative flex h-14 shrink-0 items-center border-b border-border', 'form')
+  part(
+    'eldra:relative eldra:flex eldra:h-14 eldra:shrink-0 eldra:items-center eldra:border-b eldra:border-border',
+    'form'
+  )
 );
 
 /**
@@ -749,10 +752,10 @@ const formClass = computed(() =>
 const fieldClass = computed(() =>
   part(
     cx(
-      'block h-full w-full min-w-0 bg-transparent text-text placeholder:text-muted',
-      'ps-12 pe-21 max-md:pe-30',
-      'text-search-modal-field max-md:text-control-mobile',
-      'rounded-t-lg max-md:rounded-none eldra-focus-inset eldra-focus-inset-always',
+      'eldra:block eldra:h-full eldra:w-full eldra:min-w-0 eldra:bg-transparent eldra:text-text eldra:placeholder:text-muted',
+      'eldra:ps-12 eldra:pe-21 eldra:max-md:pe-30',
+      'eldra:text-search-modal-field eldra:max-md:text-control-mobile',
+      'eldra:rounded-t-lg eldra:max-md:rounded-none eldra:eldra-focus-inset eldra:eldra-focus-inset-always',
       FIELD_SEARCH_APPEARANCE
     ),
     'field'
@@ -762,7 +765,7 @@ const fieldClass = computed(() =>
 /** "Search icon: 1.25rem, 1.125rem from the left edge." */
 const leadingIconClass = computed(() =>
   part(
-    'pointer-events-none absolute inset-y-0 my-auto flex size-5 items-center justify-center start-4.5 text-muted',
+    'eldra:pointer-events-none eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:flex eldra:size-5 eldra:items-center eldra:justify-center eldra:start-4.5 eldra:text-muted',
     'leadingIcon'
   )
 );
@@ -771,7 +774,10 @@ const leadingIconClass = computed(() =>
  *  "Cancel"). */
 const clearButtonClass = computed(() =>
   part(
-    cx(FIELD_CLEAR_BUTTON, 'absolute inset-y-0 my-auto size-8 rounded-sm end-11 max-md:end-20'),
+    cx(
+      FIELD_CLEAR_BUTTON,
+      'eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:size-8 eldra:rounded-sm eldra:end-11 eldra:max-md:end-20'
+    ),
     'clear'
   )
 );
@@ -789,9 +795,9 @@ const clearButtonClass = computed(() =>
 const busyClass = computed(() =>
   part(
     cx(
-      'pointer-events-none absolute inset-y-0 my-auto inline-flex items-center text-muted',
+      'eldra:pointer-events-none eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:items-center eldra:text-muted',
       // Inset past Clear, which itself sits left of Close (or of "Cancel" on a phone).
-      'end-20 max-md:end-29'
+      'eldra:end-20 eldra:max-md:end-29'
     ),
     'busy'
   )
@@ -803,7 +809,7 @@ const closeIconClass = computed(() =>
   part(
     cx(
       FIELD_CLEAR_BUTTON,
-      'absolute inset-y-0 my-auto hidden size-8 rounded-sm end-2 md:inline-flex'
+      'eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:hidden eldra:size-8 eldra:rounded-sm eldra:end-2 eldra:md:inline-flex'
     ),
     'close'
   )
@@ -814,9 +820,9 @@ const closeIconClass = computed(() =>
 const cancelClass = computed(() =>
   part(
     cx(
-      'absolute inset-y-0 my-auto inline-flex h-8 items-center rounded-sm px-2 end-2 md:hidden',
-      'text-body-sm font-medium text-muted hover:text-text cursor-pointer eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
+      'eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:h-8 eldra:items-center eldra:rounded-sm eldra:px-2 eldra:end-2 eldra:md:hidden',
+      'eldra:text-body-sm eldra:font-medium eldra:text-muted eldra:hover:text-text eldra:cursor-pointer eldra:eldra-focus',
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
     ),
     'close'
   )
@@ -825,23 +831,25 @@ const cancelClass = computed(() =>
 /** The frame's own bounding box around the reused panel (spec → Sizes, Panel row: "fills the
  *  remaining height and scrolls") — distinct from that panel's own `panel` part, the scrollable box
  *  inside it. */
-const resultsClass = computed(() => part('min-h-0 flex-1 overflow-hidden', 'results'));
+const resultsClass = computed(() =>
+  part('eldra:min-h-0 eldra:flex-1 eldra:overflow-hidden', 'results')
+);
 
 /** "Foot | padding 0.625rem 1rem, gap 0.5rem 1.25rem … 1px border above … hidden [below 48rem]." */
 const footerClass = computed(() =>
   part(
     cx(
-      'hidden items-center gap-x-5 gap-y-2 border-t border-border bg-surface px-4 py-2.5 md:flex',
-      'text-search-modal-foot text-muted'
+      'eldra:hidden eldra:items-center eldra:gap-x-5 eldra:gap-y-2 eldra:border-t eldra:border-border eldra:bg-surface eldra:px-4 eldra:py-2.5 eldra:md:flex',
+      'eldra:text-search-modal-foot eldra:text-muted'
     ),
     'footer'
   )
 );
 
 const hintKeyClass =
-  'box-border inline-flex h-5 min-w-5 items-center justify-center rounded-sm border ' +
-  'border-border-strong bg-background px-1 text-search-modal-kbd text-muted';
-const hintClass = 'inline-flex items-center gap-1.5';
+  'eldra:box-border eldra:inline-flex eldra:h-5 eldra:min-w-5 eldra:items-center eldra:justify-center eldra:rounded-sm eldra:border ' +
+  'eldra:border-border-strong eldra:bg-background eldra:px-1 eldra:text-search-modal-kbd eldra:text-muted';
+const hintClass = 'eldra:inline-flex eldra:items-center eldra:gap-1.5';
 
 const liveRegionClass = computed(() => part('', 'liveRegion'));
 
@@ -872,7 +880,7 @@ const showClear = computed(() => text.value.length > 0);
       <span data-part="leadingIcon" :class="leadingIconClass">
         <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named by its label. -->
         <svg
-          class="size-5"
+          class="eldra:size-5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -910,7 +918,7 @@ const showClear = computed(() => text.value.length > 0);
       />
 
       <span v-if="loadingShown" data-part="busy" :class="busyClass">
-        <Spinner class="size-4.5" />
+        <Spinner class="eldra:size-4.5" />
       </span>
 
       <button
@@ -923,7 +931,7 @@ const showClear = computed(() => text.value.length > 0);
       >
         <!-- Tabler's `x` at 1.125rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -947,7 +955,7 @@ const showClear = computed(() => text.value.length > 0);
       >
         <!-- Tabler's `x`, matching Dialog's own close button. Hidden below 48rem — see `cancelClass`. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
