@@ -27,19 +27,10 @@
  * nothing, so a customer can retype an amount from scratch; leaving the field falls back to the
  * formatted `clamp(0)` — `min` — and emits that.
  */
-import {
-  computed,
-  getCurrentInstance,
-  inject,
-  nextTick,
-  onBeforeUnmount,
-  ref,
-  useSlots,
-  watch,
-} from 'vue';
+import { getCurrentInstance, inject, nextTick, onBeforeUnmount, ref, useSlots, watch } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { createNumberFormat } from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
@@ -796,7 +787,7 @@ defineExpose({ formatValue });
         :class="leadingIconClass"
       >
         <slot name="leadingIcon">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: kit('size-4.5') }" />
         </slot>
       </span>
 
@@ -848,7 +839,7 @@ defineExpose({ formatValue });
         >
           <!-- Tabler's `x`, stroke 1.75, at 1.125rem. Decorative: the button is named by aria-label. -->
           <svg
-            class="size-4.5"
+            :class="kit('size-4.5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -881,7 +872,7 @@ defineExpose({ formatValue });
         >
           <!-- Tabler's `arrows-move-vertical`, stroke 1.75, at 1.125rem. -->
           <svg
-            class="size-4.5"
+            :class="kit('size-4.5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

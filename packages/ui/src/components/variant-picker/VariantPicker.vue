@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watchPostEffect } from 'vue';
+import { ref, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import type { VariantPickerOption, VariantPickerProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -295,7 +295,7 @@ const soldOutPillLineClass = computed(() =>
                behaviour with no key handling of any kind here. -->
           <input
             :ref="(el) => (radioRefs[index] = el as HTMLInputElement | null)"
-            class="absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0"
+            :class="kit('absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0')"
             type="radio"
             :name="name"
             :value="option.value"
@@ -364,7 +364,7 @@ const soldOutPillLineClass = computed(() =>
           </svg>
           <span data-part="label" :class="labelClass(option)">
             {{ option.label
-            }}<span v-if="!option.available" class="sr-only">, {{ soldOutSuffix }}</span>
+            }}<span v-if="!option.available" :class="kit('sr-only')">, {{ soldOutSuffix }}</span>
           </span>
         </span>
       </label>

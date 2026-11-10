@@ -129,7 +129,8 @@ module.exports = [
     path: 'packages/ui/dist/index.js',
     import: '{ TablerIcon }',
     ignore: ['vue', 'tailwind-merge', './tablerIconData-*'],
-    limit: '3.25 kB',
+    // 3.36 kB with the scoped class helpers its svg class goes through (`eldra:` below a scope).
+    limit: '3.5 kB',
   },
   {
     name: "@eldrajs/ui — TablerIcon's lazy index, without the data files",

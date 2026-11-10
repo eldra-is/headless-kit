@@ -15,9 +15,9 @@
  * why it is a role on a wrapper rather than a tree widget: every row stays an ordinary checkbox in
  * source order, so `Tab`, `Esc` and **Show all N** behave exactly as they do in a flat facet.
  */
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { computed, cx, partClass, kit } from '../../../utils/scopedClass';
 import Button from '../../button/Button.vue';
 import Checkbox from '../../checkbox/Checkbox.vue';
 import Input from '../../input/Input.vue';
@@ -138,7 +138,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" :class="kit('min-w-0')">
     <!-- Spec → Accessibility, Long lists: `<input type="search">` labelled "Search material
          values", placeholder "Search material", `aria-controls` pointing at the list. `Input`
          gives a `type="search"` field its clear button on its own. -->
@@ -159,7 +159,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named above. -->
           <svg
             :data-eldra-scope="eldra.scope"
-            class="size-4"
+            :class="kit('size-4')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -190,7 +190,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           }"
           @change="emit('toggle', row.value.value, $event)"
         >
-          <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ row.value.label }}</span>
+          <span :data-eldra-scope="eldra.scope" :class="kit('min-w-0')">{{ row.value.label }}</span>
           <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
             row.value.count
           }}</span>
@@ -200,7 +200,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           v-if="row.children.length > 0"
           role="group"
           :aria-label="m.filterPanelUnder(row.value.label)"
-          :class="CHILDREN_BASE"
+          :class="kit(CHILDREN_BASE)"
         >
           <Checkbox
             v-for="child in row.children"
@@ -216,7 +216,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
             }"
             @change="emit('toggle', child.value, $event)"
           >
-            <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ child.label }}</span>
+            <span :data-eldra-scope="eldra.scope" :class="kit('min-w-0')">{{ child.label }}</span>
             <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
               child.count
             }}</span>
@@ -253,8 +253,10 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
       <template #trailingIcon>
         <svg
           :data-eldra-scope="eldra.scope"
-          class="duration-base size-4 transition-[rotate] ease-out motion-reduce:transition-none"
-          :class="expanded ? 'rotate-180' : ''"
+          :class="[
+            kit('duration-base size-4 transition-[rotate] ease-out motion-reduce:transition-none'),
+            expanded ? kit('rotate-180') : '',
+          ]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

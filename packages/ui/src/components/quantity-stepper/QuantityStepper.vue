@@ -21,11 +21,11 @@
  * "No native spin buttons" (the anatomy's own item 3) is satisfied for free: a text input has
  * none to hide.
  */
-import { computed, inject, ref } from 'vue';
+import { inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
@@ -350,7 +350,7 @@ const increaseClass = computed(() =>
 );
 
 const ICON_SIZE: Record<QuantityStepperSize, string> = { md: 'size-5', sm: 'size-4' };
-const iconClass = computed(() => ICON_SIZE[props.size]);
+const iconClass = computed(() => kit(ICON_SIZE[props.size]));
 
 /**
  * The field (spec "Quantity stepper" → Anatomy): "centred, weight 600, tabular numerals, no

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import type { MatchParts } from '../select/useOptionList';
 import type { SearchBarPart, SearchRow, SearchSection } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -298,9 +298,13 @@ function onPanelMouseDown(event: MouseEvent): void {
       :class="emptyClass"
     >
       <slot name="empty">
-        <p class="text-search-title m-0 break-words">{{ emptyTitle }}</p>
+        <p :class="kit('text-search-title m-0 break-words')">{{ emptyTitle }}</p>
         <p
-          class="text-body-sm mt-1 mb-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+          :class="
+            kit(
+              'text-body-sm mt-1 mb-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+            )
+          "
         >
           {{ emptyAdvice }}
         </p>
@@ -312,13 +316,13 @@ function onPanelMouseDown(event: MouseEvent): void {
       <div
         v-for="row in SKELETON_ROWS"
         :key="row"
-        class="flex min-h-10 items-center gap-3 px-2 py-1.5"
+        :class="kit('flex min-h-10 items-center gap-3 px-2 py-1.5')"
         aria-hidden="true"
       >
-        <span class="bg-surface-strong size-10 shrink-0 rounded-sm" />
-        <span class="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span class="bg-surface-strong h-2.5 w-3/4 rounded-sm" />
-          <span class="bg-surface-strong h-2.5 w-1/3 rounded-sm" />
+        <span :class="kit('bg-surface-strong size-10 shrink-0 rounded-sm')" />
+        <span :class="kit('flex min-w-0 flex-1 flex-col gap-1.5')">
+          <span :class="kit('bg-surface-strong h-2.5 w-3/4 rounded-sm')" />
+          <span :class="kit('bg-surface-strong h-2.5 w-1/3 rounded-sm')" />
         </span>
       </div>
     </div>
@@ -382,7 +386,11 @@ function onPanelMouseDown(event: MouseEvent): void {
           >
             <!-- Tabler's `search` at 0.875rem, decorative: the chip is named by its text. -->
             <svg
-              class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+              :class="
+                kit(
+                  'size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+                )
+              "
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -426,7 +434,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                     v-if="row.item.image"
                     :src="row.item.image"
                     :alt="row.item.imageAlt ?? ''"
-                    class="size-full object-cover"
+                    :class="kit('size-full object-cover')"
                   />
                   <!-- The icon tile, at the spec's 1.125rem: Tabler's `photo` for a product with
                        no image (the Imagery foundation's own placeholder icon), `package` for a
@@ -434,7 +442,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                        page. Decorative: the row is named by its title. -->
                   <svg
                     v-else
-                    class="size-4.5"
+                    :class="kit('size-4.5')"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -477,7 +485,7 @@ function onPanelMouseDown(event: MouseEvent): void {
                 <span data-part="itemTitle" :class="titleClass">
                   <template v-if="highlights.get(row.value)"
                     >{{ highlights.get(row.value)?.before
-                    }}<mark class="eldra-select-match bg-transparent text-inherit">{{
+                    }}<mark :class="kit('eldra-select-match bg-transparent text-inherit')">{{
                       highlights.get(row.value)?.match
                     }}</mark
                     >{{ highlights.get(row.value)?.after }}</template
@@ -494,7 +502,7 @@ function onPanelMouseDown(event: MouseEvent): void {
               <!-- Tabler's `clock` for a recent row, `x` for the clear row. Both decorative. -->
               <svg
                 :data-eldra-scope="eldra.scope"
-                :class="LEADING_ICON"
+                :class="kit(LEADING_ICON)"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -546,7 +554,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         v-if="looseChips.length > 0"
         data-part="popular"
         role="presentation"
-        :class="[popularClass, 'justify-center']"
+        :class="[popularClass, kit('justify-center')]"
       >
         <a
           v-for="row in looseChips"
@@ -561,7 +569,11 @@ function onPanelMouseDown(event: MouseEvent): void {
           @mouseenter="emit('activate', row.value)"
         >
           <svg
-            class="size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+            :class="
+              kit(
+                'size-3.5 shrink-0 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+              )
+            "
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -591,7 +603,7 @@ function onPanelMouseDown(event: MouseEvent): void {
         @click="emit('select', viewAll, $event)"
         @mouseenter="emit('activate', viewAll.value)"
       >
-        <span class="min-w-0 flex-1 truncate">{{ viewAll.label }}</span>
+        <span :class="kit('min-w-0 flex-1 truncate')">{{ viewAll.label }}</span>
         <!-- Always visible on this row, unlike every other. -->
         <svg
           data-part="itemArrow"

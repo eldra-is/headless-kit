@@ -264,11 +264,13 @@ Pick one of five CSS entries, depending on how the consuming project builds CSS:
 
 - `@eldrajs/ui/scoped.css` — for embedding the components in another Tailwind app, or beside this
   package's own components on a page: theme variables renamed into `--eldra-tw-*`, every rule
-  inside `@scope ([data-eldra-scope])`, stopping at slot content. Call `provideEldraScope()` in the
-  wrapper or app root; the package README's "Embedding in another Tailwind app" has the rules.
+  inside `@scope ([data-eldra-scope])`, stopping at slot content, every class renamed `eldra:*` (the
+  name each component renders below `provideEldraScope()`). Call `provideEldraScope()` in the
+  wrapper or app root, and import it in a layer below your utilities so a class you put on a
+  component wins; the package README's "Embedding in another Tailwind app" has the rules.
 
   ```css
-  @import '@eldrajs/ui/scoped.css';
+  @import '@eldrajs/ui/scoped.css' layer(components);
   ```
 
 ## Forms

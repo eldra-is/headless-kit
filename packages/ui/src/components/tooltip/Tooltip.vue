@@ -4,7 +4,6 @@ import {
   Fragment,
   Text,
   cloneVNode,
-  computed,
   onMounted,
   onUnmounted,
   ref,
@@ -16,7 +15,7 @@ import {
 import { useTeleportTarget } from '../../composables/teleportTarget';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useOverlay } from '../../composables/useOverlay';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { supportsFocusVisible } from './supportsFocusVisible';
 import type { TooltipProps } from './types';

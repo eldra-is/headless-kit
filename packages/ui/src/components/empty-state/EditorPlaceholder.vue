@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import Icon from '../icon/Icon.vue';
 import type { EditorPlaceholderProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

@@ -13,8 +13,8 @@
  * *outside* the switch as plain text (spec → Accessibility: "The count is plain text beside it"):
  * inside, it would become part of the switch's name and be read as though it were the state.
  */
-import { computed } from 'vue';
-import { partClass } from '../../../utils/cx';
+
+import { computed, partClass, kit } from '../../../utils/scopedClass';
 import Switch from '../../switch/Switch.vue';
 import { isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
@@ -70,7 +70,7 @@ const countClass = computed(() => partClass(FACET_COUNT, props.classes, 'count')
         size="sm"
         :model-value="selected(value)"
         :data-value="value.value"
-        :classes="{ label: SWITCH_LABEL }"
+        :classes="{ label: kit(SWITCH_LABEL) }"
         @update:model-value="emit('toggle', value.value, $event)"
       >
         {{ value.label }}

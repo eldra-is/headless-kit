@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import Image from '../image/Image.vue';
@@ -302,12 +301,12 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
   >
     <div data-part="skeleton" :class="skeletonClass">
       <Skeleton variant="media" :ratio="ratio" />
-      <div class="mt-3 flex flex-1 flex-col gap-1">
-        <Skeleton variant="text" :classes="{ line: 'w-[80%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[35%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[50%]' }" />
+      <div :class="kit('mt-3 flex flex-1 flex-col gap-1')">
+        <Skeleton variant="text" :classes="{ line: kit('w-[80%]') }" />
+        <Skeleton variant="text" :classes="{ line: kit('w-[35%]') }" />
+        <Skeleton variant="text" :classes="{ line: kit('w-[50%]') }" />
       </div>
-      <Skeleton variant="btn" class="mt-5" />
+      <Skeleton variant="btn" :class="kit('mt-5')" />
     </div>
   </div>
 

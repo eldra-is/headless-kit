@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, type StyleValue } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { type StyleValue } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { frameAspectRatio } from '../../utils/ratio';
 import type { SkeletonPart, SkeletonProps, SkeletonVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

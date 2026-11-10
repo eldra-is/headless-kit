@@ -1,4 +1,5 @@
-import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue';
+import { onMounted, ref, type ComputedRef, type Ref } from 'vue';
+import { computed } from '../utils/scopedComputed';
 
 /**
  * Whether an element is a dialog the browser has put in its **top layer**.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { inject, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

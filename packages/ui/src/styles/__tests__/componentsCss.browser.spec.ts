@@ -374,6 +374,31 @@ afterAll(async () => {
   await browser?.close();
 });
 
+/**
+ * Every class on a kit element below a scope that is not `eldra:`-prefixed (a `group`/`peer` marker
+ * aside). Such a class is styled by nothing in `scoped.css` and by whatever the consumer's own
+ * Tailwind defines under that name, so the list must be empty.
+ */
+function unprefixedKitClasses(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const kitOwned = (element: Element): boolean => {
+      for (let node: Element | null = element; node; node = node.parentElement) {
+        if (node.hasAttribute('data-eldra-scope')) return true;
+        if (node.parentElement?.hasAttribute('data-eldra-slot')) return false;
+      }
+      return false;
+    };
+    return [...document.querySelectorAll('[class]')].flatMap((element) => {
+      if (!kitOwned(element)) return [];
+      const bare = [...element.classList].filter(
+        (name) => !name.startsWith('eldra:') && !/^(group|peer)(\/|$)/.test(name)
+      );
+      const part = element.getAttribute('data-part') ?? '';
+      return bare.length ? [`${element.tagName.toLowerCase()}[${part}] ${bare.join(' ')}`] : [];
+    });
+  });
+}
+
 async function settle(page: Page): Promise<void> {
   await page.evaluate(() =>
     Promise.all([
@@ -409,6 +434,7 @@ async function shotOpen(sample: OverlaySample, css: string, scope?: string): Pro
   );
   expect(placement, `where ${sample.name} draws its overlay`).toBe(sample.overlay.placement);
   await settle(page);
+  if (scope) expect(await unprefixedKitClasses(page), 'unprefixed kit classes').toEqual([]);
   const png = await page.screenshot({ fullPage: true });
   await page.close();
   return png;
@@ -494,6 +520,12 @@ describe('components.css', () => {
  * A consumer that runs Tailwind itself, with a theme that disagrees with the kit's on every name
  * they share and every utility the kit compiles, so each collision `scoped.css` removes would show.
  */
+/** A plain consumer Tailwind build (the default theme) over exactly `candidates`. */
+async function consumerTailwindWith(entry: string, candidates: string[]): Promise<string> {
+  const compiler = await compile(entry, { base: packageRoot, onDependency() {} });
+  return compiler.build(candidates);
+}
+
 async function consumerTailwind(): Promise<string> {
   const candidates = new Set<string>();
   for (const [, name] of stylesheet('components.css').matchAll(/\.((?:\\.|[\w-])+)/g))
@@ -552,6 +584,90 @@ describe('scoped.css', () => {
       expect(markup).toContain('data-eldra-scope="studio"');
       const reference = await shot(stylesheet('style.css'), plain);
       expect(Buffer.compare(await shot(inConsumerApp(), markup), reference)).toBe(0);
+    }
+  );
+
+  it.runIf(built).each(SAMPLES)('renders no unprefixed kit class in a scoped %s', async (_n, r) => {
+    const page = await browser.newPage();
+    await page.setContent(await renderToString(createSSRApp(scoped(r))));
+    expect(await unprefixedKitClasses(page)).toEqual([]);
+    await page.close();
+  });
+
+  /**
+   * The consumer's way to let its own classes win: the sheet in a layer below its utilities. A
+   * consumer utility then beats a kit utility whatever the load order, and the prefix is what keeps
+   * the consumer's own (hostile here) utilities from matching a kit element by name.
+   */
+  const inLayer = (consumerCss: string) =>
+    '@layer theme, base, components, utilities;\n' +
+    `@import url("data:text/css;base64,${Buffer.from(stylesheet('scoped.css')).toString('base64')}") layer(components);\n` +
+    consumerCss;
+
+  it.runIf(built).each(SAMPLES)(
+    'draws a scoped %s in layer(components) of a consumer Tailwind app exactly as style.css does',
+    async (_name, render, modal = false) => {
+      const shot = async (css: string, markup: string) => {
+        const page = await browser.newPage({
+          viewport: { width: 1100, height: 700 },
+          reducedMotion: 'reduce',
+        });
+        await page.setContent(documentWith(css, `<div class="frame">${markup}</div>`));
+        if (modal) {
+          await page.evaluate(() => {
+            for (const dialog of document.querySelectorAll('dialog')) dialog.showModal();
+          });
+        }
+        await settle(page);
+        const png = await page.screenshot({ fullPage: true });
+        await page.close();
+        return png;
+      };
+      const plain = await renderToString(createSSRApp({ render }));
+      const markup = await renderToString(createSSRApp(scoped(render)));
+      const reference = await shot(stylesheet('style.css'), plain);
+      expect(Buffer.compare(await shot(inLayer(consumer), markup), reference)).toBe(0);
+    }
+  );
+
+  it.runIf(built)(
+    "lets the consumer's own classes on a component win, prefixed or not, with variants",
+    async () => {
+      const own = await consumerTailwindWith(`@import 'tailwindcss';`, [
+        'mt-4',
+        'px-8',
+        'md:w-full',
+      ]);
+      const prefixed = await consumerTailwindWith(`@import 'tailwindcss' prefix(ui);`, [
+        'ui:mt-6',
+        'ui:px-10',
+        'ui:md:w-full',
+      ]);
+      const measure = async (css: string, classes: string) => {
+        const button = () =>
+          h('div', { style: 'width:600px' }, [
+            h(ui.Button, { variant: 'primary', classes: { container: classes } }, () => 'Add'),
+          ]);
+        const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+        await page.setContent(
+          documentWith(css, await renderToString(createSSRApp(scoped(button))))
+        );
+        const style = await page.evaluate(() => {
+          const s = getComputedStyle(document.querySelector('button')!);
+          return [s.marginTop, s.paddingLeft, s.width];
+        });
+        await page.close();
+        return style;
+      };
+      expect(await measure(inLayer(own), 'mt-4 px-8 md:w-full')).toEqual(['16px', '32px', '600px']);
+      expect(await measure(inLayer(prefixed), 'ui:mt-6 ui:px-10 ui:md:w-full')).toEqual([
+        '24px',
+        '40px',
+        '600px',
+      ]);
+      // Unlayered, the sheet still wins every property it sets: the reason to import it in a layer.
+      const unlayered = await measure(`${stylesheet('scoped.css')}\n${prefixed}`, 'ui:px-10');
+      expect(unlayered[1]).not.toBe('40px');
     }
   );
 

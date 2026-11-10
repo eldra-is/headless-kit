@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, h, inject, useSlots, type FunctionalComponent } from 'vue';
+import { h, inject, useSlots, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -329,7 +329,7 @@ const descriptionClass = computed(() =>
             v-if="$slots.thumb"
             :data-eldra-slot="eldra.slotHost('thumb')"
             aria-hidden="true"
-            class="pointer-events-none inline-flex"
+            :class="kit('pointer-events-none inline-flex')"
           >
             <slot name="thumb" v-bind="slotProps" />
           </span>

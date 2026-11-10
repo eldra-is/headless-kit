@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
 import { createPanelHeightAnimator, type PanelHeightAnimator } from './heightTransition';
@@ -286,7 +286,7 @@ const panelClass = computed(() =>
     :class="rootClass"
     :href="href"
   >
-    <span class="min-w-0 flex-1">
+    <span :class="kit('min-w-0 flex-1')">
       <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
       <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
     </span>
@@ -303,7 +303,7 @@ const panelClass = computed(() =>
     @toggle="onToggle"
   >
     <summary data-part="summary" :class="summaryClass" @click="onSummaryClick">
-      <span class="min-w-0 flex-1">
+      <span :class="kit('min-w-0 flex-1')">
         <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
         <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
       </span>

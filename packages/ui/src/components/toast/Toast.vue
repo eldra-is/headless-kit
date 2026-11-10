@@ -6,9 +6,9 @@
  * button, or `Esc` while focus is inside it — a timeout is `Toaster`'s own doing, never this
  * component's).
  */
-import { computed } from 'vue';
+
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import type { ToastProps, ToastVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -166,7 +166,7 @@ const closeClass = computed(() =>
     >
       <path v-for="d in ICON_PATHS[variant]" :key="d" :d="d" />
     </svg>
-    <div class="min-w-0 flex-1">
+    <div :class="kit('min-w-0 flex-1')">
       <p data-part="title" :class="titleClass">{{ title }}</p>
       <p v-if="text" data-part="text" :class="textClass">{{ text }}</p>
       <a
@@ -197,7 +197,7 @@ const closeClass = computed(() =>
     >
       <!-- Tabler's `x`, matching Dialog's own close icon exactly. -->
       <svg
-        class="size-4"
+        :class="kit('size-4')"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { ref, watch } from 'vue';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from './useCarousel';
@@ -295,7 +295,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <div
         v-if="controls === 'header'"
         :data-eldra-scope="eldra.scope"
-        class="flex shrink-0 items-center gap-2"
+        :class="kit('flex shrink-0 items-center gap-2')"
       >
         <span v-if="counter" data-part="counter" aria-hidden="true" :class="counterClass">
           {{ messages.counter(index + 1, count) }}
@@ -310,7 +310,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -333,7 +333,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -375,7 +375,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <slot />
     </div>
 
-    <div v-if="showBelowRow" class="flex items-center justify-between gap-4">
+    <div v-if="showBelowRow" :class="kit('flex items-center justify-between gap-4')">
       <button
         v-if="showPause"
         type="button"
@@ -399,12 +399,12 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           :aria-label="messages.goToSlide(dotNumber)"
           @click="goTo(dotNumber - 1)"
         >
-          <span class="eldra-carousel-dot" />
+          <span :class="kit('eldra-carousel-dot')" />
         </button>
       </div>
       <span v-else />
 
-      <div v-if="controls === 'below'" class="flex shrink-0 items-center gap-2">
+      <div v-if="controls === 'below'" :class="kit('flex shrink-0 items-center gap-2')">
         <button
           ref="prevButtonRef"
           type="button"
@@ -415,7 +415,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -441,7 +441,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

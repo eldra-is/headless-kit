@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, kit } from '../../utils/scopedClass';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import Icon from '../icon/Icon.vue';
 import Spinner from '../spinner/Spinner.vue';
 import {
@@ -228,11 +229,19 @@ function onPanelMouseDown(event: MouseEvent): void {
     <div
       v-if="searchable"
       :data-eldra-scope="eldra.scope"
-      class="relative shrink-0 border-b border-[color:var(--eldra-select-panel-border,var(--color-border))]"
+      :class="
+        kit(
+          'relative shrink-0 border-b border-[color:var(--eldra-select-panel-border,var(--color-border))]'
+        )
+      "
     >
       <!-- Tabler's `search` at 1rem, 0.625rem from the start edge. -->
       <svg
-        class="pointer-events-none absolute inset-y-0 start-2.5 my-auto size-4 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]"
+        :class="
+          kit(
+            'pointer-events-none absolute inset-y-0 start-2.5 my-auto size-4 text-[color:var(--eldra-select-panel-muted,var(--color-muted))]'
+          )
+        "
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -365,11 +374,11 @@ function onPanelMouseDown(event: MouseEvent): void {
                 :classes="{ root: optionIconClasses }"
               />
 
-              <span class="min-w-0 flex-1">
+              <span :class="kit('min-w-0 flex-1')">
                 <span data-part="optionLabel" :class="optionLabelClass(classes)">
                   <template v-if="highlights.get(option.value)"
                     >{{ highlights.get(option.value)?.before
-                    }}<span class="eldra-select-match">{{
+                    }}<span :class="kit('eldra-select-match')">{{
                       highlights.get(option.value)?.match
                     }}</span
                     >{{ highlights.get(option.value)?.after }}</template
@@ -419,7 +428,9 @@ function onPanelMouseDown(event: MouseEvent): void {
         role="presentation"
         :class="
           sections.length > 0
-            ? 'mt-1 border-t border-[color:var(--eldra-select-panel-border,var(--color-border))] pt-1'
+            ? kit(
+                'mt-1 border-t border-[color:var(--eldra-select-panel-border,var(--color-border))] pt-1'
+              )
             : undefined
         "
       >
@@ -447,7 +458,7 @@ function onPanelMouseDown(event: MouseEvent): void {
             <path d="M12 5l0 14" />
             <path d="M5 12l14 0" />
           </svg>
-          <span class="min-w-0 flex-1 truncate">{{ createText }}</span>
+          <span :class="kit('min-w-0 flex-1 truncate')">{{ createText }}</span>
         </div>
       </div>
     </div>
@@ -460,7 +471,7 @@ function onPanelMouseDown(event: MouseEvent): void {
       role="status"
       :class="loadingClasses"
     >
-      <Spinner class="size-4" />
+      <Spinner :class="kit('size-4')" />
       <slot name="loading">{{ loadingText }}</slot>
     </div>
     <div

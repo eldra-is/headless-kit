@@ -1,6 +1,5 @@
 import type { EldraFormDefinition } from '@eldrajs/sdk';
 import {
-  computed,
   onMounted,
   reactive,
   ref,
@@ -11,6 +10,7 @@ import {
   type MaybeRefOrGetter,
   type Ref,
 } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 import { useMessages } from '../../composables/useMessages';
 import type { UiMessages } from '../../messages/en-US';
 import { isBooleanField, localizeSiteForm } from './localize';

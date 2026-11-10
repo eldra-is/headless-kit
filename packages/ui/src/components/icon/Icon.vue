@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { partClass } from '../../utils/cx';
+import { computed, partClass } from '../../utils/scopedClass';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from './sizes';
 import type { IconProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

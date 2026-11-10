@@ -4,7 +4,7 @@ import { fileURLToPath, URL as NodeURL } from 'node:url';
 import postcss, { type AtRule, type Rule } from 'postcss';
 import { describe, expect, it } from 'vitest';
 import { isBuilt, itFailsWithoutDist } from '../../src/test/built';
-import { SCOPE_PRELUDE, scopeCss } from '../scoped-css.mjs';
+import { SCOPE_PRELUDE, prefixClasses, scopeCss } from '../scoped-css.mjs';
 
 const IN_SCOPE = ':where(:scope, :scope *)';
 const EVERY_ROOT = ':where([data-eldra-scope])';
@@ -126,8 +126,8 @@ describe('scopeCss on a fixture', () => {
     const order = [
       ':where(*)',
       ':where(:where([data-eldra-ui]))',
-      ':where(.reset > a)',
-      '.p-4',
+      ':where(.eldra\\:reset > a)',
+      '.eldra\\:p-4',
       '[data-a] + [data-b]',
     ].map((selector) => selectorsInScope.findIndex((s) => s.startsWith(selector)));
     expect(order.every((index) => index >= 0)).toBe(true);
@@ -140,18 +140,49 @@ describe('scopeCss on a fixture', () => {
         `:where(*)${IN_SCOPE}`,
         `${IN_SCOPE}:before`,
         `${IN_SCOPE}::backdrop`,
-        `.p-4${IN_SCOPE}`,
-        `.before\\:x${IN_SCOPE}:before`,
-        `.placeholder\\:x${IN_SCOPE}::placeholder:hover`,
-        `.group:hover .group-hover\\:x${IN_SCOPE}`,
-        `.hover\\:x:hover${IN_SCOPE}`,
-        `.\\@wide\\:p-4${IN_SCOPE}`,
+        `.eldra\\:p-4${IN_SCOPE}`,
+        `.eldra\\:before\\:x${IN_SCOPE}:before`,
+        `.eldra\\:placeholder\\:x${IN_SCOPE}::placeholder:hover`,
+        `.group:hover .eldra\\:group-hover\\:x${IN_SCOPE}`,
+        `.eldra\\:hover\\:x:hover${IN_SCOPE}`,
+        `.eldra\\:\\@wide\\:p-4${IN_SCOPE}`,
         `[data-a] + [data-b]${IN_SCOPE}`,
       ])
     );
     expect(selectorsInScope.filter((s) => !s.includes(IN_SCOPE))).toEqual([]);
-    expect(out).toMatch(/@media \(hover: hover\) \{\s*\.hover/);
+    expect(out).toMatch(/@media \(hover: hover\) \{\s*\.eldra\\:hover/);
     expect(out).toMatch(/@container \(width >= 40rem\)/);
+  });
+});
+
+describe('scopeCss class names', () => {
+  /**
+   * Every class is the name a component renders below `provideEldraScope()`, so a consumer
+   * Tailwind build's own `.p-4` can never match a kit element and the sheet can sit in a layer
+   * below the consumer's utilities. `group`/`peer` markers carry no style and keep their names, so
+   * a consumer's own `group/section` still drives the section variants.
+   */
+  it('prefixes every class, inside :where() and :not() too, and leaves group/peer markers', () => {
+    expect(prefixClasses('.p-4')).toBe('.eldra\\:p-4');
+    expect(prefixClasses(':where(.a) > .b:not(.c)')).toBe(
+      ':where(.eldra\\:a) > .eldra\\:b:not(.eldra\\:c)'
+    );
+    expect(prefixClasses('.group:hover .group-hover\\:x')).toBe(
+      '.group:hover .eldra\\:group-hover\\:x'
+    );
+    expect(prefixClasses(':where(.group\\/section[data-section=primary]) .x')).toBe(
+      ':where(.group\\/section[data-section=primary]) .eldra\\:x'
+    );
+    expect(prefixClasses('.peer\\/box:checked ~ .y')).toBe('.peer\\/box:checked ~ .eldra\\:y');
+    expect(prefixClasses('[data-a] + [data-b]')).toBe('[data-a] + [data-b]');
+  });
+
+  it('leaves no unprefixed class in the scoped rules', () => {
+    for (const selector of selectorsInScope)
+      for (const [, name] of selector.matchAll(/\.((?:\\.|[\w-])+)/g))
+        expect(name!.startsWith('eldra\\:') || /^(group|peer)(\\\/|$)/.test(name!), selector).toBe(
+          true
+        );
   });
 });
 

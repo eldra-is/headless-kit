@@ -1,5 +1,4 @@
 import {
-  computed,
   inject,
   provide,
   toValue,
@@ -7,6 +6,7 @@ import {
   type InjectionKey,
   type MaybeRefOrGetter,
 } from 'vue';
+import { computed } from '../utils/scopedComputed';
 import { enUS, type UiMessages } from '../messages/en-US';
 
 export type { UiMessages };

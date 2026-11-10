@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { watchEffect } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import type { BadgeProps, BadgeTone } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 

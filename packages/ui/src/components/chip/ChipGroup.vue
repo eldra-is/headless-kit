@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, provide } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { provide } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { CHIP_GROUP_KEY, type ChipGroupContext } from './context';
 import type { ChipGroupProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

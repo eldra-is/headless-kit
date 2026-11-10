@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, provide } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { provide } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { ACCORDION_KEY, type AccordionContext } from './context';
 import type { AccordionProps } from './types';

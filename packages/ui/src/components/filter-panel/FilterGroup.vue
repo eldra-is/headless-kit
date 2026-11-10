@@ -17,9 +17,9 @@
  * into its search field, whether they pressed **Show all N**) across a collapse, and unmounting
  * the body would silently throw both away on every close.
  */
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { FilterFacet, FilterPanelPart } from './types';
@@ -162,7 +162,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
     :class="groupClass"
   >
     <!-- The heading level is fixed at `h3` by the spec: the panel's own title is the `h2`. -->
-    <h3 class="m-0">
+    <h3 :class="kit('m-0')">
       <button
         ref="triggerEl"
         type="button"

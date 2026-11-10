@@ -1,5 +1,4 @@
 import {
-  computed,
   inject,
   provide,
   toValue,
@@ -7,6 +6,7 @@ import {
   type InjectionKey,
   type MaybeRefOrGetter,
 } from 'vue';
+import { computed } from '../utils/scopedComputed';
 
 /**
  * The number locale the components format with, as a provide/inject pair — the same shape as

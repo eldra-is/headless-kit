@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, h, inject, provide, useSlots, type FunctionalComponent } from 'vue';
+import { h, inject, provide, useSlots, type FunctionalComponent } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
 import { FIELD_KEY, type FieldContext } from './context';

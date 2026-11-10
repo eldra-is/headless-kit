@@ -121,7 +121,8 @@ provideEldraScope('studio'); // the name is yours; 'default' when left out
 ```
 
 ```css
-@import '@eldrajs/ui/scoped.css';
+/* In a layer below your utilities, so a class you put on a component wins, as on your own markup. */
+@import '@eldrajs/ui/scoped.css' layer(components);
 
 /* Re-theme through the --eldra-* variables, on the scope: */
 [data-eldra-scope='studio'] {
@@ -143,13 +144,20 @@ provideEldraScope('studio'); // the name is yours; 'default' when left out
   CSS only, so a `class="text-text"` in a button label is your `text-text`. The package's own
   elements beside your content carry `data-eldra-scope` and stay styled. The attribute renders
   whenever the slot has content, with or without a provider, and never for a fallback.
-- **Cascade.** The file is unlayered, so it beats your layered preflight and utilities on the
-  components' own elements; your classes on a component still win through `classes`/`class`, which
-  `tailwind-merge` puts in place of the component's own. Your **unlayered** global rules still
-  reach the components' elements, as with the other entries.
-- **Limits.** A class of yours that has the same name as one of this package's (`p-4`) and is set
-  on a component's own element through `classes` resolves to this package's definition. Layout
-  rules a component gives its direct children (`ButtonGroup`'s joined corners, `FormLayout`'s
+- **Class names.** Below `provideEldraScope` every class a component authors renders as
+  `eldra:<name>` (`eldra:px-4.5`), and every selector in `scoped.css` matches that name, so your
+  own utilities never match a component's element by accident: your `.rounded-md` with your theme
+  cannot restyle a `Button`. The classes you pass (`classes`, a root `class`) keep their names and
+  are styled by your CSS; one that conflicts with a component's own still replaces it, through
+  `tailwind-merge`. `group`/`peer` markers keep their names, so your `group/section` still drives
+  the section variants.
+- **Cascade.** Imported `layer(components)` (above), the components sit above your preflight and
+  below your utilities: any class you put on a component wins whatever the load order, a prefixed
+  one (`ui:w-full`), a variant (`md:w-full`) and a margin or padding included. Imported unlayered,
+  the file beats your layered preflight and utilities on every property it sets, and a class of
+  yours wins only where `tailwind-merge` removes the component's own. Your **unlayered** global
+  rules reach the components' elements either way, as with the other entries.
+- **Limits.** Layout rules a component gives its direct children (`ButtonGroup`'s joined corners, `FormLayout`'s
   full-width and first-link actions) reach a child that is one of this package's components, not
   an element of yours. It needs CSS `@scope`: Chrome 118 and Safari 17.4 or newer, and a Firefox that ships it.
 

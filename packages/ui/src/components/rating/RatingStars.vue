@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { ratingStarStates } from '../../utils/rating';
 import type { RatingPart, RatingSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

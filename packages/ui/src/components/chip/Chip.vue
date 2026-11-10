@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, ref, useSlots, watch, watchEffect } from 'vue';
+import { inject, ref, useSlots, watch, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import Avatar from '../avatar/Avatar.vue';
 import { CHIP_GROUP_KEY } from './context';
@@ -260,7 +260,7 @@ const hasIcon = computed(
 );
 
 const avatarWrapClass = computed(() => partClass('inline-flex shrink-0', props.classes, 'avatar'));
-const avatarSizeClass = computed(() => LEADING_SIZE[props.size]);
+const avatarSizeClass = computed(() => kit(LEADING_SIZE[props.size]));
 
 /**
  * `Avatar`'s own icon/initials fallbacks are drawn for its own sizes (`sm` = 2rem), not for
@@ -281,8 +281,8 @@ const AVATAR_INITIALS_CLASS: Record<ChipSize, string> = {
   sm: 'text-[0.33rem] leading-none font-semibold',
   md: 'text-[0.38rem] leading-none font-semibold',
 };
-const avatarIconClass = computed(() => AVATAR_ICON_CLASS[props.size]);
-const avatarInitialsClass = computed(() => AVATAR_INITIALS_CLASS[props.size]);
+const avatarIconClass = computed(() => kit(AVATAR_ICON_CLASS[props.size]));
+const avatarInitialsClass = computed(() => kit(AVATAR_INITIALS_CLASS[props.size]));
 
 const iconWrapClass = computed(() =>
   partClass(cx(LEADING_SIZE[props.size], 'shrink-0'), props.classes, 'icon')
@@ -366,7 +366,7 @@ const removeButtonClass = computed(() =>
     >
       <!-- Tabler's `x`, sized and stroked like `MultiSelect`'s own tag remove button. -->
       <svg
-        :class="REMOVE_ICON_SIZE[size]"
+        :class="kit(REMOVE_ICON_SIZE[size])"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

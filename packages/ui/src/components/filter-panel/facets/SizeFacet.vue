@@ -14,9 +14,9 @@
  * see `sizeSystemGroups`. A store that has not told us its systems gets one grid and no
  * sub-headings, which is the honest rendering of "we do not know" rather than an invented heading.
  */
-import { computed } from 'vue';
+
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { computed, cx, partClass, kit } from '../../../utils/scopedClass';
 import Link from '../../link/Link.vue';
 import {
   isValueDisabled,
@@ -130,7 +130,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" :class="kit('min-w-0')">
     <template v-for="(group, index) in groups" :key="group.key ?? ''">
       <!-- Only a system that has a name gets a heading. A `<p>` rather than a heading element: it
            labels a grid inside a `<fieldset>` the group's own `<legend>` already names, and a
@@ -154,7 +154,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
         >
           <input
             type="checkbox"
-            :class="CONTROL"
+            :class="kit(CONTROL)"
             :value="value.value"
             :checked="selected(value)"
             :disabled="disabled(value)"

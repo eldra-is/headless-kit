@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import Spinner from '../spinner/Spinner.vue';
 import type { LoadMoreProps } from './types';
@@ -80,8 +79,8 @@ const buttonClass = computed(() =>
       {{ m.showingOf(shown, total, noun) }}
     </p>
 
-    <div :class="meterTrackClass" aria-hidden="true">
-      <div :class="meterFillClass" :style="{ width: `${meterPercent}%` }" />
+    <div :class="kit(meterTrackClass)" aria-hidden="true">
+      <div :class="kit(meterFillClass)" :style="{ width: `${meterPercent}%` }" />
     </div>
 
     <button
@@ -95,7 +94,7 @@ const buttonClass = computed(() =>
     >
       <!-- Same spinner circle Button draws, from the same `Spinner.vue`: 1.125rem, 2px stroke,
            one turn every 700ms; with reduced motion it pulses 60–100% opacity instead. -->
-      <Spinner v-if="pending" class="size-4.5" />
+      <Spinner v-if="pending" :class="kit('size-4.5')" />
       <span>{{ m.loadMore }}</span>
     </button>
   </div>

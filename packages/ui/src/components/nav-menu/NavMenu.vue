@@ -1,17 +1,9 @@
 <script setup lang="ts">
-import {
-  computed,
-  onBeforeUnmount,
-  ref,
-  toRef,
-  useSlots,
-  watch,
-  type ComponentPublicInstance,
-} from 'vue';
+import { onBeforeUnmount, ref, toRef, useSlots, watch, type ComponentPublicInstance } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useOverlay } from '../../composables/useOverlay';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import AccordionItem from '../accordion/AccordionItem.vue';
 import Drawer from '../drawer/Drawer.vue';
@@ -501,7 +493,7 @@ const accordionClasses = computed(() => ({
                 <slot name="triggerIcon" :item="item" :open="openIndex === index">
                   <!-- Tabler's `chevron-down`. -->
                   <svg
-                    class="size-full"
+                    :class="kit('size-full')"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"

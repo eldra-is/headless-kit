@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onServerPrefetch, shallowRef, useTemplateRef, watch } from 'vue';
-import { partClass } from '../../utils/cx';
+import { onMounted, onServerPrefetch, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, partClass } from '../../utils/scopedClass';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from '../icon/sizes';
 import { cachedTablerIcon, loadTablerIcon, warnTablerIconOnce } from './registry';
 import { tablerIconName } from './tablerIconName';

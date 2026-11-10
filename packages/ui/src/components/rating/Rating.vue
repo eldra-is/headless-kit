@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useMessages } from '../../composables/useMessages';
 import { roundRatingToHalf } from '../../utils/rating';
 import RatingStars from './RatingStars.vue';

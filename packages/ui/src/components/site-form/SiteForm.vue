@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch, type ComponentPublicInstance } from 'vue';
+import { nextTick, reactive, ref, watch, type ComponentPublicInstance } from 'vue';
 import { provideEldraUiMessages, useMessages } from '../../composables/useMessages';
 import type { UiMessages } from '../../messages/en-US';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Checkbox from '../checkbox/Checkbox.vue';
@@ -291,7 +291,7 @@ async function sendAnother(): Promise<void> {
           v-for="(message, index) in formErrors"
           :key="index"
           :data-eldra-scope="eldra.scope"
-          class="m-0"
+          :class="kit('m-0')"
         >
           {{ message }}
         </p>
@@ -367,7 +367,7 @@ async function sendAnother(): Promise<void> {
       <div
         v-if="form.honeypotField"
         :data-eldra-scope="eldra.scope"
-        class="sr-only"
+        :class="kit('sr-only')"
         aria-hidden="true"
         inert
       >
@@ -403,7 +403,7 @@ async function sendAnother(): Promise<void> {
           v-if="consentUnderButton"
           :data-eldra-slot="eldra.slotHost('submit')"
           :data-eldra-scope="eldra.scope"
-          class="grid w-full gap-2"
+          :class="kit('grid w-full gap-2')"
         >
           <slot name="submit" :label="submitText" :submitting="submitting" :describedBy="consentId">
             <Button

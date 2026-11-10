@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, type Component, type ComponentPublicInstance } from 'vue';
+import { nextTick, ref, type Component, type ComponentPublicInstance } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import type { BreadcrumbItem, BreadcrumbProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -366,7 +366,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -391,7 +391,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -422,7 +422,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
@@ -458,7 +458,7 @@ const structuredDataJson = computed(() =>
             stroke-width="1.75"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />

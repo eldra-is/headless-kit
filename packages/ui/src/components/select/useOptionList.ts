@@ -1,4 +1,5 @@
-import { computed, ref, watch, type ComputedRef } from 'vue';
+import { ref, watch, type ComputedRef } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 import type { SelectOption } from './types';
 import { normalizeText } from './useListbox';
 

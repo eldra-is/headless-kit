@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { ref, watch, watchEffect } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { initialsFromName } from '../../utils/avatar';
 import type { AvatarProps, AvatarSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

@@ -20,11 +20,11 @@
  * not a `loading` attribute (see the template's own comment on the track for why the *wrapper*
  * stays mounted).
  */
-import { computed, nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
@@ -428,7 +428,7 @@ const thumbnailClass = computed(() =>
     @keydown="onViewerKeydown"
   >
     <div ref="rootRef" data-part="panel" :class="panelClass">
-      <div :class="barClass">
+      <div :class="kit(barClass)">
         <span v-if="!single" data-part="counter" aria-hidden="true" :class="counterClass">
           {{ m.counter(carouselIndex + 1, count) }}
         </span>
@@ -442,7 +442,7 @@ const thumbnailClass = computed(() =>
           @click="onCloseClick"
         >
           <svg
-            class="size-4"
+            :class="kit('size-4')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -470,7 +470,7 @@ const thumbnailClass = computed(() =>
           @click="prev"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -510,8 +510,8 @@ const thumbnailClass = computed(() =>
             <Image
               v-if="model"
               data-part="image"
-              :class="imageRootClass"
-              :classes="{ frame: imageFrameClass, caption: imageCaptionClass }"
+              :class="kit(imageRootClass)"
+              :classes="{ frame: kit(imageFrameClass), caption: kit(imageCaptionClass) }"
               :media="{ src: img.src, alt: img.alt, width: img.width, height: img.height }"
               :alt="img.alt"
               :caption="img.caption"
@@ -533,7 +533,7 @@ const thumbnailClass = computed(() =>
           @click="next"
         >
           <svg
-            class="size-5"
+            :class="kit('size-5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

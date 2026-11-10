@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { inject } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';

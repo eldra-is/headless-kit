@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import type { LogoItemProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import {
   FIELD_BASE,
@@ -824,7 +824,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       <span data-part="leadingIcon" :class="leadingIconClass">
         <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named by its label. -->
         <svg
-          :class="ICON_SIZE[size]"
+          :class="kit(ICON_SIZE[size])"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -865,7 +865,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       />
 
       <span v-if="loadingShown" data-part="busy" :class="busyClass">
-        <Spinner class="size-4.5" />
+        <Spinner :class="kit('size-4.5')" />
       </span>
 
       <button
@@ -878,7 +878,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       >
         <!-- Tabler's `x` at 1.125rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

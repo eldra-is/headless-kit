@@ -1,4 +1,4 @@
-import { cx, partClass } from '../../utils/cx';
+import { cx, partClass } from '../../utils/scopedClass';
 import type { SelectOption, SelectPart } from './types';
 
 /**

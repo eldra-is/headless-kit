@@ -1,4 +1,5 @@
-import { computed, ref, watch, type Ref } from 'vue';
+import { ref, watch, type Ref } from 'vue';
+import { computed } from '../utils/scopedComputed';
 
 /**
  * A model that works both ways round: controlled when the parent passes

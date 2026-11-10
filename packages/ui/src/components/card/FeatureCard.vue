@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import Icon from '../icon/Icon.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
 import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
@@ -183,7 +182,7 @@ const arrowClass = CUE_ARROW_CLASS;
       <slot name="cue">{{ resolvedCue }}</slot>
       <svg
         :data-eldra-scope="eldra.scope"
-        :class="arrowClass"
+        :class="kit(arrowClass)"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

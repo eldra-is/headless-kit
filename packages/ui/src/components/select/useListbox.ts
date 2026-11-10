@@ -1,4 +1,5 @@
-import { computed, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue';
+import { onScopeDispose, ref, type ComputedRef, type Ref } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 
 /**
  * The least a listbox row has to be for this composable to move between rows. `Select`'s

@@ -3,7 +3,6 @@ import {
   Comment,
   Fragment,
   Text,
-  computed,
   inject,
   onMounted,
   ref,
@@ -16,7 +15,7 @@ import {
 } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -353,7 +352,7 @@ function onChange(event: Event): void {
         <input
           ref="controlRef"
           v-bind="$attrs"
-          :class="CONTROL"
+          :class="kit(CONTROL)"
           type="checkbox"
           :id="controlId"
           :name="name"

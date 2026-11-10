@@ -1,5 +1,4 @@
 import {
-  computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -9,6 +8,7 @@ import {
   type MaybeRefOrGetter,
   type Ref,
 } from 'vue';
+import { computed } from '../utils/scopedComputed';
 import { closeDialog, isOpenDialog, openDialog } from './dialogStack';
 
 export interface UseDialogOptions {

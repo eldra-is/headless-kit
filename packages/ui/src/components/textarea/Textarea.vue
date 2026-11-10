@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onUpdated, ref, useSlots, watch } from 'vue';
+import { inject, nextTick, onUpdated, ref, useSlots, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import { FIELD_ACTION_ROOM_REM, FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE } from '../input/classes';
@@ -370,7 +370,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       >
         <!-- Tabler's `x`, stroke 1.75, at 1.125rem, as on `Input`. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

@@ -21,10 +21,10 @@
  * maximum adds ' or more'" needs: above the catalogue's highest price there is nothing left to
  * exclude, so "$240 or more" is the honest announcement and "$240" is not.
  */
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../../composables/useLocale';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { computed, cx, partClass, kit } from '../../../utils/scopedClass';
 import { formatCurrency, formatNumber } from '../../../utils/number-format';
 import CurrencyInput from '../../currency-input/CurrencyInput.vue';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
@@ -190,13 +190,13 @@ const rangeClass = computed(() => partClass('min-w-0', props.classes, 'range'));
 /** `CurrencyInput` draws its own label, so the money field needs one bag. */
 const MONEY_CLASSES = computed(() => ({
   root: fieldClass.value,
-  label: FIELD_LABEL,
-  control: FIELD_CONTROL,
+  label: kit(FIELD_LABEL),
+  control: kit(FIELD_CONTROL),
 }));
 /** The plain field's label belongs to its `FieldWrapper`, so that one needs two. */
 const PLAIN_WRAPPER_CLASSES = computed(() => ({
   root: cx(FIELD_WRAPPER, fieldClass.value),
-  label: FIELD_LABEL,
+  label: kit(FIELD_LABEL),
 }));
 const PLAIN_CONTROL_CLASSES = { control: FIELD_CONTROL } as const;
 
@@ -232,7 +232,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
       :format-value="formatValue"
       inputs
       :track-visible="showTrack"
-      :classes="SLIDER_CLASSES"
+      :classes="{ group: kit(SLIDER_CLASSES.group) }"
       @update:model-value="onMove"
       @change="onCommit"
     >
@@ -276,7 +276,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
               autocomplete="off"
               :model-value="plainText(0)"
               :disabled="disabled"
-              :classes="PLAIN_CONTROL_CLASSES"
+              :classes="{ control: kit(PLAIN_CONTROL_CLASSES.control) }"
               @update:model-value="onPlainInput(0, $event)"
               @blur="typed[0] = commit(0, typed[0])"
               @keydown.enter.prevent="typed[0] = commit(0, typed[0])"
@@ -309,7 +309,7 @@ function onPlainInput(end: 0 | 1, raw: string): void {
               autocomplete="off"
               :model-value="plainText(1)"
               :disabled="disabled"
-              :classes="PLAIN_CONTROL_CLASSES"
+              :classes="{ control: kit(PLAIN_CONTROL_CLASSES.control) }"
               @update:model-value="onPlainInput(1, $event)"
               @blur="typed[1] = commit(1, typed[1])"
               @keydown.enter.prevent="typed[1] = commit(1, typed[1])"

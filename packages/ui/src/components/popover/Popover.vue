@@ -79,7 +79,6 @@ import {
   Fragment,
   Text,
   cloneVNode,
-  computed,
   nextTick,
   onBeforeUnmount,
   ref,
@@ -89,7 +88,7 @@ import {
   type VNode,
 } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { usePopover } from '../select/usePopover';
 import type { PopoverProps } from './types';

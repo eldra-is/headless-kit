@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, useSlots } from 'vue';
+import { useSlots } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { formatDate } from '../../utils/date';
 import Image from '../image/Image.vue';
 import Skeleton from '../skeleton/Skeleton.vue';
@@ -297,7 +297,7 @@ const arrowClass = CUE_ARROW_CLASS;
         <slot name="cue">{{ cue }}</slot>
         <svg
           :data-eldra-scope="eldra.scope"
-          :class="arrowClass"
+          :class="kit(arrowClass)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

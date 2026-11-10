@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, provide, useSlots } from 'vue';
+import { provide, useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
@@ -241,7 +241,7 @@ function onSubmit(event: Event): void {
     <div v-if="hasErrorSummary" data-part="errorSummary" :class="errorSummaryClass" role="alert">
       <!-- Tabler's `alert-circle`, stroke 1.75, at 1.25rem. Decorative: the list is the message. -->
       <svg
-        class="text-danger mt-0.5 size-5 shrink-0"
+        :class="kit('text-danger mt-0.5 size-5 shrink-0')"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -255,7 +255,7 @@ function onSubmit(event: Event): void {
         <path d="M12 8v4" />
         <path d="M12 16h.01" />
       </svg>
-      <div :data-eldra-slot="eldra.slotHost('errorSummary')" class="min-w-0">
+      <div :data-eldra-slot="eldra.slotHost('errorSummary')" :class="kit('min-w-0')">
         <slot name="errorSummary" />
       </div>
     </div>

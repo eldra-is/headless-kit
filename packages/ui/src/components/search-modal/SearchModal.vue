@@ -25,12 +25,12 @@
  * `useDialog`'s own listener applies, needed here too because this one runs first and would
  * otherwise mutate the active option/query of a modal that is not even the one `Esc` is for.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { isOpenDialog } from '../../composables/dialogStack';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { FIELD_CLEAR_BUTTON, FIELD_SEARCH_APPEARANCE } from '../input/classes';
 import { useListbox } from '../select/useListbox';
@@ -872,7 +872,7 @@ const showClear = computed(() => text.value.length > 0);
       <span data-part="leadingIcon" :class="leadingIconClass">
         <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named by its label. -->
         <svg
-          class="size-5"
+          :class="kit('size-5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -910,7 +910,7 @@ const showClear = computed(() => text.value.length > 0);
       />
 
       <span v-if="loadingShown" data-part="busy" :class="busyClass">
-        <Spinner class="size-4.5" />
+        <Spinner :class="kit('size-4.5')" />
       </span>
 
       <button
@@ -923,7 +923,7 @@ const showClear = computed(() => text.value.length > 0);
       >
         <!-- Tabler's `x` at 1.125rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -947,7 +947,7 @@ const showClear = computed(() => text.value.length > 0);
       >
         <!-- Tabler's `x`, matching Dialog's own close button. Hidden below 48rem — see `cancelClass`. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -996,12 +996,16 @@ const showClear = computed(() => text.value.length > 0);
          hint at there) and `aria-hidden` always — screen readers get the combobox semantics
          instead (spec → Accessibility). -->
     <div data-part="footer" :class="footerClass" aria-hidden="true">
-      <span :class="hintClass"
-        ><span :class="hintKeyClass">↑</span><span :class="hintKeyClass">↓</span>
+      <span :class="kit(hintClass)"
+        ><span :class="kit(hintKeyClass)">↑</span><span :class="kit(hintKeyClass)">↓</span>
         {{ m.searchMoveHint }}</span
       >
-      <span :class="hintClass"><span :class="hintKeyClass">↵</span> {{ m.searchOpenHint }}</span>
-      <span :class="hintClass"><span :class="hintKeyClass">esc</span> {{ m.searchEscHint }}</span>
+      <span :class="kit(hintClass)"
+        ><span :class="kit(hintKeyClass)">↵</span> {{ m.searchOpenHint }}</span
+      >
+      <span :class="kit(hintClass)"
+        ><span :class="kit(hintKeyClass)">esc</span> {{ m.searchEscHint }}</span
+      >
     </div>
 
     <!-- Spec "Search bar" → Anatomy, item 11: a visually hidden, polite live region. -->

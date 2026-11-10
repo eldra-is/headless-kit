@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, useSlots } from 'vue';
+import { useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import Button from '../button/Button.vue';
 import type { EmptyStateProps, EmptyStateVariant } from './types';
@@ -130,14 +130,14 @@ const actionsClass = computed(() =>
       <component
         :is="icon"
         v-if="icon"
-        class="size-7"
+        :class="kit('size-7')"
         :stroke-width="ICON_STROKE_WIDTH"
         aria-hidden="true"
         focusable="false"
       />
       <svg
         v-else
-        class="size-7"
+        :class="kit('size-7')"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

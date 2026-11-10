@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useEldraScope } from '../../composables/useEldraScope';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import type { MultiSelectPart, SelectOption } from './types';
 
@@ -136,7 +135,7 @@ const tagRemoveClass = computed(() => part(SELECT_TAG_REMOVE_BUTTON, 'tagRemove'
         :class="tagClass(option)"
       >
         <slot name="tag" :option="option" :remove="() => emit('deselect', option.value)">
-          <span class="min-w-0 truncate">{{ option.label }}</span>
+          <span :class="kit('min-w-0 truncate')">{{ option.label }}</span>
         </slot>
         <button
           v-if="removable && !option.disabled"
@@ -149,7 +148,7 @@ const tagRemoveClass = computed(() => part(SELECT_TAG_REMOVE_BUTTON, 'tagRemove'
         >
           <!-- Tabler's `x` at 0.875rem. Decorative: the button is named above. -->
           <svg
-            class="size-3.5"
+            :class="kit('size-3.5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

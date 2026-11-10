@@ -21,11 +21,11 @@
  * dragging it — a press is a drag of no distance — and the two thumbs' own (deliberately
  * overlapping, 44px) targets can never argue about which one a press belongs to.
  */
-import { computed, ref, watch, watchEffect } from 'vue';
+import { ref, watch, watchEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';

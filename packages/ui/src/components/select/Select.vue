@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
+import { inject, nextTick, ref, useAttrs, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import Icon from '../icon/Icon.vue';
@@ -557,11 +557,15 @@ const emptyText = computed(() =>
         :class="leadingIconClass"
       >
         <slot name="leading" :option="selectedOption" :open="isOpen">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: kit('size-4.5') }" />
         </slot>
       </span>
 
-      <span v-if="selectedOption" :class="TRIGGER_VALUE_STACK" :data-placeholder="placeholderText">
+      <span
+        v-if="selectedOption"
+        :class="kit(TRIGGER_VALUE_STACK)"
+        :data-placeholder="placeholderText"
+      >
         <span :data-eldra-slot="eldra.slotHost('value')" data-part="value" :class="valueClass">
           <slot name="value" :option="selectedOption">
             <span
@@ -577,7 +581,7 @@ const emptyText = computed(() =>
               :icon="selectedOption.icon"
               :classes="{ root: triggerIconClass }"
             />
-            <span class="min-w-0 flex-1 truncate">{{ selectedOption.label }}</span>
+            <span :class="kit('min-w-0 flex-1 truncate')">{{ selectedOption.label }}</span>
           </slot>
         </span>
       </span>
@@ -587,7 +591,7 @@ const emptyText = computed(() =>
       <span v-if="!readonly" data-part="chevron" :class="chevronClass" aria-hidden="true">
         <!-- Tabler's `chevron-down`, stroke 1.75. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -613,7 +617,7 @@ const emptyText = computed(() =>
     >
       <!-- Tabler's `x` at 1rem. Decorative: the button is named by its label. -->
       <svg
-        class="size-4"
+        :class="kit('size-4')"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

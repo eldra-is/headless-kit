@@ -20,14 +20,21 @@
  *    subject narrowed with `:where(:scope, :scope *)` so the scope root itself matches (a scoped
  *    rule is otherwise relative to the root, matching only its descendants). Consumer content in a
  *    slot host is below the limit and never matched.
- * 4. Layers. The output is unlayered, so it beats a consumer's layered preflight. Layers are
+ * 4. Layers. The output is unlayered, so it beats a consumer's layered preflight; a consumer whose
+ *    own classes must win imports it `layer(components)` instead, which the prefix in 5 makes safe.
+ *    Layers are
  *    flattened in their declared order (properties, theme, base, components, utilities, then
  *    unlayered rules) and every layer below the last has its selectors wrapped in `:where()`, so
  *    a later layer still wins whatever the specificity. What that cannot reproduce fails the
  *    build: an `!important` in a lower layer on a property a higher layer also sets `!important`
  *    (layers reverse for important), an unlayered rule less specific than a top-layer rule on the
  *    same property, a nested or anonymous layer, a layer inside a conditional rule.
- * 5. Hoisting. `@property`, `@keyframes` and `@font-face` move to the top level ahead of the
+ * 5. Class names. Every class selector is renamed `eldra:<name>`, the name each component renders
+ *    below `provideEldraScope()` (`src/utils/scopedClass.ts`), so a consumer Tailwind build's own
+ *    utilities can never match a kit element and the sheet can sit in a layer below them
+ *    (`@import '@eldrajs/ui/scoped.css' layer(components)`). `group`/`peer` markers keep their
+ *    names: they carry no style, and a consumer's own `group/section` drives the section variants.
+ * 6. Hoisting. `@property`, `@keyframes` and `@font-face` move to the top level ahead of the
  *    scope; one inside a conditional rule fails the build, as does any at-rule this does not know.
  *
  * @param {string} css the compiled `dist/components.css`
@@ -52,6 +59,18 @@ const LEGACY_PSEUDO_ELEMENTS = new Set([':before', ':after', ':first-line', ':fi
 const fail = (message) => {
   throw new Error(`scoped.css: ${message}`);
 };
+
+export const KIT_CLASS_PREFIX = 'eldra:';
+const isMarker = (name) => /^(group|peer)(\/|$)/.test(name);
+
+/** Renames every class in a selector, `:where()`/`:is()`/`:not()`/`:has()` arguments included. */
+export function prefixClasses(selector) {
+  return selectorParser((root) =>
+    root.walkClasses((node) => {
+      if (!isMarker(node.value)) node.value = `${KIT_CLASS_PREFIX}${node.value}`;
+    })
+  ).processSync(selector);
+}
 
 export const privateProperty = (name) =>
   name.startsWith('--eldra-') || name.startsWith('--tw-') ? name : `--eldra-tw-${name.slice(2)}`;
@@ -231,7 +250,7 @@ export function scopeCss(css) {
   scoped.forEach((nodes, index) => {
     const lower = index < top;
     for (const rule of styleRules(nodes))
-      rule.selectors = rule.selectors.map((s) => scopeSelector(s, lower));
+      rule.selectors = rule.selectors.map((s) => scopeSelector(prefixClasses(s), lower));
   });
   const roots = rootRules.flatMap((node) => {
     const split = (rule) => {

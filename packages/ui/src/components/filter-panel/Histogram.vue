@@ -15,8 +15,8 @@
  * the whole information, and a catalogue whose busiest bucket holds 8% of the products would
  * otherwise draw twenty-four flat lines.
  */
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { histogramBarInRange } from './useFilterPanel';
 import type { FilterPanelPart } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import {
@@ -410,7 +409,7 @@ const srStatusText = computed(() => (isRevalidating.value ? messages.value.updat
             :class="compareAtValueClass"
             :text="formattedCompareAt" /></s></template
       ><span v-if="isRevalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true"
-        ><Spinner class="absolute start-[0.25em] top-0 size-[1em]" /></span
+        ><Spinner :class="kit('absolute start-[0.25em] top-0 size-[1em]')" /></span
       ><template v-if="unitPrice"
         >{{ ' ' }}<span data-part="unit" :class="unitClass">{{ formattedUnitLine }}</span></template
       >

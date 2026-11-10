@@ -129,8 +129,11 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
   `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
   enforced by `src/__tests__/eldraUiMarker.spec.ts`), and `./scoped.css` (`components.css` with its
-  theme as `--eldra-tw-*` and every rule in `@scope ([data-eldra-scope])`, stopping at slot content;
-  `scripts/scoped-css.mjs`, for embedding beside another Tailwind app). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  theme as `--eldra-tw-*`, every class as `eldra:*` and every rule in `@scope ([data-eldra-scope])`,
+  stopping at slot content; `scripts/scoped-css.mjs`, for embedding beside another Tailwind app, imported
+  `layer(components)`). Components build classes with `src/utils/scopedClass.ts` (`cx`, `partClass`, `kit`,
+  `computed`), never the public `cx`, so they render `eldra:*` below `provideEldraScope()`; a static template
+  `class` is `:class="kit('…')"`. `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving

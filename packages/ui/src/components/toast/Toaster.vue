@@ -24,11 +24,11 @@
  * particular toasts. The spec does not describe cross-variant ordering in enough detail to rule
  * this out, and getting it exactly right would mean nesting the two live regions after all.
  */
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { TOAST_HOST_KEY } from '../../composables/dialogStack';
 import { useMessages } from '../../composables/useMessages';
 import { useToast } from '../../composables/useToast';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import Toast from './Toast.vue';
 import type { ToasterPosition, ToasterProps, ToasterToast } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

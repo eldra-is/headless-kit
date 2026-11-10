@@ -18,6 +18,7 @@
   rather than at each call site.
 -->
 <script setup lang="ts">
+import { kit } from '../../utils/scopedClass';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -27,7 +28,7 @@ const eldra = useEldraScope();
   <svg
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
-    class="animate-eldra-spin motion-reduce:animate-eldra-pulse"
+    :class="kit('animate-eldra-spin motion-reduce:animate-eldra-pulse')"
     viewBox="0 0 18 18"
     fill="none"
     aria-hidden="true"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Comment, Fragment, Text, computed, inject, useSlots, watchEffect, type VNode } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { Comment, Fragment, Text, inject, useSlots, watchEffect, type VNode } from 'vue';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { FORM_SUBMITTING_KEY } from '../form-layout/context';
 import Icon from '../icon/Icon.vue';
 import Spinner from '../spinner/Spinner.vue';
@@ -507,7 +507,7 @@ const linkTabindex = computed(() => (isInertLink.value ? '-1' : undefined));
     v-on="rootListeners"
   >
     <span v-if="isInlineSpinner" data-part="spinner" :class="spinnerClass">
-      <Spinner class="size-4.5" />
+      <Spinner :class="kit('size-4.5')" />
     </span>
     <span
       v-if="hasLeading"
@@ -541,7 +541,7 @@ const linkTabindex = computed(() => (isInertLink.value ? '-1' : undefined));
       <!-- 1.125rem circle, 2px stroke in the label colour, one turn every 700ms; with reduced
            motion it pulses at 60-100% opacity instead (spec "Behaviour & motion"). The shape
            itself is `Spinner.vue`, shared with `LoadMore`, `Price` and `StockBadge`. -->
-      <Spinner class="size-4.5" />
+      <Spinner :class="kit('size-4.5')" />
     </span>
   </component>
 </template>

@@ -1,6 +1,5 @@
 import type { ReferenceElement } from '@floating-ui/vue';
 import {
-  computed,
   onBeforeUnmount,
   ref,
   watch,
@@ -8,6 +7,7 @@ import {
   type MaybeRefOrGetter,
   type Ref,
 } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useTeleportTarget } from '../../composables/teleportTarget';
 import { OVERLAY_OWNER_ATTRIBUTE, useOverlay } from '../../composables/useOverlay';

@@ -1,4 +1,5 @@
-import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
+import { toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
+import { computed } from '../utils/scopedComputed';
 
 /**
  * The heading levels a component's own title can take under whatever heading its surrounding

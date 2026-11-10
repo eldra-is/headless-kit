@@ -16,9 +16,9 @@
  * checked"). The check mark's own ink is picked from the swatch's relative luminance by
  * `swatchInk.ts`, which is the only way a mark can stay visible on a colour nobody chose.
  */
-import { computed } from 'vue';
+
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
+import { computed, cx, partClass, kit } from '../../../utils/scopedClass';
 import { swatchInk } from '../swatchInk';
 import { isValueDisabled, isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
@@ -211,7 +211,7 @@ const valuesClass = computed(() =>
            shape a keyboard user can actually see. -->
       <input
         type="checkbox"
-        :class="CONTROL"
+        :class="kit(CONTROL)"
         :value="value.value"
         :checked="selected(value)"
         :disabled="disabled(value)"

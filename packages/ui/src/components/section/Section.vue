@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, provide, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { inject, provide, watchEffect } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { SECTION_KEY } from './context';
 import type { SectionBackground, SectionProps, SectionSpacing } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';

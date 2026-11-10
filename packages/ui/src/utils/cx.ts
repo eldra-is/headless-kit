@@ -381,10 +381,18 @@ function flattenClassValue(input: unknown, out: string[]): void {
  * component's `px-4` instead of landing beside it and losing to source order.
  */
 export function cx(...inputs: ClassValue[]): string {
+  return twMerge(flattenClasses(inputs).join(' '));
+}
+
+/** Internal (not exported from the package): the class strings `cx` would merge, unmerged. */
+export function flattenClasses(inputs: readonly unknown[]): string[] {
   const parts: string[] = [];
   for (const input of inputs) flattenClassValue(input, parts);
-  return twMerge(parts.join(' '));
+  return parts;
 }
+
+/** Internal: `cx`'s conflict resolution over one space-separated list. */
+export const mergeClassList = (classes: string): string => twMerge(classes);
 
 /**
  * The name of the component whose render is currently running, for a dev
@@ -424,7 +432,7 @@ const warnedArrayParts = new Set<string>();
  * nothing at runtime: this is a wrong-shape-of-prop mistake a developer fixes
  * once, never a condition a visitor's browser should spend anything on.
  */
-function warnArrayClassesValue(part: string): void {
+export function warnArrayClassesValue(part: string): void {
   if (!import.meta.env?.DEV) return;
   const component = currentComponentName();
   const key = `${component}.${part}`;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useSlots } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { nextTick, ref, useSlots } from 'vue';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import {
   HINT,
   INPUT,

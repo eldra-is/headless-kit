@@ -20,7 +20,8 @@
  * and forwarded whenever the parent bound it at all: `<CurrencyInput v-model="price" />` with
  * `price` starting `undefined` stays controlled, and reconciles to whatever the parent writes back.
  */
-import { computed, getCurrentInstance } from 'vue';
+import { getCurrentInstance } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 import UnitInput from '../unit-input/UnitInput.vue';
 import type { CurrencyInputProps } from './types';
 

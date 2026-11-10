@@ -1,4 +1,5 @@
-import { computed, ref, watch, type ComputedRef, type Ref } from 'vue';
+import { ref, watch, type ComputedRef, type Ref } from 'vue';
+import { computed } from '../../utils/scopedComputed';
 
 /**
  * The room an absolutely positioned prefix or suffix row needs on a text field.

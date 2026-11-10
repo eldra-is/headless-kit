@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
@@ -156,7 +155,7 @@ const srStatusText = computed(() => (props.revalidating ? messages.value.updatin
       ><ValueText data-part="labelValue" :class="labelValueClass" :text="text"
     /></span>
     <span v-if="revalidating" data-part="spinner" :class="spinnerClass" aria-hidden="true">
-      <Spinner class="absolute start-[0.25em] top-0 size-[1em]" />
+      <Spinner :class="kit('absolute start-[0.25em] top-0 size-[1em]')" />
     </span>
     <span v-if="announce" data-part="srStatus" :class="srStatusClass" aria-live="polite">{{
       srStatusText

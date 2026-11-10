@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
+import { watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import Avatar from './Avatar.vue';
 import type { AvatarGroupProps } from './types';

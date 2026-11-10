@@ -9,11 +9,11 @@
  * the full contract. This file only draws the anatomy and wires the three events a consumer needs
  * (`update:modelValue`, `cancel`, `close`).
  */
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import type { DialogProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -264,7 +264,7 @@ const footerClass = computed(() =>
         >
           <!-- Tabler's `x`, 1.75 stroke, matching Select's own clear button. -->
           <svg
-            class="size-4"
+            :class="kit('size-4')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

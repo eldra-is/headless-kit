@@ -25,11 +25,11 @@
  * thresholds, which values are disabled — is a pure function in `useFilterPanel.ts`, and the check
  * mark's ink is `swatchInk.ts`. This file is the markup and the focus management.
  */
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Chip from '../chip/Chip.vue';
@@ -335,7 +335,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
         :key="`${chip.facetId}:${chip.value}`"
         :ref="(el) => (chipEls[index] = el as HTMLElement | null)"
         data-part="chip"
-        class="min-w-0"
+        :class="kit('min-w-0')"
       >
         <!-- `data-part` goes on the `<li>`, not on `<Chip>`: Vue applies fallthrough attributes
              after a child's own template bindings, so a bare `data-part` here would *replace*
@@ -452,7 +452,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
           variant="primary"
           type="button"
           block
-          :classes="FOOT_APPLY_CLASSES"
+          :classes="{ label: kit(FOOT_APPLY_CLASSES.label) }"
           @click="onApply"
         >
           {{

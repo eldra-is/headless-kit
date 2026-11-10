@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import type { PaginationProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -281,11 +280,11 @@ const compactStatusParts = computed(() =>
         <span
           v-if="prevDisabled"
           data-part="prev"
-          :class="prevNextDisabledClass"
+          :class="kit(prevNextDisabledClass)"
           aria-disabled="true"
         >
           <svg
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -309,7 +308,7 @@ const compactStatusParts = computed(() =>
           @click="onActivate(page - 1)"
         >
           <svg
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -364,12 +363,12 @@ const compactStatusParts = computed(() =>
         <span
           v-if="nextDisabled"
           data-part="next"
-          :class="prevNextDisabledClass"
+          :class="kit(prevNextDisabledClass)"
           aria-disabled="true"
         >
           <span>{{ m.nextPage }}</span>
           <svg
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -393,7 +392,7 @@ const compactStatusParts = computed(() =>
         >
           <span>{{ m.nextPage }}</span>
           <svg
-            class="size-4 shrink-0"
+            :class="kit('size-4 shrink-0')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -413,11 +412,11 @@ const compactStatusParts = computed(() =>
       <span
         v-if="prevDisabled"
         data-part="prev"
-        :class="compactArrowDisabledClass"
+        :class="kit(compactArrowDisabledClass)"
         aria-disabled="true"
       >
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -441,7 +440,7 @@ const compactStatusParts = computed(() =>
         @click="onActivate(page - 1)"
       >
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -455,7 +454,7 @@ const compactStatusParts = computed(() =>
         </svg>
       </component>
 
-      <span :class="compactStatusClass"
+      <span :class="kit(compactStatusClass)"
         ><template v-for="(part, index) in compactStatusParts" :key="index"
           ><strong v-if="part.bold">{{ part.text }}</strong
           ><template v-else>{{ part.text }}</template></template
@@ -465,11 +464,11 @@ const compactStatusParts = computed(() =>
       <span
         v-if="nextDisabled"
         data-part="next"
-        :class="compactArrowDisabledClass"
+        :class="kit(compactArrowDisabledClass)"
         aria-disabled="true"
       >
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -493,7 +492,7 @@ const compactStatusParts = computed(() =>
         @click="onActivate(page + 1)"
       >
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

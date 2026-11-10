@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useAttrs, useSlots, watch, watchPostEffect } from 'vue';
+import { inject, nextTick, ref, useAttrs, useSlots, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { joinIds, useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
@@ -616,7 +616,7 @@ const fieldClass = computed(() =>
         ),
         'field'
       )
-    : 'relative'
+    : kit('relative')
 );
 
 /** Inside, the trigger: under the tags across the field, or the placeholder's row with none. */
@@ -751,7 +751,7 @@ const emptyText = computed(() =>
         :class="leadingIconClass"
       >
         <slot name="leading" :options="selectedOptions" :open="isOpen">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: kit('size-4.5') }" />
         </slot>
       </span>
       <SelectTags
@@ -806,7 +806,7 @@ const emptyText = computed(() =>
           :class="leadingIconClass"
         >
           <slot name="leading" :options="selectedOptions" :open="isOpen">
-            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: kit('size-4.5') }" />
           </slot>
         </span>
 
@@ -817,7 +817,7 @@ const emptyText = computed(() =>
         </template>
         <span
           v-else-if="hasSelection"
-          :class="TRIGGER_VALUE_STACK"
+          :class="kit(TRIGGER_VALUE_STACK)"
           :data-placeholder="placeholderText"
         >
           <span
@@ -827,7 +827,7 @@ const emptyText = computed(() =>
             :class="summaryClass"
           >
             <slot name="value" :options="selectedOptions">
-              <span v-if="summaryText" class="min-w-0 truncate">{{ summaryText }}</span>
+              <span v-if="summaryText" :class="kit('min-w-0 truncate')">{{ summaryText }}</span>
               <span v-if="moreCount > 0" data-part="summaryMore" :class="summaryMoreClass">
                 {{ m.moreSelected(moreCount) }}
               </span>
@@ -838,9 +838,9 @@ const emptyText = computed(() =>
             v-if="fitsSummary && summaryFit.mounted.value"
             aria-hidden="true"
             inert
-            :class="SUMMARY_MEASURE"
+            :class="kit(SUMMARY_MEASURE)"
           >
-            <span ref="summaryRunRef" class="whitespace-nowrap"
+            <span ref="summaryRunRef" :class="kit('whitespace-nowrap')"
               ><span v-for="(option, index) in selectedOptions" :key="option.value" data-label
                 >{{ index ? ', ' : '' }}{{ option.label }}</span
               ></span
@@ -861,7 +861,7 @@ const emptyText = computed(() =>
         >
           <!-- Tabler's `chevron-down`, stroke 1.75. -->
           <svg
-            class="size-4.5"
+            :class="kit('size-4.5')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -882,7 +882,7 @@ const emptyText = computed(() =>
       >
         <!-- Tabler's `chevron-down`, stroke 1.75. -->
         <svg
-          class="size-4.5"
+          :class="kit('size-4.5')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -914,7 +914,7 @@ const emptyText = computed(() =>
       >
         <!-- Tabler's `x` at 1rem. Decorative: the button is named by its label. -->
         <svg
-          class="size-4"
+          :class="kit('size-4')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

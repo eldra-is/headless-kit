@@ -9,7 +9,8 @@ import {
   type Placement,
   type ReferenceElement,
 } from '@floating-ui/vue';
-import { computed, ref, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue';
+import { ref, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue';
+import { computed } from '../utils/scopedComputed';
 
 /**
  * Where the panel goes.

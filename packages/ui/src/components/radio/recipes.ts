@@ -1,4 +1,4 @@
-import { cx } from '../../utils/cx';
+import { cx } from '../../utils/scopedClass';
 import type { RadioGroupSize } from './types';
 
 /**

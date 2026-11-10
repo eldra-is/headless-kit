@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, useAttrs, useId, watchEffect, type StyleValue } from 'vue';
+import { useAttrs, useId, watchEffect, type StyleValue } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass, type ClassValue } from '../../utils/cx';
+import { computed, cx, partClass, type ClassValue, kit } from '../../utils/scopedClass';
 import { frameAspectRatio } from '../../utils/ratio';
 import { scopeSizes, zoomSizes } from '../../utils/sizes';
 import type { ImageCrop, ImageProps } from './types';
@@ -296,7 +296,7 @@ const skeletonClass = computed(() =>
         :aria-label="decorative ? undefined : messages.noImageAvailable"
       >
         <svg
-          class="size-8"
+          :class="kit('size-8')"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

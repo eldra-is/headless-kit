@@ -15,11 +15,11 @@
  * file only draws the anatomy, the per-side slide and full-screen mobile variant, and the one
  * behaviour `Dialog` does not need: which control gets initial focus differs by `side` (below).
  */
-import { computed, ref, useSlots } from 'vue';
+import { ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass, kit } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import type { DrawerProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -268,7 +268,7 @@ const footerClass = computed(() =>
   >
     <div data-part="panel" :class="panelClass" :style="panelStyle">
       <div data-part="header" :class="headerClass">
-        <div :data-eldra-slot="eldra.slotHost('header')" :class="titleAreaClass">
+        <div :data-eldra-slot="eldra.slotHost('header')" :class="kit(titleAreaClass)">
           <h2
             v-if="title"
             :data-eldra-scope="eldra.scope"
@@ -291,7 +291,7 @@ const footerClass = computed(() =>
         >
           <!-- Tabler's `x`, 1.75 stroke, matching Dialog's own close button. -->
           <svg
-            class="size-4"
+            :class="kit('size-4')"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue';
+import { type Component } from 'vue';
 import type { UiMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {

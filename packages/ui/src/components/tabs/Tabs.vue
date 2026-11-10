@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, provide, ref } from 'vue';
+import { provide, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { computed, cx, partClass } from '../../utils/scopedClass';
 import { useUiId } from '../../utils/id';
 import { TABS_KEY, type TabsContext, type TabsEntry } from './context';
 import Tab from './Tab.vue';
