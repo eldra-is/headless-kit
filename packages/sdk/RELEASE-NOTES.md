@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.1...sdk-v0.4.2) (2026-11-10)
+
+
+### Features
+
+* **sdk:** typed product custom fields and the ext filter (WS-434) ([#114](https://github.com/eldra-is/headless-kit/issues/114)) ([d9d885b](https://github.com/eldra-is/headless-kit/commit/d9d885bbbbb8e12895c881aa1b6974b6b5b8aa40))
+
 ## [0.4.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.0...sdk-v0.4.1) (2026-11-09)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.5](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.4...theme-cli-v0.2.5) (2026-11-10)
+
+
+### Features
+
+* **sdk:** typed product custom fields and the ext filter (WS-434) ([#114](https://github.com/eldra-is/headless-kit/issues/114)) ([d9d885b](https://github.com/eldra-is/headless-kit/commit/d9d885bbbbb8e12895c881aa1b6974b6b5b8aa40))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.4
+    * @eldrajs/vite-plugin-theme bumped to 0.3.4
+
 ## [0.2.4](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.3...theme-cli-v0.2.4) (2026-11-09)
 
 
