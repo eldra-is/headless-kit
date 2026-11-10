@@ -170,7 +170,7 @@ const optionsClass = computed(() => [
  */
 const CARD_OPTION =
   'eldra:group eldra:relative eldra:grid eldra:w-full eldra:grid-cols-[auto_1fr_auto] eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 ' +
-  'eldra:min-h-14 eldra:rounded-md eldra:px-4 eldra:py-3 eldra:eldra-radio-card-border';
+  'eldra:min-h-14 eldra:rounded-md eldra:px-4 eldra:py-3 eldra:eldra-radio-card-border eldra:eldra-transition-colors';
 
 const CARD_UNSELECTED = 'eldra:bg-background eldra:border-border-strong eldra:hover:border-text';
 const CARD_SELECTED = 'eldra:bg-surface eldra:border-primary eldra:eldra-radio-card-selected';

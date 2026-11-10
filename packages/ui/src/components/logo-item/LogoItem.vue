@@ -120,7 +120,7 @@ const imageClass = computed(() => [
  */
 const wordmarkClass = computed(() => [
   'eldra:text-logo-wordmark eldra:text-balance eldra:text-muted',
-  'eldra:transition-colors eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+  'eldra:eldra-transition-colors',
   hasHref.value && 'eldra:group-hover:text-text',
   props.classes?.wordmark,
 ]);

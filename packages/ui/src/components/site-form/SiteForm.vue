@@ -172,7 +172,7 @@ const consentUnderButton = computed(
   () => Boolean(form.value?.consentText) && layout.value !== 'inline'
 );
 const submitClass = computed(() => [
-  consentUnderButton.value && 'eldra:@two-col:justify-self-end',
+  consentUnderButton.value && 'eldra:w-full eldra:@two-col:w-fit eldra:@two-col:justify-self-end',
   props.classes?.submit,
 ]);
 const successClass = computed(() => [

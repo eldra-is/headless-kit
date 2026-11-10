@@ -216,7 +216,7 @@ const titleClass = computed(() => [
  */
 const linkClass = computed(() => [
   'eldra:text-text eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
-  'eldra:hover:decoration-2 eldra:hover:decoration-current',
+  'eldra:hover:decoration-2 eldra:hover:decoration-current eldra:eldra-transition-colors',
   STRETCHED_LINK,
   STRETCHED_LINK_OUTLINE,
   props.classes?.link,

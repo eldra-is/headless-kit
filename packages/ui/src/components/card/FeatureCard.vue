@@ -96,7 +96,7 @@ const titleClass = computed(() => ['eldra:text-h4 eldra:text-text', props.classe
  * why `group-hover:decoration-2`/`outline-none` are written this way. */
 const titleLinkClass = computed(() => [
   'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
-  'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current',
+  'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current eldra:eldra-transition-colors',
   STRETCHED_LINK,
   STRETCHED_LINK_OUTLINE,
   props.classes?.titleLink,

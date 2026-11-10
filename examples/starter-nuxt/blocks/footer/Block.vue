@@ -559,6 +559,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                   <Button
                     type="submit"
                     variant="primary"
+                    block
                     :label="t('footer.subscribing')"
                     :aria-describedby="consentSentence ? consentSentenceId : undefined"
                     >{{ t('footer.subscribe') }}</Button

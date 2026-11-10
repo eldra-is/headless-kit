@@ -64,6 +64,8 @@ const meta = {
           'all: the animation is gone with the transition, and an instant 2% jump is still motion.',
           '',
           '**CSS variables**: `--eldra-button-radius` (default `var(--eldra-radius-md)`),',
+          '`--eldra-button-border-width` (default `1px`; the height stays the same, and an attached',
+          '`ButtonGroup` overlaps its buttons by the same width),',
           '`--eldra-button-line-height` (default `1.2`) and `--eldra-button-font-size-lg` (default',
           '`1.0625rem`, the one button size with no type token of its own). Set them on any',
           'ancestor. Everything else — colours, heights, padding, motion — comes from the',
