@@ -6,6 +6,8 @@ import type {
   EldraCart,
   EldraCartTotals,
   EldraContractResponse,
+  EldraProductDetails,
+  EldraProductExtensions,
   EldraProductListItem,
 } from '../../index';
 import type { paths } from '../fixtures/contract';
@@ -16,6 +18,12 @@ import type { paths } from '../fixtures/contract';
 declare module '../../index' {
   interface EldraContract {
     paths: paths;
+  }
+
+  // What the CMS types the Vite plugin writes add for a schema `clothing` that extends products:
+  // `interface EldraProductExtensions extends EldraCMSProductExtensions {}`.
+  interface EldraProductExtensions {
+    clothing?: { material?: string; careInstructions?: string[] };
   }
 }
 
@@ -48,5 +56,23 @@ describe('eldra sdk with generated contract types', () => {
   it('exposes request and response shapes for any path', () => {
     type Order = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
     expectTypeOf<Order['id']>().toEqualTypeOf<string>();
+  });
+
+  it('types product extensions through the registry, not the contract', () => {
+    expectTypeOf<EldraProductDetails['extensions']>().toEqualTypeOf<
+      EldraProductExtensions | undefined
+    >();
+    expectTypeOf<EldraProductDetails['title']>().toEqualTypeOf<string>();
+    expectTypeOf<EldraProductDetails['slug']>().toEqualTypeOf<string>();
+
+    const product = {} as EldraProductDetails;
+    expectTypeOf(product.extensions?.clothing?.material).toEqualTypeOf<string | undefined>();
+    expectTypeOf(product.extensions?.clothing?.careInstructions).toEqualTypeOf<
+      string[] | undefined
+    >();
+    // @ts-expect-error a schema that does not extend products has no key
+    void product.extensions?.jewellery;
+    // @ts-expect-error a field the schema does not have
+    void product.extensions?.clothing?.colour;
   });
 });

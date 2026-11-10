@@ -783,5 +783,13 @@ describe('createEldraClient', () => {
     expect(u.pathname).toBe('/cms/v1/typescript-definitions');
     expect(u.searchParams.get('schemas')).toBe('page,hero');
     expect(u.searchParams.get('moduleName')).toBe('Eldra');
+    expect(u.searchParams.has('sdkAugmentation')).toBe(false);
+  });
+
+  it('asks for the SDK augmentation only when sdkAugmentation is set', async () => {
+    fetchMock.mockResolvedValue(new Response('export interface CMSPage {}', { status: 200 }));
+    await client().getTypeScriptDefinitions({ sdkAugmentation: true });
+    const u = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(u.searchParams.get('sdkAugmentation')).toBe('true');
   });
 });

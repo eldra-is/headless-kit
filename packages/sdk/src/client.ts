@@ -849,8 +849,8 @@ function buildUrl(apiBaseUrl: string, path: string, query: object | undefined): 
  * `filter` has to be in here — a filter token is `[groupIndex:]field:op:value`
  * whose value may itself contain commas (`slug:in:a,b`), so joining several
  * tokens into one parameter runs them together and every token after the first
- * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`
- * on `GET /catalog/v1/products/list` and
+ * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`,
+ * `ext` on `GET /catalog/v1/products/list` and
  * `GET /catalog/v1/collections/{slug}/products`) are declared the same way, and
  * each is an OR over its values: comma-joined, `categoryId=a,b` is one id the
  * catalogue has never heard of, so a shopper ticking two categories would see
@@ -861,6 +861,7 @@ const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set([
   'categoryId',
   'collectionId',
   'option',
+  'ext',
 ]);
 
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: unknown): void {

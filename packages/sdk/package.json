@@ -67,7 +67,7 @@
   },
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.generated.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.generated.json && tsc -p tsconfig.generated-bare.json",
     "test": "vitest run",
     "fixture": "node scripts/fixture.mjs",
     "format-data": "node scripts/extract-format-data.mjs",

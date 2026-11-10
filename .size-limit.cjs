@@ -19,11 +19,12 @@ module.exports = [
     limit: '1 kB',
   },
   // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
-  // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport.
+  // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport. Raised again
+  // from 5.2 kB when the product list took the custom field filter `ext`.
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '5.2 kB',
+    limit: '5.25 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

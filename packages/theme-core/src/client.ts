@@ -181,6 +181,7 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
       if (tsOpts?.schemas?.length) url.searchParams.set('schemas', tsOpts.schemas.join(','));
       if (tsOpts?.maxDepth !== undefined) url.searchParams.set('maxDepth', String(tsOpts.maxDepth));
       if (tsOpts?.moduleName !== undefined) url.searchParams.set('moduleName', tsOpts.moduleName);
+      if (tsOpts?.sdkAugmentation) url.searchParams.set('sdkAugmentation', 'true');
       const res = await request(url);
       return await res.text();
     },
