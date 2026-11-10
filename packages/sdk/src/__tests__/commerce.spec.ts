@@ -408,6 +408,29 @@ describe('eldra sdk inventory and catalog extras', () => {
     ]);
   });
 
+  /**
+   * `ext` (product custom fields, contract 6.1.0) is declared `explode: true` like `option`: each
+   * token is `<schemaApiId>.<fieldId>:<value>`, and a comma-joined pair would reach the gateway as
+   * one token whose value is `wool,care.size:m`, which matches nothing.
+   */
+  it('repeats the ext custom-field filter rather than comma-joining it', async () => {
+    const { client, requests } = recording({ data: [], meta: {} });
+
+    await client.catalog.listProducts({ ext: ['care.fabric:wool', 'care.size:m'] });
+    await client.catalog.listCollectionProducts('the-winter-edit', {
+      ext: ['care.fabric:wool', 'care.washable:true'],
+    });
+
+    expect(new URL(requests[0].url).searchParams.getAll('ext')).toEqual([
+      'care.fabric:wool',
+      'care.size:m',
+    ]);
+    expect(new URL(requests[1].url).searchParams.getAll('ext')).toEqual([
+      'care.fabric:wool',
+      'care.washable:true',
+    ]);
+  });
+
   it('normalises a null category list and searches with q', async () => {
     const { client, requests } = recording(null);
 
