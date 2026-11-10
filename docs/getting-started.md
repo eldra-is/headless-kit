@@ -162,6 +162,23 @@ in that case stays usable either way. The read takes no organisation header (the
 organisation-independent) and is shared by every caller of one client, so its only per-call option
 is a `signal` that abandons your own wait.
 
+## Addresses Eldra links to
+
+Eldra's emails link into your storefront: a campaign may link to a product, collection, category or
+page, and its product cards link to each product. Eldra builds those links from the storefront
+address set in Studio (Settings, Your sites) and this convention, so serve these routes:
+
+| Item       | Path                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- |
+| Product    | `/products/<slug>`                                                                    |
+| Collection | `/collections/<slug>`                                                                 |
+| Category   | `/categories/<path>`: the slugs from the top category down, `/categories/men/jackets` |
+| Page       | `/<slug>`, after its parents' slugs when it has a parent: `/about`, `/about/team`     |
+
+A page is an entry of the organisation's `page` content type: its `slug`, and its `parent` when it
+has one. A site deployed through Eldra as a theme follows its route templates instead
+([themes](themes.md)).
+
 ## Generated types
 
 The SDK ships with no response types. They come from **your gateway**, generated into your project
