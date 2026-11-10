@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.9...ui-v0.3.0) (2026-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ui:** component classes are `eldra:`-prefixed, `tailwind.css` no longer builds the components (import `components.css` beside it), and `@eldrajs/ui/scoped.css` is removed.
+
+### Features
+
+* **ui:** button border width, content-width buttons and softer colour transitions ([#117](https://github.com/eldra-is/headless-kit/issues/117)) ([9faf3bd](https://github.com/eldra-is/headless-kit/commit/9faf3bd6fe6dab1c441d4cf486401ddb6f4e052a))
+* **ui:** ship the components prebuilt with eldra:-prefixed classes ([#119](https://github.com/eldra-is/headless-kit/issues/119)) ([f8b3d93](https://github.com/eldra-is/headless-kit/commit/f8b3d9373ad5d6de72cc1c8b2a06eeb876a09b68))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.2
+
 ## [0.2.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.8...ui-v0.2.9) (2026-11-09)
 
 
