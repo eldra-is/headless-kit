@@ -849,7 +849,14 @@ function tabValue(index: number): string {
           @submit="submitNotify"
         >
           <FieldWrapper :label="t('product.notifyEmail')" :error="notifyError ?? undefined">
-            <Input v-model="notifyEmail" type="email" name="email" autocomplete="email" required />
+            <Input
+              v-model="notifyEmail"
+              type="email"
+              name="email"
+              autocomplete="email"
+              required
+              autofocus
+            />
           </FieldWrapper>
           <template #actions>
             <Button type="submit" variant="primary" :label="t('product.notifySubmit')">

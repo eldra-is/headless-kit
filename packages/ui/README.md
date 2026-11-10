@@ -241,14 +241,14 @@ Every component supports all five of these; none hard-codes anything a store mig
    fails the build if `src/componentNames.ts` gains a name this table has not. "None" means the
    component reads only the shared tokens from layer 1 above, with no CSS variable of its own.
 
-   One variable in that list is **derived, not a knob**: `--eldra-field-invalid-radius` is declared
-   by the `eldra-field-invalid` utility on the field root that carries it (every control with the
-   2px error boundary — `Input`, `UnitInput`, `Select`, `MultiSelect`, `Textarea`, `SearchBar`) as
-   `var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md)))`, so the inset
-   error line can round to the field's own corner minus the border width. It exists because a
-   two-deep `var()` fallback written inline inside a `calc()` makes every consumer's PostCSS print a
-   parse warning — see the Deviations entry. Setting it from outside does nothing, because the
-   utility declares it on the same element: change the radius it reads instead.
+   Four variables are **derived, not knobs**: `--eldra-focus-rest-width`, `-color` and `-forced`
+   are declared by the `eldra-field-invalid` utility on the control that carries the 2px error
+   boundary (`Input`, `UnitInput`, `Select`, `MultiSelect`, `Textarea`, `SearchBar`), from
+   `--eldra-field-border-width` and `--eldra-color-danger`, and `--eldra-focus-rest-offset` (0px)
+   is the resting band's offset on every control; the focus ring reads all four (see the
+   Deviations entries on the ring and the error line). They do not inherit. Set
+   `--eldra-field-border-width`, `--eldra-color-danger` and the ring's own `--eldra-focus-width` /
+   `--eldra-focus-offset` instead.
 
 3. **A `classes` prop**, typed `Partial<Record<Part, string>>` where `Part` is the union of that
    component's `data-part` names from the design spec's anatomy (`container`, `label`,
@@ -652,7 +652,7 @@ spec's own non-negotiable 2):
   tree, and `provide`/`inject` cannot connect two siblings, so the hand-off is a plain shared
   reference both sides read and write, exactly the same reasoning `usePopover`'s `topLayerDialog()`
   already uses to teleport a panel into a dialog it did not render;
-- **initial focus** — `initialFocus`, else a reachable `[autofocus]` control, else the first focusable that is not `[data-part="close"]`
+- **initial focus** — `initialFocus`, else a reachable `[autofocus]` control, else (with `focusFirstControl: false`, which `Dialog` sets, the dialog itself) the first focusable that is not `[data-part="close"]`
   (this package's own "every part carries `data-part`" convention doubling as the composable's
   exclusion rule, so any modal built on this contract needs no second constant to stay in sync),
   else the close button itself, applied a tick after `showModal()` so slot content mounted alongside
@@ -1992,25 +1992,43 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   in sync and closing fades the ring back out over the transition `eldra-focus` already owns. The
   `SearchBar` never needed it: its trigger is a text field, and text fields carry
   `eldra-focus-always`.
-- **The focus ring fades in at full size rather than growing.** The design spec's Focus ring
-  section says the ring and its infill "grow from 0 to 2px over `duration-base`", and that is what
-  this package shipped first: an animated `outline-width` and `box-shadow` spread. A browser paints
-  both at whole device pixels, so a 2px growth has only two or three distinct frames however long
-  the transition runs — it reads as a 1 fps stagger, not as motion, and an operator review caught
-  it on every control in Storybook. The ring is now drawn at its full 2px + 2px geometry at all
-  times and its **opacity** is what animates, over the same `duration-base` with the same
-  `ease-out`. Measured in Chromium: 13 distinct alpha values across the 200ms, against 2–3 before.
-  The end state — the thing every contrast requirement in the spec is about — is byte-identical,
-  and nothing else about the indicator changes.
+- **A field's error line is the focus ring at rest, outside the border, not an inset line.** The
+  spec's Error row reads "2px `danger` (1px border + 1px inset line)". The inset line was a
+  pseudo-element on the field's root, inset by the border width; a browser snaps a border's width
+  to whole device pixels but not that offset, so at 90%, 110% and 125% zoom a sliver of background
+  showed between the two lines. Now the ring's own resting band (a `box-shadow` spread, see the
+  next entry) is `danger`, as wide as the border, against its outer edge: both start from the one
+  edge the border is drawn from, so they stay one 2px line at every zoom (checked in Chromium at
+  90/100/110/125%). The boundary is 1px wider outward than the spec's. On focus the band travels out
+  past the `focus-inner` infill to become the ring, the border reading 1px `danger` inside it.
+- **`Dialog` focuses itself when it opens, not its first control** (operator decision,
+  2026-11-10). The shared modal rule focuses the first meaningful control from the keyboard; on a
+  form dialog that put the caret in the first field, and leaving it ran that field's blur
+  validation before the user had reached it. `Dialog` now focuses the `<dialog>` (which draws no
+  ring), however it opened; `Tab` reaches the first control. Mark a field `autofocus` (or pass
+  `initialFocus` to a `useDialog` of your own) to focus it instead. `Drawer`, `Lightbox` and
+  `SearchModal` keep the shared rule.
+- **The focus ring moves out from the border as it fades in.** The design spec's Focus ring
+  section says the ring and its infill "grow from 0 to 2px over `duration-base`". This package
+  first shipped that as an animated `outline-width` and `box-shadow` spread and it read as a 1 fps
+  stagger, then drew the ring at full size and faded only its opacity. The stagger was the outline:
+  a browser draws an outline's width and offset only at whole device pixels (3 distinct frames
+  across a 2px move at 2x in Chromium), while a `box-shadow` spread renders at any fraction (9 of 9).
+  So the ring is two spreads off the border edge, both driven by the one animated
+  `--eldra-focus-alpha`: at rest a 1px band against the border (transparent, or `danger` on an
+  invalid field), on focus a 2px `focus-inner` infill with a 2px ring outside it, the band moving
+  out and widening while its colour fades to `focus`. The end state, the thing every contrast
+  requirement in the spec is about, is unchanged.
 
   Mechanically: `--eldra-focus-alpha` is registered with `@property` (`syntax: '<number>'`) so the
-  engine can interpolate it, and both ring colours are
-  `color-mix(in srgb, transparent, <role> calc(var(--eldra-focus-alpha) * 100%))`. Two fallbacks
-  keep it safe rather than clever — an engine without `color-mix` gets the whole ring at once
-  through an `@supports not` rule, an engine without `@property` switches the alpha 0 → 1 with no
-  fade, and forced-colours mode still gets a static `outline` in the system `Highlight` colour
-  (`box-shadow` is dropped there by the UA). In every one of those paths the ring is present at
-  full size; only the fade is lost, which is exactly what `prefers-reduced-motion` asks for anyway.
+  engine can interpolate it; the spreads are `calc()`s of it and the colours
+  `color-mix(in srgb, <resting colour>, <role> calc(var(--eldra-focus-alpha) * 100%))`. Two
+  fallbacks keep it safe rather than clever — an engine without `color-mix` gets the whole ring at
+  once through an `@supports not` rule, an engine without `@property` switches the alpha 0 → 1 with
+  no motion, and forced-colours mode gets a static `outline` in the system `Highlight` colour (and
+  a field's error line in `CanvasText`), because `box-shadow` is dropped there by the UA. In every
+  one of those paths the ring is present at full size; only the motion is lost, which is exactly
+  what `prefers-reduced-motion` asks for anyway.
 
 - **`Button` `text-button-{sm,md,lg}` utilities, and the `lg` font size as a per-component
   variable.** The spec's Sizes table gives `lg` a 1.0625rem font, between `body` (1rem) and
@@ -2213,8 +2231,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   numbers (1.5px, 2px in error) as the Checkbox box, so `eldra-checkbox-border`/`-invalid` are
   shared rather than duplicated as `eldra-radio-*`. The **card** itself is a different element with
   its own 1px number, so it gets `eldra-radio-card-border` of its own.
-- **A card's selected boundary is a real border plus an inset line**, the same technique
-  `eldra-field-invalid` uses for a field's error state: the spec spells it out ("2px `primary` (1px
+- **A card's selected boundary is a real border plus an inset line**: the spec spells it out ("2px `primary` (1px
   border + 1px inset line)"), so growing the real border to 2px — which would shift the card's
   neighbours — is not what it asks for. `eldra-radio-card-selected` reads
   `--eldra-radio-card-selected-color` so the same utility draws the `danger` version too, for a

@@ -109,8 +109,8 @@ export const FIELD_ACTION_PAIR_SIZE: Record<InputSize, string> = {
 /**
  * States (spec "Input" → States). Disabled and read-only replace the live colours outright rather
  * than layering over them, so a `:hover` rule can never win back a live boundary on a dead field.
- * The error row's second 1px line is drawn by the root's `eldra-field-invalid` pseudo-element,
- * because the ring already owns this element's `outline` and `box-shadow`. Each recipe carries the
+ * The error row's second 1px line is the ring's own outline at rest (`eldra-field-invalid`, on the
+ * control beside this recipe). Each recipe carries the
  * fill, the text colour and the boundary, so a field renders exactly one of each: `fieldState`
  * picks the one recipe a field is in.
  */

@@ -1221,3 +1221,17 @@ describe('MultiSelect — the panel search field', () => {
     expect(classes).toContain('eldra:outline-none');
   });
 });
+
+describe('MultiSelect — the invalid boundary', () => {
+  it('draws the error line on the trigger with tags below it', () => {
+    const wrapper = mount({ invalid: true });
+    expect(triggerOf(wrapper).classes()).toContain('eldra:eldra-field-invalid');
+    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
+  });
+
+  it('draws it on the field that wraps the tags when they are inside', () => {
+    const wrapper = mount({ invalid: true, tagPlacement: 'inside' });
+    expect(wrapper.find('[data-part="field"]').classes()).toContain('eldra:eldra-field-invalid');
+    expect(triggerOf(wrapper).classes()).not.toContain('eldra:eldra-field-invalid');
+  });
+});

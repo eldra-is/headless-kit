@@ -404,14 +404,14 @@ describe('Input — states', () => {
     const wrapper = mountWith(Input, { props: { invalid: true }, attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
     expect(control(wrapper).className).toContain('eldra:border-danger');
-    expect(wrapper.classes()).toContain('eldra:eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('sets no aria-invalid when valid', () => {
     const wrapper = mountWith(Input, { attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBeNull();
-    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
@@ -697,14 +697,14 @@ describe('Input — the invalid boundary against the other states', () => {
     const classes = control(wrapper).className.split(/\s+/);
     expect(classes).not.toContain('eldra:border-danger');
     expect(classes).toContain('eldra:border-dashed');
-    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('keeps the invalid boundary on a read-only field', () => {
     const wrapper = mountWith(Input, { props: { invalid: true, readonly: true }, attrs: NAME });
     expect(control(wrapper).className.split(/\s+/)).toContain('eldra:border-danger');
-    expect(wrapper.classes()).toContain('eldra:eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 

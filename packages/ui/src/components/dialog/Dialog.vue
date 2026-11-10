@@ -72,6 +72,9 @@ const { close, isTop } = useDialog({
   dialog: dialogEl,
   dismissable: () => props.dismissable,
   closeOnEscape: () => props.closeOnEscape,
+  // The dialog itself takes focus on open; a field is focused only when the consumer marks it
+  // `autofocus`, so a form opens without focusing (and on blur validating) its first field.
+  focusFirstControl: false,
   onCancel: () => emit('cancel'),
 });
 

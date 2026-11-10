@@ -543,10 +543,7 @@ watch(query, () => {
 
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() => [
-  'eldra:relative eldra:block eldra:w-full',
-  showsInvalid.value && 'eldra:eldra-field-invalid',
-]);
+const rootClass = 'eldra:relative eldra:block eldra:w-full';
 
 /**
  * The trigger box: the same box as `Select`'s, which is the same box as `Input`'s — including
@@ -588,6 +585,7 @@ const triggerClass = computed(() => [
   TRIGGER_BASE,
   SIZE[props.size],
   boxState(),
+  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.trigger,
 ]);
 
@@ -612,6 +610,7 @@ const fieldClass = computed(() =>
         FIELD_SIZE[props.size],
         showClear.value ? 'eldra:pe-15' : 'eldra:pe-9',
         boxState(),
+        showsInvalid.value && 'eldra:eldra-field-invalid',
         props.classes?.field,
       ]
     : 'eldra:relative'
