@@ -45,7 +45,7 @@ product.extensions?.clothing?.material; // string | undefined
 
 The Vite plugin (and `eldra-theme types`) request the `declare module '@eldrajs/sdk'` block with
 `sdkAugmentation=true`; the endpoint omits it otherwise, so a project that does not use the SDK is never
-handed a module it cannot resolve.
+handed a module it cannot resolve. `eldra-theme types --no-sdk-augmentation` leaves it out.
 
 `extensions` is absent when a product has none. Without generated types it is `{}`: nothing to read.
 

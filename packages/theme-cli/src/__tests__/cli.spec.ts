@@ -338,6 +338,19 @@ describe('eldra-theme CLI', () => {
     expect(readFileSync(join(dir, 'generated', 'eldra.d.ts'), 'utf8')).toBe(dts);
   });
 
+  it('types --no-sdk-augmentation does not ask the gateway for the SDK augmentation', async () => {
+    gateway = await startMockGateway({ dts: 'export interface CMSPage { title: string }' });
+    const result = await run(['types', '--no-sdk-augmentation'], dir, {
+      ELDRA_GATEWAY_URL: gateway.url,
+      ELDRA_ORG_ID: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    });
+
+    expect(result.exitCode).toBe(0);
+    const requestUrl = new URL(gateway.lastRequestUrl!, gateway.url);
+    expect(requestUrl.searchParams.has('sdkAugmentation')).toBe(false);
+    expect(requestUrl.searchParams.get('moduleName')).toBe('Eldra');
+  });
+
   it('types --blocks writes .eldra/block-types.d.ts from block.json with no gateway', async () => {
     writeThemePackage(dir);
     scaffoldBlock({
