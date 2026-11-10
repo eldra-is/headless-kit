@@ -86,12 +86,12 @@ describe('Icon', () => {
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a conflicting utility', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(Icon, {
-      props: { icon: PlainIcon, classes: { root: 'size-12 text-accent' } },
+      props: { icon: PlainIcon },
+      attrs: { class: 'size-12 text-accent' },
     });
     expect(wrapper.classes()).toContain('size-12');
-    expect(wrapper.classes()).not.toContain('eldra:size-5');
     expect(wrapper.classes()).toContain('text-accent');
     wrapper.unmount();
   });

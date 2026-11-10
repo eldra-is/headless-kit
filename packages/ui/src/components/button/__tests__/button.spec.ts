@@ -929,17 +929,33 @@ describe('Button — form submitting context', () => {
 });
 
 describe('Button — customisation', () => {
-  it('lets classes.container replace a colour utility instead of landing beside it', () => {
+  it('puts a consumer class on the button itself', () => {
     const wrapper = mountWith(Button, {
-      props: { variant: 'primary', classes: { container: 'bg-accent' } },
+      props: { variant: 'primary' },
+      attrs: { class: 'bg-accent' },
       slots: { default: 'Shop the sale' },
     });
     expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 
-  it('merges an override onto every other part', () => {
+  it("merges a parent's class over the container's own and keeps every other attribute on it", () => {
+    const onFocus = vi.fn();
+    const wrapper = mountWith(Button, {
+      props: { variant: 'link', size: 'sm' },
+      attrs: { class: 'eldra:px-2', 'data-test': 'clear', style: 'color: red', onFocus },
+      slots: { default: 'Clear' },
+    });
+    expect(wrapper.classes()).toContain('eldra:px-2');
+    expect(wrapper.classes()).not.toContain('eldra:px-0');
+    expect(wrapper.attributes('data-test')).toBe('clear');
+    expect(wrapper.attributes('style')).toContain('color: red');
+    void wrapper.trigger('focus');
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it('appends an override to every other part', () => {
     const wrapper = mountWith(Button, {
       props: {
         variant: 'primary',
@@ -1124,13 +1140,12 @@ describe('ButtonGroup', () => {
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a utility', () => {
+  it('puts a consumer class on the group itself', () => {
     const wrapper = mountWith(ButtonGroup, {
-      props: { classes: { root: 'gap-6' } },
+      attrs: { class: 'gap-6' },
       slots: buttons,
     });
     expect(wrapper.classes()).toContain('gap-6');
-    expect(wrapper.classes()).not.toContain('eldra:gap-3');
     wrapper.unmount();
   });
 

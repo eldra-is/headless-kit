@@ -27,7 +27,7 @@ const meta = {
           'row, and closes the form with a row of actions. It is a real `<form novalidate>`, so it',
           'still posts with `action` and `method` when scripting fails.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `heading`, `fields`,',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (styled with `class`), `heading`, `fields`,',
           '`actions`. **Slots**: `default` (the fields) and `actions`.',
           '',
           '**Name**: `heading` renders a visible title and names the form through `aria-labelledby`;',

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { partClass } from '../../utils/kitClass';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from './sizes';
 import type { IconProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -10,7 +9,6 @@ const eldra = useEldraScope();
 const props = withDefaults(defineProps<IconProps>(), {
   size: 'md',
   label: undefined,
-  classes: undefined,
 });
 
 // Tabler icons set `width`/`height` to 24 as presentation attributes; the
@@ -19,9 +17,7 @@ const props = withDefaults(defineProps<IconProps>(), {
 // which is what lets one icon work on every section background. The template
 // must stay single-root, or `<component :is>` ends up inside a fragment and the
 // class and ARIA attributes land on nothing.
-const rootClass = computed(() =>
-  partClass(`${ICON_SIZE_CLASS[props.size]} eldra:shrink-0`, props.classes, 'root')
-);
+const rootClass = computed(() => [ICON_SIZE_CLASS[props.size], 'eldra:shrink-0']);
 </script>
 
 <template>

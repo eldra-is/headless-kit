@@ -25,7 +25,7 @@ const meta = {
           'notice can be offered. For more than about 12 options, or long names, use **Select**',
           'with rich options instead.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root` (the',
           '`<fieldset>`), `legend`, `legendValue` (the value run inside it), `options` (the',
           'wrapping row), `option` (the `<label>` — the whole click target), `radio` (the drawn',
           'pill, or the swatch’s outer ring), `label` (the option text — visible for pills,',

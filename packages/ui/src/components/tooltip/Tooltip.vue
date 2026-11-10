@@ -16,7 +16,6 @@ import {
 import { useTeleportTarget } from '../../composables/teleportTarget';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useOverlay } from '../../composables/useOverlay';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { supportsFocusVisible } from './supportsFocusVisible';
 import type { TooltipProps } from './types';
@@ -393,8 +392,6 @@ const isAbove = computed(() => resolvedPlacement.value.startsWith('top'));
 
 // --- classes -------------------------------------------------------------------------------------
 
-const rootClass = computed(() => partClass(cx('eldra:inline-flex'), props.classes, 'root'));
-
 /**
  * Spec → Sizes / States: padding `0.375rem 0.625rem`, one-line inverted-colour fill (`text` on
  * `background`, 16.9:1), `radius-sm`, opacity fade `duration-fast` `ease-out` (0ms under reduced
@@ -414,24 +411,19 @@ const rootClass = computed(() => partClass(cx('eldra:inline-flex'), props.classe
  * all, the same defect `eldra-field-invalid`'s own forced-colours branch exists for. The border is
  * `transparent` (so it costs nothing and shifts nothing) everywhere else.
  */
-const bubbleClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:z-popover eldra:flex eldra:items-center eldra:rounded-sm eldra:bg-text eldra:text-background',
-      'eldra:border eldra:border-transparent eldra:forced-colors:border-[CanvasText]',
-      'eldra:py-1.5 eldra:px-2.5 eldra:text-tooltip eldra:font-medium eldra:whitespace-nowrap',
-      'eldra:transition-opacity eldra:duration-fast eldra:ease-out',
-      visible.value
-        ? 'eldra:opacity-100 eldra:pointer-events-auto'
-        : 'eldra:opacity-0 eldra:pointer-events-none',
-      isAbove.value
-        ? "eldra:before:absolute eldra:before:inset-x-0 eldra:before:-bottom-2 eldra:before:h-2 eldra:before:content-['']"
-        : "eldra:before:absolute eldra:before:inset-x-0 eldra:before:-top-2 eldra:before:h-2 eldra:before:content-['']"
-    ),
-    props.classes,
-    'bubble'
-  )
-);
+const bubbleClass = computed(() => [
+  'eldra:z-popover eldra:flex eldra:items-center eldra:rounded-sm eldra:bg-text eldra:text-background',
+  'eldra:border eldra:border-transparent eldra:forced-colors:border-[CanvasText]',
+  'eldra:py-1.5 eldra:px-2.5 eldra:text-tooltip eldra:font-medium eldra:whitespace-nowrap',
+  'eldra:transition-opacity eldra:duration-fast eldra:ease-out',
+  visible.value
+    ? 'eldra:opacity-100 eldra:pointer-events-auto'
+    : 'eldra:opacity-0 eldra:pointer-events-none',
+  isAbove.value
+    ? "eldra:before:absolute eldra:before:inset-x-0 eldra:before:-bottom-2 eldra:before:h-2 eldra:before:content-['']"
+    : "eldra:before:absolute eldra:before:inset-x-0 eldra:before:-top-2 eldra:before:h-2 eldra:before:content-['']",
+  props.classes?.bubble,
+]);
 
 /**
  * Spec → Sizes, Arrow: "0.3125rem, centred (start / end: 1.25rem from the aligned edge)". The size
@@ -447,7 +439,7 @@ const arrowClass = computed(() => {
     : resolvedPlacement.value.endsWith('-end')
       ? 'eldra:right-5'
       : 'eldra:left-1/2 eldra:-translate-x-1/2';
-  return partClass(cx('eldra:eldra-tooltip-arrow', align), props.classes, 'arrow');
+  return ['eldra:eldra-tooltip-arrow', align, props.classes?.arrow];
 });
 
 const arrowStyle = computed<Record<string, string>>(() => ({
@@ -462,7 +454,7 @@ const arrowStyle = computed<Record<string, string>>(() => ({
     :data-eldra-scope="eldra.scope"
     :data-eldra-slot="eldra.slotHost('default')"
     data-part="root"
-    :class="rootClass"
+    class="eldra:inline-flex"
     @mouseenter="onRootMouseEnter"
     @mouseleave="onRootMouseLeave"
     @focusin="onRootFocusIn"

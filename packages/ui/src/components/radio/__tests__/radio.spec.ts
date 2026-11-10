@@ -121,12 +121,12 @@ describe('Radio — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(Radio, {
+      attrs: { class: 'o-x' },
       props: {
         value: 'a',
         label: 'A',
         hint: 'h',
         classes: {
-          option: 'o-x',
           radio: 'r-x',
           input: 'i-x',
           dot: 'd-x',
@@ -232,7 +232,7 @@ describe('Radio — states', () => {
 });
 
 describe('Radio — attributes', () => {
-  it('puts every attribute on the input, not the label, and keeps its own type and name', async () => {
+  it('puts every attribute but class on the input, and keeps its own type and name', async () => {
     const seen: FocusEvent[] = [];
     const wrapper = mountWith(Radio, {
       props: { value: 'a', label: 'A', name: 'fit' },
@@ -247,14 +247,14 @@ describe('Radio — attributes', () => {
     });
     const el = input(wrapper);
     expect(el.id).toBe('fit-a');
-    expect(el.classList.contains('extra')).toBe(true);
+    expect(el.classList.contains('extra')).toBe(false);
     expect(el.classList.contains('eldra:opacity-0')).toBe(true);
     expect(el.getAttribute('data-option-id')).toBe('a');
     expect(el.getAttribute('aria-describedby')).toBe('help');
     expect(el.type).toBe('radio');
     expect(el.name).toBe('fit');
     expect(wrapper.attributes('id')).toBeUndefined();
-    expect(wrapper.classes()).not.toContain('extra');
+    expect(wrapper.classes()).toContain('extra');
     await wrapper.find('input').trigger('blur');
     expect(seen).toHaveLength(1);
     wrapper.unmount();

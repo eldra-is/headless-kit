@@ -2,7 +2,6 @@
 import { computed, h, inject, useSlots, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -142,16 +141,13 @@ function toggle(): void {
  * `src/__tests__/focus-transition.spec.ts`.
  */
 const ROOT =
-  'group eldra:grid eldra:grid-cols-[auto_1fr] eldra:items-center eldra:gap-x-3 eldra:gap-y-0.5 eldra:w-fit eldra:max-w-full eldra:target-min ' +
+  'eldra:group eldra:grid eldra:grid-cols-[auto_1fr] eldra:items-center eldra:gap-x-3 eldra:gap-y-0.5 eldra:w-fit eldra:max-w-full eldra:target-min ' +
   'eldra:rounded-sm eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-start eldra:eldra-focus';
 
-const rootClass = computed(() =>
-  partClass(
-    cx(ROOT, props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer'),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  ROOT,
+  props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer',
+]);
 
 /**
  * The track (spec "Switch" → Anatomy: "a pill with a 1.5px border"; → Sizes: 2.75 × 1.5rem at
@@ -184,9 +180,10 @@ const trackState = computed(() => {
   return model.value ? TRACK_ON : TRACK_OFF;
 });
 
-const trackClass = computed(() =>
-  partClass(cx(TRACK_BASE, TRACK_SIZE[props.size], trackState.value), props.classes, 'track')
-);
+const trackClass = computed(() => [
+  [TRACK_BASE, TRACK_SIZE[props.size], trackState.value],
+  props.classes?.track,
+]);
 
 /**
  * The thumb (spec "Switch" → Anatomy: "a circle, with a check icon when on"; → Sizes: 1rem at
@@ -215,19 +212,16 @@ const THUMB_ON = 'eldra:bg-primary-contrast eldra:text-primary';
  *  on `border-strong` is the spec's own 4.5:1 pair. Only added when the slot is filled. */
 const THUMB_OFF_INK = 'eldra:text-background';
 
-const thumbClass = computed(() =>
-  partClass(
-    cx(
-      THUMB_BASE,
-      THUMB_SIZE[props.size],
-      model.value
-        ? cx(THUMB_ON, THUMB_TRAVEL[props.size])
-        : cx(THUMB_OFF, slots.thumb !== undefined && THUMB_OFF_INK)
-    ),
-    props.classes,
-    'thumb'
-  )
-);
+const thumbClass = computed(() => [
+  [
+    THUMB_BASE,
+    THUMB_SIZE[props.size],
+    model.value
+      ? [THUMB_ON, THUMB_TRAVEL[props.size]]
+      : [THUMB_OFF, slots.thumb !== undefined && THUMB_OFF_INK],
+  ],
+  props.classes?.thumb,
+]);
 
 const slotProps = computed<SwitchSlotProps>(() => ({
   checked: model.value,
@@ -244,17 +238,16 @@ const TRACK_SLOT_BASE =
   'eldra:pointer-events-none eldra:absolute eldra:top-1/2 eldra:-translate-y-1/2 eldra:inline-flex eldra:items-center eldra:justify-center ' +
   'eldra:eldra-switch-thumb-offset';
 
-function trackSlotClass(end: boolean, part: 'trackStart' | 'trackEnd'): string {
-  return partClass(
-    cx(
+function trackSlotClass(end: boolean, part: 'trackStart' | 'trackEnd') {
+  return [
+    [
       TRACK_SLOT_BASE,
       THUMB_SIZE[props.size],
       end && THUMB_TRAVEL[props.size],
-      model.value && !props.disabled ? 'eldra:text-primary-contrast' : 'eldra:text-muted'
-    ),
-    props.classes,
-    part
-  );
+      model.value && !props.disabled ? 'eldra:text-primary-contrast' : 'eldra:text-muted',
+    ],
+    props.classes?.[part],
+  ];
 }
 
 const trackStartClass = computed(() => trackSlotClass(false, 'trackStart'));
@@ -262,7 +255,7 @@ const trackEndClass = computed(() => trackSlotClass(true, 'trackEnd'));
 
 /** Spec "Switch" → Sizes: check icon 0.75rem/3px stroke at `md`, 0.625rem at `sm`. */
 const CHECK_SIZE: Record<SwitchSize, string> = { md: 'eldra:size-3', sm: 'eldra:size-2.5' };
-const checkClass = computed(() => cx('eldra:pointer-events-none', CHECK_SIZE[props.size]));
+const checkClass = computed(() => ['eldra:pointer-events-none', CHECK_SIZE[props.size]]);
 
 /**
  * The label (spec "Switch" → Sizes: "Label | 1rem" at `md`, "0.875rem / 1.5" at `sm` — the second
@@ -273,17 +266,14 @@ const LABEL_SIZE: Record<SwitchSize, string> = {
   sm: 'eldra:text-body-sm',
 };
 
-const labelClass = computed(() =>
-  partClass(
-    cx(
-      LABEL_SIZE[props.size],
-      'eldra:col-start-2 eldra:min-w-0',
-      props.disabled ? 'eldra:text-muted' : 'eldra:text-text'
-    ),
-    props.classes,
-    'label'
-  )
-);
+const labelClass = computed(() => [
+  [
+    LABEL_SIZE[props.size],
+    'eldra:col-start-2 eldra:min-w-0',
+    props.disabled ? 'eldra:text-muted' : 'eldra:text-text',
+  ],
+  props.classes?.label,
+]);
 
 /**
  * The description (spec "Switch" → Anatomy: "a `muted` second line"; → Accessibility: "The
@@ -296,13 +286,10 @@ const labelClass = computed(() =>
  * *description*; browsers read an `aria-describedby` target's text regardless of `aria-hidden` on
  * that target, which is the standard technique for a description that must not double as the name.
  */
-const descriptionClass = computed(() =>
-  partClass(
-    'eldra:text-switch-description eldra:text-muted eldra:col-start-2',
-    props.classes,
-    'description'
-  )
-);
+const descriptionClass = computed(() => [
+  'eldra:text-switch-description eldra:text-muted eldra:col-start-2',
+  props.classes?.description,
+]);
 </script>
 
 <template>

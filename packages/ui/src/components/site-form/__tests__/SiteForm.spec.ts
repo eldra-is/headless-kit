@@ -629,18 +629,24 @@ describe('SiteForm: reading by key', () => {
 });
 
 describe('SiteForm: customising', () => {
-  it('merges classes onto the parts and the controls inside', () => {
+  it('appends classes to the parts and the controls inside, and takes class on the root', () => {
     const { client } = fakeClient();
-    const wrapper = mountForm({
-      definition: CONTACT,
-      client,
-      classes: {
-        root: 'rounded-xl',
-        label: 'text-sm',
-        control: 'px-3.5',
-        submit: 'w-full',
-        requiredMark: 'hidden',
-      },
+    const wrapper = mountWith(SiteForm, {
+      props: {
+        locale: 'en-US',
+        pagePath: '/contact',
+        definition: CONTACT,
+        client,
+        classes: {
+          form: 'gap-2',
+          field: 'ring-1',
+          label: 'text-sm',
+          control: 'px-3.5',
+          submit: 'w-full',
+          requiredMark: 'hidden',
+        },
+      } as never,
+      attrs: { class: 'rounded-xl' },
     });
 
     expect(wrapper.find('[data-part="root"]').classes()).toContain('rounded-xl');
@@ -648,6 +654,8 @@ describe('SiteForm: customising', () => {
     expect(byLabel(wrapper, 'Name').classList.contains('px-3.5')).toBe(true);
     expect(wrapper.find('button[type="submit"]').classes()).toContain('w-full');
     expect(wrapper.find('[data-part="requiredMark"]').classes()).toContain('hidden');
+    expect(wrapper.find('form').classes()).toContain('gap-2');
+    expect(wrapper.find('form .ring-1 label').exists()).toBe(true);
   });
 
   it('takes a submit slot and a success slot', async () => {

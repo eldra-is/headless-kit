@@ -1488,8 +1488,8 @@ describe('header block (navigation apiId)', () => {
       // The bar's grid is the panel's positioning box; the menu's own root takes no box at all.
       expect(wrapper.get('[data-eldra-header-bar]').classes()).toContain('relative');
       const root = [...menuRoot(wrapper).classList];
+      expect(root).toContain('static');
       expect(root).toContain('contents');
-      expect(root).not.toContain('eldra:relative');
       // …and no row of the bar may reclaim it, or the panel would hang under its own item again.
       for (const row of wrapper.findAll('[data-part="item"]')) {
         expect(row.classes()).not.toContain('eldra:relative');
@@ -1587,8 +1587,6 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       const sheet = wrapper.get(`#${knitwear.attributes('aria-controls')} [data-part="content"]`);
       expect(sheet.classes()).toContain('bg-(--eldra-header-surface)');
-      // And no ground token of its own left behind to drift away from the bar's.
-      expect(sheet.classes()).not.toContain('eldra:bg-background');
       wrapper.unmount();
     });
 

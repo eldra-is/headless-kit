@@ -19,7 +19,6 @@
  */
 import { computed, ref } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { FilterFacet, FilterPanelPart } from './types';
@@ -120,31 +119,35 @@ const SUMMARY_BASE =
 
 /** Spec → Sizes, Trigger row: "Chevron 1.125rem `muted`, pushed to the end." */
 const CHEVRON_BASE =
-  'eldra:ms-auto eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-[rotate] eldra:duration-base eldra:ease-out ' +
+  'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-[rotate] eldra:duration-base eldra:ease-out ' +
   'eldra:motion-reduce:transition-none';
 
 /** Spec → Body: "1.25rem bottom padding." `min-w-0` so a long label wraps rather than widening. */
 const BODY_BASE = 'eldra:min-w-0 eldra:border-0 eldra:px-2 eldra:pt-0 eldra:pb-5';
 
-const groupClass = computed(() =>
-  partClass(cx(GROUP_BASE, props.topRule && 'eldra:border-t'), props.classes, 'group')
-);
-const triggerClass = computed(() =>
-  partClass(cx('eldra:group/trigger', TRIGGER_BASE), props.classes, 'trigger')
-);
-const labelClass = computed(() => partClass(LABEL_BASE, props.classes, 'groupLabel'));
-const summaryClass = computed(() =>
-  partClass(cx(SUMMARY_BASE, props.open && 'eldra:invisible'), props.classes, 'summary')
-);
-const chevronClass = computed(() =>
-  partClass(
-    cx(CHEVRON_BASE, props.open && 'eldra:rotate-180', props.summary.length > 0 && 'eldra:ms-0'),
-    props.classes,
-    'chevron'
-  )
-);
-const bodyClass = computed(() => partClass(BODY_BASE, props.classes, 'body'));
-const legendClass = computed(() => partClass('', props.classes, 'legend'));
+const groupClass = computed(() => [
+  [GROUP_BASE, props.topRule && 'eldra:border-t'],
+  props.classes?.group,
+]);
+const triggerClass = computed(() => [
+  ['eldra:group/trigger', TRIGGER_BASE],
+  props.classes?.trigger,
+]);
+const labelClass = computed(() => [LABEL_BASE, props.classes?.groupLabel]);
+const summaryClass = computed(() => [
+  [SUMMARY_BASE, props.open && 'eldra:invisible'],
+  props.classes?.summary,
+]);
+const chevronClass = computed(() => [
+  [
+    CHEVRON_BASE,
+    props.open && 'eldra:rotate-180',
+    props.summary.length > 0 ? 'eldra:ms-0' : 'eldra:ms-auto',
+  ],
+  props.classes?.chevron,
+]);
+const bodyClass = computed(() => [BODY_BASE, props.classes?.body]);
+const legendClass = computed(() => props.classes?.legend);
 /**
  * Spec → Sizes, Trigger row: the badge is "1.25rem tall, min 1.25rem wide, 0 0.3125rem padding,
  * `radius-full`, 0.75rem weight 700, tabular figures". `Badge`'s own `pill` shape carries the
@@ -152,7 +155,7 @@ const legendClass = computed(() => partClass('', props.classes, 'legend'));
  */
 const BADGE_BASE =
   'eldra:h-5 eldra:min-w-5 eldra:shrink-0 eldra:justify-center eldra:px-1.25 eldra:tabular-nums';
-const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'));
+const badgeClass = computed(() => [BADGE_BASE, props.classes?.badge]);
 </script>
 
 <template>
@@ -184,7 +187,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
           tone="primary"
           pill
           data-part="badge"
-          :classes="{ root: badgeClass }"
+          :class="badgeClass"
           :hidden-suffix="m.selectedCount(count)"
         >
           <span :data-eldra-scope="eldra.scope" aria-hidden="true">{{ count }}</span>
@@ -220,9 +223,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
       :class="bodyClass"
       @keydown.esc="onEscape"
     >
-      <VisuallyHidden as="legend" :classes="{ root: legendClass }">{{
-        facet.label
-      }}</VisuallyHidden>
+      <VisuallyHidden as="legend" :class="legendClass">{{ facet.label }}</VisuallyHidden>
       <slot />
     </fieldset>
   </div>

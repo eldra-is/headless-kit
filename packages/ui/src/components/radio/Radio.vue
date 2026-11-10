@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useSlots } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
+import { computed, nextTick, ref, useAttrs, useSlots } from 'vue';
 import {
   HINT,
   INPUT,
+  PLAIN_BOX_ONLY,
+  PLAIN_COLUMNS,
   PLAIN_OPTION,
   dotRecipe,
   labelRecipe,
@@ -17,8 +18,8 @@ const eldra = useEldraScope();
 
 /**
  * One native radio in `RadioGroup`'s plain-row design, for a radio whose siblings (sharing its
- * `name`) are rendered somewhere else — a table row, a card of its own. Every attribute reaches the
- * `<input>`; the root `<label>` is the `option` part.
+ * `name`) are rendered somewhere else — a table row, a card of its own. Every attribute but `class`
+ * reaches the `<input>`; `class` styles the root `<label>`, the `option` part.
  */
 defineOptions({ inheritAttrs: false });
 
@@ -40,6 +41,7 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const attrs = useAttrs();
 
 const isChecked = computed(
   () => props.modelValue !== undefined && props.modelValue === props.value
@@ -63,42 +65,41 @@ async function onChange(): Promise<void> {
 const hasLabel = computed(() => props.label !== undefined || slots.default !== undefined);
 const hasHint = computed(() => props.hint !== undefined || slots.hint !== undefined);
 
-const optionClass = computed(() =>
-  partClass(
-    cx(
-      PLAIN_OPTION,
-      !hasLabel.value && !hasHint.value && 'eldra:grid-cols-[auto] eldra:gap-x-0',
-      optionCursor(props.disabled)
-    ),
-    props.classes,
-    'option'
-  )
-);
-const radioClass = computed(() =>
-  partClass(
-    radioRecipe(props.size, {
-      selected: isChecked.value,
-      disabled: props.disabled,
-      invalid: props.invalid,
-    }),
-    props.classes,
-    'radio'
-  )
-);
-const dotClass = computed(() => partClass(dotRecipe(isChecked.value), props.classes, 'dot'));
-const inputClass = computed(() => partClass(INPUT, props.classes, 'input'));
-const labelClass = computed(() =>
-  partClass(labelRecipe(false, props.disabled), props.classes, 'label')
-);
-const hintClass = computed(() => partClass(HINT, props.classes, 'hint'));
+function optionClass() {
+  return [
+    PLAIN_OPTION,
+    hasLabel.value || hasHint.value ? PLAIN_COLUMNS : PLAIN_BOX_ONLY,
+    optionCursor(props.disabled),
+    attrs.class,
+  ];
+}
+
+/** Every attribute but `class` lands on the control; `class` styles the root. */
+function inputAttrs(): Record<string, unknown> {
+  const rest: Record<string, unknown> = { ...attrs };
+  delete rest.class;
+  return rest;
+}
+const radioClass = computed(() => [
+  radioRecipe(props.size, {
+    selected: isChecked.value,
+    disabled: props.disabled,
+    invalid: props.invalid,
+  }),
+  props.classes?.radio,
+]);
+const dotClass = computed(() => [dotRecipe(isChecked.value), props.classes?.dot]);
+const inputClass = computed(() => [INPUT, props.classes?.input]);
+const labelClass = computed(() => [labelRecipe(false, props.disabled), props.classes?.label]);
+const hintClass = computed(() => [HINT, props.classes?.hint]);
 </script>
 
 <template>
-  <label data-eldra-ui :data-eldra-scope="eldra.scope" data-part="option" :class="optionClass">
+  <label data-eldra-ui :data-eldra-scope="eldra.scope" data-part="option" :class="optionClass()">
     <span data-part="radio" :class="radioClass">
       <input
         ref="inputRef"
-        v-bind="$attrs"
+        v-bind="inputAttrs()"
         :class="inputClass"
         type="radio"
         :name="name"

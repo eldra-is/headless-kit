@@ -292,16 +292,16 @@ describe('FeatureCard — headingLevel', () => {
 });
 
 describe('FeatureCard — customisation', () => {
-  it('lets classes.root replace a layout utility instead of landing beside it', () => {
-    const wrapper = mountCard({
-      icon: IconTruck,
-      title: 'Free shipping over $80',
-      body: 'Delivered in 2-4 business days.',
-      classes: { root: 'gap-6' },
+  it('puts a consumer class on the root', () => {
+    const wrapper = mountWith(FeatureCard, {
+      props: {
+        icon: IconTruck,
+        title: 'Free shipping over $80',
+        body: 'Delivered in 2-4 business days.',
+      },
+      attrs: { class: 'gap-6' },
     });
-    const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('gap-6');
-    expect(root.classes()).not.toContain('eldra:gap-3');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-6');
     wrapper.unmount();
   });
 });

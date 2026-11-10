@@ -13,7 +13,6 @@ import { computed, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import type { DialogProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -98,40 +97,34 @@ function onCloseClick(): void {
  *  `<Dialog ref="dialogRef" …>` then `dialogRef.value.close('remove')`. */
 defineExpose({ close, isTop });
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      // `hidden open:block`, not a bare `m-auto` alone (fix, from the operator's own finding):
-      // the UA stylesheet's `dialog:not([open]) { display: none }` only wins on specificity, and
-      // origin always beats specificity in the cascade — any author `display` utility on this
-      // element, however unspecific, overrides it once the dialog closes. `hidden` sets
-      // `display: none` unconditionally; `open:block` (`.open\:block:is([open], …)`, two
-      // selectors deep — see `modalClosedDisplay.spec.ts`) only wins once the `open` attribute is
-      // back, by specificity, both rules being the same author origin.
-      //
-      // `open:block`, not `open:flex` like `Drawer`'s/`SearchModal`'s own roots — a deliberate
-      // deviation from the pattern those two use, proven necessary rather than assumed: this root
-      // never carried `flex` before (it only ever centres one `panel` child via `m-auto`, and
-      // `panel` already does its own `flex flex-col` internally), and turning it into a flex
-      // *container* makes that child a flex *item* — subject to default `flex-shrink: 1`. The
-      // `dialog:modal` UA rule's own `max-width` can be narrower than `panel`'s own
-      // `eldra-dialog-width` at small viewports, and a flex item shrinks to fit a constrained
-      // container in a way a block-level child (which simply keeps its specified width, overflow
-      // or not) never does — confirmed by an A/B screenshot comparison: `open:flex` here measurably
-      // narrows the panel and reflows its text at 360px (`overlays-dialog--long-content--360`, an
-      // extra word per line moved down), `open:block` is pixel-identical to every existing
-      // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
-      // *outer* display to block regardless of which inner value wins, so the auto-margin centring
-      // is unaffected either way — only the flex-shrink behaviour on the child differs.
-      'eldra:hidden eldra:open:block eldra:m-auto eldra:border-0 eldra:bg-transparent eldra:p-0',
-      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
-      'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))] eldra:focus:outline-none',
-      'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = [
+  // `hidden open:block`, not a bare `m-auto` alone (fix, from the operator's own finding):
+  // the UA stylesheet's `dialog:not([open]) { display: none }` only wins on specificity, and
+  // origin always beats specificity in the cascade — any author `display` utility on this
+  // element, however unspecific, overrides it once the dialog closes. `hidden` sets
+  // `display: none` unconditionally; `open:block` (`.open\:block:is([open], …)`, two
+  // selectors deep — see `modalClosedDisplay.spec.ts`) only wins once the `open` attribute is
+  // back, by specificity, both rules being the same author origin.
+  //
+  // `open:block`, not `open:flex` like `Drawer`'s/`SearchModal`'s own roots — a deliberate
+  // deviation from the pattern those two use, proven necessary rather than assumed: this root
+  // never carried `flex` before (it only ever centres one `panel` child via `m-auto`, and
+  // `panel` already does its own `flex flex-col` internally), and turning it into a flex
+  // *container* makes that child a flex *item* — subject to default `flex-shrink: 1`. The
+  // `dialog:modal` UA rule's own `max-width` can be narrower than `panel`'s own
+  // `eldra-dialog-width` at small viewports, and a flex item shrinks to fit a constrained
+  // container in a way a block-level child (which simply keeps its specified width, overflow
+  // or not) never does — confirmed by an A/B screenshot comparison: `open:flex` here measurably
+  // narrows the panel and reflows its text at 360px (`overlays-dialog--long-content--360`, an
+  // extra word per line moved down), `open:block` is pixel-identical to every existing
+  // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
+  // *outer* display to block regardless of which inner value wins, so the auto-margin centring
+  // is unaffected either way — only the flex-shrink behaviour on the child differs.
+  'eldra:hidden eldra:open:block eldra:m-auto eldra:border-0 eldra:bg-transparent eldra:p-0',
+  'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
+  'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))] eldra:focus:outline-none',
+  'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced',
+];
 
 /**
  * The visible box (spec "Dialog" → Sizes): the `<dialog>` itself stays transparent and unsized
@@ -140,44 +133,31 @@ const rootClass = computed(() =>
  * whole dialog past the viewport (`header`/`footer` are `shrink-0`, `body` alone is `flex-1
  * overflow-y-auto`).
  */
-const panelClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:flex-col eldra:overflow-hidden eldra:rounded-lg eldra:border eldra:shadow-md',
-      'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]',
-      'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]',
-      props.size === 'sm' ? 'eldra:eldra-dialog-width-sm' : 'eldra:eldra-dialog-width',
-      'eldra:eldra-dialog-max-height'
-    ),
-    props.classes,
-    'panel'
-  )
-);
+const panelClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:overflow-hidden eldra:rounded-lg eldra:border eldra:shadow-md',
+  'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]',
+  'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]',
+  props.size === 'sm' ? 'eldra:eldra-dialog-width-sm' : 'eldra:eldra-dialog-width',
+  'eldra:eldra-dialog-max-height',
+  props.classes?.panel,
+]);
 
 const hasTitle = computed(() => props.title !== undefined || slots.title !== undefined);
 const hasHeader = computed(() => hasTitle.value || props.closeButton);
 
-const headerClass = computed(() =>
-  partClass(
-    hasTitle.value
-      ? 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-between eldra:gap-4 eldra:p-6 eldra:pb-0'
-      : 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-end eldra:gap-4 eldra:p-6 eldra:pb-0',
-    props.classes,
-    'header'
-  )
-);
+const headerClass = computed(() => [
+  hasTitle.value
+    ? 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-between eldra:gap-4 eldra:p-6 eldra:pb-0'
+    : 'eldra:flex eldra:shrink-0 eldra:items-start eldra:justify-end eldra:gap-4 eldra:p-6 eldra:pb-0',
+  props.classes?.header,
+]);
 
 // A slotted title fills the row so its own alignment (a centred heading) reaches the whole width.
-const titleClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:min-w-0 eldra:text-dialog-title eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
-      slots.title !== undefined && 'eldra:flex-1'
-    ),
-    props.classes,
-    'title'
-  )
-);
+const titleClass = computed(() => [
+  'eldra:min-w-0 eldra:text-dialog-title eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
+  slots.title !== undefined && 'eldra:flex-1',
+  props.classes?.title,
+]);
 
 /**
  * Spec "Dialog" → States: rest transparent, hover `text` at 6% over the panel, active 11% and
@@ -190,46 +170,30 @@ const titleClass = computed(() =>
  * `src/styles/tailwind.css` and `src/__tests__/focus-transition.spec.ts`), so adding one here would
  * fail that guard for no visual gain.
  */
-const closeClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:-m-1 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
-      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))] eldra:eldra-focus',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_94%)]',
-      'eldra:active:scale-[0.98]',
-      'eldra:active:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_89%)]'
-    ),
-    props.classes,
-    'close'
-  )
-);
+const closeClass = computed(() => [
+  'eldra:-m-1 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+  'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))] eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_94%)]',
+  'eldra:active:scale-[0.98]',
+  'eldra:active:bg-[color-mix(in_oklab,var(--eldra-dialog-text,var(--eldra-color-text)),transparent_89%)]',
+  props.classes?.close,
+]);
 
-const bodyClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:min-h-0 eldra:flex-1 eldra:overflow-y-auto eldra:px-6 eldra:py-4',
-      !hasHeader.value && 'eldra:pt-6'
-    ),
-    props.classes,
-    'body'
-  )
-);
+const bodyClass = computed(() => [
+  'eldra:min-h-0 eldra:flex-1 eldra:overflow-y-auto eldra:px-6 eldra:py-4',
+  !hasHeader.value && 'eldra:pt-6',
+  props.classes?.body,
+]);
 
-const descriptionClass = computed(() =>
-  partClass(
-    'eldra:text-body eldra:text-[color:var(--eldra-dialog-muted,var(--eldra-color-muted))]',
-    props.classes,
-    'description'
-  )
-);
+const descriptionClass = computed(() => [
+  'eldra:text-body eldra:text-[color:var(--eldra-dialog-muted,var(--eldra-color-muted))]',
+  props.classes?.description,
+]);
 
-const footerClass = computed(() =>
-  partClass(
-    'eldra:flex eldra:shrink-0 eldra:flex-wrap eldra:items-center eldra:justify-end eldra:gap-3 eldra:px-6 eldra:pt-4 eldra:pb-6',
-    props.classes,
-    'footer'
-  )
-);
+const footerClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:flex-wrap eldra:items-center eldra:justify-end eldra:gap-3 eldra:px-6 eldra:pt-4 eldra:pb-6',
+  props.classes?.footer,
+]);
 </script>
 
 <template>

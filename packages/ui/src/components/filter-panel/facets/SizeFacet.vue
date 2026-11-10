@@ -16,7 +16,6 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/kitClass';
 import Link from '../../link/Link.vue';
 import {
   isValueDisabled,
@@ -114,21 +113,17 @@ function tileState(value: FilterFacetValue): string {
   return disabled(value) ? TILE_DISABLED : TILE_REST;
 }
 
-function tileClass(value: FilterFacetValue): string {
-  return partClass(cx(TILE_BASE, tileState(value)), props.classes, 'tile');
+function tileClass(value: FilterFacetValue) {
+  return [[TILE_BASE, tileState(value)], props.classes?.tile];
 }
 
-function subheadingClass(first: boolean): string {
-  return partClass(
-    cx(SUBHEADING_BASE, !first && SUBHEADING_NOT_FIRST),
-    props.classes,
-    'subheading'
-  );
+function subheadingClass(first: boolean) {
+  return [[SUBHEADING_BASE, !first && SUBHEADING_NOT_FIRST], props.classes?.subheading];
 }
 
-const tilesClass = computed(() => partClass(TILES_BASE, props.classes, 'values'));
-const tileLabelClass = computed(() => partClass('', props.classes, 'tileLabel'));
-const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 'sizeGuide'));
+const tilesClass = computed(() => [TILES_BASE, props.classes?.values]);
+const tileLabelClass = computed(() => props.classes?.tileLabel);
+const sizeGuideClass = computed(() => [SIZE_GUIDE_BASE, props.classes?.sizeGuide]);
 </script>
 
 <template>
@@ -178,7 +173,7 @@ const sizeGuideClass = computed(() => partClass(SIZE_GUIDE_BASE, props.classes, 
       v-if="facet.sizeGuideHref"
       :href="facet.sizeGuideHref"
       data-part="sizeGuide"
-      :classes="{ root: sizeGuideClass }"
+      :class="sizeGuideClass"
     >
       {{ m.filterPanelSizeGuide }}
     </Link>

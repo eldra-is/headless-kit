@@ -24,7 +24,6 @@
 import { computed, ref, watch } from 'vue';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../../composables/useLocale';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/kitClass';
 import { formatCurrency, formatNumber } from '../../../utils/number-format';
 import CurrencyInput from '../../currency-input/CurrencyInput.vue';
 import FieldWrapper from '../../field-wrapper/FieldWrapper.vue';
@@ -184,22 +183,16 @@ const SEPARATOR_BASE =
  */
 const SLIDER_CLASSES = { group: 'eldra:eldra-range-gutter-thumb' } as const;
 
-const fieldsClass = computed(() => partClass(FIELDS_BASE, props.classes, 'fields'));
-const separatorClass = computed(() => partClass(SEPARATOR_BASE, props.classes, 'separator'));
-const fieldClass = computed(() => partClass('', props.classes, 'field'));
-const rangeClass = computed(() => partClass('eldra:min-w-0', props.classes, 'range'));
+const fieldsClass = computed(() => [FIELDS_BASE, props.classes?.fields]);
+const separatorClass = computed(() => [SEPARATOR_BASE, props.classes?.separator]);
+const fieldClass = computed(() => props.classes?.field);
+const rangeClass = computed(() => ['eldra:min-w-0', props.classes?.range]);
 
 /** `CurrencyInput` draws its own label, so the money field needs one bag. */
-const MONEY_CLASSES = computed(() => ({
-  root: fieldClass.value,
-  label: FIELD_LABEL,
-  control: FIELD_CONTROL,
-}));
+const MONEY_CLASSES = { label: FIELD_LABEL, control: FIELD_CONTROL } as const;
 /** The plain field's label belongs to its `FieldWrapper`, so that one needs two. */
-const PLAIN_WRAPPER_CLASSES = computed(() => ({
-  root: cx(FIELD_WRAPPER, fieldClass.value),
-  label: FIELD_LABEL,
-}));
+const PLAIN_WRAPPER_CLASS = computed(() => [FIELD_WRAPPER, fieldClass.value]);
+const PLAIN_WRAPPER_CLASSES = { label: FIELD_LABEL } as const;
 const PLAIN_CONTROL_CLASSES = { control: FIELD_CONTROL } as const;
 
 /**
@@ -265,11 +258,17 @@ function onPlainInput(end: 0 | 1, raw: string): void {
             :max-fraction="0"
             :step="fieldStep"
             :disabled="disabled"
+            :class="fieldClass"
             :classes="MONEY_CLASSES"
             @blur="typed[0] = commit(0, typed[0])"
             @keydown.enter.prevent="typed[0] = commit(0, typed[0])"
           />
-          <FieldWrapper v-else :label="m.filterPanelMin" :classes="PLAIN_WRAPPER_CLASSES">
+          <FieldWrapper
+            v-else
+            :label="m.filterPanelMin"
+            :class="PLAIN_WRAPPER_CLASS"
+            :classes="PLAIN_WRAPPER_CLASSES"
+          >
             <Input
               data-input="min"
               type="number"
@@ -298,11 +297,17 @@ function onPlainInput(end: 0 | 1, raw: string): void {
             :max-fraction="0"
             :step="fieldStep"
             :disabled="disabled"
+            :class="fieldClass"
             :classes="MONEY_CLASSES"
             @blur="typed[1] = commit(1, typed[1])"
             @keydown.enter.prevent="typed[1] = commit(1, typed[1])"
           />
-          <FieldWrapper v-else :label="m.filterPanelMax" :classes="PLAIN_WRAPPER_CLASSES">
+          <FieldWrapper
+            v-else
+            :label="m.filterPanelMax"
+            :class="PLAIN_WRAPPER_CLASS"
+            :classes="PLAIN_WRAPPER_CLASSES"
+          >
             <Input
               data-input="max"
               type="number"

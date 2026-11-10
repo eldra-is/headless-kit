@@ -25,7 +25,7 @@ const meta = {
           'collection grid is the one every store has. For a single number use a',
           '**QuantityStepper** (a count) or an **Input** (a measurement).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `label`, `group`',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (styled with `class`), `label`, `group`',
           '(the `role="group"` that names the pair), `rail` (the band a press lands in), `track`,',
           '`range` (the filled part between the thumbs), `thumb` (both, each with a',
           '`data-thumb="min|max"`), and — with `inputs` — `inputs`, `input` (both, each with a',

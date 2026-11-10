@@ -44,7 +44,7 @@ const meta = {
           'eyebrow, title, excerpt and meta, with the whole card as one link. For products use',
           '`ProductCard`; for short value propositions use `FeatureCard`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `media`, `body`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `media`, `body`,',
           '`eyebrow`, `title`, `titleLink`, `excerpt`, `meta`, `cue`.',
           '',
           '**Slots**: `eyebrow`, `title`, `excerpt`, `meta`, `cue` — each falls back to the',

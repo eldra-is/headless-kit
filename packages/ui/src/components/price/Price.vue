@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { useEldraUiCurrency, useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
 import {
@@ -246,63 +245,45 @@ const SECTION =
  * there is a percentage child depending on one fixes it without affecting the ordinary
  * (non-loading) inline-flex row, which has no such child.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-2 eldra:gap-y-0',
-      props.loading && 'eldra:w-full',
-      SIZE_CLASS[props.size]
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:inline-flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-2 eldra:gap-y-0',
+  props.loading && 'eldra:w-full',
+  SIZE_CLASS[props.size],
+]);
 
 /** Spec "Price" → States: Regular current is `text`; Sale current is `accent`. */
-const currentClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:text-price-current',
-      isSale.value ? 'eldra:text-accent' : 'eldra:text-text',
-      SECTION,
-      dim.value
-    ),
-    props.classes,
-    'current'
-  )
-);
+const currentClass = computed(() => [
+  'eldra:text-price-current',
+  isSale.value ? 'eldra:text-accent' : 'eldra:text-text',
+  SECTION,
+  dim.value,
+  props.classes?.current,
+]);
 
 /** Spec "Price" → Anatomy, part 3: a real `<s>`, `muted`, struck through at 1px. */
-const compareAtClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:text-price-secondary eldra:text-muted eldra:line-through eldra:decoration-1',
-      SECTION,
-      dim.value
-    ),
-    props.classes,
-    'compareAt'
-  )
-);
+const compareAtClass = computed(() => [
+  'eldra:text-price-secondary eldra:text-muted eldra:line-through eldra:decoration-1',
+  SECTION,
+  dim.value,
+  props.classes?.compareAt,
+]);
 
 /** Spec "Price" → States, "From / unit" row: label `muted`. */
-const fromClass = computed(() =>
-  partClass(
-    cx('eldra:text-price-secondary eldra:text-muted', SECTION, dim.value),
-    props.classes,
-    'from'
-  )
-);
+const fromClass = computed(() => [
+  'eldra:text-price-secondary eldra:text-muted',
+  SECTION,
+  dim.value,
+  props.classes?.from,
+]);
 
-const unitClass = computed(() =>
-  partClass(
-    cx('eldra:text-price-unit eldra:text-muted eldra:basis-full', SECTION, dim.value),
-    props.classes,
-    'unit'
-  )
-);
+const unitClass = computed(() => [
+  'eldra:text-price-unit eldra:text-muted eldra:basis-full',
+  SECTION,
+  dim.value,
+  props.classes?.unit,
+]);
 
-const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => ['eldra:sr-only', props.classes?.srText]);
 
 /**
  * The two elements the fade plays on: an inner span per money value (`ValueText`), carrying
@@ -313,8 +294,8 @@ const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'sr
  * an inline span in an inline formatting context adds no width, no line box and no baseline of its
  * own, and `tabular-nums` is inherited from the part.
  */
-const currentValueClass = computed(() => partClass('', props.classes, 'currentValue'));
-const compareAtValueClass = computed(() => partClass('', props.classes, 'compareAtValue'));
+const currentValueClass = computed(() => props.classes?.currentValue);
+const compareAtValueClass = computed(() => props.classes?.compareAtValue);
 
 /**
  * Spec "Price" → States, Loading row: "text skeleton (`surface-strong`) at 35% width" — every
@@ -325,13 +306,10 @@ const compareAtValueClass = computed(() => partClass('', props.classes, 'compare
  * `eldra-skeleton` (`tailwind.css`) is the shimmer this component shares with the `Skeleton`
  * primitive a later task adds.
  */
-const skeletonClass = computed(() =>
-  partClass(
-    'eldra:eldra-skeleton eldra:inline-block eldra:align-middle eldra:rounded-sm eldra:h-[0.85em] eldra:w-[35%]',
-    props.classes,
-    'skeleton'
-  )
-);
+const skeletonClass = computed(() => [
+  'eldra:eldra-skeleton eldra:inline-block eldra:align-middle eldra:rounded-sm eldra:h-[0.85em] eldra:w-[35%]',
+  props.classes?.skeleton,
+]);
 
 /**
  * The spinner takes no room at all: a flex item of width `0` whose `-ms-2` cancels, exactly, the
@@ -353,13 +331,10 @@ const skeletonClass = computed(() =>
  * it on the line it sits in, and `text-muted` keeps it furniture beside the number rather than
  * part of it.
  */
-const spinnerClass = computed(() =>
-  partClass(
-    'eldra:pointer-events-none eldra:relative eldra:-ms-2 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:self-center eldra:text-muted',
-    props.classes,
-    'spinner'
-  )
-);
+const spinnerClass = computed(() => [
+  'eldra:pointer-events-none eldra:relative eldra:-ms-2 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:self-center eldra:text-muted',
+  props.classes?.spinner,
+]);
 
 /**
  * Named `srStatus`, not `status`: `LoadMore` already owns a visible `status` part ("Showing 24 of
@@ -378,7 +353,7 @@ const spinnerClass = computed(() =>
  * separately. `aria-busy` and the visual state are unaffected — the value is still marked busy,
  * the caller has simply taken over the sentence.
  */
-const srStatusClass = computed(() => partClass('eldra:sr-only', props.classes, 'srStatus'));
+const srStatusClass = computed(() => ['eldra:sr-only', props.classes?.srStatus]);
 const srStatusText = computed(() => (isRevalidating.value ? messages.value.updatingPrice : ''));
 </script>
 

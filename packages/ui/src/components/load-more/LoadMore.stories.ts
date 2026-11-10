@@ -26,7 +26,7 @@ const meta = {
           'position: a live status sentence, a decorative progress meter, and a button that hides',
           'once every item is shown.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `status` and',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root`, `status` and',
           '`button`. The meter has no part of its own — it is purely decorative (`aria-hidden`).',
           '',
           '**Accessibility.** The status is a polite live region (`role="status"',

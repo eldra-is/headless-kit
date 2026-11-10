@@ -16,7 +16,6 @@
  * otherwise draw twenty-four flat lines.
  */
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { histogramBarInRange } from './useFilterPanel';
 import type { FilterPanelPart } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -70,14 +69,10 @@ const BAR_BASE = 'eldra:flex-1 eldra:eldra-filter-histogram-bar';
 const BAR_INSIDE = 'eldra:bg-border-strong';
 const BAR_OUTSIDE = 'eldra:bg-surface-strong';
 
-const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'histogram'));
+const rootClass = computed(() => [ROOT_BASE, props.classes?.histogram]);
 
-function barClass(bar: Bar): string {
-  return partClass(
-    cx(BAR_BASE, bar.inside ? BAR_INSIDE : BAR_OUTSIDE),
-    props.classes,
-    'histogramBar'
-  );
+function barClass(bar: Bar) {
+  return [[BAR_BASE, bar.inside ? BAR_INSIDE : BAR_OUTSIDE], props.classes?.histogramBar];
 }
 </script>
 

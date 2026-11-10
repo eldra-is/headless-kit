@@ -64,6 +64,15 @@ describe('ListFacet — counts and names', () => {
     wrapper.unmount();
   });
 
+  it("replaces the checkbox root's own width and alignment with the full-width row", () => {
+    const wrapper = mount([CATEGORY_TREE_FACET]);
+    const row = listRows(wrapper)[0]!.classes();
+    expect(row).toEqual(expect.arrayContaining(['eldra:w-full', 'eldra:items-center']));
+    expect(row).not.toContain('eldra:w-fit');
+    expect(row).not.toContain('eldra:items-start');
+    wrapper.unmount();
+  });
+
   it('writes the singular for a value with one product left', () => {
     const wrapper = mount([
       {
@@ -572,6 +581,32 @@ describe('RangeFacet — the range, its fields and its histogram', () => {
     const group = wrapper.find('[data-part="range"] [role="group"][data-part="group"]').classes();
     expect(group).toContain('eldra:eldra-range-gutter-thumb');
     expect(group).not.toContain('eldra:eldra-range-gutter');
+    wrapper.unmount();
+  });
+
+  it("replaces the money field label's own type and spacing with the facet's", () => {
+    const wrapper = mount([PRICE_FACET], { modelValue: { price: [80, 160] } });
+    const label = wrapper.find('[data-part="fields"] label[data-part="label"]').classes();
+    expect(label).toEqual(
+      expect.arrayContaining(['eldra:mb-0.5', 'eldra:text-filter-tile-count', 'eldra:text-muted'])
+    );
+    expect(label).not.toContain('eldra:mb-1');
+    expect(label).not.toContain('eldra:text-label');
+    expect(label).not.toContain('eldra:text-text');
+    wrapper.unmount();
+  });
+
+  it("replaces the plain field wrapper's own gap and label type with the facet's", () => {
+    const wrapper = mount([{ ...PRICE_FACET, id: 'width', label: 'Width', currency: undefined }]);
+    const root = wrapper.find('[data-part="fields"] > [data-part="root"]').classes();
+    expect(root).toContain('eldra:gap-0');
+    expect(root).not.toContain('eldra:gap-1');
+    const label = wrapper.find('[data-part="fields"] label[data-part="label"]').classes();
+    expect(label).toEqual(
+      expect.arrayContaining(['eldra:text-filter-tile-count', 'eldra:text-muted'])
+    );
+    expect(label).not.toContain('eldra:text-label');
+    expect(label).not.toContain('eldra:text-text');
     wrapper.unmount();
   });
 

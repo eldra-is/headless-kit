@@ -145,14 +145,13 @@ describe('LoadMore — the meter', () => {
 });
 
 describe('LoadMore — classes prop', () => {
-  it('merges a classes override onto a named part instead of landing beside it', () => {
+  it('takes class on the root and appends a classes override to a named part', () => {
     const wrapper = mountWith(LoadMore, {
-      props: { shown: 24, total: 96, classes: { root: 'gap-6', status: 'text-body' } },
+      props: { shown: 24, total: 96, classes: { status: 'text-body' } },
+      attrs: { class: 'gap-6' },
     });
     expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-6');
-    const statusClasses = wrapper.get('[data-part="status"]').classes();
-    expect(statusClasses).toContain('text-body');
-    expect(statusClasses).not.toContain('eldra:text-body-sm');
+    expect(wrapper.get('[data-part="status"]').classes()).toContain('text-body');
     wrapper.unmount();
   });
 });

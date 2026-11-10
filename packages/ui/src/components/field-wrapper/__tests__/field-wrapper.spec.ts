@@ -43,6 +43,18 @@ function inLayout(layout: 'single' | 'two' | 'inline') {
 }
 
 describe('FieldWrapper — parts', () => {
+  it("merges a parent's class over the root's own and keeps every other attribute on it", () => {
+    const wrapper = mountWith(FieldWrapper, {
+      props: { label: 'Min' },
+      attrs: { class: 'eldra:gap-0', 'data-test': 'min' },
+      slots: { default: '<input />' },
+    });
+    expect(wrapper.classes()).toContain('eldra:gap-0');
+    expect(wrapper.classes()).not.toContain('eldra:gap-1');
+    expect(wrapper.attributes('data-test')).toBe('min');
+    wrapper.unmount();
+  });
+
   it('renders a data-part on every part the spec anatomy names', () => {
     const wrapper = mountWith(FieldWrapper, {
       props: {
@@ -98,13 +110,13 @@ describe('FieldWrapper — parts', () => {
     wrapper.unmount();
   });
 
-  it('merges a per-part class override instead of appending it', () => {
+  it('puts class on the root', () => {
     const wrapper = mountWith(FieldWrapper, {
-      props: { label: 'Company', classes: { root: 'gap-6' } },
+      props: { label: 'Company' },
+      attrs: { class: 'gap-6' },
       slots: { default: CONTROL },
     });
     expect(wrapper.classes()).toContain('gap-6');
-    expect(wrapper.classes()).not.toContain('eldra:gap-1');
     wrapper.unmount();
   });
 });

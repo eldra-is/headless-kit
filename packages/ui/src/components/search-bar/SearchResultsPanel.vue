@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import type { MatchParts } from '../select/useOptionList';
 import type { SearchBarPart, SearchRow, SearchSection } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -103,55 +102,43 @@ const isActive = (row: SearchRow): boolean => props.activeValue === row.value;
  * class list for a `teleport: false` search bar; the inline `position` from `useFloating` (`fixed`
  * once teleported) is on the element and wins over it either way.
  */
-const panelClass = computed(() =>
-  partClass(
-    props.flat
-      ? // Spec "Search modal" → Sizes, Panel row: "Inline, fills the remaining height and
-        // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
-        // this component already clips to the radius, so nothing here draws one.
-        cx(
-          'eldra:flex eldra:h-full eldra:min-h-0 eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-2',
-          'eldra:text-[color:var(--eldra-select-panel-text)]'
-        )
-      : cx(
-          'eldra:absolute eldra:z-popover eldra:flex eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-1.5',
-          'eldra:eldra-search-panel-height',
-          'eldra:rounded-lg eldra:border eldra:shadow-md',
-          'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
-          'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]',
-          // No fallback: unset, the colour is inherited exactly as before.
-          'eldra:text-[color:var(--eldra-select-panel-text)]',
-          'eldra:animate-eldra-popover-in'
-        ),
-    props.classes,
-    'panel'
-  )
-);
+const panelClass = computed(() => [
+  props.flat
+    ? // Spec "Search modal" → Sizes, Panel row: "Inline, fills the remaining height and
+      // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
+      // this component already clips to the radius, so nothing here draws one.
+      [
+        'eldra:flex eldra:h-full eldra:min-h-0 eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-2',
+        'eldra:text-[color:var(--eldra-select-panel-text)]',
+      ]
+    : [
+        'eldra:absolute eldra:z-popover eldra:flex eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-1.5',
+        'eldra:eldra-search-panel-height',
+        'eldra:rounded-lg eldra:border eldra:shadow-md',
+        'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
+        'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]',
+        // No fallback: unset, the colour is inherited exactly as before.
+        'eldra:text-[color:var(--eldra-select-panel-text)]',
+        'eldra:animate-eldra-popover-in',
+      ],
+  props.classes?.panel,
+]);
 
-const listboxClass = computed(() =>
-  partClass('eldra:flex eldra:flex-col', props.classes, 'listbox')
-);
+const listboxClass = computed(() => ['eldra:flex eldra:flex-col', props.classes?.listbox]);
 
 /** "0.125rem block padding. Each group after the first has a 1px `border` hairline above." */
-const sectionClass = (index: number): string =>
-  partClass(
-    cx(
-      'eldra:py-0.5',
-      index > 0 &&
-        'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))] eldra:mt-1 eldra:border-t eldra:pt-1.5'
-    ),
-    props.classes,
-    'section'
-  );
+const sectionClass = (index: number) => [
+  'eldra:py-0.5',
+  index > 0 &&
+    'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))] eldra:mt-1 eldra:border-t eldra:pt-1.5',
+  props.classes?.section,
+];
 
 /** "0.75rem, 600, uppercase, 0.06em tracking, `muted`, min 1.75rem row, padding 0.25rem 0.5rem." */
-const headingClass = computed(() =>
-  partClass(
-    'eldra:text-select-group eldra:flex eldra:min-h-7 eldra:items-center eldra:px-2 eldra:py-1 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
-    props.classes,
-    'sectionHeading'
-  )
-);
+const headingClass = computed(() => [
+  'eldra:text-select-group eldra:flex eldra:min-h-7 eldra:items-center eldra:px-2 eldra:py-1 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
+  props.classes?.sectionHeading,
+]);
 
 /**
  * An option row (spec → Sizes, Option): "min 2.5rem, padding 0.375rem 0.5rem, 0.75rem gap,
@@ -162,105 +149,86 @@ const headingClass = computed(() =>
  * Rows carry no focus ring of their own: "focus stays in the input and the active row is the
  * visual cue".
  */
-const rowClass = (row: SearchRow, part: SearchBarPart = 'item'): string =>
-  partClass(
-    cx(
-      'eldra:flex eldra:min-h-10 eldra:scroll-my-1 eldra:cursor-pointer eldra:items-center eldra:gap-3 eldra:rounded-md eldra:px-2 eldra:py-1.5',
-      'eldra:text-select-option eldra:no-underline',
-      'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
-      // 'Minor rows ("Clear recent searches"): title 0.8125rem `muted`.'
-      row.kind === 'clearRecent' &&
-        'eldra:text-caption eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
-      isActive(row) &&
-        'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))] eldra:eldra-select-option-active'
-    ),
-    props.classes,
-    part
-  );
+const rowClass = (row: SearchRow, part: SearchBarPart = 'item') => [
+  'eldra:flex eldra:min-h-10 eldra:scroll-my-1 eldra:cursor-pointer eldra:items-center eldra:gap-3 eldra:rounded-md eldra:px-2 eldra:py-1.5',
+  'eldra:no-underline',
+  // 'Minor rows ("Clear recent searches"): title 0.8125rem `muted`.'
+  row.kind === 'clearRecent'
+    ? 'eldra:text-caption eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]'
+    : 'eldra:text-select-option eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
+  isActive(row) &&
+    'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))] eldra:eldra-select-option-active',
+  props.classes?.[part],
+];
 
 /** "See all" is 600 with the arrow always showing, 0.25rem below the last group. */
 const viewAllClass = computed(() =>
   props.viewAll === undefined
     ? ''
-    : cx(rowClass(props.viewAll, 'viewAll'), 'eldra:mt-1 eldra:font-semibold')
+    : [rowClass(props.viewAll, 'viewAll'), 'eldra:mt-1 eldra:font-semibold']
 );
 
 /** "Thumbnail / icon tile: 2.5rem square, `radius-sm`. Thumbnails sit on `surface-strong`." */
-const imageClass = (row: SearchRow): string =>
-  partClass(
-    cx(
-      'eldra:flex eldra:size-10 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-sm',
-      row.item?.image === undefined
-        ? 'eldra:bg-surface eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]'
-        : 'eldra:bg-surface-strong'
-    ),
-    props.classes,
-    'itemImage'
-  );
+const imageClass = (row: SearchRow) => [
+  'eldra:flex eldra:size-10 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-sm',
+  row.item?.image === undefined
+    ? 'eldra:bg-surface eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]'
+    : 'eldra:bg-surface-strong',
+  props.classes?.itemImage,
+];
 
 /** "Title and sub truncate with an ellipsis on one line." */
-const titleClass = computed(() =>
-  partClass('eldra:min-w-0 eldra:flex-1 eldra:truncate', props.classes, 'itemTitle')
-);
+const titleClass = computed(() => [
+  'eldra:min-w-0 eldra:flex-1 eldra:truncate',
+  props.classes?.itemTitle,
+]);
 
 /** "Meta: 0.875rem 600 tabular." */
-const metaClass = computed(() =>
-  partClass(
-    'eldra:ms-3 eldra:shrink-0 eldra:text-search-meta eldra:tabular-nums',
-    props.classes,
-    'itemMeta'
-  )
-);
+const metaClass = computed(() => [
+  'eldra:ms-3 eldra:shrink-0 eldra:text-search-meta eldra:tabular-nums',
+  props.classes?.itemMeta,
+]);
 
 /** "1rem `arrow-right`, `text`, at the end of the row. Visible only on the active row." */
-const arrowClass = computed(() =>
-  partClass('eldra:size-4 eldra:shrink-0', props.classes, 'itemArrow')
-);
+const arrowClass = computed(() => ['eldra:size-4 eldra:shrink-0', props.classes?.itemArrow]);
 
 /** A recent row's own leading icon: "a 1.125rem `muted` leading icon instead" of a tile. */
 const LEADING_ICON =
   'eldra:size-4.5 eldra:shrink-0 eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]';
 
-const recentClass = computed(() => partClass('', props.classes, 'recent'));
-const popularClass = computed(() =>
-  partClass(
-    'eldra:flex eldra:flex-wrap eldra:gap-1.5 eldra:px-2 eldra:pt-1 eldra:pb-2',
-    props.classes,
-    'popular'
-  )
-);
+const recentClass = computed(() => props.classes?.recent);
+const popularClass = computed(() => [
+  'eldra:flex eldra:flex-wrap eldra:gap-1.5 eldra:px-2 eldra:pt-1 eldra:pb-2',
+  props.classes?.popular,
+]);
 
 /**
  * "Chips: min 2rem, padding 0 0.75rem, 1px `border-strong`, `radius-full`, 0.875rem, 0.375rem gap
  * between chips, optional 0.875rem `muted` icon", and → States, Active chip: "`surface-strong`
  * fill, border `text`".
  */
-const chipClass = (row: SearchRow): string =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:min-h-8 eldra:cursor-pointer eldra:items-center eldra:gap-1.5 eldra:rounded-full eldra:border eldra:px-3',
-      'eldra:text-body-sm eldra:no-underline',
-      'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
-      isActive(row)
-        ? cx(
-            'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))]',
-            'eldra:border-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
-            'eldra:eldra-select-option-active'
-          )
-        : 'eldra:border-border-strong'
-    ),
-    props.classes,
-    'chip'
-  );
+const chipClass = (row: SearchRow) => [
+  'eldra:inline-flex eldra:min-h-8 eldra:cursor-pointer eldra:items-center eldra:gap-1.5 eldra:rounded-full eldra:border eldra:px-3',
+  'eldra:text-body-sm eldra:no-underline',
+  'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]',
+  isActive(row)
+    ? 'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))] ' +
+      'eldra:border-[color:var(--eldra-select-panel-text,var(--eldra-color-text))] ' +
+      'eldra:eldra-select-option-active'
+    : 'eldra:border-border-strong',
+  props.classes?.chip,
+];
 
 /** "No-results message: centred, padding 1.5rem 1rem 0.75rem. Title 1rem 600 … advice 0.875rem." */
-const emptyClass = computed(() =>
-  partClass('eldra:px-4 eldra:pt-6 eldra:pb-3 eldra:text-center', props.classes, 'empty')
-);
+const emptyClass = computed(() => [
+  'eldra:px-4 eldra:pt-6 eldra:pb-3 eldra:text-center',
+  props.classes?.empty,
+]);
 
-const loadingClass = computed(() =>
-  partClass('eldra:flex eldra:flex-col eldra:gap-1', props.classes, 'loading')
-);
+const loadingClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:gap-1',
+  props.classes?.loading,
+]);
 
 /** The three skeleton rows: "a 2.5rem square + two text lines". */
 const SKELETON_ROWS = [0, 1, 2];

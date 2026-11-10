@@ -33,7 +33,7 @@ describe('hero block', () => {
    * ancestor — `Container` (the block's other wrapper) declares none of its own, so the block's
    * `@content:grid-cols-2`/`@tablet:flex-row`/etc. only ever take effect because `Section`'s own
    * root already carries `@container` (see `Section.vue`). Asserted directly so a future change
-   * that swaps the root away from `Section` (or a `classes.root` override that drops the class)
+   * that swaps the root away from `Section` (or a root `class` that drops it)
    * fails loudly instead of silently keeping every block at its mobile layout at every width.
    */
   it('the block root carries @container, so its @tablet:/@content: classes have something to measure against', () => {

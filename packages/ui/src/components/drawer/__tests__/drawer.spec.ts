@@ -535,19 +535,20 @@ describe('Drawer — initial focus', () => {
 });
 
 describe('Drawer — classes prop', () => {
-  it('merges a classes override onto the named part instead of landing beside it', () => {
+  it('appends a classes override to the named part, and puts class on the dialog', () => {
     const wrapper = mountWith(Drawer, {
       props: {
         title: 'Your cart',
         modelValue: true,
         classes: { panel: 'border-none', title: 'text-h1' },
       },
+      attrs: { class: 'mt-8' },
     });
+    expect(root(wrapper).className).toContain('mt-8');
     const panelClass = panel(wrapper).className;
     const titleClass = wrapper.find('[data-part="title"]').element.className;
     expect(panelClass).toContain('border-none');
     expect(titleClass).toContain('text-h1');
-    expect(titleClass).not.toContain('eldra:text-drawer-title');
     wrapper.unmount();
   });
 });

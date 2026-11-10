@@ -658,6 +658,19 @@ describe('NavMenu — narrow screens', () => {
     wrapper.unmount();
   });
 
+  it("replaces the accordion's own summary height and panel width with the drawer row's", () => {
+    const wrapper = mount({ collapseBelow: 'always' });
+    const details = wrapper.get('dialog').find('details');
+    const summary = details.get('summary[data-part="summary"]').classes();
+    expect(summary).toContain('eldra:eldra-nav-menu-drawer-row');
+    expect(summary).not.toContain('eldra:min-h-14');
+    const panelPart = details.get('[data-part="panel"]').classes();
+    expect(panelPart).toEqual(expect.arrayContaining(['eldra:max-w-none', 'eldra:text-text']));
+    expect(panelPart).not.toContain('eldra:max-w-[65ch]');
+    expect(panelPart).not.toContain('eldra:text-muted');
+    wrapper.unmount();
+  });
+
   it('draws no empty navigation landmark when no entry has a label', () => {
     const wrapper = mount(
       { items: [{ label: null, href: '/x' }] },
@@ -891,15 +904,10 @@ describe('NavMenu — drawer layouts and entries', () => {
       ...dialog.querySelector(`[data-part="${part}"]`)!.classList,
     ];
     expect([...dialog.classList]).toContain('backdrop:bg-transparent');
-    expect([...dialog.classList]).not.toContain('eldra:backdrop:bg-overlay');
     expect(classesOf('panel')).toContain('h-auto');
-    expect(classesOf('panel')).not.toContain('eldra:h-full');
     expect(classesOf('header')).toContain('min-h-0');
-    expect(classesOf('header')).not.toContain('eldra:min-h-16');
     expect(classesOf('close')).toContain('size-8');
-    expect(classesOf('close')).not.toContain('eldra:size-10');
     expect(classesOf('body')).toContain('p-4');
-    expect(classesOf('body')).not.toContain('eldra:p-6');
     expect(classesOf('drawerSectionHeading')).toContain('pt-5');
     wrapper.unmount();
   });
@@ -961,19 +969,21 @@ describe('NavMenu — slots that know where they render', () => {
 });
 
 describe('NavMenu — customisation', () => {
-  it('merges classes onto their parts, replacing what they conflict with', () => {
-    const wrapper = mount({
-      modelValue: 0,
-      classes: { trigger: 'px-6', columns: 'grid-cols-5', content: 'rounded-none', root: 'static' },
-    });
+  it('appends classes to their parts, and takes class on the root', () => {
+    const wrapper = mountWith(NavMenu, {
+      props: {
+        items: ITEMS,
+        modelValue: 0,
+        classes: { trigger: 'px-6', columns: 'grid-cols-5', content: 'rounded-none' },
+      },
+      attrs: { class: 'static' },
+    }) as Wrapper;
     expect(wrapper.get('[data-part="root"]').classes()).toContain('static');
-    expect(wrapper.get('[data-part="root"]').classes()).not.toContain('eldra:relative');
-    const trigger = wrapper.get('[data-part="trigger"]').classes();
-    expect(trigger).toContain('px-6');
-    expect(trigger).not.toContain('eldra:px-3');
+    expect(wrapper.get('[data-part="trigger"]').classes()).toContain('px-6');
     const columns = panel(wrapper, 0).querySelector('[data-part="columns"]')!.classList;
     expect(columns.contains('grid-cols-5')).toBe(true);
-    expect(columns.contains('eldra:eldra-nav-menu-columns')).toBe(false);
+    const content = panel(wrapper, 0).querySelector('[data-part="content"]')!.classList;
+    expect(content.contains('rounded-none')).toBe(true);
     wrapper.unmount();
   });
 });
@@ -1087,11 +1097,10 @@ describe('NavMenu — variants', () => {
     expect(muted).toEqual(await drawerClasses('ghost'));
   });
 
-  it('lets classes override what the variant sets', () => {
+  it('appends a class to what the variant sets', () => {
     const wrapper = mount({ variant: 'muted', classes: { link: 'text-primary' } });
     const link = wrapper.get('[data-part="link"]').classes();
     expect(link).toContain('text-primary');
-    expect(link).not.toContain('eldra:text-muted');
     wrapper.unmount();
   });
 

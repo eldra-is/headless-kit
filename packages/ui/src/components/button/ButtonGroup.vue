@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import type { ButtonGroupProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -8,7 +7,6 @@ const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ButtonGroupProps>(), {
   attached: false,
-  classes: undefined,
 });
 
 /**
@@ -46,9 +44,7 @@ const ATTACHED = [
   'eldra:[&>*:focus-visible]:z-10',
 ].join(' ');
 
-const rootClass = computed(() =>
-  partClass(cx(BASE, props.attached ? ATTACHED : LOOSE), props.classes, 'root')
-);
+const rootClass = computed(() => [BASE, props.attached ? ATTACHED : LOOSE]);
 </script>
 
 <template>

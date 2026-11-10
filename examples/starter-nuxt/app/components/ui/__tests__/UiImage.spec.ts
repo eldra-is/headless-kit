@@ -210,7 +210,6 @@ describe('UiImage', () => {
       });
       const frame = wrapper.get('[data-part="frame"]');
       expect(frame.classes()).toEqual(expect.arrayContaining(['w-auto', 'max-w-full']));
-      expect(frame.classes()).not.toContain('eldra:w-full');
       const media = wrapper.get('[data-part="media"]');
       expect(media.classes()).toEqual(
         expect.arrayContaining([
@@ -221,9 +220,6 @@ describe('UiImage', () => {
           'max-h-[inherit]',
         ])
       );
-      expect(media.classes()).not.toContain('eldra:object-cover');
-      expect(media.classes()).not.toContain('eldra:h-full');
-      expect(media.classes()).not.toContain('eldra:w-full');
     });
 
     it("composes with a caller-supplied classes.frame height cap (the lightbox's max-h-[85vh])", () => {
@@ -284,11 +280,22 @@ describe('UiImage', () => {
       expect(wrapper.get('[data-part="media"]').classes()).toContain('object-cover');
     });
 
-    it('passes classes.root through untouched when fill is not set', () => {
+    it('passes class through to the root untouched when fill is not set', () => {
       const wrapper = mount(UiImage, {
-        props: { src: '/demo/hero.svg', alt: 'Hero', classes: { root: 'custom-root' } },
+        props: { src: '/demo/hero.svg', alt: 'Hero' },
+        attrs: { class: 'custom-root' },
       });
       expect(wrapper.get('[data-part="root"]').classes()).toContain('custom-root');
+    });
+
+    it("lets the caller's own class win over fill's root classes", () => {
+      const wrapper = mount(UiImage, {
+        props: { src: '/demo/hero.svg', alt: 'Hero', fill: true },
+        attrs: { class: 'relative' },
+      });
+      const classes = wrapper.get('[data-part="root"]').classes();
+      expect(classes).toContain('relative');
+      expect(classes).not.toContain('absolute');
     });
   });
 });

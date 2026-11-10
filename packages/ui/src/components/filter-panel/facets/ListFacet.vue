@@ -3,7 +3,7 @@
  * A `list` facet: checkbox rows with counts, the first six behind a **Show all N**, and a search
  * field above a list of more than twelve (spec "Filter panel" → Variants, `list` facet row).
  *
- * The rows are the package's own `Checkbox`, restyled through its `classes` parts into the spec's
+ * The rows are the package's own `Checkbox`, restyled through its `class` and `classes` into the spec's
  * full-width row — a real `<input type="checkbox">` inside a `<label>`, with the package's drawn
  * box and its proxy focus ring, none of it forked. What is *not* taken from `Checkbox` is the
  * accessible name: the row carries an explicit `aria-label` of the whole sentence ("Sweaters, 18
@@ -15,9 +15,8 @@
  * why it is a role on a wrapper rather than a tree widget: every row stays an ordinary checkbox in
  * source order, so `Tab`, `Esc` and **Show all N** behave exactly as they do in a flat facet.
  */
-import { computed, ref } from 'vue';
+import { computed, normalizeClass, ref } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/kitClass';
 import Button from '../../button/Button.vue';
 import Checkbox from '../../checkbox/Checkbox.vue';
 import Input from '../../input/Input.vue';
@@ -116,26 +115,27 @@ const SHOW_ALL_BASE = 'eldra:mt-1.5';
 /** A nested child list, one indent in. */
 const CHILDREN_BASE = 'eldra:ms-6 eldra:flex eldra:min-w-0 eldra:flex-col eldra:gap-0.5';
 
-function rowClass(value: FilterFacetValue): string {
-  return partClass(cx(ROW_BASE, !disabled(value) && FACET_ROW_HOVER), props.classes, 'row');
+function rowClass(value: FilterFacetValue) {
+  return [[ROW_BASE, !disabled(value) && FACET_ROW_HOVER], props.classes?.row];
 }
 
 function rowLabelClass(value: FilterFacetValue): string {
-  return partClass(
-    cx(ROW_LABEL_BASE, selected(value) && ROW_LABEL_CHECKED),
-    props.classes,
-    'rowLabel'
-  );
+  return normalizeClass([
+    ROW_LABEL_BASE,
+    selected(value) && ROW_LABEL_CHECKED,
+    props.classes?.rowLabel,
+  ]);
 }
 
-const searchClass = computed(() => partClass(SEARCH_BASE, props.classes, 'search'));
-const noMatchesClass = computed(() =>
-  partClass(cx(NO_MATCHES_BASE, noMatches.value && NO_MATCHES_SHOWN), props.classes, 'noMatches')
-);
-const valuesClass = computed(() => partClass(VALUES_BASE, props.classes, 'values'));
-const countClass = computed(() => partClass(FACET_COUNT, props.classes, 'count'));
-const showAllClass = computed(() => partClass(SHOW_ALL_BASE, props.classes, 'showAll'));
-const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
+const searchClass = computed(() => [SEARCH_BASE, props.classes?.search]);
+const noMatchesClass = computed(() => [
+  [NO_MATCHES_BASE, noMatches.value && NO_MATCHES_SHOWN],
+  props.classes?.noMatches,
+]);
+const valuesClass = computed(() => [VALUES_BASE, props.classes?.values]);
+const countClass = computed(() => [FACET_COUNT, props.classes?.count]);
+const showAllClass = computed(() => [SHOW_ALL_BASE, props.classes?.showAll]);
+const checkboxClass = computed(() => props.classes?.checkbox);
 </script>
 
 <template>
@@ -184,11 +184,8 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           :disabled="disabled(row.value)"
           :aria-label="nameOf(row.value)"
           :data-value="row.value.value"
-          :classes="{
-            root: rowClass(row.value),
-            label: rowLabelClass(row.value),
-            box: checkboxClass,
-          }"
+          :class="rowClass(row.value)"
+          :classes="{ label: rowLabelClass(row.value), box: checkboxClass }"
           @change="emit('toggle', row.value.value, $event)"
         >
           <span :data-eldra-scope="eldra.scope" class="eldra:min-w-0">{{ row.value.label }}</span>
@@ -210,11 +207,8 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
             :disabled="disabled(child)"
             :aria-label="nameOf(child, row.value)"
             :data-value="child.value"
-            :classes="{
-              root: rowClass(child),
-              label: rowLabelClass(child),
-              box: checkboxClass,
-            }"
+            :class="rowClass(child)"
+            :classes="{ label: rowLabelClass(child), box: checkboxClass }"
             @change="emit('toggle', child.value, $event)"
           >
             <span :data-eldra-scope="eldra.scope" class="eldra:min-w-0">{{ child.label }}</span>
@@ -245,7 +239,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
       size="sm"
       type="button"
       data-part="showAll"
-      :classes="{ container: showAllClass }"
+      :class="showAllClass"
       :aria-expanded="expanded ? 'true' : 'false'"
       :aria-controls="listId"
       @click="expanded = !expanded"

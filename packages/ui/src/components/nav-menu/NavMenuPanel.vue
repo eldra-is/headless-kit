@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue';
 import type { UiMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {
@@ -60,8 +59,8 @@ function part(name: NavMenuPanelPart): NavMenuPart {
     : (`drawer${name.charAt(0).toUpperCase()}${name.slice(1)}` as NavMenuPart);
 }
 
-function panelPartClass(base: string, name: NavMenuPanelPart): string {
-  return partClass(base, props.classes, part(name));
+function panelPartClass(base: unknown, name: NavMenuPanelPart) {
+  return [base, props.classes?.[part(name)]];
 }
 
 /** A bar entry's colour at rest, and what a link adds on hover and as the current page. */
@@ -80,13 +79,13 @@ function headingId(index: number): string {
 
 const overviewClass = computed(() =>
   panelPartClass(
-    cx(
+    [
       'eldra:flex eldra:rounded-md eldra:text-body eldra:font-semibold eldra:eldra-focus',
       bar.value
-        ? cx('eldra:mb-2 eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant], BAR_LINK[props.variant])
+        ? ['eldra:mb-2 eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant], BAR_LINK[props.variant]]
         : 'eldra:py-2.5 eldra:text-text',
-      CURRENT_PAGE
-    ),
+      CURRENT_PAGE,
+    ],
     'overview'
   )
 );
@@ -107,7 +106,7 @@ function groupMeta(name: string | null): NavMenuGroup | undefined {
 
 const groupLinkClass = computed(() =>
   panelPartClass(
-    cx('eldra:rounded-sm eldra:eldra-focus eldra:hover:text-text', CURRENT_PAGE),
+    ['eldra:rounded-sm eldra:eldra-focus eldra:hover:text-text', CURRENT_PAGE],
     'groupLink'
   )
 );
@@ -118,7 +117,7 @@ const groupClass = computed(() =>
 
 const groupHeadingClass = computed(() =>
   panelPartClass(
-    cx('eldra:pb-1 eldra:text-overline eldra:text-muted', bar.value && 'eldra:px-3'),
+    ['eldra:pb-1 eldra:text-overline eldra:text-muted', bar.value && 'eldra:px-3'],
     'groupHeading'
   )
 );
@@ -134,17 +133,17 @@ const panelListClass = computed(() =>
 
 const panelItemClass = computed(() => panelPartClass('', 'panelItem'));
 
-function panelLinkClass(link: NavMenuLink): string {
+function panelLinkClass(link: NavMenuLink) {
   return panelPartClass(
-    cx(
+    [
       'eldra:flex eldra:flex-col eldra:gap-0.5 eldra:rounded-md',
       bar.value
-        ? cx('eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant])
+        ? ['eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant]]
         : 'eldra:py-2.5 eldra:text-text',
       hasHref(link) && 'eldra:eldra-focus',
       hasHref(link) && bar.value && BAR_LINK[props.variant],
-      CURRENT_PAGE
-    ),
+      CURRENT_PAGE,
+    ],
     'panelLink'
   );
 }
@@ -160,10 +159,7 @@ const descriptionClass = computed(() =>
   panelPartClass('eldra:text-body-sm eldra:text-muted', 'description')
 );
 
-const badgeClasses = computed(() => {
-  const badge = props.classes?.[part('badge')];
-  return badge === undefined ? undefined : { root: badge };
-});
+const badgeClass = computed(() => props.classes?.[part('badge')]);
 
 function listLabel(group: string | null, index: number): string | undefined {
   return group !== null ? headingId(index) : props.labelledBy;
@@ -246,7 +242,7 @@ function listLabel(group: string | null, index: number): string | undefined {
             <slot name="panelItem" :link="link" :item="item" :placement="placement">
               <span :data-part="part('panelLabel')" :class="panelLabelClass">
                 {{ link.label }}
-                <Badge v-if="link.badge" :label="link.badge" :classes="badgeClasses" />
+                <Badge v-if="link.badge" :label="link.badge" :class="badgeClass" />
               </span>
               <span
                 v-if="link.description"

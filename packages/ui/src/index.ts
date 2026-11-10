@@ -146,7 +146,7 @@ export type {
   ChipProps,
   ChipSize,
 } from './components/chip/types';
-export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
+export type { ContainerProps, ContainerWidth } from './components/container/types';
 export type {
   ContentCardPart,
   ContentCardProps,
@@ -178,7 +178,7 @@ export type {
   FormLayoutSubmitPayload,
   FormLayoutVariant,
 } from './components/form-layout/types';
-export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
+export type { IconComponent, IconProps, IconSize } from './components/icon/types';
 export type {
   ImageCrop,
   ImageMedia,
@@ -262,12 +262,7 @@ export type {
   SearchSelectType,
 } from './components/search-bar/types';
 export type { SearchModalPart, SearchModalProps } from './components/search-modal/types';
-export type {
-  SectionBackground,
-  SectionPart,
-  SectionProps,
-  SectionSpacing,
-} from './components/section/types';
+export type { SectionBackground, SectionProps, SectionSpacing } from './components/section/types';
 export type {
   SiteFormClient,
   SiteFormDefinition,
@@ -300,7 +295,7 @@ export type {
   TabsProps,
   TabsVariant,
 } from './components/tabs/types';
-export type { TablerIconPart, TablerIconProps } from './components/tabler-icon/types';
+export type { TablerIconProps } from './components/tabler-icon/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type {
   ToastAction,
@@ -326,7 +321,7 @@ export type {
   VariantPickerProps,
   VariantPickerType,
 } from './components/variant-picker/types';
-export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
+export type { VisuallyHiddenProps } from './components/visually-hidden/types';
 
 // Messages
 export { defaultMessages, enUS } from './messages';
@@ -539,7 +534,6 @@ export { TABS_KEY, type TabsContext, type TabsEntry } from './components/tabs/co
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.
-export { cx, partClass, type ClassValue } from './utils/cx';
 export { mixToward } from './utils/color';
 export { joinIds, useUiId } from './utils/id';
 export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';

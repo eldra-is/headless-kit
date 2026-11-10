@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, type StyleValue } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { frameAspectRatio } from '../../utils/ratio';
-import type { SkeletonPart, SkeletonProps, SkeletonVariant } from './types';
+import type { SkeletonProps, SkeletonVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -53,9 +52,7 @@ const rootAria = computed(() =>
  * rather than its own default percentage of it, so the rendered result is exactly `width` wide,
  * not a fraction of it.
  */
-const rootClass = computed(() =>
-  partClass(cx('eldra:block', !props.width && 'eldra:w-full'), props.classes, 'root')
-);
+const rootClass = computed(() => ['eldra:block', !props.width && 'eldra:w-full']);
 const rootStyle = computed<StyleValue | undefined>(() =>
   props.width ? { width: props.width } : undefined
 );
@@ -110,11 +107,11 @@ function lineClass(index: number): string {
   // step — the package's `0.25rem` unit has no `0.3rem` multiple — so it stays a documented
   // arbitrary value rather than a token that would not actually match the spec's own number.
   if (variant === 'text')
-    return cx(base, 'eldra:h-3.5 eldra:my-[0.3rem] eldra:rounded-sm', textWidthClass(index));
+    return `${base} eldra:h-3.5 eldra:my-[0.3rem] eldra:rounded-sm ${textWidthClass(index)}`;
   if (variant === 'title') {
-    return cx(base, 'eldra:h-6 eldra:rounded-sm', props.width ? 'eldra:w-full' : TITLE_WIDTH_CLASS);
+    return `${base} eldra:h-6 eldra:rounded-sm ${props.width ? 'eldra:w-full' : TITLE_WIDTH_CLASS}`;
   }
-  return cx(base, SHAPE_CLASS[variant]);
+  return `${base} ${SHAPE_CLASS[variant]}`;
 }
 
 function lineStyle(): StyleValue | undefined {
@@ -123,11 +120,10 @@ function lineStyle(): StyleValue | undefined {
   return undefined;
 }
 
-const PART: SkeletonPart = 'line';
 const lines = computed(() =>
   Array.from({ length: lineCount.value }, (_, index) => ({
     key: index,
-    class: partClass(lineClass(index), props.classes, PART),
+    class: [lineClass(index), props.classes?.line],
     style: lineStyle(),
   }))
 );

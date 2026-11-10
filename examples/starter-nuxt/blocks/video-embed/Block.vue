@@ -203,7 +203,7 @@ const headerClass = computed(() =>
 const headingClass =
   'font-heading text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em] @tablet:text-h2';
 const frameRadiusClass = computed(() => (isSplit.value ? 'rounded-lg' : 'rounded-xl'));
-const emptyStateClasses = { root: 'absolute inset-0 h-full w-full justify-center' };
+const emptyStateClass = 'absolute inset-0 h-full w-full justify-center';
 </script>
 
 <template>
@@ -242,7 +242,7 @@ const emptyStateClasses = { root: 'absolute inset-0 h-full w-full justify-center
               :icon="UrlHintIcon"
               :label="t('video.urlHintLabel')"
               :help="t('video.urlHintHelp')"
-              :classes="emptyStateClasses"
+              :class="emptyStateClass"
             />
 
             <!-- An unrecognised or unsafe videoUrl: never build an <iframe>/<video> from it. -->
@@ -251,7 +251,7 @@ const emptyStateClasses = { root: 'absolute inset-0 h-full w-full justify-center
               variant="error"
               :title="t('video.errorTitle')"
               :text="t('video.errorText')"
-              :classes="emptyStateClasses"
+              :class="emptyStateClass"
             >
               <template #actions>
                 <Link

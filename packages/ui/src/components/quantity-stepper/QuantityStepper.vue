@@ -25,7 +25,6 @@ import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
@@ -298,15 +297,14 @@ function onKeydown(event: KeyboardEvent): void {
  * `select/panelParts.ts`'s own comment for the same technique on the select panel).
  */
 const ROOT_BASE =
-  'eldra:relative eldra:inline-flex eldra:items-stretch eldra:w-fit eldra:max-w-full eldra:overflow-hidden eldra:bg-background ' +
-  'eldra:rounded-[var(--eldra-stepper-radius,var(--eldra-radius-md))] eldra:eldra-field-border eldra:border-border-strong';
+  'eldra:relative eldra:inline-flex eldra:items-stretch eldra:w-fit eldra:max-w-full eldra:overflow-hidden ' +
+  'eldra:rounded-[var(--eldra-stepper-radius,var(--eldra-radius-md))] eldra:eldra-field-border';
+const ROOT_LIVE = 'eldra:bg-background eldra:border-border-strong';
 /** Spec "Quantity stepper" → States, "Disabled (sold out)" row, Group column. */
 const ROOT_DISABLED =
   'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:cursor-not-allowed';
 
-const rootClass = computed(() =>
-  partClass(cx(ROOT_BASE, props.disabled && ROOT_DISABLED), props.classes, 'root')
-);
+const rootClass = computed(() => [ROOT_BASE, props.disabled ? ROOT_DISABLED : ROOT_LIVE]);
 
 /**
  * Buttons (spec "Quantity stepper" → Sizes): 2.5×2.5rem square at `md`, 2×2rem at `sm` — both
@@ -336,19 +334,15 @@ const BUTTON_AT_LIMIT = 'eldra:text-muted eldra:opacity-55 eldra:cursor-not-allo
 /** Spec States, "Disabled (sold out)" row, Buttons column: "both disabled." */
 const BUTTON_DISABLED = 'eldra:text-muted eldra:cursor-not-allowed';
 
-function buttonClass(atLimit: boolean): string {
-  return cx(
+function buttonClass(atLimit: boolean): string[] {
+  return [
     BUTTON_BASE,
     BUTTON_SIZE[props.size],
-    props.disabled ? BUTTON_DISABLED : atLimit ? BUTTON_AT_LIMIT : BUTTON_HOVER
-  );
+    props.disabled ? BUTTON_DISABLED : atLimit ? BUTTON_AT_LIMIT : BUTTON_HOVER,
+  ];
 }
-const decreaseClass = computed(() =>
-  partClass(buttonClass(atMin.value), props.classes, 'decrease')
-);
-const increaseClass = computed(() =>
-  partClass(buttonClass(atMax.value), props.classes, 'increase')
-);
+const decreaseClass = computed(() => [buttonClass(atMin.value), props.classes?.decrease]);
+const increaseClass = computed(() => [buttonClass(atMax.value), props.classes?.increase]);
 
 const ICON_SIZE: Record<QuantityStepperSize, string> = { md: 'eldra:size-5', sm: 'eldra:size-4' };
 const iconClass = computed(() => ICON_SIZE[props.size]);
@@ -362,7 +356,7 @@ const iconClass = computed(() => ICON_SIZE[props.size]);
  * per the same "Inset variant" note as the buttons.
  */
 const INPUT_BASE =
-  'eldra:min-w-0 eldra:border-0 eldra:bg-transparent eldra:text-center eldra:tabular-nums eldra:text-text ' +
+  'eldra:min-w-0 eldra:border-0 eldra:bg-transparent eldra:text-center eldra:tabular-nums ' +
   'eldra:eldra-focus-inset eldra:eldra-focus-inset-always';
 const INPUT_SIZE: Record<QuantityStepperSize, string> = {
   md: 'eldra:w-11 eldra:text-stepper-value',
@@ -371,17 +365,21 @@ const INPUT_SIZE: Record<QuantityStepperSize, string> = {
 /** Spec States, "Disabled (sold out)" row, Input column: "muted." */
 const INPUT_DISABLED = 'eldra:text-muted eldra:cursor-not-allowed';
 
-const inputClass = computed(() =>
-  partClass(
-    cx(INPUT_BASE, INPUT_SIZE[props.size], props.disabled && INPUT_DISABLED),
-    props.classes,
-    'input'
-  )
-);
+const inputClass = computed(() => [
+  INPUT_BASE,
+  INPUT_SIZE[props.size],
+  props.disabled ? INPUT_DISABLED : 'eldra:text-text',
+  props.classes?.input,
+]);
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <button
       type="button"
       data-part="decrease"
@@ -408,7 +406,7 @@ const inputClass = computed(() =>
     </button>
 
     <input
-      v-bind="$attrs"
+      v-bind="{ ...$attrs, class: undefined }"
       data-part="input"
       type="text"
       inputmode="numeric"

@@ -90,6 +90,24 @@ describe('Lightbox — element and structure', () => {
     wrapper.unmount();
   });
 
+  it("replaces the Image's own root, frame and caption classes with the stage's", async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
+    });
+    await settle();
+    const figure = wrapper.findAll('[data-part="slide"]')[0]!.find('figure');
+    expect(figure.classes()).toContain('eldra:flex');
+    expect(figure.classes()).not.toContain('eldra:block');
+    const frame = figure.find('[data-part="frame"]').classes();
+    expect(frame).toContain('eldra:w-auto');
+    expect(frame).not.toContain('eldra:w-full');
+    const caption = figure.find('figcaption').classes();
+    expect(caption).toEqual(expect.arrayContaining(['eldra:mt-0', 'eldra:text-body-sm']));
+    expect(caption).not.toContain('eldra:mt-2');
+    expect(caption).not.toContain('eldra:text-caption');
+    wrapper.unmount();
+  });
+
   it('renders a real <img> as data-part="image", with real alt text', async () => {
     const wrapper = mountWith(Lightbox, {
       props: { ariaLabel: 'Gallery', images: IMAGES, modelValue: true },
@@ -111,7 +129,7 @@ describe('Lightbox — element and structure', () => {
     wrapper.unmount();
   });
 
-  it('passes a classes.track override through tailwind-merge', async () => {
+  it('appends a classes.track override to the track', async () => {
     const wrapper = mountWith(Lightbox, {
       props: {
         ariaLabel: 'Gallery',
@@ -125,7 +143,7 @@ describe('Lightbox — element and structure', () => {
     wrapper.unmount();
   });
 
-  it('passes a classes.slide override through tailwind-merge, replacing the 4rem stage inset', async () => {
+  it('appends a classes.slide override to the slide, where the 4rem stage inset lives', async () => {
     // `px-16` (spec "Sizes": "Stage side padding: 4rem each side") lives on the slide, not the
     // track — see `slideClass`'s own comment for why padding on the scrolling element itself
     // would let the next slide peek into view at rest.
@@ -140,7 +158,6 @@ describe('Lightbox — element and structure', () => {
     await settle();
     const slideClassName = wrapper.find('[data-part="slide"]').element.className;
     expect(slideClassName).toContain('px-4');
-    expect(slideClassName).not.toContain('eldra:px-16');
     wrapper.unmount();
   });
 

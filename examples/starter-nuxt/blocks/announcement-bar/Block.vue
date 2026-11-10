@@ -165,7 +165,8 @@ function moveFocusAfterDismiss(): void {
             :as="linkAs"
             variant="standalone"
             arrow
-            :classes="{ root: 'ml-2', label: 'whitespace-nowrap' }"
+            class="ml-2"
+            :classes="{ label: 'whitespace-nowrap' }"
           >
             {{ data.linkLabel }}
           </Link>

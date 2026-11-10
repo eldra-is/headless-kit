@@ -1,12 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type TextareaPart =
-  | 'root'
-  | 'prefix'
-  | 'control'
-  | 'clearButton'
-  | 'suffix'
-  | 'foot'
-  | 'counter';
+export type TextareaPart = 'prefix' | 'control' | 'clearButton' | 'suffix' | 'foot' | 'counter';
 
 export interface TextareaProps {
   /** The text (two-way). */
@@ -44,6 +37,9 @@ export interface TextareaProps {
   name?: string;
   /** `aria-describedby` ids, error id first. Comes from the `FieldWrapper` otherwise. */
   describedBy?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<TextareaPart, string>>;
 }

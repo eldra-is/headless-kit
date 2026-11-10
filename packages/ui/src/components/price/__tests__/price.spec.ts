@@ -674,12 +674,13 @@ describe('Price — sizes', () => {
 });
 
 describe('Price — customisation', () => {
-  it('merges an override onto every part', () => {
+  it('appends an override to every part, and a root class to the root', () => {
     const wrapper = mountWith(Price, {
+      attrs: { class: 'gap-x-4' },
       props: {
         amount: 3840,
         compareAt: 4800,
-        classes: { root: 'gap-x-4', current: 'uppercase', compareAt: 'italic', srText: 'italic' },
+        classes: { current: 'uppercase', compareAt: 'italic', srText: 'italic' },
       },
     });
     expect(wrapper.classes()).toContain('gap-x-4');

@@ -1,38 +1,16 @@
-import { getCurrentInstance } from 'vue';
+import { normalizeClass } from 'vue';
 import { extendTailwindMerge } from 'tailwind-merge';
 
 /**
- * Anything `cx` accepts: a class string, a falsy placeholder for a branch that
- * did not apply, or an object whose truthy keys are class names.
+ * Where one of this package's components restyles another it renders (FilterGroup's count
+ * `Badge`, Lightbox's `Image`), both sets of classes are `eldra:` classes in the same layer, so
+ * stylesheet order would pick the winner. The child merges what it receives with
+ * `mergeClass`, so the parent's class replaces the child's own. A consumer's classes need no
+ * merge: they win by layer.
  *
- * An **array is deliberately not in this union**, and neither is it in a
- * `classes` prop's own `Partial<Record<Part, string>>` type: this package's
- * `classes` contract is one string per part, so a TypeScript consumer writing
- * `classes: { root: ['a', 'b'] }` gets a type error where it belongs — at the
- * call. `cx` still *flattens* one at runtime (see `flattenClassValue` below),
- * and `partClass` warns about it in dev, because the type cannot help a
- * JavaScript consumer, a `v-bind` of an untyped object, or a value that arrived
- * from JSON.
- */
-export type ClassValue = string | false | null | undefined | Record<string, boolean>;
-
-/**
- * Stock `twMerge` only knows Tailwind's own utilities: it has no idea `text-button-md` is a
- * "font-size" utility, so a consumer's `classes.container: 'text-lg'` used to land *beside* it
- * instead of replacing it, and CSS source order (not the override) decided which one painted.
- *
- * `src/styles/tailwind.css`'s `@utility` rules are invisible to `tailwind-merge` the same way —
- * it never reads the package's CSS, it only pattern-matches class names against its built-in
- * config — so every custom utility that shares a *concern* with a stock group (a font size, a
- * height, a duration, a z-index, an animation, a border radius) is registered here under that
- * group's id. The three with no stock equivalent (`eldra-focus*`, `target-min`, `target-touch`)
- * get their own group ids instead, so they still conflict with each other without conflicting
- * with unrelated utilities.
- *
- * `src/__tests__/custom-utility-coverage.spec.ts` parses every `@utility <name>` out of
- * `tailwind.css` and fails if `cx(name, name)` does not collapse to one token, so a new custom
- * utility that is never added here (as `eldra-link-radius` first shipped) is caught by a test
- * instead of shipping unmerged.
+ * `tailwind-merge` only knows Tailwind's own utilities, so every custom `@utility` in
+ * `utilities.css` is registered under the stock group it shares a concern with, or a group of its
+ * own; `custom-utility-coverage.spec.ts` checks none is missing.
  */
 type KitGroup =
   | 'target-min'
@@ -345,136 +323,9 @@ const MERGE_CONFIG = {
   },
 };
 
-const twMerge = extendTailwindMerge<KitGroup>(MERGE_CONFIG);
-
-/**
- * The same merge for the package's own classes, which carry the `eldra:` prefix (`eldra:px-4`) so
- * no app's own utilities can match a component's element by name. Internal: components build their
- * classes through `kitClass.ts`; the exported `cx` and `partClass` stay unprefixed for a
- * consumer's own markup.
- */
 export const kitMerge = extendTailwindMerge<KitGroup>({ ...MERGE_CONFIG, prefix: 'eldra' });
 
-/**
- * Flattens one `cx` input into the class names it contributes.
- *
- * The array branch is the one that is not in `ClassValue`, and it exists
- * because the alternative is silent nonsense rather than an error. `Object.
- * entries(['flex', 'gap-4'])` yields `[['0', 'flex'], ['1', 'gap-4']]`, so the
- * object branch below used to read an array's *indices* as class names and emit
- * `"0 1"` — two classes that style nothing, in place of the two the consumer
- * wrote. Flattening (recursively, so a nested array works the way Vue's own
- * `:class` array syntax does) is what a caller passing one always meant;
- * `partClass` is where it also gets told, in dev, that this package's `classes`
- * prop takes a string per part.
- */
-function flattenClassValue(input: unknown, out: string[]): void {
-  if (!input) return;
-  if (typeof input === 'string') {
-    out.push(input);
-    return;
-  }
-  if (Array.isArray(input)) {
-    for (const item of input) flattenClassValue(item, out);
-    return;
-  }
-  if (typeof input !== 'object') return;
-  for (const [name, enabled] of Object.entries(input)) {
-    if (enabled) out.push(name);
-  }
-}
-
-/**
- * Join class values, then resolve Tailwind conflicts so the last one wins.
- *
- * Every component builds its classes with this, which is what makes the
- * `classes` prop work without `!important`: a consumer's `px-6` replaces the
- * component's `px-4` instead of landing beside it and losing to source order.
- */
-export function cx(...inputs: ClassValue[]): string {
-  return mergeWith(twMerge, inputs);
-}
-
-/** Internal: flattens `inputs` and merges them with `merge` (`twMerge`, or `kitMerge`). */
-export function mergeWith(merge: (classes: string) => string, inputs: readonly unknown[]): string {
-  const parts: string[] = [];
-  for (const input of inputs) flattenClassValue(input, parts);
-  return merge(parts.join(' '));
-}
-
-/**
- * The name of the component whose render is currently running, for a dev
- * warning's sake only.
- *
- * `partClass` is called from a `computed` in every component, and a component's
- * class computeds are first evaluated while that component renders — which is
- * exactly when Vue has a current instance (`getCurrentInstance()` reads the
- * rendering instance as well as the setup one). So the name is available
- * without every one of the ~60 call sites passing it, and a call from outside a
- * render (a consumer composing classes in a plain function) still degrades to a
- * readable label rather than throwing.
- *
- * `name` before `__name`: `name` is what a component sets explicitly, `__name`
- * what the SFC compiler derives from the filename.
- */
-function currentComponentName(): string {
-  const type = getCurrentInstance()?.type as { name?: string; __name?: string } | undefined;
-  return type?.name ?? type?.__name ?? 'an @eldrajs/ui component';
-}
-
-/**
- * Parts already warned about, keyed by component **and** part: one warning per
- * component/part pair, not one per render — `partClass` runs on every render of
- * every component, so an unkeyed `console.warn` would flood a dev console with
- * the same line hundreds of times, which is how a warning stops being read.
- */
-const warnedArrayParts = new Set<string>();
-
-/**
- * Warns, once, that a `classes` part was given an array (see
- * `flattenClassValue` for what happens to it).
- *
- * Dev only (`import.meta.env?.DEV`, the same guard `formatDate`,
- * `Section`, `Chip`, `Image`, `Drawer`, `Popover` and `Tooltip` use for their
- * own warnings), so a production bundle carries no message text and does
- * nothing at runtime: this is a wrong-shape-of-prop mistake a developer fixes
- * once, never a condition a visitor's browser should spend anything on.
- */
-export function warnArrayClassesValue(part: string): void {
-  if (!import.meta.env?.DEV) return;
-  const component = currentComponentName();
-  const key = `${component}.${part}`;
-  if (warnedArrayParts.has(key)) return;
-  warnedArrayParts.add(key);
-  console.warn(
-    `[@eldrajs/ui] ${component} received an array for \`classes.${part}\`. Every \`classes\` ` +
-      'part takes a single class string — the array is flattened for you, but pass ' +
-      `\`classes: { ${part}: 'a b' }\` (or a template literal) instead.`
-  );
-}
-
-/**
- * The classes for one named part of a component: the part's own classes with
- * the consumer's override for that part merged over them.
- *
- * `Part` is the union of the part names in the component's spec anatomy, so a
- * typo in a `classes` key is a type error rather than a silently ignored
- * override.
- */
-export function partClass<P extends string>(
-  base: string,
-  classes: Partial<Record<P, string>> | undefined,
-  part: P
-): string {
-  const override = classes?.[part] as unknown;
-  // `Partial<Record<P, string>>` says this is a string, so the `Array.isArray`
-  // check is about the callers TypeScript cannot reach: a JavaScript consumer, a
-  // `v-bind` of an untyped object, a `classes` value that came out of JSON. The
-  // array is flattened by `cx` either way (`flattenClassValue`); this is only
-  // where the developer is told, once, that the prop takes a string per part.
-  if (Array.isArray(override)) {
-    warnArrayClassesValue(part);
-    return cx(base, ...(override as ClassValue[]));
-  }
-  return cx(base, override as ClassValue);
+/** The component's own classes with `incoming` (a parent component's) merged over them. */
+export function mergeClass(own: unknown, incoming: unknown): string {
+  return kitMerge(normalizeClass([own, incoming]));
 }

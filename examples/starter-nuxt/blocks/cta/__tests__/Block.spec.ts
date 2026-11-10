@@ -141,15 +141,11 @@ describe('cta block', () => {
     const classes = button.classes();
     // `control-h` (the package's regular control height, closest token-backed step to the spec's
     // 2.75rem) below `@tablet` (48rem of the block's own width); `@tablet:control-h-lg` (3rem)
-    // from 48rem on — see `Block.vue`'s own doc comment on the banner Button's `classes.container`.
+    // from 48rem on — see `Block.vue`'s own doc comment on the banner Button's `class`.
     expect(classes).toContain('control-h');
     expect(classes).toContain('@tablet:control-h-lg');
-    // `size="lg"`'s own `eldra:control-h-lg` must be gone — `cx`'s custom `twMerge` config
-    // treats `control-h`/`control-h-lg` as one conflicting group, so the override replaces it
-    // rather than sitting beside it (which would let the bare `eldra:control-h-lg` apply at every
-    // width, silently keeping the button at 3rem below 48rem too). Its `lg` padding/text sizing
-    // (`eldra:px-6`, `eldra:text-button-lg`) stay untouched — a different, non-conflicting group.
-    expect(classes).not.toContain('eldra:control-h-lg');
+    // `size="lg"`'s own `eldra:control-h-lg` stays beside them and loses by cascade layer: an app
+    // utility outranks every `eldra:` class. Its `lg` padding/text sizing stay as they are.
     expect(classes).toContain('eldra:px-6');
     expect(classes).toContain('eldra:text-button-lg');
   });

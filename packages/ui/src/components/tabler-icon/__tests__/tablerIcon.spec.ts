@@ -97,12 +97,12 @@ describe('TablerIcon', () => {
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a conflicting utility', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(TablerIcon, {
-      props: { name: 'IconCalendar', classes: { root: 'size-12 text-accent' } },
+      props: { name: 'IconCalendar' },
+      attrs: { class: 'size-12 text-accent' },
     });
     expect(wrapper.classes()).toEqual(expect.arrayContaining(['size-12', 'text-accent']));
-    expect(wrapper.classes()).not.toContain('eldra:size-5');
     wrapper.unmount();
   });
 

@@ -4,7 +4,6 @@ import { useEldraUiLocale } from '../../composables/useLocale';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/kitClass';
 import { formatDate } from '../../utils/date';
 import Image from '../image/Image.vue';
 import Skeleton from '../skeleton/Skeleton.vue';
@@ -109,40 +108,37 @@ const VARIANT_CLASS: Record<ContentCardVariant, string> = {
  * It is dropped entirely while `loading`: a loading card has no focusable title link for it to
  * proxy.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:flex-col eldra:gap-4 eldra:rounded-lg',
-      !props.loading && CARD_FOCUS_PROXY,
-      VARIANT_CLASS[resolvedVariant.value]
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:gap-4',
+  props.loading ? 'eldra:rounded-lg' : CARD_FOCUS_PROXY,
+  VARIANT_CLASS[resolvedVariant.value],
+]);
 
-const mediaClass = computed(() => partClass('', props.classes, 'media'));
+const mediaClass = computed(() => props.classes?.media);
 
 /** Spec → Sizes: "Body gap: 0.5rem (`space-2`)." `flex-1` is the anatomy's "Body (grows to fill)":
  * inside a row of cards of equal height, the meta line/cue below still pins to each card's own
  * bottom edge (see `metaClass`/`cueClass`'s own `mt-auto`). */
-const bodyClass = computed(() =>
-  partClass('eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-2', props.classes, 'body')
-);
+const bodyClass = computed(() => [
+  'eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-2',
+  props.classes?.body,
+]);
 
 /** Spec → Sizes: "Eyebrow: 0.75rem, weight 600, letter-spacing 0.12em, line-height 1.3, uppercase
  * via styling" — `text-overline` (`tailwind.css`) is exactly this combination already, reused
  * directly rather than duplicated. Colour: `accent` (spec → States). */
-const eyebrowClass = computed(() =>
-  partClass('eldra:text-overline eldra:text-accent', props.classes, 'eyebrow')
-);
+const eyebrowClass = computed(() => [
+  'eldra:text-overline eldra:text-accent',
+  props.classes?.eyebrow,
+]);
 
 /** Spec → Sizes: "Title: heading family, 1.25rem, line-height 1.3, weight 600, letter-spacing
  * −0.01em" — see `text-content-card-title` in `tailwind.css` for why this is its own utility
  * rather than a reused one. */
-const titleClass = computed(() =>
-  partClass('eldra:text-content-card-title eldra:text-text', props.classes, 'title')
-);
+const titleClass = computed(() => [
+  'eldra:text-content-card-title eldra:text-text',
+  props.classes?.title,
+]);
 
 /**
  * The stretched link itself (spec → Anatomy, part 2.2: "Title: heading containing the stretched
@@ -154,44 +150,31 @@ const titleClass = computed(() =>
  * `stretchedLink.ts`'s own comment for why. `STRETCHED_LINK_OUTLINE` (`outline-none`) is
  * deliberate, not an oversight: the ring lives on the root, not here.
  */
-const titleLinkClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
-      'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current',
-      STRETCHED_LINK,
-      STRETCHED_LINK_OUTLINE
-    ),
-    props.classes,
-    'titleLink'
-  )
-);
+const titleLinkClass = computed(() => [
+  'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+  'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current',
+  STRETCHED_LINK,
+  STRETCHED_LINK_OUTLINE,
+  props.classes?.titleLink,
+]);
 
 /** Spec → Sizes: "Excerpt: 0.9375rem, clamp 3 lines" — `line-clamp-3` is stock Tailwind. Colour:
  * `muted` (spec → States). See `text-content-card-excerpt` in `tailwind.css`. */
-const excerptClass = computed(() =>
-  partClass(
-    'eldra:text-content-card-excerpt eldra:text-muted eldra:line-clamp-3',
-    props.classes,
-    'excerpt'
-  )
-);
+const excerptClass = computed(() => [
+  'eldra:text-content-card-excerpt eldra:text-muted eldra:line-clamp-3',
+  props.classes?.excerpt,
+]);
 
 /** Spec → Sizes: "Meta: 0.8125rem" — `text-caption`'s own size already matches exactly, so this
  * reuses it rather than a new utility (unlike the title/excerpt above, neither of which any shared
  * type style matches). `mt-auto` only in `outlined`: that is the variant whose count meta pins to
  * the card's own bottom edge (spec → Anatomy, part 4); `plain`/`surface` let it flow after the
  * excerpt instead. */
-const metaClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:text-caption eldra:text-muted',
-      resolvedVariant.value === 'outlined' && 'eldra:mt-auto'
-    ),
-    props.classes,
-    'meta'
-  )
-);
+const metaClass = computed(() => [
+  'eldra:text-caption eldra:text-muted',
+  resolvedVariant.value === 'outlined' && 'eldra:mt-auto',
+  props.classes?.meta,
+]);
 
 /** Spec → Sizes: "Link cue: standalone link style: weight 600, arrow icon 1.125rem, gap 0.25rem,
  * min-height 1.5rem" — `target-min` is exactly the 1.5rem minimum height token, `gap-1` the
@@ -199,13 +182,10 @@ const metaClass = computed(() =>
  * `Link.vue`), reused here as plain classes rather than through the component because `Link`
  * renders no arrow/no styling at all with no `href` (see this component's own comment on `Link`
  * above `showCue`). Always `mt-auto`: the cue is the `surface` variant's own bottom-pinned part. */
-const cueClass = computed(() =>
-  partClass(
-    'eldra:mt-auto eldra:inline-flex eldra:items-center eldra:gap-1 eldra:target-min eldra:font-semibold eldra:text-text',
-    props.classes,
-    'cue'
-  )
-);
+const cueClass = computed(() => [
+  'eldra:mt-auto eldra:inline-flex eldra:items-center eldra:gap-1 eldra:target-min eldra:font-semibold eldra:text-text',
+  props.classes?.cue,
+]);
 
 /** The cue's arrow (spec → States, Hover: "cue arrow moves 2px right (`duration-fast`)") — the
  * same geometry and hover-nudge as `Link.vue`'s own standalone arrow, redrawn here for the same

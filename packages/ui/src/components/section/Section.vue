@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, inject, provide, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { SECTION_KEY } from './context';
 import type { SectionBackground, SectionProps, SectionSpacing } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -12,7 +11,6 @@ const props = withDefaults(defineProps<SectionProps>(), {
   spacing: 'md',
   labelledBy: undefined,
   ariaLabel: undefined,
-  classes: undefined,
   as: undefined,
 });
 
@@ -101,13 +99,11 @@ const resolvedAriaLabel = computed(() => (hasLabel.value ? props.ariaLabel! : un
  * gutters, and any block's own breakpoints — measures, so a block responds to its own width rather
  * than the viewport and works in a narrow page-builder column.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx('eldra:@container', BACKGROUND[props.background], SPACING[props.spacing]),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:@container',
+  BACKGROUND[props.background],
+  SPACING[props.spacing],
+]);
 </script>
 
 <template>

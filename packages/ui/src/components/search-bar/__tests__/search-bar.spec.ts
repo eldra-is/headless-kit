@@ -1156,7 +1156,7 @@ describe('SearchBar — the field is Input’s field', () => {
     }
   });
 
-  it('keeps its own pill radius, which replaces Input’s rather than landing beside it', () => {
+  it('keeps its own pill radius in place of Input’s', () => {
     const classes = mount({ pill: true }).find('[data-part="field"]').classes();
     expect(classes).toContain('eldra:rounded-full');
     expect(classes).not.toContain(

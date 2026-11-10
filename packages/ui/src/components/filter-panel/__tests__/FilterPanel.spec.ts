@@ -233,6 +233,16 @@ describe('FilterPanel — the badge and the collapsed summary', () => {
     wrapper.unmount();
   });
 
+  it("replaces the badge's own pill padding with the trigger badge's", async () => {
+    const wrapper = mountWith(FilterPanel, {
+      props: { facets: ALL_FACETS, currency: 'USD', modelValue: { colour: ['brown'] } },
+    });
+    const badge = group(wrapper, 'colour').find('[data-part="badge"]').classes();
+    expect(badge).toContain('eldra:px-1.25');
+    expect(badge).not.toContain('eldra:px-2.5');
+    wrapper.unmount();
+  });
+
   /** Spec → Behaviour: "a moved range does not count". */
   it('never badges a range', async () => {
     const wrapper = mountWith(FilterPanel, {
@@ -485,6 +495,20 @@ describe('FilterPanel — drawer mode', () => {
     wrapper.unmount();
   });
 
+  it("lets the Apply label wrap, replacing the button label's own nowrap", () => {
+    const wrapper = mountWith(FilterPanel, {
+      props: { facets: [CATEGORY_FACET], mode: 'drawer' },
+    });
+    const label = wrapper
+      .find('[data-part="foot"]')
+      .findAll('button')[1]!
+      .find('[data-part="label"]')
+      .classes();
+    expect(label).toContain('eldra:whitespace-normal');
+    expect(label).not.toContain('eldra:whitespace-nowrap');
+    wrapper.unmount();
+  });
+
   it('draws no foot in sidebar mode', () => {
     const wrapper = mountWith(FilterPanel, { props: { facets: [CATEGORY_FACET] } });
     expect(wrapper.find('[data-part="foot"]').exists()).toBe(false);
@@ -568,18 +592,16 @@ describe('FilterPanel — the facet escape hatch', () => {
 });
 
 describe('FilterPanel — classes', () => {
-  it('merges a per-part override over the part’s own classes', () => {
+  it('appends a per-part class to the part’s own, and takes class on the root', () => {
     const wrapper = mountWith(FilterPanel, {
       props: {
         facets: [CATEGORY_FACET],
-        classes: { root: 'bg-surface', trigger: 'py-6', count: 'text-danger' },
+        classes: { trigger: 'py-6', count: 'text-danger' },
       },
+      attrs: { class: 'bg-surface' },
     });
     expect(wrapper.find('[data-part="root"]').classes()).toContain('bg-surface');
-    const triggerClasses = wrapper.find('[data-part="trigger"]').classes();
-    expect(triggerClasses).toContain('py-6');
-    // `tailwind-merge` replaces rather than appends: the part's own `py-3` is gone.
-    expect(triggerClasses).not.toContain('eldra:py-3');
+    expect(wrapper.find('[data-part="trigger"]').classes()).toContain('py-6');
     expect(wrapper.find('[data-part="count"]').classes()).toContain('text-danger');
     wrapper.unmount();
   });

@@ -16,8 +16,8 @@ import {
 } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
+import { mergeClass } from '../../utils/mergeClass';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
 import RequiredMark from '../field-wrapper/RequiredMark.vue';
@@ -149,8 +149,9 @@ const hasHint = computed(() => props.hint !== undefined || slots.hint !== undefi
  * the target, so even a one-word option is at least 1.5rem tall"), which is WCAG 2.5.8.
  * `gap-x-2.5` is the 0.625rem box-to-text gap, `gap-y-0.5` the hint's own line spacing.
  */
-const ROOT =
-  'eldra:group eldra:grid eldra:w-fit eldra:max-w-full eldra:grid-cols-[auto_1fr] eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 eldra:target-min';
+const ROOT = 'eldra:group eldra:grid eldra:max-w-full eldra:gap-y-0.5 eldra:target-min';
+const ROOT_COLUMNS = 'eldra:grid-cols-[auto_1fr] eldra:gap-x-2.5';
+const ROOT_INLINE = 'eldra:w-fit eldra:items-start';
 
 /**
  * Spec "Checkbox" → Sizes: box 1.125rem "nudged 0.1875rem down to align with the first text line"
@@ -237,16 +238,24 @@ function isLabelled(): boolean {
 
 const BOX_ONLY = 'eldra:grid-cols-[auto] eldra:gap-x-0';
 
+// ListFacet's full-width rows override the root.
 function rootClass(labelled: boolean): string {
-  return partClass(
-    cx(
+  return mergeClass(
+    [
       ROOT,
-      !labelled && BOX_ONLY,
-      props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer'
-    ),
-    props.classes,
-    'root'
+      labelled ? ROOT_COLUMNS : BOX_ONLY,
+      ROOT_INLINE,
+      props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer',
+    ],
+    attrs.class
   );
+}
+
+/** Every attribute but `class` lands on the control; `class` styles the root. */
+function controlAttrs(): Record<string, unknown> {
+  const rest: Record<string, unknown> = { ...attrs };
+  delete rest.class;
+  return rest;
 }
 
 if (import.meta.env?.DEV) {
@@ -277,9 +286,7 @@ const CONTROL =
   'eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0 ' +
   'eldra:disabled:cursor-not-allowed';
 
-const boxClass = computed(() =>
-  partClass(cx(BOX, BOX_SIZE[props.size], boxState.value), props.classes, 'box')
-);
+const boxClass = computed(() => [[BOX, BOX_SIZE[props.size], boxState.value], props.classes?.box]);
 
 /**
  * The mark (spec "Checkbox" → Behaviour & motion): "The tick scales in from 0 over `duration-fast`
@@ -290,16 +297,13 @@ const boxClass = computed(() =>
  * The mark is one part with two shapes, so a disabled *checked* box keeps its tick (spec's States
  * table) while an empty one has nothing to show.
  */
-const checkClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:pointer-events-none eldra:size-2.5 eldra:text-primary-contrast eldra:transition-transform eldra:duration-fast eldra:ease-out',
-      isMarked.value ? 'eldra:scale-100' : 'eldra:scale-0'
-    ),
-    props.classes,
-    'check'
-  )
-);
+const checkClass = computed(() => [
+  [
+    'eldra:pointer-events-none eldra:size-2.5 eldra:text-primary-contrast eldra:transition-transform eldra:duration-fast eldra:ease-out',
+    isMarked.value ? 'eldra:scale-100' : 'eldra:scale-0',
+  ],
+  props.classes?.check,
+]);
 
 /**
  * Spec "Checkbox" → Sizes: label 0.9375rem on a 1.5rem line — the same two numbers as the
@@ -307,35 +311,26 @@ const checkClass = computed(() =>
  * it. (Not the mobile 1rem override: that rule is scoped to "inputs, textareas, select triggers
  * and select search fields", where it stops iOS zooming into a focused field.)
  */
-const labelClass = computed(() =>
-  partClass(
-    cx('eldra:text-control eldra:min-w-0', props.disabled ? 'eldra:text-muted' : 'eldra:text-text'),
-    props.classes,
-    'label'
-  )
-);
+const labelClass = computed(() => [
+  ['eldra:text-control eldra:min-w-0', props.disabled ? 'eldra:text-muted' : 'eldra:text-text'],
+  props.classes?.label,
+]);
 
 /** Spec "Checkbox" → Sizes: "Hint: 0.875rem, `muted`, on its own line", in column 2 under it. */
-const hintClass = computed(() =>
-  partClass(
-    'eldra:text-body-sm eldra:text-muted eldra:col-start-2 eldra:min-w-0',
-    props.classes,
-    'hint'
-  )
-);
+const hintClass = computed(() => [
+  'eldra:text-body-sm eldra:text-muted eldra:col-start-2 eldra:min-w-0',
+  props.classes?.hint,
+]);
 
 /**
  * With an `error`, the row and its error message sit in one box (the `field` part), so the message
  * stays outside the `<label>` and out of the control's name. Without one, the row is the root as
  * it always was.
  */
-const fieldClass = computed(() =>
-  partClass(
-    'eldra:grid eldra:w-fit eldra:max-w-full eldra:content-start eldra:gap-1',
-    props.classes,
-    'field'
-  )
-);
+const fieldClass = computed(() => [
+  'eldra:grid eldra:w-fit eldra:max-w-full eldra:content-start eldra:gap-1',
+  props.classes?.field,
+]);
 const Field: FunctionalComponent = (_props, { slots: own }) => {
   const row = own.default?.()[0];
   if (!hasError.value) return row;
@@ -368,7 +363,7 @@ function onChange(event: Event): void {
            which is its appearance. -->
         <input
           ref="controlRef"
-          v-bind="$attrs"
+          v-bind="controlAttrs()"
           :class="CONTROL"
           type="checkbox"
           :id="controlId"

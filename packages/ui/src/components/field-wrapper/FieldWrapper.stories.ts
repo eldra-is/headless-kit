@@ -25,7 +25,7 @@ const meta = {
           'and it owns the wiring, so a bare `<Input />` inside it needs no `id`, no',
           '`aria-describedby` and no `required` of its own.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `label`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `label`,',
           '`requiredMark`, `optionalText`, `control`, `error`, `errorIcon`, `foot`, `help`,',
           '`counter`. Everything but `root`, `label` and `control` renders only when the prop or',
           'slot behind it is set.',

@@ -24,7 +24,6 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
@@ -207,35 +206,29 @@ function onViewerKeydown(event: KeyboardEvent): void {
  *  `Dialog`/`Drawer` expose. */
 defineExpose({ close, isTop });
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      // Always the full viewport, at every width (spec "Sizes": "Viewer: the full viewport (inset
-      // 0, 100% × 100%)"; "Mobile: The Lightbox is always full screen, at every width") — unlike
-      // `Drawer`, which is genuinely windowed above a 48rem viewport, there is no windowed size
-      // for this component to fall back to. See the README's Deviations entry for how this reads
-      // against the design spec's own general "full-screen variants … apply below a 48rem
-      // viewport" line, and `closeClass` below for the one measurement that actually does change
-      // at that edge (the close button, exactly like `Drawer`'s own).
-      //
-      // `hidden open:block`, not bare (fix, from the operator's own finding — see `Dialog`'s own
-      // rootClass comment for the full mechanism): without it a closed viewer still painted its
-      // full-viewport ground, because an author `display` utility beats the UA's own `display: none`
-      // for a closed `<dialog>` regardless of specificity. `open:block`, not `open:flex` like
-      // `Drawer`'s/`SearchModal`'s own roots, for the identical reason `Dialog`'s own rootClass
-      // comment documents: this root never carried `flex` before (its one `panel` child, already
-      // `flex flex-col` internally, is sized by `w-full h-full`, not fit-content, so there is no
-      // shrink-to-fit ambiguity for a flex container to resolve differently here — but `open:block`
-      // costs nothing and keeps every modal root that never needed `flex` on the same, proven-safe
-      // choice rather than two different justifications for the same fix).
-      'eldra:hidden eldra:open:block eldra:fixed eldra:inset-0 eldra:m-0 eldra:h-full eldra:max-h-none eldra:w-full eldra:max-w-none eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-background',
-      'eldra:backdrop:bg-overlay eldra:focus:outline-none',
-      'eldra:animate-eldra-lightbox-in eldra:motion-reduce:animate-eldra-dialog-in-reduced'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = [
+  // Always the full viewport, at every width (spec "Sizes": "Viewer: the full viewport (inset
+  // 0, 100% × 100%)"; "Mobile: The Lightbox is always full screen, at every width") — unlike
+  // `Drawer`, which is genuinely windowed above a 48rem viewport, there is no windowed size
+  // for this component to fall back to. See the README's Deviations entry for how this reads
+  // against the design spec's own general "full-screen variants … apply below a 48rem
+  // viewport" line, and `closeClass` below for the one measurement that actually does change
+  // at that edge (the close button, exactly like `Drawer`'s own).
+  //
+  // `hidden open:block`, not bare (fix, from the operator's own finding — see `Dialog`'s own
+  // rootClass comment for the full mechanism): without it a closed viewer still painted its
+  // full-viewport ground, because an author `display` utility beats the UA's own `display: none`
+  // for a closed `<dialog>` regardless of specificity. `open:block`, not `open:flex` like
+  // `Drawer`'s/`SearchModal`'s own roots, for the identical reason `Dialog`'s own rootClass
+  // comment documents: this root never carried `flex` before (its one `panel` child, already
+  // `flex flex-col` internally, is sized by `w-full h-full`, not fit-content, so there is no
+  // shrink-to-fit ambiguity for a flex container to resolve differently here — but `open:block`
+  // costs nothing and keeps every modal root that never needed `flex` on the same, proven-safe
+  // choice rather than two different justifications for the same fix).
+  'eldra:hidden eldra:open:block eldra:fixed eldra:inset-0 eldra:m-0 eldra:h-full eldra:max-h-none eldra:w-full eldra:max-w-none eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-background',
+  'eldra:backdrop:bg-overlay eldra:focus:outline-none',
+  'eldra:animate-eldra-lightbox-in eldra:motion-reduce:animate-eldra-dialog-in-reduced',
+];
 
 /**
  * The viewer ground (spec "States": "Viewer ground: `text` at 94% (near-opaque ink) background;
@@ -244,22 +237,18 @@ const rootClass = computed(() =>
  * modal surface), but this panel covers the entire dialog box, so the backdrop is never actually
  * seen (spec: "Backdrop: `overlay` (covered by the ground)").
  */
-const panelClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:bg-[color-mix(in_oklab,var(--eldra-color-text)_94%,transparent)]'
-    ),
-    props.classes,
-    'panel'
-  )
-);
+const panelClass = computed(() => [
+  'eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:bg-[color-mix(in_oklab,var(--eldra-color-text)_94%,transparent)]',
+  props.classes?.panel,
+]);
 
 const barClass =
   'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-between eldra:gap-4 eldra:px-4 eldra:py-3 eldra:text-body-sm eldra:text-background';
 
-const counterClass = computed(() =>
-  partClass('eldra:tabular-nums eldra:text-background', props.classes, 'counter')
-);
+const counterClass = computed(() => [
+  'eldra:tabular-nums eldra:text-background',
+  props.classes?.counter,
+]);
 
 /**
  * Spec "Sizes": "Close: 2.5rem ghost icon button, 2.75rem below 48rem" — the same viewport edge
@@ -270,31 +259,24 @@ const counterClass = computed(() =>
  * ones) — the spec's own States table gives this component no separate active row, so the press
  * state is this package's own consistent addition, not a literal spec number.
  */
-const closeClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
-      'eldra:text-background eldra:eldra-focus',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
-      'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-background)_20%,transparent)]'
-    ),
-    props.classes,
-    'close'
-  )
-);
+const closeClass = computed(() => [
+  'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+  'eldra:text-background eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
+  'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-background)_20%,transparent)]',
+  props.classes?.close,
+]);
 
 /** A plain layout wrapper, not a named part (the spec's own anatomy numbers the track/arrows
  *  together as one "stage"; see `Lightbox.vue`'s own file comment). `min-h-0` is what lets `track`
  *  actually scroll within the flex column rather than growing the whole panel. */
-const stageClass = computed(() =>
-  cx(
-    'eldra:relative eldra:min-h-0 eldra:flex-1',
-    // With no thumbnail strip below, the stage mirrors the bar's height (0.75rem padding twice plus
-    // the 2.5rem close button, 2.75rem below 48rem) so the image sits centred with equal space
-    // above and below instead of running to the viewport's bottom edge.
-    !showThumbnails.value && 'eldra:pb-16 eldra:max-md:pb-17'
-  )
-);
+const stageClass = computed(() => [
+  'eldra:relative eldra:min-h-0 eldra:flex-1',
+  // With no thumbnail strip below, the stage mirrors the bar's height (0.75rem padding twice plus
+  // the 2.5rem close button, 2.75rem below 48rem) so the image sits centred with equal space
+  // above and below instead of running to the viewport's bottom edge.
+  !showThumbnails.value && 'eldra:pb-16 eldra:max-md:pb-17',
+]);
 
 /**
  * No padding here, deliberately — see `slideClass` below for where the 4rem inset actually lives
@@ -316,19 +298,14 @@ const TRACK_STYLE = carouselPerViewStyle({ base: 1 });
  * attribute as `snap-none` — always on here, since this component has no `draggable` prop of its
  * own (`useCarousel` call above).
  */
-const trackClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:h-full eldra:touch-pan-x eldra:touch-pan-y eldra:cursor-grab eldra:snap-x eldra:snap-mandatory eldra:overflow-x-auto eldra:overscroll-x-contain',
-      'eldra:scroll-smooth eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus',
-      'eldra:[--eldra-focus-offset:4px] eldra:data-[dragging=true]:cursor-grabbing eldra:data-[dragging=true]:snap-none',
-      'eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
-      'eldra:eldra-carousel-track'
-    ),
-    props.classes,
-    'track'
-  )
-);
+const trackClass = computed(() => [
+  'eldra:flex eldra:h-full eldra:touch-pan-x eldra:touch-pan-y eldra:cursor-grab eldra:snap-x eldra:snap-mandatory eldra:overflow-x-auto eldra:overscroll-x-contain',
+  'eldra:scroll-smooth eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus',
+  'eldra:[--eldra-focus-offset:4px] eldra:data-[dragging=true]:cursor-grabbing eldra:data-[dragging=true]:snap-none',
+  'eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
+  'eldra:eldra-carousel-track',
+  props.classes?.track,
+]);
 
 /**
  * Layout only — width is deliberately left to `eldra-carousel-slide` (added by `useCarousel`'s own
@@ -357,9 +334,7 @@ const trackClass = computed(() =>
  * outer width is still exactly the track's own (border-box already includes the padding) — so the
  * peek disappears and the image alone loses the 4rem the arrows need.
  */
-const slideClass = computed(() =>
-  partClass('eldra:flex eldra:h-full eldra:px-16', props.classes, 'slide')
-);
+const slideClass = computed(() => ['eldra:flex eldra:h-full eldra:px-16', props.classes?.slide]);
 
 /** The `<figure>` Image itself renders (given `caption`) — sized to fill the slide and centre its
  *  frame both ways, `flex-col` so the (`flex-1`) frame and the (`shrink-0`) caption stack. */
@@ -380,24 +355,21 @@ const imageCaptionClass =
  * put — so the dimming lives on `text-background/45` (the icon's own `currentColor`), never a
  * whole-button `opacity-*`, which would fade the border too.
  */
-const ARROW_BASE = cx(
+const ARROW_BASE = [
   'eldra:absolute eldra:top-1/2 eldra:inline-flex eldra:size-11 eldra:shrink-0 eldra:-translate-y-1/2 eldra:cursor-pointer eldra:items-center',
   'eldra:justify-center eldra:rounded-full eldra:border eldra:text-background eldra:eldra-focus',
   'eldra:border-[color-mix(in_oklab,var(--eldra-color-background)_70%,transparent)]',
   'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-background)_14%,transparent)]',
   'eldra:disabled:cursor-not-allowed eldra:disabled:text-background/45',
-  'eldra:disabled:hover:bg-transparent'
-);
-const prevClass = computed(() => partClass(cx(ARROW_BASE, 'eldra:left-3'), props.classes, 'prev'));
-const nextClass = computed(() => partClass(cx(ARROW_BASE, 'eldra:right-3'), props.classes, 'next'));
+  'eldra:disabled:hover:bg-transparent',
+];
+const prevClass = computed(() => [ARROW_BASE, 'eldra:left-3', props.classes?.prev]);
+const nextClass = computed(() => [ARROW_BASE, 'eldra:right-3', props.classes?.next]);
 
-const thumbnailsClass = computed(() =>
-  partClass(
-    'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:gap-2 eldra:overflow-x-auto eldra:px-4 eldra:pt-2 eldra:pb-4',
-    props.classes,
-    'thumbnails'
-  )
-);
+const thumbnailsClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:gap-2 eldra:overflow-x-auto eldra:px-4 eldra:pt-2 eldra:pb-4',
+  props.classes?.thumbnails,
+]);
 
 /** The strip is a scroll container, so it clips anything drawn outside a tile's box: `pt-2` above
  *  gives the current tile's 2px outline + 2px offset room at the top (`pb-4` already covers the
@@ -407,17 +379,12 @@ const thumbnailsClass = computed(() =>
  *  with `aria-current="true"` on the current one" — the selection ring is this package's own
  *  visual choice (the spec names no size/state table for thumbnails), a light `outline` that reads
  *  against the dark ground the same way the focus ring does. */
-const thumbnailClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:size-12 eldra:shrink-0 eldra:cursor-pointer eldra:overflow-hidden eldra:rounded-sm eldra:opacity-60 eldra:eldra-focus',
-      'eldra:hover:opacity-100',
-      'eldra:aria-[current=true]:opacity-100 eldra:aria-[current=true]:outline-2 eldra:aria-[current=true]:outline-background eldra:aria-[current=true]:outline-offset-2'
-    ),
-    props.classes,
-    'thumbnail'
-  )
-);
+const thumbnailClass = computed(() => [
+  'eldra:inline-flex eldra:size-12 eldra:shrink-0 eldra:cursor-pointer eldra:overflow-hidden eldra:rounded-sm eldra:opacity-60 eldra:eldra-focus',
+  'eldra:hover:opacity-100',
+  'eldra:aria-[current=true]:opacity-100 eldra:aria-[current=true]:outline-2 eldra:aria-[current=true]:outline-background eldra:aria-[current=true]:outline-offset-2',
+  props.classes?.thumbnail,
+]);
 </script>
 
 <template>

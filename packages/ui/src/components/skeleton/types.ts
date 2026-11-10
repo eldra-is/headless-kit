@@ -4,9 +4,9 @@ import type { ImageRatio } from '../image/types';
 export type SkeletonVariant = 'text' | 'title' | 'circle' | 'media' | 'btn';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them:
- * the region wrapper, and the shimmering shape(s) inside it — one `line` per text row, or one for
- * every other variant. */
-export type SkeletonPart = 'root' | 'line';
+ * the shimmering shape(s) inside the region wrapper — one `line` per text row, or one for every
+ * other variant. The region wrapper itself is styled with `class`. */
+export type SkeletonPart = 'line';
 
 export interface SkeletonProps {
   /** The shape. Defaults to `'text'`. */
@@ -36,6 +36,6 @@ export interface SkeletonProps {
    * region two competing accessible names.
    */
   busyLabel?: string | null;
-  /** Per-part class overrides, merged over the component's own classes with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<SkeletonPart, string>>;
 }

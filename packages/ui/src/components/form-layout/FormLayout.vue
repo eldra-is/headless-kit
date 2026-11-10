@@ -2,7 +2,6 @@
 import { computed, provide, useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
@@ -126,18 +125,16 @@ const FIELDS: Record<FormLayoutVariant, string> = {
  * the row so a caller does not have to set it per button for one breakpoint.
  */
 const ACTIONS_BASE =
-  'eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-3 eldra:[&>a:first-child]:me-auto';
+  'eldra:flex eldra:flex-wrap eldra:items-center eldra:[&>a:first-child]:me-auto';
 const ACTIONS_STACKED =
   'eldra:@max-two-col:flex-col-reverse eldra:@max-two-col:items-stretch eldra:@max-two-col:gap-2 eldra:@max-two-col:*:w-full';
 const ACTIONS: Record<FormLayoutVariant, string> = {
-  single: `eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
-  two: `eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  single: `eldra:gap-3 eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  two: `eldra:gap-3 eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
   inline: 'eldra:shrink-0 eldra:gap-2',
 };
 
-const rootClass = computed(() =>
-  partClass(cx(ROOT_BASE, ROOT[props.layout]), props.classes, 'root')
-);
+const rootClass = computed(() => [ROOT_BASE, ROOT[props.layout]]);
 
 /**
  * Spec "Form layout" → Anatomy: "Heading (optional): h4 style (1.125rem, 600)". `h4` names the
@@ -146,13 +143,10 @@ const rootClass = computed(() =>
  * the field and the button.
  */
 const headingTag = useHeadingTag(() => props.headingLevel);
-const headingClass = computed(() =>
-  partClass(
-    cx('eldra:text-h4 eldra:text-text', props.layout === 'inline' && 'eldra:basis-full'),
-    props.classes,
-    'heading'
-  )
-);
+const headingClass = computed(() => [
+  ['eldra:text-h4 eldra:text-text', props.layout === 'inline' && 'eldra:basis-full'],
+  props.classes?.heading,
+]);
 
 /**
  * Spec "Form layout" → States, Invalid on submit: "Long forms add an error summary alert at the
@@ -160,23 +154,21 @@ const headingClass = computed(() =>
  * component draws the box and the icon; the slot supplies the list, because only the caller knows
  * which fields failed and what to link to.
  */
-const errorSummaryClass = computed(() =>
-  partClass(
-    'eldra:text-body-sm eldra:text-text eldra:border-danger eldra:bg-surface eldra:flex eldra:items-start eldra:gap-2 ' +
-      'eldra:rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] eldra:border eldra:p-3',
-    props.classes,
-    'errorSummary'
-  )
-);
+const errorSummaryClass = computed(() => [
+  'eldra:text-body-sm eldra:text-text eldra:border-danger eldra:bg-surface eldra:flex eldra:items-start eldra:gap-2 ' +
+    'eldra:rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] eldra:border eldra:p-3',
+  props.classes?.errorSummary,
+]);
 
-const fieldsClass = computed(() => partClass(FIELDS[props.layout], props.classes, 'fields'));
+const fieldsClass = computed(() => [FIELDS[props.layout], props.classes?.fields]);
 
-const actionsClass = computed(() =>
-  partClass(cx(ACTIONS_BASE, ACTIONS[props.layout]), props.classes, 'actions')
-);
+const actionsClass = computed(() => [
+  [ACTIONS_BASE, ACTIONS[props.layout]],
+  props.classes?.actions,
+]);
 
 /** Never visible; `classes.status` is here so a consumer can unhide it while debugging. */
-const statusClass = computed(() => partClass('', props.classes, 'status'));
+const statusClass = computed(() => props.classes?.status);
 
 /**
  * Spec "Form layout" → Events and States, Invalid on submit.
@@ -281,7 +273,7 @@ function onSubmit(event: Event): void {
       data-part="status"
       role="status"
       aria-live="polite"
-      :classes="{ root: statusClass }"
+      :class="statusClass"
       >{{ statusMessage }}</VisuallyHidden
     >
   </form>

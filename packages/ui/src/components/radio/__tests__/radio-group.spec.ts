@@ -133,13 +133,13 @@ describe('RadioGroup — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(RadioGroup, {
+      attrs: { class: 'ring-1' },
       props: {
         legend: 'Shipping method',
         options: SHIPPING,
         layout: 'cards',
         error: 'Choose a shipping method.',
         classes: {
-          root: 'ring-1',
           legend: 'italic',
           options: 'gap-8',
           option: 'shadow-md',

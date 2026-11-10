@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import Icon from '../icon/Icon.vue';
+import { ICON_STROKE_WIDTH } from '../icon/sizes';
 import Spinner from '../spinner/Spinner.vue';
 import {
   createOptionClass,
@@ -151,14 +151,14 @@ function onListScroll(event: Event): void {
   }
 }
 
-const rowClass = (option: SelectOption): string =>
+const rowClass = (option: SelectOption) =>
   optionClass(props.classes, option, {
     active: isActive(option),
     selected: isSelected(option),
     multiple: props.multiple,
   });
 
-const boxClass = (option: SelectOption): string =>
+const boxClass = (option: SelectOption) =>
   optionBoxClass(props.classes, {
     selected: isSelected(option),
     disabled: option.disabled === true,
@@ -358,11 +358,15 @@ function onPanelMouseDown(event: MouseEvent): void {
                 :style="{ backgroundColor: option.swatch }"
                 aria-hidden="true"
               />
-              <Icon
+              <component
+                :is="option.icon"
                 v-else-if="option.icon"
+                :data-eldra-scope="eldra.scope"
                 data-part="optionIcon"
-                :icon="option.icon"
-                :classes="{ root: optionIconClasses }"
+                :class="optionIconClasses"
+                :stroke-width="ICON_STROKE_WIDTH"
+                aria-hidden="true"
+                focusable="false"
               />
 
               <span class="eldra:min-w-0 eldra:flex-1">

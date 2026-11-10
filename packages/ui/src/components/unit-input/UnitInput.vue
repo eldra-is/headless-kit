@@ -39,26 +39,24 @@ import {
 } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
+import { mergeClass } from '../../utils/mergeClass';
 import { createNumberFormat } from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
-import Icon from '../icon/Icon.vue';
+import { ICON_STROKE_WIDTH } from '../icon/sizes';
 import {
   FIELD_ACTION_PAIR_SIZE,
   FIELD_BASE,
   FIELD_CLEAR_BUTTON,
   FIELD_CLEAR_SIZE,
-  FIELD_DISABLED,
-  FIELD_INVALID,
   FIELD_LEADING_ICON,
   FIELD_LEADING_PAD,
-  FIELD_LIVE,
-  FIELD_READONLY,
   FIELD_SIZE,
   FIELD_SUFFIX_ROW,
+  FIELD_SUFFIX_ROW_BASE,
   FIELD_TRAILING_PAD,
   FIELD_TRAILING_PAD_PAIR,
+  fieldState,
 } from '../input/classes';
 import type { UnitInputProps } from './types';
 import { useUndoRedo } from './undo-redo';
@@ -720,65 +718,50 @@ const hasLeading = computed(
 /** The same rule as `Input`'s: a disabled field keeps its dead boundary and drops the danger one. */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() => partClass('eldra:block eldra:w-full', props.classes, 'root'));
+const rootClass = 'eldra:block eldra:w-full';
+// RangeFacet's Min / Max labels (through CurrencyInput) override the label.
 const labelClass = computed(() =>
-  partClass('eldra:text-label eldra:text-text eldra:mb-1 eldra:block', props.classes, 'label')
+  mergeClass('eldra:text-label eldra:text-text eldra:mb-1 eldra:block', props.classes?.label)
 );
-const fieldClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:relative eldra:block eldra:w-full',
-      showsInvalid.value && 'eldra:eldra-field-invalid'
-    ),
-    props.classes,
-    'field'
-  )
-);
-const controlClass = computed(() =>
-  partClass(
-    cx(
-      FIELD_BASE,
-      FIELD_SIZE[props.size],
-      hasLeading.value && FIELD_LEADING_PAD,
-      hasTrailing.value &&
-        (isActionPair.value ? FIELD_TRAILING_PAD_PAIR[props.size] : FIELD_TRAILING_PAD[props.size]),
-      'eldra:tabular-nums',
-      props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
-      showsInvalid.value && FIELD_INVALID
-    ),
-    props.classes,
-    'control'
-  )
-);
-const leadingIconClass = computed(() =>
-  partClass(FIELD_LEADING_ICON, props.classes, 'leadingIcon')
-);
+const fieldClass = computed(() => [
+  'eldra:relative eldra:block eldra:w-full',
+  showsInvalid.value && 'eldra:eldra-field-invalid',
+  props.classes?.field,
+]);
+const controlClass = computed(() => [
+  FIELD_BASE,
+  FIELD_SIZE[props.size],
+  hasLeading.value && FIELD_LEADING_PAD,
+  hasTrailing.value &&
+    (isActionPair.value ? FIELD_TRAILING_PAD_PAIR[props.size] : FIELD_TRAILING_PAD[props.size]),
+  'eldra:tabular-nums',
+  fieldState({ disabled: props.disabled, readonly: props.readonly, invalid: showsInvalid.value }),
+  props.classes?.control,
+]);
+const leadingIconClass = computed(() => [FIELD_LEADING_ICON, props.classes?.leadingIcon]);
 /**
  * `FIELD_SUFFIX_ROW`'s `gap-1` is the shared default (`Input`'s and `SearchBar`'s row too — see its
- * own doc comment). Only the two-action pair wants its icons flush, so that case alone overrides
- * the gap locally rather than changing the shared constant (`gap-*` is a stock tailwind-merge
- * group, so `cx` needs no new merge-group registration for this).
+ * own doc comment). Only the two-action pair wants its icons flush, so that case alone builds the
+ * row from `FIELD_SUFFIX_ROW_BASE` with `gap-0` rather than changing the shared constant.
  */
-const suffixClass = computed(() =>
-  partClass(cx(FIELD_SUFFIX_ROW, isActionPair.value && 'eldra:gap-0'), props.classes, 'suffix')
-);
+const suffixClass = computed(() => [
+  isActionPair.value ? `${FIELD_SUFFIX_ROW_BASE} eldra:gap-0` : FIELD_SUFFIX_ROW,
+  props.classes?.suffix,
+]);
 const actionSize = computed(() =>
   isActionPair.value ? FIELD_ACTION_PAIR_SIZE[props.size] : FIELD_CLEAR_SIZE[props.size]
 );
-const clearButtonClass = computed(() =>
-  partClass(cx(FIELD_CLEAR_BUTTON, actionSize.value), props.classes, 'clearButton')
-);
-const dragHandleClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:shrink-0 eldra:cursor-ns-resize eldra:touch-none eldra:items-center eldra:justify-center',
-      'eldra:text-muted eldra:hover:text-text eldra:select-none',
-      actionSize.value
-    ),
-    props.classes,
-    'dragHandle'
-  )
-);
+const clearButtonClass = computed(() => [
+  FIELD_CLEAR_BUTTON,
+  actionSize.value,
+  props.classes?.clearButton,
+]);
+const dragHandleClass = computed(() => [
+  'eldra:inline-flex eldra:shrink-0 eldra:cursor-ns-resize eldra:touch-none eldra:items-center eldra:justify-center',
+  'eldra:text-muted eldra:hover:text-text eldra:select-none',
+  actionSize.value,
+  props.classes?.dragHandle,
+]);
 
 /** `formatValue` is the private library's own exposed method: a caller formats one number the
  *  way this field would. */
@@ -786,7 +769,12 @@ defineExpose({ formatValue });
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <label v-if="showOwnLabel" data-part="label" :for="controlId" :class="labelClass">
       {{ label }}
     </label>
@@ -799,13 +787,20 @@ defineExpose({ formatValue });
         :class="leadingIconClass"
       >
         <slot name="leadingIcon">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
+          <component
+            v-if="leadingIcon"
+            :is="leadingIcon"
+            class="eldra:size-4.5 eldra:shrink-0"
+            :stroke-width="ICON_STROKE_WIDTH"
+            aria-hidden="true"
+            focusable="false"
+          />
         </slot>
       </span>
 
       <input
         ref="controlRef"
-        v-bind="$attrs"
+        v-bind="{ ...$attrs, class: undefined }"
         data-part="control"
         :class="controlClass"
         :id="controlId"

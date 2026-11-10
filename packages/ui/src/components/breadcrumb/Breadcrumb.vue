@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, type Component, type ComponentPublicInstance } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import type { BreadcrumbItem, BreadcrumbProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -179,39 +178,30 @@ async function expand(): Promise<void> {
  * drop the container-query class entirely — visible at every width, matching "for the rest of the
  * page view" above.
  */
-const rootClass = computed(() => partClass('eldra:@container', props.classes, 'root'));
+const rootClass = 'eldra:@container';
 
-const listClass = computed(() =>
-  partClass(
-    'eldra:flex eldra:flex-wrap eldra:list-none eldra:gap-x-1 eldra:gap-y-1 eldra:p-0 eldra:m-0',
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  'eldra:flex eldra:flex-wrap eldra:list-none eldra:gap-x-1 eldra:gap-y-1 eldra:p-0 eldra:m-0',
+  props.classes?.list,
+]);
 
 /** `collapsible` items (the middle run) carry the container-query hidden class only while the
  *  trail is not `expanded` — see the `expanded` ref's own comment above for why that flip is
  *  permanent. Called directly from the template rather than wrapped in its own `computed`, so it
  *  still re-evaluates on every render exactly like one, tracking `expanded`/`props.classes` the
  *  same way. */
-function itemClass(collapsible: boolean): string {
-  return partClass(
-    cx(
-      'eldra:inline-flex eldra:items-start eldra:gap-2',
-      collapsible && !expanded.value && 'eldra:@max-tablet:hidden'
-    ),
-    props.classes,
-    'item'
-  );
+function itemClass(collapsible: boolean) {
+  return [
+    'eldra:inline-flex eldra:items-start eldra:gap-2',
+    collapsible && !expanded.value && 'eldra:@max-tablet:hidden',
+    props.classes?.item,
+  ];
 }
 
-const ellipsisItemClass = computed(() =>
-  partClass(
-    'eldra:hidden eldra:@max-tablet:inline-flex eldra:@max-tablet:items-start',
-    props.classes,
-    'item'
-  )
-);
+const ellipsisItemClass = computed(() => [
+  'eldra:hidden eldra:@max-tablet:inline-flex eldra:@max-tablet:items-start',
+  props.classes?.item,
+]);
 
 /**
  * Spec "Breadcrumb" → Sizes, "Separator" row: "0.375rem square ... rotated 45° (a chevron), 0.125rem
@@ -254,14 +244,11 @@ const ellipsisItemClass = computed(() =>
  * `mx-0.5` — even spacing on both sides of the mark itself, on top of the
  * list's own 0.25rem item gap (`gap-x-1` above; operator: the 0.5rem gap read too wide).
  */
-function separatorClass(): string {
-  return partClass(
-    cx(
-      'eldra:inline-flex eldra:items-center eldra:justify-center eldra:self-start eldra:h-6 eldra:mx-0.5 eldra:shrink-0 eldra:text-muted'
-    ),
-    props.classes,
-    'separator'
-  );
+function separatorClass() {
+  return [
+    'eldra:inline-flex eldra:items-center eldra:justify-center eldra:self-start eldra:h-6 eldra:mx-0.5 eldra:shrink-0 eldra:text-muted',
+    props.classes?.separator,
+  ];
 }
 
 /**
@@ -281,18 +268,13 @@ function separatorClass(): string {
  * so this never re-introduces the wrapped-title centring problem `separatorClass`'s own comment
  * describes.
  */
-const linkClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:items-center eldra:target-min eldra:eldra-link-radius eldra:eldra-focus',
-      'eldra:text-body-sm eldra:text-muted eldra:hover:text-text',
-      'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
-      'eldra:hover:decoration-2 eldra:hover:decoration-current'
-    ),
-    props.classes,
-    'link'
-  )
-);
+const linkClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:target-min eldra:eldra-link-radius eldra:eldra-focus',
+  'eldra:text-body-sm eldra:text-muted eldra:hover:text-text',
+  'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+  'eldra:hover:decoration-2 eldra:hover:decoration-current',
+  props.classes?.link,
+]);
 
 /**
  * Spec "Breadcrumb" → States, "Current page": "none / `text`, weight 500 / none."
@@ -302,13 +284,10 @@ const linkClass = computed(() =>
  * frame, not the frame-less plain `<span>` this used to be, is what lets one separator recipe stay
  * correct whether this item wraps onto one line or several.
  */
-const currentClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:items-center eldra:target-min eldra:text-body-sm eldra:text-text eldra:font-medium',
-    props.classes,
-    'current'
-  )
-);
+const currentClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:target-min eldra:text-body-sm eldra:text-text eldra:font-medium',
+  props.classes?.current,
+]);
 
 /**
  * Spec "Breadcrumb" → Sizes, "Ellipsis button" row: min 1.5rem × 1.5rem (`target-min` gives both
@@ -319,17 +298,12 @@ const currentClass = computed(() =>
  * `cursor-pointer` follows this package's "every enabled `<button>` is a pointer" convention
  * (`Button.vue`'s own comment on its `VARIANT` table).
  */
-const ellipsisClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:target-min eldra:px-1 eldra:rounded-sm eldra:eldra-focus eldra:font-semibold eldra:tracking-[0.08em] eldra:text-body-sm',
-      'eldra:text-muted eldra:cursor-pointer',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] eldra:hover:text-text'
-    ),
-    props.classes,
-    'ellipsis'
-  )
-);
+const ellipsisClass = computed(() => [
+  'eldra:target-min eldra:px-1 eldra:rounded-sm eldra:eldra-focus eldra:font-semibold eldra:tracking-[0.08em] eldra:text-body-sm',
+  'eldra:text-muted eldra:cursor-pointer',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] eldra:hover:text-text',
+  props.classes?.ellipsis,
+]);
 
 /**
  * Spec "Breadcrumb" → Behaviour & motion: "Emit `BreadcrumbList` structured data from the same

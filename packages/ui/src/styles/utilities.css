@@ -560,7 +560,7 @@
    still clears 3:1 on every ground this package ships — deep enough to read as unsettled rather
    than as settled text, and below 4.5:1 for everything but `text` while the read lasts (see
    `eldra-starter-spec/tokens.json` for the numbers and for which way to move it). Registered in
-   `src/utils/cx.ts`'s `opacity` merge group, so a consumer's own `classes.current: 'opacity-100'`
+   `src/utils/mergeClass.ts`'s `opacity` merge group, so a consumer's own `classes.current: 'opacity-100'`
    replaces it rather than landing beside it.
 
    The dim is only half of the treatment: the *change* is eased too. A changed amount, or a changed
@@ -733,7 +733,7 @@
    state the element itself publishes in `aria-expanded`. So it never needs a second class to be
    kept in sync, and closing the popup fades the ring back out over the transition `eldra-focus`
    already owns rather than snapping it off. It carries no base, so it must never share a merge
-   group with `eldra-focus` (see `src/utils/cx.ts`): a modifier never shares a group with the thing
+   group with `eldra-focus` (see `src/utils/mergeClass.ts`): a modifier never shares a group with the thing
    it modifies.
 
    The forced-colours rule is repeated here for the same reason `eldra-focus-proxy` repeats it: the
@@ -769,7 +769,7 @@
    element. The difference is whose focus turns it on — a descendant's, not the element's own. So a
    Checkbox writes `eldra-focus eldra-focus-proxy` on its drawn box and puts the `sr-only`
    `<input>` inside it; the transition, the reduced-motion handling and the ring itself all still
-   live in `eldra-focus`, which is why the two must never share a merge group in `src/utils/cx.ts`.
+   live in `eldra-focus`, which is why the two must never share a merge group in `src/utils/mergeClass.ts`.
    The forced-colours rule is repeated here because the one in `eldra-focus` is keyed to that
    element's own `:focus-visible`, which never happens on a box that is not focusable. */
 @utility eldra-focus-proxy {
@@ -1428,7 +1428,7 @@
    2.5rem, 6rem) and rounded to three decimal places — precise enough for a stroke this thin, and
    consistent with how every other one-off number in this file is a per-component variable with a
    literal default rather than a class-level arbitrary value. Registered in the `size` class group
-   in `src/utils/cx.ts` (the same group `size-*` itself belongs to), so `classes.icon: 'size-6'`
+   in `src/utils/mergeClass.ts` (the same group `size-*` itself belongs to), so `classes.icon: 'size-6'`
    replaces one of these instead of landing beside it. */
 @utility eldra-avatar-icon-sm {
   width: var(--eldra-avatar-icon-size-sm, 0.857rem);
@@ -1495,7 +1495,7 @@
    width pair keep the viewport clamp inside the utility itself, unlike `eldra-select-panel-width`'s
    `min()` — a Dialog's own width is a fixed spec number a consumer can override with
    `--eldra-dialog-width(-sm)`, and the clamp must still apply to whatever that override is, not
-   only to the default. Each is in Tailwind's own `w`/`max-h` group (`src/utils/cx.ts`), so a
+   only to the default. Each is in Tailwind's own `w`/`max-h` group (`src/utils/mergeClass.ts`), so a
    consumer's `classes.panel: 'w-full'` replaces the clamp instead of landing beside it. */
 @utility eldra-dialog-width {
   width: min(var(--eldra-dialog-width, 32rem), calc(100vw - 2rem));
@@ -1519,7 +1519,7 @@
    200ms, applied through `motion-reduce:` (`Dialog.vue`: `animate-eldra-dialog-in
    motion-reduce:animate-eldra-dialog-in-reduced`) rather than through the zeroing token — exactly
    the two-utility shape `animate-eldra-spin`/`animate-eldra-pulse` already uses, registered in the
-   same `animate` merge group in `src/utils/cx.ts`. Exit needs no utility at all: the spec's own
+   same `animate` merge group in `src/utils/mergeClass.ts`. Exit needs no utility at all: the spec's own
    "instant by default" is simply not animating the close. */
 @keyframes eldra-dialog-in {
   from {
@@ -1550,7 +1550,7 @@
 /* Spec "Tabs" → Anatomy, point 1: "scrolls horizontally when the tabs overflow (never wraps),
    scrollbar hidden." Tailwind has no stock utility for hiding a scrollbar — `overflow-x-auto`
    alone still shows the browser's own bar — so this is one small utility rather than an arbitrary
-   value repeated at the call site. Registered in `src/utils/cx.ts` under its own class group (see
+   value repeated at the call site. Registered in `src/utils/mergeClass.ts` under its own class group (see
    `custom-utility-coverage.spec.ts`), the same shape as `target-min`/`target-touch` above: no stock
    Tailwind group covers "show/hide a scrollbar" either. */
 @utility eldra-scrollbar-hide {
@@ -1739,7 +1739,7 @@
 /* The region's own width (spec "Toast" -> Sizes, "Region" row): "min(24rem, 100vw - 2rem) wide ...
    1rem from the right and bottom edges." Same shape as `eldra-dialog-width`: the viewport clamp
    lives inside the utility itself, so a consumer's `--eldra-toast-width` override still gets
-   capped on a narrow screen. In Tailwind's own `w` group (`src/utils/cx.ts`), so `classes.root:
+   capped on a narrow screen. In Tailwind's own `w` group (`src/utils/mergeClass.ts`), so `classes.root:
    'w-full'` replaces the clamp instead of landing beside it. */
 @utility eldra-toast-width {
   width: min(var(--eldra-toast-width, 24rem), calc(100vw - 2rem));

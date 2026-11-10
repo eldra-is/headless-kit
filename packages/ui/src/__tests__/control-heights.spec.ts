@@ -42,7 +42,7 @@ function allElements(root: Element): Element[] {
  * applied under a container-query variant, `@max-tablet:target-touch`, which is one class token
  * with the variant baked into its name, not two. So every class on every element is checked
  * against the bare name or a `<variant>:target-touch` suffix, the same shape `cx()`'s own class
- * groups (`src/utils/cx.ts`) recognise.
+ * groups (`src/utils/mergeClass.ts`) recognise.
  */
 function expectNoTargetTouch(root: Element): void {
   for (const element of allElements(root)) {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Spinner from '../spinner/Spinner.vue';
 import type { LoadMoreProps } from './types';
@@ -33,20 +32,15 @@ const meterPercent = computed(() => {
 });
 
 /** Spec → Sizes, "Load-more stack": "centred, gap 0.75rem." */
-const rootClass = computed(() =>
-  partClass('eldra:flex eldra:flex-col eldra:items-center eldra:gap-3', props.classes, 'root')
-);
+const rootClass = 'eldra:flex eldra:flex-col eldra:items-center eldra:gap-3';
 
 /** Spec → Sizes, "Load-more status": "0.875rem, tabular numbers" — the shared `text-body-sm` type
  *  style is the same 0.875rem, so this needs no per-component variable of its own. Accessibility:
  *  "the status `<p aria-live="polite">`." */
-const statusClass = computed(() =>
-  partClass(
-    'eldra:text-body-sm eldra:text-muted eldra:tabular-nums eldra:text-center',
-    props.classes,
-    'status'
-  )
-);
+const statusClass = computed(() => [
+  'eldra:text-body-sm eldra:text-muted eldra:tabular-nums eldra:text-center',
+  props.classes?.status,
+]);
 
 /** Spec → Sizes, "Load-more meter": "`min(14rem, 100%)` × 0.25rem, `radius-full`." `max-w-56` is
  *  the 14rem the spec gives (56 × the shared 0.25rem spacing unit), paired with `w-full` for the
@@ -65,18 +59,13 @@ const meterFillClass =
  * with no way to override it — the same reason `Drawer`'s own close button is hand-rolled instead
  * of a wrapped `<Button icon-only>` (see that component's own comment).
  */
-const buttonClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:control-h eldra:gap-2 eldra:rounded-md eldra:border eldra:px-4.5',
-      'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:text-button-md eldra:cursor-pointer',
-      'eldra:eldra-focus eldra:hover:border-text eldra:hover:bg-surface',
-      'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100'
-    ),
-    props.classes,
-    'button'
-  )
-);
+const buttonClass = computed(() => [
+  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:control-h eldra:gap-2 eldra:rounded-md eldra:border eldra:px-4.5',
+  'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:text-button-md eldra:cursor-pointer',
+  'eldra:eldra-focus eldra:hover:border-text eldra:hover:bg-surface',
+  'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100',
+  props.classes?.button,
+]);
 </script>
 
 <template>

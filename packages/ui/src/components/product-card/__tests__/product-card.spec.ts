@@ -543,12 +543,12 @@ describe('ProductCard — composed children keep their own data-part="root" (I7)
 });
 
 describe('ProductCard — customisation', () => {
-  it('merges an override onto every part', () => {
+  it('appends an override to every part, and a root class to the root', () => {
     const wrapper = mountWith(ProductCard, {
+      attrs: { class: 'ring-1' },
       props: {
         product: PRODUCT,
         classes: {
-          root: 'ring-1',
           media: 'ring-2',
           badges: 'gap-4',
           body: 'gap-4',

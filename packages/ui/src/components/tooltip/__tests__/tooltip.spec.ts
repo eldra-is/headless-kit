@@ -558,13 +558,12 @@ describe('Tooltip — content', () => {
 });
 
 describe('Tooltip — classes prop', () => {
-  it('merges classes.root/bubble/arrow with tailwind-merge', async () => {
-    const wrapper = mountTooltip({ classes: { root: 'gap-1', bubble: 'py-4', arrow: 'size-2' } });
+  it('takes class on the root and appends classes.bubble/arrow', async () => {
+    const wrapper = mountTooltip({ class: 'gap-1', classes: { bubble: 'py-4', arrow: 'size-2' } });
     await flush();
     expect(wrapper.attributes('class')).toContain('gap-1');
     const bubble = bubbleOf(triggerOf(wrapper));
     expect(bubble.className).toContain('py-4');
-    expect(bubble.className).not.toContain('eldra:py-1.5');
     const arrow = bubble.querySelector('[data-part="arrow"]');
     expect(arrow?.className).toContain('size-2');
   });
@@ -617,8 +616,8 @@ describe('Tooltip — dev warnings', () => {
   });
 
   /**
-   * Final review M5: a component trigger whose focusable root receives `$attrs` (the default —
-   * `Button` declares no `inheritAttrs: false`) works exactly like a plain element, so the graft
+   * Final review M5: a component trigger whose focusable root receives `$attrs` (`Button` binds
+   * every attribute but `class` last on its root) works exactly like a plain element, so the graft
    * both lands on the DOM and raises no warning.
    */
   it('grafts the aria attribute onto a component trigger whose root forwards $attrs (e.g. Button)', async () => {

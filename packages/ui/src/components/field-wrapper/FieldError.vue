@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -30,21 +29,17 @@ const props = defineProps<{
   classes?: Partial<Record<'error' | 'errorIcon', string>>;
 }>();
 
-const errorClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:text-field-note eldra:text-danger eldra:flex eldra:items-start eldra:gap-1.25 eldra:font-medium',
-      props.rowClass
-    ),
-    props.classes,
-    'error'
-  )
-);
+const errorClass = computed(() => [
+  'eldra:text-field-note eldra:text-danger eldra:flex eldra:items-start eldra:gap-1.25 eldra:font-medium',
+  props.rowClass,
+  props.classes?.error,
+]);
 
 /** 1rem, nudged 0.1em down so it sits on the text rather than above it. */
-const errorIconClass = computed(() =>
-  partClass('eldra:size-4 eldra:shrink-0 eldra:translate-y-[0.1em]', props.classes, 'errorIcon')
-);
+const errorIconClass = computed(() => [
+  'eldra:size-4 eldra:shrink-0 eldra:translate-y-[0.1em]',
+  props.classes?.errorIcon,
+]);
 </script>
 
 <template>

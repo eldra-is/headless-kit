@@ -86,12 +86,12 @@ describe('VariantPicker — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(VariantPicker, {
+      attrs: { class: 'ring-1' },
       props: {
         name: 'Colour',
         type: 'swatches',
         options: COLOURS,
         classes: {
-          root: 'ring-1',
           legend: 'italic',
           legendValue: 'lowercase',
           options: 'gap-8',

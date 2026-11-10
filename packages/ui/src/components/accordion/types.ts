@@ -1,5 +1,5 @@
-/** The one part a consumer can restyle through `Accordion`'s `classes`. */
-export type AccordionPart = 'root';
+/** `Accordion` has no inner parts: style the list itself with `class`. */
+export type AccordionPart = never;
 
 export interface AccordionProps {
   /**
@@ -10,8 +10,6 @@ export interface AccordionProps {
   multiple?: boolean;
   /** The shared `name` used while `multiple` is `false`. Generated when not given. */
   name?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<AccordionPart, string>>;
 }
 
 /** The heading levels `AccordionItem`'s `title` can wrap in, when the page outline needs one
@@ -21,9 +19,10 @@ export type AccordionItemHeadingLevel = 2 | 3 | 4;
 /**
  * The parts a consumer can restyle through `classes`, named after the spec's own anatomy. A link
  * row (`href` set) renders none of `summary`, `chevron` or `panel`: a plain `<a>` has no
- * disclosure trigger distinct from its own root and no panel.
+ * disclosure trigger distinct from its own root and no panel. The root (`<details>`, or the link
+ * row's `<a>`) takes `class`.
  */
-export type AccordionItemPart = 'root' | 'summary' | 'title' | 'help' | 'chevron' | 'panel';
+export type AccordionItemPart = 'summary' | 'title' | 'help' | 'chevron' | 'panel';
 
 export interface AccordionItemProps {
   /** The row's label. Also part of the accessible name. */
@@ -39,6 +38,6 @@ export interface AccordionItemProps {
   /** Renders a plain `<a>` styled as a trigger instead of `<details>`/`<summary>` plus panel — a
    *  menu entry with no children (spec "Accordion" → Variants, "Link row"). No panel, no chevron. */
   href?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<AccordionItemPart, string>>;
 }

@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import Icon from '../icon/Icon.vue';
 import { CARD_FOCUS_PROXY, STRETCHED_LINK, STRETCHED_LINK_OUTLINE } from './stretchedLink';
 import { CUE_ARROW_CLASS, CUE_ARROW_PATHS } from './cueArrow';
@@ -71,73 +70,53 @@ const ICON_TILE_CLASS: Record<FeatureCardVariant, string> = {
  * unlinked card has no tab stop at all (spec → Keyboard: "Unlinked: none"), so it needs no
  * positioning context, ring proxy or hover scope.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:flex-col eldra:gap-3 eldra:rounded-lg',
-      hasHref.value && CARD_FOCUS_PROXY,
-      VARIANT_CLASS[props.variant]
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:gap-3',
+  hasHref.value ? CARD_FOCUS_PROXY : 'eldra:rounded-lg',
+  VARIANT_CLASS[props.variant],
+]);
 
 /** Spec → Sizes: "Icon tile: 2.75rem square, `radius-md`" — `size-11` is 11 × 0.25rem = 2.75rem.
  * `shrink-0` is the acceptance criterion "The icon tile stays 2.75rem square when the title wraps
  * to four lines." */
-const iconTileClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:size-11 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md',
-      ICON_TILE_CLASS[props.variant]
-    ),
-    props.classes,
-    'iconTile'
-  )
-);
+const iconTileClass = computed(() => [
+  'eldra:flex eldra:size-11 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md',
+  ICON_TILE_CLASS[props.variant],
+  props.classes?.iconTile,
+]);
 
 /** Spec → Sizes: "Title: heading family, 1.125rem, line-height 1.35, weight 600" — `text-h4`
  * already reads exactly this combination (`tailwind.css`'s `--eldra-text-h4-*` tokens), reused
  * directly rather than a new utility. */
-const titleClass = computed(() =>
-  partClass('eldra:text-h4 eldra:text-text', props.classes, 'title')
-);
+const titleClass = computed(() => ['eldra:text-h4 eldra:text-text', props.classes?.title]);
 
 /** The stretched link (spec → Anatomy, part 2: "with the stretched link when linked"); underlined
  * at rest, thickening on hover — see `stretchedLink.ts`'s own comment and `ContentCard.vue`'s
  * `titleLinkClass` for the full reasoning (operator direction 2026-09-26, README Deviations) and
  * why `group-hover:decoration-2`/`outline-none` are written this way. */
-const titleLinkClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
-      'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current',
-      STRETCHED_LINK,
-      STRETCHED_LINK_OUTLINE
-    ),
-    props.classes,
-    'titleLink'
-  )
-);
+const titleLinkClass = computed(() => [
+  'eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+  'eldra:group-hover:decoration-2 eldra:group-hover:decoration-current',
+  STRETCHED_LINK,
+  STRETCHED_LINK_OUTLINE,
+  props.classes?.titleLink,
+]);
 
 /** Spec → Sizes: "Body: 0.9375rem, `muted`" — the same numeric size as `ContentCard`'s own
  * excerpt, so it reuses `text-content-card-excerpt` rather than a third near-identical utility
  * (see that utility's own comment in `tailwind.css`). */
-const bodyClass = computed(() =>
-  partClass('eldra:text-content-card-excerpt eldra:text-muted', props.classes, 'body')
-);
+const bodyClass = computed(() => [
+  'eldra:text-content-card-excerpt eldra:text-muted',
+  props.classes?.body,
+]);
 
 /** Spec → Sizes: "Link cue: standalone link style … min-height 1.5rem" — the same shape
  * `ContentCard`'s own `cueClass` renders, minus the `mt-auto` (a Feature card's cue sits directly
  * under the body in normal flow, never pinned). */
-const cueClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:items-center eldra:gap-1 eldra:target-min eldra:font-semibold eldra:text-text',
-    props.classes,
-    'cue'
-  )
-);
+const cueClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:gap-1 eldra:target-min eldra:font-semibold eldra:text-text',
+  props.classes?.cue,
+]);
 
 /** The cue's arrow — identical geometry and hover-nudge to `ContentCard.vue`'s own; shared via
  * `card/cueArrow.ts` rather than redeclared here. */

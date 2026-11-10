@@ -173,7 +173,7 @@ describe('MultiSelect — anatomy and parts', () => {
     expect(wrapper.find('[data-part="summaryMore"]').exists()).toBe(false);
   });
 
-  it('merges a per-part class override on a part of its own', async () => {
+  it('appends a per-part class override on a part of its own', async () => {
     const wrapper = mount({
       modelValue: ['sweaters'],
       classes: { tag: 'px-6', summaryMore: 'bg-primary', footer: 'p-4', option: 'px-6' },
@@ -314,6 +314,13 @@ describe('MultiSelect — the footer', () => {
 
     await wrapper.setProps({ modelValue: ['sweaters', 'mugs'] });
     expect(panel(wrapper).find('[data-part="footerCount"]').text()).toBe(enUS.selectedCount(2));
+  });
+
+  it("replaces the link button's own zero padding on Clear", async () => {
+    const wrapper = mount({ modelValue: ['sweaters'], searchable: false });
+    await press(triggerOf(wrapper));
+    expect(footerClear(wrapper).classList.contains('eldra:px-2')).toBe(true);
+    expect(footerClear(wrapper).classList.contains('eldra:px-0')).toBe(false);
   });
 
   it('empties the selection with Clear and keeps the popover open', async () => {

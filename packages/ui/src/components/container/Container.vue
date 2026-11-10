@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import type { ContainerProps, ContainerWidth } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -8,7 +7,6 @@ const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ContainerProps>(), {
   width: 'content',
-  classes: undefined,
   as: 'div',
 });
 
@@ -48,13 +46,11 @@ const GUTTER =
   'eldra:px-[var(--eldra-gutter-mobile)] eldra:@tablet:px-[var(--eldra-gutter-tablet)] ' +
   'eldra:@content:px-[var(--eldra-gutter-desktop)]';
 
-const rootClass = computed(() =>
-  partClass(
-    cx('eldra:mx-auto eldra:w-full', WIDTH[props.width], props.width === 'full' ? '' : GUTTER),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:mx-auto eldra:w-full',
+  WIDTH[props.width],
+  props.width === 'full' ? '' : GUTTER,
+]);
 </script>
 
 <template>

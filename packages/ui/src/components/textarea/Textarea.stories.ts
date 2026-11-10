@@ -22,7 +22,7 @@ const meta = {
           'up to 16rem, then scrolls. For a single short value use `Input`. It always sits in a',
           '`FieldWrapper` so it has a visible label — a placeholder is an example, never the label.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `prefix`, `control`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `prefix`, `control`,',
           "`clearButton`, `suffix`, `foot`, `counter`. `prefix`/`suffix` are `Input`'s rows pinned to",
           'the first line, shown only when their slot is given (or, for `suffix`, while `clearable`',
           'has a value to clear). `foot` and `counter` render only while `counter` and `maxLength`',

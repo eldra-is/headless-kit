@@ -59,12 +59,12 @@ describe('Chip — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(Chip, {
+      attrs: { class: 'ring-1' },
       props: {
         label: 'Knitwear',
         removable: true,
         icon: IconStar,
         classes: {
-          root: 'ring-1',
           icon: 'text-accent',
           label: 'uppercase',
           removeButton: 'italic',
@@ -249,12 +249,12 @@ describe('Chip — icon and avatar', () => {
     wrapper.unmount();
   });
 
-  it('renders an avatar at the chip icon size, overriding the Avatar default size', () => {
+  it('caps the avatar at the chip icon size', () => {
     const wrapper = mountWith(Chip, { props: { label: 'Ingrid Solberg', avatar: '/ingrid.jpg' } });
     const avatarWrap = wrapper.get('[data-part="avatar"]');
     const avatarRoot = avatarWrap.get('[data-part="root"]');
-    expect(avatarRoot.classes()).toContain('eldra:size-4');
-    expect(avatarRoot.classes()).not.toContain('eldra:size-8');
+    expect(avatarRoot.classes()).toContain('eldra:max-w-4');
+    expect(avatarRoot.classes()).toContain('eldra:max-h-4');
     wrapper.unmount();
   });
 
@@ -283,8 +283,7 @@ describe('Chip — icon and avatar', () => {
     await img.trigger('error');
     const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('eldra:text-[0.33rem]');
-    expect(initials.classes()).not.toContain('eldra:text-avatar-initials-sm');
+    expect(initials.classes()).toContain('eldra:[--eldra-avatar-initials-size-sm:0.33rem]');
     wrapper.unmount();
   });
 
@@ -296,7 +295,7 @@ describe('Chip — icon and avatar', () => {
     await img.trigger('error');
     const initials = wrapper.get('[data-part="avatar"] [data-part="initials"]');
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('eldra:text-[0.38rem]');
+    expect(initials.classes()).toContain('eldra:[--eldra-avatar-initials-size-sm:0.38rem]');
     wrapper.unmount();
   });
 
@@ -307,7 +306,7 @@ describe('Chip — icon and avatar', () => {
     const initials = wrapper.find('[data-part="avatar"] [data-part="initials"]');
     expect(initials.exists()).toBe(true);
     expect(initials.text()).toBe('IS');
-    expect(initials.classes()).toContain('eldra:text-[0.33rem]');
+    expect(initials.classes()).toContain('eldra:[--eldra-avatar-initials-size-sm:0.33rem]');
     wrapper.unmount();
   });
 });
@@ -453,9 +452,10 @@ describe('ChipGroup — element and toggling', () => {
     wrapper.unmount();
   });
 
-  it('accepts a root class override', () => {
+  it('puts a consumer class on the root', () => {
     const wrapper = mountWith(ChipGroup, {
-      props: { modelValue: [], ariaLabel: 'Materials', classes: { root: 'ring-1' } },
+      props: { modelValue: [], ariaLabel: 'Materials' },
+      attrs: { class: 'ring-1' },
     });
     expect(wrapper.classes()).toContain('ring-1');
     wrapper.unmount();

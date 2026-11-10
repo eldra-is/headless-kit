@@ -59,13 +59,12 @@ describe('FormLayout — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('merges a per-part class override instead of appending it', () => {
+  it('takes class on the root', () => {
     const wrapper = mountWith(FormLayout, {
-      props: { classes: { root: 'gap-8' } },
+      attrs: { class: 'gap-8' },
       slots: { default: () => field('Name') },
     });
     expect(wrapper.classes()).toContain('gap-8');
-    expect(wrapper.classes()).not.toContain('eldra:gap-4');
     wrapper.unmount();
   });
 

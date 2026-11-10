@@ -2,17 +2,16 @@
 import { computed, inject, nextTick, ref, useAttrs, useSlots, watch, watchPostEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import { FIELD_KEY } from '../field-wrapper/context';
-import Icon from '../icon/Icon.vue';
+import { ICON_STROKE_WIDTH } from '../icon/sizes';
 import SelectPanel from './SelectPanel.vue';
 import SelectTags from './SelectTags.vue';
 import { TRIGGER_VALUE_CELL, TRIGGER_VALUE_STACK } from './panelParts';
 import { useSummaryFit } from './useSummaryFit';
 import { useTagRows } from './useTagRows';
-import type { MultiSelectPart, MultiSelectProps, SelectOption, SelectSize } from './types';
+import type { MultiSelectProps, SelectOption, SelectSize } from './types';
 import { useListbox } from './useListbox';
 import { CREATE_VALUE, useOptionList } from './useOptionList';
 import { usePopover } from './usePopover';
@@ -544,17 +543,10 @@ watch(query, () => {
 
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const part = (base: string, name: MultiSelectPart): string => partClass(base, props.classes, name);
-
-const rootClass = computed(() =>
-  part(
-    cx(
-      'eldra:relative eldra:block eldra:w-full',
-      showsInvalid.value && 'eldra:eldra-field-invalid'
-    ),
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:relative eldra:block eldra:w-full',
+  showsInvalid.value && 'eldra:eldra-field-invalid',
+]);
 
 /**
  * The trigger box: the same box as `Select`'s, which is the same box as `Input`'s — including
@@ -574,28 +566,30 @@ const SIZE: Record<SelectSize, string> = {
 /**
  * `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in the README) replaces
  * Tailwind v4 preflight's `button { cursor: default }`; read-only keeps `cursor-default` (it opens
- * no popover) and disabled keeps `cursor-not-allowed`.
+ * no popover) and disabled keeps `cursor-not-allowed`. As in `Select`, the fill and the boundary
+ * are picked apart: the error boundary over the open one over the rest one.
  */
-const LIVE =
-  'eldra:bg-background eldra:border-border-strong eldra:hover:border-text eldra:text-text eldra:cursor-pointer';
-const OPEN = 'eldra:border-text';
+const LIVE_FILL = 'eldra:bg-background eldra:text-text eldra:cursor-pointer';
+const REST = 'eldra:border-border-strong eldra:hover:border-text';
+const OPEN = 'eldra:border-text eldra:hover:border-text';
 const INVALID = 'eldra:border-danger eldra:hover:border-danger';
 const DISABLED =
   'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:text-muted eldra:cursor-not-allowed';
-const READONLY = 'eldra:bg-surface eldra:border-border eldra:text-text eldra:cursor-default';
+const READONLY_FILL = 'eldra:bg-surface eldra:text-text eldra:cursor-default';
 
-const triggerClass = computed(() =>
-  part(
-    cx(
-      TRIGGER_BASE,
-      SIZE[props.size],
-      props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-      !props.disabled && !props.readonly && isOpen.value && OPEN,
-      showsInvalid.value && INVALID
-    ),
-    'trigger'
-  )
-);
+function boxState(): string {
+  if (props.disabled) return DISABLED;
+  if (props.readonly)
+    return `${READONLY_FILL} ${showsInvalid.value ? INVALID : 'eldra:border-border'}`;
+  return `${LIVE_FILL} ${showsInvalid.value ? INVALID : isOpen.value ? OPEN : REST}`;
+}
+
+const triggerClass = computed(() => [
+  TRIGGER_BASE,
+  SIZE[props.size],
+  boxState(),
+  props.classes?.trigger,
+]);
 
 /**
  * `tagPlacement: 'inside'`: the field takes the trigger box's border, fill, states and ring (through
@@ -611,142 +605,104 @@ const FIELD_SIZE: Record<SelectSize, string> = {
 
 const fieldClass = computed(() =>
   inside.value
-    ? part(
-        cx(
-          'eldra:relative eldra:isolate eldra:flex eldra:w-full eldra:min-w-0 eldra:flex-wrap eldra:items-center eldra:gap-1.5 eldra:eldra-field-border',
-          'eldra:rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-proxy',
-          'eldra:has-[[aria-expanded=true]]:[--eldra-focus-alpha:1]',
-          FIELD_SIZE[props.size],
-          showClear.value ? 'eldra:pe-15' : 'eldra:pe-9',
-          props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-          !props.disabled && !props.readonly && isOpen.value && OPEN,
-          showsInvalid.value && INVALID
-        ),
-        'field'
-      )
+    ? [
+        'eldra:relative eldra:isolate eldra:flex eldra:w-full eldra:min-w-0 eldra:flex-wrap eldra:items-center eldra:gap-1.5 eldra:eldra-field-border',
+        'eldra:rounded-[var(--eldra-field-radius,var(--eldra-radius-md))] eldra:eldra-focus eldra:eldra-focus-proxy',
+        'eldra:has-[[aria-expanded=true]]:[--eldra-focus-alpha:1]',
+        FIELD_SIZE[props.size],
+        showClear.value ? 'eldra:pe-15' : 'eldra:pe-9',
+        boxState(),
+        props.classes?.field,
+      ]
     : 'eldra:relative'
 );
 
 /** Inside, the trigger: under the tags across the field, or the placeholder's row with none. */
-const insideTriggerClass = computed(() =>
-  part(
-    cx(
-      'eldra:flex eldra:items-center eldra:bg-transparent eldra:text-start eldra:outline-none',
-      // With tags it shows nothing, so it leaves the flow and lies under them across the whole
-      // field: it never needs a row (or the gap before one), and a press on any empty part of the
-      // field lands on it. With none it is the row, holding the placeholder. The field draws the ring.
-      hasSelection.value
-        ? 'eldra:absolute eldra:inset-0 eldra:rounded-[inherit]'
-        : 'eldra:min-h-7 eldra:min-w-8 eldra:flex-1 eldra:self-stretch eldra:ps-1.5',
-      props.disabled
-        ? 'eldra:cursor-not-allowed'
-        : props.readonly
-          ? 'eldra:cursor-default'
-          : 'eldra:cursor-pointer'
-    ),
-    'trigger'
-  )
-);
+const insideTriggerClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:bg-transparent eldra:text-start eldra:outline-none',
+  // With tags it shows nothing, so it leaves the flow and lies under them across the whole
+  // field: it never needs a row (or the gap before one), and a press on any empty part of the
+  // field lands on it. With none it is the row, holding the placeholder. The field draws the ring.
+  hasSelection.value
+    ? 'eldra:absolute eldra:inset-0 eldra:rounded-[inherit]'
+    : 'eldra:min-h-7 eldra:min-w-8 eldra:flex-1 eldra:self-stretch eldra:ps-1.5',
+  props.disabled
+    ? 'eldra:cursor-not-allowed'
+    : props.readonly
+      ? 'eldra:cursor-default'
+      : 'eldra:cursor-pointer',
+  props.classes?.trigger,
+]);
 
 /** The inside field's chevron: out of the flow, at the end, centred however many rows there are. */
-const insideChevronClass = computed(() =>
-  part(
-    cx(
-      'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:size-4.5 eldra:text-muted',
-      'eldra:transition-transform eldra:duration-base',
-      isOpen.value && 'eldra:rotate-180'
-    ),
-    'chevron'
-  )
-);
+const insideChevronClass = computed(() => [
+  'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:size-4.5 eldra:text-muted',
+  'eldra:transition-transform eldra:duration-base',
+  isOpen.value && 'eldra:rotate-180',
+  props.classes?.chevron,
+]);
 
-const leadingIconClass = computed(() =>
-  part(
-    'eldra:flex eldra:size-4.5 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:text-muted',
-    'leadingIcon'
-  )
-);
+const leadingIconClass = computed(() => [
+  'eldra:flex eldra:size-4.5 eldra:shrink-0 eldra:items-center eldra:justify-center eldra:text-muted',
+  props.classes?.leadingIcon,
+]);
 
 /** The summary row: the labels, then the "+N" pill. 1.75rem of end padding while Clear shows. */
-const summaryClass = computed(() =>
-  part(
-    cx(
-      'eldra:flex eldra:min-w-0 eldra:flex-1 eldra:items-center eldra:gap-2',
-      TRIGGER_VALUE_CELL,
-      fitsSummary.value && 'eldra:contain-inline-size',
-      showClear.value && 'eldra:pe-7'
-    ),
-    'summary'
-  )
-);
+const summaryClass = computed(() => [
+  'eldra:flex eldra:min-w-0 eldra:flex-1 eldra:items-center eldra:gap-2',
+  TRIGGER_VALUE_CELL,
+  fitsSummary.value && 'eldra:contain-inline-size',
+  showClear.value && 'eldra:pe-7',
+  props.classes?.summary,
+]);
 
 /** Spec "Multi-select" → Sizes: min width 1.5rem, 1.25rem tall, 0.3125rem side padding. */
-const summaryMoreClass = computed(() =>
-  part(
-    'eldra:bg-surface-strong eldra:text-text eldra:inline-flex eldra:h-5 eldra:min-w-6 eldra:shrink-0 eldra:items-center eldra:justify-center ' +
-      'eldra:rounded-full eldra:px-1.25 eldra:text-select-pill',
-    'summaryMore'
-  )
-);
+const summaryMoreClass = computed(() => [
+  'eldra:bg-surface-strong eldra:text-text eldra:inline-flex eldra:h-5 eldra:min-w-6 eldra:shrink-0 eldra:items-center eldra:justify-center ' +
+    'eldra:rounded-full eldra:px-1.25 eldra:text-select-pill',
+  props.classes?.summaryMore,
+]);
 
-const placeholderClass = computed(() =>
-  part(
-    cx(
-      'eldra:min-w-0 eldra:flex-1 eldra:truncate eldra:text-muted',
-      showClear.value && 'eldra:pe-7'
-    ),
-    'placeholder'
-  )
-);
+const placeholderClass = computed(() => [
+  'eldra:min-w-0 eldra:flex-1 eldra:truncate eldra:text-muted',
+  showClear.value && 'eldra:pe-7',
+  props.classes?.placeholder,
+]);
 
-const chevronClass = computed(() =>
-  part(
-    cx(
-      'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-transform eldra:duration-base',
-      isOpen.value && 'eldra:rotate-180'
-    ),
-    'chevron'
-  )
-);
+const chevronClass = computed(() => [
+  'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-transform eldra:duration-base',
+  isOpen.value && 'eldra:rotate-180',
+  props.classes?.chevron,
+]);
 
-const clearButtonClass = computed(() =>
-  part(
-    cx(
-      'eldra:absolute eldra:end-8 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:size-6 eldra:cursor-pointer eldra:items-center eldra:justify-center',
-      'eldra:rounded-sm eldra:text-muted eldra:hover:text-text',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra:eldra-focus'
-    ),
-    'clearButton'
-  )
-);
+const clearButtonClass = computed(() => [
+  'eldra:absolute eldra:end-8 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:size-6 eldra:cursor-pointer eldra:items-center eldra:justify-center',
+  'eldra:rounded-sm eldra:text-muted eldra:hover:text-text',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  'eldra:eldra-focus',
+  props.classes?.clearButton,
+]);
 
 /**
  * Spec "Multi-select" → Sizes, Footer: "padding 0.375rem (0.75rem at the start), 1px `border`
  * hairline above, `background`, 0.5rem gap. The count … pushes the buttons to the end. It stays put
  * while the list scrolls."
  */
-const footerClass = computed(() =>
-  part(
-    cx(
-      'eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2 eldra:border-t eldra:p-1.5 eldra:ps-3',
-      'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
-      'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]'
-    ),
-    'footer'
-  )
-);
+const footerClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2 eldra:border-t eldra:p-1.5 eldra:ps-3',
+  'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]',
+  'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]',
+  props.classes?.footer,
+]);
 
-const footerCountClass = computed(() =>
-  part(
-    'eldra:text-caption eldra:me-auto eldra:tabular-nums eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
-    'footerCount'
-  )
-);
+const footerCountClass = computed(() => [
+  'eldra:text-caption eldra:me-auto eldra:tabular-nums eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]',
+  props.classes?.footerCount,
+]);
 
 /** Spec: "Clear = Button link sm (0.5rem side padding), Done = Button primary sm." */
-const footerClearClass = computed(() => part('eldra:px-2', 'footerClear'));
-const footerDoneClass = computed(() => part('', 'footerDone'));
+const footerClearClass = computed(() => ['eldra:px-2', props.classes?.footerClear]);
+const footerDoneClass = computed(() => props.classes?.footerDone);
 
 const emptyText = computed(() =>
   query.value.trim() === '' ? m.value.noResults : m.value.noMatchesFor(query.value.trim())
@@ -754,7 +710,12 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <!-- The trigger and its clear button share a positioning context of their own: the root also
          holds the tag list, and a clear button positioned against *that* would drift down the
          control as tags wrap onto a second line. -->
@@ -772,7 +733,14 @@ const emptyText = computed(() =>
         :class="leadingIconClass"
       >
         <slot name="leading" :options="selectedOptions" :open="isOpen">
-          <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
+          <component
+            v-if="leadingIcon"
+            :is="leadingIcon"
+            class="eldra:size-4.5 eldra:shrink-0"
+            :stroke-width="ICON_STROKE_WIDTH"
+            aria-hidden="true"
+            focusable="false"
+          />
         </slot>
       </span>
       <SelectTags
@@ -799,7 +767,7 @@ const emptyText = computed(() =>
       </SelectTags>
       <button
         ref="triggerRef"
-        v-bind="$attrs"
+        v-bind="{ ...$attrs, class: undefined }"
         data-part="trigger"
         type="button"
         role="combobox"
@@ -827,7 +795,14 @@ const emptyText = computed(() =>
           :class="leadingIconClass"
         >
           <slot name="leading" :options="selectedOptions" :open="isOpen">
-            <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'eldra:size-4.5' }" />
+            <component
+              v-if="leadingIcon"
+              :is="leadingIcon"
+              class="eldra:size-4.5 eldra:shrink-0"
+              :stroke-width="ICON_STROKE_WIDTH"
+              aria-hidden="true"
+              focusable="false"
+            />
           </slot>
         </span>
 
@@ -1006,7 +981,7 @@ const emptyText = computed(() =>
               size="sm"
               type="button"
               data-part="footerClear"
-              :classes="{ container: footerClearClass }"
+              :class="footerClearClass"
               @click="onFooterClear"
             >
               {{ m.clear }}
@@ -1016,7 +991,7 @@ const emptyText = computed(() =>
               size="sm"
               type="button"
               data-part="footerDone"
-              :classes="{ container: footerDoneClass }"
+              :class="footerDoneClass"
               @click="onDone"
             >
               {{ m.done }}

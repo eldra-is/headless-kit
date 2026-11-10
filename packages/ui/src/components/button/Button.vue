@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { Comment, Fragment, Text, computed, inject, useSlots, watchEffect, type VNode } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  inject,
+  useAttrs,
+  useSlots,
+  watchEffect,
+  type VNode,
+} from 'vue';
 import { FORM_SUBMITTING_KEY } from '../form-layout/context';
 import Icon from '../icon/Icon.vue';
 import Spinner from '../spinner/Spinner.vue';
 import type { ButtonProps, ButtonSize, ButtonVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
+import { mergeClass } from '../../utils/mergeClass';
 
 const eldra = useEldraScope();
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<ButtonProps>(), {
   size: 'md',
@@ -32,6 +44,12 @@ const props = withDefaults(defineProps<ButtonProps>(), {
 const emit = defineEmits<{ click: [event: MouseEvent] }>();
 
 const slots = useSlots();
+/** `class` is merged into the container's own; every other attribute lands on it as before. */
+const attrs = useAttrs();
+const forwardedAttrs = computed(() => {
+  const { class: _class, ...rest } = attrs;
+  return rest;
+});
 
 /**
  * Shared box (spec "Button" → Anatomy and Behaviour & motion): 1px border that a variant may
@@ -45,8 +63,12 @@ const slots = useSlots();
  * `src/__tests__/focus-transition.spec.ts`.
  */
 const BASE =
-  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:border eldra:border-transparent ' +
-  'eldra:rounded-[var(--eldra-button-radius,var(--eldra-radius-md))] eldra:no-underline eldra:eldra-focus';
+  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center ' +
+  'eldra:rounded-[var(--eldra-button-radius,var(--eldra-radius-md))] eldra:eldra-focus';
+
+/** The 1px border and no underline, except `link`, which is a borderless underlined line box. */
+const BOX = 'eldra:border eldra:no-underline';
+const LINK_BOX = 'eldra:border-0';
 
 /**
  * Sizes (spec "Button" → Sizes). `--spacing` is 0.25rem, so `px-3`/`px-4.5`/`px-6` are the spec's
@@ -83,16 +105,25 @@ const LINK_SIZE: Record<ButtonSize, string> = {
  * section element carries `data-section="primary|accent"`; the focus ring never
  * changes, because its white infill carries the contrast on dark grounds.
  *
- * Every live variant carries `cursor-pointer` (operator report, 2026-09-25; recorded under
- * Deviations in the README): Tailwind v4's preflight sets `button { cursor: default }`, so nothing
- * here was a pointer until now. It lives in the live recipe only — `DISABLED` below keeps
- * `cursor-not-allowed` and `containerClass` appends `cursor-progress` while loading, both later in
- * the same `cx()` call, so both still win over this one with no merge-group change needed (`cursor-*`
- * is already a stock `tailwind-merge` group).
+ * Every live button is `cursor-pointer` (operator report, 2026-09-25; recorded under Deviations in
+ * the README): Tailwind v4's preflight sets `button { cursor: default }`, so nothing here was a
+ * pointer until now. `cursorClass` picks it, `cursor-not-allowed` when disabled, or
+ * `cursor-progress` while loading.
+ *
+ * The resting fill and border colour live in `FILL`, apart from the rest, so the toggle-pressed
+ * fill can take their place.
  */
+const FILL: Record<ButtonVariant, string> = {
+  primary: 'eldra:bg-primary eldra:border-transparent',
+  secondary: 'eldra:bg-accent eldra:border-transparent',
+  outline: 'eldra:bg-background eldra:border-border-strong',
+  ghost: 'eldra:bg-transparent eldra:border-transparent',
+  link: 'eldra:bg-transparent eldra:border-transparent',
+  danger: 'eldra:bg-danger eldra:border-transparent',
+};
 const VARIANT: Record<ButtonVariant, string> = {
   primary: [
-    'eldra:bg-primary eldra:text-primary-contrast eldra:border-transparent eldra:cursor-pointer',
+    'eldra:text-primary-contrast',
     'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]',
     'eldra:section-primary:bg-primary-contrast',
     'eldra:section-primary:text-primary',
@@ -102,7 +133,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'eldra:section-accent:hover:bg-[color-mix(in_oklab,var(--eldra-color-accent-contrast),var(--eldra-color-accent)_14%)]',
   ].join(' '),
   secondary: [
-    'eldra:bg-accent eldra:text-accent-contrast eldra:border-transparent eldra:cursor-pointer',
+    'eldra:text-accent-contrast',
     'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-accent),var(--eldra-color-text)_15%)]',
     'eldra:section-accent:bg-transparent',
     'eldra:section-accent:border-current',
@@ -110,7 +141,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'eldra:section-accent:hover:bg-[color-mix(in_oklab,currentColor,transparent_88%)]',
   ].join(' '),
   outline: [
-    'eldra:bg-background eldra:border-border-strong eldra:text-text eldra:cursor-pointer',
+    'eldra:text-text',
     'eldra:hover:border-text eldra:hover:bg-surface',
     'eldra:section-primary:bg-transparent',
     'eldra:section-primary:border-current',
@@ -124,7 +155,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     'eldra:section-accent:hover:bg-[color-mix(in_oklab,currentColor,transparent_88%)]',
   ].join(' '),
   ghost: [
-    'eldra:bg-transparent eldra:text-text eldra:border-transparent eldra:cursor-pointer',
+    'eldra:text-text',
     'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
     'eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]',
     'eldra:section-primary:text-current',
@@ -133,13 +164,13 @@ const VARIANT: Record<ButtonVariant, string> = {
     'eldra:section-accent:hover:bg-[color-mix(in_oklab,currentColor,transparent_94%)]',
   ].join(' '),
   link: [
-    'eldra:bg-transparent eldra:text-text eldra:border-0 eldra:cursor-pointer',
+    'eldra:text-text',
     'eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em] eldra:hover:decoration-2',
     'eldra:section-primary:text-current',
     'eldra:section-accent:text-current',
   ].join(' '),
   danger: [
-    'eldra:bg-danger eldra:text-background eldra:border-transparent eldra:cursor-pointer',
+    'eldra:text-background',
     'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-danger),var(--eldra-color-text)_15%)]',
   ].join(' '),
 };
@@ -149,15 +180,14 @@ const VARIANT: Record<ButtonVariant, string> = {
  * press movement. Ghost and link keep no fill. These replace the variant's classes rather than
  * layering over them, so a `:hover` rule can never win back the live colours on a dead control.
  */
-const FILLED_DISABLED =
-  'eldra:bg-surface-strong eldra:text-muted eldra:border-transparent eldra:cursor-not-allowed';
+const FILLED_DISABLED = 'eldra:bg-surface-strong eldra:text-muted eldra:border-transparent';
 const DISABLED: Record<ButtonVariant, string> = {
   primary: FILLED_DISABLED,
   secondary: FILLED_DISABLED,
   outline: FILLED_DISABLED,
   danger: FILLED_DISABLED,
-  ghost: 'eldra:bg-transparent eldra:text-muted eldra:border-transparent eldra:cursor-not-allowed',
-  link: 'eldra:bg-transparent eldra:text-muted eldra:border-0 eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em] eldra:cursor-not-allowed',
+  ghost: 'eldra:bg-transparent eldra:text-muted eldra:border-transparent',
+  link: 'eldra:bg-transparent eldra:text-muted eldra:border-transparent eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em]',
 };
 
 /**
@@ -271,8 +301,9 @@ const PRESS = 'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100';
  * `border-strong` boundary. The spec gives it to `outline`; `ghost` takes the same look, because a
  * ghost toggle in a toolbar (bold, italic, a view switch) has no other way to show it is on, and
  * the `border-strong` boundary is what keeps the state at 3:1 against the page (1.4.11) where the
- * fill alone would not be. Only `pressed === true` draws it, so `aria-pressed="true"` and the look
- * always go together. The filled variants already carry a fill, and `link` is a line box.
+ * fill alone would not be. Only `pressed === true` draws it, in place of the variant's `FILL`, so
+ * `aria-pressed="true"` and the look always go together. The filled variants already carry a fill,
+ * and `link` is a line box.
  */
 const PRESSED_FILL = 'eldra:bg-surface-strong eldra:border-border-strong';
 const TOGGLE_VARIANTS: readonly ButtonVariant[] = ['outline', 'ghost'];
@@ -281,27 +312,35 @@ const stateClass = computed(() =>
   isDisabled.value
     ? DISABLED[props.variant]
     : // The toggle pressed state is a fill, not only a colour shift (1.4.1). See PRESSED_FILL.
-      cx(
+      [
+        props.pressed === true && TOGGLE_VARIANTS.includes(props.variant)
+          ? PRESSED_FILL
+          : FILL[props.variant],
         VARIANT[props.variant],
         // A loading button is still clickable (the spec keeps it focusable and named), but the
         // action is already under way — pressing it again is not a thing that happens, so it gets
         // no press feedback, the same as a disabled one.
         props.variant !== 'link' && !isLoading.value && PRESS,
-        props.pressed === true && TOGGLE_VARIANTS.includes(props.variant) && PRESSED_FILL
-      )
+      ]
 );
 
+const cursorClass = computed(() => {
+  if (isLoading.value) return 'eldra:cursor-progress';
+  return isDisabled.value ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer';
+});
+
+// MultiSelect's footer Clear overrides the container.
 const containerClass = computed(() =>
-  partClass(
-    cx(
+  mergeClass(
+    [
       BASE,
+      props.variant === 'link' ? LINK_BOX : BOX,
       sizeClass.value,
       stateClass.value,
+      cursorClass.value,
       props.block && 'eldra:w-full',
-      isLoading.value && 'eldra:cursor-progress'
-    ),
-    props.classes,
-    'container'
+    ],
+    attrs.class
   )
 );
 
@@ -339,39 +378,32 @@ function hasElements(nodes: VNode[]): boolean {
  */
 function labelClass(): string {
   const rich = slots.default !== undefined && hasElements(slots.default());
-  return partClass(
-    cx(
+  // FilterPanel's footer Apply overrides the label.
+  return mergeClass(
+    [
       'eldra:whitespace-nowrap',
       rich && 'eldra:inline-flex eldra:items-center eldra:gap-[inherit]',
-      labelHiddenWhileLoading.value
-    ),
-    props.classes,
-    'label'
+      labelHiddenWhileLoading.value,
+    ],
+    props.classes?.label
   );
 }
-const leadingIconClass = computed(() =>
-  partClass(
-    cx('eldra:inline-flex eldra:shrink-0', hiddenWhileLoading.value),
-    props.classes,
-    'leadingIcon'
-  )
-);
-const trailingIconClass = computed(() =>
-  partClass(
-    cx('eldra:inline-flex eldra:shrink-0', hiddenWhileLoading.value),
-    props.classes,
-    'trailingIcon'
-  )
-);
-const spinnerClass = computed(() =>
-  partClass(
-    isOverlaySpinner.value
-      ? 'eldra:absolute eldra:inset-0 eldra:flex eldra:items-center eldra:justify-center'
-      : 'eldra:inline-flex eldra:shrink-0',
-    props.classes,
-    'spinner'
-  )
-);
+const leadingIconClass = computed(() => [
+  'eldra:inline-flex eldra:shrink-0',
+  hiddenWhileLoading.value,
+  props.classes?.leadingIcon,
+]);
+const trailingIconClass = computed(() => [
+  'eldra:inline-flex eldra:shrink-0',
+  hiddenWhileLoading.value,
+  props.classes?.trailingIcon,
+]);
+const spinnerClass = computed(() => [
+  isOverlaySpinner.value
+    ? 'eldra:absolute eldra:inset-0 eldra:flex eldra:items-center eldra:justify-center'
+    : 'eldra:inline-flex eldra:shrink-0',
+  props.classes?.spinner,
+]);
 
 /** An icon-only button draws `icon`; everything else draws `iconLeft`. */
 const leadingIcon = computed(() =>
@@ -508,7 +540,6 @@ const linkTabindex = computed(() => (isInertLink.value ? '-1' : undefined));
     data-part="container"
     :class="containerClass"
     :type="isNativeButton ? type : undefined"
-    v-bind="linkAttrs"
     :tabindex="linkTabindex"
     :disabled="isNativeButton ? isDisabled || undefined : undefined"
     :aria-disabled="isInertLink ? 'true' : undefined"
@@ -516,6 +547,7 @@ const linkTabindex = computed(() => (isInertLink.value ? '-1' : undefined));
     :aria-pressed="ariaPressed"
     :aria-label="ariaLabel"
     v-on="rootListeners"
+    v-bind="{ ...linkAttrs, ...forwardedAttrs }"
   >
     <span v-if="isInlineSpinner" data-part="spinner" :class="spinnerClass">
       <Spinner class="eldra:size-4.5" />

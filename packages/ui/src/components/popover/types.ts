@@ -4,14 +4,13 @@ import type { FloatingPlacement } from '../../composables/useFloating';
 /**
  * The parts a consumer can restyle through `classes`.
  *
- * `root` is a `display: contents` wrapper around the `trigger` slot's own element and the
- * (conditionally teleported) `panel` — it never draws a box of its own, so it exists only as a
- * `data-part`/`classes` hook and a mount point, never as a layout parent a consumer needs to work
- * around. `trigger` draws nothing here at all: the trigger is the consumer's own element, rendered
+ * The root is a `display: contents` wrapper around the `trigger` slot's own element and the
+ * (conditionally teleported) `panel`: it draws no box, so it takes no classes. `class` lands on the
+ * panel with the other fallthrough attributes. `trigger` draws nothing here at all: the trigger is the consumer's own element, rendered
  * through the `trigger` slot, and `classes.trigger` reaches it only because the `attrs` slot prop
  * carries a `class` built from it (see `Popover.vue`'s own doc comment) for the consumer to spread.
  */
-export type PopoverPart = 'root' | 'trigger' | 'panel';
+export type PopoverPart = 'trigger' | 'panel';
 
 export interface PopoverProps {
   /** Whether the panel is open (two-way). Self-managing when not bound, like every stateful
@@ -104,6 +103,6 @@ export interface PopoverProps {
    * consumer that needs it is a one-line, non-breaking widening of this type.
    */
   teleport?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<PopoverPart, string>>;
 }

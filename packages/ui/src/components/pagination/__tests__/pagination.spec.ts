@@ -378,11 +378,13 @@ describe('Pagination — messages', () => {
 });
 
 describe('Pagination — classes prop', () => {
-  it('merges a classes override onto a named part instead of landing beside it', () => {
+  it('puts a consumer class on the nav and appends a classes override to a named part', () => {
     const wrapper = mountWith(Pagination, {
-      props: { page: 1, totalPages: 3, classes: { root: 'mt-8' } },
+      props: { page: 1, totalPages: 3, classes: { current: 'ring-1' } },
+      attrs: { class: 'mt-8' },
     });
     expect(wrapper.find('nav').classes()).toContain('mt-8');
+    expect(wrapper.find('[aria-current="page"]').classes()).toContain('ring-1');
     wrapper.unmount();
   });
 });

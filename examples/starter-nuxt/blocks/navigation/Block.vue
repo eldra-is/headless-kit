@@ -231,10 +231,8 @@ function openSearch(): void {
  * rather than two copies that could drift.
  *
  * `Badge`'s own root carries `min-h-6` and `text-badge` (1.5rem min height, the package's own
- * type-style utility); both are stock Tailwind class groups (`min-h`, `font-size`) that
- * `tailwind-merge` already recognises, so passing this through `classes.root` replaces them
- * outright — the later class in the merged string always wins a group, with no `!important` and
- * no need for a `size` prop (`Badge` has none).
+ * type-style utility); passed as the Badge's `class`, these app utilities outrank its `eldra:`
+ * classes by cascade layer, with no `!important` and no need for a `size` prop (`Badge` has none).
  */
 const COUNT_PILL_CLASSES =
   'pointer-events-none absolute -top-0.5 -right-0.5 min-h-3.5 min-w-3.5 h-3.5 justify-center ' +
@@ -549,13 +547,8 @@ const barSurfaceStyle = { [HEADER_SURFACE_VAR]: 'var(--color-background)' };
 
 /**
  * `@eldrajs/ui`'s `classes` prop takes a plain string per part (`Partial<Record<Part, string>>`),
- * never an array — `Section`'s own `partClass`/`cx` treats a non-string, non-falsy value as the
- * `Record<string, boolean>` branch of its `ClassValue` union, which for a plain array reads its
- * numeric indices as "class names" and their truthy values as "on": an empty-string entry at index
- * 3 (falsy) got dropped and the three truthy entries before it came back out as the class string
- * `"0 1 2"` — every real utility class silently lost. Every conditional class list handed to a
- * `classes` prop in this file is therefore joined into one string with `[...].filter(Boolean).join(' ')`,
- * never left as an array.
+ * never an array, so every conditional class list handed to a `classes` prop in this file is
+ * joined into one string with `[...].filter(Boolean).join(' ')`.
  */
 /**
  * Spec "Header" → Container/Section line: "Section background default `background` … Section
@@ -652,8 +645,6 @@ const actionsPositionClass = computed(() =>
 
 /** What this header draws differently from `NavMenu`'s own look, part by part. */
 const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
-  // `contents`: the bar and the Menu button become cells of the grid, which then positions panels.
-  root: 'static contents',
   nav: `self-stretch ${linksPositionClass.value}`,
   list: variant.value === 'centered' ? 'h-full flex-nowrap justify-center' : 'h-full flex-nowrap',
   link: 'text-sm',
@@ -698,9 +689,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           variant="standalone"
           :underline="false"
           data-eldra-header-focus
-          :classes="{
-            root: `flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-1 font-heading text-lg font-bold tracking-tight ${brandPositionClass}`,
-          }"
+          :class="`font-heading flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-1 text-lg font-bold tracking-tight ${brandPositionClass}`"
         >
           <img
             v-if="brandLogoUrl"
@@ -730,6 +719,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           open-on-hover
           :link-as="MenuLink"
           :messages="navMenuMessages"
+          class="static contents"
           :classes="navMenuClasses"
         >
           <template #toggle>
@@ -745,7 +735,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               arrow
               data-eldra-mega-view-all
               :aria-label="t('header.viewAllOf', { label: item.label ?? '' })"
-              :classes="{ root: 'text-sm' }"
+              class="text-sm"
             >
               {{ t('header.viewAll') }}
             </Link>
@@ -760,7 +750,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           v-if="showLinksPlaceholder"
           inline
           :label="t('editor.addLink')"
-          :classes="{ root: `hidden @content:flex ${linksPositionClass}` }"
+          :class="`@content:flex hidden ${linksPositionClass}`"
         />
 
         <!-- `justify-end` matters in exactly one case and is inert in every other: with no Menu
@@ -788,7 +778,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
                 variant="outline"
                 size="sm"
                 aria-haspopup="dialog"
-                :classes="{ container: 'hidden rounded-full @content:inline-flex' }"
+                class="@content:inline-flex hidden rounded-full"
                 @click="openSearch"
               >
                 {{ t('header.searchField') }}
@@ -800,7 +790,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
                 icon-only
                 :label="t('header.search')"
                 aria-haspopup="dialog"
-                :classes="{ container: '@content:hidden' }"
+                class="@content:hidden"
                 @click="openSearch"
               >
                 <template #leadingIcon>
@@ -817,7 +807,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
                 :label="t('header.searchField')"
                 :results="searchResults"
                 :loading="searchLoading"
-                :classes="{ root: 'hidden w-64 @content:block' }"
+                class="@content:block hidden w-64"
               />
               <Button
                 variant="ghost"
@@ -825,7 +815,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
                 icon-only
                 :label="t('header.search')"
                 aria-haspopup="dialog"
-                :classes="{ container: '@content:hidden' }"
+                class="@content:hidden"
                 @click="openSearch"
               >
                 <template #leadingIcon>
@@ -862,7 +852,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               tone="primary"
               pill
               :label="wishlistBadgeLabel"
-              :classes="{ root: COUNT_PILL_CLASSES }"
+              :class="COUNT_PILL_CLASSES"
             />
           </span>
 
@@ -887,7 +877,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               tone="primary"
               pill
               :label="cartBadgeLabel"
-              :classes="{ root: COUNT_PILL_CLASSES }"
+              :class="COUNT_PILL_CLASSES"
             />
           </span>
 
@@ -900,7 +890,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             size="sm"
             :href="ctaHref"
             :as="ctaLinkAs"
-            :classes="{ container: 'hidden @content:inline-flex @content:ml-2' }"
+            class="@content:inline-flex @content:ml-2 hidden"
           >
             {{ ctaLabel }}
           </Button>

@@ -8,7 +8,6 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import type { ToastProps, ToastVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -95,57 +94,38 @@ function onKeydown(event: KeyboardEvent): void {
   emit('close', 'escape');
 }
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:w-full eldra:items-start eldra:gap-3 eldra:rounded-md eldra:border eldra:border-border eldra:bg-background eldra:p-4 eldra:shadow-md',
-      'eldra:animate-eldra-toast-in'
-    ),
-    props.classes,
-    'root'
-  )
-);
-const iconClass = computed(() =>
-  partClass(
-    cx('eldra:mt-0.5 eldra:size-5 eldra:shrink-0', VARIANT_TEXT_CLASS[props.variant]),
-    props.classes,
-    'icon'
-  )
-);
-const titleClass = computed(() =>
-  partClass('eldra:text-toast-title eldra:text-text', props.classes, 'title')
-);
-const textClass = computed(() =>
-  partClass('eldra:mt-0.5 eldra:text-body-sm eldra:text-muted', props.classes, 'text')
-);
-const actionClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:target-min eldra:mt-1 eldra:inline-flex eldra:cursor-pointer eldra:items-center eldra:text-body-sm eldra:font-semibold',
-      'eldra:text-text eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em] eldra:eldra-focus'
-    ),
-    props.classes,
-    'action'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:w-full eldra:items-start eldra:gap-3 eldra:rounded-md eldra:border eldra:border-border eldra:bg-background eldra:p-4 eldra:shadow-md',
+  'eldra:animate-eldra-toast-in',
+]);
+const iconClass = computed(() => [
+  'eldra:mt-0.5 eldra:size-5 eldra:shrink-0',
+  VARIANT_TEXT_CLASS[props.variant],
+  props.classes?.icon,
+]);
+const titleClass = computed(() => ['eldra:text-toast-title eldra:text-text', props.classes?.title]);
+const textClass = computed(() => [
+  'eldra:mt-0.5 eldra:text-body-sm eldra:text-muted',
+  props.classes?.text,
+]);
+const actionClass = computed(() => [
+  'eldra:target-min eldra:mt-1 eldra:inline-flex eldra:cursor-pointer eldra:items-center eldra:text-body-sm eldra:font-semibold',
+  'eldra:text-text eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em] eldra:eldra-focus',
+  props.classes?.action,
+]);
 /**
  * Spec "Toast" -> Sizes, "Close" row: "2rem square ghost icon button, pulled 0.375rem up and
  * right into the padding." Same recipe as `Dialog`'s own close button (`-m-1` there, for its
  * 1.5rem-padding header) scaled to this toast's 1rem padding: negative top/right margins pull the
  * button toward the corner without changing the root's own `p-4`.
  */
-const closeClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:-mt-1.5 eldra:-mr-1.5 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
-      'eldra:text-text eldra:eldra-focus',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]'
-    ),
-    props.classes,
-    'close'
-  )
-);
+const closeClass = computed(() => [
+  'eldra:-mt-1.5 eldra:-mr-1.5 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+  'eldra:text-text eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]',
+  props.classes?.close,
+]);
 </script>
 
 <template>

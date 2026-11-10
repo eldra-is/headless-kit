@@ -600,13 +600,14 @@ describe('Breadcrumb — narrow container', () => {
 });
 
 describe('Breadcrumb — customisation', () => {
-  it('lets classes.link replace a colour utility instead of landing beside it', () => {
+  it('appends a classes.link override to every link, and puts class on the nav', () => {
     const wrapper = mountWith(Breadcrumb, {
       props: { items: PRODUCT_TRAIL, classes: { link: 'text-accent' } },
+      attrs: { class: 'mt-8' },
     });
+    expect(wrapper.get('nav').classes()).toContain('mt-8');
     const link = wrapper.get('[data-part="link"]');
     expect(link.classes()).toContain('text-accent');
-    expect(link.classes()).not.toContain('eldra:text-muted');
     wrapper.unmount();
   });
 });

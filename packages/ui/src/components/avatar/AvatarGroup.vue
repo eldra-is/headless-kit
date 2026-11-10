@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Avatar from './Avatar.vue';
 import type { AvatarGroupProps } from './types';
@@ -71,36 +70,26 @@ const groupLabel = computed(() =>
 );
 const srTextId = useUiId('avatar-group-label');
 
-const rootClass = computed(() =>
-  partClass(cx('eldra:inline-flex eldra:items-center'), props.classes, 'root')
-);
+const rootClass = 'eldra:inline-flex eldra:items-center';
 
-function itemClass(index: number): string {
-  return partClass(
-    cx(
-      'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:ring-2 eldra:ring-background',
-      ITEM_SIZE_CLASS,
-      index > 0 && OVERLAP_CLASS
-    ),
-    props.classes,
-    'item'
-  );
+function itemClass(index: number) {
+  return [
+    'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:ring-2 eldra:ring-background',
+    ITEM_SIZE_CLASS,
+    index > 0 && OVERLAP_CLASS,
+    props.classes?.item,
+  ];
 }
 
-const moreClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:bg-surface-strong ' +
-        'eldra:text-text eldra:ring-2 eldra:ring-background eldra:text-avatar-initials-sm',
-      ITEM_SIZE_CLASS,
-      visiblePeople.value.length > 0 && OVERLAP_CLASS
-    ),
-    props.classes,
-    'more'
-  )
-);
+const moreClass = computed(() => [
+  'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:bg-surface-strong ' +
+    'eldra:text-text eldra:ring-2 eldra:ring-background eldra:text-avatar-initials-sm',
+  ITEM_SIZE_CLASS,
+  visiblePeople.value.length > 0 && OVERLAP_CLASS,
+  props.classes?.more,
+]);
 
-const srTextClass = computed(() => partClass('eldra:sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => ['eldra:sr-only', props.classes?.srText]);
 </script>
 
 <template>

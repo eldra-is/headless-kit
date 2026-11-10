@@ -1,4 +1,3 @@
-import { cx } from '../../utils/kitClass';
 import type { RadioGroupSize } from './types';
 
 /**
@@ -13,7 +12,11 @@ import type { RadioGroupSize } from './types';
  * the two-column version this is built from.
  */
 export const PLAIN_OPTION =
-  'eldra:group eldra:grid eldra:w-fit eldra:max-w-full eldra:grid-cols-[auto_1fr] eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 eldra:target-min';
+  'eldra:group eldra:grid eldra:w-fit eldra:max-w-full eldra:items-start eldra:gap-y-0.5 eldra:target-min';
+/** The radio and its text column. */
+export const PLAIN_COLUMNS = 'eldra:grid-cols-[auto_1fr] eldra:gap-x-2.5';
+/** A radio with no label and no hint: the circle alone. */
+export const PLAIN_BOX_ONLY = 'eldra:grid-cols-[auto] eldra:gap-x-0';
 
 /** The cursor a row (or card) shows: the whole option is the label, so it is the target. */
 export function optionCursor(disabled: boolean | undefined): string {
@@ -69,9 +72,9 @@ function radioState({ selected, disabled, invalid }: RadioState): string {
   return invalid ? INVALID : UNSELECTED;
 }
 
-/** The drawn circle, before `classes.radio` is merged in. */
-export function radioRecipe(size: RadioGroupSize, state: RadioState): string {
-  return cx(RADIO, RADIO_SIZE[size], radioState(state));
+/** The drawn circle, before `classes.radio` is appended. */
+export function radioRecipe(size: RadioGroupSize, state: RadioState): string[] {
+  return [RADIO, RADIO_SIZE[size], radioState(state)];
 }
 
 /**
@@ -79,12 +82,12 @@ export function radioRecipe(size: RadioGroupSize, state: RadioState): string {
  * same choice `Checkbox` makes for its tick — only the circle around it grows. No `data-part` of
  * its own: the API contract's part list has no entry for it, unlike `Checkbox`'s `check`.
  */
-export function dotRecipe(selected: boolean): string {
-  return cx(
+export function dotRecipe(selected: boolean): string[] {
+  return [
     'eldra:pointer-events-none eldra:size-2 eldra:rounded-full eldra:bg-primary-contrast eldra:transition-transform ' +
       'eldra:duration-fast eldra:ease-out',
-    selected ? 'eldra:scale-100' : 'eldra:scale-0'
-  );
+    selected ? 'eldra:scale-100' : 'eldra:scale-0',
+  ];
 }
 
 /** The native radio: invisible but hit-testable, stretched over the drawn circle. */
@@ -96,12 +99,12 @@ export const INPUT =
  * … 1rem 600 (line-height 1.4)" for cards — the same two type utilities `Checkbox`'s label and the
  * `text-card-title` utility (see `tailwind.css`) already give those numbers.
  */
-export function labelRecipe(card: boolean, disabled: boolean | undefined): string {
-  return cx(
+export function labelRecipe(card: boolean, disabled: boolean | undefined): string[] {
+  return [
     card ? 'eldra:text-card-title' : 'eldra:text-control',
     'eldra:min-w-0',
-    disabled ? 'eldra:text-muted' : 'eldra:text-text'
-  );
+    disabled ? 'eldra:text-muted' : 'eldra:text-text',
+  ];
 }
 
 /** Spec "Radio group" → Sizes: the hint is `muted` in every layout, under the label's column. */

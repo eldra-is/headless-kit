@@ -28,7 +28,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { TOAST_HOST_KEY } from '../../composables/dialogStack';
 import { useMessages } from '../../composables/useMessages';
 import { useToast } from '../../composables/useToast';
-import { cx, partClass } from '../../utils/kitClass';
 import Toast from './Toast.vue';
 import type { ToasterPosition, ToasterProps, ToasterToast } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -205,15 +204,10 @@ const POSITION_CLASS: Record<ToasterPosition, string> = {
   'bottom-right': 'eldra:right-4 eldra:bottom-4',
 };
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      `eldra:fixed ${POSITION_CLASS[props.position]} eldra:z-toast eldra:flex eldra:w-full eldra:flex-col eldra:gap-3 eldra:eldra-toast-width`
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  `eldra:fixed ${POSITION_CLASS[props.position]} eldra:z-toast eldra:flex eldra:flex-col eldra:gap-3 eldra:eldra-toast-width`,
+  props.classes?.root,
+]);
 
 /** `list` collapses to `hidden` while empty rather than `flex flex-col gap-3` — not for the aria
  *  region itself (an empty `aria-live="polite"` region announces nothing regardless of its own
@@ -221,15 +215,12 @@ const rootClass = computed(() =>
  *  markup, so the region is already visible by the time any announcement fires), but so the outer
  *  `root`'s own `gap-3` does not insert a spare 0.75rem gap above a danger-only stack (`list`
  *  would otherwise still count as one empty flex item). */
-const listClass = computed(() =>
-  partClass(
-    nonDanger.value.length > 0
-      ? 'eldra:flex eldra:w-full eldra:flex-col eldra:gap-3'
-      : 'eldra:hidden',
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  nonDanger.value.length > 0
+    ? 'eldra:flex eldra:w-full eldra:flex-col eldra:gap-3'
+    : 'eldra:hidden',
+  props.classes?.list,
+]);
 </script>
 
 <template>

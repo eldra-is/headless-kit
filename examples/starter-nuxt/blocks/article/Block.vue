@@ -166,7 +166,7 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
               v-if="hasCategory"
               :href="categoryHref!"
               :as="categoryLinkAs"
-              :classes="{ root: 'target-min text-accent inline-flex items-center font-semibold' }"
+              class="target-min text-accent inline-flex items-center font-semibold"
             >
               {{ categoryLabel }}
             </Link>
@@ -205,7 +205,7 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
                 v-if="hasAuthorLink"
                 :href="authorLinkHref!"
                 :as="authorLinkAs"
-                :classes="{ root: 'font-semibold' }"
+                class="font-semibold"
                 >{{ authorName }}</Link
               ><template v-else>{{ authorName }}</template
               >{{ bylineRoleSuffix }}{{ bylineParts.after }}
@@ -233,10 +233,9 @@ useRichTextScrollRegions(richTextRoot, (caption) => caption ?? t('article.richTe
         <EditorPlaceholder
           v-else-if="showCoverHint"
           inline
-          class="@tablet:mt-12 mt-8"
+          class="@tablet:mt-12 @tablet:aspect-[16/9] mt-8 aspect-[4/3] w-full"
           :label="t('article.coverHintLabel')"
           :help="t('article.coverHintHelp')"
-          :classes="{ root: 'aspect-[4/3] w-full @tablet:aspect-[16/9]' }"
         />
       </Container>
 

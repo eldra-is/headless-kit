@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { useMessages } from '../../composables/useMessages';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { LinkProps, LinkTone } from './types';
@@ -108,42 +107,34 @@ const UNDERLINE_OPT_OUT =
   'eldra:hover:underline-offset-[0.2em] eldra:active:underline eldra:active:decoration-2 eldra:active:underline-offset-[0.2em]';
 
 const rootClass = computed(() => {
-  if (!hasHref.value) return partClass('', props.classes, 'root');
-  const layoutClass = props.variant === 'standalone' ? STANDALONE_LAYOUT : '';
-  const decorationClass = props.underline ? UNDERLINE_REST : UNDERLINE_OPT_OUT;
-  return partClass(
-    cx(BASE, TONE[props.tone], layoutClass, decorationClass, SECTION),
-    props.classes,
-    'root'
-  );
+  if (!hasHref.value) return undefined;
+  return [
+    BASE,
+    TONE[props.tone],
+    props.variant === 'standalone' && STANDALONE_LAYOUT,
+    props.underline ? UNDERLINE_REST : UNDERLINE_OPT_OUT,
+    SECTION,
+  ];
 });
 
-const labelClass = computed(() => partClass('', props.classes, 'label'));
+const labelClass = computed(() => props.classes?.label);
 
 /** Arrow-right, 1.125rem (`size-4.5`), moving 2px (`translate-x-0.5`) right on `group-hover`. */
-const arrowClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-block eldra:shrink-0 eldra:size-4.5',
-      'eldra:transition-[translate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
-      'eldra:group-hover:translate-x-0.5'
-    ),
-    props.classes,
-    'arrow'
-  )
-);
+const arrowClass = computed(() => [
+  'eldra:inline-block eldra:shrink-0 eldra:size-4.5',
+  'eldra:transition-[translate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+  'eldra:group-hover:translate-x-0.5',
+  props.classes?.arrow,
+]);
 
 /**
  * External-link, 0.875rem (`size-3.5`), 0.15em left margin sitting on the text baseline (-0.1em) —
  * both `em`, so they follow the surrounding font size rather than being pixel literals.
  */
-const externalIconClass = computed(() =>
-  partClass(
-    'eldra:inline-block eldra:align-[-0.1em] eldra:ml-[0.15em] eldra:size-3.5',
-    props.classes,
-    'externalIcon'
-  )
-);
+const externalIconClass = computed(() => [
+  'eldra:inline-block eldra:align-[-0.1em] eldra:ml-[0.15em] eldra:size-3.5',
+  props.classes?.externalIcon,
+]);
 </script>
 
 <template>

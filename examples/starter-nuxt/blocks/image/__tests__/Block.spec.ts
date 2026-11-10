@@ -144,7 +144,6 @@ describe('image block', () => {
     it('gives the inset ring class at width: full, and the outer ring elsewhere', () => {
       const full = mountImage({ ...linked, width: 'full' });
       expect(full.get('a').classes()).toContain('eldra-focus-inset');
-      expect(full.get('a').classes()).not.toContain('eldra:eldra-focus');
 
       const content = mountImage({ ...linked, width: 'content' });
       expect(content.get('a').classes()).not.toContain('eldra-focus-inset');

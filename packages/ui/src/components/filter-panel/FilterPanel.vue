@@ -29,7 +29,6 @@ import { computed, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Chip from '../chip/Chip.vue';
@@ -271,16 +270,13 @@ const FOOT_BASE = `eldra:mt-4 eldra:grid eldra:grid-cols-[auto_minmax(0,1fr)] el
 /** The default foot's primary label may wrap: the drawer is narrow and the count is live. */
 const FOOT_APPLY_CLASSES = { label: 'eldra:whitespace-normal' } as const;
 
-const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
-const headClass = computed(() => partClass(HEAD_BASE, props.classes, 'head'));
+const headClass = computed(() => [HEAD_BASE, props.classes?.head]);
 /** `tabindex="-1"` and no focus ring: focus arrives here only programmatically, after Clear all. */
-const titleClass = computed(() =>
-  partClass(cx(TITLE_BASE, 'eldra:outline-none'), props.classes, 'title')
-);
-const clearClass = computed(() => partClass('', props.classes, 'clear'));
-const appliedClass = computed(() => partClass(APPLIED_BASE, props.classes, 'applied'));
-const chipClass = computed(() => partClass('', props.classes, 'chip'));
-const footClass = computed(() => partClass(FOOT_BASE, props.classes, 'foot'));
+const titleClass = computed(() => [[TITLE_BASE, 'eldra:outline-none'], props.classes?.title]);
+const clearClass = computed(() => props.classes?.clear);
+const appliedClass = computed(() => [APPLIED_BASE, props.classes?.applied]);
+const chipClass = computed(() => props.classes?.chip);
+const footClass = computed(() => [FOOT_BASE, props.classes?.foot]);
 
 const groupId = (facet: FilterFacet, part: string): string =>
   `${idPrefix.value}-${part}-${facet.id.replaceAll(/[^\w-]/g, '-')}`;
@@ -294,7 +290,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
     data-part="root"
-    :class="rootClass"
+    :class="ROOT_BASE"
     :aria-label="label ?? m.filterPanelLabel"
     novalidate
     @submit.prevent
@@ -314,7 +310,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
         size="sm"
         type="button"
         data-part="clear"
-        :classes="{ container: clearClass }"
+        :class="clearClass"
         @click="onClear(true)"
       >
         {{ m.filterPanelClearAll }}
@@ -345,7 +341,7 @@ const groupId = (facet: FilterFacet, part: string): string =>
           size="sm"
           removable
           :label="chip.label"
-          :classes="{ root: chipClass }"
+          :class="chipClass"
           :messages="chipMessages(chip)"
           @remove="onRemoveChip(chip)"
         />

@@ -17,7 +17,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 export type ButtonSpinnerPlacement = 'overlay' | 'start';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type ButtonPart = 'container' | 'leadingIcon' | 'label' | 'trailingIcon' | 'spinner';
+export type ButtonPart = 'leadingIcon' | 'label' | 'trailingIcon' | 'spinner';
 
 export interface ButtonProps {
   /** Visual weight and meaning. Required: there is no neutral default in the spec. */
@@ -86,12 +86,15 @@ export interface ButtonProps {
   pressed?: boolean;
   /** Native `disabled`. A disabled link button loses its `href` so it is not focusable either. */
   disabled?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the button
+   * itself with `class`.
+   */
   classes?: Partial<Record<ButtonPart, string>>;
 }
 
-/** The one part of a ButtonGroup a consumer can restyle. */
-export type ButtonGroupPart = 'root';
+/** ButtonGroup has no inner parts: style the group itself with `class`. */
+export type ButtonGroupPart = never;
 
 export interface ButtonGroupProps {
   /**
@@ -99,6 +102,4 @@ export interface ButtonGroupProps {
    * by 1px and `role="group"`. Give it an `aria-label` ("View"), which falls through to the root.
    */
   attached?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<ButtonGroupPart, string>>;
 }

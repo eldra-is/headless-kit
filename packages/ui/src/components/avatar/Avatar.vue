@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { initialsFromName } from '../../utils/avatar';
 import type { AvatarProps, AvatarSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -101,29 +100,24 @@ const rootAria = computed(() =>
     : { role: 'img' as const, 'aria-hidden': undefined, 'aria-label': props.name ?? undefined }
 );
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-full eldra:bg-surface-strong',
-      SIZE_CLASS[props.size]
-    ),
-    props.classes,
-    'root'
-  )
-);
-const imageClass = computed(() =>
-  partClass(cx('eldra:block eldra:h-full eldra:w-full eldra:object-cover'), props.classes, 'image')
-);
-const initialsClass = computed(() =>
-  partClass(
-    cx('eldra:text-text eldra:select-none', INITIALS_TEXT_CLASS[props.size]),
-    props.classes,
-    'initials'
-  )
-);
-const iconClass = computed(() =>
-  partClass(cx('eldra:text-text', ICON_SIZE_CLASS[props.size]), props.classes, 'icon')
-);
+const rootClass = computed(() => [
+  'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:overflow-hidden eldra:rounded-full eldra:bg-surface-strong',
+  SIZE_CLASS[props.size],
+]);
+const imageClass = computed(() => [
+  'eldra:block eldra:h-full eldra:w-full eldra:object-cover',
+  props.classes?.image,
+]);
+const initialsClass = computed(() => [
+  'eldra:text-text eldra:select-none',
+  INITIALS_TEXT_CLASS[props.size],
+  props.classes?.initials,
+]);
+const iconClass = computed(() => [
+  'eldra:text-text',
+  ICON_SIZE_CLASS[props.size],
+  props.classes?.icon,
+]);
 </script>
 
 <template>

@@ -121,10 +121,13 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
   on another. Create your own once with `screenshots --update`, then compare against them.
   **Every class a component authors is written `eldra:`-prefixed** (`eldra:px-4`,
-  `eldra:hover:bg-primary`, `eldra:group`), components import `cx`/`partClass` from
-  `src/utils/kitClass.ts` (tailwind-merge with `prefix: 'eldra'`; the public `cx`/`partClass` in
-  `src/utils/cx.ts` stay unprefixed), and `src/__tests__/prefixedClasses.spec.ts` fails on an
-  unprefixed one. The components ship prebuilt: `src/styles/style.css` compiles them with
+  `eldra:hover:bg-primary`, `eldra:group`), and `src/__tests__/prefixedClasses.spec.ts` fails on an
+  unprefixed one. Components bind classes with plain Vue `class`/`:class`, one class per concern
+  on each element (exclusive branches, never a base class a variant overrides); a `classes` part is
+  appended, and the outermost element takes `class`. Where one component restyles another it
+  renders, the child merges that part with `mergeClass` (`src/utils/mergeClass.ts`,
+  tailwind-merge with `prefix: 'eldra'`). `src/__tests__/renderedClasses.spec.ts` mounts every
+  story and fails on two conflicting `eldra:` classes on one element. The components ship prebuilt: `src/styles/style.css` compiles them with
   `prefix(eldra)` into `@layer components`, below an app's `utilities`, so a consumer's unprefixed
   class on a component wins by layer. Section inversions use the `section-primary:` /
   `section-accent:` custom variants (`[data-section] &`) in `src/styles/utilities.css`.

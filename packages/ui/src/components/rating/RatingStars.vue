@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
 import { ratingStarStates } from '../../utils/rating';
 import type { RatingPart, RatingSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -28,13 +27,16 @@ const SIZE_CLASS: Record<RatingSize, string> = { md: 'eldra:size-4', lg: 'eldra:
 
 /** Spec "Rating" → Sizes: "Gap between stars: 1px" at both sizes — Tailwind's own `gap-px`
  * utility, not a hand-written arbitrary value. */
-const starsClass = computed(() =>
-  partClass('eldra:inline-flex eldra:items-center eldra:gap-px', props.classes, 'stars')
-);
+const starsClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:gap-px',
+  props.classes?.stars,
+]);
 
-const starClass = computed(() =>
-  partClass(cx('eldra:relative eldra:shrink-0', SIZE_CLASS[props.size]), props.classes, 'star')
-);
+const starClass = computed(() => [
+  'eldra:relative eldra:shrink-0',
+  SIZE_CLASS[props.size],
+  props.classes?.star,
+]);
 
 /**
  * Spec "Rating" → States: "On primary / accent section, not in a card ... filled stars inherit;
@@ -79,7 +81,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
       -->
       <svg
         v-if="state !== 'full'"
-        :class="cx('eldra:text-border-strong eldra:block eldra:size-full', SECTION_EMPTY)"
+        :class="['eldra:text-border-strong eldra:block eldra:size-full', SECTION_EMPTY]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -97,15 +99,13 @@ const OUTLINE_STROKE_WIDTH = 1.75;
       -->
       <svg
         v-if="state !== 'empty'"
-        :class="
-          cx(
-            'eldra:text-text eldra:block',
-            SECTION_FILLED,
-            state === 'half'
-              ? 'eldra:eldra-rating-half eldra:absolute eldra:inset-0 eldra:size-full'
-              : 'eldra:size-full'
-          )
-        "
+        :class="[
+          'eldra:text-text eldra:block',
+          SECTION_FILLED,
+          state === 'half'
+            ? 'eldra:eldra-rating-half eldra:absolute eldra:inset-0 eldra:size-full'
+            : 'eldra:size-full',
+        ]"
         viewBox="0 0 24 24"
         fill="currentColor"
       >

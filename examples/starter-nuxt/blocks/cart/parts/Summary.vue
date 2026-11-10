@@ -229,7 +229,7 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
       <div :class="ROW_CLASS">
         <dt :class="LABEL_CLASS">{{ t('cart.subtotal') }}</dt>
         <dd :class="VALUE_CLASS">
-          <Price :amount="money.minor(totals.subtotal)" size="sm" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(totals.subtotal)" size="sm" class="inline" />
         </dd>
       </div>
       <div v-if="discount" :class="ROW_CLASS">
@@ -238,7 +238,8 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
           <Price
             :amount="money.minor(-discount.amount)"
             size="sm"
-            :classes="{ root: 'inline', current: 'text-success' }"
+            class="inline"
+            :classes="{ current: 'text-success' }"
           />
         </dd>
       </div>
@@ -247,18 +248,13 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
         <dd :class="VALUE_CLASS">
           <span v-if="totals.shipping === null">{{ t('cart.shippingPending') }}</span>
           <span v-else-if="totals.shipping === 0">{{ t('cart.shippingFree') }}</span>
-          <Price
-            v-else
-            :amount="money.minor(totals.shipping)"
-            size="sm"
-            :classes="{ root: 'inline' }"
-          />
+          <Price v-else :amount="money.minor(totals.shipping)" size="sm" class="inline" />
         </dd>
       </div>
       <div class="border-border flex items-baseline justify-between gap-4 border-t pt-3">
         <dt class="text-text text-base font-semibold">{{ t('cart.total') }}</dt>
         <dd class="text-text text-base font-semibold tabular-nums">
-          <Price :amount="money.minor(totals.total)" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(totals.total)" class="inline" />
         </dd>
       </div>
     </dl>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import type { PaginationProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -122,19 +121,14 @@ const pageWindow = computed(() =>
   buildWindow(props.page, props.totalPages, props.siblings, props.fixedLength)
 );
 
-const rootClass = computed(() => partClass('eldra:@container', props.classes, 'root'));
+const rootClass = 'eldra:@container';
 
 /** Spec "Pagination" → Variants, Numbered: "Centred, wraps." Sizes: "Gap between items 0.25rem." */
-const numberedListClass = computed(() =>
-  partClass(
-    cx(
-      props.responsive ? 'eldra:hidden eldra:@tablet:flex' : 'eldra:flex',
-      'eldra:flex-wrap eldra:items-center eldra:justify-center eldra:gap-1'
-    ),
-    props.classes,
-    'list'
-  )
-);
+const numberedListClass = computed(() => [
+  props.responsive ? 'eldra:hidden eldra:@tablet:flex' : 'eldra:flex',
+  'eldra:flex-wrap eldra:items-center eldra:justify-center eldra:gap-1',
+  props.classes?.list,
+]);
 
 /** `responsive: false` keeps the numbered form at every width; `compact` still forces the compact
  *  one. */
@@ -143,91 +137,67 @@ const showNumbered = computed(() => !props.compact);
 
 /** Spec → Variants, Compact: "on one line." Below 48rem by default; forced on regardless of width
  *  when `compact` is set, in which case the numbered list above is never rendered at all. */
-const compactListClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:items-center eldra:justify-center eldra:gap-2',
-      !props.compact && 'eldra:@tablet:hidden'
-    ),
-    props.classes,
-    'list'
-  )
-);
+const compactListClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:justify-center eldra:gap-2',
+  !props.compact && 'eldra:@tablet:hidden',
+  props.classes?.list,
+]);
 
-const itemClass = computed(() => partClass('', props.classes, 'item'));
+const itemClass = computed(() => props.classes?.item);
 
 /** Spec → Sizes: "Page link: min 2.5rem × 2.5rem, padding 0 0.5rem, radius-md, weight 500, tabular
  *  numbers." `min-w-10`/`min-h-10` (10 × the shared 0.25rem spacing unit) is the 2.5rem the spec
  *  gives with no dedicated token of its own — the same arbitrary-multiple shape `Button`'s own
  *  `px-4.5` uses, not a hand-written `min-w-[2.5rem]`. Hover: `text` at 6%, the same tint formula
  *  `Button`'s ghost variant uses. */
-const pageClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium',
-      'eldra:tabular-nums eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
-      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
-    ),
-    props.classes,
-    'page'
-  )
-);
+const pageClass = computed(() => [
+  'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium',
+  'eldra:tabular-nums eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  props.classes?.page,
+]);
 
 /** Spec → States, Current: "`primary` fill, `primary-contrast` text, weight 600" — not only a
  *  colour change (1.4.1): the fill and weight carry the state, `aria-current="page"` carries it to
  *  assistive tech. */
-const currentClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
-      'eldra:tabular-nums eldra:bg-primary eldra:text-primary-contrast eldra:cursor-pointer eldra:eldra-focus',
-    props.classes,
-    'current'
-  )
-);
+const currentClass = computed(() => [
+  'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
+    'eldra:tabular-nums eldra:bg-primary eldra:text-primary-contrast eldra:cursor-pointer eldra:eldra-focus',
+  props.classes?.current,
+]);
 
 /**
  * `disabled`: a page takes the spec's own "Disabled previous / next" treatment (`muted` at 60%,
  * not a link, no pointer events); the current page keeps its weight and takes `Button`'s disabled
  * fill (`surface-strong`, `muted` text), so it still reads as current without the `primary` call.
  */
-const pageDisabledClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium ' +
-      'eldra:tabular-nums eldra:text-muted/60 eldra:pointer-events-none',
-    props.classes,
-    'page'
-  )
-);
+const pageDisabledClass = computed(() => [
+  'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-medium ' +
+    'eldra:tabular-nums eldra:text-muted/60 eldra:pointer-events-none',
+  props.classes?.page,
+]);
 
-const currentDisabledClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
-      'eldra:tabular-nums eldra:bg-surface-strong eldra:text-muted eldra:pointer-events-none',
-    props.classes,
-    'current'
-  )
-);
+const currentDisabledClass = computed(() => [
+  'eldra:inline-flex eldra:min-w-10 eldra:min-h-10 eldra:items-center eldra:justify-center eldra:rounded-md eldra:px-2 eldra:font-semibold ' +
+    'eldra:tabular-nums eldra:bg-surface-strong eldra:text-muted eldra:pointer-events-none',
+  props.classes?.current,
+]);
 
 /** Spec → Sizes: "Gap ('…'): min-width 2rem, centred." `min-w-8` is the 2rem the spec gives (8 ×
  *  the shared spacing unit). */
-const ellipsisClass = computed(() =>
-  partClass(
-    'eldra:inline-flex eldra:min-w-8 eldra:items-center eldra:justify-center eldra:text-muted',
-    props.classes,
-    'ellipsis'
-  )
-);
+const ellipsisClass = computed(() => [
+  'eldra:inline-flex eldra:min-w-8 eldra:items-center eldra:justify-center eldra:text-muted',
+  props.classes?.ellipsis,
+]);
 
 /** Spec → Sizes: "Previous / next: 2.5rem tall, padding 0 0.75rem, gap 0.25rem, 1rem chevron." The
  *  height reuses the shared `control-h` token (also 2.5rem) rather than a second name for the same
  *  number. */
-const prevNextClass = computed(() =>
-  cx(
-    'eldra:inline-flex eldra:control-h eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:font-medium eldra:text-text eldra:cursor-pointer',
-    'eldra:eldra-focus',
-    'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]'
-  )
-);
+const prevNextClass = [
+  'eldra:inline-flex eldra:control-h eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:font-medium eldra:text-text eldra:cursor-pointer',
+  'eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+];
 
 /** Spec → States, "Disabled previous / next": "`muted` at 60% opacity, not a link, no pointer
  *  events." `text-muted/60` is Tailwind's own opacity modifier over the shared `muted` token. */
@@ -236,13 +206,11 @@ const prevNextDisabledClass =
 
 /** Spec → Sizes: "Compact arrows: 2.75rem square outline icon buttons." `target-touch` is the
  *  shared 2.75rem token/utility (also the minimum touch target elsewhere in this package). */
-const compactArrowClass = computed(() =>
-  cx(
-    'eldra:inline-flex eldra:target-touch eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md eldra:border',
-    'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
-    'eldra:hover:border-text eldra:hover:bg-surface'
-  )
-);
+const compactArrowClass = [
+  'eldra:inline-flex eldra:target-touch eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md eldra:border',
+  'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:cursor-pointer eldra:eldra-focus',
+  'eldra:hover:border-text eldra:hover:bg-surface',
+];
 
 const compactArrowDisabledClass =
   'eldra:inline-flex eldra:target-touch eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-md eldra:border ' +

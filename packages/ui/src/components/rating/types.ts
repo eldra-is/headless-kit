@@ -10,7 +10,7 @@ export type RatingSize = 'md' | 'lg';
  * `link` (the anchor the linked variant wraps its content in — see `Rating.vue`'s own comment on
  * why that is a second element rather than the root itself changing tag).
  */
-export type RatingPart = 'root' | 'stars' | 'star' | 'value' | 'count' | 'empty' | 'link';
+export type RatingPart = 'stars' | 'star' | 'value' | 'count' | 'empty' | 'link';
 
 export interface RatingProps {
   /**
@@ -43,6 +43,7 @@ export interface RatingProps {
    * receives the destination as `to` instead of `href` — the same contract as `Link`'s `as`.
    */
   as?: string | Component;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<RatingPart, string>>;
 }

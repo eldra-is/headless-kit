@@ -151,7 +151,6 @@ export interface AppliedFilter {
  * `size` facet's tiles are drawn by this package and do carry `data-part="row"`/`"tile"`.
  */
 export type FilterPanelPart =
-  | 'root'
   | 'head'
   | 'title'
   | 'clear'
@@ -225,7 +224,10 @@ export interface FilterPanelProps {
   dense?: boolean;
   /** Namespaces every id this panel mints, so a sidebar and a drawer never collide. */
   idPrefix?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<form>`) is styled with `class`.
+   */
   classes?: Partial<Record<FilterPanelPart, string>>;
   /** Overrides for the strings this component renders itself. */
   messages?: Partial<UiMessages>;

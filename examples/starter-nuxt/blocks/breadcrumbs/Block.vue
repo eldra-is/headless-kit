@@ -258,7 +258,7 @@ watchEffect(() => {
 
 <template>
   <div v-if="hasTrail" class="bg-background text-text @container">
-    <Container :width="containerWidth" :classes="{ root: 'py-3' }">
+    <Container :width="containerWidth" class="py-3">
       <div ref="breadcrumbRoot" class="contents">
         <Breadcrumb
           :items="items"

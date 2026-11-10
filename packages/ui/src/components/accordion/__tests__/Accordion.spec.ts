@@ -35,14 +35,13 @@ describe('Accordion — element and structure', () => {
     wrapper.unmount();
   });
 
-  it('passes a `classes.root` override through tailwind-merge', () => {
+  it('puts a consumer class on the list itself', () => {
     const wrapper = mountWith(Accordion, {
-      props: { classes: { root: 'border-t-0' } },
+      attrs: { class: 'border-t-0' },
       slots: { default: '<AccordionItem title="One">Body</AccordionItem>' },
       global: { components: { AccordionItem } },
     });
     expect(wrapper.classes()).toContain('border-t-0');
-    expect(wrapper.classes()).not.toContain('eldra:border-t');
     wrapper.unmount();
   });
 });

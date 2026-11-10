@@ -280,15 +280,13 @@ describe('LogoItem — greyscale/hover treatment', () => {
 });
 
 describe('LogoItem — customisation', () => {
-  it('lets classes.root replace a layout utility instead of landing beside it', () => {
+  it('appends classes.root to the cell', () => {
     const wrapper = mountInList({ name: 'Kiln Street', classes: { root: 'min-h-24' } });
-    const cell = wrapper.get('[data-part="root"]');
-    expect(cell.classes()).toContain('min-h-24');
-    expect(cell.classes()).not.toContain('eldra:min-h-16');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('min-h-24');
     wrapper.unmount();
   });
 
-  it('merges an override onto every other part', () => {
+  it('appends an override to every other part', () => {
     const wrapper = mountInList({
       name: 'Kiln Street',
       logo: LOGO,

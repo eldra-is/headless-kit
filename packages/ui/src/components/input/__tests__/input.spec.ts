@@ -78,20 +78,19 @@ describe('Input — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('merges a per-part class override', () => {
+  it('puts class on the root and appends a per-part class override', () => {
     const wrapper = mountWith(Input, {
       props: {
         modelValue: 'x',
         clearable: true,
-        classes: { root: 'mt-4', control: 'text-body-lg', clearButton: 'opacity-50' },
+        classes: { control: 'text-body-lg', clearButton: 'opacity-50' },
       },
-      attrs: NAME,
+      attrs: { ...NAME, class: 'mt-4' },
       slots: { suffix: '<span>kg</span>' },
     });
     expect(wrapper.classes()).toContain('mt-4');
+    expect(control(wrapper).classList).not.toContain('mt-4');
     expect(control(wrapper).className).toContain('text-body-lg');
-    // The consumer's font size replaces the component's, it does not land beside it.
-    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:text-control');
     expect(wrapper.find('[data-part="clearButton"]').classes()).toContain('opacity-50');
     wrapper.unmount();
   });
@@ -934,7 +933,6 @@ describe('Input — prefix slot', () => {
       slots: { prefix: CALENDAR },
     });
     expect(wrapper.find('[data-part="prefix"]').classes()).toContain('gap-0');
-    expect(wrapper.find('[data-part="prefix"]').classes()).not.toContain('eldra:gap-1');
     wrapper.unmount();
   });
 

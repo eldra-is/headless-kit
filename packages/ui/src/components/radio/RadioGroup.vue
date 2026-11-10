@@ -2,7 +2,6 @@
 import { computed, h, inject, ref, watchPostEffect, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -11,6 +10,7 @@ import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {
   HINT,
   INPUT,
+  PLAIN_COLUMNS,
   PLAIN_OPTION,
   dotRecipe,
   labelRecipe,
@@ -115,30 +115,19 @@ function onChange(option: RadioGroupOption): void {
  * a radio group looks the same as any other fieldset: "no border, padding or min-width, grid with
  * a 0.75rem (`space-3`) gap, and the legend has a 0.5rem (`space-2`) bottom margin."
  */
-const rootClass = computed(() =>
-  partClass(
-    'eldra:grid eldra:min-w-0 eldra:content-start eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0',
-    props.classes,
-    'root'
-  )
-);
+const ROOT =
+  'eldra:grid eldra:min-w-0 eldra:content-start eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0';
 
 /** `FieldWrapper`'s help type: 0.8125rem / 1.45, weight 400, `muted`. */
-const helpClass = computed(() =>
-  partClass(
-    'eldra:text-field-note eldra:text-muted eldra:min-w-0 eldra:font-normal',
-    props.classes,
-    'help'
-  )
-);
+const helpClass = computed(() => [
+  'eldra:text-field-note eldra:text-muted eldra:min-w-0 eldra:font-normal',
+  props.classes?.help,
+]);
 
-const legendClass = computed(() =>
-  partClass(
-    'eldra:text-label eldra:text-text eldra:mb-2 eldra:block eldra:w-fit eldra:p-0',
-    props.classes,
-    'legend'
-  )
-);
+const legendClass = computed(() => [
+  'eldra:text-label eldra:text-text eldra:mb-2 eldra:block eldra:w-fit eldra:p-0',
+  props.classes?.legend,
+]);
 
 /**
  * The legend, with `FieldWrapper`'s required mark after the text when `requiredMark` asks for it.
@@ -162,18 +151,15 @@ const Legend: FunctionalComponent = () =>
  * Cards are "stacked with a 0.5rem (`space-2`) gap" — the same numbers as vertical, so cards share
  * its classes; only the option itself is drawn differently.
  */
-const optionsClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:min-w-0',
-      props.layout === 'row'
-        ? 'eldra:flex-row eldra:flex-wrap eldra:gap-x-6 eldra:gap-y-2'
-        : 'eldra:flex-col eldra:gap-2'
-    ),
-    props.classes,
-    'options'
-  )
-);
+const optionsClass = computed(() => [
+  [
+    'eldra:flex eldra:min-w-0',
+    props.layout === 'row'
+      ? 'eldra:flex-row eldra:flex-wrap eldra:gap-x-6 eldra:gap-y-2'
+      : 'eldra:flex-col eldra:gap-2',
+  ],
+  props.classes?.options,
+]);
 
 /**
  * Spec "Radio group" → Sizes, Card row: "padding 0.75rem block / 1rem inline, 0.625rem gap, radius
@@ -209,35 +195,34 @@ function cardState(option: RadioGroupOption): string {
   return inError.value ? CARD_INVALID : CARD_UNSELECTED;
 }
 
-function optionClass(option: RadioGroupOption): string {
-  const base = props.layout === 'cards' ? CARD_OPTION : PLAIN_OPTION;
-  const state = props.layout === 'cards' ? cardState(option) : '';
-  return partClass(cx(base, state, optionCursor(option.disabled)), props.classes, 'option');
+function optionClass(option: RadioGroupOption) {
+  const layout =
+    props.layout === 'cards' ? [CARD_OPTION, cardState(option)] : [PLAIN_OPTION, PLAIN_COLUMNS];
+  return [layout, optionCursor(option.disabled), props.classes?.option];
 }
 
-function radioClass(option: RadioGroupOption): string {
-  return partClass(
+function radioClass(option: RadioGroupOption) {
+  return [
     radioRecipe(radioSize.value, {
       selected: isSelected(option.value),
       disabled: option.disabled,
       invalid: inError.value,
     }),
-    props.classes,
-    'radio'
-  );
+    props.classes?.radio,
+  ];
 }
 
-function dotClass(option: RadioGroupOption): string {
-  return partClass(dotRecipe(isSelected(option.value)), props.classes, 'dot');
+function dotClass(option: RadioGroupOption) {
+  return [dotRecipe(isSelected(option.value)), props.classes?.dot];
 }
 
-const inputClass = computed(() => partClass(INPUT, props.classes, 'input'));
+const inputClass = computed(() => [INPUT, props.classes?.input]);
 
-function labelClass(option: RadioGroupOption): string {
-  return partClass(labelRecipe(props.layout === 'cards', option.disabled), props.classes, 'label');
+function labelClass(option: RadioGroupOption) {
+  return [labelRecipe(props.layout === 'cards', option.disabled), props.classes?.label];
 }
 
-const hintClass = computed(() => partClass(HINT, props.classes, 'hint'));
+const hintClass = computed(() => [HINT, props.classes?.hint]);
 
 /**
  * Spec "Radio group" → Sizes, Card title / hint / meta row: "1rem 600 tabular, no wrap, pushed to
@@ -245,15 +230,14 @@ const hintClass = computed(() => partClass(HINT, props.classes, 'hint'));
  * `text-card-title` rather than a near-identical utility of its own, and `justify-self-end` in the
  * grid's third column is what pushes it to the end.
  */
-function metaClass(option: RadioGroupOption): string {
-  return partClass(
-    cx(
+function metaClass(option: RadioGroupOption) {
+  return [
+    [
       'eldra:text-card-title eldra:col-start-3 eldra:min-w-0 eldra:justify-self-end eldra:tabular-nums eldra:whitespace-nowrap',
-      option.disabled ? 'eldra:text-muted' : 'eldra:text-text'
-    ),
-    props.classes,
-    'meta'
-  );
+      option.disabled ? 'eldra:text-muted' : 'eldra:text-text',
+    ],
+    props.classes?.meta,
+  ];
 }
 </script>
 
@@ -262,7 +246,7 @@ function metaClass(option: RadioGroupOption): string {
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
     data-part="root"
-    :class="rootClass"
+    :class="ROOT"
     :aria-describedby="describedBy"
     :aria-invalid="inError ? 'true' : undefined"
   >

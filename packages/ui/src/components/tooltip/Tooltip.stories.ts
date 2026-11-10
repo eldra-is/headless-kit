@@ -28,7 +28,7 @@ const meta = {
           'the only place for information a shopper needs — prices, stock, errors and links stay',
           'visible text.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the inline wrapper',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root` (the inline wrapper',
           'around the trigger — this is what the hover/focus listeners and the floating position',
           'key off, whatever the trigger itself is), `bubble` (the floating box, teleported to',
           '`body` or the open modal `<dialog>` the trigger sits in) and `arrow` (the small',

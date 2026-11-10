@@ -268,16 +268,28 @@ describe('Badge — hidden suffix', () => {
 });
 
 describe('Badge — customisation', () => {
-  it('lets classes.root replace a colour utility instead of landing beside it', () => {
+  it("merges a parent's class over the root's own and keeps every other attribute on it", () => {
     const wrapper = mountWith(Badge, {
-      props: { label: 'Knitwear', classes: { root: 'bg-accent' } },
+      props: { label: '2', pill: true },
+      attrs: { class: 'eldra:px-1.25', 'data-part': 'badge', title: 'Two' },
     });
-    expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('eldra:bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:px-1.25');
+    expect(wrapper.classes()).not.toContain('eldra:px-2.5');
+    expect(wrapper.attributes('data-part')).toBe('badge');
+    expect(wrapper.attributes('title')).toBe('Two');
     wrapper.unmount();
   });
 
-  it('merges an override onto every other part', () => {
+  it('puts a consumer class on the root', () => {
+    const wrapper = mountWith(Badge, {
+      props: { label: 'Knitwear' },
+      attrs: { class: 'bg-accent' },
+    });
+    expect(wrapper.classes()).toContain('bg-accent');
+    wrapper.unmount();
+  });
+
+  it('appends an override to every other part', () => {
     const wrapper = mountWith(Badge, {
       props: {
         label: 'Paid',

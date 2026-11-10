@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
-import { cx, partClass } from '../../utils/kitClass';
+import { computed, useAttrs, watchEffect } from 'vue';
 import type { BadgeProps, BadgeTone } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
+import { mergeClass } from '../../utils/mergeClass';
 
 const eldra = useEldraScope();
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<BadgeProps>(), {
   label: undefined,
@@ -41,12 +43,12 @@ const effectiveTone = computed<BadgeTone>(() => {
  * combining with it. A badge is never both a coloured fill and an outline at once.
  */
 const TONE_CLASS: Record<BadgeTone, string> = {
-  neutral: 'eldra:bg-surface-strong eldra:text-text',
-  primary: 'eldra:bg-primary eldra:text-primary-contrast',
-  accent: 'eldra:bg-accent eldra:text-accent-contrast',
-  success: 'eldra:bg-success eldra:text-background',
-  warning: 'eldra:bg-warning eldra:text-background',
-  danger: 'eldra:bg-danger eldra:text-background',
+  neutral: 'eldra:bg-surface-strong eldra:text-text eldra:border-transparent',
+  primary: 'eldra:bg-primary eldra:text-primary-contrast eldra:border-transparent',
+  accent: 'eldra:bg-accent eldra:text-accent-contrast eldra:border-transparent',
+  success: 'eldra:bg-success eldra:text-background eldra:border-transparent',
+  warning: 'eldra:bg-warning eldra:text-background eldra:border-transparent',
+  danger: 'eldra:bg-danger eldra:text-background eldra:border-transparent',
 };
 const OUTLINE_CLASS = 'eldra:bg-background eldra:text-text eldra:border-border-strong';
 
@@ -60,21 +62,27 @@ const colorClass = computed(() =>
  * (pill `radius-full`) — both already token-backed Tailwind utilities, so no per-component
  * variable is needed for either. Padding-inline is 0.5rem, 0.625rem when `pill`.
  */
+const attrs = useAttrs();
+const forwardedAttrs = computed(() => {
+  const { class: _class, ...rest } = attrs;
+  return rest;
+});
+
+// FilterGroup's count badge and NavMenuPanel's link badge override the root.
 const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:items-center eldra:min-h-6 eldra:gap-1 eldra:border eldra:border-transparent eldra:text-badge eldra:whitespace-nowrap',
+  mergeClass(
+    [
+      'eldra:inline-flex eldra:items-center eldra:min-h-6 eldra:gap-1 eldra:border eldra:text-badge eldra:whitespace-nowrap',
       props.pill ? 'eldra:rounded-full eldra:px-2.5' : 'eldra:rounded-sm eldra:px-2',
-      colorClass.value
-    ),
-    props.classes,
-    'root'
+      colorClass.value,
+    ],
+    attrs.class
   )
 );
 
-const iconClass = computed(() => partClass('eldra:size-3.5 eldra:shrink-0', props.classes, 'icon'));
-const labelClass = computed(() => partClass('', props.classes, 'label'));
-const hiddenSuffixClass = computed(() => partClass('eldra:sr-only', props.classes, 'hiddenSuffix'));
+const iconClass = computed(() => ['eldra:size-3.5 eldra:shrink-0', props.classes?.icon]);
+const labelClass = computed(() => props.classes?.label);
+const hiddenSuffixClass = computed(() => ['eldra:sr-only', props.classes?.hiddenSuffix]);
 
 if (import.meta.env?.DEV) {
   /**
@@ -105,6 +113,7 @@ if (import.meta.env?.DEV) {
     :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
+    v-bind="forwardedAttrs"
   >
     <component
       :is="icon"

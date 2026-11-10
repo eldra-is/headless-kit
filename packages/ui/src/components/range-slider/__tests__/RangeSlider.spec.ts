@@ -705,13 +705,13 @@ describe('RangeSlider — formatValue is told which end it is formatting', () =>
 });
 
 describe('RangeSlider — classes', () => {
-  it('merges a per-part override over the part own classes', () => {
+  it('appends a per-part class to the part own classes, and takes class on the root', () => {
     const wrapper = mountWith(RangeSlider, {
+      attrs: { class: 'gap-6' },
       props: {
         label: 'Price',
         inputs: true,
         classes: {
-          root: 'gap-6',
           label: 'text-h4',
           track: 'bg-surface',
           range: 'bg-accent',
@@ -722,13 +722,24 @@ describe('RangeSlider — classes', () => {
     });
     expect(wrapper.find('[data-part="root"]').classes()).toContain('gap-6');
     expect(wrapper.find('[data-part="label"]').classes()).toContain('text-h4');
-    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('eldra:text-label');
     expect(wrapper.find('[data-part="track"]').classes()).toContain('bg-surface');
-    expect(wrapper.find('[data-part="track"]').classes()).not.toContain('eldra:bg-surface-strong');
     expect(wrapper.find('[data-part="range"]').classes()).toContain('bg-accent');
     expect(thumb(wrapper, 'min').classList.contains('bg-primary')).toBe(true);
     expect(wrapper.find('[data-part="separator"]').classes()).toContain('text-text');
     wrapper.unmount();
+  });
+
+  it("lets a parent's classes.group gutter replace the group's own", () => {
+    const target = mountWith(RangeSlider, { props: { label: 'Price' } });
+    expect(target.find('[data-part="group"]').classes()).toContain('eldra:eldra-range-gutter');
+    const thumbInset = mountWith(RangeSlider, {
+      props: { label: 'Price', classes: { group: 'eldra:eldra-range-gutter-thumb' } },
+    });
+    const classes = thumbInset.find('[data-part="group"]').classes();
+    expect(classes).toContain('eldra:eldra-range-gutter-thumb');
+    expect(classes).not.toContain('eldra:eldra-range-gutter');
+    target.unmount();
+    thumbInset.unmount();
   });
 
   it('changes a live thumb edge on hover, and never a disabled one', () => {
@@ -739,8 +750,7 @@ describe('RangeSlider — classes', () => {
     live.unmount();
 
     const dead = mountWith(RangeSlider, { props: { label: 'Price', disabled: true } });
-    // A dead thumb must not light up under the pointer: the hover variant is a different
-    // tailwind-merge group from the rest colour, so it has to be absent rather than overridden.
+    // A dead thumb must not light up under the pointer, so the hover variant is absent.
     expect(thumb(dead, 'min').classList.contains('eldra:hover:border-text')).toBe(false);
     expect(thumb(dead, 'min').classList.contains('eldra:border-border')).toBe(true);
     dead.unmount();

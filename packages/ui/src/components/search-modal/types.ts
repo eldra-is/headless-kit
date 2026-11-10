@@ -23,7 +23,8 @@ export type {
 
 /**
  * The parts a consumer can restyle through `classes`. The seven the modal's own frame draws
- * (`root`, `form`, `field`, `leadingIcon`, `clear`, `close`, `results`, `footer`), plus every part
+ * (`form`, `field`, `leadingIcon`, `clear`, `close`, `results`, `footer`; the root takes `class`),
+ * plus every part
  * of the reused `SearchResultsPanel` (`panel`, `listbox`, `section`, … `liveRegion`) — `classes` is
  * forwarded straight into that child, so a consumer restyles the frame and the rows through one
  * prop, the rows named exactly as `SearchBar`'s own anatomy already names them (controller decision:
@@ -35,7 +36,6 @@ export type {
  * own `flat` prop).
  */
 export type SearchModalPart =
-  | 'root'
   | 'form'
   | 'field'
   | 'leadingIcon'
@@ -83,7 +83,9 @@ export interface SearchModalProps {
   shortcut?: boolean;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. Forwarded to the reused
-   *  `SearchResultsPanel` for every part that is its own. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`. Forwarded to the reused `SearchResultsPanel` for every part that is its own.
+   */
   classes?: Partial<Record<SearchModalPart, string>>;
 }

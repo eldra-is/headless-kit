@@ -348,28 +348,30 @@ describe('Tabs — v-model through the slots API (M7)', () => {
 
 describe('Tabs — classes', () => {
   it('accepts a class override for every part, including the parts a child component draws', async () => {
-    const wrapper = await mount({
-      classes: { root: 'ring-1', list: 'italic', tab: 'uppercase', indicator: 'opacity-50' },
-    });
+    const wrapper = await mount(
+      { classes: { list: 'italic', tab: 'uppercase', indicator: 'opacity-50', panel: 'pt-2' } },
+      { attrs: { class: 'ring-1' } }
+    );
     expect(wrapper.classes()).toContain('ring-1');
     expect(wrapper.get('[data-part="list"]').classes()).toContain('italic');
     expect(tabsOf(wrapper)[0]!.classes()).toContain('uppercase');
     expect(wrapper.get('[data-part="indicator"]').classes()).toContain('opacity-50');
+    expect(wrapper.get('[role="tabpanel"]').classes()).toContain('pt-2');
   });
 
   it('accepts a class override on a standalone Tab and TabPanel', async () => {
     const wrapper = mountWith(Tabs, {
       props: { ariaLabel: 'Product information' },
       slots: {
-        tabs: '<Tab value="description" :classes="{ tab: \'uppercase\' }">Description</Tab>',
-        default:
-          '<TabPanel value="description" :classes="{ panel: \'italic\' }">Content</TabPanel>',
+        tabs: '<Tab value="description" class="uppercase" :classes="{ indicator: \'opacity-50\' }">Description</Tab>',
+        default: '<TabPanel value="description" class="italic">Content</TabPanel>',
       },
       global: { components: { Tab, TabPanel } },
     });
     mounted.push(wrapper as unknown as VueWrapper);
     await nextTick();
     expect(wrapper.get('[role="tab"]').classes()).toContain('uppercase');
+    expect(wrapper.get('[data-part="indicator"]').classes()).toContain('opacity-50');
     expect(wrapper.get('[role="tabpanel"]').classes()).toContain('italic');
   });
 });

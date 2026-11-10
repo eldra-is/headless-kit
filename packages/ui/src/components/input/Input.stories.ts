@@ -30,7 +30,7 @@ const meta = {
           'a `FieldWrapper` so it has a visible label — a placeholder is an example, never the',
           'label. For multi-line text use `Textarea`; for quantities use `QuantityStepper`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `leadingIcon`, `prefix`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `leadingIcon`, `prefix`,',
           '`control`, `clearButton`, `suffix`. `suffix` is the whole end-edge area: the clear',
           'button and the `suffix` slot share it, so a field with both keeps them on one row in',
           'reading — and tab — order.',

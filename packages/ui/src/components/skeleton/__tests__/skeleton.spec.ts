@@ -268,10 +268,9 @@ describe('Skeleton — busyLabel', () => {
 });
 
 describe('Skeleton — customisation', () => {
-  it('lets classes.root replace a utility instead of landing beside it', () => {
-    const wrapper = mountWith(Skeleton, { props: { classes: { root: 'w-40' } } });
+  it('takes a consumer class on the root', () => {
+    const wrapper = mountWith(Skeleton, { attrs: { class: 'w-40' } });
     expect(wrapper.classes()).toContain('w-40');
-    expect(wrapper.classes()).not.toContain('eldra:w-full');
     wrapper.unmount();
   });
 
@@ -281,7 +280,6 @@ describe('Skeleton — customisation', () => {
     });
     for (const line of wrapper.findAll('[data-part="line"]')) {
       expect(line.classes()).toContain('rounded-full');
-      expect(line.classes()).not.toContain('eldra:rounded-sm');
     }
     wrapper.unmount();
   });

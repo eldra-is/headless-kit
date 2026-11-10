@@ -337,17 +337,17 @@ describe('Link — focus and motion', () => {
 });
 
 describe('Link — customisation', () => {
-  it('lets classes.root replace a colour utility instead of landing beside it', () => {
+  it('puts a consumer class on the link itself', () => {
     const wrapper = mountWith(Link, {
-      props: { href: '/x', classes: { root: 'text-accent' } },
+      props: { href: '/x' },
+      attrs: { class: 'text-accent' },
       slots: { default: 'care for stoneware' },
     });
     expect(wrapper.classes()).toContain('text-accent');
-    expect(wrapper.classes()).not.toContain('eldra:text-text');
     wrapper.unmount();
   });
 
-  it('merges an override onto the arrow and external icon parts', () => {
+  it('appends an override to the arrow and external icon parts', () => {
     const wrapper = mountWith(Link, {
       props: {
         href: '/x',

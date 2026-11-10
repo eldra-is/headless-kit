@@ -58,9 +58,9 @@ describe('VisuallyHidden', () => {
     wrapper.unmount();
   });
 
-  it('merges classes.root', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(VisuallyHidden, {
-      props: { classes: { root: 'text-caption' } },
+      attrs: { class: 'text-caption' },
       slots: { default: 'Loading' },
     });
     expect(wrapper.classes()).toContain('eldra:sr-only');

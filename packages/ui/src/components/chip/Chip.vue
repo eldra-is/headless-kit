@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch, watchEffect } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
-import { TAG_FILL, TAG_REMOVE_BUTTON, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
+import { TAG_FILL, TAG_SHAPE, tagPadding } from '../../utils/tagRecipe';
 import Avatar from '../avatar/Avatar.vue';
 import { CHIP_GROUP_KEY } from './context';
 import type { ChipProps, ChipSize } from './types';
@@ -194,6 +193,12 @@ const LEADING_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-3.5', md: 'eldr
  * weight `Icon.vue` itself uses. */
 const ICON_STROKE_WIDTH: Record<ChipSize, number> = { sm: 2.25, md: 1.75 };
 
+/** `TAG_REMOVE_BUTTON` (`src/utils/tagRecipe.ts`) without its `size-6` and `cursor-pointer`, which
+ * vary here by size and disabled state. */
+const REMOVE_BUTTON =
+  'eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:rounded-full eldra:text-muted ' +
+  'eldra:hover:text-text eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)] ' +
+  'eldra:eldra-focus';
 const REMOVE_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-6', md: 'eldra:size-7' };
 const REMOVE_ICON_SIZE: Record<ChipSize, string> = { sm: 'eldra:size-3.5', md: 'eldra:size-4' };
 
@@ -224,7 +229,7 @@ const fillClass = computed(() => {
   if (effectiveDisabled.value) return FILL_DISABLED;
   const base = effectiveSelected.value ? FILL_SELECTED : TAG_FILL;
   if (!isInteractiveRoot.value) return base;
-  return cx(base, effectiveSelected.value ? HOVER_SELECTED : HOVER_BASE);
+  return [base, effectiveSelected.value ? HOVER_SELECTED : HOVER_BASE];
 });
 
 /** Button's own press, verbatim: the whole control scales to 98% rather than moving, felt rather
@@ -233,24 +238,18 @@ const PRESS = 'eldra:active:scale-[0.98] eldra:motion-reduce:active:scale-100';
 
 const interactionClass = computed(() => {
   if (effectiveDisabled.value) return '';
-  if (isInteractiveRoot.value) return cx('eldra:cursor-pointer eldra:eldra-focus', PRESS);
+  if (isInteractiveRoot.value) return ['eldra:cursor-pointer eldra:eldra-focus', PRESS];
   if (isFocusableRoot.value) return 'eldra:eldra-focus';
   return '';
 });
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      SHAPE[props.size],
-      padding(props.size, props.removable),
-      fillClass.value,
-      interactionClass.value,
-      'eldra:whitespace-nowrap eldra:max-w-full'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  SHAPE[props.size],
+  padding(props.size, props.removable),
+  fillClass.value,
+  interactionClass.value,
+  'eldra:whitespace-nowrap eldra:max-w-full',
+]);
 
 const hasAvatar = computed(
   () => (props.avatar !== undefined && props.avatar !== null) || slots.avatar !== undefined
@@ -259,52 +258,49 @@ const hasIcon = computed(
   () => !hasAvatar.value && (props.icon !== undefined || slots.icon !== undefined)
 );
 
-const avatarWrapClass = computed(() =>
-  partClass('eldra:inline-flex eldra:shrink-0', props.classes, 'avatar')
-);
-const avatarSizeClass = computed(() => LEADING_SIZE[props.size]);
-
+const avatarWrapClass = computed(() => ['eldra:inline-flex eldra:shrink-0', props.classes?.avatar]);
 /**
  * `Avatar`'s own icon/initials fallbacks are drawn for its own sizes (`sm` = 2rem), not for
- * sitting inside a chip's much smaller leading slot (`size-3.5`/`size-4` = 0.875rem/1rem) — passing
- * only `classes: { root: avatarSizeClass }` shrinks the circle but leaves `eldra-avatar-icon-sm`
- * (0.857rem) and `text-avatar-initials-sm` (0.76rem) unchanged, so a failed image (`Avatar` is
- * given `label` as its `name` below, so initials are reachable, not just the icon) nearly fills a
- * 0.875rem box with icon, or overflows it with initials. `Avatar`'s own icon-to-diameter ratio is
- * a consistent 3/7 across every size (0.857/2, 1.071/2.5, 1.5/3.5, 2.571/6 all reduce to 3/7);
- * initials is a consistent 0.38 (0.76/2, 0.95/2.5). These scale that same ratio down to the chip's
- * own leading size instead of guessing a value. `leading-none`/`font-semibold` replace the
- * weight/line-height the overridden `text-avatar-initials-*` utility's own `font` shorthand would
- * otherwise have set — `tailwind-merge` drops that whole utility once its font-size conflicts with
- * the override, not just the size.
+ * sitting inside a chip's much smaller leading slot (`size-3.5`/`size-4` = 0.875rem/1rem). The
+ * circle is capped with `max-w`/`max-h`, which bound `Avatar`'s own `size-8` without being a second
+ * class for the same property, and the icon and initials are resized through `Avatar`'s own
+ * `--eldra-avatar-icon-size-sm`/`--eldra-avatar-initials-size-sm` hooks, so a failed image
+ * (`Avatar` is given `label` as its `name` below, so initials are reachable, not just the icon)
+ * neither nearly fills a 0.875rem box with icon nor overflows it with initials. `Avatar`'s own
+ * icon-to-diameter ratio is a consistent 3/7 across every size (0.857/2, 1.071/2.5, 1.5/3.5,
+ * 2.571/6 all reduce to 3/7); initials is a consistent 0.38 (0.76/2, 0.95/2.5). These scale that
+ * same ratio down to the chip's own leading size instead of guessing a value.
  */
-const AVATAR_ICON_CLASS: Record<ChipSize, string> = { sm: 'eldra:size-1.5', md: 'eldra:size-1.75' };
-const AVATAR_INITIALS_CLASS: Record<ChipSize, string> = {
-  sm: 'eldra:text-[0.33rem] eldra:leading-none eldra:font-semibold',
-  md: 'eldra:text-[0.38rem] eldra:leading-none eldra:font-semibold',
+const AVATAR_ROOT_CLASS: Record<ChipSize, string> = {
+  sm: 'eldra:max-h-3.5 eldra:max-w-3.5',
+  md: 'eldra:max-h-4 eldra:max-w-4',
 };
+const AVATAR_ICON_CLASS: Record<ChipSize, string> = {
+  sm: 'eldra:[--eldra-avatar-icon-size-sm:0.375rem]',
+  md: 'eldra:[--eldra-avatar-icon-size-sm:0.4375rem]',
+};
+const AVATAR_INITIALS_CLASS: Record<ChipSize, string> = {
+  sm: 'eldra:[--eldra-avatar-initials-size-sm:0.33rem] eldra:[--eldra-avatar-initials-tracking:0]',
+  md: 'eldra:[--eldra-avatar-initials-size-sm:0.38rem] eldra:[--eldra-avatar-initials-tracking:0]',
+};
+const avatarRootClass = computed(() => AVATAR_ROOT_CLASS[props.size]);
 const avatarIconClass = computed(() => AVATAR_ICON_CLASS[props.size]);
 const avatarInitialsClass = computed(() => AVATAR_INITIALS_CLASS[props.size]);
 
-const iconWrapClass = computed(() =>
-  partClass(cx(LEADING_SIZE[props.size], 'eldra:shrink-0'), props.classes, 'icon')
-);
+const iconWrapClass = computed(() => [
+  LEADING_SIZE[props.size],
+  'eldra:shrink-0',
+  props.classes?.icon,
+]);
 
-const labelClass = computed(() =>
-  partClass('eldra:min-w-0 eldra:truncate', props.classes, 'label')
-);
+const labelClass = computed(() => ['eldra:min-w-0 eldra:truncate', props.classes?.label]);
 
-const removeButtonClass = computed(() =>
-  partClass(
-    cx(
-      TAG_REMOVE_BUTTON,
-      REMOVE_SIZE[props.size],
-      effectiveDisabled.value && 'eldra:cursor-not-allowed'
-    ),
-    props.classes,
-    'removeButton'
-  )
-);
+const removeButtonClass = computed(() => [
+  REMOVE_BUTTON,
+  REMOVE_SIZE[props.size],
+  effectiveDisabled.value ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer',
+  props.classes?.removeButton,
+]);
 </script>
 
 <template>
@@ -334,8 +330,8 @@ const removeButtonClass = computed(() =>
           :name="label"
           size="sm"
           :decorative="true"
+          :class="avatarRootClass"
           :classes="{
-            root: avatarSizeClass,
             icon: avatarIconClass,
             initials: avatarInitialsClass,
           }"

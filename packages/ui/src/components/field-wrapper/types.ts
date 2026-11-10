@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type FieldWrapperPart =
-  | 'root'
   | 'label'
   | 'legend'
   | 'requiredMark'
@@ -54,6 +53,9 @@ export interface FieldWrapperProps {
   group?: boolean;
   /** Spans both columns of a two-column `FormLayout`. */
   full?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<FieldWrapperPart, string>>;
 }

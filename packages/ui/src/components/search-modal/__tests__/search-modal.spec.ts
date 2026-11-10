@@ -628,14 +628,13 @@ describe('SearchModal — the / and ⌘K/Ctrl+K shortcuts', () => {
 });
 
 describe('SearchModal — styling hooks', () => {
-  it('takes per-part classes, including the reused panel’s own parts', () => {
-    const wrapper = mount({
-      modelValue: true,
-      query: 'mer',
-      results: RESULTS,
-      classes: { root: 'rounded-none', item: 'italic' },
-    });
+  it('takes class on the root and per-part classes, including the reused panel’s own parts', () => {
+    const wrapper = mount(
+      { modelValue: true, query: 'mer', results: RESULTS, classes: { item: 'italic' } },
+      { attrs: { class: 'rounded-none' } }
+    );
     expect(root(wrapper).className).toContain('rounded-none');
+    expect(wrapper.find('[data-part="field"]').classes()).not.toContain('rounded-none');
     expect(wrapper.find('[data-part="item"]').classes()).toContain('italic');
   });
 

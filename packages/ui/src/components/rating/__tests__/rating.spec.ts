@@ -306,13 +306,13 @@ describe('Rating — accessible text', () => {
 });
 
 describe('Rating — customisation', () => {
-  it('merges an override onto every part', () => {
+  it('appends an override to every part, and a root class to the root', () => {
     const wrapper = mountWith(Rating, {
+      attrs: { class: 'gap-x-4' },
       props: {
         value: 4.5,
         count: 128,
         classes: {
-          root: 'gap-x-4',
           stars: 'gap-x-1',
           value: 'uppercase',
           count: 'italic',

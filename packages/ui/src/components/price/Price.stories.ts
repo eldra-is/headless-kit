@@ -34,7 +34,7 @@ const meta = {
           'minor units) with `Intl.NumberFormat`, never a hand-concatenated currency symbol. Sale,',
           '`from` and per-unit are independent flags that combine freely.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `current`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `current`,',
           '`currentValue`, `compareAt`, `compareAtValue`, `from`, `unit`, `srText` (the hidden',
           '"Sale price"/"Regular price" labels, two elements sharing one part name), `skeleton`,',
           '`spinner`, `srStatus`. `currentValue`/`compareAtValue` are the inner spans holding the',

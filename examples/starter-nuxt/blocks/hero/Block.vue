@@ -198,7 +198,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
     :background="sectionBackground"
     :spacing="sectionSpacing"
     :labelled-by="sectionLabelledBy"
-    :classes="{ root: sectionRootClass }"
+    :class="sectionRootClass"
   >
     <UiImage
       v-if="hasScrimImage"
@@ -293,10 +293,10 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
             v-else-if="editing"
             inline
             :label="t('hero.imageHintLabel')"
-            :classes="{
-              root: 'aspect-[4/3] @tablet:aspect-[3/2] @content:aspect-[1/1] w-full rounded-xl bg-surface-strong',
-            }"
-            :class="imageOrderClass"
+            :class="[
+              '@tablet:aspect-[3/2] @content:aspect-[1/1] bg-surface-strong aspect-[4/3] w-full rounded-xl',
+              imageOrderClass,
+            ]"
           />
         </template>
 
@@ -317,10 +317,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
             v-else-if="editing"
             inline
             :label="t('hero.imageHintLabel')"
-            :classes="{
-              root: 'aspect-[4/3] @tablet:aspect-[21/9] @content:aspect-[3/1] w-full rounded-xl bg-surface-strong',
-            }"
-            class="@content:mt-12 mt-8"
+            class="@content:mt-12 @tablet:aspect-[21/9] @content:aspect-[3/1] bg-surface-strong mt-8 aspect-[4/3] w-full rounded-xl"
           />
         </template>
 
@@ -369,7 +366,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
             v-else-if="editing"
             inline
             :label="t('hero.imageHintLabel')"
-            :classes="{ root: 'aspect-[4/5] w-full rounded-xl bg-surface-strong' }"
+            class="bg-surface-strong aspect-[4/5] w-full rounded-xl"
           />
         </template>
       </div>

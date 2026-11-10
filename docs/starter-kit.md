@@ -183,7 +183,7 @@ block is new. Each is a self-contained `blocks/<apiId>/` directory — see §3 f
 Studio link tree, and hands the links, their mega-menus and the narrow-screen drawer to
 `@eldrajs/ui`'s `NavMenu`, so the kit has one mega-menu. What the block sets on it:
 
-- **Cells of the header's grid.** `classes.root: 'static contents'` makes the menu's `<nav>` and its
+- **Cells of the header's grid.** `class="static contents"` makes the menu's `<nav>` and its
   Menu button cells of the bar's four-column grid (`auto minmax(0,1fr) auto auto`): the button
   takes the first column below `@content`, the brand the second, and the links sit beside the brand
   from `@content` up. The grid is `relative`, so it is the box a panel spans: the brand's left edge

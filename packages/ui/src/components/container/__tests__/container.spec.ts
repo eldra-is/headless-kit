@@ -69,12 +69,12 @@ describe('Container — widths', () => {
 });
 
 describe('Container — customisation', () => {
-  it('lets classes.root replace the width instead of landing beside it', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(Container, {
-      props: { width: 'narrow', classes: { root: 'max-w-2xl' } },
+      props: { width: 'narrow' },
+      attrs: { class: 'max-w-2xl' },
     });
     expect(wrapper.classes()).toContain('max-w-2xl');
-    expect(wrapper.classes()).not.toContain('eldra:eldra-container-narrow');
     wrapper.unmount();
   });
 });

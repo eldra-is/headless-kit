@@ -18,7 +18,6 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/kitClass';
 import { swatchInk } from '../swatchInk';
 import { isValueDisabled, isValueSelected, visibleFacetValues } from '../useFilterPanel';
 import type { FilterFacetValue } from '../types';
@@ -60,7 +59,7 @@ function nameOf(value: FilterFacetValue): string {
  * (white) on a dark one, a gradient counting as dark. Two classes rather than an inline colour,
  * so a store that restyles either token restyles the mark with it.
  */
-function markClass(value: FilterFacetValue): string {
+function markClass(value: FilterFacetValue) {
   const ink = swatchInk(value.swatch);
   return ink === 'text' ? 'eldra:text-text' : 'eldra:text-focus-inner';
 }
@@ -142,69 +141,57 @@ const CONTROL =
   'eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0 ' +
   'eldra:disabled:cursor-not-allowed';
 
-function rowClass(value: FilterFacetValue): string {
+function rowClass(value: FilterFacetValue) {
   const base = tiles.value ? TILE_BASE : ROW_BASE;
-  return partClass(
-    cx(base, disabled(value) ? ROW_DISABLED : ROW_ENABLED),
-    props.classes,
-    tiles.value ? 'tile' : 'row'
-  );
+  return [
+    [base, disabled(value) ? ROW_DISABLED : ROW_ENABLED],
+    props.classes?.[tiles.value ? 'tile' : 'row'],
+  ];
 }
 
-function ringClass(value: FilterFacetValue): string {
-  return cx(RING_BASE, selected(value) ? RING_SELECTED : RING_REST);
+function ringClass(value: FilterFacetValue) {
+  return [RING_BASE, selected(value) ? RING_SELECTED : RING_REST];
 }
 
-function swatchClass(value: FilterFacetValue): string {
-  return partClass(
-    cx(
+function swatchClass(value: FilterFacetValue) {
+  return [
+    [
       SWATCH_BASE,
       tiles.value ? 'eldra:size-9' : 'eldra:size-6',
-      disabled(value) && SWATCH_DISABLED
-    ),
-    props.classes,
-    'swatch'
-  );
+      disabled(value) && SWATCH_DISABLED,
+    ],
+    props.classes?.swatch,
+  ];
 }
 
-function markPartClass(value: FilterFacetValue): string {
-  return partClass(
-    cx(MARK_BASE, tiles.value ? 'eldra:size-4.5' : 'eldra:size-3.5', markClass(value)),
-    props.classes,
-    'swatchMark'
-  );
+function markPartClass(value: FilterFacetValue) {
+  return [
+    [MARK_BASE, tiles.value ? 'eldra:size-4.5' : 'eldra:size-3.5', markClass(value)],
+    props.classes?.swatchMark,
+  ];
 }
 
-function nameClass(value: FilterFacetValue): string {
-  return partClass(
-    cx(
+function nameClass(value: FilterFacetValue) {
+  return [
+    [
       tiles.value ? TILE_NAME_BASE : NAME_BASE,
       selected(value) && 'eldra:font-semibold',
-      disabled(value) ? 'eldra:text-muted' : 'eldra:text-text'
-    ),
-    props.classes,
-    tiles.value ? 'tileLabel' : 'rowLabel'
-  );
+      disabled(value) ? 'eldra:text-muted' : 'eldra:text-text',
+    ],
+    props.classes?.[tiles.value ? 'tileLabel' : 'rowLabel'],
+  ];
 }
 
-const countClass = computed(() =>
-  partClass(
-    tiles.value ? cx(TILE_COUNT_BASE, 'eldra:text-muted') : FACET_COUNT,
-    props.classes,
-    'count'
-  )
-);
+const countClass = computed(() => [
+  tiles.value ? [TILE_COUNT_BASE, 'eldra:text-muted'] : FACET_COUNT,
+  props.classes?.count,
+]);
 
-const strikeClass = computed(() =>
-  partClass(
-    'eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:size-full eldra:text-text',
-    props.classes,
-    'swatchStrike'
-  )
-);
-const valuesClass = computed(() =>
-  partClass(tiles.value ? TILES_BASE : ROWS_BASE, props.classes, 'values')
-);
+const strikeClass = computed(() => [
+  'eldra:pointer-events-none eldra:absolute eldra:inset-0 eldra:size-full eldra:text-text',
+  props.classes?.swatchStrike,
+]);
+const valuesClass = computed(() => [tiles.value ? TILES_BASE : ROWS_BASE, props.classes?.values]);
 </script>
 
 <template>

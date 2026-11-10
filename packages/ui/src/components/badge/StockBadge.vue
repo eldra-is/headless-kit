@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { ALERT_TRIANGLE_PATHS } from '../../icons/paths';
 import ValueText from '../internal/ValueText.vue';
 import Spinner from '../spinner/Spinner.vue';
@@ -84,25 +83,17 @@ const text = computed(() => props.message ?? defaultMessage.value);
  */
 const dim = computed(() => (props.revalidating ? 'eldra:eldra-revalidating' : ''));
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:items-center eldra:gap-1.5 eldra:text-stock-status',
-      LEVEL_TEXT_CLASS[props.level]
-    ),
-    props.classes,
-    'root'
-  )
-);
-const iconClass = computed(() =>
-  partClass(cx('eldra:size-4.5 eldra:shrink-0', dim.value), props.classes, 'icon')
-);
-const labelClass = computed(() => partClass(dim.value, props.classes, 'label'));
+const rootClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:gap-1.5 eldra:text-stock-status',
+  LEVEL_TEXT_CLASS[props.level],
+]);
+const iconClass = computed(() => ['eldra:size-4.5 eldra:shrink-0', dim.value, props.classes?.icon]);
+const labelClass = computed(() => [dim.value, props.classes?.label]);
 
 /** The element the fade plays on: an inner span (`ValueText`) carrying the words and nothing else,
  *  so the fade (0 -> 1 on the span) composites inside the dim (`--eldra-revalidating-opacity` on
  *  the part) instead of competing with it for the same property. */
-const labelValueClass = computed(() => partClass('', props.classes, 'labelValue'));
+const labelValueClass = computed(() => props.classes?.labelValue);
 
 /**
  * The same zero-width spinner `Price` draws, for the reason spelled out there: a flex item of
@@ -111,13 +102,10 @@ const labelValueClass = computed(() => partClass('', props.classes, 'labelValue'
  * so the stock line's own width, and every character in it, are identical with the state on and
  * off. `text-muted` keeps the circle furniture beside the status rather than part of it.
  */
-const spinnerClass = computed(() =>
-  partClass(
-    'eldra:pointer-events-none eldra:relative eldra:-ms-1.5 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:items-center eldra:text-muted',
-    props.classes,
-    'spinner'
-  )
-);
+const spinnerClass = computed(() => [
+  'eldra:pointer-events-none eldra:relative eldra:-ms-1.5 eldra:flex eldra:h-[1em] eldra:w-0 eldra:shrink-0 eldra:items-center eldra:text-muted',
+  props.classes?.spinner,
+]);
 
 /**
  * `srStatus`, not `status`, for the reason `Price.vue` spells out: `LoadMore`'s own visible
@@ -129,7 +117,7 @@ const spinnerClass = computed(() =>
  * false` drops it outright for a page that says it once itself (see `Price.vue`); `aria-busy` and
  * the visual state stay.
  */
-const srStatusClass = computed(() => partClass('eldra:sr-only', props.classes, 'srStatus'));
+const srStatusClass = computed(() => ['eldra:sr-only', props.classes?.srStatus]);
 const srStatusText = computed(() => (props.revalidating ? messages.value.updatingStock : ''));
 </script>
 

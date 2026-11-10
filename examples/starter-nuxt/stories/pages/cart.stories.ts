@@ -34,9 +34,8 @@ const CartPage = defineComponent({
           href: '#main',
           as: EldraRouterLink,
           variant: 'standalone',
-          classes: {
-            root: 'bg-primary text-primary-contrast rounded-md sr-only px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50',
-          },
+          class:
+            'bg-primary text-primary-contrast rounded-md sr-only px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50',
         },
         () => t('nav.skipToContent')
       ),

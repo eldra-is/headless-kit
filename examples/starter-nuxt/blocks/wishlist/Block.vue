@@ -323,7 +323,7 @@ async function removeCard(handle: string): Promise<void> {
               size="sm"
               :pressed="true"
               :label="t('product.removeFromWishlist', { title: entry.product.title })"
-              :classes="{ container: 'bg-surface' }"
+              class="bg-surface"
               @click="removeCard(entry.item.handle)"
             >
               <template #leadingIcon>

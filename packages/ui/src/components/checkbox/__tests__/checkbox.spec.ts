@@ -112,10 +112,10 @@ describe('Checkbox — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(Checkbox, {
+      attrs: { class: 'ring-1' },
       props: {
         hint: 'Adds 2 days',
         classes: {
-          root: 'ring-1',
           box: 'rounded-full',
           check: 'opacity-50',
           label: 'italic',
@@ -129,7 +129,22 @@ describe('Checkbox — element and parts', () => {
     expect(wrapper.find('[data-part="check"]').element.className).toContain('opacity-50');
     expect(wrapper.find('[data-part="label"]').element.className).toContain('italic');
     expect(wrapper.find('[data-part="hint"]').element.className).toContain('uppercase');
+    expect(input(wrapper).className).not.toContain('ring-1');
     wrapper.unmount();
+  });
+
+  it("lets a parent's root class replace the root's own width and alignment", () => {
+    const inline = mountWith(Checkbox, { slots: { default: 'Linen' } });
+    expect(inline.classes()).toEqual(expect.arrayContaining(['eldra:w-fit', 'eldra:items-start']));
+    const row = mountWith(Checkbox, {
+      attrs: { class: 'eldra:w-full eldra:items-center' },
+      slots: { default: 'Linen' },
+    });
+    expect(row.classes()).toEqual(expect.arrayContaining(['eldra:w-full', 'eldra:items-center']));
+    expect(row.classes()).not.toContain('eldra:w-fit');
+    expect(row.classes()).not.toContain('eldra:items-start');
+    inline.unmount();
+    row.unmount();
   });
 });
 
@@ -770,8 +785,9 @@ describe('CheckboxGroup — element and parts', () => {
         legend: 'Material',
         options: MATERIALS,
         error: 'Choose at least one material.',
-        classes: { root: 'ring-1', legend: 'italic', options: 'gap-8', error: 'uppercase' },
+        classes: { legend: 'italic', options: 'gap-8', error: 'uppercase' },
       },
+      attrs: { class: 'ring-1' },
     });
     expect(wrapper.classes()).toContain('ring-1');
     expect(wrapper.find('legend').classes()).toContain('italic');

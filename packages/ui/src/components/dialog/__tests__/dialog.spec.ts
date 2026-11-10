@@ -649,20 +649,20 @@ describe('Dialog — long content and narrow viewports', () => {
 });
 
 describe('Dialog — classes prop', () => {
-  it('merges a classes override onto the named part instead of landing beside it', () => {
+  it('appends a classes override to the named part, and puts class on the dialog', () => {
     const wrapper = mountWith(Dialog, {
       props: {
         title: 'Notify me',
         modelValue: true,
         classes: { panel: 'rounded-none', title: 'text-h1' },
       },
+      attrs: { class: 'mt-8' },
     });
+    expect(wrapper.find('[data-part="root"]').classes()).toContain('mt-8');
     const panelClass = wrapper.find('[data-part="panel"]').element.className;
     const titleClass = wrapper.find('[data-part="title"]').element.className;
     expect(panelClass).toContain('rounded-none');
-    expect(panelClass).not.toContain('eldra:rounded-lg');
     expect(titleClass).toContain('text-h1');
-    expect(titleClass).not.toContain('eldra:text-dialog-title');
     wrapper.unmount();
   });
 });

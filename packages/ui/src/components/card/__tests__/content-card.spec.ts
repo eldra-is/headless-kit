@@ -379,19 +379,16 @@ describe('ContentCard — excerpt', () => {
 });
 
 describe('ContentCard — customisation', () => {
-  it('lets classes.root replace a layout utility instead of landing beside it', () => {
-    const wrapper = mountCard({
-      title: 'Studio notes',
-      href: '/x',
-      classes: { root: 'gap-8' },
+  it('puts a consumer class on the root', () => {
+    const wrapper = mountWith(ContentCard, {
+      props: { title: 'Studio notes', href: '/x' },
+      attrs: { class: 'gap-8' },
     });
-    const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('gap-8');
-    expect(root.classes()).not.toContain('eldra:gap-4');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-8');
     wrapper.unmount();
   });
 
-  it('merges an override onto another part', () => {
+  it('appends an override to another part', () => {
     const wrapper = mountCard({
       title: 'Studio notes',
       href: '/x',

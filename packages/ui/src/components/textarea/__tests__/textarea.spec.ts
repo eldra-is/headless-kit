@@ -64,12 +64,14 @@ describe('Textarea — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('merges a per-part class override', () => {
+  it('puts class on the root and appends a per-part class override', () => {
     const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 10, modelValue: 'hi', classes: { root: 'mt-4' } },
-      attrs: NAME,
+      props: { counter: true, maxLength: 10, modelValue: 'hi', classes: { counter: 'opacity-50' } },
+      attrs: { ...NAME, class: 'mt-4' },
     });
     expect(wrapper.classes()).toContain('mt-4');
+    expect(control(wrapper).classList).not.toContain('mt-4');
+    expect(wrapper.find('[data-part="counter"]').classes()).toContain('opacity-50');
     wrapper.unmount();
   });
 });

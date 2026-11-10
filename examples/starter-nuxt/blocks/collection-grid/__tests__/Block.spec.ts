@@ -1432,7 +1432,6 @@ describe('collection-grid block', () => {
       // background fill, supplied by the Drawer's own chrome.
       expect(footer.classes()).toContain('grid');
       expect(footer.classes()).toContain('grid-cols-[auto_1fr]');
-      expect(footer.classes()).not.toContain('eldra:flex');
       expect(footer.classes()).toContain('eldra:border-t');
       expect(footer.classes()).toContain('eldra:bg-background');
 
@@ -3145,7 +3144,6 @@ describe('collection-grid — card width on a phone', () => {
     // The card's own root is the list item's first element; `cards()` answers the items.
     const root = cards(wrapper)[0]!.element.firstElementChild as HTMLElement;
     expect(root.className).toContain('min-w-0');
-    expect(root.className).not.toMatch(/\bmin-w-56\b/);
     wrapper.unmount();
   });
 });

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import { TABS_KEY, type TabsContext, type TabsEntry } from './context';
 import Tab from './Tab.vue';
@@ -108,7 +107,7 @@ provide(TABS_KEY, context);
 /** `min-w-0` is the usual flex/grid fix (see `RadioGroup`'s own root): without it, a `Tabs` inside
  *  a flex row never shrinks below its content's natural width, and the list's own `overflow-x-auto`
  *  (below) never gets a chance to engage. */
-const rootClass = computed(() => partClass('eldra:min-w-0', props.classes, 'root'));
+const rootClass = 'eldra:min-w-0';
 
 /**
  * The room the pills list keeps for a focused tab's ring, on both axes, plus the scroll padding
@@ -154,11 +153,8 @@ const PILLS_RING_RESERVE =
  * list's box back in by the same amount, so its rendered footprint — the hairline's position in the
  * underline variant included, were it ever to carry one — is unchanged.
  *
- * **Per axis, not one uniform `p-[…]`/`-m-[…]`.** `padding`/`padding-inline` are different
- * `tailwind-merge` groups, so a `classes.list` of `px-6` would leave both alive and then win in the
- * cascade (Tailwind emits every `padding-inline` rule after every `padding` one) — the exact way
- * `Carousel`'s first uniform reservation lost its inline half on a deployed page. Written as
- * `px-*`/`py-*` a consumer's own `px-*` replaces ours outright instead, which at least shows up as
+ * **Per axis, not one uniform `p-[…]`/`-m-[…]`.** Written as `px-*`/`py-*`, a `classes.list` of
+ * `px-6` overrides exactly the inline half (it wins by cascade layer), which at least shows up as
  * the consumer's own gutter rather than as a reservation silently reduced to `0px`; a gutter wider
  * than the ring (`blocks/tabs` in the starter bleeds the list by `--eldra-gutter-mobile`) is itself
  * all the room the ring needs. `Carousel`'s `--eldra-carousel-bleed` is the shape to reach for if a
@@ -176,26 +172,18 @@ const PILLS_RING_RESERVE =
  * reservation there would push the list's 1px hairline down away from the tabs it underlines, for
  * no ring at all.
  */
-const listClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:flex eldra:items-center eldra:overflow-x-auto eldra:eldra-scrollbar-hide',
-      props.variant === 'underline'
-        ? 'eldra:gap-1 eldra:border-b eldra:border-border'
-        : cx('eldra:gap-2', PILLS_RING_RESERVE)
-    ),
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:overflow-x-auto eldra:eldra-scrollbar-hide',
+  props.variant === 'underline'
+    ? 'eldra:gap-1 eldra:border-b eldra:border-border'
+    : ['eldra:gap-2', PILLS_RING_RESERVE],
+  props.classes?.list,
+]);
 
 /** Forwarded onto every internally-rendered `Tab`/`TabPanel` in the `items` API, so a consumer's
- *  `classes.tab`/`.indicator`/`.panel` reaches them exactly as it would a standalone `<Tab>`. */
-const childClasses = computed(() => ({
-  tab: props.classes?.tab,
-  indicator: props.classes?.indicator,
-  panel: props.classes?.panel,
-}));
+ *  `classes.tab`/`.indicator`/`.panel` reaches them exactly as a `class` (or `classes.indicator`)
+ *  reaches a standalone `<Tab>`/`<TabPanel>`. */
+const tabChildClasses = computed(() => ({ indicator: props.classes?.indicator }));
 </script>
 
 <template>
@@ -223,13 +211,14 @@ const childClasses = computed(() => ({
           :value="item.value"
           :title="item.title"
           :disabled="item.disabled"
-          :classes="childClasses"
+          :class="classes?.tab"
+          :classes="tabChildClasses"
         />
       </template>
       <slot v-else name="tabs" />
     </div>
     <template v-if="items">
-      <TabPanel v-for="item in items" :key="item.value" :value="item.value" :classes="childClasses">
+      <TabPanel v-for="item in items" :key="item.value" :value="item.value" :class="classes?.panel">
         {{ item.content }}
       </TabPanel>
     </template>

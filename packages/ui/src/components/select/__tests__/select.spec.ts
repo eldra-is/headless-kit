@@ -207,25 +207,19 @@ describe('Select — anatomy and parts', () => {
     expect(panel(wrapper).find('[data-part="optionIcon"]').attributes('aria-hidden')).toBe('true');
   });
 
-  it('merges a per-part class override', async () => {
-    const wrapper = mount({
-      classes: { root: 'mt-4', trigger: 'text-body-lg', option: 'px-6', panel: 'max-h-64' },
-    });
+  it('puts class on the root and appends a per-part class override', async () => {
+    const wrapper = mount(
+      { classes: { trigger: 'text-body-lg', option: 'px-6', panel: 'max-h-64' } },
+      { attrs: { ...NAME, class: 'mt-4' } }
+    );
     expect(wrapper.classes()).toContain('mt-4');
+    expect(trigger(wrapper).classList).not.toContain('mt-4');
     expect(trigger(wrapper).className).toContain('text-body-lg');
-    // `text-control` and the override are one merge group, so only the override survives.
-    expect(trigger(wrapper).className).not.toContain('eldra:text-control ');
 
     await press(triggerOf(wrapper));
     const option = optionEls(wrapper)[0]?.element as HTMLElement;
     expect(option.className).toContain('px-6');
-    expect(option.className).not.toContain('eldra:px-2 ');
-    // `eldra-select-panel-height` is in Tailwind's own `max-h` group, so `max-h-64` replaces it
-    // and leaves the width clamp alone.
-    const panelClass = panel(wrapper).element.className;
-    expect(panelClass).toContain('max-h-64');
-    expect(panelClass).not.toContain('eldra:eldra-select-panel-height');
-    expect(panelClass).toContain('eldra:eldra-select-panel-width');
+    expect(panel(wrapper).element.className).toContain('max-h-64');
   });
 
   it('puts fall-through attributes on the trigger, not on the root', () => {

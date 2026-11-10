@@ -129,14 +129,13 @@ describe('Carousel — element and structure', () => {
     wrapper.unmount();
   });
 
-  it('passes a classes.track override through tailwind-merge', async () => {
+  it('appends a classes.track override to the track', async () => {
     const wrapper = mountWith(Carousel, {
       props: { ariaLabel: 'Bestsellers', classes: { track: 'gap-8' } },
       slots: { default: THREE_SLIDES },
     });
     await settle();
     expect(track(wrapper).className).toContain('gap-8');
-    expect(track(wrapper).className).not.toContain('eldra:gap-4');
     wrapper.unmount();
   });
 });
@@ -1506,9 +1505,8 @@ describe('Carousel — pointer drag', () => {
     expect(classes).toContain(`px-[${INLINE_RESERVE}]`);
     expect(classes).toContain(`-mx-[${INLINE_RESERVE}]`);
     expect(classes).toContain(`scroll-px-[${INLINE_RESERVE}]`);
-    // And never the uniform `p-*`/`-m-*` pair this replaced: a consumer's own `px-*` is a different
-    // `tailwind-merge` group from `p-*`, so both survived the merge and `padding-inline` — which
-    // Tailwind emits after `padding` — won in the cascade, leaving `padding-left: 0`.
+    // And never the uniform `p-*`/`-m-*` pair this replaced: a consumer's own `px-*` beside it
+    // won over the `padding` shorthand, leaving `padding-left: 0`.
     expect(classes).not.toMatch(/(^|\s)-?p-\[/);
     expect(classes).not.toMatch(/(^|\s)-?m-\[/);
     wrapper.unmount();
@@ -1520,7 +1518,7 @@ describe('Carousel — pointer drag', () => {
    * `padding-left: 0px` on the deployed track). The inline gutter a bleeding block needs is a
    * variable now, not a padding utility it writes itself, so the reservation and the gutter compose
    * into one `max()` instead of one silently replacing the other. A custom-property declaration
-   * shares a merge group with nothing, so every part of the reservation survives `classes.track`.
+   * overrides no padding, so every part of the reservation survives `classes.track`.
    */
   it('keeps the whole ring reservation when a consumer sets the bleed through classes.track', async () => {
     const wrapper = mountWith(Carousel, {
@@ -1547,10 +1545,9 @@ describe('Carousel — pointer drag', () => {
 
   /**
    * The failure the fix is really about, at the level a class list can see it: the gutter utilities
-   * a block used to pass take `px-*`/`-mx-*`/`scroll-px-*` away from the track — `scroll-px-*`
-   * visibly (same merge group, so `tailwind-merge` drops the package's) and the other two in the
-   * cascade. Nothing stops a consumer writing them, so this records what it costs: the inline axis
-   * is theirs, and with it the ring's reach on that axis.
+   * a block used to pass take `px-*`/`-mx-*`/`scroll-px-*` away from the track: they are appended
+   * and win by cascade layer. Nothing stops a consumer writing them, so this records what it costs:
+   * the inline axis is theirs, and with it the ring's reach on that axis.
    */
   it("a consumer's own inline padding still takes over the inline axis — the documented reason not to", async () => {
     const wrapper = mountWith(Carousel, {
@@ -1564,7 +1561,7 @@ describe('Carousel — pointer drag', () => {
     });
     await settle();
     const classes = track(wrapper).className;
-    expect(classes).not.toContain(`scroll-px-[${INLINE_RESERVE}]`);
+    expect(classes).toContain('scroll-px-[var(--eldra-gutter-mobile)]');
     // The block axis is untouched either way, which is why only the inline one was ever clipped.
     expect(classes).toContain(`py-[${RING_REACH}]`);
     wrapper.unmount();

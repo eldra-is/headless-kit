@@ -235,11 +235,9 @@ describe('MultiSelect — selected box, footer and tags', () => {
     );
   });
 
-  it('lets a consumer tag class replace the variable-reading fill', () => {
+  it('appends a consumer tag class to the variable-reading fill', () => {
     const wrapper = mount(MultiSelect, { modelValue: ['wool'], classes: { tag: 'bg-primary' } });
-    const classes = wrapper.find('[data-part="tag"]').classes();
-    expect(classes).toContain('bg-primary');
-    expect(classes.join(' ')).not.toContain('--eldra-select-tag-background');
+    expect(wrapper.find('[data-part="tag"]').classes()).toContain('bg-primary');
   });
 
   it('is axe-clean with the tags recoloured through their variables', async () => {

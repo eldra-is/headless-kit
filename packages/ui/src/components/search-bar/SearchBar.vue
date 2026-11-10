@@ -2,12 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import {
-  FIELD_BASE,
-  FIELD_CLEAR_BUTTON,
+  FIELD_BOX,
+  FIELD_CLEAR_BUTTON_BOX,
   FIELD_LIVE,
+  FIELD_RADIUS,
   FIELD_SEARCH_APPEARANCE,
   FIELD_TEXT,
 } from '../input/classes';
@@ -19,7 +19,6 @@ import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import SearchResultsPanel from './SearchResultsPanel.vue';
 import { claimShortcut, ownsShortcut, releaseShortcut } from './shortcutOwner';
 import type {
-  SearchBarPart,
   SearchBarProps,
   SearchBarSize,
   SearchResultItem,
@@ -699,14 +698,12 @@ onBeforeUnmount(() => {
 
 // --- classes -----------------------------------------------------------------------------------
 
-const part = (base: string, name: SearchBarPart): string => partClass(base, props.classes, name);
-
-const rootClass = computed(() => part('eldra:relative eldra:block eldra:w-full', 'root'));
-const formClass = computed(() => part('eldra:relative eldra:block eldra:w-full', 'form'));
+const rootClass = 'eldra:relative eldra:block eldra:w-full';
+const formClass = computed(() => ['eldra:relative eldra:block eldra:w-full', props.classes?.form]);
 
 /**
  * The field (spec "Search bar" → Sizes, and "Actions and forms" → Compact controls): the same box
- * as `Input`'s, **because it is one** — `FIELD_BASE`, `FIELD_TEXT` and `FIELD_LIVE` are imported
+ * as `Input`'s, **because it is one** — `FIELD_BOX`, `FIELD_RADIUS`, `FIELD_TEXT` and `FIELD_LIVE` are imported
  * from `../input/classes.ts` rather than copied here. The copy this replaces had drifted: it had
  * lost the radius variable (it re-declared the radius in the ternary below instead) and kept its
  * own spelling of the type-size rules, which is what the operator saw as a search field that
@@ -724,68 +721,55 @@ const formClass = computed(() => part('eldra:relative eldra:block eldra:w-full',
  * the `max-md:` mobile override, which is a viewport rule so iOS never zooms into a focused field.
  */
 const SIZE: Record<SearchBarSize, string> = {
-  md: `eldra:control-h eldra:ps-9.5 eldra:pe-11 ${FIELD_TEXT.md}`,
-  lg: `eldra:control-h-lg eldra:ps-11 eldra:pe-11 ${FIELD_TEXT.lg}`,
+  md: `eldra:control-h eldra:pe-11 ${FIELD_TEXT.md}`,
+  lg: `eldra:control-h-lg eldra:pe-11 ${FIELD_TEXT.lg}`,
 };
+const START_PAD: Record<SearchBarSize, string> = { md: 'eldra:ps-9.5', lg: 'eldra:ps-11' };
 
-const fieldClass = computed(() =>
-  part(
-    cx(
-      FIELD_BASE,
-      // "The browser's own clear and decoration are hidden" (anatomy, item 3).
-      FIELD_SEARCH_APPEARANCE,
-      SIZE[props.size],
-      // The pill's radius replaces the box's own through `tailwind-merge`, rather than the box
-      // shipping without one.
-      props.pill && 'eldra:rounded-full eldra:ps-10',
-      FIELD_LIVE
-    ),
-    'field'
-  )
-);
+const fieldClass = computed(() => [
+  FIELD_BOX,
+  // The pill's radius and start padding stand in for the box's own.
+  props.pill ? 'eldra:rounded-full eldra:ps-10' : `${FIELD_RADIUS} ${START_PAD[props.size]}`,
+  // "The browser's own clear and decoration are hidden" (anatomy, item 3).
+  FIELD_SEARCH_APPEARANCE,
+  SIZE[props.size],
+  FIELD_LIVE,
+  props.classes?.field,
+]);
 
 /** "Search icon: `muted`, decorative", 1.125rem at 0.75rem (md) or 1.25rem at 0.875rem (lg). */
 const ICON_SIZE: Record<SearchBarSize, string> = { md: 'eldra:size-4.5', lg: 'eldra:size-5' };
-const leadingIconClass = computed(() =>
-  part(
-    cx(
-      'eldra:pointer-events-none eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:flex eldra:items-center eldra:justify-center eldra:text-muted',
-      props.size === 'lg' || props.pill ? 'eldra:start-3.5' : 'eldra:start-3',
-      ICON_SIZE[props.size]
-    ),
-    'leadingIcon'
-  )
-);
+const leadingIconClass = computed(() => [
+  'eldra:pointer-events-none eldra:absolute eldra:inset-y-0 eldra:my-auto eldra:flex eldra:items-center eldra:justify-center eldra:text-muted',
+  props.size === 'lg' || props.pill ? 'eldra:start-3.5' : 'eldra:start-3',
+  ICON_SIZE[props.size],
+  props.classes?.leadingIcon,
+]);
 
 /**
  * "Clear: 2rem ghost icon button, 0.25rem from the end edge … round in the pill variant." The
- * button itself is `Input`'s (`FIELD_CLEAR_BUTTON`); what is added is where it sits — absolutely,
+ * button itself is `Input`'s (`FIELD_CLEAR_BUTTON_BOX`); what is added is where it sits — absolutely,
  * because this field has no `suffix` row — its 2rem size at both sizes, and the pill's own radius.
  */
-const clearButtonClass = computed(() =>
-  part(
-    cx(
-      FIELD_CLEAR_BUTTON,
-      'eldra:absolute eldra:end-1 eldra:inset-y-0 eldra:my-auto eldra:size-8',
-      props.pill ? 'eldra:rounded-full' : 'eldra:rounded-sm'
-    ),
-    'clearButton'
-  )
-);
+const clearButtonClass = computed(() => [
+  'eldra:inline-flex',
+  FIELD_CLEAR_BUTTON_BOX,
+  'eldra:absolute eldra:end-1 eldra:inset-y-0 eldra:my-auto eldra:size-8',
+  props.pill ? 'eldra:rounded-full' : 'eldra:rounded-sm',
+  props.classes?.clearButton,
+]);
 
 /**
  * "Keyboard hint: `/` in a keyboard-key chip: monospace, 0.75rem, `surface` fill, 1px
  * `border-strong`, `radius-sm`, `muted` text, 0.625rem from the end edge." `aria-hidden`, and out
  * of the pointer's way: the shortcut it names is a keyboard affordance.
  */
-const shortcutHintClass = computed(() =>
-  part(
-    'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:h-5 eldra:min-w-5 ' +
-      'eldra:items-center eldra:justify-center eldra:rounded-sm eldra:border eldra:border-border-strong eldra:bg-surface eldra:px-1 ' +
-      'eldra:text-search-kbd eldra:text-muted',
-    'shortcutHint'
-  )
-);
+const shortcutHintClass = computed(() => [
+  'eldra:pointer-events-none eldra:absolute eldra:end-2.5 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:h-5 eldra:min-w-5 ' +
+    'eldra:items-center eldra:justify-center eldra:rounded-sm eldra:border eldra:border-border-strong eldra:bg-surface eldra:px-1 ' +
+    'eldra:text-search-kbd eldra:text-muted',
+  props.classes?.shortcutHint,
+]);
 
 /**
  * The **visible** half of the `loading` view, beside the field rather than only inside the panel.
@@ -797,21 +781,22 @@ const shortcutHintClass = computed(() =>
  * the same 300ms delay as the panel's own loading view so a fast read never flashes it. Decorative:
  * the state is announced by the live region and by `aria-busy` on the listbox, never by the shape.
  */
-const busyClass = computed(() =>
-  part(
-    'eldra:pointer-events-none eldra:absolute eldra:end-10 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:items-center eldra:text-muted',
-    'busy'
-  )
-);
-
-const liveRegionClass = computed(() => part('', 'liveRegion'));
+const busyClass = computed(() => [
+  'eldra:pointer-events-none eldra:absolute eldra:end-10 eldra:inset-y-0 eldra:my-auto eldra:inline-flex eldra:items-center eldra:text-muted',
+  props.classes?.busy,
+]);
 
 const showClear = computed(() => model.value.length > 0);
 const showHint = computed(() => props.shortcut && model.value.length === 0);
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <!-- Spec → Accessibility: "A search landmark: … `<form role="search" action="/search">`". -->
     <form
       data-part="form"
@@ -841,7 +826,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
 
       <input
         ref="fieldRef"
-        v-bind="$attrs"
+        v-bind="{ ...$attrs, class: undefined }"
         :id="controlId"
         data-part="field"
         name="q"
@@ -940,7 +925,7 @@ const showHint = computed(() => props.shortcut && model.value.length === 0);
       data-part="liveRegion"
       role="status"
       aria-live="polite"
-      :classes="{ root: liveRegionClass }"
+      :class="classes?.liveRegion"
       >{{ announcement }}</VisuallyHidden
     >
   </div>

@@ -22,7 +22,6 @@ const meta = {
     },
     spacing: { control: 'inline-radio', options: ['none', 'sm', 'md', 'lg'] },
     as: { table: { disable: true } },
-    classes: { table: { disable: true } },
   },
   parameters: {
     docs: {
@@ -33,7 +32,7 @@ const meta = {
           'block root is a `<section aria-labelledby>` named by its own heading, `aria-label` with no',
           'visible heading, or a plain `<div>` when the block is not a meaningful region.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`.',
+          '**Parts** (`data-part`): `root`, styled with `class`.',
           '',
           '**Slots**: `default`.',
           '',

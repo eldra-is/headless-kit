@@ -859,7 +859,6 @@ describe('UnitInput — the box is Input’s', () => {
         enableDragAdjust: true,
         leadingIcon: IconRuler2,
         classes: {
-          root: 'ring-1',
           label: 'uppercase',
           field: 'opacity-90',
           leadingIcon: 'text-danger',
@@ -869,6 +868,7 @@ describe('UnitInput — the box is Input’s', () => {
           clearButton: 'rounded-none',
         },
       },
+      attrs: { class: 'ring-1' },
     });
 
     expect(wrapper.attributes('data-part')).toBe('root');

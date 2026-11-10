@@ -52,6 +52,13 @@ describe('Switch — element and parts', () => {
     wrapper.unmount();
   });
 
+  it('marks the root as the eldra:group its track hover reads', () => {
+    const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
+    expect(root(wrapper).classList).toContain('eldra:group');
+    expect(wrapper.find('[data-part="track"]').classes().join(' ')).toContain('eldra:group-hover:');
+    wrapper.unmount();
+  });
+
   it('renders no description part without one', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     expect(wrapper.find('[data-part="description"]').exists()).toBe(false);

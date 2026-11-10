@@ -10,9 +10,9 @@ import { parse } from 'vue/compiler-sfc';
  * Every class a component authors carries the `eldra:` prefix, because the kit's stylesheet is
  * compiled with `prefix(eldra)`: an unprefixed class in a component is styled by nothing the
  * package ships, only by whatever an app's own utilities happen to call that name. This reads every
- * static `class="…"` in a template, every string literal in a `:class` binding, and every string
- * literal handed to `cx(`/`partClass(` (their first two arguments), and fails on any token without
- * the prefix.
+ * static `class="…"` in a template, every string literal in a `:class` binding, and every class
+ * string in script code (see `scriptClasses`), and fails on any token without the prefix. What a
+ * story actually renders is checked by `renderedClasses.spec.ts`.
  */
 interface TemplateNode {
   type: number;
@@ -30,7 +30,6 @@ interface TemplateNode {
 const ELEMENT = 1;
 const ATTRIBUTE = 6;
 const DIRECTIVE = 7;
-const CLASS_BUILDERS = new Set(['cx', 'partClass']);
 
 const src = fileURLToPath(new NodeURL('../', import.meta.url));
 
@@ -117,15 +116,28 @@ function classTokens(node: ts.Node, out: string[]): void {
   }
 }
 
+/**
+ * In script code a class list is a string with no marker of its own, so a string is read as one
+ * when any of its tokens is `eldra:`-prefixed, or when it is handed to Vue's `normalizeClass`.
+ */
 function scriptClasses(code: string): string[] {
   const out: string[] = [];
   const visit = (node: ts.Node) => {
     if (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
-      CLASS_BUILDERS.has(node.expression.text)
+      node.expression.text === 'normalizeClass'
     ) {
-      node.arguments.slice(0, 2).forEach((argument) => classTokens(argument, out));
+      node.arguments.forEach((argument) => classTokens(argument, out));
+    } else if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateExpression(node)
+    ) {
+      const tokens: string[] = [];
+      classTokens(node, tokens);
+      if (tokens.some((token) => token.startsWith('eldra:'))) out.push(...tokens);
+      return;
     }
     ts.forEachChild(node, visit);
   };

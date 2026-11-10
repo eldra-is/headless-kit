@@ -295,7 +295,7 @@ const showPaymentsRow = computed(() => showPayments.value && paymentMarks.value.
                 :href="itemHref(item)!"
                 :as="itemLinkAs(item)"
                 :aria-label="item.linkLabel || undefined"
-                :classes="{ root: itemTitleClass }"
+                :class="itemTitleClass"
               >
                 {{ item.title }}
               </Link>

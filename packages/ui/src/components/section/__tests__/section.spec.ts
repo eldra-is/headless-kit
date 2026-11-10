@@ -190,12 +190,12 @@ describe('Section — SECTION_KEY', () => {
 });
 
 describe('Section — customisation', () => {
-  it('lets classes.root replace a colour utility instead of landing beside it', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(Section, {
-      props: { background: 'surface', classes: { root: 'bg-accent' } },
+      props: { background: 'surface' },
+      attrs: { class: 'bg-accent' },
     });
     expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 });

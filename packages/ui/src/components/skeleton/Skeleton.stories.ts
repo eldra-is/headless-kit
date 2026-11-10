@@ -33,7 +33,7 @@ const meta = {
           'first paint — never for static text that ships with the page, and never together with a',
           'spinner for the same region.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `line` (one per text',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root`, `line` (one per text',
           'row, or one for every other variant).',
           '',
           '**`variant`**: `text` (default, `lines` rows, deterministic widths cycling 85/70/55/35%),',

@@ -380,9 +380,9 @@ const isBackorder = computed(() => stockLine.value.state === 'backorder');
 
 /** Spec States, Back-order row: `warning` with the clock icon. `StockBadge`'s own `preorder` level
  *  draws the clock in `muted` (it serves a quieter product-card context too), so the block asks for
- *  the spec's colour through the component's sanctioned per-part `classes`, never by patching it. */
-const stockClasses = computed(() =>
-  isBackorder.value ? { root: 'text-warning font-semibold' } : { root: 'font-semibold' }
+ *  the spec's colour through its `class`, never by patching it. */
+const stockClass = computed(() =>
+  isBackorder.value ? 'text-warning font-semibold' : 'font-semibold'
 );
 
 /* ------------------------------------------------------------------------- */
@@ -613,7 +613,7 @@ function tabValue(index: number): string {
     spacing="none"
     :labelled-by="titleId"
     :aria-busy="refreshing ? 'true' : undefined"
-    :classes="{ root: SECTION_SPACING }"
+    :class="SECTION_SPACING"
   >
     <Container width="content">
       <div
@@ -726,7 +726,7 @@ function tabValue(index: number): string {
                 :level="stockLine.level"
                 :message="t(stockLine.key, stockLine.params)"
                 :revalidating="stockRevalidating"
-                :classes="stockClasses"
+                :class="stockClass"
               />
               <span v-if="stockLine.noteKey" class="text-muted mt-1 block pl-6 text-[0.875rem]">{{
                 t(stockLine.noteKey)
@@ -736,7 +736,7 @@ function tabValue(index: number): string {
             <FieldWrapper
               v-if="showQuantity && !soldOut"
               :label="t('product.quantity')"
-              :classes="{ root: 'gap-2' }"
+              class="gap-2"
             >
               <QuantityStepper
                 v-model="quantity"
@@ -861,7 +861,7 @@ function tabValue(index: number): string {
     </Container>
   </Section>
 
-  <Section v-else-if="showStatus" spacing="none" :classes="{ root: SECTION_SPACING }">
+  <Section v-else-if="showStatus" spacing="none" :class="SECTION_SPACING">
     <Container width="content">
       <p role="status" class="text-muted">
         {{ productResult.error.value ? t('storefront.error') : t('storefront.loading') }}
@@ -872,7 +872,7 @@ function tabValue(index: number): string {
   <!-- The read answered, and the answer was "there is no such product". Said plainly, before the
        editor hint below, because on a live page this is what a visitor who followed an old link
        sees and the hint is not for them. -->
-  <Section v-else-if="notFound" spacing="none" :classes="{ root: SECTION_SPACING }">
+  <Section v-else-if="notFound" spacing="none" :class="SECTION_SPACING">
     <Container width="content">
       <p role="status" class="text-muted">{{ t('storefront.notFound') }}</p>
     </Container>

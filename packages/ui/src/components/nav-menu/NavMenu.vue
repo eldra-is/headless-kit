@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  normalizeClass,
   onBeforeUnmount,
   ref,
   toRef,
@@ -11,7 +12,6 @@ import {
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useOverlay } from '../../composables/useOverlay';
-import { cx, partClass } from '../../utils/kitClass';
 import { useUiId } from '../../utils/id';
 import AccordionItem from '../accordion/AccordionItem.vue';
 import Drawer from '../drawer/Drawer.vue';
@@ -295,110 +295,93 @@ const ENTRY_VARIANT: Record<NavMenuVariant, string> = {
     'eldra:data-[current]:text-text',
 };
 
-const rootClass = computed(() =>
-  partClass('eldra:relative eldra:flex eldra:items-center', props.classes, 'root')
-);
+const ROOT = 'eldra:relative eldra:flex eldra:items-center';
 
-const navClass = computed(() =>
-  partClass(
-    props.collapseBelow === 'always' ? '' : BAR_DISPLAY[props.collapseBelow],
-    props.classes,
-    'nav'
-  )
-);
+const navClass = computed(() => [
+  props.collapseBelow === 'always' ? '' : BAR_DISPLAY[props.collapseBelow],
+  props.classes?.nav,
+]);
 
-const listClass = computed(() =>
-  partClass('eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-1', props.classes, 'list')
-);
+const listClass = computed(() => [
+  'eldra:flex eldra:flex-wrap eldra:items-center eldra:gap-1',
+  props.classes?.list,
+]);
 
-function itemClass(item: NavMenuItem): string {
-  return partClass(
+function itemClass(item: NavMenuItem) {
+  return [
     hasPanel(item) && panelLayout(item) === 'dropdown' ? 'eldra:relative' : '',
-    props.classes,
-    'item'
-  );
+    props.classes?.item,
+  ];
 }
 
 const TOP_LEVEL =
   'eldra:inline-flex eldra:min-h-10 eldra:cursor-pointer eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:text-body eldra:font-medium ' +
   'eldra:eldra-focus';
 
-const linkClass = computed(() =>
-  partClass(cx(TOP_LEVEL, ENTRY_VARIANT[props.variant], CURRENT_PAGE), props.classes, 'link')
-);
+const linkClass = computed(() => [
+  [TOP_LEVEL, ENTRY_VARIANT[props.variant], CURRENT_PAGE],
+  props.classes?.link,
+]);
 
-const triggerClass = computed(() =>
-  partClass(
-    cx(
-      TOP_LEVEL,
-      ENTRY_VARIANT[props.variant],
-      'eldra:data-[current]:underline eldra:data-[current]:decoration-2 eldra:data-[current]:underline-offset-[0.2em]'
-    ),
-    props.classes,
-    'trigger'
-  )
-);
+const triggerClass = computed(() => [
+  [
+    TOP_LEVEL,
+    ENTRY_VARIANT[props.variant],
+    'eldra:data-[current]:underline eldra:data-[current]:decoration-2 eldra:data-[current]:underline-offset-[0.2em]',
+  ],
+  props.classes?.trigger,
+]);
 
-function triggerIconClass(open: boolean): string {
-  return partClass(
-    cx(
+function triggerIconClass(open: boolean) {
+  return [
+    [
       'eldra:inline-flex eldra:size-4 eldra:shrink-0 eldra:items-center eldra:justify-center',
       'eldra:transition-[rotate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
-      open && 'eldra:rotate-180'
-    ),
-    props.classes,
-    'triggerIcon'
-  );
+      open && 'eldra:rotate-180',
+    ],
+    props.classes?.triggerIcon,
+  ];
 }
 
-function panelClass(item: NavMenuItem): string {
-  return partClass(
-    cx(
+function panelClass(item: NavMenuItem) {
+  return [
+    [
       'eldra:absolute eldra:top-full eldra:z-popover eldra:eldra-nav-menu-panel',
-      panelLayout(item) === 'mega' ? 'eldra:inset-x-0' : 'eldra:start-0'
-    ),
-    props.classes,
-    'panel'
-  );
+      panelLayout(item) === 'mega' ? 'eldra:inset-x-0' : 'eldra:start-0',
+    ],
+    props.classes?.panel,
+  ];
 }
 
-function contentClass(item: NavMenuItem): string {
-  return partClass(
-    cx(
+function contentClass(item: NavMenuItem) {
+  return [
+    [
       'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-popover-in',
-      panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2'
-    ),
-    props.classes,
-    'content'
-  );
+      panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2',
+    ],
+    props.classes?.content,
+  ];
 }
 
-const footerClass = computed(() =>
-  partClass(
-    'eldra:mt-4 eldra:flex eldra:flex-wrap eldra:items-center eldra:justify-between eldra:gap-x-8 eldra:gap-y-3 eldra:border-t eldra:border-border eldra:pt-4 ' +
-      'eldra:empty:hidden',
-    props.classes,
-    'footer'
-  )
-);
+const footerClass = computed(() => [
+  'eldra:mt-4 eldra:flex eldra:flex-wrap eldra:items-center eldra:justify-between eldra:gap-x-8 eldra:gap-y-3 eldra:border-t eldra:border-border eldra:pt-4 ' +
+    'eldra:empty:hidden',
+  props.classes?.footer,
+]);
 
-const toggleClass = computed(() =>
-  partClass(
-    cx(
-      'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center',
-      'eldra:rounded-md eldra:text-text eldra:eldra-focus',
-      HOVER_FILL,
-      props.collapseBelow === 'never' ? '' : TOGGLE_DISPLAY[props.collapseBelow]
-    ),
-    props.classes,
-    'toggle'
-  )
-);
+const toggleClass = computed(() => [
+  [
+    'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center',
+    'eldra:rounded-md eldra:text-text eldra:eldra-focus',
+    HOVER_FILL,
+    props.collapseBelow === 'never' ? '' : TOGGLE_DISPLAY[props.collapseBelow],
+  ],
+  props.classes?.toggle,
+]);
 
-const toggleIconClass = computed(() => partClass('eldra:size-5', props.classes, 'toggleIcon'));
+const toggleIconClass = computed(() => ['eldra:size-5', props.classes?.toggleIcon]);
 
 const drawerClasses = computed(() => ({
-  root: props.classes?.drawerRoot,
   panel: props.classes?.drawer,
   header: props.classes?.drawerHeader,
   close: props.classes?.drawerClose,
@@ -408,58 +391,51 @@ const drawerClasses = computed(() => ({
 
 const sections = computed(() => props.drawerLayout === 'sections');
 
-const drawerListClass = computed(() =>
-  partClass('eldra:flex eldra:flex-col', props.classes, 'drawerList')
-);
+const drawerListClass = computed(() => ['eldra:flex eldra:flex-col', props.classes?.drawerList]);
 
 // Every top-level row in the drawer, link, accordion row or section heading, is this tall.
 const DRAWER_ROW = 'eldra:eldra-nav-menu-drawer-row';
 
-function drawerItemClass(item: NavMenuItem): string {
-  if (!hasPanel(item))
-    return partClass('eldra:border-b eldra:border-border', props.classes, 'drawerItem');
+function drawerItemClass(item: NavMenuItem) {
+  if (!hasPanel(item)) return ['eldra:border-b eldra:border-border', props.classes?.drawerItem];
   const section = sections.value
     ? 'eldra:flex eldra:flex-col eldra:border-b eldra:border-border eldra:pb-4'
     : '';
-  return partClass(section, props.classes, 'drawerItem');
+  return [section, props.classes?.drawerItem];
 }
 
-function drawerSectionHeadingClass(item: NavMenuItem): string {
-  return partClass(
-    cx(
+function drawerSectionHeadingClass(item: NavMenuItem) {
+  return [
+    [
       DRAWER_ROW,
       'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4 eldra:text-accordion-title eldra:text-text',
-      hasHref(item) && cx('eldra:eldra-focus', CURRENT_PAGE)
-    ),
-    props.classes,
-    'drawerSectionHeading'
-  );
+      hasHref(item) && ['eldra:eldra-focus', CURRENT_PAGE],
+    ],
+    props.classes?.drawerSectionHeading,
+  ];
 }
 
-const drawerLinkClass = computed(() =>
-  partClass(
-    cx(
-      DRAWER_ROW,
-      'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4',
-      'eldra:text-accordion-title eldra:text-text eldra:eldra-focus',
-      CURRENT_PAGE
-    ),
-    props.classes,
-    'drawerLink'
-  )
-);
+const drawerLinkClass = computed(() => [
+  [
+    DRAWER_ROW,
+    'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4',
+    'eldra:text-accordion-title eldra:text-text eldra:eldra-focus',
+    CURRENT_PAGE,
+  ],
+  props.classes?.drawerLink,
+]);
 
-const drawerNestClass = computed(() =>
-  partClass(
-    'eldra:flex eldra:flex-col eldra:ms-1 eldra:border-s eldra:border-border eldra:eldra-nav-menu-drawer-nest',
-    props.classes,
-    'drawerNest'
-  )
-);
+const drawerNestClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:ms-1 eldra:border-s eldra:border-border eldra:eldra-nav-menu-drawer-nest',
+  props.classes?.drawerNest,
+]);
 
 const accordionClasses = computed(() => ({
-  summary: cx(DRAWER_ROW, props.classes?.drawerTrigger),
-  panel: cx('eldra:max-w-none eldra:pb-4 eldra:text-text', props.classes?.drawerPanel),
+  summary: normalizeClass([DRAWER_ROW, props.classes?.drawerTrigger]),
+  panel: normalizeClass([
+    'eldra:max-w-none eldra:pb-4 eldra:text-text',
+    props.classes?.drawerPanel,
+  ]),
 }));
 </script>
 
@@ -468,7 +444,7 @@ const accordionClasses = computed(() => ({
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
     data-part="root"
-    :class="rootClass"
+    :class="ROOT"
     @pointerenter="onRootPointerEnter"
     @pointerleave="onRootPointerLeave"
   >
@@ -617,6 +593,7 @@ const accordionClasses = computed(() => ({
         :side="drawerSide"
         :aria-label="m.navMenuDrawer"
         :messages="messages"
+        :class="classes?.drawerRoot"
         :classes="drawerClasses"
       >
         <template v-if="slots.drawerHeader" #header>

@@ -29,7 +29,7 @@ const meta = {
     docs: {
       description: {
         component: [
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `icon` (optional),',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root`, `icon` (optional),',
           '`label` (the action, strong), `help` (guidance).',
           '',
           'No ARIA role: the spec\'s own accessibility note says editor hints "need no roles" —',

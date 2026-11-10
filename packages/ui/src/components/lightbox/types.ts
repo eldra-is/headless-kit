@@ -4,7 +4,6 @@ import type { UiMessages } from '../../composables/useMessages';
  *  (spec "Lightbox" → Anatomy) plus the API contract's own `thumbnails`/`thumbnail` pair, which the
  *  spec describes ("With thumbnails" variant) but does not number. */
 export type LightboxPart =
-  | 'root'
   | 'panel'
   | 'close'
   | 'track'
@@ -57,6 +56,9 @@ export interface LightboxProps {
   thumbnails?: boolean;
   /** Message overrides. See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the viewer's
+   * `<dialog>` itself with `class`.
+   */
   classes?: Partial<Record<LightboxPart, string>>;
 }

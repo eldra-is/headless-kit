@@ -32,7 +32,7 @@ const meta = {
           '`Popover`/`Dropdown` equivalent, built on the same `usePopover` machinery `Select`,',
           '`MultiSelect` and `SearchBar` share.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (a `display: contents`',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root` (a `display: contents`',
           "wrapper — never a box of its own), `trigger` (not drawn here at all — the consumer's own",
           'element) and `panel` (the floating box).',
           '',
