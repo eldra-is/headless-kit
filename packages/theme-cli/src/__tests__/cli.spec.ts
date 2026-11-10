@@ -321,11 +321,12 @@ describe('eldra-theme CLI', () => {
     const requestUrl = new URL(gateway.lastRequestUrl!, gateway.url);
     expect(requestUrl.searchParams.get('schemas')).toBe('page,hero');
     expect(requestUrl.searchParams.get('moduleName')).toBe('Eldra');
+    expect(requestUrl.searchParams.get('sdkAugmentation')).toBe('true');
   });
 
   it('types writes the SDK augmentation the server emits through unchanged', async () => {
     const dts =
-      'export interface EldraProductExtensions_ { clothing?: ClothingData }\n' +
+      'export interface EldraProductExtensions_ {\n  "clothing"?: ClothingData<0>;\n}\n' +
       "declare module '@eldrajs/sdk' {\n  interface EldraProductExtensions extends EldraProductExtensions_ {}\n}\n";
     gateway = await startMockGateway({ dts });
     const result = await run(['types', '--out', 'generated/eldra.d.ts'], dir, {

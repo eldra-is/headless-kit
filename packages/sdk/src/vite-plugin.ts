@@ -197,6 +197,8 @@ async function fetchCmsTypes(
 ): Promise<string> {
   const url = new URL(`${trimSlash(apiBaseUrl)}/cms/v1/typescript-definitions`);
   url.searchParams.set('moduleName', options.moduleName);
+  // Without this the server leaves out the `declare module '@eldrajs/sdk'` block, which only an SDK consumer can compile.
+  url.searchParams.set('sdkAugmentation', 'true');
   if (options.maxDepth !== undefined) {
     url.searchParams.set('maxDepth', String(options.maxDepth));
   }

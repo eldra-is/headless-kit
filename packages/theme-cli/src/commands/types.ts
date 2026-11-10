@@ -20,6 +20,7 @@ export async function generateTypes(opts: {
   const definitions = await client.getTypeScriptDefinitions({
     schemas: opts.schemas,
     moduleName: 'Eldra',
+    sdkAugmentation: true,
   });
   const target = resolve(opts.themeDir, opts.out);
   mkdirSync(dirname(target), { recursive: true });

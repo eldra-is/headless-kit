@@ -160,6 +160,8 @@ export interface EldraClient {
     schemas?: string[];
     maxDepth?: number;
     moduleName?: string;
+    /** Ask for the `declare module '@eldrajs/sdk'` block that fills `EldraProductExtensions`; off by default. */
+    sdkAugmentation?: boolean;
   }): Promise<string>;
   enablePreview(token: string): void; // switches to draft perspective (X-Preview-Token + no-store)
   disablePreview(): void;
