@@ -51,8 +51,8 @@ const meta = {
           'the destination as `to` (Vue Router / NuxtLink). With no `href` it is ignored and this',
           'is a `<button>`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `container`, `leadingIcon`,',
-          '`label`, `trailingIcon`, `spinner`.',
+          '**Parts** (`data-part`): `container` (styled with `class`), and the keys of the `classes`',
+          'prop: `leadingIcon`, `label`, `trailingIcon`, `spinner`.',
           '',
           '**Slots**: `default` (the label), `leadingIcon`, `trailingIcon`.',
           '',
@@ -270,7 +270,7 @@ export const OnPrimarySection: Story = {
   render: () => ({
     components: { Button, ButtonGroup },
     template: `
-      <div class="group/section bg-primary text-primary-contrast p-6" data-section="primary">
+      <div class="bg-primary text-primary-contrast p-6" data-section="primary">
         <ButtonGroup>
           <Button variant="primary">Add to cart</Button>
           <Button variant="outline">Our story</Button>
@@ -287,7 +287,7 @@ export const OnAccentSection: Story = {
   render: () => ({
     components: { Button, ButtonGroup },
     template: `
-      <div class="group/section bg-accent text-accent-contrast p-6" data-section="accent">
+      <div class="bg-accent text-accent-contrast p-6" data-section="accent">
         <ButtonGroup>
           <Button variant="primary">Add to cart</Button>
           <Button variant="secondary">Shop the sale</Button>

@@ -9,7 +9,7 @@ import type { ImageMedia } from '../image/types';
  * row (`## Multi-select` → Sizes, Tags row), which is also where `Chip`'s `sm` size and its remove
  * button come from directly — see `src/utils/tagRecipe.ts`, shared with `MultiSelect.vue`.
  */
-export type ChipPart = 'root' | 'icon' | 'avatar' | 'label' | 'removeButton';
+export type ChipPart = 'icon' | 'avatar' | 'label' | 'removeButton';
 
 /**
  * `sm` is the exact "small chip" `MultiSelect`'s own tag row draws (1.75rem min height, 0.8125rem
@@ -56,7 +56,8 @@ export interface ChipProps {
   avatar?: ImageMedia | string | null;
   /** This chip's value inside a `ChipGroup` — see `selected` and `ChipGroup`'s own docs. */
   value?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<ChipPart, string>>;
   /**
    * Overrides for the one string this component renders itself: `removeTag`, the remove button's
@@ -70,8 +71,8 @@ export interface ChipProps {
   messages?: Partial<UiMessages>;
 }
 
-/** The one part a consumer can restyle through `ChipGroup`'s `classes`. */
-export type ChipGroupPart = 'root';
+/** ChipGroup has no inner parts: style the group itself with `class`. */
+export type ChipGroupPart = never;
 
 export interface ChipGroupProps {
   /** The selected chips' values (two-way, `update:modelValue`). */
@@ -84,6 +85,4 @@ export interface ChipGroupProps {
   ariaLabel: string;
   /** Disables every member `Chip`, in addition to whatever each one says on its own. */
   disabled?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<ChipGroupPart, string>>;
 }

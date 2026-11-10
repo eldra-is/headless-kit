@@ -35,7 +35,7 @@ const meta = {
           'select UI. For several values use **MultiSelect**; for 2 to 5 options that fit on screen',
           'use **RadioGroup**.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `trigger`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `trigger`,',
           '`leadingIcon`, `value`, `placeholder`, `chevron`, `clearButton`, `panel`, `search`,',
           '`listbox`, `group`, `groupLabel`, `option`, `optionLabel`, `optionHint`, `optionMeta`,',
           '`optionSwatch`, `optionIcon`, `optionCheck`, `empty` and `native`.',

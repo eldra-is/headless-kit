@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type SwitchPart =
-  | 'root'
   | 'track'
   | 'thumb'
   | 'label'
@@ -52,6 +51,9 @@ export interface SwitchProps {
   id?: string;
   /** Native form field name, carried by the hidden mirror `<input type="checkbox">`. */
   name?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<button>`) is styled with `class`.
+   */
   classes?: Partial<Record<SwitchPart, string>>;
 }

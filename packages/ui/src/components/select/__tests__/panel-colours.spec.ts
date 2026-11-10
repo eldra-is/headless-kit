@@ -22,12 +22,13 @@ const OPTIONS: SelectOption[] = [
   { value: 'acrylic', label: 'Acrylic', group: 'Synthetic', disabled: true },
 ];
 
-const BG = 'bg-[color:var(--eldra-select-panel-background,var(--color-background))]';
-const BORDER = 'border-[color:var(--eldra-select-panel-border,var(--color-border))]';
-const TEXT = 'text-[color:var(--eldra-select-panel-text,var(--color-text))]';
-const INHERIT = 'text-[color:var(--eldra-select-panel-text)]';
-const MUTED = 'text-[color:var(--eldra-select-panel-muted,var(--color-muted))]';
-const ACTIVE = 'bg-[color:var(--eldra-select-panel-active,var(--color-surface-strong))]';
+const BG = 'eldra:bg-[color:var(--eldra-select-panel-background,var(--eldra-color-background))]';
+const BORDER = 'eldra:border-[color:var(--eldra-select-panel-border,var(--eldra-color-border))]';
+const TEXT = 'eldra:text-[color:var(--eldra-select-panel-text,var(--eldra-color-text))]';
+const INHERIT = 'eldra:text-[color:var(--eldra-select-panel-text)]';
+const MUTED = 'eldra:text-[color:var(--eldra-select-panel-muted,var(--eldra-color-muted))]';
+const ACTIVE =
+  'eldra:bg-[color:var(--eldra-select-panel-active,var(--eldra-color-surface-strong))]';
 
 const VARIABLES = {
   '--eldra-select-panel-background': '#111827',
@@ -97,16 +98,18 @@ describe.each(CONTROLS)('%s — panel colour variables', (_name, component) => {
     const wrapper = mount(component);
     await open(wrapper);
     const classes = panel(wrapper).classes();
-    expect(classes).toEqual(expect.arrayContaining([BG, BORDER, INHERIT, 'border']));
-    expect(classes).not.toContain('bg-background');
-    expect(classes).not.toContain('border-border');
+    expect(classes).toEqual(expect.arrayContaining([BG, BORDER, INHERIT, 'eldra:border']));
+    expect(classes).not.toContain('eldra:bg-background');
+    expect(classes).not.toContain('eldra:border-border');
   });
 
   it('reads text, muted, border and active through the variables on every row part', async () => {
     const wrapper = mount(component, { searchable: true });
     await open(wrapper);
     expect(part(wrapper, 'search').classes()).toContain(TEXT);
-    expect(part(wrapper, 'search').classes()).toContain(`placeholder:${MUTED}`);
+    expect(part(wrapper, 'search').classes()).toContain(
+      MUTED.replace('eldra:', 'eldra:placeholder:')
+    );
     expect(part(wrapper, 'search').element.parentElement?.className).toContain(BORDER);
     expect(
       part(wrapper, 'search').element.parentElement?.querySelector('svg')?.getAttribute('class')
@@ -170,7 +173,7 @@ describe('Select — selected check', () => {
     const wrapper = mount(Select, { modelValue: 'linen' });
     await open(wrapper);
     expect(part(wrapper, 'optionCheck').classes()).toContain(
-      'text-[color:var(--eldra-select-panel-check,var(--color-text))]'
+      'eldra:text-[color:var(--eldra-select-panel-check,var(--eldra-color-text))]'
     );
   });
 });
@@ -182,22 +185,26 @@ describe('MultiSelect — selected box, footer and tags', () => {
     const boxes = partsOf(wrapper, 'optionCheck');
     expect(boxes[1]?.classes()).toEqual(
       expect.arrayContaining([
-        'bg-[color:var(--eldra-select-panel-check,var(--color-primary))]',
-        'border-[color:var(--eldra-select-panel-check,var(--color-primary))]',
+        'eldra:bg-[color:var(--eldra-select-panel-check,var(--eldra-color-primary))]',
+        'eldra:border-[color:var(--eldra-select-panel-check,var(--eldra-color-primary))]',
       ])
     );
     expect(boxes[1]?.find('svg').classes()).toContain(
-      'text-[color:var(--eldra-select-panel-check-contrast,var(--color-primary-contrast))]'
+      'eldra:text-[color:var(--eldra-select-panel-check-contrast,var(--eldra-color-primary-contrast))]'
     );
     expect(boxes[0]?.classes()).toEqual(
       expect.arrayContaining([
         BG,
-        'border-[color:var(--eldra-select-panel-check-border,var(--color-border-strong))]',
+        'eldra:border-[color:var(--eldra-select-panel-check-border,var(--eldra-color-border-strong))]',
       ])
     );
     // A disabled box keeps the theme's dashed look.
     expect(boxes[3]?.classes()).toEqual(
-      expect.arrayContaining(['bg-surface-strong', 'border-border', 'border-dashed'])
+      expect.arrayContaining([
+        'eldra:bg-surface-strong',
+        'eldra:border-border',
+        'eldra:border-dashed',
+      ])
     );
   });
 
@@ -213,26 +220,24 @@ describe('MultiSelect — selected box, footer and tags', () => {
     const tag = wrapper.find('[data-part="tag"]');
     expect(tag.classes()).toEqual(
       expect.arrayContaining([
-        'bg-[color:var(--eldra-select-tag-background,var(--color-surface-strong))]',
-        'text-[color:var(--eldra-select-tag-text,var(--color-text))]',
+        'eldra:bg-[color:var(--eldra-select-tag-background,var(--eldra-color-surface-strong))]',
+        'eldra:text-[color:var(--eldra-select-tag-text,var(--eldra-color-text))]',
       ])
     );
-    expect(tag.classes()).not.toContain('bg-surface-strong');
+    expect(tag.classes()).not.toContain('eldra:bg-surface-strong');
     const remove = wrapper.find('[data-part="tagRemove"]');
     expect(remove.classes()).toEqual(
       expect.arrayContaining([
-        'text-[color:var(--eldra-select-tag-muted,var(--color-muted))]',
-        'hover:text-[color:var(--eldra-select-tag-text,var(--color-text))]',
-        'hover:bg-[color-mix(in_oklab,var(--eldra-select-tag-text,var(--eldra-color-text)),transparent_89%)]',
+        'eldra:text-[color:var(--eldra-select-tag-muted,var(--eldra-color-muted))]',
+        'eldra:hover:text-[color:var(--eldra-select-tag-text,var(--eldra-color-text))]',
+        'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-select-tag-text,var(--eldra-color-text)),transparent_89%)]',
       ])
     );
   });
 
-  it('lets a consumer tag class replace the variable-reading fill', () => {
+  it('appends a consumer tag class to the variable-reading fill', () => {
     const wrapper = mount(MultiSelect, { modelValue: ['wool'], classes: { tag: 'bg-primary' } });
-    const classes = wrapper.find('[data-part="tag"]').classes();
-    expect(classes).toContain('bg-primary');
-    expect(classes.join(' ')).not.toContain('--eldra-select-tag-background');
+    expect(wrapper.find('[data-part="tag"]').classes()).toContain('bg-primary');
   });
 
   it('is axe-clean with the tags recoloured through their variables', async () => {

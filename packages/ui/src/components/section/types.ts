@@ -4,9 +4,6 @@ export type SectionBackground = 'none' | 'surface' | 'surface-strong' | 'primary
 /** Vertical padding steps (spec "Container and section" → Sizes, Section spacing table). */
 export type SectionSpacing = 'none' | 'sm' | 'md' | 'lg';
 
-/** The parts a consumer can restyle through `classes`. Section has only the one. */
-export type SectionPart = 'root';
-
 export interface SectionProps {
   /** Section ground. Defaults to `none`. */
   background?: SectionBackground;
@@ -26,8 +23,6 @@ export interface SectionProps {
    * package — see the README's "`ariaLabel` is always an accessible name" rule).
    */
   ariaLabel?: string | null;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<SectionPart, string>>;
   /**
    * Render as a different tag instead of the automatic `<section>`/`<div>` choice — a `<header>` for
    * the site header, a `<footer>` for the site footer, both already unique landmarks that need no

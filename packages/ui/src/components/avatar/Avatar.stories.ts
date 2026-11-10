@@ -60,7 +60,7 @@ const meta = {
           'The people/maker identity atom: a round image, initials or a generic user icon —',
           'review authors, testimonial bylines, journal post authors and the account menu.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `image`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `image`,',
           '`initials`, `icon`.',
           '',
           '**Fallback order**: `src` (falling back on a load error, via the `<img>` `error`',

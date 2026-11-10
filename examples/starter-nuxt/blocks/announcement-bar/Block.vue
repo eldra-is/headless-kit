@@ -127,7 +127,7 @@ function moveFocusAfterDismiss(): void {
  * `Section` marks every ground, `none` included, with `data-section-bg`, which is what its own
  * adjacent-same-background CSS rule keys off to drop the *next* sibling's top padding — the reason
  * `breadcrumbs` deliberately avoids it (see that block's own comment). This bar needs `Section`
- * anyway: `background` is `primary` or `accent`, and `Section` is what marks `group/section` +
+ * anyway: `background` is `primary` or `accent`, and `Section` is what marks
  * `data-section` so the `Link` inside the bar inverts itself against an inverted ground.
  * Hand-rolling that marker would be re-implementing `Section`, which the starter's rules forbid
  * outright.
@@ -165,7 +165,8 @@ function moveFocusAfterDismiss(): void {
             :as="linkAs"
             variant="standalone"
             arrow
-            :classes="{ root: 'ml-2', label: 'whitespace-nowrap' }"
+            class="ml-2"
+            :classes="{ label: 'whitespace-nowrap' }"
           >
             {{ data.linkLabel }}
           </Link>

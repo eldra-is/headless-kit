@@ -70,17 +70,17 @@ describe('a recently-viewed product carousel at 1440px, in a real browser', () =
 
   it('shows more than one card, each exactly as wide as its slide, with the track gap kept between them', async () => {
     const boxes = await page.evaluate(() => {
-      const track = document.querySelector<HTMLElement>('.eldra-carousel-track');
+      const track = document.querySelector<HTMLElement>('.eldra\\:eldra-carousel-track');
       if (track === null) return null;
       const gap = Number.parseFloat(getComputedStyle(track).columnGap);
-      const slides = Array.from(track.querySelectorAll<HTMLElement>('.eldra-carousel-slide')).map(
-        (slide) => {
-          const card = slide.querySelector('article');
-          const s = slide.getBoundingClientRect();
-          const c = card?.getBoundingClientRect();
-          return { slide: { x: s.x, width: s.width }, card: c ? { x: c.x, width: c.width } : null };
-        }
-      );
+      const slides = Array.from(
+        track.querySelectorAll<HTMLElement>('.eldra\\:eldra-carousel-slide')
+      ).map((slide) => {
+        const card = slide.querySelector('article');
+        const s = slide.getBoundingClientRect();
+        const c = card?.getBoundingClientRect();
+        return { slide: { x: s.x, width: s.width }, card: c ? { x: c.x, width: c.width } : null };
+      });
       return { gap, slides };
     });
     if (boxes === null) throw new Error('the carousel track never laid out');

@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type RadioGroupPart =
-  | 'root'
   | 'legend'
   | 'requiredMark'
   | 'options'
@@ -85,12 +84,18 @@ export interface RadioGroupProps {
    * a caller that shows its own message. `error` implies it.
    */
   invalid?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<fieldset>`) is styled with `class`.
+   */
   classes?: Partial<Record<RadioGroupPart, string>>;
 }
 
-/** The parts of a standalone `Radio`: the same names as one `RadioGroup` option's parts. */
-export type RadioPart = 'option' | 'radio' | 'input' | 'dot' | 'label' | 'hint';
+/**
+ * The parts of a standalone `Radio`: the same names as one `RadioGroup` option's parts. The root
+ * `<label>` (the `option` part) is styled with `class`.
+ */
+export type RadioPart = 'radio' | 'input' | 'dot' | 'label' | 'hint';
 
 /** The values a standalone `Radio` and its group's model hold. */
 export type RadioValue = string | number;
@@ -116,6 +121,6 @@ export interface RadioProps {
   disabled?: boolean;
   /** Draws the error state and sets `aria-invalid="true"`. */
   invalid?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (a consumer class wins by cascade layer). */
   classes?: Partial<Record<RadioPart, string>>;
 }

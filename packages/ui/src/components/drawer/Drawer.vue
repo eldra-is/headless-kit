@@ -19,7 +19,6 @@ import { computed, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import type { DrawerProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -141,25 +140,19 @@ const closeLabel = computed(() => {
  * for a closed `<dialog>` loses to *any* author `display` utility regardless of specificity, so
  * `flex` alone painted the box even with the `open` attribute gone.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      // No explicit height: `inset-0` pins the top and the bottom and the dialog stretches between
-      // them (`h-auto` overrides the user agent's `fit-content`), which on a phone is the visible
-      // area whether or not the browser's toolbar is showing. `100%` measured the layout viewport,
-      // which keeps a collapsed toolbar's height, so a pinned foot sat under the toolbar; `100dvh`
-      // undershoots in a desktop browser's device emulation and left a strip of page below the foot.
-      'fixed inset-0 m-0 hidden open:flex h-auto max-h-none w-full max-w-none border-0 bg-transparent p-0 text-text',
-      props.side === 'left' ? 'justify-start' : 'justify-end',
-      'backdrop:bg-overlay focus:outline-none',
-      props.side === 'left'
-        ? 'animate-eldra-drawer-in-left motion-reduce:animate-eldra-dialog-in-reduced'
-        : 'animate-eldra-drawer-in-right motion-reduce:animate-eldra-dialog-in-reduced'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  // No explicit height: `inset-0` pins the top and the bottom and the dialog stretches between
+  // them (`h-auto` overrides the user agent's `fit-content`), which on a phone is the visible
+  // area whether or not the browser's toolbar is showing. `100%` measured the layout viewport,
+  // which keeps a collapsed toolbar's height, so a pinned foot sat under the toolbar; `100dvh`
+  // undershoots in a desktop browser's device emulation and left a strip of page below the foot.
+  'eldra:fixed eldra:inset-0 eldra:m-0 eldra:hidden eldra:open:flex eldra:h-auto eldra:max-h-none eldra:w-full eldra:max-w-none eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-text',
+  props.side === 'left' ? 'eldra:justify-start' : 'eldra:justify-end',
+  'eldra:backdrop:bg-overlay eldra:focus:outline-none',
+  props.side === 'left'
+    ? 'eldra:animate-eldra-drawer-in-left eldra:motion-reduce:animate-eldra-dialog-in-reduced'
+    : 'eldra:animate-eldra-drawer-in-right eldra:motion-reduce:animate-eldra-dialog-in-reduced',
+]);
 
 /**
  * The visible sheet (spec "Drawer" → Sizes): full viewport height pinned to its edge, the width
@@ -169,19 +162,14 @@ const rootClass = computed(() =>
  * one, since the outer edge is the viewport boundary itself — and none below 48rem, where the
  * sheet covers the screen and that edge is the viewport's too.
  */
-const panelClass = computed(() =>
-  partClass(
-    cx(
-      'flex h-full max-h-full min-w-0 flex-col bg-background text-text shadow-md',
-      'eldra-drawer-width',
-      props.side === 'left'
-        ? 'border-r border-border max-md:border-r-0'
-        : 'border-l border-border max-md:border-l-0'
-    ),
-    props.classes,
-    'panel'
-  )
-);
+const panelClass = computed(() => [
+  'eldra:flex eldra:h-full eldra:max-h-full eldra:min-w-0 eldra:flex-col eldra:bg-background eldra:text-text eldra:shadow-md',
+  'eldra:eldra-drawer-width',
+  props.side === 'left'
+    ? 'eldra:border-r eldra:border-border eldra:max-md:border-r-0'
+    : 'eldra:border-l eldra:border-border eldra:max-md:border-l-0',
+  props.classes?.panel,
+]);
 
 /** `--eldra-drawer-width` from the `width` prop, left unset so the utility's own literal default
  *  (28rem) applies when the prop is omitted. */
@@ -189,16 +177,11 @@ const panelStyle = computed(() =>
   props.width === undefined ? undefined : { '--eldra-drawer-width': props.width }
 );
 
-const headerClass = computed(() =>
-  partClass(
-    cx(
-      'flex shrink-0 items-center gap-4 border-b border-border',
-      'eldra-drawer-header-height eldra-drawer-gutter eldra-drawer-header-top eldra-drawer-header-bottom'
-    ),
-    props.classes,
-    'header'
-  )
-);
+const headerClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-4 eldra:border-b eldra:border-border',
+  'eldra:eldra-drawer-header-height eldra:eldra-drawer-gutter eldra:eldra-drawer-header-top eldra:eldra-drawer-header-bottom',
+  props.classes?.header,
+]);
 
 /** A plain layout spacer, not a named part: `flex-1` so it claims every pixel the title does not
  *  need, which is what pushes the close button to the row's end even when there is no `title` to
@@ -206,13 +189,14 @@ const headerClass = computed(() =>
  *  button itself, which this package avoids combining with a physical `m-*`/`-m-*` utility on the
  *  same element (a logical margin and the `margin` shorthand can resolve to the same edge, and
  *  which one wins is a stylesheet-order question neither utility's class name reveals). */
-const titleAreaClass = 'min-w-0 flex-1';
+const titleAreaClass = 'eldra:min-w-0 eldra:flex-1';
 
-const titleClass = computed(() =>
-  partClass('min-w-0 text-drawer-title text-text', props.classes, 'title')
-);
+const titleClass = computed(() => [
+  'eldra:min-w-0 eldra:text-drawer-title eldra:text-text',
+  props.classes?.title,
+]);
 
-const countClass = computed(() => partClass('text-muted font-normal', props.classes, 'count'));
+const countClass = computed(() => ['eldra:text-muted eldra:font-normal', props.classes?.count]);
 
 /**
  * Spec "Drawer" → States, Close button row, and Sizes: "2.5rem square ghost icon button, 2.75rem
@@ -222,37 +206,24 @@ const countClass = computed(() => partClass('text-muted font-normal', props.clas
  * fills, `eldra-focus`, `cursor-pointer`; see that file's comment for why the "moves down 1px"
  * active state is a 2% scale instead of a translate).
  */
-const closeClass = computed(() =>
-  partClass(
-    cx(
-      'inline-flex size-10 max-md:size-11 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-      'text-text eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'active:scale-[0.98] active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]'
-    ),
-    props.classes,
-    'close'
-  )
-);
+const closeClass = computed(() => [
+  'eldra:inline-flex eldra:size-10 eldra:max-md:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+  'eldra:text-text eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]',
+  props.classes?.close,
+]);
 
-const bodyClass = computed(() =>
-  partClass(
-    cx('min-h-0 flex-1 overflow-y-auto pt-6 eldra-drawer-gutter eldra-drawer-body-bottom'),
-    props.classes,
-    'body'
-  )
-);
+const bodyClass = computed(() => [
+  'eldra:min-h-0 eldra:flex-1 eldra:overflow-y-auto eldra:pt-6 eldra:eldra-drawer-gutter eldra:eldra-drawer-body-bottom',
+  props.classes?.body,
+]);
 
-const footerClass = computed(() =>
-  partClass(
-    cx(
-      'flex shrink-0 flex-wrap items-center gap-3 border-t border-border bg-background pt-5',
-      'eldra-drawer-gutter eldra-drawer-footer-bottom'
-    ),
-    props.classes,
-    'footer'
-  )
-);
+const footerClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:flex-wrap eldra:items-center eldra:gap-3 eldra:border-t eldra:border-border eldra:bg-background eldra:pt-5',
+  'eldra:eldra-drawer-gutter eldra:eldra-drawer-footer-bottom',
+  props.classes?.footer,
+]);
 </script>
 
 <template>
@@ -291,7 +262,7 @@ const footerClass = computed(() =>
         >
           <!-- Tabler's `x`, 1.75 stroke, matching Dialog's own close button. -->
           <svg
-            class="size-4"
+            class="eldra:size-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

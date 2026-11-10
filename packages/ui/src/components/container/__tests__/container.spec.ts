@@ -26,9 +26,9 @@ describe('Container — element', () => {
 
 describe('Container — widths', () => {
   it.each<[ContainerWidth, string]>([
-    ['narrow', 'eldra-container-narrow'],
-    ['content', 'eldra-container-content'],
-    ['wide', 'eldra-container-wide'],
+    ['narrow', 'eldra:eldra-container-narrow'],
+    ['content', 'eldra:eldra-container-content'],
+    ['wide', 'eldra:eldra-container-wide'],
   ])('caps %s at its token max-width', (width, className) => {
     const wrapper = mountWith(Container, { props: { width } });
     expect(wrapper.classes()).toContain(className);
@@ -37,15 +37,15 @@ describe('Container — widths', () => {
 
   it('defaults to content', () => {
     const wrapper = mountWith(Container);
-    expect(wrapper.classes()).toContain('eldra-container-content');
+    expect(wrapper.classes()).toContain('eldra:eldra-container-content');
     wrapper.unmount();
   });
 
   it('full has no maximum and no gutters', () => {
     const wrapper = mountWith(Container, { props: { width: 'full' } });
-    expect(wrapper.classes()).toContain('max-w-none');
+    expect(wrapper.classes()).toContain('eldra:max-w-none');
     expect(wrapper.classes().join(' ')).not.toMatch(/gutter/);
-    expect(wrapper.classes()).not.toContain('px-[var(--eldra-gutter-mobile)]');
+    expect(wrapper.classes()).not.toContain('eldra:px-[var(--eldra-gutter-mobile)]');
     wrapper.unmount();
   });
 
@@ -53,28 +53,28 @@ describe('Container — widths', () => {
     'gives %s the gutter scale, breakpointed on the block width',
     (width) => {
       const wrapper = mountWith(Container, { props: { width } });
-      expect(wrapper.classes()).toContain('px-[var(--eldra-gutter-mobile)]');
-      expect(wrapper.classes()).toContain('@tablet:px-[var(--eldra-gutter-tablet)]');
-      expect(wrapper.classes()).toContain('@content:px-[var(--eldra-gutter-desktop)]');
+      expect(wrapper.classes()).toContain('eldra:px-[var(--eldra-gutter-mobile)]');
+      expect(wrapper.classes()).toContain('eldra:@tablet:px-[var(--eldra-gutter-tablet)]');
+      expect(wrapper.classes()).toContain('eldra:@content:px-[var(--eldra-gutter-desktop)]');
       wrapper.unmount();
     }
   );
 
   it('centres the box', () => {
     const wrapper = mountWith(Container);
-    expect(wrapper.classes()).toContain('mx-auto');
-    expect(wrapper.classes()).toContain('w-full');
+    expect(wrapper.classes()).toContain('eldra:mx-auto');
+    expect(wrapper.classes()).toContain('eldra:w-full');
     wrapper.unmount();
   });
 });
 
 describe('Container — customisation', () => {
-  it('lets classes.root replace the width instead of landing beside it', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(Container, {
-      props: { width: 'narrow', classes: { root: 'max-w-2xl' } },
+      props: { width: 'narrow' },
+      attrs: { class: 'max-w-2xl' },
     });
     expect(wrapper.classes()).toContain('max-w-2xl');
-    expect(wrapper.classes()).not.toContain('eldra-container-narrow');
     wrapper.unmount();
   });
 });

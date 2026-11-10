@@ -135,7 +135,7 @@ const SortIcon = iconComponent('arrows-sort');
  * the width it is: two tracks of 14rem plus a gap do not fit a phone, and the card's minimum
  * would push the second column off the edge. The track decides the width here, as in the carousel.
  */
-const CARD_CLASSES = { root: 'min-w-0' } as const;
+const CARD_CLASS = 'min-w-0';
 /** The freshly-inserted editor hint's box icon (spec States, "Empty (freshly inserted)"). */
 const BoxIcon = iconComponent('box');
 
@@ -1605,7 +1605,7 @@ function hrefForPage(page: number): string {
     v-if="hasCollection || showNoCollectionHint || showNoCategoryHint"
     spacing="none"
     :aria-label="sectionLabel"
-    :classes="{ root: 'pt-6 pb-[var(--eldra-section-md)]' }"
+    class="pt-6 pb-[var(--eldra-section-md)]"
   >
     <Container width="wide">
       <EditorPlaceholder
@@ -1662,7 +1662,7 @@ function hrefForPage(page: number): string {
                 v-if="hasFilters"
                 variant="outline"
                 :icon-left="AdjustmentsIcon"
-                :classes="{ container: 'min-h-11' }"
+                class="min-h-11"
                 aria-haspopup="dialog"
                 :aria-expanded="drawerOpen ? 'true' : 'false'"
                 :aria-controls="drawerId"
@@ -1673,7 +1673,7 @@ function hrefForPage(page: number): string {
                   v-if="activeCount > 0"
                   tone="primary"
                   pill
-                  :classes="{ root: 'ms-1' }"
+                  class="ms-1"
                   :hidden-suffix="t('grid.nActive', { count: activeCount })"
                 >
                   <span aria-hidden="true">{{ activeCount }}</span>
@@ -1682,7 +1682,8 @@ function hrefForPage(page: number): string {
               <FieldWrapper
                 v-if="hasSort"
                 :label="t('grid.sortBy')"
-                :classes="{ root: TOP_BAR_SORT, label: 'sr-only' }"
+                :class="TOP_BAR_SORT"
+                :classes="{ label: 'sr-only' }"
               >
                 <Select
                   :model-value="sort"
@@ -1710,10 +1711,8 @@ function hrefForPage(page: number): string {
                 <FieldWrapper
                   v-if="hasSort"
                   :label="t('grid.sortBy')"
-                  :classes="{
-                    root: 'flex items-center gap-2',
-                    label: 'text-body-sm text-muted mb-0 shrink-0 font-medium',
-                  }"
+                  class="flex items-center gap-2"
+                  :classes="{ label: 'text-body-sm text-muted mb-0 shrink-0 font-medium' }"
                 >
                   <Select
                     :model-value="sort"
@@ -1725,10 +1724,8 @@ function hrefForPage(page: number): string {
                 <FieldWrapper
                   v-if="showColumnSelect"
                   :label="t('grid.columns')"
-                  :classes="{
-                    root: 'flex items-center gap-2',
-                    label: 'text-body-sm text-muted mb-0 shrink-0 font-medium',
-                  }"
+                  class="flex items-center gap-2"
+                  :classes="{ label: 'text-body-sm text-muted mb-0 shrink-0 font-medium' }"
                 >
                   <Select
                     :model-value="columnsChoice"
@@ -1780,7 +1777,7 @@ function hrefForPage(page: number): string {
                     :product="entry.product"
                     ratio="4x5"
                     :heading-level="3"
-                    :classes="CARD_CLASSES"
+                    :class="CARD_CLASS"
                     :quick-add="false"
                     :revalidating="entry.revalidating"
                     :announce="false"

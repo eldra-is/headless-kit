@@ -23,7 +23,7 @@ const meta = {
           'options that carry detail (a shipping method and its price). Past about 6 options use',
           '**Select** (searchable past 10).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the `<fieldset>`),',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the `<fieldset>`, styled with `class`),',
           '`legend`, `options` (the list), `option` (one row or card), `radio` (the drawn circle),',
           '`label`, `hint`, `meta` (cards only) and `error`/`errorIcon`. The native',
           '`<input type="radio">` has no `classes` key of its own, exactly like `Checkbox`’s',

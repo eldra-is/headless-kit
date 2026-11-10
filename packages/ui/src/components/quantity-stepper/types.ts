@@ -1,7 +1,7 @@
 /** The parts a consumer can restyle through `classes`, named as this package's own contract names
  * them (spec "Quantity stepper" → Anatomy draws the same four controls plus the error row every
  * other field in this package shows the same way). */
-export type QuantityStepperPart = 'root' | 'decrease' | 'input' | 'increase' | 'error';
+export type QuantityStepperPart = 'decrease' | 'input' | 'increase' | 'error';
 
 /** The spec's two sizes (spec "Quantity stepper" → Sizes): the default and the cart-line/filter
  * compact one. */
@@ -32,6 +32,9 @@ export interface QuantityStepperProps {
    * whatever `provideEldraUiLocale` set for the app, and to `"en-US"` with nothing provided.
    */
   locale?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<QuantityStepperPart, string>>;
 }

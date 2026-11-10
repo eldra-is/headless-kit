@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import type { LogoItemProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -85,16 +84,11 @@ const hasLogo = computed(() => Boolean(props.logo));
  * no `transition-*` utility joins it here. The image and wordmark below are separate elements and
  * carry their own opacity/colour transitions.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'flex flex-col items-center justify-center min-h-16 py-3 px-4 text-center',
-      hasHref.value && 'group rounded-md eldra-focus'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:items-center eldra:justify-center eldra:min-h-16 eldra:py-3 eldra:px-4 eldra:text-center',
+  hasHref.value && 'eldra:group eldra:rounded-md eldra:eldra-focus',
+  props.classes?.root,
+]);
 
 /**
  * The monochrome treatment (spec "Logo item" → Anatomy, States): greyscale + 110% contrast at 75%
@@ -105,19 +99,14 @@ const rootClass = computed(() =>
  * Hover only raises the opacity (spec: "hover on a linked item raises them to 100%") — the
  * grey/contrast treatment itself never changes, linked or not.
  */
-const imageClass = computed(() =>
-  partClass(
-    cx(
-      'block h-auto w-auto object-contain grayscale contrast-[1.1] opacity-75',
-      'max-h-[var(--eldra-logo-image-max-height,2.5rem)]',
-      'max-w-[var(--eldra-logo-image-max-width,9rem)]',
-      'transition-opacity duration-fast ease-out motion-reduce:transition-none',
-      hasHref.value && 'group-hover:opacity-100'
-    ),
-    props.classes,
-    'image'
-  )
-);
+const imageClass = computed(() => [
+  'eldra:block eldra:h-auto eldra:w-auto eldra:object-contain eldra:grayscale eldra:contrast-[1.1] eldra:opacity-75',
+  'eldra:max-h-[var(--eldra-logo-image-max-height,2.5rem)]',
+  'eldra:max-w-[var(--eldra-logo-image-max-width,9rem)]',
+  'eldra:transition-opacity eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+  hasHref.value && 'eldra:group-hover:opacity-100',
+  props.classes?.image,
+]);
 
 /**
  * The wordmark fallback (spec "Logo item" → Sizes, "Wordmark" row): heading family, 1.25rem,
@@ -129,19 +118,14 @@ const imageClass = computed(() =>
  * variable for what doesn't" shape as `text-card-title`/`text-stepper-value`. `muted` turning
  * `text` on hover is the same colour rule `Link`'s `muted` tone uses.
  */
-const wordmarkClass = computed(() =>
-  partClass(
-    cx(
-      'text-logo-wordmark text-balance text-muted',
-      'transition-colors duration-fast ease-out motion-reduce:transition-none',
-      hasHref.value && 'group-hover:text-text'
-    ),
-    props.classes,
-    'wordmark'
-  )
-);
+const wordmarkClass = computed(() => [
+  'eldra:text-logo-wordmark eldra:text-balance eldra:text-muted',
+  'eldra:transition-colors eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+  hasHref.value && 'eldra:group-hover:text-text',
+  props.classes?.wordmark,
+]);
 
-const srTextClass = computed(() => partClass('sr-only', props.classes, 'srText'));
+const srTextClass = computed(() => ['eldra:sr-only', props.classes?.srText]);
 </script>
 
 <template>

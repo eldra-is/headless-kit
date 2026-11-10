@@ -193,7 +193,7 @@ describe('Toast — info and closable', () => {
     const wrapper = mountWith(Toast, {
       props: { title: 'Prices update at midnight', variant: 'info' },
     });
-    expect(wrapper.find('[data-part="icon"]').classes()).toContain('text-text');
+    expect(wrapper.find('[data-part="icon"]').classes()).toContain('eldra:text-text');
     expect(wrapper.attributes('role')).toBeUndefined();
   });
 

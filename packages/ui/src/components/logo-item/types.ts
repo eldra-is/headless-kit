@@ -34,6 +34,7 @@ export interface LogoItemProps {
    * destination as its `to` prop instead. Ignored when there is no `href`.
    */
   as?: string | Component;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). `root` is the cell
+   * (the link when linked); `class` lands on the `<li>`. */
   classes?: Partial<Record<LogoItemPart, string>>;
 }

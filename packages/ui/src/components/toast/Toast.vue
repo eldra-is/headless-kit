@@ -8,7 +8,6 @@
  */
 import { computed } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import type { ToastProps, ToastVariant } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -59,10 +58,10 @@ const ICON_STROKE_WIDTH = 1.75;
 /** Spec "Toast" -> Sizes/Variants: "icon variant colour" — the icon has no fill of its own, it
  *  inherits `currentColor` from this. */
 const VARIANT_TEXT_CLASS: Record<ToastVariant, string> = {
-  success: 'text-success',
-  info: 'text-text',
-  warning: 'text-warning',
-  danger: 'text-danger',
+  success: 'eldra:text-success',
+  info: 'eldra:text-text',
+  warning: 'eldra:text-warning',
+  danger: 'eldra:text-danger',
 };
 
 const actionHref = computed<string | undefined>(() =>
@@ -95,51 +94,38 @@ function onKeydown(event: KeyboardEvent): void {
   emit('close', 'escape');
 }
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'flex w-full items-start gap-3 rounded-md border border-border bg-background p-4 shadow-md',
-      'animate-eldra-toast-in'
-    ),
-    props.classes,
-    'root'
-  )
-);
-const iconClass = computed(() =>
-  partClass(cx('mt-0.5 size-5 shrink-0', VARIANT_TEXT_CLASS[props.variant]), props.classes, 'icon')
-);
-const titleClass = computed(() => partClass('text-toast-title text-text', props.classes, 'title'));
-const textClass = computed(() =>
-  partClass('mt-0.5 text-body-sm text-muted', props.classes, 'text')
-);
-const actionClass = computed(() =>
-  partClass(
-    cx(
-      'target-min mt-1 inline-flex cursor-pointer items-center text-body-sm font-semibold',
-      'text-text underline decoration-1 underline-offset-[0.2em] eldra-focus'
-    ),
-    props.classes,
-    'action'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:w-full eldra:items-start eldra:gap-3 eldra:rounded-md eldra:border eldra:border-border eldra:bg-background eldra:p-4 eldra:shadow-md',
+  'eldra:animate-eldra-toast-in',
+]);
+const iconClass = computed(() => [
+  'eldra:mt-0.5 eldra:size-5 eldra:shrink-0',
+  VARIANT_TEXT_CLASS[props.variant],
+  props.classes?.icon,
+]);
+const titleClass = computed(() => ['eldra:text-toast-title eldra:text-text', props.classes?.title]);
+const textClass = computed(() => [
+  'eldra:mt-0.5 eldra:text-body-sm eldra:text-muted',
+  props.classes?.text,
+]);
+const actionClass = computed(() => [
+  'eldra:target-min eldra:mt-1 eldra:inline-flex eldra:cursor-pointer eldra:items-center eldra:text-body-sm eldra:font-semibold',
+  'eldra:text-text eldra:underline eldra:decoration-1 eldra:underline-offset-[0.2em] eldra:eldra-focus',
+  props.classes?.action,
+]);
 /**
  * Spec "Toast" -> Sizes, "Close" row: "2rem square ghost icon button, pulled 0.375rem up and
  * right into the padding." Same recipe as `Dialog`'s own close button (`-m-1` there, for its
  * 1.5rem-padding header) scaled to this toast's 1rem padding: negative top/right margins pull the
  * button toward the corner without changing the root's own `p-4`.
  */
-const closeClass = computed(() =>
-  partClass(
-    cx(
-      '-mt-1.5 -mr-1.5 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-      'text-text eldra-focus',
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      'active:scale-[0.98] active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]'
-    ),
-    props.classes,
-    'close'
-  )
-);
+const closeClass = computed(() => [
+  'eldra:-mt-1.5 eldra:-mr-1.5 eldra:inline-flex eldra:size-8 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-sm',
+  'eldra:text-text eldra:eldra-focus',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  'eldra:active:scale-[0.98] eldra:active:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)]',
+  props.classes?.close,
+]);
 </script>
 
 <template>
@@ -166,7 +152,7 @@ const closeClass = computed(() =>
     >
       <path v-for="d in ICON_PATHS[variant]" :key="d" :d="d" />
     </svg>
-    <div class="min-w-0 flex-1">
+    <div class="eldra:min-w-0 eldra:flex-1">
       <p data-part="title" :class="titleClass">{{ title }}</p>
       <p v-if="text" data-part="text" :class="textClass">{{ text }}</p>
       <a
@@ -197,7 +183,7 @@ const closeClass = computed(() =>
     >
       <!-- Tabler's `x`, matching Dialog's own close icon exactly. -->
       <svg
-        class="size-4"
+        class="eldra:size-4"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

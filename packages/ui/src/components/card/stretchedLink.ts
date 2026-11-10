@@ -40,6 +40,7 @@
  * title, `group-hover:translate-x-0.5` on a cue arrow) from the root's `group` rather than from the
  * `<a>` directly: a cue is a sibling of the `<a>`, not a descendant of it.
  */
-export const CARD_FOCUS_PROXY = 'group relative rounded-lg eldra-focus eldra-focus-proxy';
-export const STRETCHED_LINK = 'after:absolute after:inset-0';
-export const STRETCHED_LINK_OUTLINE = 'outline-none';
+export const CARD_FOCUS_PROXY =
+  'eldra:group eldra:relative eldra:rounded-lg eldra:eldra-focus eldra:eldra-focus-proxy';
+export const STRETCHED_LINK = 'eldra:after:absolute eldra:after:inset-0';
+export const STRETCHED_LINK_OUTLINE = 'eldra:outline-none';

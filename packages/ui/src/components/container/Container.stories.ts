@@ -17,7 +17,6 @@ const meta = {
   argTypes: {
     width: { control: 'inline-radio', options: ['narrow', 'content', 'wide', 'full'] },
     as: { table: { disable: true } },
-    classes: { table: { disable: true } },
   },
   parameters: {
     docs: {
@@ -29,7 +28,7 @@ const meta = {
           'establishes. Every block root is a width container (see `Section`), which is what keeps a',
           'gallery in a narrow page-builder column at the mobile gutter even on a wide screen.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`.',
+          '**Parts** (`data-part`): `root`, styled with `class`.',
           '',
           '**Slots**: `default`.',
           '',

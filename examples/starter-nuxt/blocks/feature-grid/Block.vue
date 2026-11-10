@@ -226,8 +226,8 @@ const items = computed(() =>
               :link-as="item.linkAs"
               :variant="featureCardVariant"
               :heading-level="3"
+              class="h-full"
               :classes="{
-                root: 'h-full',
                 iconTile: item.showIconTile ? undefined : 'hidden',
                 titleLink: NO_UNDERLINE_UNTIL_HOVER,
                 cue: 'mt-auto',

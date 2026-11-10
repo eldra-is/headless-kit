@@ -120,8 +120,8 @@ describe('MultiSelect — anatomy and parts', () => {
     const wrapper = mount({ modelValue: ['sweaters'], placeholder: 'Choose categories' });
     const stack = trigger(wrapper).querySelector('[data-part="summary"]')!.parentElement!;
     expect(stack.getAttribute('data-placeholder')).toBe('Choose categories');
-    expect(stack.className).toContain('after:content-[attr(data-placeholder)]');
-    expect(stack.className).toContain('after:invisible');
+    expect(stack.className).toContain('eldra:after:content-[attr(data-placeholder)]');
+    expect(stack.className).toContain('eldra:after:invisible');
     expect(trigger(wrapper).textContent).not.toContain('Choose categories');
   });
 
@@ -173,7 +173,7 @@ describe('MultiSelect — anatomy and parts', () => {
     expect(wrapper.find('[data-part="summaryMore"]').exists()).toBe(false);
   });
 
-  it('merges a per-part class override on a part of its own', async () => {
+  it('appends a per-part class override on a part of its own', async () => {
     const wrapper = mount({
       modelValue: ['sweaters'],
       classes: { tag: 'px-6', summaryMore: 'bg-primary', footer: 'p-4', option: 'px-6' },
@@ -187,12 +187,12 @@ describe('MultiSelect — anatomy and parts', () => {
 
   it('shows cursor-pointer on a live trigger, and cursor-default on a read-only one (operator report, 2026-09-25)', () => {
     const wrapper = mount();
-    expect(trigger(wrapper).className).toContain('cursor-pointer');
-    expect(trigger(wrapper).className).not.toContain('cursor-default');
+    expect(trigger(wrapper).className).toContain('eldra:cursor-pointer');
+    expect(trigger(wrapper).className).not.toContain('eldra:cursor-default');
 
     const readonly = mount({ readonly: true, modelValue: ['sweaters'] });
-    expect(trigger(readonly).className).toContain('cursor-default');
-    expect(trigger(readonly).className).not.toContain('cursor-pointer');
+    expect(trigger(readonly).className).toContain('eldra:cursor-default');
+    expect(trigger(readonly).className).not.toContain('eldra:cursor-pointer');
   });
 });
 
@@ -215,24 +215,24 @@ describe('MultiSelect — the listbox and its checkboxes', () => {
     // Every row draws a box; only the selected one is filled, and it holds the tick.
     const boxes = panel(wrapper).findAll('[data-part="optionCheck"]');
     expect(boxes).toHaveLength(CATEGORIES.length);
-    const FILLED = 'bg-[color:var(--eldra-select-panel-check,var(--color-primary))]';
+    const FILLED = 'eldra:bg-[color:var(--eldra-select-panel-check,var(--eldra-color-primary))]';
     expect(boxes[1]?.classes()).toContain(FILLED);
     // The tick is always drawn and scaled, so it can grow in over `duration-fast`.
-    expect(boxes[1]?.find('svg').classes()).toContain('scale-100');
+    expect(boxes[1]?.find('svg').classes()).toContain('eldra:scale-100');
     expect(boxes[0]?.classes()).not.toContain(FILLED);
-    expect(boxes[0]?.find('svg').classes()).toContain('scale-0');
+    expect(boxes[0]?.find('svg').classes()).toContain('eldra:scale-0');
     // Selection is the box, not the check mark a single select ends its row with.
     expect(boxes[1]?.attributes('aria-hidden')).toBe('true');
-    expect(optionEls(wrapper)[1]?.classes()).toContain('font-medium');
-    expect(optionEls(wrapper)[1]?.classes()).not.toContain('font-semibold');
+    expect(optionEls(wrapper)[1]?.classes()).toContain('eldra:font-medium');
+    expect(optionEls(wrapper)[1]?.classes()).not.toContain('eldra:font-semibold');
   });
 
   it('keeps the forced-colours boundaries the shared panel draws', async () => {
     const wrapper = mount({ modelValue: ['cardigans'], searchable: false });
     await press(triggerOf(wrapper));
-    expect(optionEls(wrapper)[1]?.classes()).toContain('eldra-select-option-selected');
+    expect(optionEls(wrapper)[1]?.classes()).toContain('eldra:eldra-select-option-selected');
     await optionEls(wrapper)[0]?.trigger('mouseenter');
-    expect(optionEls(wrapper)[0]?.classes()).toContain('eldra-select-option-active');
+    expect(optionEls(wrapper)[0]?.classes()).toContain('eldra:eldra-select-option-active');
   });
 });
 
@@ -314,6 +314,13 @@ describe('MultiSelect — the footer', () => {
 
     await wrapper.setProps({ modelValue: ['sweaters', 'mugs'] });
     expect(panel(wrapper).find('[data-part="footerCount"]').text()).toBe(enUS.selectedCount(2));
+  });
+
+  it("replaces the link button's own zero padding on Clear", async () => {
+    const wrapper = mount({ modelValue: ['sweaters'], searchable: false });
+    await press(triggerOf(wrapper));
+    expect(footerClear(wrapper).classList.contains('eldra:px-2')).toBe(true);
+    expect(footerClear(wrapper).classList.contains('eldra:px-0')).toBe(false);
   });
 
   it('empties the selection with Clear and keeps the popover open', async () => {
@@ -417,7 +424,7 @@ describe('MultiSelect — clearing and tags', () => {
     expect(remove[0]?.attributes('aria-label')).toBe(enUS.removeTag('Sweaters'));
     expect(remove[0]?.attributes('type')).toBe('button');
     // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-    expect(remove[0]?.classes()).toContain('cursor-pointer');
+    expect(remove[0]?.classes()).toContain('eldra:cursor-pointer');
 
     await remove[0]?.trigger('click');
     await flush();
@@ -444,7 +451,7 @@ describe('MultiSelect — clearing and tags', () => {
     const wrapper = mount({ modelValue: ['sweaters', 'mugs'] });
     const clearButton = wrapper.find('[data-part="clearButton"]');
     // Operator report, 2026-09-25: every enabled button shows a pointer cursor.
-    expect(clearButton.classes()).toContain('cursor-pointer');
+    expect(clearButton.classes()).toContain('eldra:cursor-pointer');
     await clearButton.trigger('click');
     await flush();
     expect(wrapper.emitted('change')).toEqual([[[]]]);
@@ -503,11 +510,11 @@ describe('MultiSelect — clearing and tags', () => {
       // which would still be announced.
       expect(wrapper.findAll('[data-part="tagRemove"]')).toHaveLength(0);
       // The chip pads evenly instead of ending short where the button used to be.
-      expect(tags(wrapper)[0]?.classes()).toContain('px-2.5');
+      expect(tags(wrapper)[0]?.classes()).toContain('eldra:px-2.5');
 
       await wrapper.setProps({ [state]: false });
       expect(wrapper.findAll('[data-part="tagRemove"]')).toHaveLength(2);
-      expect(tags(wrapper)[0]?.classes()).toContain('pe-0.5');
+      expect(tags(wrapper)[0]?.classes()).toContain('eldra:pe-0.5');
     }
   );
 
@@ -545,7 +552,7 @@ describe('MultiSelect — searching and the shared panel', () => {
     expect(optionEls(wrapper).map((option) => option.text())).toEqual(['Móss']);
     expect(
       panel(wrapper)
-        .findAll('.eldra-select-match')
+        .findAll('.eldra\\:eldra-select-match')
         .map((mark) => mark.text())
     ).toEqual(['Mós']);
     expect(wrapper.emitted('search')).toEqual([['mos']]);
@@ -761,7 +768,7 @@ describe('MultiSelect — slots, messages and the field wrapper', () => {
       enUS.removeTag('Sweaters')
     );
     // The `<li>` no longer draws a chip of its own.
-    expect(tags(wrapper)[0]?.classes()).not.toContain('pe-0.5');
+    expect(tags(wrapper)[0]?.classes()).not.toContain('eldra:pe-0.5');
   });
 
   it("removes through tagItem's remove and returns focus to the trigger", async () => {
@@ -946,7 +953,7 @@ describe('MultiSelect — the checkbox geometry', () => {
   it('draws the svg at the mark size, so a viewBox unit is a drawn pixel', async () => {
     const { classes, viewBox } = await tick();
     // 0.5rem square on the 0.25rem spacing step.
-    expect(classes).toContain('size-2');
+    expect(classes).toContain('eldra:size-2');
     expect(viewBox).toBe('0 0 8 8');
   });
 
@@ -993,8 +1000,8 @@ describe('MultiSelect — long content and narrow containers', () => {
       attrs: NAME,
     });
     mounted.push(wrapper as unknown as VueWrapper);
-    expect(wrapper.find('[data-part="summary"] span').classes()).toContain('truncate');
-    expect(wrapper.find('[data-part="tags"]').classes()).toContain('flex-wrap');
+    expect(wrapper.find('[data-part="summary"] span').classes()).toContain('eldra:truncate');
+    expect(wrapper.find('[data-part="tags"]').classes()).toContain('eldra:flex-wrap');
 
     const button = wrapper.find('[data-part="trigger"]').element as HTMLElement;
     Object.defineProperty(document.documentElement, 'clientWidth', {
@@ -1024,7 +1031,7 @@ describe('MultiSelect — the panel entrance', () => {
   it('carries the entrance utility and the origin the keyframes read', async () => {
     const wrapper = mount();
     await press(triggerOf(wrapper));
-    expect(panel(wrapper).classes()).toContain('animate-eldra-popover-in');
+    expect(panel(wrapper).classes()).toContain('eldra:animate-eldra-popover-in');
     expect(panel(wrapper).attributes('style')).toContain('--eldra-popover-origin: top left');
     expect(panel(wrapper).attributes('style')).not.toContain('--eldra-popover-slide');
   });
@@ -1034,11 +1041,11 @@ describe('MultiSelect — the panel entrance', () => {
 describe('MultiSelect — the ring while the popover is open', () => {
   it('carries the open-state ring modifier beside the ring itself', async () => {
     const wrapper = mount();
-    expect(triggerOf(wrapper).classes()).toContain('eldra-focus');
-    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+    expect(triggerOf(wrapper).classes()).toContain('eldra:eldra-focus');
+    expect(triggerOf(wrapper).classes()).toContain('eldra:eldra-focus-open');
     await press(triggerOf(wrapper));
     expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('true');
-    expect(triggerOf(wrapper).classes()).toContain('eldra-focus-open');
+    expect(triggerOf(wrapper).classes()).toContain('eldra:eldra-focus-open');
   });
 });
 
@@ -1060,7 +1067,7 @@ describe('MultiSelect — tags inside the field', () => {
     // The list keeps its role and name while `display: contents` lays its chips into the field.
     const list = field(wrapper).find('[data-part="tags"]');
     expect(list.attributes('role')).toBe('list');
-    expect(list.classes()).toContain('contents');
+    expect(list.classes()).toContain('eldra:contents');
   });
 
   it('shows the placeholder in the trigger only while nothing is chosen', async () => {
@@ -1162,10 +1169,12 @@ describe('MultiSelect — a tag longer than its row', () => {
       const wrapper = mount({ modelValue: ['sweaters'], tagPlacement });
       const tag = wrapper.find('[data-part="tag"]');
       expect(tag.classes(), tagPlacement).toEqual(
-        expect.arrayContaining(['min-w-0', 'max-w-full'])
+        expect.arrayContaining(['eldra:min-w-0', 'eldra:max-w-full'])
       );
-      expect(tag.find('span').classes(), tagPlacement).toContain('truncate');
-      expect(tag.find('[data-part="tagRemove"]').classes(), tagPlacement).toContain('shrink-0');
+      expect(tag.find('span').classes(), tagPlacement).toContain('eldra:truncate');
+      expect(tag.find('[data-part="tagRemove"]').classes(), tagPlacement).toContain(
+        'eldra:shrink-0'
+      );
     }
   });
 });
@@ -1173,10 +1182,12 @@ describe('MultiSelect — a tag longer than its row', () => {
 describe('MultiSelect — inside tags over the trigger', () => {
   it('stacks every tag and the "+N" above the trigger lying under them', () => {
     const wrapper = mount({ tagPlacement: 'inside', modelValue: ['sweaters', 'mugs'] });
-    expect(wrapper.find('[data-part="field"]').classes()).toContain('isolate');
-    expect(triggerOf(wrapper).classes()).toEqual(expect.arrayContaining(['absolute', 'inset-0']));
+    expect(wrapper.find('[data-part="field"]').classes()).toContain('eldra:isolate');
+    expect(triggerOf(wrapper).classes()).toEqual(
+      expect.arrayContaining(['eldra:absolute', 'eldra:inset-0'])
+    );
     for (const tag of wrapper.findAll('[data-part="tag"]')) {
-      expect(tag.classes()).toEqual(expect.arrayContaining(['relative', 'z-1']));
+      expect(tag.classes()).toEqual(expect.arrayContaining(['eldra:relative', 'eldra:z-1']));
     }
   });
 });
@@ -1192,12 +1203,12 @@ describe('MultiSelect — a disabled option in the panel', () => {
     });
     await press(triggerOf(wrapper));
     const [fixed, free] = optionEls(wrapper);
-    expect(fixed!.classes()).toContain('cursor-not-allowed');
-    expect(fixed!.find('[data-part="optionLabel"]').classes()).not.toContain('line-through');
+    expect(fixed!.classes()).toContain('eldra:cursor-not-allowed');
+    expect(fixed!.find('[data-part="optionLabel"]').classes()).not.toContain('eldra:line-through');
     expect(fixed!.find('[data-part="optionCheck"]').classes()).toEqual(
-      expect.arrayContaining(['bg-muted', 'border-muted'])
+      expect.arrayContaining(['eldra:bg-muted', 'eldra:border-muted'])
     );
-    expect(free!.find('[data-part="optionCheck"]').classes()).not.toContain('bg-muted');
+    expect(free!.find('[data-part="optionCheck"]').classes()).not.toContain('eldra:bg-muted');
   });
 });
 
@@ -1206,7 +1217,7 @@ describe('MultiSelect — the panel search field', () => {
     const wrapper = mount({ options: [{ value: 'a', label: 'A' }], searchable: true });
     await press(triggerOf(wrapper));
     const classes = [...search(wrapper).classList];
-    expect(classes.filter((name) => name.startsWith('eldra-focus'))).toEqual([]);
-    expect(classes).toContain('outline-none');
+    expect(classes.filter((name) => name.startsWith('eldra:eldra-focus'))).toEqual([]);
+    expect(classes).toContain('eldra:outline-none');
   });
 });

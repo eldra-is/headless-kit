@@ -2,28 +2,24 @@
 import { computed, inject, nextTick, onUpdated, ref, useSlots } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { applyMask, stripMask } from '../../utils/mask';
 import { FIELD_KEY } from '../field-wrapper/context';
-import Icon from '../icon/Icon.vue';
+import { ICON_STROKE_WIDTH } from '../icon/sizes';
 import {
   FIELD_ACTION_ROOM_REM,
   FIELD_BASE,
   FIELD_CLEAR_BUTTON,
   FIELD_CLEAR_SIZE,
-  FIELD_DISABLED,
-  FIELD_INVALID,
   FIELD_LEADING_ICON,
   FIELD_LEADING_PAD,
-  FIELD_LIVE,
   FIELD_PREFIX_PAD,
   FIELD_PREFIX_ROW,
-  FIELD_READONLY,
   FIELD_SEARCH_APPEARANCE,
   FIELD_SIZE,
   FIELD_SUFFIX_ROW,
   FIELD_TRAILING_PAD,
+  fieldState,
 } from './classes';
 import { reassertValue } from './reassertValue';
 import type { InputProps } from './types';
@@ -157,38 +153,27 @@ const resolvedInputmode = computed<NativeInputMode | undefined>(() =>
  */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() =>
-  partClass(
-    cx('relative block w-full', showsInvalid.value && 'eldra-field-invalid'),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:relative eldra:block eldra:w-full',
+  showsInvalid.value && 'eldra:eldra-field-invalid',
+]);
 
-const controlClass = computed(() =>
-  partClass(
-    cx(
-      FIELD_BASE,
-      FIELD_SIZE[props.size],
-      hasLeading.value && FIELD_LEADING_PAD,
-      hasPrefix.value && FIELD_PREFIX_PAD[props.size],
-      hasTrailing.value && FIELD_TRAILING_PAD[props.size],
-      props.type === 'number' && 'tabular-nums',
-      props.type === 'search' && FIELD_SEARCH_APPEARANCE,
-      props.disabled ? FIELD_DISABLED : props.readonly ? FIELD_READONLY : FIELD_LIVE,
-      showsInvalid.value && FIELD_INVALID
-    ),
-    props.classes,
-    'control'
-  )
-);
+const controlClass = computed(() => [
+  FIELD_BASE,
+  FIELD_SIZE[props.size],
+  hasLeading.value && FIELD_LEADING_PAD,
+  hasPrefix.value && FIELD_PREFIX_PAD[props.size],
+  hasTrailing.value && FIELD_TRAILING_PAD[props.size],
+  props.type === 'number' && 'eldra:tabular-nums',
+  props.type === 'search' && FIELD_SEARCH_APPEARANCE,
+  fieldState({ disabled: props.disabled, readonly: props.readonly, invalid: showsInvalid.value }),
+  props.classes?.control,
+]);
 
-const leadingIconClass = computed(() =>
-  partClass(FIELD_LEADING_ICON, props.classes, 'leadingIcon')
-);
+const leadingIconClass = computed(() => [FIELD_LEADING_ICON, props.classes?.leadingIcon]);
 
-const suffixClass = computed(() => partClass(FIELD_SUFFIX_ROW, props.classes, 'suffix'));
-const prefixClass = computed(() => partClass(FIELD_PREFIX_ROW, props.classes, 'prefix'));
+const suffixClass = computed(() => [FIELD_SUFFIX_ROW, props.classes?.suffix]);
+const prefixClass = computed(() => [FIELD_PREFIX_ROW, props.classes?.prefix]);
 
 /**
  * A prefix or suffix row wider than one action pushes the text clear of it (see
@@ -204,9 +189,11 @@ const controlStyle = computed(() =>
     : { paddingInlineStart: prefixRoom.value, paddingInlineEnd: suffixRoom.value }
 );
 
-const clearButtonClass = computed(() =>
-  partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE[props.size]), props.classes, 'clearButton')
-);
+const clearButtonClass = computed(() => [
+  FIELD_CLEAR_BUTTON,
+  FIELD_CLEAR_SIZE[props.size],
+  props.classes?.clearButton,
+]);
 
 /** The types whose selection API a browser actually implements; `number` and `email` throw. */
 const SELECTABLE_TYPES = new Set(['text', 'search', 'tel', 'url', 'password']);
@@ -268,7 +255,12 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <span
       v-if="hasPrefix"
       ref="prefixRef"
@@ -285,13 +277,20 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       :class="leadingIconClass"
     >
       <slot name="leadingIcon">
-        <Icon v-if="leadingIcon" :icon="leadingIcon" :classes="{ root: 'size-4.5' }" />
+        <component
+          v-if="leadingIcon"
+          :is="leadingIcon"
+          class="eldra:size-4.5 eldra:shrink-0"
+          :stroke-width="ICON_STROKE_WIDTH"
+          aria-hidden="true"
+          focusable="false"
+        />
       </slot>
     </span>
 
     <input
       ref="controlRef"
-      v-bind="$attrs"
+      v-bind="{ ...$attrs, class: undefined }"
       data-part="control"
       :class="controlClass"
       :style="controlStyle"
@@ -333,7 +332,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       >
         <!-- Tabler's `x`, stroke 1.75, at 1.125rem. Decorative: the button is named by aria-label. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

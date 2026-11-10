@@ -33,12 +33,12 @@ describe('hero block', () => {
    * ancestor — `Container` (the block's other wrapper) declares none of its own, so the block's
    * `@content:grid-cols-2`/`@tablet:flex-row`/etc. only ever take effect because `Section`'s own
    * root already carries `@container` (see `Section.vue`). Asserted directly so a future change
-   * that swaps the root away from `Section` (or a `classes.root` override that drops the class)
+   * that swaps the root away from `Section` (or a root `class` that drops it)
    * fails loudly instead of silently keeping every block at its mobile layout at every width.
    */
   it('the block root carries @container, so its @tablet:/@content: classes have something to measure against', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: mock } }));
-    expect(wrapper.get('section').classes()).toContain('@container');
+    expect(wrapper.get('section').classes()).toContain('eldra:@container');
   });
 
   it.each(VARIANTS)(
@@ -60,8 +60,8 @@ describe('hero block', () => {
       mountOptions({ entry: { id: 'e1', data: { ...mock, variant: 'image-background' } } })
     );
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('bg-surface-strong');
-    expect(section.classes()).not.toContain('text-primary-contrast');
+    expect(section.classes()).toContain('eldra:bg-surface-strong');
+    expect(section.classes()).not.toContain('eldra:text-primary-contrast');
   });
 
   it.each(VARIANTS)(
@@ -104,7 +104,7 @@ describe('hero block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...withImage, variant: 'image-right' } } })
     );
-    expect(wrapper.get('[data-part="frame"]').classes()).toContain('rounded-xl');
+    expect(wrapper.get('[data-part="frame"]').classes()).toContain('eldra:rounded-xl');
   });
 
   /**
@@ -130,7 +130,9 @@ describe('hero block', () => {
     expect(frame.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full']));
     expect(frame.attributes('style')).toContain('aspect-ratio: auto');
     const media = wrapper.get('[data-part="media"]');
-    expect(media.classes()).toEqual(expect.arrayContaining(['object-cover', 'h-full', 'w-full']));
+    expect(media.classes()).toEqual(
+      expect.arrayContaining(['eldra:object-cover', 'eldra:h-full', 'eldra:w-full'])
+    );
   });
 
   it('renders no built-in CTAs — the seeded state carries no destination for either', () => {
@@ -206,7 +208,7 @@ describe('hero block', () => {
         expect(figure.attributes('aria-roledescription')).toBe('slide');
         expect(figure.attributes('aria-label')).toBe(`${index + 1} of ${withImage.slides.length}`);
       });
-      expect(wrapper.findAll('[data-part="frame"]')[0]?.classes()).toContain('rounded-xl');
+      expect(wrapper.findAll('[data-part="frame"]')[0]?.classes()).toContain('eldra:rounded-xl');
     });
 
     it('wraps a slide with a same-site link in the router, and leaves an unlinked slide plain', () => {

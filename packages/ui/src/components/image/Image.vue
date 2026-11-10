@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, useAttrs, useId, watchEffect, type StyleValue } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass, type ClassValue } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
 import { scopeSizes, zoomSizes } from '../../utils/sizes';
 import type { ImageCrop, ImageProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
+import { mergeClass } from '../../utils/mergeClass';
 
 const eldra = useEldraScope();
 
@@ -81,24 +81,26 @@ const fetchPriority = computed(() => (props.priority ? 'high' : undefined));
 
 const ROUNDED_CLASS: Record<NonNullable<ImageProps['rounded']>, string> = {
   none: '',
-  lg: 'rounded-lg',
-  xl: 'rounded-xl',
+  lg: 'eldra:rounded-lg',
+  xl: 'eldra:rounded-xl',
 };
 
-const rootClass = computed(() =>
-  partClass(cx('block', attrs.class as ClassValue), props.classes, 'root')
-);
+// Lightbox overrides the root.
+const rootClass = computed(() => mergeClass('eldra:block', attrs.class));
 const rootStyle = computed(() => attrs.style as StyleValue | undefined);
 
 const frameStyle = computed<StyleValue>(() => ({
   aspectRatio: frameAspectRatio(props.ratio, props.media),
 }));
 
+// Lightbox overrides the frame.
 const frameClass = computed(() =>
-  partClass(
-    cx('relative w-full overflow-hidden bg-surface-strong', ROUNDED_CLASS[props.rounded]),
-    props.classes,
-    'frame'
+  mergeClass(
+    [
+      'eldra:relative eldra:w-full eldra:overflow-hidden eldra:bg-surface-strong',
+      ROUNDED_CLASS[props.rounded],
+    ],
+    props.classes?.frame
   )
 );
 
@@ -216,32 +218,27 @@ const cropCss = computed(() => {
     .join('');
 });
 
-const mediaClass = computed(() =>
-  partClass(
-    cx('block h-full w-full', props.fit === 'contain' ? 'object-contain' : 'object-cover'),
-    props.classes,
-    'media'
-  )
-);
+const mediaClass = computed(() => [
+  'eldra:block eldra:h-full eldra:w-full',
+  props.fit === 'contain' ? 'eldra:object-contain' : 'eldra:object-cover',
+  props.classes?.media,
+]);
 
-const placeholderClass = computed(() =>
-  partClass(
-    cx(
-      'eldra-image-placeholder-hatch text-muted flex h-full w-full flex-col items-center ' +
-        'justify-center gap-2'
-    ),
-    props.classes,
-    'placeholder'
-  )
-);
+const placeholderClass = computed(() => [
+  'eldra:eldra-image-placeholder-hatch eldra:text-muted eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:items-center ' +
+    'eldra:justify-center eldra:gap-2',
+  props.classes?.placeholder,
+]);
 
+// Lightbox overrides the caption.
 const captionClass = computed(() =>
-  partClass(cx('text-caption text-muted mt-2 block'), props.classes, 'caption')
+  mergeClass('eldra:text-caption eldra:text-muted eldra:mt-2 eldra:block', props.classes?.caption)
 );
 
-const skeletonClass = computed(() =>
-  partClass(cx('eldra-skeleton h-full w-full'), props.classes, 'skeleton')
-);
+const skeletonClass = computed(() => [
+  'eldra:eldra-skeleton eldra:h-full eldra:w-full',
+  props.classes?.skeleton,
+]);
 </script>
 
 <template>
@@ -296,7 +293,7 @@ const skeletonClass = computed(() =>
         :aria-label="decorative ? undefined : messages.noImageAvailable"
       >
         <svg
-          class="size-8"
+          class="eldra:size-8"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

@@ -7,7 +7,7 @@
  * `MultiSelect` and `SearchBar` already share — `usePopover` — with no opinion at all about what
  * goes in the panel.
  *
- * **Anatomy.** `root` is a `display: contents` wrapper: it exists only so `data-part`/`classes`
+ * **Anatomy.** `root` is a `display: contents` wrapper: it exists only so `data-part`
  * has somewhere to hang a hook on, never as a box a consumer's flex/grid layout has to route
  * around. `trigger` is not drawn by this component at all — it is the consumer's own element,
  * rendered through the `trigger` slot, exactly the private library's own `Popover`'s `#trigger`
@@ -36,7 +36,7 @@
  * always *is* one) a generic `Popover`'s panel could be a menu, a listbox, a form, or nothing
  * ARIA-shaped at all — a fixed `role="dialog"` would be wrong for a menu, and a fixed `role="menu"`
  * would be wrong for a filter form. So the panel renders as a plain, role-free region and forwards
- * its own `$attrs` (`inheritAttrs: false`), the same shape the private library's own `Popover`
+ * its own `$attrs`, `class` included (`inheritAttrs: false`), the same shape the private library's own `Popover`
  * forwards its fallthrough `attrs` onto its content element: `<Popover role="menu">` puts
  * `role="menu"` on the panel directly, `<Popover role="dialog" aria-label="Filters">` makes it an
  * (non-modal) accessible dialog surface, and leaving both off keeps it a plain, unlabelled `<div>`
@@ -89,7 +89,6 @@ import {
   type VNode,
 } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { usePopover } from '../select/usePopover';
 import type { PopoverProps } from './types';
@@ -284,8 +283,6 @@ onBeforeUnmount(unobserveTrigger);
 
 // --- the trigger's ARIA, wired through the `attrs` slot prop, and its real DOM node --------------
 
-const triggerClass = computed(() => partClass('', props.classes, 'trigger'));
-
 const triggerAttrs = computed(() => ({
   id: controlId.value,
   type: 'button' as const,
@@ -293,7 +290,7 @@ const triggerAttrs = computed(() => ({
   'aria-expanded': isOpen.value ? ('true' as const) : ('false' as const),
   'aria-controls': panelId.value,
   'data-part': 'trigger' as const,
-  class: triggerClass.value,
+  class: props.classes?.trigger,
   ...(props.disabled ? { disabled: true } : {}),
   onPointerdown: onTriggerPointerDown,
   onClick,
@@ -372,22 +369,15 @@ defineExpose({
   update,
 });
 
-const rootClass = computed(() => partClass('contents', props.classes, 'root'));
-
-const panelClass = computed(() =>
-  partClass(
-    cx(
-      'z-popover overflow-hidden rounded-md border shadow-md',
-      'border-[color:var(--eldra-popover-border,var(--color-border))]',
-      'bg-[color:var(--eldra-popover-background,var(--color-background))]',
-      // No fallback: unset, the panel's colour is inherited exactly as before.
-      'text-[color:var(--eldra-popover-text)]',
-      'animate-eldra-popover-in'
-    ),
-    props.classes,
-    'panel'
-  )
-);
+const panelClass = computed(() => [
+  'eldra:z-popover eldra:overflow-hidden eldra:rounded-md eldra:border eldra:shadow-md',
+  'eldra:border-[color:var(--eldra-popover-border,var(--eldra-color-border))]',
+  'eldra:bg-[color:var(--eldra-popover-background,var(--eldra-color-background))]',
+  // No fallback: unset, the panel's colour is inherited exactly as before.
+  'eldra:text-[color:var(--eldra-popover-text)]',
+  'eldra:animate-eldra-popover-in',
+  props.classes?.panel,
+]);
 </script>
 
 <template>
@@ -396,7 +386,7 @@ const panelClass = computed(() =>
     :data-eldra-scope="eldra.scope"
     :data-eldra-slot="eldra.slotHost('trigger')"
     data-part="root"
-    :class="rootClass"
+    class="eldra:contents"
   >
     <component :is="Trigger" />
 

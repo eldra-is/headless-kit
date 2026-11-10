@@ -143,8 +143,7 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
             v-else-if="editing"
             inline
             :label="t('splitContent.imageHintLabel')"
-            :classes="{ root: 'aspect-[4/3] w-full rounded-xl bg-surface-strong' }"
-            :class="imageOrderClass(index)"
+            :class="['bg-surface-strong aspect-[4/3] w-full rounded-xl', imageOrderClass(index)]"
           />
 
           <div
@@ -183,7 +182,7 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
               :as="rowLinkAs(row)"
               variant="standalone"
               arrow
-              :classes="{ root: 'mt-1 text-lg' }"
+              class="mt-1 text-lg"
             >
               {{ row.linkLabel }}
             </Link>

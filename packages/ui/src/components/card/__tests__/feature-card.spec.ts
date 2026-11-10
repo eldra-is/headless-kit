@@ -101,9 +101,9 @@ describe('FeatureCard — linked', () => {
       href: '/shipping',
     });
     const titleLink = wrapper.get('[data-part="titleLink"]').classes();
-    expect(titleLink).toContain('underline');
-    expect(titleLink).not.toContain('no-underline');
-    expect(titleLink).toContain('group-hover:decoration-2');
+    expect(titleLink).toContain('eldra:underline');
+    expect(titleLink).not.toContain('eldra:no-underline');
+    expect(titleLink).toContain('eldra:group-hover:decoration-2');
     wrapper.unmount();
   });
 
@@ -152,13 +152,13 @@ describe('FeatureCard — linked', () => {
       href: '/shipping',
     });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('eldra-focus');
-    expect(root.classes()).toContain('eldra-focus-proxy');
-    expect(root.classes()).toContain('rounded-lg');
+    expect(root.classes()).toContain('eldra:eldra-focus');
+    expect(root.classes()).toContain('eldra:eldra-focus-proxy');
+    expect(root.classes()).toContain('eldra:rounded-lg');
     const link = wrapper.get('[data-part="titleLink"]');
-    expect(link.classes()).toContain('after:absolute');
-    expect(link.classes()).toContain('after:inset-0');
-    expect(link.classes()).toContain('outline-none');
+    expect(link.classes()).toContain('eldra:after:absolute');
+    expect(link.classes()).toContain('eldra:after:inset-0');
+    expect(link.classes()).toContain('eldra:outline-none');
     wrapper.unmount();
   });
 
@@ -230,10 +230,10 @@ describe('FeatureCard — variants', () => {
       variant: 'plain',
     });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).not.toContain('bg-surface');
-    expect(root.classes()).not.toContain('border');
+    expect(root.classes()).not.toContain('eldra:bg-surface');
+    expect(root.classes()).not.toContain('eldra:border');
     expect(root.classes().some((c) => c.startsWith('p-'))).toBe(false);
-    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('bg-surface-strong');
+    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 
@@ -245,9 +245,9 @@ describe('FeatureCard — variants', () => {
       variant: 'surface',
     });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('bg-surface');
-    expect(root.classes()).toContain('p-6');
-    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('bg-background');
+    expect(root.classes()).toContain('eldra:bg-surface');
+    expect(root.classes()).toContain('eldra:p-6');
+    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('eldra:bg-background');
     wrapper.unmount();
   });
 
@@ -259,9 +259,9 @@ describe('FeatureCard — variants', () => {
       variant: 'outlined',
     });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('border');
-    expect(root.classes()).toContain('border-border');
-    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('bg-surface-strong');
+    expect(root.classes()).toContain('eldra:border');
+    expect(root.classes()).toContain('eldra:border-border');
+    expect(wrapper.get('[data-part="iconTile"]').classes()).toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 
@@ -272,8 +272,8 @@ describe('FeatureCard — variants', () => {
       body: 'Delivered in 2-4 business days.',
     });
     const tile = wrapper.get('[data-part="iconTile"]');
-    expect(tile.classes()).toContain('size-11');
-    expect(tile.classes()).toContain('shrink-0');
+    expect(tile.classes()).toContain('eldra:size-11');
+    expect(tile.classes()).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 });
@@ -292,16 +292,16 @@ describe('FeatureCard — headingLevel', () => {
 });
 
 describe('FeatureCard — customisation', () => {
-  it('lets classes.root replace a layout utility instead of landing beside it', () => {
-    const wrapper = mountCard({
-      icon: IconTruck,
-      title: 'Free shipping over $80',
-      body: 'Delivered in 2-4 business days.',
-      classes: { root: 'gap-6' },
+  it('puts a consumer class on the root', () => {
+    const wrapper = mountWith(FeatureCard, {
+      props: {
+        icon: IconTruck,
+        title: 'Free shipping over $80',
+        body: 'Delivered in 2-4 business days.',
+      },
+      attrs: { class: 'gap-6' },
     });
-    const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('gap-6');
-    expect(root.classes()).not.toContain('gap-3');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-6');
     wrapper.unmount();
   });
 });

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { computed, normalizeClass } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useMessages } from '../../composables/useMessages';
 import Image from '../image/Image.vue';
@@ -142,19 +141,16 @@ function onQuickAdd(): void {
  * whenever the pointer is over ANY descendant, including the title link's card-covering `::after`
  * (see `linkClass`), so no `:has()`/`group-has-*` trick is needed.
  */
-const rootClass = computed(() =>
-  partClass(cx(CARD_FOCUS_PROXY, 'flex h-full min-w-56 flex-col'), props.classes, 'root')
-);
+const rootClass = [CARD_FOCUS_PROXY, 'eldra:flex eldra:h-full eldra:min-w-56 eldra:flex-col'];
 
 /** The media's own positioning context for the absolutely placed badge stack (spec "Product
  * card" → Sizes, "Badge stack" row). */
-const mediaClass = computed(() => partClass('relative', props.classes, 'media'));
+const mediaClass = computed(() => ['eldra:relative', props.classes?.media]);
 
 /**
  * `Image`'s own `media` part (the `<img>`/`<video>`, not `Image`'s root) — passed through
  * `Image`'s `classes` prop rather than a bare `class` attribute on `<Image>`, because `Image.vue`
- * merges a bare `class` into its own *root* (`partClass(cx('block', attrs.class), ...)`), not the
- * media element, which would scale the whole frame (and its rounded corners) on hover instead of
+ * puts a bare `class` on its own *root*, not the media element, which would scale the whole frame (and its rounded corners) on hover instead of
  * the picture inside it. Spec "Product card" → Behaviour & motion: "Image zoom on hover: transform
  * over `duration-base`, `ease-out`, scaling from the image's focal point" — from the image's
  * *centre* here, not a per-image focal point: `ProductCardProduct` carries no focal data for the
@@ -163,10 +159,10 @@ const mediaClass = computed(() => partClass('relative', props.classes, 'media'))
  * Sold out (spec States, "Sold out" row: "image at 60% opacity") composes alongside it.
  */
 const imageMediaClass = computed(() =>
-  cx(
-    'transition-transform duration-base ease-out group-hover:scale-[1.03] motion-reduce:transition-none',
-    isSoldOut.value && 'opacity-60'
-  )
+  normalizeClass([
+    'eldra:transition-transform eldra:duration-base eldra:ease-out eldra:group-hover:scale-[1.03] eldra:motion-reduce:transition-none',
+    isSoldOut.value && 'eldra:opacity-60',
+  ])
 );
 
 /**
@@ -174,9 +170,10 @@ const imageMediaClass = computed(() =>
  * `z-10` keeps it above the media (and, incidentally, above the title link's stretched `::after`,
  * though badges are never inside its box in normal flow anyway).
  */
-const badgesClass = computed(() =>
-  partClass('absolute left-3 top-3 z-10 flex flex-wrap gap-1', props.classes, 'badges')
-);
+const badgesClass = computed(() => [
+  'eldra:absolute eldra:left-3 eldra:top-3 eldra:z-10 eldra:flex eldra:flex-wrap eldra:gap-1',
+  props.classes?.badges,
+]);
 
 /**
  * Spec "Product card" → Behaviour: "Body (3–7) grows to fill the card so every card in a row
@@ -184,17 +181,19 @@ const badgesClass = computed(() =>
  * stretched to a row's tallest sibling (a CSS grid with `items-stretch`, the default). Gap
  * (spec "Product card" → Sizes, "Body gap" row: "0.25rem").
  */
-const bodyClass = computed(() =>
-  partClass('mt-3 flex flex-1 flex-col gap-1', props.classes, 'body')
-);
+const bodyClass = computed(() => [
+  'eldra:mt-3 eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-1',
+  props.classes?.body,
+]);
 
-const vendorClass = computed(() => partClass('text-caption text-muted', props.classes, 'vendor'));
+const vendorClass = computed(() => ['eldra:text-caption eldra:text-muted', props.classes?.vendor]);
 
 /** Spec "Product card" → Sizes, "Title" row: "1rem, line-height 1.4, weight 600, clamp 2 lines" —
  * exactly `text-card-title` (`tailwind.css`), reused rather than a near-duplicate utility. */
-const titleClass = computed(() =>
-  partClass('text-card-title text-text line-clamp-2', props.classes, 'title')
-);
+const titleClass = computed(() => [
+  'eldra:text-card-title eldra:text-text eldra:line-clamp-2',
+  props.classes?.title,
+]);
 
 /**
  * The stretched link (spec "Product card" → Anatomy, part 4; → Accessibility, 2.4.7). `after:` is
@@ -215,18 +214,13 @@ const titleClass = computed(() =>
  * constants `ContentCard`/`FeatureCard` consume from `card/stretchedLink.ts`, not a hand-rolled
  * copy of them.
  */
-const linkClass = computed(() =>
-  partClass(
-    cx(
-      'text-text underline decoration-1 decoration-current/55 underline-offset-[0.2em]',
-      'hover:decoration-2 hover:decoration-current',
-      STRETCHED_LINK,
-      STRETCHED_LINK_OUTLINE
-    ),
-    props.classes,
-    'link'
-  )
-);
+const linkClass = computed(() => [
+  'eldra:text-text eldra:underline eldra:decoration-1 eldra:decoration-current/55 eldra:underline-offset-[0.2em]',
+  'eldra:hover:decoration-2 eldra:hover:decoration-current',
+  STRETCHED_LINK,
+  STRETCHED_LINK_OUTLINE,
+  props.classes?.link,
+]);
 
 /**
  * `price`/`rating`/`stockLine` each wrap their composed child in a `<div data-part="…">` — the
@@ -238,28 +232,31 @@ const linkClass = computed(() =>
  * would still merge fine (Vue always merges `class`/`style` specially). The wrapper keeps both:
  * the parent's own part name on the wrapper, the child's full part tree intact inside it.
  */
-const priceClass = computed(() => partClass('', props.classes, 'price'));
-const ratingClass = computed(() => partClass('', props.classes, 'rating'));
-const stockLineClass = computed(() => partClass('', props.classes, 'stockLine'));
+const priceClass = computed(() => props.classes?.price);
+const ratingClass = computed(() => props.classes?.rating);
+const stockLineClass = computed(() => props.classes?.stockLine);
 
-const swatchesClass = computed(() =>
-  partClass('flex items-center gap-1.5', props.classes, 'swatches')
-);
+const swatchesClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:gap-1.5',
+  props.classes?.swatches,
+]);
 
 /** Spec "Product card" → Sizes, "Colour dots" row: "0.875rem circles ... a 1px inset hairline
  * (`text` at 25% strength) so pale colours stay visible" (Accessibility, 1.4.11). A real border,
  * not a `box-shadow`, for the same forced-colours reason `VariantPicker`'s own swatch edge is a
  * real border rather than a shadow. The one per-item colour the spec allows (`swatch`, from
  * product data) is set as an inline style by the template, never a class. */
-const swatchClass = computed(() =>
-  partClass('size-3.5 shrink-0 rounded-full border border-text/25', props.classes, 'swatch')
-);
+const swatchClass = computed(() => [
+  'eldra:size-3.5 eldra:shrink-0 eldra:rounded-full eldra:border eldra:border-text/25',
+  props.classes?.swatch,
+]);
 
 /** Spec "Product card" → Sizes, "Colour dots" row: "'+N' (0.8125rem, `muted`)" — `text-caption`
  * is exactly that size. */
-const swatchOverflowClass = computed(() =>
-  partClass('text-caption text-muted', props.classes, 'swatchOverflow')
-);
+const swatchOverflowClass = computed(() => [
+  'eldra:text-caption eldra:text-muted',
+  props.classes?.swatchOverflow,
+]);
 
 /**
  * Spec "Product card" → Sizes, "Quick add" row: "extra 0.5rem (`space-2`) above" — on top of the
@@ -271,7 +268,10 @@ const swatchOverflowClass = computed(() =>
  * otherwise let source order decide, and the link is later in the DOM here) — this is what makes
  * "clicking quick add never navigates" true regardless of DOM order.
  */
-const quickAddClass = computed(() => partClass('relative z-10 mt-5', props.classes, 'quickAdd'));
+const quickAddClass = computed(() => [
+  'eldra:relative eldra:z-10 eldra:mt-5',
+  props.classes?.quickAdd,
+]);
 
 /**
  * The loading root's own class (spec "Product card" → Variants, Loading row). The loading branch
@@ -286,7 +286,10 @@ const quickAddClass = computed(() => partClass('relative z-10 mt-5', props.class
  * of `wrapper.element`/`.classes()`, not the card's own root — confirmed the hard way while
  * writing this component's own tests, which is why the explanation lives here instead.
  */
-const skeletonClass = computed(() => partClass('flex h-full flex-col', props.classes, 'skeleton'));
+const skeletonClass = computed(() => [
+  'eldra:flex eldra:h-full eldra:flex-col',
+  props.classes?.skeleton,
+]);
 </script>
 
 <template>
@@ -302,12 +305,12 @@ const skeletonClass = computed(() => partClass('flex h-full flex-col', props.cla
   >
     <div data-part="skeleton" :class="skeletonClass">
       <Skeleton variant="media" :ratio="ratio" />
-      <div class="mt-3 flex flex-1 flex-col gap-1">
-        <Skeleton variant="text" :classes="{ line: 'w-[80%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[35%]' }" />
-        <Skeleton variant="text" :classes="{ line: 'w-[50%]' }" />
+      <div class="eldra:mt-3 eldra:flex eldra:flex-1 eldra:flex-col eldra:gap-1">
+        <Skeleton variant="text" width="80%" />
+        <Skeleton variant="text" width="35%" />
+        <Skeleton variant="text" width="50%" />
       </div>
-      <Skeleton variant="btn" class="mt-5" />
+      <Skeleton variant="btn" class="eldra:mt-5" />
     </div>
   </div>
 

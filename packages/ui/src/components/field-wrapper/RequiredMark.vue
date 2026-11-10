@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { partClass } from '../../utils/cx';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -18,7 +17,7 @@ const props = defineProps<{
   classes?: Partial<Record<'requiredMark', string>>;
 }>();
 
-const markClass = computed(() => partClass('text-danger ms-0.5', props.classes, 'requiredMark'));
+const markClass = computed(() => ['eldra:text-danger eldra:ms-0.5', props.classes?.requiredMark]);
 </script>
 
 <template>

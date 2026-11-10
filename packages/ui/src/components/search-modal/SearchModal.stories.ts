@@ -30,7 +30,7 @@ const meta = {
           'pill) or with `/` / `⌘K` / `Ctrl+K` from anywhere. "Everything else is exactly as the',
           'Search bar" — read that component\'s own docs page first.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `form`, `field`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `form`, `field`,',
           '`leadingIcon`, `clear`, `close`, `results`, `footer`, plus every part of the reused',
           '`SearchResultsPanel` (`panel`, `listbox`, `section`, `sectionHeading`, `item`,',
           '`itemImage`, `itemTitle`, `itemMeta`, `itemArrow`, `recent`, `clearRecent`, `popular`,',

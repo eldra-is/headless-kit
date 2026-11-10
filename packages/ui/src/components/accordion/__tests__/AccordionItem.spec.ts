@@ -127,7 +127,7 @@ describe('AccordionItem — disclosure semantics', () => {
       props: { title: 'Materials & care' },
       slots: { default: 'Body' },
     });
-    expect(wrapper.get('[data-part="summary"]').classes()).toContain('list-none');
+    expect(wrapper.get('[data-part="summary"]').classes()).toContain('eldra:list-none');
     wrapper.unmount();
   });
 
@@ -136,7 +136,9 @@ describe('AccordionItem — disclosure semantics', () => {
       props: { title: 'Materials & care' },
       slots: { default: 'Body' },
     });
-    expect(wrapper.get('[data-part="chevron"]').classes()).toContain('eldra-accordion-chevron');
+    expect(wrapper.get('[data-part="chevron"]').classes()).toContain(
+      'eldra:eldra-accordion-chevron'
+    );
     wrapper.unmount();
   });
 
@@ -276,7 +278,7 @@ describe('AccordionItem — long content and narrow', () => {
       slots: { default: LONG_CONTENT },
     });
     const panel = wrapper.get('[data-part="panel"]');
-    expect(panel.classes()).toContain('max-w-[65ch]');
+    expect(panel.classes()).toContain('eldra:max-w-[65ch]');
     expect(panel.text()).toBe(LONG_CONTENT);
     wrapper.unmount();
   });

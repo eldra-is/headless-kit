@@ -116,7 +116,7 @@ describe('contact block', () => {
     const wrapper = mountContact(merged);
     const section = wrapper.find('section');
     expect(section.exists()).toBe(true);
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
   });
 
   it('form-only with hideHeading keeps the h2 in the outline but hides it visually', () => {
@@ -124,7 +124,7 @@ describe('contact block', () => {
     const heading = wrapper.find('h2');
     expect(heading.exists()).toBe(true);
     expect(heading.text()).toBe(mock.heading);
-    expect(heading.classes()).toContain('sr-only');
+    expect(heading.classes()).toContain('eldra:sr-only');
   });
 
   it('every field has a visible, programmatically tied label, and the optional one says "(optional)"', () => {

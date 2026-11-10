@@ -7,7 +7,7 @@ export type InputType = 'text' | 'email' | 'tel' | 'number' | 'search' | 'url' |
 export type InputSize = 'sm' | 'md' | 'lg';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type InputPart = 'root' | 'leadingIcon' | 'prefix' | 'control' | 'clearButton' | 'suffix';
+export type InputPart = 'leadingIcon' | 'prefix' | 'control' | 'clearButton' | 'suffix';
 
 export interface InputProps {
   /**
@@ -63,6 +63,9 @@ export interface InputProps {
    * everything else a separator. The field displays the formatted value; `modelValue` stays raw.
    */
   mask?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<InputPart, string>>;
 }

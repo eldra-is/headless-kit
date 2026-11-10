@@ -27,7 +27,7 @@ const eldra = useEldraScope();
   <svg
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
-    class="animate-eldra-spin motion-reduce:animate-eldra-pulse"
+    class="eldra:animate-eldra-spin eldra:motion-reduce:animate-eldra-pulse"
     viewBox="0 0 18 18"
     fill="none"
     aria-hidden="true"

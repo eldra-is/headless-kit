@@ -417,7 +417,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
     spacing="none"
     :labelled-by="variant === 'default' ? headingId : undefined"
     :aria-label="variant === 'minimal' ? t('footer.title') : undefined"
-    :classes="{ root: paddingClass }"
+    :class="paddingClass"
   >
     <Container width="wide">
       <VisuallyHidden v-if="variant === 'default'" :id="headingId" as="h2">{{
@@ -435,8 +435,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             :as="EldraRouterLink"
             variant="standalone"
             :underline="false"
+            class="inline-flex items-center hover:no-underline active:no-underline"
             :classes="{
-              root: 'inline-flex items-center hover:no-underline active:no-underline',
               label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
             }"
           >
@@ -470,7 +470,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 target="_blank"
                 rel="noopener"
                 :label="socialLinkName(social.network)"
-                :classes="{ container: 'size-11' }"
+                class="size-11"
               >
                 <template #leadingIcon>
                   <EldraIcon :name="social.icon" size="md" />
@@ -502,7 +502,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                     :as="link.as"
                     tone="muted"
                     :underline="false"
-                    :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
+                    class="inline-flex min-h-9 items-center text-base"
                     >{{ link.label }}</Link
                   >
                   <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
@@ -541,7 +541,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 <FieldWrapper
                   :label="emailLabel"
                   :error="emailError ?? undefined"
-                  :classes="{ root: 'block w-full' }"
+                  class="block w-full"
                 >
                   <Input
                     v-model="email"
@@ -589,8 +589,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           :as="EldraRouterLink"
           variant="standalone"
           :underline="false"
+          class="inline-flex items-center hover:no-underline active:no-underline"
           :classes="{
-            root: 'inline-flex items-center hover:no-underline active:no-underline',
             label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
           }"
         >
@@ -614,7 +614,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 :as="link.as"
                 tone="muted"
                 :underline="false"
-                :classes="{ root: 'inline-flex min-h-9 items-center text-base' }"
+                class="inline-flex min-h-9 items-center text-base"
                 >{{ link.label }}</Link
               >
               <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
@@ -634,7 +634,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               target="_blank"
               rel="noopener"
               :label="socialLinkName(social.network)"
-              :classes="{ container: 'size-11' }"
+              class="size-11"
             >
               <template #leadingIcon>
                 <EldraIcon :name="social.icon" size="md" />
@@ -658,7 +658,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 :href="link.href"
                 :as="link.as"
                 tone="muted"
-                :classes="{ root: 'inline-flex min-h-6 items-center' }"
+                class="inline-flex min-h-6 items-center"
                 >{{ link.label }}</Link
               >
               <span v-else class="inline-flex min-h-6 items-center">{{ link.label }}</span>
@@ -670,7 +670,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           <FieldWrapper
             v-if="showLocale"
             :label="t('footer.localeLabel')"
-            :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
+            class="@tablet:w-auto w-full"
+            :classes="{ label: 'sr-only' }"
           >
             <!-- Not `searchable`: a store has a handful of content locales, and a search field
                  over three options is one more thing between a visitor and their language. -->
@@ -693,7 +694,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           <FieldWrapper
             v-else-if="showCurrencySelector"
             :label="t('footer.currencyLabel')"
-            :classes="{ root: 'w-full @tablet:w-auto', label: 'sr-only' }"
+            class="@tablet:w-auto w-full"
+            :classes="{ label: 'sr-only' }"
           >
             <Select
               v-model="currency"

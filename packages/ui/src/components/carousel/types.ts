@@ -22,7 +22,8 @@ export type CarouselControls = 'header' | 'below';
 
 /**
  * The parts a consumer can restyle through `Carousel`'s `classes`, named after the spec's own
- * anatomy (`root`, `track`, `slide`, `prev`, `next`, `dots`, `dot`, `counter`, `pause`), plus
+ * anatomy (`track`, `slide`, `prev`, `next`, `dots`, `dot`, `counter`, `pause`; the root takes
+ * `class`), plus
  * `header` — the row `controls: 'header'` renders for the arrows and the `header` slot, which the
  * spec's own numbered anatomy does not name but this component does render and style through the
  * same prop as everything else. `slide` is not an element `Carousel` renders itself: it is applied
@@ -35,7 +36,6 @@ export type CarouselControls = 'header' | 'below';
  * `sr-only` treatment (a visible instruction line, say) should not have to fork the component.
  */
 export type CarouselPart =
-  | 'root'
   | 'header'
   | 'instructions'
   | 'track'
@@ -84,6 +84,9 @@ export interface CarouselProps {
    * `useCarousel`'s own drag state machine for the mechanics.
    */
   draggable?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root
+   * itself with `class`.
+   */
   classes?: Partial<Record<CarouselPart, string>>;
 }

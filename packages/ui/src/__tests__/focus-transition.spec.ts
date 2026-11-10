@@ -4,7 +4,7 @@ import { join } from 'node:path';
 // `URL` under another name resolves it (the same workaround `source-scan.spec.ts` documents).
 import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { isBuilt, itFailsWithoutDist } from '../test/built';
+import { compileKitCss } from '../test/kitCss';
 
 /**
  * `eldra-focus` and `eldra-focus-inset` own the transition list of the element they sit on.
@@ -13,13 +13,11 @@ import { isBuilt, itFailsWithoutDist } from '../test/built';
  * carried `transition-[background-color,…] duration-fast` emitted a later rule in the same cascade
  * layer that replaced the ring's `outline-width` and `box-shadow` entries outright. The ring still
  * drew — it just snapped to full size instead of growing in over `duration-base`, which is exactly
- * the kind of regression nobody sees in a still screenshot or an axe run. `src/styles/tailwind.css`
+ * the kind of regression nobody sees in a still screenshot or an axe run. `src/styles/utilities.css`
  * now declares every animated property inside the two focus utilities, and this spec keeps
  * components from putting a second `transition` shorthand beside them.
  */
 const componentsDir = fileURLToPath(new NodeURL('../components/', import.meta.url));
-const distDir = fileURLToPath(new NodeURL('../../dist/', import.meta.url));
-const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
 
 /**
  * Every file under `src/components` that can build a class list: the `.vue` components and the
@@ -78,7 +76,7 @@ describe('the focus ring owns its element transitions', () => {
     '%s puts no transition utility on an element that carries eldra-focus',
     (_name, file) => {
       const offenders = classLists(readFileSync(file, 'utf8'))
-        .filter((list) => /(?:^|\s)eldra-focus(?:-always|-inset)?(?:\s|$)/.test(list))
+        .filter((list) => /(?:^|\s)eldra:eldra-focus(?:-always|-inset)?(?:\s|$)/.test(list))
         .filter((list) => OWNED.test(list));
       expect(offenders).toEqual([]);
     }
@@ -86,7 +84,7 @@ describe('the focus ring owns its element transitions', () => {
 
   it('draws the inset ring against the edge, with its gap inside it', () => {
     const source = readFileSync(
-      fileURLToPath(new NodeURL('../styles/tailwind.css', import.meta.url)),
+      fileURLToPath(new NodeURL('../styles/utilities.css', import.meta.url)),
       'utf8'
     );
     for (const name of ['eldra-focus-inset', 'eldra-focus-inset-always']) {
@@ -100,13 +98,12 @@ describe('the focus ring owns its element transitions', () => {
     }
   });
 
-  it.runIf(built)('compiles a focus ring that fades in at full size', async () => {
-    const { compile } = await import('@tailwindcss/node');
-    const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
-      base: distDir,
-      onDependency() {},
-    });
-    const css = compiler.build(['eldra-focus', 'eldra-focus-inset', 'eldra-focus-proxy']);
+  it('compiles a focus ring that fades in at full size', async () => {
+    const css = await compileKitCss([
+      'eldra:eldra-focus',
+      'eldra:eldra-focus-inset',
+      'eldra:eldra-focus-proxy',
+    ]);
 
     // `--eldra-focus-alpha` has to be a *registered* custom property, or it is an uninterpolatable
     // token string and the fade is a jump — which looks exactly like the geometry animation this
@@ -115,7 +112,7 @@ describe('the focus ring owns its element transitions', () => {
       /@property --eldra-focus-alpha \{[^}]*syntax:\s*'<number>'[^}]*initial-value:\s*0[^}]*\}/
     );
 
-    for (const utility of ['.eldra-focus', '.eldra-focus-inset']) {
+    for (const utility of ['.eldra\\:eldra-focus', '.eldra\\:eldra-focus-inset']) {
       const start = css.indexOf(`${utility} {`);
       expect(start, `${utility} is not in the compiled stylesheet`).toBeGreaterThan(-1);
       const rule = css.slice(start, css.indexOf('\n  }', start));
@@ -156,11 +153,11 @@ describe('the focus ring owns its element transitions', () => {
     // press leaves focused but not `:focus-visible`). Another *modifier*: it may only turn the
     // alpha on, keyed to the element's own `aria-expanded`, and must carry no transition and no
     // ring of its own, or `eldra-focus` beside it stops owning them.
-    const openCss = compiler.build(['eldra-focus-open']);
-    const openStart = openCss.indexOf('.eldra-focus-open');
+    const openCss = await compileKitCss(['eldra:eldra-focus-open']);
+    const openStart = openCss.indexOf('.eldra\\:eldra-focus-open');
     expect(openStart, 'eldra-focus-open is not in the compiled stylesheet').toBeGreaterThan(-1);
     const open = openCss.slice(openStart, openCss.indexOf('\n  }', openStart));
-    expect(open.startsWith(".eldra-focus-open[aria-expanded='true'] {")).toBe(true);
+    expect(open.startsWith(".eldra\\:eldra-focus-open[aria-expanded='true'] {")).toBe(true);
     expect(open).toContain('--eldra-focus-alpha: 1');
     expect(open).not.toContain('transition');
     // ...and the forced-colours half, which `eldra-focus`'s own rule cannot cover for the same
@@ -172,10 +169,10 @@ describe('the focus ring owns its element transitions', () => {
     // `:has(:focus-visible)` rule and nothing else, so `eldra-focus` beside it keeps owning the
     // ring, the transition and the reduced-motion rule. A `@utility` whose nested selector failed
     // to compile would leave a box that never shows a focus ring, silently.
-    const proxyStart = css.indexOf('.eldra-focus-proxy');
+    const proxyStart = css.indexOf('.eldra\\:eldra-focus-proxy');
     expect(proxyStart, 'eldra-focus-proxy is not in the compiled stylesheet').toBeGreaterThan(-1);
     const proxy = css.slice(proxyStart, css.indexOf('\n  }', proxyStart));
-    expect(proxy.startsWith('.eldra-focus-proxy:has(:focus-visible) {')).toBe(true);
+    expect(proxy.startsWith('.eldra\\:eldra-focus-proxy:has(:focus-visible) {')).toBe(true);
     expect(proxy).toContain('--eldra-focus-alpha: 1');
     expect(proxy).not.toContain('transition');
     // ...and the forced-colours half, which `eldra-focus`'s own rule cannot cover: that one is
@@ -187,7 +184,4 @@ describe('the focus ring owns its element transitions', () => {
     expect(css).toContain('outline-width: var(--eldra-focus-width)');
     expect(css).toContain('outline-color: Highlight');
   });
-
-  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
-  itFailsWithoutDist(built);
 });

@@ -109,14 +109,14 @@ describe.each(CONTROLS)('%s — keywords', (_name, component) => {
     expect(optionEls(wrapper).map((row) => row.find('[data-part="optionLabel"]').text())).toEqual([
       'Cart',
     ]);
-    expect(panel(wrapper).find('.eldra-select-match').exists()).toBe(false);
+    expect(panel(wrapper).find('.eldra\\:eldra-select-match').exists()).toBe(false);
   });
 
   it('still highlights a label match', async () => {
     const wrapper = mount(component, { options: ICONS, searchable: true });
     await open(wrapper);
     await type(wrapper, 'hom');
-    expect(panel(wrapper).find('.eldra-select-match').text()).toBe('Hom');
+    expect(panel(wrapper).find('.eldra\\:eldra-select-match').text()).toBe('Hom');
   });
 });
 

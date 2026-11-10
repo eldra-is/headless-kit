@@ -51,9 +51,10 @@
     },
     "./tokens.css": "./dist/tokens.css",
     "./tailwind.css": "./dist/tailwind.css",
+    "./theme.css": "./dist/theme.css",
+    "./utilities.css": "./dist/utilities.css",
     "./style.css": "./dist/style.css",
     "./components.css": "./dist/components.css",
-    "./scoped.css": "./dist/scoped.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {

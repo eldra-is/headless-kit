@@ -147,7 +147,7 @@ describe('newsletter block', () => {
   it('the block root is the Section component, a width container for its own @content:/@two-col: breakpoints', () => {
     const wrapper = mountNewsletter(mock);
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
     expect(section.attributes('aria-labelledby')).toBeTruthy();
   });
 

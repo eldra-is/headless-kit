@@ -1,8 +1,7 @@
-import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { axe } from '../../../test/axe';
-import { isBuilt, itFailsWithoutDist } from '../../../test/built';
+import { compileKitCss } from '../../../test/kitCss';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { isIS } from '../../../messages/is-IS';
 import { MESSAGES_KEY } from '../../../composables/useMessages';
@@ -117,9 +116,9 @@ describe('Pagination — current page', () => {
     expect(current.textContent?.trim()).toBe('6');
     expect(current.getAttribute('aria-current')).toBe('page');
     expect(current.getAttribute('aria-label')).toBe('Page 6, current page');
-    expect(current.className).toContain('bg-primary');
-    expect(current.className).toContain('text-primary-contrast');
-    expect(current.className).toContain('font-semibold');
+    expect(current.className).toContain('eldra:bg-primary');
+    expect(current.className).toContain('eldra:text-primary-contrast');
+    expect(current.className).toContain('eldra:font-semibold');
     wrapper.unmount();
   });
 
@@ -133,7 +132,7 @@ describe('Pagination — current page', () => {
   it('still shows the standard focus ring on the current (primary-filled) page', () => {
     const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12 } });
     const current = numberedList(wrapper).querySelector('[data-part="current"]') as HTMLElement;
-    expect(current.className).toContain('eldra-focus');
+    expect(current.className).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 });
@@ -282,7 +281,7 @@ describe('Pagination — compact mode (forced)', () => {
 
   it('the compact row always renders on one line: no wrap, unlike the numbered form', () => {
     const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12, compact: true } });
-    expect(compactRow(wrapper).className).not.toContain('flex-wrap');
+    expect(compactRow(wrapper).className).not.toContain('eldra:flex-wrap');
     wrapper.unmount();
   });
 
@@ -327,49 +326,38 @@ describe('Pagination — the default (non-forced) responsive markup', () => {
   it('the numbered list is hidden below 48rem and flex from it; the compact row the reverse', () => {
     const wrapper = mountWith(Pagination, { props: { page: 6, totalPages: 12 } });
     expect(wrapper.find('ul[data-part="list"]').classes()).toEqual(
-      expect.arrayContaining(['hidden', '@tablet:flex'])
+      expect.arrayContaining(['eldra:hidden', 'eldra:@tablet:flex'])
     );
     expect(wrapper.find('div[data-part="list"]').classes()).toEqual(
-      expect.arrayContaining(['flex', '@tablet:hidden'])
+      expect.arrayContaining(['eldra:flex', 'eldra:@tablet:hidden'])
     );
     wrapper.unmount();
   });
 });
 
-describe('Pagination — the container query (built CSS)', () => {
-  const distDir = fileURLToPath(new NodeURL('../../../../dist/', import.meta.url));
-  const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
+describe('Pagination — the container query (compiled CSS)', () => {
+  it('compiles the responsive numbered/compact swap to a real @container rule, not a viewport @media', async () => {
+    // The exact two variant classes the component emits on its two `data-part="list"`
+    // elements: the numbered list is `hidden @tablet:flex` (hidden below the pagination's own
+    // 48rem, flex from it) and the compact row is `flex @tablet:hidden` (the mirror). Both
+    // share the one `--container-tablet: 48rem` breakpoint declared in `theme.css`'s
+    // `@theme` block for exactly this edge — there is no separate "narrower than 48rem"
+    // variant token to compile, so a single `@container (width >= 48rem)` condition is the
+    // whole guard, not a pair of opposite conditions.
+    const css = await compileKitCss([
+      'eldra:hidden',
+      'eldra:@tablet:flex',
+      'eldra:flex',
+      'eldra:@tablet:hidden',
+    ]);
 
-  describe('built CSS', () => {
-    it.runIf(built)(
-      'compiles the responsive numbered/compact swap to a real @container rule, not a viewport @media',
-      async () => {
-        const { compile } = await import('@tailwindcss/node');
-        const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
-          base: distDir,
-          onDependency() {},
-        });
-        // The exact two variant classes the component emits on its two `data-part="list"`
-        // elements: the numbered list is `hidden @tablet:flex` (hidden below the pagination's own
-        // 48rem, flex from it) and the compact row is `flex @tablet:hidden` (the mirror). Both
-        // share the one `--container-tablet: 48rem` breakpoint declared in `tailwind.css`'s
-        // `@theme` block for exactly this edge — there is no separate "narrower than 48rem"
-        // variant token to compile, so a single `@container (width >= 48rem)` condition is the
-        // whole guard, not a pair of opposite conditions.
-        const css = compiler.build(['hidden', '@tablet:flex', 'flex', '@tablet:hidden']);
-
-        expect(css).toContain('@container (width >= 48rem)');
-        expect(css).toContain('.\\@tablet\\:flex');
-        expect(css).toContain('.\\@tablet\\:hidden');
-        // Never a plain viewport media query — the design spec's own rule that this edge is
-        // measured on the pagination's own width, not the viewport (unlike Drawer's full-screen
-        // breakpoint; see that component's own built-CSS guard for the contrasting case).
-        expect(css).not.toMatch(/@media \(width/);
-      }
-    );
-
-    // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
-    itFailsWithoutDist(built);
+    expect(css).toContain('@container (width >= 48rem)');
+    expect(css).toContain('.eldra\\:\\@tablet\\:flex');
+    expect(css).toContain('.eldra\\:\\@tablet\\:hidden');
+    // Never a plain viewport media query — the design spec's own rule that this edge is
+    // measured on the pagination's own width, not the viewport (unlike Drawer's full-screen
+    // breakpoint; see that component's own compiled-CSS guard for the contrasting case).
+    expect(css).not.toMatch(/@media \(width/);
   });
 });
 
@@ -390,11 +378,13 @@ describe('Pagination — messages', () => {
 });
 
 describe('Pagination — classes prop', () => {
-  it('merges a classes override onto a named part instead of landing beside it', () => {
+  it('puts a consumer class on the nav and appends a classes override to a named part', () => {
     const wrapper = mountWith(Pagination, {
-      props: { page: 1, totalPages: 3, classes: { root: 'mt-8' } },
+      props: { page: 1, totalPages: 3, classes: { current: 'ring-1' } },
+      attrs: { class: 'mt-8' },
     });
     expect(wrapper.find('nav').classes()).toContain('mt-8');
+    expect(wrapper.find('[aria-current="page"]').classes()).toContain('ring-1');
     wrapper.unmount();
   });
 });
@@ -508,7 +498,7 @@ describe('Pagination — disabled', () => {
     const current = list.querySelector('[data-part="current"]') as HTMLElement;
     expect(current.textContent?.trim()).toBe('6');
     expect(current.getAttribute('aria-current')).toBe('page');
-    expect(current.className).toContain('bg-surface-strong');
+    expect(current.className).toContain('eldra:bg-surface-strong');
     expect(pageNumbers(list)).toEqual(['1', '5', '6', '7', '12']);
     wrapper.unmount();
   });
@@ -547,9 +537,9 @@ describe('Pagination — responsive: false', () => {
     });
     expect(wrapper.find('div[data-part="list"]').exists()).toBe(false);
     const list = numberedList(wrapper);
-    expect(list.classList.contains('hidden')).toBe(false);
-    expect(list.classList.contains('flex')).toBe(true);
-    expect(list.classList.contains('flex-wrap')).toBe(true);
+    expect(list.classList.contains('eldra:hidden')).toBe(false);
+    expect(list.classList.contains('eldra:flex')).toBe(true);
+    expect(list.classList.contains('eldra:flex-wrap')).toBe(true);
     wrapper.unmount();
   });
 

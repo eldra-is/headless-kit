@@ -1,9 +1,9 @@
 /** The parts a consumer can restyle through `Tabs`' `classes`, named as the spec's anatomy names
  *  them. `tab`, `indicator` and `panel` are drawn by the `Tab`/`TabPanel` children — in items mode
  *  `Tabs` forwards its own `classes.tab`/`.indicator`/`.panel` down to the children it renders; in
- *  slots mode a consumer restyles a single `Tab`/`TabPanel` through that component's own `classes`
- *  instead (see `TabPart`/`TabPanelPart` below). */
-export type TabsPart = 'root' | 'list' | 'tab' | 'indicator' | 'panel';
+ *  slots mode a consumer restyles a single `Tab`/`TabPanel` through that component's own `class`
+ *  (and a `Tab`'s `classes.indicator`) instead. */
+export type TabsPart = 'list' | 'tab' | 'indicator' | 'panel';
 
 /** Underline (default): a bar under the selected tab, sitting on the list's hairline. Pills: a
  *  filled, fully-rounded button — the fill itself is the "indicator". */
@@ -44,12 +44,16 @@ export interface TabsProps {
    *  `tabs` slot (for `Tab`s) and the default slot (for `TabPanel`s) instead for panel content
    *  richer than plain text. */
   items?: TabsItem[];
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root
+   * itself with `class`.
+   */
   classes?: Partial<Record<TabsPart, string>>;
 }
 
-/** The parts a consumer can restyle through a standalone `<Tab>`'s `classes`. */
-export type TabPart = 'tab' | 'indicator';
+/** The part a consumer can restyle through a standalone `<Tab>`'s `classes`; the tab itself takes
+ *  `class`. */
+export type TabPart = 'indicator';
 
 export interface TabProps {
   /** This tab's value — what `Tabs`' `modelValue` holds when it is selected, and what
@@ -65,16 +69,14 @@ export interface TabProps {
    * not disabled. Defaults to `false`.
    */
   disabled?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<TabPart, string>>;
 }
 
-/** The one part a consumer can restyle through a standalone `<TabPanel>`'s `classes`. */
-export type TabPanelPart = 'panel';
+/** `TabPanel` has no inner parts: style the panel itself with `class`. */
+export type TabPanelPart = never;
 
 export interface TabPanelProps {
   /** The `Tab` this panel belongs to — must match that tab's own `value`. */
   value: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<TabPanelPart, string>>;
 }

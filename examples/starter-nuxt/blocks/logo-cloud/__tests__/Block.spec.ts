@@ -120,7 +120,7 @@ describe('logo-cloud block', () => {
     for (const link of grid.findAll('a')) expect(link.classes()).toContain('h-full');
 
     const row = mountBlock({ ...mock, logos, variant: 'row' });
-    for (const link of row.findAll('a')) expect(link.classes()).toContain('min-h-16');
+    for (const link of row.findAll('a')) expect(link.classes()).toContain('eldra:min-h-16');
   });
 
   it('renders a real <a> for every href — hover is never the only cue that a logo is a link', () => {

@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 // happy-dom replaces the global `URL` with one that refuses the `file:` scheme, which is what
 // `import.meta.url` is here. Node's own `URL` under another name resolves it.
 import { fileURLToPath, URL as NodeURL } from 'node:url';
@@ -7,76 +7,53 @@ import { describe, expect, it } from 'vitest';
 import { isBuilt, itFailsWithoutDist } from '../test/built';
 
 /**
- * `dist/tailwind.css` ends with `@source './'`, which is the whole reason a consumer who runs
- * Tailwind themselves sees the components styled: their build has to scan the package's *compiled*
- * JavaScript for class strings, because the source `.vue` files are not in the tarball.
+ * A consumer who runs Tailwind themselves follows the recipe `dist/tailwind.css`'s own header
+ * gives: Tailwind, then `@eldrajs/ui/tailwind.css` for the tokens and utilities on their own markup,
+ * then the prebuilt `@eldrajs/ui/components.css` for the components. Every class a component renders
+ * carries the `eldra:` prefix and is compiled into that prebuilt file, so nothing in the consumer's
+ * build has to scan the package's JavaScript for class strings — and nothing may: a scan of
+ * `dist/` would emit an unprefixed duplicate of every utility a component's doc comment names.
  *
- * Nothing else in the repo proves that. The package's own Storybook build reads `src` through an
- * explicit `@source '../src'` in `.storybook/preview.css`, and `style.css` is compiled from source
- * too — so `@source './'` could resolve against the wrong directory, or be dropped for a gitignored
- * one (`dist` is in `.gitignore`), and every check would still pass while every consumer got a
- * button with no background.
- *
- * This spec is the missing proof: it compiles exactly what a consumer's stylesheet says, against
- * the built `dist/`, and asserts the Button's own utilities come out the other end.
+ * This spec compiles exactly what that consumer's stylesheet says, against the built `dist/`, and
+ * asserts the components' own rules come out the other end, with no `@source` and no candidates of
+ * the package's own.
  */
 const packageRoot = fileURLToPath(new NodeURL('../../', import.meta.url));
 const distDir = `${packageRoot}dist/`;
-const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
+const built = isBuilt(`${distDir}tailwind.css`, `${distDir}components.css`, `${distDir}index.js`);
+
+const CONSUMER_CSS =
+  "@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';\n@import '@eldrajs/ui/components.css';";
+
+/** A consumer's whole compiled stylesheet: their own `candidates` plus the package's prebuilt CSS. */
+async function consumerCss(candidates: string[] = []) {
+  const { compile } = await import('@tailwindcss/node');
+  // The base is the package root rather than `dist/` — a consumer's stylesheet sits next to their
+  // own package.json — and the bare specifiers resolve through the package's `exports` map, so
+  // this is also a check that both stylesheets are exported.
+  const compiler = await compile(CONSUMER_CSS, { base: packageRoot, onDependency() {} });
+  return { compiler, css: compiler.build(candidates) };
+}
 
 describe('consumer Tailwind build', () => {
   it.runIf(built)(
-    'emits the components own utilities from dist, which @source ./ scans',
+    'emits the components own utilities from the prebuilt components.css, with no source scan',
     async () => {
-      const { compile } = await import('@tailwindcss/node');
-      const { Scanner } = await import('@tailwindcss/oxide');
+      const { compiler, css } = await consumerCss();
 
-      // What a consumer's main.css says, verbatim. The bare specifier resolves through the
-      // package's `exports` map, so this is also a check that `./tailwind.css` is exported. The
-      // base is the package root rather than `dist/` — a consumer's stylesheet sits next to their
-      // own package.json, nowhere near ours — so nothing here can quietly resolve `@source './'`
-      // against the directory that happens to hold the answer.
-      const compiler = await compile(
-        `@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`,
-        {
-          base: packageRoot,
-          onDependency() {},
-        }
-      );
+      // No `@source` reaches the consumer's build: the components need no scan of `dist/`.
+      expect(compiler.sources).toEqual([]);
 
-      // The scan has to land on `dist`, not on `src`. Tailwind reports a source as the declaring
-      // CSS file's directory plus the directive's own relative pattern, so both halves are
-      // checked: `@source '../src'` would still produce a fully styled stylesheet here (the class
-      // strings are in the source too) and ship a consumer nothing at all.
-      expect(compiler.sources).toHaveLength(1);
-      const source = compiler.sources[0];
-      expect(source?.base.replaceAll('\\', '/')).toMatch(/\/dist$/);
-      expect(resolve(source?.base ?? '', source?.pattern ?? '').replaceAll('\\', '/')).toMatch(
-        /\/dist$/
-      );
-
-      // `compile()` only records the `@source` directives; the integration (here, us) runs the
-      // scanner over them, exactly as @tailwindcss/vite does.
-      const scanner = new Scanner({ sources: compiler.sources });
-      const candidates = scanner.scan();
-      const css = compiler.build(candidates);
-
-      // Button's fill, from `dist/index.js` and nowhere else.
-      expect(candidates).toContain('bg-primary');
-      expect(css).toContain('.bg-primary {');
-      // ...and the parts that only exist because the scan found the whole component, not one string.
-      expect(css).toContain('.control-h {');
-      // `@container (width < 48rem)` (`@max-tablet`) is not asserted here: it was only ever
-      // reached through `Button`'s touch-target growth, which the operator override removed (see
-      // `Button.vue` and the README's Deviations) — nothing in the package emits it today, so
-      // there is nothing here for the scanner to find. `--container-tablet` itself is unchanged in
-      // `tailwind.css`, for a future component that needs the same 48rem edge.
-      expect(css).toContain('.whitespace-nowrap {');
+      // Button's fill and height, prefixed, with no candidate of the package's own.
+      expect(css).toContain('.eldra\\:bg-primary {');
+      expect(css).toContain('.eldra\\:control-h {');
+      expect(css).toContain('.eldra\\:whitespace-nowrap {');
       // FormLayout's two-column breakpoint. A container-query variant whose `--container-*` key
       // is missing is dropped silently by Tailwind — the class ships, no rule is emitted, and the
       // form simply never pairs its fields — so the emitted condition is asserted, not the class.
-      expect(css).toContain('@container (width >= 36rem)');
-      expect(css).toContain('@container (width < 36rem)');
+      // The prebuilt file is lowered, so either spelling of the range is accepted.
+      expect(css).toMatch(/@container \((?:width >= |min-width: )36rem\)/);
+      expect(css).toMatch(/@container (?:\(width < |not \(min-width: )36rem\)/);
 
       // A field's boundary and the inset line that completes its 2px error state are one
       // measurement in two places, and the line is inset by exactly the border's own width — so a
@@ -84,11 +61,11 @@ describe('consumer Tailwind build', () => {
       // consumer set that variable. Both now read `--eldra-field-border-width`, and the line's
       // corner follows the *field's* radius rather than always `radius-md`, so an Input with
       // `--eldra-input-radius` set does not round its border one way and its error line another.
-      const fieldBorder = css.slice(css.indexOf('.eldra-field-border {'));
+      const fieldBorder = css.slice(css.indexOf('.eldra\\:eldra-field-border {'));
       expect(fieldBorder.slice(0, 120)).toContain('var(--eldra-field-border-width, 1px)');
       const invalid = css.slice(
-        css.indexOf('.eldra-field-invalid'),
-        css.indexOf('.eldra-field-invalid') + 600
+        css.indexOf('.eldra\\:eldra-field-invalid'),
+        css.indexOf('.eldra\\:eldra-field-invalid') + 600
       );
       expect(invalid).toContain('var(--eldra-field-border-width, 1px)');
 
@@ -115,6 +92,13 @@ describe('consumer Tailwind build', () => {
     }
   );
 
+  it.runIf(built)("gives a consumer's own markup the package's unprefixed utilities", async () => {
+    const { css } = await consumerCss(['bg-primary', 'control-h', 'eldra-focus']);
+    expect(css).toContain('.bg-primary {');
+    expect(css).toContain('.control-h {');
+    expect(css).toContain('.eldra-focus {');
+  });
+
   /**
    * A `Carousel`'s slides-per-view has to survive a *consumer's* Tailwind build, which is a
    * stronger requirement than surviving this package's own Storybook (bug, fixed 2026-09-27 — see
@@ -124,13 +108,9 @@ describe('consumer Tailwind build', () => {
    * `Carousel.vue` used to set `--eldra-carousel-per-view` through interpolated Tailwind
    * arbitrary-property classes (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/
    * `@content:` steps). Tailwind has no runtime — it scans source *text* for class names — and an
-   * interpolated value is never in that text, so a consumer's build emitted no rule for any of the
+   * interpolated value is never in that text, so the build emitted no rule for any of the
    * three, `eldra-carousel-slide`'s width formula fell back to its own `1`, and every carousel in
-   * the built starter rendered one full-width slide (testimonials, product-carousel, the
-   * `split-carousel` hero and the `carousel` gallery, all at once). Nothing caught it: the numbers
-   * appear in the package's own Storybook because its `@source '../src'` happens to scan the very
-   * `.vue` file whose *template literal* holds the pattern, so the fixed-number classes it also
-   * mentions get emitted there.
+   * the built starter rendered one full-width slide.
    *
    * The values now arrive as an inline style (asserted per breakpoint in the component's own
    * spec), and the *breakpoints* are static CSS: the `eldra-carousel-track` utility. This is the
@@ -139,38 +119,32 @@ describe('consumer Tailwind build', () => {
    * `--eldra-carousel-per-view:` declarations below are simply absent, so this fails.
    */
   it.runIf(built)('emits the carousel per-view container-query steps for a consumer', async () => {
-    const { compile } = await import('@tailwindcss/node');
-    const compiler = await compile(`@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`, {
-      base: packageRoot,
-      onDependency() {},
-    });
-    const css = compiler.build(['eldra-carousel-track', 'eldra-carousel-slide']);
+    const { css } = await consumerCss();
 
     // The compiler keeps the source's own line breaks, so every comparison here is on collapsed
     // whitespace — the same shape the field-border assertions above use.
     const flat = (value: string) => value.replace(/\s+/g, ' ');
 
     // The base step, outside any query.
-    const base = flat(css.slice(css.indexOf('.eldra-carousel-track {')).slice(0, 200));
+    const base = flat(css.slice(css.indexOf('.eldra\\:eldra-carousel-track {')).slice(0, 200));
     expect(base).toContain('--eldra-carousel-per-view: var(--eldra-carousel-per-view-base, 1)');
 
     // ...and one step per breakpoint, each inside a real `@container` rule with a literal length
-    // (a `@container` condition may not hold a `var()`; see `tailwind.css`'s own header).
+    // (a `@container` condition may not hold a `var()`; see `theme.css`'s own header).
     for (const [width, property] of [
       ['48rem', '--eldra-carousel-per-view-md'],
       ['64rem', '--eldra-carousel-per-view-lg'],
     ] as const) {
-      const start = css.indexOf(`@container (width >= ${width})`);
-      expect(
-        start,
-        `@container (width >= ${width}) is not in the compiled stylesheet`
-      ).toBeGreaterThan(-1);
-      const block = flat(css.slice(start, css.indexOf('\n}\n', start)));
-      expect(block).toContain(`--eldra-carousel-per-view: var( ${property}`);
+      const step = new RegExp(
+        String.raw`@container \((?:width >= |min-width: )${width}\) \{ \.eldra\\:eldra-carousel-track \{ --eldra-carousel-per-view: var\( ?${property}`
+      );
+      expect(flat(css), `the ${width} carousel step is not in the compiled stylesheet`).toMatch(
+        step
+      );
     }
 
     // The slide's own width formula still reads the one resolved variable, not the three inputs.
-    const slide = flat(css.slice(css.indexOf('.eldra-carousel-slide {')).slice(0, 300));
+    const slide = flat(css.slice(css.indexOf('.eldra\\:eldra-carousel-slide {')).slice(0, 300));
     expect(slide).toContain('var(--eldra-carousel-per-view, 1)');
   });
 
@@ -178,8 +152,8 @@ describe('consumer Tailwind build', () => {
    * The pills tab list's focus-ring reservation has to survive a *consumer's* build too, and it is
    * the same trap the carousel fell into one directive earlier: the five utilities that hold the
    * ring open are arbitrary values over the ring tokens
-   * (`px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]` and its four siblings), so
-   * assembling any of those names at runtime from a shared constant would leave a consumer's
+   * (`eldra:px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]` and its four
+   * siblings), so assembling any of those names at runtime from a shared constant would leave the
    * stylesheet with no rule at all — and nothing that measures the rendered page could tell,
    * because a harness that compiles the *class names it found in the markup* emits them either way.
    * This compiles what a consumer's own stylesheet says, against `dist/`, and asserts the five
@@ -190,14 +164,7 @@ describe('consumer Tailwind build', () => {
    * against an interpolated version they are simply absent.
    */
   it.runIf(built)('emits the tab list ring reservation for a consumer', async () => {
-    const { compile } = await import('@tailwindcss/node');
-    const { Scanner } = await import('@tailwindcss/oxide');
-    const compiler = await compile(`@import 'tailwindcss';\n@import '@eldrajs/ui/tailwind.css';`, {
-      base: packageRoot,
-      onDependency() {},
-    });
-    const scanner = new Scanner({ sources: compiler.sources });
-    const css = compiler.build(scanner.scan()).replace(/\s+/g, ' ');
+    const css = (await consumerCss()).css.replace(/\s+/g, ' ');
     const reach = 'calc(var(--eldra-focus-offset) + var(--eldra-focus-width))';
     for (const declaration of [
       `padding-block: ${reach}`,
@@ -310,11 +277,11 @@ describe('every enabled <button> is cursor-pointer', () => {
     '%s carries cursor-pointer, on the file itself or a local import it names',
     (_name, file) => {
       const own = readFileSync(file, 'utf8');
-      const carriesItself = own.includes('cursor-pointer');
+      const carriesItself = own.includes('eldra:cursor-pointer');
       const carriesThroughImport = localImportSpecifiers(own)
         .map((specifier) => resolveLocalImport(file, specifier))
         .filter((resolved): resolved is string => resolved !== undefined)
-        .some((resolved) => readFileSync(resolved, 'utf8').includes('cursor-pointer'));
+        .some((resolved) => readFileSync(resolved, 'utf8').includes('eldra:cursor-pointer'));
       expect(carriesItself || carriesThroughImport).toBe(true);
     }
   );

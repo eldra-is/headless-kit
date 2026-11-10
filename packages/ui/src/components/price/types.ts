@@ -16,7 +16,6 @@ export type PriceSize = 'sm' | 'md' | 'lg';
  * plays (on the span) are not the same element fighting over `opacity`; they add no box of their
  * own, and a consumer who only wants to restyle the amount's text can reach either one. */
 export type PricePart =
-  | 'root'
   | 'current'
   | 'currentValue'
   | 'compareAt'
@@ -105,6 +104,7 @@ export interface PriceProps {
    * are unaffected; only the region goes.
    */
   announce?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<PricePart, string>>;
 }

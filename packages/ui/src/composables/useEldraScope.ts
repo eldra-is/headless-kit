@@ -4,9 +4,8 @@ import { inject, provide, useSlots, type InjectionKey } from 'vue';
 export const ELDRA_SCOPE_KEY: InjectionKey<string> = Symbol('eldra-scope');
 
 /**
- * Opts every component of this package rendered below the caller into `@eldrajs/ui/scoped.css`,
- * the stylesheet for embedding these components in another Tailwind app (see the README,
- * "Embedding in another Tailwind app"). Call it in `setup()` of a wrapper or an app root.
+ * Names a theming scope for every component of this package rendered below the caller (see the
+ * README, "Theming a subtree"). Call it in `setup()` of a wrapper or an app root.
  *
  * Each component then renders `data-eldra-scope="<name>"` on its root and on every part it
  * teleports (panels, dialogs, toasts). The name is free; the consumer's own variable overrides
@@ -18,12 +17,11 @@ export function provideEldraScope(name = 'default'): void {
 }
 
 /**
- * Internal: what a component of this package binds for `scoped.css`. `scope` goes on every root,
- * teleported root and kit-owned element sitting directly in a slot host (so it is a scope root of
- * its own and stays styled below the host's limit); it is `undefined` without a provider.
- * `slotHost(...names)` is `data-eldra-slot`, on the element holding those slots, where `scoped.css`
- * stops styling. It renders whenever one of the slots has content, provider or not (it changes no
- * style without `scoped.css`), and never for a fallback, which is the kit's own markup.
+ * Internal: the theming hooks a component of this package binds. `scope` goes on every root,
+ * teleported root and kit-owned element sitting directly in a slot host, so a scope's variables
+ * reach it; it is `undefined` without a provider. `slotHost(...names)` is `data-eldra-slot`, on
+ * the element holding those slots, a hook for consumer CSS. It renders whenever one of the slots
+ * has content, provider or not, and never for a fallback, which is the kit's own markup.
  */
 export function useEldraScope() {
   const scope = inject(ELDRA_SCOPE_KEY, undefined);

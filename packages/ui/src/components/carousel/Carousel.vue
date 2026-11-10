@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from './useCarousel';
@@ -103,17 +102,16 @@ watch(canNext, (can) => {
  *  on mount so its screenshot is never captured mid-transition (see that story's own comment). */
 defineExpose({ pause, resume, toggle, playing, index, count, goTo, next, prev, focusItem });
 
-const rootClass = computed(() =>
-  partClass(cx('@container flex flex-col gap-4'), props.classes, 'root')
-);
+const rootClass = 'eldra:@container eldra:flex eldra:flex-col eldra:gap-4';
 
-const headerClass = computed(() =>
-  partClass(cx('flex items-center justify-between gap-4'), props.classes, 'header')
-);
+const headerClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:justify-between eldra:gap-4',
+  props.classes?.header,
+]);
 
 /** `sr-only` keeps the hint out of the layout entirely — absolutely positioned, so it is not a
  *  flex item of the root's own `flex-col gap-4` and adds no gap above the header. */
-const instructionsClass = computed(() => partClass('sr-only', props.classes, 'instructions'));
+const instructionsClass = computed(() => ['eldra:sr-only', props.classes?.instructions]);
 
 /**
  * Spec "Carousel" → Sizes: "Track focus ring: the standard ring with a 4px `focus-inner` gap
@@ -164,9 +162,8 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
  * operator report: at 1440px the first card's ring was still cut off flat on its *left* edge while
  * the top and right ones drew).** The first version wrote one uniform `p-[reach]`, and a block that
  * bleeds the track to the screen edge below 48rem (`blocks/product-carousel` in the starter) carries
- * its own `px-[gutter] … @tablet:px-0` through `classes.track`. `px-*` and `p-*` are different
- * `tailwind-merge` groups, so both survive the merge — and then `padding-inline` simply wins in the
- * cascade, because Tailwind emits every `padding-inline` rule *after* every `padding` one. The
+ * its own `px-[gutter] … @tablet:px-0` through `classes.track`. Both applied, and the consumer's
+ * `padding-inline` won over the kit's `padding` shorthand. The
  * measured result on the deployed site: `padding-top: 6px`, `padding-left: 0px`. A consumer could
  * not fix it on their side either, since the reach is the variable this element itself overrides.
  *
@@ -175,30 +172,25 @@ const instructionsClass = computed(() => partClass('sr-only', props.classes, 'in
  * @tablet:[--eldra-carousel-bleed:0px]`) and the three inline utilities here resolve to
  * `max(that, reach)` together, so the padding, the negative margin that cancels it and the scroll
  * padding can never fall out of step, and neither axis can be left below the ring's reach. A custom
- * property declaration shares a merge group with nothing, so the ring's own reservation survives any
+ * property declaration overrides no padding, so the ring's own reservation survives any such
  * `classes.track`. `max()` rather than `bleed + reach`: the bleed is the page gutter, the track is
  * already flush with the viewport edge at that width, and widening it by another 6px per side would
  * give the page a horizontal scrollbar — 1rem of gutter is itself more than enough room for a 6px
  * ring, and the `max()` is what still reserves the reach for a consumer whose gutter is smaller.
  */
-const trackClass = computed(() =>
-  partClass(
-    cx(
-      'relative flex touch-pan-x touch-pan-y gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-smooth',
-      'motion-reduce:scroll-auto eldra-scrollbar-hide eldra-focus [--eldra-focus-offset:4px]',
-      'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      '-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
-      'px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      '-mx-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      'scroll-px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
-      props.draggable && 'cursor-grab data-[dragging=true]:cursor-grabbing',
-      'data-[dragging=true]:snap-none data-[dragging=true]:scroll-auto data-[dragging=true]:select-none',
-      'eldra-carousel-track'
-    ),
-    props.classes,
-    'track'
-  )
-);
+const trackClass = computed(() => [
+  'eldra:relative eldra:flex eldra:touch-pan-x eldra:touch-pan-y eldra:gap-4 eldra:overflow-x-auto eldra:overscroll-x-contain eldra:snap-x eldra:snap-mandatory eldra:scroll-smooth',
+  'eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus eldra:[--eldra-focus-offset:4px]',
+  'eldra:py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+  'eldra:-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]',
+  'eldra:px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+  'eldra:-mx-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+  'eldra:scroll-px-[max(var(--eldra-carousel-bleed,0px),calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width)))]',
+  props.draggable && 'eldra:cursor-grab eldra:data-[dragging=true]:cursor-grabbing',
+  'eldra:data-[dragging=true]:snap-none eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
+  'eldra:eldra-carousel-track',
+  props.classes?.track,
+]);
 
 /**
  * `perView` reaches the CSS as three inline custom properties, not as classes — see
@@ -217,31 +209,29 @@ const trackStyle = computed(() => carouselPerViewStyle(props.perView));
  *  and `not-allowed` at an end. Hand-rolled rather than `<Button icon-only>`: no `Button` size is
  *  2.75rem, and this shape (a full circle, not `radius-md`) is unique to this component. */
 const ARROW_BASE =
-  'inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border ' +
-  'border-border-strong bg-background text-text eldra-focus ' +
-  'hover:border-text hover:bg-surface disabled:cursor-not-allowed disabled:opacity-45 ' +
-  'disabled:hover:border-border-strong disabled:hover:bg-background';
-const prevClass = computed(() => partClass(ARROW_BASE, props.classes, 'prev'));
-const nextClass = computed(() => partClass(ARROW_BASE, props.classes, 'next'));
+  'eldra:inline-flex eldra:size-11 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-full eldra:border ' +
+  'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:eldra-focus ' +
+  'eldra:hover:border-text eldra:hover:bg-surface eldra:disabled:cursor-not-allowed eldra:disabled:opacity-45 ' +
+  'eldra:disabled:hover:border-border-strong eldra:disabled:hover:bg-background';
+const prevClass = computed(() => [ARROW_BASE, props.classes?.prev]);
+const nextClass = computed(() => [ARROW_BASE, props.classes?.next]);
 
-const dotsClass = computed(() => partClass('flex items-center', props.classes, 'dots'));
+const dotsClass = computed(() => ['eldra:flex eldra:items-center', props.classes?.dots]);
 /** Spec "Carousel" → Sizes, Dot row: "1.5rem square target ... no gap between dot targets" — the
  *  target itself is a plain `size-6` button; `eldra-carousel-dot` (see `tailwind.css`) draws the
  *  visible ring/pill inside it. */
-const dotClass = computed(() =>
-  partClass(
-    'inline-flex size-6 shrink-0 cursor-pointer items-center justify-center eldra-focus',
-    props.classes,
-    'dot'
-  )
-);
+const dotClass = computed(() => [
+  'eldra:inline-flex eldra:size-6 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:eldra-focus',
+  props.classes?.dot,
+]);
 
 /** Spec "Carousel" → Sizes, Counter row: "0.875rem, tabular numbers, min-width 3.5rem, centred" —
  *  `text-body-sm` is already exactly 0.875rem/400 (see `tokens.css`); `min-w-14` is the stock
  *  spacing scale's 3.5rem. Accessibility: "`aria-hidden` (dots and slide labels already say it)". */
-const counterClass = computed(() =>
-  partClass('min-w-14 text-center text-body-sm text-muted tabular-nums', props.classes, 'counter')
-);
+const counterClass = computed(() => [
+  'eldra:min-w-14 eldra:text-center eldra:text-body-sm eldra:text-muted eldra:tabular-nums',
+  props.classes?.counter,
+]);
 
 /** Spec "Carousel" → Sizes, "Pause / Play" row: "small outline button (2rem tall)" — `Button`'s
  *  own `outline`/`sm` recipe (`control-h-sm` is 2rem), hand-rolled here for the same reason the
@@ -250,17 +240,12 @@ const counterClass = computed(() =>
  *  `Button`'s own fallthrough attrs onto a root that already hard-codes `data-part="container"` is
  *  the kind of "does the parent's attr really win" question `ProductCard.vue`'s own comment had to
  *  verify empirically for `aria-label` — not worth relitigating for one static string here. */
-const pauseClass = computed(() =>
-  partClass(
-    cx(
-      'inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border',
-      'control-h-sm px-3 text-button-sm',
-      'border-border-strong bg-background text-text eldra-focus hover:border-text hover:bg-surface'
-    ),
-    props.classes,
-    'pause'
-  )
-);
+const pauseClass = computed(() => [
+  'eldra:inline-flex eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:gap-1.5 eldra:rounded-md eldra:border',
+  'eldra:control-h-sm eldra:px-3 eldra:text-button-sm',
+  'eldra:border-border-strong eldra:bg-background eldra:text-text eldra:eldra-focus eldra:hover:border-text eldra:hover:bg-surface',
+  props.classes?.pause,
+]);
 
 const showBelowRow = computed(() => props.controls === 'below' || props.dots || showPause.value);
 </script>
@@ -295,7 +280,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <div
         v-if="controls === 'header'"
         :data-eldra-scope="eldra.scope"
-        class="flex shrink-0 items-center gap-2"
+        class="eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2"
       >
         <span v-if="counter" data-part="counter" aria-hidden="true" :class="counterClass">
           {{ messages.counter(index + 1, count) }}
@@ -310,7 +295,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -333,7 +318,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -375,7 +360,10 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
       <slot />
     </div>
 
-    <div v-if="showBelowRow" class="flex items-center justify-between gap-4">
+    <div
+      v-if="showBelowRow"
+      class="eldra:flex eldra:items-center eldra:justify-between eldra:gap-4"
+    >
       <button
         v-if="showPause"
         type="button"
@@ -399,12 +387,15 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           :aria-label="messages.goToSlide(dotNumber)"
           @click="goTo(dotNumber - 1)"
         >
-          <span class="eldra-carousel-dot" />
+          <span class="eldra:eldra-carousel-dot" />
         </button>
       </div>
       <span v-else />
 
-      <div v-if="controls === 'below'" class="flex shrink-0 items-center gap-2">
+      <div
+        v-if="controls === 'below'"
+        class="eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-2"
+      >
         <button
           ref="prevButtonRef"
           type="button"
@@ -415,7 +406,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="prev"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -441,7 +432,7 @@ const showBelowRow = computed(() => props.controls === 'below' || props.dots || 
           @click="next"
         >
           <svg
-            class="size-5"
+            class="eldra:size-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

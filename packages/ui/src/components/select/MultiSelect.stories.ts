@@ -33,7 +33,7 @@ const meta = {
           'live count and removable tags under the control. It shares every measure, state and key',
           'of **Select**; only the differences are listed here.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): every part of `Select` —',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): every part of `Select` —',
           '`root`, `trigger`, `leadingIcon`, `placeholder`, `chevron`, `clearButton`, `panel`,',
           '`search`, `listbox`, `group`, `groupLabel`, `option`, `optionLabel`, `optionHint`,',
           '`optionMeta`, `optionSwatch`, `optionIcon`, `optionCheck`, `empty`, `native` — plus',

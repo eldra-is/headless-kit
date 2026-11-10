@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import Icon from '../icon/Icon.vue';
 import type { EditorPlaceholderProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -22,27 +21,22 @@ const props = withDefaults(defineProps<EditorPlaceholderProps>(), {
  * chrome, never in what a screen reader on the storefront ever reaches.
  */
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'eldra-editor-placeholder-border flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface text-center',
-      props.inline ? 'p-4' : 'p-8'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:flex eldra:flex-col eldra:items-center eldra:justify-center eldra:gap-2 eldra:rounded-lg eldra:border eldra:border-dashed eldra:border-border-strong eldra:bg-surface eldra:text-center',
+  props.inline ? 'eldra:p-4' : 'eldra:p-8',
+]);
 
 /** 1.5rem (spec → Sizes, "Editor hint" row) is exactly `Icon.vue`'s own `lg` size, unlike
  * `EmptyState`'s 1.75rem icon — so, unlike that component, this one draws it through the shared
  * `Icon` component instead of a hand-rolled `<svg>`. Colour (spec → States, "Editor hint" row):
  * `muted`, same as the help text. */
-const iconClass = computed(() => partClass('text-muted', props.classes, 'icon'));
+const iconClass = computed(() => ['eldra:text-muted', props.classes?.icon]);
 
-const labelClass = computed(() =>
-  partClass('text-body-sm font-semibold text-text', props.classes, 'label')
-);
-const helpClass = computed(() => partClass('text-body-sm text-muted', props.classes, 'help'));
+const labelClass = computed(() => [
+  'eldra:text-body-sm eldra:font-semibold eldra:text-text',
+  props.classes?.label,
+]);
+const helpClass = computed(() => ['eldra:text-body-sm eldra:text-muted', props.classes?.help]);
 </script>
 
 <template>

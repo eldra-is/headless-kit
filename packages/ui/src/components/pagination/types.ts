@@ -11,15 +11,7 @@ import type { UiMessages } from '../../composables/useMessages';
  * `Tooltip`'s hover bridge or `Skeleton`'s shimmer are drawn without one (see the README's
  * Deviations entry).
  */
-export type PaginationPart =
-  | 'root'
-  | 'list'
-  | 'item'
-  | 'page'
-  | 'current'
-  | 'ellipsis'
-  | 'prev'
-  | 'next';
+export type PaginationPart = 'list' | 'item' | 'page' | 'current' | 'ellipsis' | 'prev' | 'next';
 
 export interface PaginationProps {
   /** Current page, 1-based. */
@@ -87,6 +79,9 @@ export interface PaginationProps {
   /** Message overrides (`pagination`, `previousPage`, `nextPage`, `pageN`, `pageOfTotal`), per
    *  instance; a shorter visible "Previous"/"Next" goes here. See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the `<nav>`
+   * itself with `class`.
+   */
   classes?: Partial<Record<PaginationPart, string>>;
 }

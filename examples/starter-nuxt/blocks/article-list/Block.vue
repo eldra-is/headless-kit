@@ -212,15 +212,23 @@ const GRID_ROOT_CLASS =
 const LIST_ROOT_CLASS = 'flex flex-col border-t border-border';
 const listContainerClass = computed(() => (isList.value ? LIST_ROOT_CLASS : GRID_ROOT_CLASS));
 
+const FEATURED_CARD_CLASS =
+  'grid gap-6 @tablet:grid-cols-[7fr_5fr] @tablet:items-center @tablet:gap-8 @content:gap-12';
 const FEATURED_CARD_CLASSES: Partial<Record<ContentCardPart, string>> = {
-  root: 'grid gap-6 @tablet:grid-cols-[7fr_5fr] @tablet:items-center @tablet:gap-8 @content:gap-12',
   title: '@content:text-[2rem] @content:leading-[1.15]',
   body: '@content:gap-4',
 };
+const LIST_CARD_CLASS =
+  'grid grid-cols-[6.5rem_1fr] items-start gap-4 @tablet:grid-cols-[15rem_1fr] @tablet:items-center @tablet:gap-8';
 const LIST_CARD_CLASSES: Partial<Record<ContentCardPart, string>> = {
-  root: 'grid grid-cols-[6.5rem_1fr] items-start gap-4 @tablet:grid-cols-[15rem_1fr] @tablet:items-center @tablet:gap-8',
   excerpt: '@max-tablet:hidden',
 };
+
+function cardClass(card: CardView): string | undefined {
+  if (card.featured) return FEATURED_CARD_CLASS;
+  if (isList.value) return LIST_CARD_CLASS;
+  return undefined;
+}
 
 function cardClasses(card: CardView): Partial<Record<ContentCardPart, string>> | undefined {
   if (card.featured) return FEATURED_CARD_CLASSES;
@@ -261,7 +269,7 @@ function itemWrapperClass(card: CardView): string {
           :as="viewAllLinkAs"
           variant="standalone"
           arrow
-          :classes="{ root: 'text-control' }"
+          class="text-control"
         >
           {{ viewAllLabel }}
         </Link>
@@ -275,12 +283,12 @@ function itemWrapperClass(card: CardView): string {
               :as="filter.linkAs"
               :underline="false"
               :aria-current="filter.active ? 'true' : undefined"
-              :classes="{
-                root: filter.active
-                  ? 'inline-flex min-h-10 items-center rounded-full border border-primary bg-primary px-4 text-control font-semibold text-primary-contrast'
-                  : 'inline-flex min-h-10 items-center rounded-full border border-border-strong px-4 text-control font-medium text-text hover:border-text',
-                label: 'inline-flex items-center gap-1',
-              }"
+              :class="
+                filter.active
+                  ? 'border-primary bg-primary text-control text-primary-contrast inline-flex min-h-10 items-center rounded-full border px-4 font-semibold'
+                  : 'border-border-strong text-control text-text hover:border-text inline-flex min-h-10 items-center rounded-full border px-4 font-medium'
+              "
+              :classes="{ label: 'inline-flex items-center gap-1' }"
             >
               <EldraIcon v-if="filter.active" name="check" size="sm" />
               {{ filter.label }}
@@ -303,6 +311,7 @@ function itemWrapperClass(card: CardView): string {
             :meta="card.readingTime"
             :excerpt="card.dek"
             :heading-level="3"
+            :class="cardClass(card)"
             :classes="cardClasses(card)"
           />
         </li>

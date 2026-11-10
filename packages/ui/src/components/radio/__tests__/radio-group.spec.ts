@@ -133,13 +133,13 @@ describe('RadioGroup — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(RadioGroup, {
+      attrs: { class: 'ring-1' },
       props: {
         legend: 'Shipping method',
         options: SHIPPING,
         layout: 'cards',
         error: 'Choose a shipping method.',
         classes: {
-          root: 'ring-1',
           legend: 'italic',
           options: 'gap-8',
           option: 'shadow-md',
@@ -265,8 +265,8 @@ describe('RadioGroup — layout', () => {
   it('stacks vertically with the spec gap by default', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-col');
-    expect(classes).toContain('gap-2');
+    expect(classes).toContain('eldra:flex-col');
+    expect(classes).toContain('eldra:gap-2');
     wrapper.unmount();
   });
 
@@ -275,10 +275,10 @@ describe('RadioGroup — layout', () => {
       props: { legend: 'Fit', options: FIT, layout: 'row' },
     });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-row');
-    expect(classes).toContain('flex-wrap');
-    expect(classes).toContain('gap-x-6');
-    expect(classes).toContain('gap-y-2');
+    expect(classes).toContain('eldra:flex-row');
+    expect(classes).toContain('eldra:flex-wrap');
+    expect(classes).toContain('eldra:gap-x-6');
+    expect(classes).toContain('eldra:gap-y-2');
     wrapper.unmount();
   });
 
@@ -287,17 +287,17 @@ describe('RadioGroup — layout', () => {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards' },
     });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-col');
-    expect(classes).toContain('gap-2');
+    expect(classes).toContain('eldra:flex-col');
+    expect(classes).toContain('eldra:gap-2');
     wrapper.unmount();
   });
 
   it('keeps the fieldset free of its default border, padding and min-width', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
     const classes = wrapper.classes();
-    expect(classes).toContain('border-0');
-    expect(classes).toContain('p-0');
-    expect(classes).toContain('min-w-0');
+    expect(classes).toContain('eldra:border-0');
+    expect(classes).toContain('eldra:p-0');
+    expect(classes).toContain('eldra:min-w-0');
     wrapper.unmount();
   });
 
@@ -318,9 +318,9 @@ describe('RadioGroup — cards', () => {
     const metas = wrapper.findAll('[data-part="meta"]').map((w) => w.text());
     expect(metas).toEqual(['Free', '$12.00', 'Free']);
     const meta = wrapper.find('[data-part="meta"]');
-    expect(meta.classes()).toContain('justify-self-end');
-    expect(meta.classes()).toContain('tabular-nums');
-    expect(meta.classes()).toContain('whitespace-nowrap');
+    expect(meta.classes()).toContain('eldra:justify-self-end');
+    expect(meta.classes()).toContain('eldra:tabular-nums');
+    expect(meta.classes()).toContain('eldra:whitespace-nowrap');
     wrapper.unmount();
   });
 
@@ -329,9 +329,9 @@ describe('RadioGroup — cards', () => {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards' },
     });
     const classes = option(wrapper).className.split(/\s+/);
-    expect(classes).toContain('eldra-radio-card-border');
-    expect(classes).toContain('rounded-md');
-    expect(classes).toContain('min-h-14');
+    expect(classes).toContain('eldra:eldra-radio-card-border');
+    expect(classes).toContain('eldra:rounded-md');
+    expect(classes).toContain('eldra:min-h-14');
     wrapper.unmount();
   });
 
@@ -345,12 +345,12 @@ describe('RadioGroup — cards', () => {
       },
     });
     const selectedCard = option(wrapper, 0).className.split(/\s+/);
-    expect(selectedCard).toContain('bg-surface');
-    expect(selectedCard).toContain('border-primary');
-    expect(selectedCard).toContain('eldra-radio-card-selected');
+    expect(selectedCard).toContain('eldra:bg-surface');
+    expect(selectedCard).toContain('eldra:border-primary');
+    expect(selectedCard).toContain('eldra:eldra-radio-card-selected');
     const otherCard = option(wrapper, 1).className.split(/\s+/);
-    expect(otherCard).toContain('bg-background');
-    expect(otherCard).not.toContain('eldra-radio-card-selected');
+    expect(otherCard).toContain('eldra:bg-background');
+    expect(otherCard).not.toContain('eldra:eldra-radio-card-selected');
     wrapper.unmount();
   });
 
@@ -365,12 +365,12 @@ describe('RadioGroup — cards', () => {
       },
     });
     const selectedCard = option(wrapper, 0).className.split(/\s+/);
-    expect(selectedCard).toContain('bg-surface');
-    expect(selectedCard).not.toContain('bg-background');
-    expect(selectedCard).toContain('border-danger');
-    expect(selectedCard).toContain('eldra-radio-card-selected');
+    expect(selectedCard).toContain('eldra:bg-surface');
+    expect(selectedCard).not.toContain('eldra:bg-background');
+    expect(selectedCard).toContain('eldra:border-danger');
+    expect(selectedCard).toContain('eldra:eldra-radio-card-selected');
     expect(option(wrapper, 0).className).toContain(
-      '[--eldra-radio-card-selected-color:var(--eldra-color-danger)]'
+      'eldra:[--eldra-radio-card-selected-color:var(--eldra-color-danger)]'
     );
     wrapper.unmount();
   });
@@ -416,8 +416,8 @@ describe('RadioGroup — cards', () => {
     const wrapper = mountWith(RadioGroup, {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards' },
     });
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('text-card-title');
-    expect(wrapper.find('[data-part="meta"]').classes()).toContain('text-card-title');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:text-card-title');
+    expect(wrapper.find('[data-part="meta"]').classes()).toContain('eldra:text-card-title');
     wrapper.unmount();
   });
 
@@ -425,7 +425,7 @@ describe('RadioGroup — cards', () => {
     const wrapper = mountWith(RadioGroup, {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards', size: 'lg' },
     });
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('size-4.5');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:size-4.5');
     wrapper.unmount();
   });
 
@@ -434,9 +434,9 @@ describe('RadioGroup — cards', () => {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards' },
     });
     const disabledCard = option(wrapper, 2).className.split(/\s+/);
-    expect(disabledCard).toContain('border-dashed');
-    expect(disabledCard).toContain('cursor-not-allowed');
-    expect(wrapper.findAll('[data-part="label"]')[2].classes()).toContain('text-muted');
+    expect(disabledCard).toContain('eldra:border-dashed');
+    expect(disabledCard).toContain('eldra:cursor-not-allowed');
+    expect(wrapper.findAll('[data-part="label"]')[2].classes()).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 });
@@ -445,8 +445,8 @@ describe('RadioGroup — sizes', () => {
   it('draws the md radio at the spec size by default', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
     const classes = wrapper.find('[data-part="radio"]').classes();
-    expect(classes).toContain('size-4.5');
-    expect(classes).toContain('mt-0.75');
+    expect(classes).toContain('eldra:size-4.5');
+    expect(classes).toContain('eldra:mt-0.75');
     wrapper.unmount();
   });
 
@@ -455,14 +455,14 @@ describe('RadioGroup — sizes', () => {
       props: { legend: 'Gift wrap', options: GIFT_WRAP, size: 'lg' },
     });
     const classes = wrapper.find('[data-part="radio"]').classes();
-    expect(classes).toContain('size-6');
-    expect(classes).not.toContain('mt-0.75');
+    expect(classes).toContain('eldra:size-6');
+    expect(classes).not.toContain('eldra:mt-0.75');
     wrapper.unmount();
   });
 
   it('keeps the row at the minimum target height', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Fit', options: FIT } });
-    expect(option(wrapper).className.split(/\s+/)).toContain('target-min');
+    expect(option(wrapper).className.split(/\s+/)).toContain('eldra:target-min');
     wrapper.unmount();
   });
 });
@@ -471,9 +471,9 @@ describe('RadioGroup — states', () => {
   it('draws the unselected radio as a strong boundary on the page ground', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
     const classes = wrapper.find('[data-part="radio"]').element.className.split(/\s+/);
-    expect(classes).toContain('bg-background');
-    expect(classes).toContain('border-border-strong');
-    expect(classes).toContain('eldra-checkbox-border');
+    expect(classes).toContain('eldra:bg-background');
+    expect(classes).toContain('eldra:border-border-strong');
+    expect(classes).toContain('eldra:eldra-checkbox-border');
     wrapper.unmount();
   });
 
@@ -483,12 +483,12 @@ describe('RadioGroup — states', () => {
     });
     const radios_ = wrapper.findAll('[data-part="radio"]');
     const selectedClasses = radios_[1].element.className.split(/\s+/);
-    expect(selectedClasses).toContain('bg-primary');
-    expect(selectedClasses).toContain('border-primary');
+    expect(selectedClasses).toContain('eldra:bg-primary');
+    expect(selectedClasses).toContain('eldra:border-primary');
     const dot = radios_[1].element.querySelector('[aria-hidden="true"]');
-    expect(dot?.className).toContain('scale-100');
+    expect(dot?.className).toContain('eldra:scale-100');
     const otherDot = radios_[0].element.querySelector('[aria-hidden="true"]');
-    expect(otherDot?.className).toContain('scale-0');
+    expect(otherDot?.className).toContain('eldra:scale-0');
     wrapper.unmount();
   });
 
@@ -498,9 +498,9 @@ describe('RadioGroup — states', () => {
     });
     for (const el of radios(wrapper)) expect(el.getAttribute('aria-invalid')).toBe('true');
     const classes = wrapper.find('[data-part="radio"]').element.className.split(/\s+/);
-    expect(classes).toContain('border-danger');
-    expect(classes).toContain('eldra-checkbox-border-invalid');
-    expect(classes).not.toContain('eldra-checkbox-border');
+    expect(classes).toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:eldra-checkbox-border-invalid');
+    expect(classes).not.toContain('eldra:eldra-checkbox-border');
     wrapper.unmount();
   });
 
@@ -520,9 +520,9 @@ describe('RadioGroup — states', () => {
       },
     });
     const classes = wrapper.findAll('[data-part="radio"]')[1].element.className.split(/\s+/);
-    expect(classes).toContain('bg-primary');
-    expect(classes).not.toContain('bg-background');
-    expect(classes).toContain('border-danger');
+    expect(classes).toContain('eldra:bg-primary');
+    expect(classes).not.toContain('eldra:bg-background');
+    expect(classes).toContain('eldra:border-danger');
     wrapper.unmount();
   });
 
@@ -535,8 +535,8 @@ describe('RadioGroup — states', () => {
     el.focus();
     expect(document.activeElement).not.toBe(el);
     const classes = wrapper.findAll('[data-part="radio"]')[2].element.className.split(/\s+/);
-    expect(classes).toContain('border-dashed');
-    expect(classes).toContain('bg-surface-strong');
+    expect(classes).toContain('eldra:border-dashed');
+    expect(classes).toContain('eldra:bg-surface-strong');
     wrapper.unmount();
   });
 
@@ -545,13 +545,13 @@ describe('RadioGroup — states', () => {
       props: { legend: 'Shipping method', options: SHIPPING, modelValue: 'collect' },
     });
     const classes = wrapper.findAll('[data-part="radio"]')[2].element.className.split(/\s+/);
-    expect(classes).toContain('bg-muted');
-    expect(classes).toContain('border-muted');
-    expect(classes).not.toContain('border-dashed');
+    expect(classes).toContain('eldra:bg-muted');
+    expect(classes).toContain('eldra:border-muted');
+    expect(classes).not.toContain('eldra:border-dashed');
     const dot = wrapper
       .findAll('[data-part="radio"]')[2]
       .element.querySelector('[aria-hidden="true"]');
-    expect(dot?.className).toContain('scale-100');
+    expect(dot?.className).toContain('eldra:scale-100');
     wrapper.unmount();
   });
 });
@@ -563,15 +563,15 @@ describe('RadioGroup — the focus ring', () => {
         props: { legend: 'Shipping method', options: SHIPPING, layout },
       });
       const classes = wrapper.find('[data-part="radio"]').classes();
-      expect(classes).toContain('eldra-focus');
-      expect(classes).toContain('eldra-focus-proxy');
+      expect(classes).toContain('eldra:eldra-focus');
+      expect(classes).toContain('eldra:eldra-focus-proxy');
       wrapper.unmount();
     }
   });
 
   it('puts no ring on the visually hidden input itself', () => {
     const wrapper = mountWith(RadioGroup, { props: { legend: 'Gift wrap', options: GIFT_WRAP } });
-    expect(radio(wrapper).className).not.toContain('eldra-focus');
+    expect(radio(wrapper).className).not.toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -579,7 +579,7 @@ describe('RadioGroup — the focus ring', () => {
     const wrapper = mountWith(RadioGroup, {
       props: { legend: 'Shipping method', options: SHIPPING, layout: 'cards' },
     });
-    expect(option(wrapper).className).not.toContain('eldra-focus');
+    expect(option(wrapper).className).not.toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 });
@@ -711,7 +711,7 @@ describe('RadioGroup — wrapper hooks', () => {
     expect(label.getAttribute('data-id')).toBe('regular');
     expect(input.id).toBe('fit-regular');
     expect(input.classList.contains('fit-input')).toBe(true);
-    expect(input.classList.contains('opacity-0')).toBe(true);
+    expect(input.classList.contains('eldra:opacity-0')).toBe(true);
     expect(input.getAttribute('data-id')).toBe('regular');
     expect(input.name).toBe('fit');
     wrapper.unmount();
@@ -733,7 +733,7 @@ describe('RadioGroup — wrapper hooks', () => {
     expect(radios(wrapper).every((r) => r.getAttribute('aria-invalid') === 'true')).toBe(true);
     expect(wrapper.attributes('aria-invalid')).toBe('true');
     expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
-    expect(radio(wrapper).parentElement?.className).toContain('border-danger');
+    expect(radio(wrapper).parentElement?.className).toContain('eldra:border-danger');
     await wrapper.setProps({ invalid: false });
     expect(radio(wrapper).hasAttribute('aria-invalid')).toBe(false);
     wrapper.unmount();
@@ -805,9 +805,9 @@ describe('RadioGroup — requiredMark', () => {
     const mark = wrapper.find('legend [data-part="requiredMark"]');
     expect(mark.text()).toBe('*');
     expect(mark.attributes('aria-hidden')).toBe('true');
-    expect(mark.classes()).toEqual(expect.arrayContaining(['text-danger', 'ms-0.5']));
+    expect(mark.classes()).toEqual(expect.arrayContaining(['eldra:text-danger', 'eldra:ms-0.5']));
     expect(radios(wrapper).some((r) => r.required)).toBe(false);
-    expect(wrapper.find('legend .sr-only').text()).toBe('Required');
+    expect(wrapper.find('legend .eldra\\:sr-only').text()).toBe('Required');
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
@@ -833,7 +833,7 @@ describe('RadioGroup — requiredMark', () => {
       props: { legend: 'Gift wrap', options: GIFT_WRAP, required: true, requiredMark: true },
     });
     expect(wrapper.find('[data-part="requiredMark"]').exists()).toBe(true);
-    expect(wrapper.find('legend .sr-only').exists()).toBe(false);
+    expect(wrapper.find('legend .eldra\\:sr-only').exists()).toBe(false);
     expect(radios(wrapper).every((r) => r.required)).toBe(true);
     wrapper.unmount();
   });
@@ -874,7 +874,9 @@ describe('RadioGroup — help', () => {
     const help = wrapper.find('[data-part="help"]');
     const error = wrapper.find('[data-part="error"]');
     expect(help.text()).toBe('Slim runs small.');
-    expect(help.classes()).toEqual(expect.arrayContaining(['text-field-note', 'text-muted']));
+    expect(help.classes()).toEqual(
+      expect.arrayContaining(['eldra:text-field-note', 'eldra:text-muted'])
+    );
     expect(wrapper.find('fieldset').attributes('aria-describedby')).toBe(
       `${error.attributes('id')} ${help.attributes('id')}`
     );

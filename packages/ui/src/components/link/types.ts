@@ -7,7 +7,7 @@ export type LinkVariant = 'inline' | 'standalone';
 export type LinkTone = 'default' | 'muted';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type LinkPart = 'root' | 'label' | 'arrow' | 'externalIcon';
+export type LinkPart = 'label' | 'arrow' | 'externalIcon';
 
 export interface LinkProps {
   /**
@@ -32,7 +32,10 @@ export interface LinkProps {
    * same as before this default changed.
    */
   underline?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the link
+   * itself with `class`.
+   */
   classes?: Partial<Record<LinkPart, string>>;
   /**
    * Render as a different tag or component instead of a native `<a>` — a router link component,

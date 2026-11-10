@@ -120,17 +120,26 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
   on another. Create your own once with `screenshots --update`, then compare against them.
-  Five CSS entries ship: `./tokens.css` (the variables),
-  `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
-  the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
-  own Tailwind build reads them, with `@source './'` resolving against `dist/`), `./style.css`
-  (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
-  entry, with Tailwind's page-wide preflight) and `./components.css` (the same without it: its
-  reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
+  **Every class a component authors is written `eldra:`-prefixed** (`eldra:px-4`,
+  `eldra:hover:bg-primary`, `eldra:group`), and `src/__tests__/prefixedClasses.spec.ts` fails on an
+  unprefixed one. Components bind classes with plain Vue `class`/`:class`, one class per concern
+  on each element (exclusive branches, never a base class a variant overrides); a `classes` part is
+  appended, and the outermost element takes `class`. Where one component restyles another it
+  renders, the child merges that part with `mergeClass` (`src/utils/mergeClass.ts`,
+  tailwind-merge with `prefix: 'eldra'`). `src/__tests__/renderedClasses.spec.ts` mounts every
+  story and fails on two conflicting `eldra:` classes on one element. The components ship prebuilt: `src/styles/style.css` compiles them with
+  `prefix(eldra)` into `@layer components`, below an app's `utilities`, so a consumer's unprefixed
+  class on a component wins by layer. Section inversions use the `section-primary:` /
+  `section-accent:` custom variants (`[data-section] &`) in `src/styles/utilities.css`.
+  CSS entries: `./style.css` (the compiled components, emitted by the `style` lib entry, with
+  Tailwind's page-wide preflight), `./components.css` (the same without it: its reset touches only
+  `[data-eldra-ui]` and the `data-part` elements inside one, derived by
   `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
-  enforced by `src/__tests__/eldraUiMarker.spec.ts`), and `./scoped.css` (`components.css` with its
-  theme as `--eldra-tw-*` and every rule in `@scope ([data-eldra-scope])`, stopping at slot content;
-  `scripts/scoped-css.mjs`, for embedding beside another Tailwind app). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  enforced by `src/__tests__/eldraUiMarker.spec.ts`), `./tokens.css` (the variables), and for an
+  app's own Tailwind markup `./tailwind.css` (tokens + `./theme.css`, the `@theme` block, +
+  `./utilities.css`, the `@utility` rules — type styles, control heights, the `eldra-focus` ring,
+  motion and layer utilities), all copied to `dist/` verbatim; it builds no component.
+  `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
@@ -223,7 +232,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   destination (always after `safeHref`). Tailwind v4 is wired through the fallback route, not the
   plugin's `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the
   JS level — see `docs/theme-design-tokens.md`): `eldra.tailwind: false`, `app/assets/main.css` is
-  `@import 'tailwindcss'` then `@import '@eldrajs/ui/tailwind.css'`. There is no generated colour
+  `@import 'tailwindcss'`, `@import '@eldrajs/ui/tailwind.css'`, then the prebuilt
+  `@import '@eldrajs/ui/components.css'`. There is no generated colour
   block and no sync script: `tokens.json`'s ids _are_ the package's `--eldra-color-*` role names,
   so one edit restyles both, and `virtual:eldra/tokens.css` must stay ordered after the package's
   defaults (it is, in the Nuxt build; `.storybook/preview.ts` imports them in that order

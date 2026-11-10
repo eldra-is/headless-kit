@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import type { ButtonGroupProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
@@ -8,7 +7,6 @@ const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ButtonGroupProps>(), {
   attached: false,
-  classes: undefined,
 });
 
 /**
@@ -21,8 +19,8 @@ const props = withDefaults(defineProps<ButtonGroupProps>(), {
  * rather than `inline-flex` regardless: `container-type: inline-size` applies inline-size
  * containment, and a shrink-to-fit box would then measure itself as zero.
  */
-const BASE = '@container flex items-center';
-const LOOSE = 'flex-wrap gap-3';
+const BASE = 'eldra:@container eldra:flex eldra:items-center';
+const LOOSE = 'eldra:flex-wrap eldra:gap-3';
 
 /**
  * Attached (a segmented control): gap 0, inner corners square, neighbours overlapping by 1px so
@@ -39,16 +37,14 @@ const LOOSE = 'flex-wrap gap-3';
  * `-ms-px`), so the control reads correctly in an RTL document instead of squaring the wrong end.
  */
 const ATTACHED = [
-  'gap-0 isolate',
-  '[&>*:not(:first-child)]:-ms-px',
-  '[&>*:not(:first-child)]:rounded-s-none',
-  '[&>*:not(:last-child)]:rounded-e-none',
-  '[&>*:focus-visible]:z-10',
+  'eldra:gap-0 eldra:isolate',
+  'eldra:[&>*:not(:first-child)]:-ms-px',
+  'eldra:[&>*:not(:first-child)]:rounded-s-none',
+  'eldra:[&>*:not(:last-child)]:rounded-e-none',
+  'eldra:[&>*:focus-visible]:z-10',
 ].join(' ');
 
-const rootClass = computed(() =>
-  partClass(cx(BASE, props.attached ? ATTACHED : LOOSE), props.classes, 'root')
-);
+const rootClass = computed(() => [BASE, props.attached ? ATTACHED : LOOSE]);
 </script>
 
 <template>

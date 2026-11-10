@@ -22,7 +22,7 @@ import UnitInput from '../components/unit-input/UnitInput.vue';
  * **A field box always carries a border colour, and a `FIELD_BASE` consumer always carries a whole
  * state recipe.**
  *
- * `eldra-field-border` (`src/styles/tailwind.css`) sets the field boundary's *width* and nothing
+ * `eldra-field-border` (`src/styles/utilities.css`) sets the field boundary's *width* and nothing
  * else: the colour comes from `FIELD_LIVE` / `FIELD_INVALID` / `FIELD_DISABLED` / `FIELD_READONLY`
  * (`src/components/input/classes.ts`), which every component drawing that box has to compose. Draw
  * the base without one of them and the border colour falls through to Tailwind's preflight
@@ -53,9 +53,9 @@ const RECIPE_BORDER_COLOURS = [
   ...new Set(
     [FIELD_LIVE, FIELD_INVALID, FIELD_DISABLED, FIELD_READONLY]
       .flatMap((recipe) => recipe.split(/\s+/))
-      // Unprefixed `border-<colour>` only: `hover:border-text` is a state *change*, never the rest
-      // colour, and `border-dashed` is a style, not a colour.
-      .filter((name) => /^border-/.test(name) && name !== 'border-dashed')
+      // Variant-free `eldra:border-<colour>` only: `eldra:hover:border-text` is a state *change*,
+      // never the rest colour, and `eldra:border-dashed` is a style, not a colour.
+      .filter((name) => /^eldra:border-/.test(name) && name !== 'eldra:border-dashed')
   ),
 ];
 
@@ -135,7 +135,7 @@ const CASES: FieldCase[] = [
 /** Every element in a mounted tree that draws the field box, the root included. */
 function fieldBoxes(root: Element): Element[] {
   return [root, ...root.querySelectorAll('*')].filter((element) =>
-    element.classList.contains('eldra-field-border')
+    element.classList.contains('eldra:eldra-field-border')
   );
 }
 

@@ -127,7 +127,7 @@ const THUMBNAIL_IDLE =
           icon-only
           variant="outline"
           aria-haspopup="dialog"
-          :classes="{ container: 'size-11 shadow-sm' }"
+          class="size-11 shadow-sm"
           :label="t('product.zoom', { index: current + 1, count })"
           @click="lightboxOpen = true"
         >

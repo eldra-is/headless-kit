@@ -11,7 +11,7 @@ export type FormLayoutVariant = 'single' | 'two' | 'inline';
 export type FormLayoutHeadingLevel = Extract<HeadingLevel, 2 | 3 | 4>;
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type FormLayoutPart = 'root' | 'heading' | 'errorSummary' | 'fields' | 'actions' | 'status';
+export type FormLayoutPart = 'heading' | 'errorSummary' | 'fields' | 'actions' | 'status';
 
 /** What the `submit` event carries once every field in the form is valid. */
 export interface FormLayoutSubmitPayload {
@@ -52,6 +52,9 @@ export interface FormLayoutProps {
    * is never visible: the visible confirmation is the page's, this is what a screen reader hears.
    */
   statusMessage?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<form>`) is styled with `class`.
+   */
   classes?: Partial<Record<FormLayoutPart, string>>;
 }

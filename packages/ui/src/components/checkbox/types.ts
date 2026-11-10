@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type CheckboxPart =
-  | 'root'
   | 'box'
   | 'check'
   | 'label'
@@ -58,12 +57,15 @@ export interface CheckboxProps {
    * notes). Comes from the `FieldWrapper` otherwise.
    */
   describedBy?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<label>`) is styled with `class`.
+   */
   classes?: Partial<Record<CheckboxPart, string>>;
 }
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type CheckboxGroupPart = 'root' | 'legend' | 'options' | 'error' | 'errorIcon';
+export type CheckboxGroupPart = 'legend' | 'options' | 'error' | 'errorIcon';
 
 /** Vertical is the default; a row is for short labels (sizes) and wraps. */
 export type CheckboxGroupLayout = 'vertical' | 'row';
@@ -99,6 +101,9 @@ export interface CheckboxGroupProps {
   error?: string;
   /** The native form field name every option shares. */
   name?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root (the `<fieldset>`) is styled with `class`.
+   */
   classes?: Partial<Record<CheckboxGroupPart, string>>;
 }

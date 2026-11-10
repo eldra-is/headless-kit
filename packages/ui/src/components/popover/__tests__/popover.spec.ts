@@ -504,22 +504,33 @@ describe('chrome colour variables', () => {
     const trigger = triggerOf(wrapper);
     await press(trigger);
     const classes = panelOf(trigger).classes();
-    expect(classes).toContain('bg-[color:var(--eldra-popover-background,var(--color-background))]');
-    expect(classes).toContain('border-[color:var(--eldra-popover-border,var(--color-border))]');
+    expect(classes).toContain(
+      'eldra:bg-[color:var(--eldra-popover-background,var(--eldra-color-background))]'
+    );
+    expect(classes).toContain(
+      'eldra:border-[color:var(--eldra-popover-border,var(--eldra-color-border))]'
+    );
     // The panel set no colour before, so unset it still inherits: no fallback.
-    expect(classes).toContain('text-[color:var(--eldra-popover-text)]');
-    expect(classes).toContain('border');
-    expect(classes).not.toContain('bg-background');
-    expect(classes).not.toContain('border-border');
+    expect(classes).toContain('eldra:text-[color:var(--eldra-popover-text)]');
+    expect(classes).toContain('eldra:border');
+    expect(classes).not.toContain('eldra:bg-background');
+    expect(classes).not.toContain('eldra:border-border');
   });
 
-  it('lets a consumer class on the panel part replace a variable-reading colour', async () => {
+  it('appends a consumer class on the panel part', async () => {
     const wrapper = mountPopover({ classes: { panel: 'bg-surface' } });
     const trigger = triggerOf(wrapper);
     await press(trigger);
-    const classes = panelOf(trigger).classes();
-    expect(classes).toContain('bg-surface');
-    expect(classes.join(' ')).not.toContain('--eldra-popover-background');
+    expect(panelOf(trigger).classes()).toContain('bg-surface');
+  });
+
+  it('puts class, with every other attribute, on the panel', async () => {
+    const wrapper = mountPopover({ class: 'consumer-panel', role: 'menu' });
+    const trigger = triggerOf(wrapper);
+    await press(trigger);
+    expect(panelOf(trigger).classes()).toContain('consumer-panel');
+    expect(wrapper.get('[data-part="root"]').classes()).toEqual(['eldra:contents']);
+    expect(panelOf(trigger).attributes('role')).toBe('menu');
   });
 
   it('never redefines a theme-wide colour variable on the panel', async () => {

@@ -144,8 +144,8 @@ describe('Dialog — open and close', () => {
   it('the close button carries cursor-pointer and the standard focus ring', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     const cls = closeButton(wrapper).className;
-    expect(cls).toContain('cursor-pointer');
-    expect(cls).toContain('eldra-focus');
+    expect(cls).toContain('eldra:cursor-pointer');
+    expect(cls).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -608,7 +608,9 @@ describe('Dialog — labelling', () => {
 describe('Dialog — sizes', () => {
   it('defaults to md (32rem, capped at the viewport)', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
-    expect(wrapper.find('[data-part="panel"]').element.className).toContain('eldra-dialog-width');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:eldra-dialog-width'
+    );
     wrapper.unmount();
   });
 
@@ -617,7 +619,7 @@ describe('Dialog — sizes', () => {
       props: { title: 'Remove from cart?', modelValue: true, size: 'sm' },
     });
     const cls = wrapper.find('[data-part="panel"]').element.className;
-    expect(cls).toContain('eldra-dialog-width-sm');
+    expect(cls).toContain('eldra:eldra-dialog-width-sm');
     wrapper.unmount();
   });
 });
@@ -631,34 +633,36 @@ describe('Dialog — long content and narrow viewports', () => {
         footer: '<button type="button">Accept</button>',
       },
     });
-    expect(wrapper.find('[data-part="body"]').element.className).toContain('overflow-y-auto');
-    expect(wrapper.find('[data-part="header"]').element.className).toContain('shrink-0');
-    expect(wrapper.find('[data-part="footer"]').element.className).toContain('shrink-0');
+    expect(wrapper.find('[data-part="body"]').element.className).toContain('eldra:overflow-y-auto');
+    expect(wrapper.find('[data-part="header"]').element.className).toContain('eldra:shrink-0');
+    expect(wrapper.find('[data-part="footer"]').element.className).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
   it('keeps its own width clamp regardless of a narrow ancestor', () => {
     const wrapper = mountNarrow(Dialog, { props: { title: 'Notify me', modelValue: true } });
-    expect(wrapper.find('[data-part="panel"]').element.className).toContain('eldra-dialog-width');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:eldra-dialog-width'
+    );
     wrapper.unmount();
   });
 });
 
 describe('Dialog — classes prop', () => {
-  it('merges a classes override onto the named part instead of landing beside it', () => {
+  it('appends a classes override to the named part, and puts class on the dialog', () => {
     const wrapper = mountWith(Dialog, {
       props: {
         title: 'Notify me',
         modelValue: true,
         classes: { panel: 'rounded-none', title: 'text-h1' },
       },
+      attrs: { class: 'mt-8' },
     });
+    expect(wrapper.find('[data-part="root"]').classes()).toContain('mt-8');
     const panelClass = wrapper.find('[data-part="panel"]').element.className;
     const titleClass = wrapper.find('[data-part="title"]').element.className;
     expect(panelClass).toContain('rounded-none');
-    expect(panelClass).not.toContain('rounded-lg');
     expect(titleClass).toContain('text-h1');
-    expect(titleClass).not.toContain('text-dialog-title');
     wrapper.unmount();
   });
 });
@@ -751,7 +755,7 @@ describe('Dialog — title slot', () => {
       props: { modelValue: true },
       slots: { title: '<h2>Delete page?</h2>' },
     });
-    expect(wrapper.find('[data-part="title"]').classes()).toContain('flex-1');
+    expect(wrapper.find('[data-part="title"]').classes()).toContain('eldra:flex-1');
     expect(wrapper.find('[data-part="header"] [data-part="close"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -771,7 +775,7 @@ describe('Dialog — without a title', () => {
     const wrapper = mountWith(Dialog, { props: { modelValue: true } });
     expect(wrapper.find('[data-part="title"]').exists()).toBe(false);
     expect(root(wrapper).hasAttribute('aria-labelledby')).toBe(false);
-    expect(wrapper.find('[data-part="header"]').classes()).toContain('justify-end');
+    expect(wrapper.find('[data-part="header"]').classes()).toContain('eldra:justify-end');
     expect(wrapper.find('[data-part="close"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -813,7 +817,7 @@ describe('Dialog — closeButton', () => {
       attrs: { 'aria-label': 'Search' },
     });
     expect(wrapper.find('[data-part="header"]').exists()).toBe(false);
-    expect(wrapper.find('[data-part="body"]').classes()).toContain('pt-6');
+    expect(wrapper.find('[data-part="body"]').classes()).toContain('eldra:pt-6');
     wrapper.unmount();
   });
 
@@ -919,19 +923,23 @@ describe('Dialog — chrome colour variables', () => {
       },
     });
     const classesOf = (part: string) => wrapper.find(`[data-part="${part}"]`).classes();
-    expect(classesOf('root')).toContain('text-[color:var(--eldra-dialog-text,var(--color-text))]');
     expect(classesOf('root')).toContain(
-      'backdrop:bg-[var(--eldra-dialog-backdrop,var(--color-overlay))]'
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]'
+    );
+    expect(classesOf('root')).toContain(
+      'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))]'
     );
     expect(classesOf('panel')).toContain(
-      'bg-[var(--eldra-dialog-background,var(--color-background))]'
+      'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]'
     );
     expect(classesOf('panel')).toContain(
-      'border-[color:var(--eldra-dialog-border,var(--color-border))]'
+      'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]'
     );
-    expect(classesOf('title')).toContain('text-[color:var(--eldra-dialog-text,var(--color-text))]');
+    expect(classesOf('title')).toContain(
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]'
+    );
     expect(classesOf('description')).toContain(
-      'text-[color:var(--eldra-dialog-muted,var(--color-muted))]'
+      'eldra:text-[color:var(--eldra-dialog-muted,var(--eldra-color-muted))]'
     );
     expect(classesOf('close').join(' ')).toContain(
       'var(--eldra-dialog-text,var(--eldra-color-text))'

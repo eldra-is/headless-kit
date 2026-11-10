@@ -97,13 +97,13 @@ describe('Checkbox — element and parts', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     const el = input(wrapper);
     const classes = el.className.split(/\s+/);
-    expect(classes).toContain('opacity-0');
-    expect(classes).toContain('absolute');
-    expect(classes).toContain('inset-0');
-    expect(classes).toContain('size-full');
-    expect(classes).not.toContain('sr-only');
+    expect(classes).toContain('eldra:opacity-0');
+    expect(classes).toContain('eldra:absolute');
+    expect(classes).toContain('eldra:inset-0');
+    expect(classes).toContain('eldra:size-full');
+    expect(classes).not.toContain('eldra:sr-only');
     expect(box(wrapper).contains(el)).toBe(true);
-    expect(box(wrapper).className.split(/\s+/)).toContain('relative');
+    expect(box(wrapper).className.split(/\s+/)).toContain('eldra:relative');
     expect(el.getAttribute('tabindex')).toBeNull();
     el.focus();
     expect(document.activeElement).toBe(el);
@@ -112,10 +112,10 @@ describe('Checkbox — element and parts', () => {
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(Checkbox, {
+      attrs: { class: 'ring-1' },
       props: {
         hint: 'Adds 2 days',
         classes: {
-          root: 'ring-1',
           box: 'rounded-full',
           check: 'opacity-50',
           label: 'italic',
@@ -129,7 +129,22 @@ describe('Checkbox — element and parts', () => {
     expect(wrapper.find('[data-part="check"]').element.className).toContain('opacity-50');
     expect(wrapper.find('[data-part="label"]').element.className).toContain('italic');
     expect(wrapper.find('[data-part="hint"]').element.className).toContain('uppercase');
+    expect(input(wrapper).className).not.toContain('ring-1');
     wrapper.unmount();
+  });
+
+  it("lets a parent's root class replace the root's own width and alignment", () => {
+    const inline = mountWith(Checkbox, { slots: { default: 'Linen' } });
+    expect(inline.classes()).toEqual(expect.arrayContaining(['eldra:w-fit', 'eldra:items-start']));
+    const row = mountWith(Checkbox, {
+      attrs: { class: 'eldra:w-full eldra:items-center' },
+      slots: { default: 'Linen' },
+    });
+    expect(row.classes()).toEqual(expect.arrayContaining(['eldra:w-full', 'eldra:items-center']));
+    expect(row.classes()).not.toContain('eldra:w-fit');
+    expect(row.classes()).not.toContain('eldra:items-start');
+    inline.unmount();
+    row.unmount();
   });
 });
 
@@ -338,28 +353,28 @@ describe('Checkbox — sizes', () => {
   it.each(SIZES)('draws the %s box at the spec size', (size) => {
     const wrapper = mountWith(Checkbox, { props: { size }, slots: { default: 'Merino wool' } });
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain(size === 'md' ? 'size-4.5' : 'size-6');
+    expect(classes).toContain(size === 'md' ? 'eldra:size-4.5' : 'eldra:size-6');
     wrapper.unmount();
   });
 
   it('nudges the md box down onto the first text line and leaves lg top-aligned', () => {
     const md = mountWith(Checkbox, { props: { size: 'md' }, slots: { default: 'Merino wool' } });
-    expect(box(md).className.split(/\s+/)).toContain('mt-0.75');
+    expect(box(md).className.split(/\s+/)).toContain('eldra:mt-0.75');
     md.unmount();
     const lg = mountWith(Checkbox, { props: { size: 'lg' }, slots: { default: 'Merino wool' } });
-    expect(lg.find('[data-part="box"]').classes()).not.toContain('mt-0.75');
+    expect(lg.find('[data-part="box"]').classes()).not.toContain('eldra:mt-0.75');
     lg.unmount();
   });
 
   it('defaults to md', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
-    expect(box(wrapper).className.split(/\s+/)).toContain('size-4.5');
+    expect(box(wrapper).className.split(/\s+/)).toContain('eldra:size-4.5');
     wrapper.unmount();
   });
 
   it('keeps the row at the minimum target height', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'M' } });
-    expect(wrapper.classes()).toContain('target-min');
+    expect(wrapper.classes()).toContain('eldra:target-min');
     wrapper.unmount();
   });
 });
@@ -368,9 +383,9 @@ describe('Checkbox — states', () => {
   it('draws the unchecked box as a strong boundary on the page ground', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('bg-background');
-    expect(classes).toContain('border-border-strong');
-    expect(classes).toContain('eldra-checkbox-border');
+    expect(classes).toContain('eldra:bg-background');
+    expect(classes).toContain('eldra:border-border-strong');
+    expect(classes).toContain('eldra:eldra-checkbox-border');
     wrapper.unmount();
   });
 
@@ -380,8 +395,8 @@ describe('Checkbox — states', () => {
       slots: { default: 'Merino wool' },
     });
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('bg-primary');
-    expect(classes).toContain('border-primary');
+    expect(classes).toContain('eldra:bg-primary');
+    expect(classes).toContain('eldra:border-primary');
     wrapper.unmount();
   });
 
@@ -391,22 +406,22 @@ describe('Checkbox — states', () => {
       slots: { default: 'All updates' },
     });
     await nextTick();
-    expect(box(wrapper).className.split(/\s+/)).toContain('bg-primary');
+    expect(box(wrapper).className.split(/\s+/)).toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 
   it('shows the mark in primary-contrast, scaled in only once there is one', () => {
     const off = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     const offClasses = (off.find('[data-part="check"]').element as Element).className;
-    expect(offClasses).toContain('scale-0');
+    expect(offClasses).toContain('eldra:scale-0');
     off.unmount();
     const on = mountWith(Checkbox, {
       props: { modelValue: true },
       slots: { default: 'Merino wool' },
     });
     const onClasses = (on.find('[data-part="check"]').element as Element).className.split(/\s+/);
-    expect(onClasses).toContain('scale-100');
-    expect(onClasses).toContain('text-primary-contrast');
+    expect(onClasses).toContain('eldra:scale-100');
+    expect(onClasses).toContain('eldra:text-primary-contrast');
     on.unmount();
   });
 
@@ -416,8 +431,8 @@ describe('Checkbox — states', () => {
       slots: { default: 'Merino wool' },
     });
     const classes = (wrapper.find('[data-part="check"]').element as Element).className.split(/\s+/);
-    expect(classes).toContain('transition-transform');
-    expect(classes).toContain('duration-fast');
+    expect(classes).toContain('eldra:transition-transform');
+    expect(classes).toContain('eldra:duration-fast');
     wrapper.unmount();
   });
 
@@ -428,16 +443,16 @@ describe('Checkbox — states', () => {
     });
     expect(input(wrapper).getAttribute('aria-invalid')).toBe('true');
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('border-danger');
-    expect(classes).toContain('eldra-checkbox-border-invalid');
-    expect(classes).not.toContain('eldra-checkbox-border');
+    expect(classes).toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:eldra-checkbox-border-invalid');
+    expect(classes).not.toContain('eldra:eldra-checkbox-border');
     wrapper.unmount();
   });
 
   it('sets no aria-invalid when valid', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     expect(input(wrapper).getAttribute('aria-invalid')).toBeNull();
-    expect(box(wrapper).className.split(/\s+/)).not.toContain('border-danger');
+    expect(box(wrapper).className.split(/\s+/)).not.toContain('eldra:border-danger');
     wrapper.unmount();
   });
 
@@ -448,8 +463,8 @@ describe('Checkbox — states', () => {
     });
     expect(input(wrapper).getAttribute('aria-invalid')).toBe('true');
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).not.toContain('border-danger');
-    expect(classes).toContain('border-dashed');
+    expect(classes).not.toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:border-dashed');
     wrapper.unmount();
   });
 
@@ -463,10 +478,10 @@ describe('Checkbox — states', () => {
     el.focus();
     expect(document.activeElement).not.toBe(el);
     const boxClasses = box(wrapper).className.split(/\s+/);
-    expect(boxClasses).toContain('border-dashed');
-    expect(boxClasses).toContain('bg-surface-strong');
-    expect(wrapper.classes()).toContain('cursor-not-allowed');
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('text-muted');
+    expect(boxClasses).toContain('eldra:border-dashed');
+    expect(boxClasses).toContain('eldra:bg-surface-strong');
+    expect(wrapper.classes()).toContain('eldra:cursor-not-allowed');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 
@@ -476,9 +491,9 @@ describe('Checkbox — states', () => {
       slots: { default: 'Gift wrap this order' },
     });
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('bg-muted');
-    expect(classes).toContain('border-muted');
-    expect(classes).not.toContain('border-dashed');
+    expect(classes).toContain('eldra:bg-muted');
+    expect(classes).toContain('eldra:border-muted');
+    expect(classes).not.toContain('eldra:border-dashed');
     expect(wrapper.find('[data-part="check"] [data-mark="tick"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -499,14 +514,14 @@ describe('Checkbox — the focus ring', () => {
     const classes = box(wrapper).className.split(/\s+/);
     // `eldra-focus` carries the ring, its transition and the reduced-motion rule;
     // `eldra-focus-proxy` is what turns it on for the visually hidden input inside.
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-proxy');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
   it('puts no ring on the visually hidden input itself', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
-    expect(input(wrapper).className).not.toContain('eldra-focus');
+    expect(input(wrapper).className).not.toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -572,7 +587,7 @@ describe('Checkbox — content and layout', () => {
   it('renders a long label without clipping it', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: LONG_LABEL } });
     expect(wrapper.find('[data-part="label"]').text()).toBe(LONG_LABEL);
-    expect(box(wrapper).className.split(/\s+/)).toContain('shrink-0');
+    expect(box(wrapper).className.split(/\s+/)).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
@@ -628,8 +643,8 @@ describe('Checkbox — a box with nothing to label', () => {
 
   it('keeps the label column and gap whenever there is a label', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
-    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
-    expect(rootOf(wrapper).className).toContain('gap-x-2.5');
+    expect(rootOf(wrapper).className).toContain('eldra:grid-cols-[auto_1fr]');
+    expect(rootOf(wrapper).className).toContain('eldra:gap-x-2.5');
     expect(wrapper.find('[data-part="label"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -639,7 +654,7 @@ describe('Checkbox — a box with nothing to label', () => {
       props: { hint: 'Pre-softened' },
       attrs: { 'aria-label': 'Linen' },
     });
-    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
+    expect(rootOf(wrapper).className).toContain('eldra:grid-cols-[auto_1fr]');
     expect(wrapper.find('[data-part="label"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -647,10 +662,10 @@ describe('Checkbox — a box with nothing to label', () => {
   it('collapses to the box alone with no label and no hint, named by aria-label', () => {
     const wrapper = mountWith(Checkbox, { attrs: { 'aria-label': 'Select Merino crew sweater' } });
     const className = rootOf(wrapper).className;
-    expect(className).toContain('grid-cols-[auto]');
-    expect(className).toContain('gap-x-0');
-    expect(className).not.toContain('grid-cols-[auto_1fr]');
-    expect(className).not.toContain('gap-x-2.5');
+    expect(className).toContain('eldra:grid-cols-[auto]');
+    expect(className).toContain('eldra:gap-x-0');
+    expect(className).not.toContain('eldra:grid-cols-[auto_1fr]');
+    expect(className).not.toContain('eldra:gap-x-2.5');
     expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
     expect(input(wrapper).getAttribute('aria-label')).toBe('Select Merino crew sweater');
     wrapper.unmount();
@@ -672,7 +687,7 @@ describe('Checkbox — a box with nothing to label', () => {
     expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
     await wrapper.setProps({ label: 'Row 1' });
     expect(wrapper.find('[data-part="label"]').text()).toBe('Row 1');
-    expect(rootOf(wrapper).className).toContain('grid-cols-[auto_1fr]');
+    expect(rootOf(wrapper).className).toContain('eldra:grid-cols-[auto_1fr]');
     wrapper.unmount();
   });
 
@@ -770,8 +785,9 @@ describe('CheckboxGroup — element and parts', () => {
         legend: 'Material',
         options: MATERIALS,
         error: 'Choose at least one material.',
-        classes: { root: 'ring-1', legend: 'italic', options: 'gap-8', error: 'uppercase' },
+        classes: { legend: 'italic', options: 'gap-8', error: 'uppercase' },
       },
+      attrs: { class: 'ring-1' },
     });
     expect(wrapper.classes()).toContain('ring-1');
     expect(wrapper.find('legend').classes()).toContain('italic');
@@ -839,8 +855,8 @@ describe('CheckboxGroup — layout', () => {
   it('stacks the options with the spec gap by default', () => {
     const wrapper = mountWith(CheckboxGroup, { props: { legend: 'Material', options: MATERIALS } });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-col');
-    expect(classes).toContain('gap-2');
+    expect(classes).toContain('eldra:flex-col');
+    expect(classes).toContain('eldra:gap-2');
     wrapper.unmount();
   });
 
@@ -849,20 +865,20 @@ describe('CheckboxGroup — layout', () => {
       props: { legend: 'Size', options: SIZE_OPTIONS, layout: 'row' },
     });
     const classes = wrapper.find('[data-part="options"]').classes();
-    expect(classes).toContain('flex-row');
-    expect(classes).toContain('flex-wrap');
-    expect(classes).toContain('gap-x-6');
-    expect(classes).toContain('gap-y-2');
-    expect(classes).not.toContain('flex-col');
+    expect(classes).toContain('eldra:flex-row');
+    expect(classes).toContain('eldra:flex-wrap');
+    expect(classes).toContain('eldra:gap-x-6');
+    expect(classes).toContain('eldra:gap-y-2');
+    expect(classes).not.toContain('eldra:flex-col');
     wrapper.unmount();
   });
 
   it('keeps the fieldset free of its default border, padding and min-width', () => {
     const wrapper = mountWith(CheckboxGroup, { props: { legend: 'Material', options: MATERIALS } });
     const classes = wrapper.classes();
-    expect(classes).toContain('border-0');
-    expect(classes).toContain('p-0');
-    expect(classes).toContain('min-w-0');
+    expect(classes).toContain('eldra:border-0');
+    expect(classes).toContain('eldra:p-0');
+    expect(classes).toContain('eldra:min-w-0');
     wrapper.unmount();
   });
 
@@ -895,7 +911,7 @@ describe('CheckboxGroup — error', () => {
     expect(error.find('svg').exists()).toBe(true);
     expect(error.find('svg').attributes('aria-hidden')).toBe('true');
     expect(error.text()).toBe('Choose at least one material.');
-    expect(error.classes()).toContain('text-danger');
+    expect(error.classes()).toContain('eldra:text-danger');
     wrapper.unmount();
   });
 
@@ -956,12 +972,12 @@ describe('Checkbox — the invalid box that is also marked', () => {
     });
     const classes = box(wrapper).className.split(/\s+/);
     // A `background` fill would put the `primary-contrast` mark on the page ground: invisible.
-    expect(classes).toContain('bg-primary');
-    expect(classes).not.toContain('bg-background');
+    expect(classes).toContain('eldra:bg-primary');
+    expect(classes).not.toContain('eldra:bg-background');
     // ...and the error is still told by the 2px danger boundary.
-    expect(classes).toContain('border-danger');
-    expect(classes).toContain('eldra-checkbox-border-invalid');
-    expect(wrapper.find('[data-part="check"]').classes()).toContain('scale-100');
+    expect(classes).toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:eldra-checkbox-border-invalid');
+    expect(wrapper.find('[data-part="check"]').classes()).toContain('eldra:scale-100');
     wrapper.unmount();
   });
 
@@ -972,9 +988,9 @@ describe('Checkbox — the invalid box that is also marked', () => {
     });
     await nextTick();
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('bg-primary');
-    expect(classes).not.toContain('bg-background');
-    expect(classes).toContain('border-danger');
+    expect(classes).toContain('eldra:bg-primary');
+    expect(classes).not.toContain('eldra:bg-background');
+    expect(classes).toContain('eldra:border-danger');
     expect(wrapper.find('[data-part="check"] [data-mark="dash"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -985,8 +1001,8 @@ describe('Checkbox — the invalid box that is also marked', () => {
       slots: { default: 'I agree to the terms of sale' },
     });
     const classes = box(wrapper).className.split(/\s+/);
-    expect(classes).toContain('bg-background');
-    expect(classes).not.toContain('bg-primary');
+    expect(classes).toContain('eldra:bg-background');
+    expect(classes).not.toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 });
@@ -1033,7 +1049,7 @@ describe('Checkbox — inside a real FieldWrapper', () => {
     // control covering it.
     expect(boxEl.closest('label')).toBeNull();
     expect(boxEl.contains(el)).toBe(true);
-    expect(el.className.split(/\s+/)).toContain('inset-0');
+    expect(el.className.split(/\s+/)).toContain('eldra:inset-0');
     el.click();
     await nextTick();
     expect(el.checked).toBe(true);
@@ -1153,7 +1169,7 @@ describe('Checkbox — the mark geometry', () => {
     const wrapper = mountWith(Checkbox, { slots: { default: 'Merino wool' } });
     const svg = wrapper.find('[data-part="check"]');
     // 0.625rem on the 0.25rem spacing step.
-    expect(svg.classes()).toContain('size-2.5');
+    expect(svg.classes()).toContain('eldra:size-2.5');
     expect(svg.attributes('viewBox')).toBe('0 0 10 10');
     wrapper.unmount();
   });

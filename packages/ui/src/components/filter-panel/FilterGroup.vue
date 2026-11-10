@@ -19,7 +19,6 @@
  */
 import { computed, ref } from 'vue';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { FilterFacet, FilterPanelPart } from './types';
@@ -83,7 +82,7 @@ function onEscape(event: KeyboardEvent): void {
  * Spec → Sizes, Group row. Drawn as a rule *below* every group plus one above the first, which is
  * the same set of lines the spec names with no doubling where two groups meet — see `topRule`.
  */
-const GROUP_BASE = 'border-border border-b';
+const GROUP_BASE = 'eldra:border-border eldra:border-b';
 
 /**
  * Spec → Sizes, Trigger row: "Full width, min 3rem tall, padding 0.75rem 0, gap 0.5rem,
@@ -94,16 +93,16 @@ const GROUP_BASE = 'border-border border-b';
  * chevron, a child, carries its own.
  */
 const TRIGGER_BASE =
-  'flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-3 text-start ' +
-  'eldra-focus';
+  'eldra:flex eldra:min-h-12 eldra:w-full eldra:cursor-pointer eldra:items-center eldra:gap-2 eldra:rounded-sm eldra:px-2 eldra:py-3 eldra:text-start ' +
+  'eldra:eldra-focus';
 
 /**
  * Spec → Sizes, Trigger row: "0.9375rem weight 600"; → States, hover: "name underlined 1px".
  */
 const LABEL_BASE =
-  'min-w-0 shrink-0 text-filter-trigger text-text ' +
-  'group-hover/trigger:underline group-hover/trigger:decoration-1 ' +
-  'group-hover/trigger:underline-offset-[0.2em]';
+  'eldra:min-w-0 eldra:shrink-0 eldra:text-filter-trigger eldra:text-text ' +
+  'eldra:group-hover/trigger:underline eldra:group-hover/trigger:decoration-1 ' +
+  'eldra:group-hover/trigger:underline-offset-[0.2em]';
 
 /**
  * Spec → Sizes, Trigger row: "Summary: 0.8125rem weight 400 `muted`, pushed to the end before the
@@ -115,42 +114,48 @@ const LABEL_BASE =
  * of the accessibility tree — which is what makes the summary part of the trigger's name while the
  * group is collapsed ("Colour, 2 selected, Brown, Natural") and not a word of it once it is open.
  */
-const SUMMARY_BASE = 'ms-auto min-w-0 truncate text-caption text-muted';
+const SUMMARY_BASE =
+  'eldra:ms-auto eldra:min-w-0 eldra:truncate eldra:text-caption eldra:text-muted';
 
 /** Spec → Sizes, Trigger row: "Chevron 1.125rem `muted`, pushed to the end." */
 const CHEVRON_BASE =
-  'ms-auto size-4.5 shrink-0 text-muted transition-[rotate] duration-base ease-out ' +
-  'motion-reduce:transition-none';
+  'eldra:size-4.5 eldra:shrink-0 eldra:text-muted eldra:transition-[rotate] eldra:duration-base eldra:ease-out ' +
+  'eldra:motion-reduce:transition-none';
 
 /** Spec → Body: "1.25rem bottom padding." `min-w-0` so a long label wraps rather than widening. */
-const BODY_BASE = 'min-w-0 border-0 px-2 pt-0 pb-5';
+const BODY_BASE = 'eldra:min-w-0 eldra:border-0 eldra:px-2 eldra:pt-0 eldra:pb-5';
 
-const groupClass = computed(() =>
-  partClass(cx(GROUP_BASE, props.topRule && 'border-t'), props.classes, 'group')
-);
-const triggerClass = computed(() =>
-  partClass(cx('group/trigger', TRIGGER_BASE), props.classes, 'trigger')
-);
-const labelClass = computed(() => partClass(LABEL_BASE, props.classes, 'groupLabel'));
-const summaryClass = computed(() =>
-  partClass(cx(SUMMARY_BASE, props.open && 'invisible'), props.classes, 'summary')
-);
-const chevronClass = computed(() =>
-  partClass(
-    cx(CHEVRON_BASE, props.open && 'rotate-180', props.summary.length > 0 && 'ms-0'),
-    props.classes,
-    'chevron'
-  )
-);
-const bodyClass = computed(() => partClass(BODY_BASE, props.classes, 'body'));
-const legendClass = computed(() => partClass('', props.classes, 'legend'));
+const groupClass = computed(() => [
+  [GROUP_BASE, props.topRule && 'eldra:border-t'],
+  props.classes?.group,
+]);
+const triggerClass = computed(() => [
+  ['eldra:group/trigger', TRIGGER_BASE],
+  props.classes?.trigger,
+]);
+const labelClass = computed(() => [LABEL_BASE, props.classes?.groupLabel]);
+const summaryClass = computed(() => [
+  [SUMMARY_BASE, props.open && 'eldra:invisible'],
+  props.classes?.summary,
+]);
+const chevronClass = computed(() => [
+  [
+    CHEVRON_BASE,
+    props.open && 'eldra:rotate-180',
+    props.summary.length > 0 ? 'eldra:ms-0' : 'eldra:ms-auto',
+  ],
+  props.classes?.chevron,
+]);
+const bodyClass = computed(() => [BODY_BASE, props.classes?.body]);
+const legendClass = computed(() => props.classes?.legend);
 /**
  * Spec → Sizes, Trigger row: the badge is "1.25rem tall, min 1.25rem wide, 0 0.3125rem padding,
  * `radius-full`, 0.75rem weight 700, tabular figures". `Badge`'s own `pill` shape carries the
  * radius and the type; the height, the minimum width and the figures are this panel's.
  */
-const BADGE_BASE = 'h-5 min-w-5 shrink-0 justify-center px-1.25 tabular-nums';
-const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'));
+const BADGE_BASE =
+  'eldra:h-5 eldra:min-w-5 eldra:shrink-0 eldra:justify-center eldra:px-1.25 eldra:tabular-nums';
+const badgeClass = computed(() => [BADGE_BASE, props.classes?.badge]);
 </script>
 
 <template>
@@ -162,7 +167,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
     :class="groupClass"
   >
     <!-- The heading level is fixed at `h3` by the spec: the panel's own title is the `h2`. -->
-    <h3 class="m-0">
+    <h3 class="eldra:m-0">
       <button
         ref="triggerEl"
         type="button"
@@ -182,7 +187,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
           tone="primary"
           pill
           data-part="badge"
-          :classes="{ root: badgeClass }"
+          :class="badgeClass"
           :hidden-suffix="m.selectedCount(count)"
         >
           <span :data-eldra-scope="eldra.scope" aria-hidden="true">{{ count }}</span>
@@ -218,9 +223,7 @@ const badgeClass = computed(() => partClass(BADGE_BASE, props.classes, 'badge'))
       :class="bodyClass"
       @keydown.esc="onEscape"
     >
-      <VisuallyHidden as="legend" :classes="{ root: legendClass }">{{
-        facet.label
-      }}</VisuallyHidden>
+      <VisuallyHidden as="legend" :class="legendClass">{{ facet.label }}</VisuallyHidden>
       <slot />
     </fieldset>
   </div>

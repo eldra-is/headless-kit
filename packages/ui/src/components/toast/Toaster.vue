@@ -28,7 +28,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { TOAST_HOST_KEY } from '../../composables/dialogStack';
 import { useMessages } from '../../composables/useMessages';
 import { useToast } from '../../composables/useToast';
-import { cx, partClass } from '../../utils/cx';
 import Toast from './Toast.vue';
 import type { ToasterPosition, ToasterProps, ToasterToast } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -197,23 +196,18 @@ function onFocusOut(event: FocusEvent): void {
  * ------------------------------------------------------------------------------------------- */
 
 const POSITION_CLASS: Record<ToasterPosition, string> = {
-  'top-left': 'left-4 top-4',
-  'top-center': 'left-1/2 top-4 -translate-x-1/2',
-  'top-right': 'right-4 top-4',
-  'bottom-left': 'left-4 bottom-4',
-  'bottom-center': 'left-1/2 bottom-4 -translate-x-1/2',
-  'bottom-right': 'right-4 bottom-4',
+  'top-left': 'eldra:left-4 eldra:top-4',
+  'top-center': 'eldra:left-1/2 eldra:top-4 eldra:-translate-x-1/2',
+  'top-right': 'eldra:right-4 eldra:top-4',
+  'bottom-left': 'eldra:left-4 eldra:bottom-4',
+  'bottom-center': 'eldra:left-1/2 eldra:bottom-4 eldra:-translate-x-1/2',
+  'bottom-right': 'eldra:right-4 eldra:bottom-4',
 };
 
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      `fixed ${POSITION_CLASS[props.position]} z-toast flex w-full flex-col gap-3 eldra-toast-width`
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  `eldra:fixed ${POSITION_CLASS[props.position]} eldra:z-toast eldra:flex eldra:flex-col eldra:gap-3 eldra:eldra-toast-width`,
+  props.classes?.root,
+]);
 
 /** `list` collapses to `hidden` while empty rather than `flex flex-col gap-3` — not for the aria
  *  region itself (an empty `aria-live="polite"` region announces nothing regardless of its own
@@ -221,13 +215,12 @@ const rootClass = computed(() =>
  *  markup, so the region is already visible by the time any announcement fires), but so the outer
  *  `root`'s own `gap-3` does not insert a spare 0.75rem gap above a danger-only stack (`list`
  *  would otherwise still count as one empty flex item). */
-const listClass = computed(() =>
-  partClass(
-    nonDanger.value.length > 0 ? 'flex w-full flex-col gap-3' : 'hidden',
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  nonDanger.value.length > 0
+    ? 'eldra:flex eldra:w-full eldra:flex-col eldra:gap-3'
+    : 'eldra:hidden',
+  props.classes?.list,
+]);
 </script>
 
 <template>

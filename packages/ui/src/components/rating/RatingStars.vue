@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import { ratingStarStates } from '../../utils/rating';
 import type { RatingPart, RatingSize } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
@@ -24,29 +23,31 @@ const starStates = computed(() => ratingStarStates(props.value));
 
 /** Spec "Rating" → Sizes: star 1rem at `md`, 1.25rem at `lg` — both already Tailwind's own
  * token-backed spacing scale, so neither needs a per-component variable. */
-const SIZE_CLASS: Record<RatingSize, string> = { md: 'size-4', lg: 'size-5' };
+const SIZE_CLASS: Record<RatingSize, string> = { md: 'eldra:size-4', lg: 'eldra:size-5' };
 
 /** Spec "Rating" → Sizes: "Gap between stars: 1px" at both sizes — Tailwind's own `gap-px`
  * utility, not a hand-written arbitrary value. */
-const starsClass = computed(() =>
-  partClass('inline-flex items-center gap-px', props.classes, 'stars')
-);
+const starsClass = computed(() => [
+  'eldra:inline-flex eldra:items-center eldra:gap-px',
+  props.classes?.stars,
+]);
 
-const starClass = computed(() =>
-  partClass(cx('relative shrink-0', SIZE_CLASS[props.size]), props.classes, 'star')
-);
+const starClass = computed(() => [
+  'eldra:relative eldra:shrink-0',
+  SIZE_CLASS[props.size],
+  props.classes?.star,
+]);
 
 /**
  * Spec "Rating" → States: "On primary / accent section, not in a card ... filled stars inherit;
- * empty stars inherit at 55% opacity." The same `group-data-[section=…]/section:` mechanism
+ * empty stars inherit at 55% opacity." The same `section-primary:`/`section-accent:` mechanism
  * `Button`, `Link` and `Price` already use — inert until a coloured `Section` (a later task)
- * provides the group, so it is untestable yet the same way `Price`'s own copy of this was at that
+ * provides the attribute, so it is untestable yet the same way `Price`'s own copy of this was at that
  * point in the plan (see the task report).
  */
 const SECTION_FILLED =
-  'group-data-[section=primary]/section:text-primary-contrast ' +
-  'group-data-[section=accent]/section:text-accent-contrast';
-const SECTION_EMPTY = `${SECTION_FILLED} group-data-[section=primary]/section:opacity-55 group-data-[section=accent]/section:opacity-55`;
+  'eldra:section-primary:text-primary-contrast ' + 'eldra:section-accent:text-accent-contrast';
+const SECTION_EMPTY = `${SECTION_FILLED} eldra:section-primary:opacity-55 eldra:section-accent:opacity-55`;
 
 /** Tabler's own outline/filled star paths (`@tabler/icons-vue`, MIT), copied as literal path data
  * the same way `StockBadge`'s level icons and `Link`'s arrow/external icons are — this package has
@@ -80,7 +81,7 @@ const OUTLINE_STROKE_WIDTH = 1.75;
       -->
       <svg
         v-if="state !== 'full'"
-        :class="cx('text-border-strong block size-full', SECTION_EMPTY)"
+        :class="['eldra:text-border-strong eldra:block eldra:size-full', SECTION_EMPTY]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -98,13 +99,13 @@ const OUTLINE_STROKE_WIDTH = 1.75;
       -->
       <svg
         v-if="state !== 'empty'"
-        :class="
-          cx(
-            'text-text block',
-            SECTION_FILLED,
-            state === 'half' ? 'eldra-rating-half absolute inset-0 size-full' : 'size-full'
-          )
-        "
+        :class="[
+          'eldra:text-text eldra:block',
+          SECTION_FILLED,
+          state === 'half'
+            ? 'eldra:eldra-rating-half eldra:absolute eldra:inset-0 eldra:size-full'
+            : 'eldra:size-full',
+        ]"
         viewBox="0 0 24 24"
         fill="currentColor"
       >

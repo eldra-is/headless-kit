@@ -82,7 +82,7 @@ const meta = {
           'ghost does; `muted` is muted text turning the text colour on hover, while open and on the',
           "current page, with no fill, as `Link`'s muted tone. The drawer looks the same in both.",
           '',
-          '**Parts** (`data-part`, and the keys of `classes`): `root`, `nav`, `list`, `item`,',
+          '**Parts** (`data-part`, and the keys of `classes`): `root` (styled with `class`), `nav`, `list`, `item`,',
           '`link`, `trigger`, `triggerIcon`, `panel`, `content`, `overview`, `columns`, `group`,',
           '`groupHeading`, `groupLink`, `panelList`, `panelItem`, `panelLink`, `panelLabel`, `description`,',
           '`badge`, `footer`, `toggle`, `toggleIcon`, `drawerRoot`, `drawer`, `drawerHeader`,',

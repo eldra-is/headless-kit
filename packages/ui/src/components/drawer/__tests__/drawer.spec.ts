@@ -1,12 +1,8 @@
-// happy-dom's global `URL` refuses the `file:` scheme that `import.meta.url` is here; Node's own
-// `URL` under another name resolves it (the same workaround `sectionAdjacentBackground.spec.ts`
-// and `source-scan.spec.ts` document).
-import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
 import { mountNarrow, mountWith } from '../../../test/mount';
-import { isBuilt, itFailsWithoutDist } from '../../../test/built';
+import { compileKitCss } from '../../../test/kitCss';
 import { currentDialog } from '../../../composables/dialogStack';
 import { expectClosedModalRendersNothing } from '../../../test/modal';
 import Dialog from '../../dialog/Dialog.vue';
@@ -71,8 +67,8 @@ describe('Drawer — element and parts', () => {
   it('stretches the open dialog between the pinned top and bottom, with no viewport-unit height', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Filters', modelValue: true } });
     const classes = root(wrapper).className;
-    expect(classes).toContain('inset-0');
-    expect(classes).toContain('h-auto');
+    expect(classes).toContain('eldra:inset-0');
+    expect(classes).toContain('eldra:h-auto');
     expect(classes).not.toMatch(/\bh-(full|dvh|svh|lvh|screen)\b/);
     wrapper.unmount();
   });
@@ -100,9 +96,9 @@ describe('Drawer — element and parts', () => {
 describe('Drawer — side classes', () => {
   it('defaults to right: docked at the end, inner border on the left', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
-    expect(root(wrapper).className).toContain('justify-end');
-    expect(root(wrapper).className).toContain('animate-eldra-drawer-in-right');
-    expect(panel(wrapper).className).toContain('border-l');
+    expect(root(wrapper).className).toContain('eldra:justify-end');
+    expect(root(wrapper).className).toContain('eldra:animate-eldra-drawer-in-right');
+    expect(panel(wrapper).className).toContain('eldra:border-l');
     wrapper.unmount();
   });
 
@@ -110,9 +106,9 @@ describe('Drawer — side classes', () => {
     const wrapper = mountWith(Drawer, {
       props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
     });
-    expect(root(wrapper).className).toContain('justify-start');
-    expect(root(wrapper).className).toContain('animate-eldra-drawer-in-left');
-    expect(panel(wrapper).className).toContain('border-r');
+    expect(root(wrapper).className).toContain('eldra:justify-start');
+    expect(root(wrapper).className).toContain('eldra:animate-eldra-drawer-in-left');
+    expect(panel(wrapper).className).toContain('eldra:border-r');
     wrapper.unmount();
   });
 
@@ -120,7 +116,7 @@ describe('Drawer — side classes', () => {
     for (const side of ['left', 'right'] as const) {
       const wrapper = mountWith(Drawer, { props: { ariaLabel: 'Menu', side, modelValue: true } });
       expect(panel(wrapper).className).toContain(
-        side === 'left' ? 'max-md:border-r-0' : 'max-md:border-l-0'
+        side === 'left' ? 'eldra:max-md:border-r-0' : 'eldra:max-md:border-l-0'
       );
       wrapper.unmount();
     }
@@ -185,7 +181,7 @@ describe('Drawer — count', () => {
     });
     const count = wrapper.find('[data-part="count"]').element;
     expect(count.textContent).toBe('(3)');
-    expect(count.className).toContain('text-muted');
+    expect(count.className).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 
@@ -216,41 +212,24 @@ describe('Drawer — width variable and viewport cap', () => {
   it('leaves the variable unset with no width prop, so the utility default (28rem) applies', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     expect(panel(wrapper).style.getPropertyValue('--eldra-drawer-width')).toBe('');
-    expect(panel(wrapper).className).toContain('eldra-drawer-width');
+    expect(panel(wrapper).className).toContain('eldra:eldra-drawer-width');
     wrapper.unmount();
   });
 
-  const distDir = fileURLToPath(new NodeURL('../../../../dist/', import.meta.url));
-  const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
+  describe('compiled CSS', () => {
+    it('the width utility clamps to the viewport and goes full-screen below a 48rem viewport', async () => {
+      const css = await compileKitCss(['eldra:eldra-drawer-width']);
 
-  describe('built CSS', () => {
-    it.runIf(built)(
-      'the width utility clamps to the viewport and goes full-screen below a 48rem viewport',
-      async () => {
-        const { compile } = await import('@tailwindcss/node');
-        const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
-          base: distDir,
-          onDependency() {},
-        });
-        const css = compiler.build(['eldra-drawer-width']);
-
-        expect(css).toContain('.eldra-drawer-width {');
-        expect(css).toContain('width: min(var(--eldra-drawer-width, 28rem), 100vw);');
-        // The full-screen variant is a plain @media query on the viewport, never a @container
-        // query — the design spec's own exception for Drawer/Lightbox/Search modal.
-        expect(css).toContain('@media (width < 48rem)');
-        expect(css).not.toContain('@container');
-        const mediaStart = css.indexOf('@media (width < 48rem)');
-        const mediaBlock = css.slice(
-          mediaStart,
-          css.indexOf('}', css.indexOf('{', mediaStart)) + 1
-        );
-        expect(mediaBlock).toContain('width: 100vw;');
-      }
-    );
-
-    // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
-    itFailsWithoutDist(built);
+      expect(css).toContain('.eldra\\:eldra-drawer-width {');
+      expect(css).toContain('width: min(var(--eldra-drawer-width, 28rem), 100vw);');
+      // The full-screen variant is a plain @media query on the viewport, never a @container
+      // query — the design spec's own exception for Drawer/Lightbox/Search modal.
+      expect(css).toContain('@media (width < 48rem)');
+      expect(css).not.toContain('@container');
+      const mediaStart = css.indexOf('@media (width < 48rem)');
+      const mediaBlock = css.slice(mediaStart, css.indexOf('}', css.indexOf('{', mediaStart)) + 1);
+      expect(mediaBlock).toContain('width: 100vw;');
+    });
   });
 });
 
@@ -263,15 +242,17 @@ describe('Drawer — body scrolls, footer stays fixed', () => {
         footer: '<button type="button">Check out</button>',
       },
     });
-    expect(wrapper.find('[data-part="body"]').element.className).toContain('overflow-y-auto');
-    expect(wrapper.find('[data-part="header"]').element.className).toContain('shrink-0');
-    expect(wrapper.find('[data-part="footer"]').element.className).toContain('shrink-0');
+    expect(wrapper.find('[data-part="body"]').element.className).toContain('eldra:overflow-y-auto');
+    expect(wrapper.find('[data-part="header"]').element.className).toContain('eldra:shrink-0');
+    expect(wrapper.find('[data-part="footer"]').element.className).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
   it('keeps its own width clamp regardless of a narrow ancestor', () => {
     const wrapper = mountNarrow(Drawer, { props: { title: 'Filters', modelValue: true } });
-    expect(wrapper.find('[data-part="panel"]').element.className).toContain('eldra-drawer-width');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:eldra-drawer-width'
+    );
     wrapper.unmount();
   });
 });
@@ -321,8 +302,8 @@ describe('Drawer — open and close (useDialog)', () => {
   it('the close button carries cursor-pointer and the standard focus ring', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     const cls = closeButton(wrapper).className;
-    expect(cls).toContain('cursor-pointer');
-    expect(cls).toContain('eldra-focus');
+    expect(cls).toContain('eldra:cursor-pointer');
+    expect(cls).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -554,19 +535,20 @@ describe('Drawer — initial focus', () => {
 });
 
 describe('Drawer — classes prop', () => {
-  it('merges a classes override onto the named part instead of landing beside it', () => {
+  it('appends a classes override to the named part, and puts class on the dialog', () => {
     const wrapper = mountWith(Drawer, {
       props: {
         title: 'Your cart',
         modelValue: true,
         classes: { panel: 'border-none', title: 'text-h1' },
       },
+      attrs: { class: 'mt-8' },
     });
+    expect(root(wrapper).className).toContain('mt-8');
     const panelClass = panel(wrapper).className;
     const titleClass = wrapper.find('[data-part="title"]').element.className;
     expect(panelClass).toContain('border-none');
     expect(titleClass).toContain('text-h1');
-    expect(titleClass).not.toContain('text-drawer-title');
     wrapper.unmount();
   });
 });

@@ -30,10 +30,10 @@ describe('Icon', () => {
   });
 
   it.each([
-    ['sm', 'size-4'],
-    ['md', 'size-5'],
-    ['lg', 'size-6'],
-    ['xl', 'size-8'],
+    ['sm', 'eldra:size-4'],
+    ['md', 'eldra:size-5'],
+    ['lg', 'eldra:size-6'],
+    ['xl', 'eldra:size-8'],
   ] as Array<[IconSize, string]>)('renders size %s as %s', (size, expected) => {
     const wrapper = mountWith(Icon, { props: { icon: PlainIcon, size } });
     expect(wrapper.classes()).toContain(expected);
@@ -42,7 +42,7 @@ describe('Icon', () => {
 
   it('defaults to the medium size', () => {
     const wrapper = mountWith(Icon, { props: { icon: PlainIcon } });
-    expect(wrapper.classes()).toContain('size-5');
+    expect(wrapper.classes()).toContain('eldra:size-5');
     wrapper.unmount();
   });
 
@@ -54,7 +54,7 @@ describe('Icon', () => {
 
   it('never shrinks in a flex row', () => {
     const wrapper = mountWith(Icon, { props: { icon: PlainIcon } });
-    expect(wrapper.classes()).toContain('shrink-0');
+    expect(wrapper.classes()).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
@@ -86,12 +86,12 @@ describe('Icon', () => {
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a conflicting utility', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(Icon, {
-      props: { icon: PlainIcon, classes: { root: 'size-12 text-accent' } },
+      props: { icon: PlainIcon },
+      attrs: { class: 'size-12 text-accent' },
     });
     expect(wrapper.classes()).toContain('size-12');
-    expect(wrapper.classes()).not.toContain('size-5');
     expect(wrapper.classes()).toContain('text-accent');
     wrapper.unmount();
   });
@@ -110,7 +110,7 @@ describe('Icon', () => {
 
   it('renders in a narrow container', () => {
     const wrapper = mountNarrow(Icon, { props: { icon: IconSearch, size: 'xl' } });
-    expect(wrapper.classes()).toContain('size-8');
+    expect(wrapper.classes()).toContain('eldra:size-8');
     wrapper.unmount();
   });
 });

@@ -6,15 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'vue/compiler-sfc';
 
 /**
- * The template rules `@eldrajs/ui/scoped.css` depends on (README, "Embedding in another Tailwind
- * app"), checked on every SFC so a new slot or a new root cannot skip them:
+ * The theming hooks' template rules (README, "Theming a subtree"), checked on every SFC so a new
+ * slot or a new root cannot skip them:
  *
  * - every `data-eldra-ui` element also binds `:data-eldra-scope`;
- * - every element that renders a `<slot>` binds `:data-eldra-slot` naming that slot, because
- *   `scoped.css` stops at `[data-eldra-slot] > *`;
+ * - every element that renders a `<slot>` binds `:data-eldra-slot` naming that slot;
  * - every kit-owned element that sits beside a `<slot>` in such a host, and every kit-owned element
  *   handed into another component's slot, binds `:data-eldra-scope`, so it is a scope root of its
- *   own and stays styled although it is below the host's limit.
+ *   own and a scope's variables reach it.
  *
  * A `<slot>` placed straight into another component's slot only forwards it, so the slot it is
  * forwarded to must be hosted in turn, through every component it passes. A slot rendered from a
@@ -256,7 +255,7 @@ export function checkAll(all: File[]): string[] {
   return problems;
 }
 
-describe('the markers scoped.css styles by', () => {
+describe('the theming scope markers', () => {
   it('finds the templates to check', () => {
     expect(templates.length).toBeGreaterThan(70);
   });

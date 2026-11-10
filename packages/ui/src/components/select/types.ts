@@ -44,11 +44,10 @@ export interface SelectOption {
  * is styled once wherever it appears.
  *
  * `native` is the odd one out: it marks the hidden native `<select>` with a `data-part` so a test
- * or a form helper can find it, but the element is `hidden`, so `classes.native` merges onto
+ * or a form helper can find it, but the element is `hidden`, so `classes.native` lands on
  * nothing and has no effect. Every other part takes classes.
  */
 export type SelectPart =
-  | 'root'
   | 'trigger'
   | 'leadingIcon'
   | 'value'
@@ -143,7 +142,10 @@ export interface SelectProps {
   renderBatch?: number;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<SelectPart, string>>;
 }
 
@@ -207,6 +209,9 @@ export interface MultiSelectProps extends Omit<
    * exactly that many.
    */
   maxSummary?: number | 'fit';
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<MultiSelectPart, string>>;
 }

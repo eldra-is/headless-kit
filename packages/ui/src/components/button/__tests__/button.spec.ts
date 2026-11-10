@@ -156,9 +156,9 @@ describe('Button — as prop', () => {
       props: { variant: 'primary', href: '/checkout', as: FakeRouterLink },
       slots: { default: 'Checkout' },
     });
-    expect(wrapper.classes()).toContain('bg-primary');
-    expect(wrapper.classes()).toContain('eldra-focus');
-    expect(wrapper.classes()).toContain('control-h');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
+    expect(wrapper.classes()).toContain('eldra:control-h');
     wrapper.unmount();
   });
 
@@ -269,9 +269,9 @@ describe('Button — as prop', () => {
 
 describe('Button — sizes', () => {
   it.each([
-    ['sm', 'control-h-sm'],
-    ['md', 'control-h'],
-    ['lg', 'control-h-lg'],
+    ['sm', 'eldra:control-h-sm'],
+    ['md', 'eldra:control-h'],
+    ['lg', 'eldra:control-h-lg'],
   ] as Array<[ButtonSize, string]>)('gives %s the %s box', (size, expected) => {
     const wrapper = mountWith(Button, {
       props: { variant: 'primary', size },
@@ -286,7 +286,7 @@ describe('Button — sizes', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('control-h');
+    expect(wrapper.classes()).toContain('eldra:control-h');
     wrapper.unmount();
   });
 
@@ -310,9 +310,9 @@ describe('Button — sizes', () => {
         slots: { default: 'Add to cart' },
       });
       const expected: Record<ButtonSize, string> = {
-        sm: 'control-h-sm',
-        md: 'control-h',
-        lg: 'control-h-lg',
+        sm: 'eldra:control-h-sm',
+        md: 'eldra:control-h',
+        lg: 'eldra:control-h-lg',
       };
       expect(wrapper.classes()).toContain(expected[size]);
       expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
@@ -326,8 +326,8 @@ describe('Button — sizes', () => {
       slots: { default: 'Size guide' },
     });
     expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
-    expect(wrapper.classes()).not.toContain('control-h');
-    expect(wrapper.classes()).toContain('target-min');
+    expect(wrapper.classes()).not.toContain('eldra:control-h');
+    expect(wrapper.classes()).toContain('eldra:target-min');
     wrapper.unmount();
   });
 
@@ -335,8 +335,8 @@ describe('Button — sizes', () => {
     const wrapper = mountWith(Button, {
       props: { variant: 'ghost', size, iconOnly: true, icon: IconHeart, label: 'Save for later' },
     });
-    expect(wrapper.classes()).toContain('aspect-square');
-    expect(wrapper.classes()).toContain('px-0');
+    expect(wrapper.classes()).toContain('eldra:aspect-square');
+    expect(wrapper.classes()).toContain('eldra:px-0');
     expect(wrapper.classes().join(' ')).not.toMatch(/target-touch/);
     expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
     wrapper.unmount();
@@ -349,8 +349,8 @@ describe('Button — variants', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('bg-primary');
-    expect(wrapper.classes()).toContain('text-primary-contrast');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
+    expect(wrapper.classes()).toContain('eldra:text-primary-contrast');
     wrapper.unmount();
   });
 
@@ -359,8 +359,8 @@ describe('Button — variants', () => {
       props: { variant: 'outline' },
       slots: { default: 'View details' },
     });
-    expect(wrapper.classes()).toContain('border-border-strong');
-    expect(wrapper.classes()).toContain('text-text');
+    expect(wrapper.classes()).toContain('eldra:border-border-strong');
+    expect(wrapper.classes()).toContain('eldra:text-text');
     wrapper.unmount();
   });
 
@@ -369,8 +369,8 @@ describe('Button — variants', () => {
       props: { variant: 'link' },
       slots: { default: 'Size guide' },
     });
-    expect(wrapper.classes()).toContain('underline');
-    expect(wrapper.classes()).toContain('underline-offset-[0.2em]');
+    expect(wrapper.classes()).toContain('eldra:underline');
+    expect(wrapper.classes()).toContain('eldra:underline-offset-[0.2em]');
     wrapper.unmount();
   });
 
@@ -387,7 +387,7 @@ describe('Button — variants', () => {
     'shows cursor-pointer on the live %s variant (operator report, 2026-09-25)',
     (v) => {
       const wrapper = mountWith(Button, { props: { variant: v }, slots: { default: 'Label' } });
-      expect(wrapper.classes()).toContain('cursor-pointer');
+      expect(wrapper.classes()).toContain('eldra:cursor-pointer');
       wrapper.unmount();
     }
   );
@@ -398,7 +398,7 @@ describe('Button — variants', () => {
       slots: { default: 'Add to cart' },
     });
     expect(wrapper.classes()).toContain(
-      'hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]'
+      'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-primary),var(--eldra-color-background)_14%)]'
     );
     wrapper.unmount();
   });
@@ -408,8 +408,8 @@ describe('Button — variants', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('group-data-[section=primary]/section:bg-primary-contrast');
-    expect(wrapper.classes()).toContain('group-data-[section=primary]/section:text-primary');
+    expect(wrapper.classes()).toContain('eldra:section-primary:bg-primary-contrast');
+    expect(wrapper.classes()).toContain('eldra:section-primary:text-primary');
     wrapper.unmount();
   });
 
@@ -418,8 +418,8 @@ describe('Button — variants', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('group-data-[section=accent]/section:bg-accent-contrast');
-    expect(wrapper.classes()).toContain('group-data-[section=accent]/section:text-accent');
+    expect(wrapper.classes()).toContain('eldra:section-accent:bg-accent-contrast');
+    expect(wrapper.classes()).toContain('eldra:section-accent:text-accent');
     wrapper.unmount();
   });
 
@@ -429,8 +429,8 @@ describe('Button — variants', () => {
       slots: { default: 'Our story' },
     });
     for (const section of ['primary', 'accent']) {
-      expect(wrapper.classes()).toContain(`group-data-[section=${section}]/section:border-current`);
-      expect(wrapper.classes()).toContain(`group-data-[section=${section}]/section:text-current`);
+      expect(wrapper.classes()).toContain(`eldra:section-${section}:border-current`);
+      expect(wrapper.classes()).toContain(`eldra:section-${section}:text-current`);
     }
     wrapper.unmount();
   });
@@ -439,8 +439,8 @@ describe('Button — variants', () => {
     'lets a %s button inherit the section text colour',
     (variant) => {
       const wrapper = mountWith(Button, { props: { variant }, slots: { default: 'Clear all' } });
-      expect(wrapper.classes()).toContain('group-data-[section=primary]/section:text-current');
-      expect(wrapper.classes()).toContain('group-data-[section=accent]/section:text-current');
+      expect(wrapper.classes()).toContain('eldra:section-primary:text-current');
+      expect(wrapper.classes()).toContain('eldra:section-accent:text-current');
       wrapper.unmount();
     }
   );
@@ -454,7 +454,7 @@ describe('Button — states', () => {
     });
     const button = wrapper.element as HTMLButtonElement;
     expect(button.disabled).toBe(true);
-    expect(wrapper.classes()).toContain('cursor-not-allowed');
+    expect(wrapper.classes()).toContain('eldra:cursor-not-allowed');
     button.focus();
     expect(document.activeElement).not.toBe(button);
     await wrapper.trigger('click');
@@ -497,11 +497,11 @@ describe('Button — states', () => {
     });
     const label = wrapper.get('[data-part="label"]');
     expect(label.text()).toBe('Add to cart');
-    expect(label.classes()).toContain('invisible');
+    expect(label.classes()).toContain('eldra:invisible');
     const spinner = wrapper.get('[data-part="spinner"]');
-    expect(spinner.classes()).toContain('absolute');
+    expect(spinner.classes()).toContain('eldra:absolute');
     expect(wrapper.attributes('aria-busy')).toBe('true');
-    expect(wrapper.classes()).toContain('cursor-progress');
+    expect(wrapper.classes()).toContain('eldra:cursor-progress');
     wrapper.unmount();
   });
 
@@ -516,8 +516,8 @@ describe('Button — states', () => {
       },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.get('[data-part="leadingIcon"]').classes()).toContain('invisible');
-    expect(wrapper.get('[data-part="trailingIcon"]').classes()).toContain('invisible');
+    expect(wrapper.get('[data-part="leadingIcon"]').classes()).toContain('eldra:invisible');
+    expect(wrapper.get('[data-part="trailingIcon"]').classes()).toContain('eldra:invisible');
     wrapper.unmount();
   });
 
@@ -536,8 +536,8 @@ describe('Button — states', () => {
       slots: { default: 'Add to cart' },
     });
     const svg = wrapper.get('[data-part="spinner"] svg');
-    expect(svg.classes()).toContain('animate-eldra-spin');
-    expect(svg.classes()).toContain('motion-reduce:animate-eldra-pulse');
+    expect(svg.classes()).toContain('eldra:animate-eldra-spin');
+    expect(svg.classes()).toContain('eldra:motion-reduce:animate-eldra-pulse');
     expect(svg.attributes('aria-hidden')).toBe('true');
     wrapper.unmount();
   });
@@ -609,7 +609,7 @@ describe('Button — states', () => {
       slots: { default: 'Grid' },
     });
     expect(off.attributes('aria-pressed')).toBe('false');
-    expect(off.classes()).not.toContain('bg-surface-strong');
+    expect(off.classes()).not.toContain('eldra:bg-surface-strong');
     off.unmount();
 
     const on = mountWith(Button, {
@@ -618,7 +618,7 @@ describe('Button — states', () => {
     });
     expect(on.attributes('aria-pressed')).toBe('true');
     // The pressed state is a fill, not only a hue (1.4.1).
-    expect(on.classes()).toContain('bg-surface-strong');
+    expect(on.classes()).toContain('eldra:bg-surface-strong');
     on.unmount();
   });
 
@@ -662,8 +662,8 @@ describe('Button — states', () => {
           slots: { default: 'Bold' },
         });
         const drawn = pressed === true;
-        expect(wrapper.classes().includes('bg-surface-strong')).toBe(drawn);
-        expect(wrapper.classes().includes('border-border-strong')).toBe(
+        expect(wrapper.classes().includes('eldra:bg-surface-strong')).toBe(drawn);
+        expect(wrapper.classes().includes('eldra:border-border-strong')).toBe(
           drawn || variant === 'outline'
         );
         wrapper.unmount();
@@ -678,10 +678,10 @@ describe('Button — states', () => {
     });
     expect(wrapper.attributes('aria-pressed')).toBe('true');
     expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['bg-surface-strong', 'border-border-strong'])
+      expect.arrayContaining(['eldra:bg-surface-strong', 'eldra:border-border-strong'])
     );
-    expect(wrapper.classes()).not.toContain('bg-transparent');
-    expect(wrapper.classes()).not.toContain('border-transparent');
+    expect(wrapper.classes()).not.toContain('eldra:bg-transparent');
+    expect(wrapper.classes()).not.toContain('eldra:border-transparent');
     wrapper.unmount();
   });
 
@@ -690,7 +690,7 @@ describe('Button — states', () => {
       props: { variant: 'ghost', pressed: true, disabled: true },
       slots: { default: 'Bold' },
     });
-    expect(wrapper.classes()).not.toContain('bg-surface-strong');
+    expect(wrapper.classes()).not.toContain('eldra:bg-surface-strong');
     expect(wrapper.attributes('aria-pressed')).toBe('true');
     wrapper.unmount();
   });
@@ -710,7 +710,7 @@ describe('Button — states', () => {
       props: { variant: 'primary', block: true },
       slots: { default: 'Checkout' },
     });
-    expect(wrapper.classes()).toContain('w-full');
+    expect(wrapper.classes()).toContain('eldra:w-full');
     wrapper.unmount();
   });
 
@@ -723,7 +723,7 @@ describe('Button — states', () => {
     'scales a live %s button down on press',
     (variant) => {
       const wrapper = mountWith(Button, { props: { variant }, slots: { default: 'Add to cart' } });
-      expect(wrapper.classes()).toContain('active:scale-[0.98]');
+      expect(wrapper.classes()).toContain('eldra:active:scale-[0.98]');
       // The class it replaced must be gone, on every variant: both present would make the button
       // shrink *and* drop, which is neither state.
       expect(wrapper.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
@@ -736,7 +736,7 @@ describe('Button — states', () => {
       props: { variant: 'link' },
       slots: { default: 'Size guide' },
     });
-    expect(wrapper.classes()).not.toContain('active:scale-[0.98]');
+    expect(wrapper.classes()).not.toContain('eldra:active:scale-[0.98]');
     expect(wrapper.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
     wrapper.unmount();
   });
@@ -746,7 +746,7 @@ describe('Button — states', () => {
       props: { variant, disabled: true },
       slots: { default: 'Sold out' },
     });
-    expect(dead.classes()).not.toContain('active:scale-[0.98]');
+    expect(dead.classes()).not.toContain('eldra:active:scale-[0.98]');
     expect(dead.classes().join(' ')).not.toMatch(PRESS_TRANSLATE);
     dead.unmount();
   });
@@ -774,7 +774,7 @@ describe('Button — states', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('motion-reduce:active:scale-100');
+    expect(wrapper.classes()).toContain('eldra:motion-reduce:active:scale-100');
     wrapper.unmount();
   });
 
@@ -805,7 +805,7 @@ describe('Button — states', () => {
     // shorthand from a `transition-*`/`duration-*` utility here would replace all of it, and the
     // ring would snap in rather than grow. `src/__tests__/focus-transition.spec.ts` enforces this
     // across every component; this keeps the reason next to the Button.
-    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
     // `[^\s:]+` (not `\S+`) keeps the colon out of the repeated group: since a
     // variant token never contains one itself, this matches exactly the same
     // class strings, but without the ambiguous ways to split a long run of
@@ -819,8 +819,8 @@ describe('Button — states', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.classes()).toContain('eldra-focus');
-    expect(wrapper.classes()).not.toContain('outline-none');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
+    expect(wrapper.classes()).not.toContain('eldra:outline-none');
     wrapper.unmount();
   });
 });
@@ -929,17 +929,33 @@ describe('Button — form submitting context', () => {
 });
 
 describe('Button — customisation', () => {
-  it('lets classes.container replace a colour utility instead of landing beside it', () => {
+  it('puts a consumer class on the button itself', () => {
     const wrapper = mountWith(Button, {
-      props: { variant: 'primary', classes: { container: 'bg-accent' } },
+      props: { variant: 'primary' },
+      attrs: { class: 'bg-accent' },
       slots: { default: 'Shop the sale' },
     });
     expect(wrapper.classes()).toContain('bg-accent');
-    expect(wrapper.classes()).not.toContain('bg-primary');
     wrapper.unmount();
   });
 
-  it('merges an override onto every other part', () => {
+  it("merges a parent's class over the container's own and keeps every other attribute on it", () => {
+    const onFocus = vi.fn();
+    const wrapper = mountWith(Button, {
+      props: { variant: 'link', size: 'sm' },
+      attrs: { class: 'eldra:px-2', 'data-test': 'clear', style: 'color: red', onFocus },
+      slots: { default: 'Clear' },
+    });
+    expect(wrapper.classes()).toContain('eldra:px-2');
+    expect(wrapper.classes()).not.toContain('eldra:px-0');
+    expect(wrapper.attributes('data-test')).toBe('clear');
+    expect(wrapper.attributes('style')).toContain('color: red');
+    void wrapper.trigger('focus');
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
+  it('appends an override to every other part', () => {
     const wrapper = mountWith(Button, {
       props: {
         variant: 'primary',
@@ -969,7 +985,7 @@ describe('Button — customisation', () => {
       slots: { default: 'Add to cart' },
     });
     expect(wrapper.classes()).toContain(
-      'rounded-[var(--eldra-button-radius,var(--eldra-radius-md))]'
+      'eldra:rounded-[var(--eldra-button-radius,var(--eldra-radius-md))]'
     );
     wrapper.unmount();
   });
@@ -1002,7 +1018,7 @@ describe('Button — content', () => {
       slots: { default: LONG_LABEL },
     });
     const label = wrapper.get('[data-part="label"]');
-    expect(label.classes()).toContain('whitespace-nowrap');
+    expect(label.classes()).toContain('eldra:whitespace-nowrap');
     expect(label.text()).toBe(LONG_LABEL);
     wrapper.unmount();
   });
@@ -1080,16 +1096,16 @@ describe('ButtonGroup', () => {
   it('lays the actions out in a wrapping row with the spec gap', () => {
     const wrapper = mountWith(ButtonGroup, { slots: buttons });
     expect(wrapper.attributes('data-part')).toBe('root');
-    expect(wrapper.classes()).toContain('flex');
-    expect(wrapper.classes()).toContain('flex-wrap');
-    expect(wrapper.classes()).toContain('gap-3');
-    expect(wrapper.classes()).toContain('items-center');
+    expect(wrapper.classes()).toContain('eldra:flex');
+    expect(wrapper.classes()).toContain('eldra:flex-wrap');
+    expect(wrapper.classes()).toContain('eldra:gap-3');
+    expect(wrapper.classes()).toContain('eldra:items-center');
     wrapper.unmount();
   });
 
   it('is a container query context, which is what lets md buttons grow when narrow', () => {
     const wrapper = mountWith(ButtonGroup, { slots: buttons });
-    expect(wrapper.classes()).toContain('@container');
+    expect(wrapper.classes()).toContain('eldra:@container');
     wrapper.unmount();
   });
 
@@ -1107,30 +1123,29 @@ describe('ButtonGroup', () => {
     });
     expect(wrapper.attributes('role')).toBe('group');
     expect(wrapper.attributes('aria-label')).toBe('View');
-    expect(wrapper.classes()).toContain('gap-0');
+    expect(wrapper.classes()).toContain('eldra:gap-0');
     // Inner corners square and neighbours overlapping by 1px, in logical properties: an RTL
     // document squares the same *inner* ends, not the mirrored ones.
-    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:rounded-s-none');
-    expect(wrapper.classes()).toContain('[&>*:not(:last-child)]:rounded-e-none');
-    expect(wrapper.classes()).toContain('[&>*:not(:first-child)]:-ms-px');
+    expect(wrapper.classes()).toContain('eldra:[&>*:not(:first-child)]:rounded-s-none');
+    expect(wrapper.classes()).toContain('eldra:[&>*:not(:last-child)]:rounded-e-none');
+    expect(wrapper.classes()).toContain('eldra:[&>*:not(:first-child)]:-ms-px');
     expect(wrapper.classes().join(' ')).not.toMatch(/rounded-[lr]-none|-ml-px/);
     // The focused button is raised so its ring is never covered by a neighbour. It has to be a
     // stacking raise: every Button is already `position: relative` (it positions its spinner), so
     // `[&>*:focus-visible]:relative` changed nothing and the next button kept painting over the
     // ring. `isolate` keeps the z-index from escaping into the page's own layers.
-    expect(wrapper.classes()).toContain('[&>*:focus-visible]:z-10');
-    expect(wrapper.classes()).toContain('isolate');
-    expect(wrapper.classes()).not.toContain('[&>*:focus-visible]:relative');
+    expect(wrapper.classes()).toContain('eldra:[&>*:focus-visible]:z-10');
+    expect(wrapper.classes()).toContain('eldra:isolate');
+    expect(wrapper.classes()).not.toContain('eldra:[&>*:focus-visible]:relative');
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a utility', () => {
+  it('puts a consumer class on the group itself', () => {
     const wrapper = mountWith(ButtonGroup, {
-      props: { classes: { root: 'gap-6' } },
+      attrs: { class: 'gap-6' },
       slots: buttons,
     });
     expect(wrapper.classes()).toContain('gap-6');
-    expect(wrapper.classes()).not.toContain('gap-3');
     wrapper.unmount();
   });
 
@@ -1188,7 +1203,7 @@ describe('Button — a routed `as` component given `to`', () => {
     expect(wrapper.element.tagName).toBe('A');
     expect(wrapper.attributes('type')).toBeUndefined();
     expect(wrapper.attributes('aria-pressed')).toBeUndefined();
-    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
     await wrapper.trigger('click');
     expect(routed).toEqual([to]);
     expect(wrapper.emitted('click')).toHaveLength(1);
@@ -1228,7 +1243,7 @@ describe('Button — rich default-slot content', () => {
       props: { variant: 'primary' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.find('[data-part="label"]').attributes('class')).toBe('whitespace-nowrap');
+    expect(wrapper.find('[data-part="label"]').attributes('class')).toBe('eldra:whitespace-nowrap');
     wrapper.unmount();
   });
 
@@ -1239,7 +1254,7 @@ describe('Button — rich default-slot content', () => {
     });
     const label = wrapper.find('[data-part="label"]');
     expect(label.classes()).toEqual(
-      expect.arrayContaining(['inline-flex', 'items-center', 'gap-[inherit]'])
+      expect.arrayContaining(['eldra:inline-flex', 'eldra:items-center', 'eldra:gap-[inherit]'])
     );
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
@@ -1252,8 +1267,8 @@ describe('Button — spinnerPlacement', () => {
       props: { variant: 'primary', loading: true, label: 'Adding to cart' },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.find('[data-part="spinner"]').classes()).toContain('absolute');
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('invisible');
+    expect(wrapper.find('[data-part="spinner"]').classes()).toContain('eldra:absolute');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:invisible');
     expect(wrapper.attributes('aria-label')).toBe('Adding to cart');
     wrapper.unmount();
   });
@@ -1271,8 +1286,8 @@ describe('Button — spinnerPlacement', () => {
     const parts = [...wrapper.element.children].map((el) => el.getAttribute('data-part'));
     expect(parts).toEqual(['spinner', 'label']);
     const spinner = wrapper.find('[data-part="spinner"]');
-    expect(spinner.classes()).not.toContain('absolute');
-    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('invisible');
+    expect(spinner.classes()).not.toContain('eldra:absolute');
+    expect(wrapper.find('[data-part="label"]').classes()).not.toContain('eldra:invisible');
     expect(wrapper.attributes('aria-label')).toBeUndefined();
     expect(wrapper.attributes('aria-busy')).toBe('true');
     expect(wrapper.text()).toBe('Add to cart');
@@ -1284,7 +1299,7 @@ describe('Button — spinnerPlacement', () => {
 describe('Button — the focus ring composes with a consumer shadow', () => {
   it("ends eldra-focus's box-shadow with Tailwind's shadow variables, each empty by default", () => {
     const css = readFileSync(
-      fileURLToPath(new NodeURL('../../../styles/tailwind.css', import.meta.url)),
+      fileURLToPath(new NodeURL('../../../styles/utilities.css', import.meta.url)),
       'utf8'
     );
     const start = css.indexOf('@utility eldra-focus {');
@@ -1322,7 +1337,7 @@ describe('Button — a static tag', () => {
     }
     expect(wrapper.attributes('data-part')).toBe('container');
     expect(wrapper.classes()).toContain(
-      'rounded-[var(--eldra-button-radius,var(--eldra-radius-md))]'
+      'eldra:rounded-[var(--eldra-button-radius,var(--eldra-radius-md))]'
     );
     expect(wrapper.text()).toBe('Edit');
     const row = mountWith(
@@ -1345,7 +1360,7 @@ describe('Button — a static tag', () => {
       slots: { default: 'Shop' },
     });
     expect(wrapper.element.tagName).toBe('DIV');
-    expect(wrapper.classes()).toContain('bg-primary');
+    expect(wrapper.classes()).toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 
@@ -1389,8 +1404,8 @@ describe('Button — keepNameWhileLoading', () => {
       slots: { default: 'Add to cart' },
     });
     const label = wrapper.get('[data-part="label"]');
-    expect(label.classes()).toContain('opacity-0');
-    expect(label.classes()).not.toContain('invisible');
+    expect(label.classes()).toContain('eldra:opacity-0');
+    expect(label.classes()).not.toContain('eldra:invisible');
     expect(label.attributes('aria-hidden')).toBeUndefined();
     expect(wrapper.attributes('aria-label')).toBeUndefined();
     expect(wrapper.text()).toBe('Add to cart');
@@ -1424,13 +1439,13 @@ describe('Button — keepNameWhileLoading', () => {
       },
       slots: { default: 'Add to cart' },
     });
-    expect(wrapper.get('[data-part="leadingIcon"]').classes()).toContain('invisible');
+    expect(wrapper.get('[data-part="leadingIcon"]').classes()).toContain('eldra:invisible');
     wrapper.unmount();
     const idle = mountWith(Button, {
       props: { variant: 'primary', keepNameWhileLoading: true },
       slots: { default: 'Add to cart' },
     });
-    expect(idle.get('[data-part="label"]').classes()).not.toContain('opacity-0');
+    expect(idle.get('[data-part="label"]').classes()).not.toContain('eldra:opacity-0');
     idle.unmount();
   });
 });

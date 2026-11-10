@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
 import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
 import { createPanelHeightAnimator, type PanelHeightAnimator } from './heightTransition';
 import type { AccordionItemProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
+import { mergeClass } from '../../utils/mergeClass';
 
 const eldra = useEldraScope();
 
@@ -208,63 +208,55 @@ function onSummaryClick(event: MouseEvent): void {
  * disclosure trigger.
  */
 const TRIGGER_BASE =
-  'group flex w-full items-center justify-between gap-4 min-h-14 py-4 rounded-sm text-start ' +
-  'cursor-pointer eldra-focus';
+  'eldra:group eldra:flex eldra:w-full eldra:items-center eldra:justify-between eldra:gap-4 eldra:min-h-14 eldra:py-4 eldra:rounded-sm eldra:text-start ' +
+  'eldra:cursor-pointer eldra:eldra-focus';
 
 const rootClass = computed(() => {
-  if (isLinkRow.value) {
-    return partClass(
-      cx(TRIGGER_BASE, 'border-b border-border no-underline'),
-      props.classes,
-      'root'
-    );
-  }
+  if (isLinkRow.value)
+    return [TRIGGER_BASE, 'eldra:border-b eldra:border-border eldra:no-underline'];
   // Spec "Accordion" → Sizes, "Dividers" row: 1px `border` below every item. The trigger classes
   // live on `summary` for a disclosure item (see below), so `root` here only carries the divider.
-  return partClass('border-b border-border', props.classes, 'root');
+  return 'eldra:border-b eldra:border-border';
 });
 
 /** Hides the native disclosure triangle in every engine still drawing one via the legacy
  *  `::-webkit-details-marker` pseudo, alongside the `list-item` `::marker` `list-none` already
  *  removes (spec "Accordion" → Accessibility: "Hide the default disclosure marker and use the
  *  chevron"). */
+// NavMenu's drawer rows override the summary.
 const summaryClass = computed(() =>
-  partClass(
-    cx(TRIGGER_BASE, 'list-none [&::-webkit-details-marker]:hidden'),
-    props.classes,
-    'summary'
+  mergeClass(
+    [TRIGGER_BASE, 'eldra:list-none eldra:[&::-webkit-details-marker]:hidden'],
+    props.classes?.summary
   )
 );
 
 /** Spec "Accordion" → States: "Hover: label underlined (1px, 0.2em offset)" — never colour alone
  *  (1.4.1). `group-hover` reads the ancestor trigger's own hover, whichever element it is. */
-const titleClass = computed(() =>
-  partClass(
-    cx(
-      'text-accordion-title text-text',
-      'group-hover:underline group-hover:decoration-1 group-hover:underline-offset-[0.2em]'
-    ),
-    props.classes,
-    'title'
-  )
-);
+const titleClass = computed(() => [
+  'eldra:text-accordion-title eldra:text-text',
+  'eldra:group-hover:underline eldra:group-hover:decoration-1 eldra:group-hover:underline-offset-[0.2em]',
+  props.classes?.title,
+]);
 
 /** Spec "Accordion" → Sizes, "Help text" row: "0.875rem / 1.5, weight 400, gap 0.125rem below the
  *  label" — `text-body-sm` is exactly that size/line/weight already, and `mt-0.5` is exactly
  *  0.125rem. Accessibility: "The help text is part of the accessible name" — true for free, since
  *  it is plain text inside the same `<summary>`/`<a>`, whose accessible name is its full text
  *  content by default. */
-const helpClass = computed(() =>
-  partClass('mt-0.5 block text-body-sm text-muted', props.classes, 'help')
-);
+const helpClass = computed(() => [
+  'eldra:mt-0.5 eldra:block eldra:text-body-sm eldra:text-muted',
+  props.classes?.help,
+]);
 
 /** Spec "Accordion" → Sizes: chevron 1.25rem (`size-5`). Behaviour & motion: rotates 180° over
  *  `duration-base` `ease-out`, reduced motion snapping instead — both baked into
  *  `eldra-accordion-chevron` (see `tailwind.css`), self-conditioned on the ancestor `<details>`'s
  *  own `[open]`, so no open/closed class needs computing here at all. */
-const chevronClass = computed(() =>
-  partClass('size-5 shrink-0 text-text eldra-accordion-chevron', props.classes, 'chevron')
-);
+const chevronClass = computed(() => [
+  'eldra:size-5 eldra:shrink-0 eldra:text-text eldra:eldra-accordion-chevron',
+  props.classes?.chevron,
+]);
 
 /** Spec "Accordion" → Sizes: panel `padding-bottom 1.25rem, max-width 65ch`. States, "Open" row:
  *  "panel copy `muted`". Behaviour & motion: "fades in over `duration-base` `ease-out` when
@@ -272,8 +264,12 @@ const chevronClass = computed(() =>
  *  `tailwind.css`), running alongside the height animation `onToggle`/`onSummaryClick` above drive
  *  through the Web Animations API (operator override 2026-09-26, `heightTransition.ts`), not
  *  replaced by it. Reduced motion: both are instant. */
+// NavMenu's drawer rows override the panel.
 const panelClass = computed(() =>
-  partClass('max-w-[65ch] pb-5 text-muted eldra-accordion-panel', props.classes, 'panel')
+  mergeClass(
+    'eldra:max-w-[65ch] eldra:pb-5 eldra:text-muted eldra:eldra-accordion-panel',
+    props.classes?.panel
+  )
 );
 </script>
 
@@ -286,7 +282,7 @@ const panelClass = computed(() =>
     :class="rootClass"
     :href="href"
   >
-    <span class="min-w-0 flex-1">
+    <span class="eldra:min-w-0 eldra:flex-1">
       <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
       <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
     </span>
@@ -303,7 +299,7 @@ const panelClass = computed(() =>
     @toggle="onToggle"
   >
     <summary data-part="summary" :class="summaryClass" @click="onSummaryClick">
-      <span class="min-w-0 flex-1">
+      <span class="eldra:min-w-0 eldra:flex-1">
         <component :is="titleTag" data-part="title" :class="titleClass">{{ title }}</component>
         <span v-if="help" data-part="help" :class="helpClass">{{ help }}</span>
       </span>

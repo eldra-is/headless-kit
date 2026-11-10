@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type VariantPickerPart =
-  | 'root'
   | 'legend'
   | 'legendValue'
   | 'options'
@@ -56,6 +55,7 @@ export interface VariantPickerProps {
   type?: VariantPickerType;
   /** The options. `swatch` colours are the one allowed per-item colour, set as an inline style. */
   options: VariantPickerOption[];
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<VariantPickerPart, string>>;
 }

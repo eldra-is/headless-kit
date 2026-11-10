@@ -15,7 +15,7 @@ export type ToastAction =
   | { label: string; onActivate: () => void };
 
 /** The parts a consumer can restyle through `classes` (spec "Toast" -> Anatomy). */
-export type ToastPart = 'root' | 'icon' | 'title' | 'text' | 'action' | 'close';
+export type ToastPart = 'icon' | 'title' | 'text' | 'action' | 'close';
 
 export interface ToastProps {
   /** Icon, colour and auto-dismiss timing (see `useToast`'s `DEFAULT_DURATION`). Default
@@ -34,7 +34,10 @@ export interface ToastProps {
   closable?: boolean;
   /** Message overrides (only `dismissNotification` applies here). See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the toast
+   * itself with `class`.
+   */
   classes?: Partial<Record<ToastPart, string>>;
 }
 
@@ -90,6 +93,9 @@ export interface ToasterProps {
   /** Message overrides, passed through to every `Toast` this renders and to the region's own
    *  `aria-label`. See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). `root` is a part
+   * here: the region is teleported, so a `class` on `Toaster` has no element to land on.
+   */
   classes?: Partial<Record<ToasterPart, string>>;
 }

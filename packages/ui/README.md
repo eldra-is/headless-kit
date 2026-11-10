@@ -27,47 +27,24 @@ entry needs it, and nothing else in the package imports it.
 
 ## Styles
 
-Five CSS entries ship; pick the one that matches how the consumer builds CSS. Every one of them
-starts from the same `--eldra-*` variables, so nothing here is a different theme, only a different
-delivery shape.
+The components come **prebuilt**: an app never compiles this package's styles and needs no Tailwind
+of its own to use them. Every class a component renders is `eldra:`-prefixed (`eldra:px-4`,
+`eldra:hover:bg-primary`), compiled with Tailwind's `prefix(eldra)`, and every theme variable it
+reads is `--eldra-*`. Nothing in the package's CSS uses a name an app's own Tailwind build uses, so
+the two never restyle each other's markup.
 
-- **`@eldrajs/ui/tokens.css`** — the `--eldra-*` variables only (colours, radii, spacing, type,
-  motion, z-index, and the one opacity — `--eldra-revalidating-opacity`), declared on `:root` with
-  the spec's defaults, plus a
-  `@media (prefers-reduced-motion: reduce)` rule that zeroes every duration variable.
-- **`@eldrajs/ui/tailwind.css`** — `tokens.css`, then a Tailwind v4 `@theme` block mapping its own
-  namespaces onto those variables (`--color-primary: var(--eldra-color-primary)`, `--radius-md`,
-  `--font-heading`, `--spacing-*`, `--shadow-*`, `--ease-*`) plus the package's custom utilities
-  (control heights, the `eldra-focus` ring, the type styles, motion and layer utilities) and a
-  `@source "../dist"` so a consumer's own Tailwind build scans the package's _compiled_ components.
-  For a project that already runs Tailwind v4, `main.css` (or equivalent) becomes:
+Five CSS entries ship. Every one starts from the same `--eldra-*` variables, so none is a different
+theme, only a different delivery shape.
 
-  ```css
-  @import 'tailwindcss';
-  @import '@eldrajs/ui/tailwind.css';
-  ```
-
-  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
-  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
-  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
-  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
-  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
-  Line height and tracking are plain longhands on purpose: the starter's own base rule
-  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
-  style.
-
-- **`@eldrajs/ui/style.css`** — the package's own compiled build of `tailwind.css` plus every
-  component's utilities, for a consumer with no Tailwind build of their own:
+- **`@eldrajs/ui/style.css`** — the tokens, Tailwind's preflight and every component's styles, for
+  a page built from this package:
 
   ```css
   @import '@eldrajs/ui/style.css';
   ```
 
-  This is also what a project whose own Tailwind build cannot share this package's utility prefix
-  (a `ui:`-prefixed theme, for example) reaches for.
-
 - **`@eldrajs/ui/components.css`** — `style.css` without Tailwind's preflight, for a site that has
-  its own stylesheet and adds a few components (a header menu, a cart drawer) to it:
+  its own stylesheet (or its own Tailwind) and adds components to it:
 
   ```css
   @import '@eldrajs/ui/components.css';
@@ -85,77 +62,91 @@ delivery shape.
   `src/styles/__tests__/componentsCss.browser.spec.ts` renders every component family under both,
   the overlays open, and requires identical pixels.
 
-  **The `data-eldra-ui` marker.** Every component's outermost element carries `data-eldra-ui`, and
-  so does every element a component renders outside it: a `Select` or `MultiSelect` panel, a
-  `SearchBar` results panel, a `Popover` panel, a `Tooltip` bubble and the `Toaster` region, each
-  teleported out of its component. The reset reaches exactly those elements and the `data-part`
-  elements inside them, `:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero
-  specificity. `data-part` alone is not enough, because it is not this package's name: a site's
-  own `<h2 data-part="title">`, or any Ark UI or Zag component (which put `data-part` on every
-  element they render), keeps the browser's defaults. The attribute is public and stable, so a
-  site can use it as a hook too (`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global
-  link rule out of the components). One case stays inside the scope: an element carrying its own
-  `data-part` that the site passes into a component's slot (an Ark UI widget inside a `Dialog`,
-  say) is a `data-part` element inside a marked root, so it gets the reset as well.
+- **`@eldrajs/ui/tokens.css`** — the `--eldra-*` variables only (colours, radii, spacing, type,
+  motion, z-index, and the one opacity — `--eldra-revalidating-opacity`), declared on `:root` with
+  the spec's defaults, plus a `@media (prefers-reduced-motion: reduce)` rule that zeroes every
+  duration variable.
 
-  Either way, the package's rules are in cascade layers and a site's **unlayered** rules beat them
-  regardless of specificity: a global `a { color: … }` or `button { font: … }` in the site's own CSS
-  restyles those elements inside the components too. Scope such rules (`.prose a`) or put the
-  site's stylesheet in a layer declared before the package's.
+- **`@eldrajs/ui/tailwind.css`** — for an app that runs Tailwind v4 and wants its **own** markup
+  on the same design tokens: `tokens.css`, then a `@theme` block mapping Tailwind's namespaces
+  onto those variables (`--color-primary: var(--eldra-color-primary)`, `--radius-md`,
+  `--font-heading`, `--spacing-*`, `--shadow-*`, `--ease-*`) and the package's custom utilities
+  (control heights, the `eldra-focus` ring, the type styles, motion and layer utilities). It builds
+  none of the components; import the prebuilt ones beside it. `theme.css` (the `@theme` block) and
+  `utilities.css` (the utilities) ship on their own too.
 
-- **`@eldrajs/ui/scoped.css`** — for embedding the components in another Tailwind app, or in a
-  page that already has this package's components of its own. See the next section.
+  ```css
+  @import 'tailwindcss';
+  @import '@eldrajs/ui/tailwind.css';
+  @import '@eldrajs/ui/components.css';
+  ```
 
-### Embedding in another Tailwind app
+  The type styles (`text-body`, `text-h2`, …) set longhands, never the `font` shorthand, and read
+  their weight as `var(--tw-font-weight, <token>)`, the declaration Tailwind writes for its own
+  `--text-*--font-weight`. So a `font-medium`/`font-semibold` beside one wins whatever order the two
+  compile in, and a `tabular-nums` beside one is no longer reset. A base-layer
+  `@apply font-*` sets `--tw-font-weight` as well, so it reaches a type style on the same element.
+  Line height and tracking are plain longhands on purpose: the starter's own base rule
+  (`h1`–`h4` `@apply leading-[1.1] tracking-tight`) would otherwise override every heading's type
+  style.
 
-The other entries compile to the same names any Tailwind build uses: theme variables
-(`--color-text`, `--spacing`, `--radius-md`) and utility classes (`p-4`, `text-text`). Next to an
-app's own Tailwind the two themes overwrite each other, and the app's markup inside a component's
-slot picks up this package's theme. `scoped.css` is `components.css` rewritten so it shares nothing
-with the page:
+### Overriding a component's classes
 
-```ts
-// In the setup() of a wrapper, or of the app root.
-import { provideEldraScope } from '@eldrajs/ui';
-provideEldraScope('studio'); // the name is yours; 'default' when left out
+The components' styles sit in `@layer components`, below Tailwind's `@layer utilities`, and both
+`style.css` and `components.css` declare the standard order (`properties, theme, base, components,
+utilities`), so it holds whichever stylesheet loads first. A class you put on a component, with
+`class` (its outermost element) or a part of `classes` (an element inside it), is not prefixed and
+is added to the component's own classes; it wins by layer, whatever its specificity. Nothing is
+merged or removed at runtime: the components bind their classes the plain Vue way, one class per
+concern on each element.
+
+```vue
+<Button class="px-8">Checkout</Button>
+<!-- renders class="eldra:control-h eldra:px-4.5 … px-8": px-8 wins -->
 ```
 
-```css
-@import '@eldrajs/ui/scoped.css';
+- It wins in every state: a plain `bg-red-600` on a `Button` replaces its hover and active fills
+  too, because a utilities-layer rule beats any components-layer one. Write the states you want
+  (`bg-red-600 hover:bg-red-700`).
+- Your app's own Tailwind must generate the class (it is in your source, so it does). Without a
+  Tailwind of your own, any CSS of yours that is unlayered or in a layer declared after
+  `components` wins the same way.
 
-/* Re-theme through the --eldra-* variables, on the scope: */
+### The `data-eldra-ui` marker
+
+Every component's outermost element carries `data-eldra-ui`, and so does every element a component
+renders outside it: a `Select` or `MultiSelect` panel, a `SearchBar` results panel, a `Popover`
+panel, a `Tooltip` bubble and the `Toaster` region, each teleported out of its component.
+`components.css`'s reset reaches exactly those elements and the `data-part` elements inside them,
+`:where([data-eldra-ui], [data-eldra-ui] [data-part])`, at zero specificity. `data-part` alone is
+not enough, because it is not this package's name: a site's own `<h2 data-part="title">`, or any
+Ark UI or Zag component (which put `data-part` on every element they render), keeps the browser's
+defaults. The attribute is public and stable, so a site can use it as a hook too
+(`a:not([data-eldra-ui], [data-eldra-ui] *)` keeps a site's global link rule out of the
+components). One case stays inside the scope: an element carrying its own `data-part` that the site
+passes into a component's slot (an Ark UI widget inside a `Dialog`, say) is a `data-part` element
+inside a marked root, so it gets the reset as well.
+
+A site's **unlayered** element rules beat the package's layered ones regardless of specificity: a
+global `a { color: … }` or `button { font: … }` restyles those elements inside the components too.
+Scope such rules (`.prose a`) or put them in a layer.
+
+### Theming a subtree
+
+`provideEldraScope(name)`, called in the `setup()` of a wrapper or an app root, makes every
+component below it render `data-eldra-scope="<name>"` on its root and on every part it teleports
+(panels, bubbles, dialogs, toasts), so the `--eldra-*` variables can be set for those components
+alone, teleported parts included:
+
+```css
 [data-eldra-scope='studio'] {
   --eldra-color-primary: #0b5cad;
 }
 ```
 
-- **Names.** Every theme variable is renamed into `--eldra-tw-*` (`--color-text` is
-  `--eldra-tw-color-text`) and every keyframes into `eldra-*`; `--eldra-*` and `--tw-*` keep
-  theirs. The page's own `--color-text` and `--spacing` are neither read nor overwritten.
-- **Scope.** Every component below `provideEldraScope` renders `data-eldra-scope="<name>"` on its
-  root and on every part it teleports (panels, bubbles, dialogs, toasts), and every rule in
-  `scoped.css` matches only inside `[data-eldra-scope]`. A page's own components of this package
-  (unscoped, on `components.css` or `style.css`) are never matched, and the token defaults sit on
-  the outermost scope root, not on `:root`, so neither side re-themes the other.
-- **Slots.** Every element holding slot content you passed in carries `data-eldra-slot` (a
-  `Button`'s label, a `Dialog`'s title, body and footer, a `Popover` panel, a `Popover` or
-  `Tooltip` root holding your trigger, a `Chip` label, a select option…), and the scope ends at its children: your markup there is styled by your own
-  CSS only, so a `class="text-text"` in a button label is your `text-text`. The package's own
-  elements beside your content carry `data-eldra-scope` and stay styled. The attribute renders
-  whenever the slot has content, with or without a provider, and never for a fallback.
-- **Cascade.** The file is unlayered, so it beats your layered preflight and utilities on the
-  components' own elements; your classes on a component still win through `classes`/`class`, which
-  `tailwind-merge` puts in place of the component's own. Your **unlayered** global rules still
-  reach the components' elements, as with the other entries.
-- **Limits.** A class of yours that has the same name as one of this package's (`p-4`) and is set
-  on a component's own element through `classes` resolves to this package's definition. Layout
-  rules a component gives its direct children (`ButtonGroup`'s joined corners, `FormLayout`'s
-  full-width and first-link actions) reach a child that is one of this package's components, not
-  an element of yours. It needs CSS `@scope`: Chrome 118 and Safari 17.4 or newer, and a Firefox that ships it.
-
-`scripts/scoped-css.mjs` is the transform; `src/styles/__tests__/componentsCss.browser.spec.ts`
-draws every component family, the overlays open, under `scoped.css` beside a Tailwind build whose
-theme disagrees on every shared name, and requires the same pixels as `style.css` alone.
+Every element holding slot content you passed in also carries `data-eldra-slot` (a `Button`'s
+label, a `Dialog`'s title, body and footer, a `Popover` panel…), whenever the slot has content and
+never for a fallback, as a hook for your own CSS.
 
 ## Fonts
 
@@ -200,7 +191,7 @@ Every component supports all five of these; none hard-codes anything a store mig
    | `Container`         | none — the gutter widths (`--eldra-gutter-{mobile,tablet,desktop}`) are shared tokens, also read by `Section`; the three finite `width` values likewise read the shared `--eldra-container-{narrow,content,wide}` tokens directly, through `Container`'s own `eldra-container-{narrow,content,wide}` utilities rather than Tailwind's `max-w-narrow`/`-content`/`-wide` — see the Deviations entry below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
    | `ContentCard`       | `--eldra-content-card-title-size` (default `1.25rem`) and `--eldra-content-card-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own; `--eldra-content-card-excerpt-size` (default `0.9375rem`) and `--eldra-content-card-excerpt-line` (default `1.5`) — the excerpt's own size and line ratio, shared by `FeatureCard`'s `body` (`text-content-card-excerpt` in `tailwind.css`), since both read the same spec number                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
    | `CurrencyInput`     | `UnitInput`'s exactly (it renders a `UnitInput` with `isCurrency` always on) — see the `UnitInput` row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-   | `Dialog`            | `--eldra-dialog-title-size` (default `1.25rem`), `--eldra-dialog-title-line` (default `1.3`) — the title's own size/line, no token of its own; `--eldra-dialog-width` (default `32rem`), `--eldra-dialog-width-sm` (default `24rem`) — the panel's own width, always capped at `100vw - 2rem` inside the utility itself; `--eldra-dialog-max-height` (default `calc(100vh - 4rem)`); `--eldra-dialog-background` (default `var(--color-background)`), `--eldra-dialog-border` (default `var(--color-border)`), `--eldra-dialog-text` (default `var(--color-text)`, also the close button's hover and press tint), `--eldra-dialog-muted` (default `var(--color-muted)`, the description) and `--eldra-dialog-backdrop` (default `var(--color-overlay)`) — the chrome's own colours, read by the dialog's parts only, so setting them on the `<dialog>` (`classes.root`) recolours it without re-theming the slotted content the way redefining `--eldra-color-*` there would                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+   | `Dialog`            | `--eldra-dialog-title-size` (default `1.25rem`), `--eldra-dialog-title-line` (default `1.3`) — the title's own size/line, no token of its own; `--eldra-dialog-width` (default `32rem`), `--eldra-dialog-width-sm` (default `24rem`) — the panel's own width, always capped at `100vw - 2rem` inside the utility itself; `--eldra-dialog-max-height` (default `calc(100vh - 4rem)`); `--eldra-dialog-background` (default `var(--color-background)`), `--eldra-dialog-border` (default `var(--color-border)`), `--eldra-dialog-text` (default `var(--color-text)`, also the close button's hover and press tint), `--eldra-dialog-muted` (default `var(--color-muted)`, the description) and `--eldra-dialog-backdrop` (default `var(--color-overlay)`) — the chrome's own colours, read by the dialog's parts only, so setting them on the `<dialog>` (`class`) recolours it without re-theming the slotted content the way redefining `--eldra-color-*` there would                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
    | `Drawer`            | `--eldra-drawer-title-size` (default `1.25rem`), `--eldra-drawer-title-line` (default `1.3`) — the title's own size/line, no token of its own (the same numbers as `Dialog`'s, but its own variable pair); `--eldra-drawer-width` (default `28rem`) — the panel's own maximum width, capped at the viewport inside the utility itself, which also carries the full-screen-below-a-48rem-_viewport_ media query; `--eldra-drawer-header-height` (default `4rem`) — the header row's least height, with `--eldra-drawer-header-padding` (default `var(--eldra-space-4)`) — its top and bottom padding, `0px` to centre the row's content in exactly that height, such as a site header's; `--eldra-drawer-gutter` (default `1.5rem`) — the header's, body's and footer's side padding. The device's safe areas (`env(safe-area-inset-*)`) are added around both, so a full-screen drawer clears a notch and the home indicator on a page with `viewport-fit=cover`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `EditorPlaceholder` | `--eldra-editor-placeholder-border-width` (default `1.5px`) — the dashed boundary's width, distinct from `EmptyState`'s own stock `border` (1px)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
    | `EmptyState`        | `--eldra-empty-state-title-size` (default `1.25rem`) and `--eldra-empty-state-title-line` (default `1.3`) — the title's own size and line ratio, no token of its own                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -262,13 +253,11 @@ Every component supports all five of these; none hard-codes anything a store mig
 3. **A `classes` prop**, typed `Partial<Record<Part, string>>` where `Part` is the union of that
    component's `data-part` names from the design spec's anatomy (`container`, `label`,
    `leadingIcon`, `trailingIcon`, `spinner` for `Button`; see each component's exported
-   `<Name>Part` type and its Storybook docs page for the exact list). Values merge onto that part's
-   own classes with `tailwind-merge` (via this package's own `cx`, also exported for a consumer
-   composing a wrapper the same way), so `classes.root: 'rounded-full'` replaces
-   `eldra-button-radius` instead of landing beside it. The `@theme` keys that are not t-shirt sizes
-   (`shadow-float`, the `narrow`/`content`/`wide`/`tablet`/`two-col` container widths) merge the
-   same way, and a weight is never a conflict with a type style: `classes.label: 'font-bold'` keeps
-   `text-body-sm` and changes only the weight.
+   `<Name>Part` type and its Storybook docs page for the exact list). The outermost element has no
+   key: style it with `class`. A part's value is added to that part's own classes and wins by layer
+   (see "Overriding a component's classes"), so `class="rounded-full"` on a `Button` beats
+   `eldra-button-radius`, and `classes.label: 'font-bold'` keeps `text-body-sm` and changes only
+   the weight.
 4. **A slot for every part that holds content** (`label`, `description`, `error`, `leading`,
    `trailing`, `empty`, `header`, `footer`, `item`, …), named after the part it replaces.
 5. **`as`**, on the components whose spec allows a different rendered _root_ element (`Button`,
@@ -1307,7 +1296,7 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   `remove`; `Enter`/`Space` toggle a selectable chip through the native `<button>`'s own behaviour,
   with no separate keydown handler that could double-toggle. `icon` draws directly (Badge's own
   reasoning: neither chip size's icon dimension or stroke is one of `Icon.vue`'s four); `avatar`
-  draws through `Avatar` at the chip's own icon size via `classes.root` — no built-in `Avatar` size
+  draws through `Avatar` at the chip's own icon size via `class` — no built-in `Avatar` size
   is small enough to sit inside either chip size, so it is drawn undersized rather than left at
   `Avatar`'s own smallest, `sm`.
 
@@ -1505,7 +1494,7 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   order, and a modified key or a key typed into a field is left alone. `Enter`/`Space` stay the
   button's own. Panels are never teleported:
   a `dropdown` hangs under its own item, a `mega` panel spans the menu's root, and a site whose
-  header should be the panel's width makes the root `static` (`classes.root`) and its header
+  header should be the panel's width makes the root `static` (`class`) and its header
   `relative` (or `contents`, which makes the bar and the menu button cells of the header's own
   grid). A closing panel fades out over `--eldra-duration-fast`, unclickable while it does.
   `openOnHover` adds a resting mouse pointer to the ways of opening: a panel opens after the
@@ -1851,7 +1840,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   sibling selector) zeroes a `Section`'s own top padding whenever the **previous** sibling
   `Section` shares its background, and wins over _any_ layered `pt-*`/`py-*` class regardless of
   specificity or source order (CSS Cascade Layers) — not only `spacing`'s own default, but a
-  consumer's `classes.root: 'pt-12'` too, since a class from any source still compiles into the
+  consumer's `class="pt-12"` too, since a class from any source still compiles into the
   same layered `@layer utilities`. The escape hatch is one of the two things this rule does not
   touch: give the two `Section`s different `background` values (the rule only fires on a match), or
   reach for an unlayered override of your own (`!pt-12`, which Tailwind never puts in a layer).
@@ -2635,7 +2624,7 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   - **`rounded`** (`'none' | 'lg' | 'xl'`, default `'none'`) forwards straight to `Image`'s own
     `rounded` prop.
   - **`fill`** (`boolean`, default `false`) is for a background image that has to cover its
-    positioned ancestor: `ratio="auto"` plus `absolute inset-0 h-full w-full` on `classes.root` and
+    positioned ancestor: `ratio="auto"` plus `absolute inset-0 h-full w-full` on the root (`class`) and
     `h-full w-full` on `classes.frame`, so the frame's height comes from the ancestor via the
     `inset-0`/`h-full` chain instead of needing `media.width`/`height` (which this wrapper never
     has). Used by the hero block's `image-background` variant.
@@ -2686,7 +2675,7 @@ more"` — has no comma before "and". Icelandic's own pattern already has no suc
   cell's own box. Linked, the box (and the `eldra-focus` ring — 2.5.8 needs the _target_ itself at
   least 4rem tall, not just a gutter around it) moves to the `<a>`/`as` cell, and the outer `<li>`
   is bare — no class list, no `data-part`, nothing `classes` can reach, because it carries nothing
-  visual to restyle. `classes.root` always reaches the one element that is actually the cell,
+  visual to restyle. `class` always reaches the one element that is actually the cell,
   whichever tag that turns out to be.
 - **No `external` prop; whether the hidden link context appears is judged from `href` itself.**
   `LogoItemProps` (the API contract) has no `external` boolean the way `LinkProps` does, but the spec's
@@ -3567,7 +3556,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   (`eldra-search-modal-width`/`-max-height`/`-position`), the same technique `eldra-drawer-width`
   already documents**, rather than one utility or a class-level arbitrary value — width, max-height
   and position are three different CSS properties a consumer can restyle independently through
-  `classes.root`, but each one's own desktop number and its full-screen override must travel
+  `class`, but each one's own desktop number and its full-screen override must travel
   together, the same reasoning `eldra-drawer-width` gives for its own single bundled rule.
 - **The radius/border/shadow removed below 48rem is plain `max-md:rounded-none`/`border-0`/
   `shadow-none` on the root, not a fourth bundled utility.** Unlike the three geometry numbers
@@ -3589,7 +3578,7 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   (2026-09-27). The component used to build interpolated arbitrary-property classes
   (`` `[--eldra-carousel-per-view:${n}]` ``, plus `@tablet:`/`@content:` steps), and Tailwind has no
   runtime: it scans source _text_ for class names, and an interpolated value is never in that text.
-  A consumer's build (`@import '@eldrajs/ui/tailwind.css'`, whose `@source './'` scans `dist/*.js`)
+  A consumer's build (which then compiled the components from `dist/*.js`; they ship prebuilt now)
   therefore emitted no rule for any of the three, `eldra-carousel-slide`'s width formula fell back
   to its own `1`, and every carousel rendered one full-width slide — the starter's testimonials,
   product row, `split-carousel` hero and `carousel` gallery all at once. The package's own Storybook
@@ -3608,16 +3597,6 @@ flex items-center target-min` frame `linkClass` gives its sibling, so a non-wrap
   rather than a throw. Before this (fixed 2026-09-27) the ref was cast straight to `HTMLElement`,
   which reached a component's `focus` only when that component happened to expose one and did
   nothing at all otherwise: the guarantee was silently the consumer's, not the package's.
-- **A `classes` part given an array is flattened, and warned about once per component and part in
-  dev.** `classes` is one class string per part, and TypeScript says so — but a JavaScript consumer,
-  a `v-bind` of an untyped object and a value out of JSON all reach `partClass` anyway, and
-  `Object.entries(['flex', 'gap-4'])` reads an array's _indices_, so an array used to render
-  `class="0 1"`: two classes that style nothing, in place of the two that were written. `cx` now
-  flattens one the way Vue's own `:class` array syntax does, and `partClass` names the component and
-  the part in a single dev `console.warn` (`import.meta.env.DEV`, so production carries neither the
-  message nor the check). The component name comes from `getCurrentInstance()`, which is set while a
-  component renders — where every `classes` computed is first evaluated — so no call site had to
-  change.
 - **`formatDate` takes an `Intl.DateTimeFormatOptions` subset as a third argument**
   (`FormatDateOptions`: `day`, `month`, `year`, `weekday`), with every omitted key keeping the
   spec's own `12 Sep 2026` default rather than dropping that part from the output — so

@@ -109,24 +109,24 @@ describe('Radio — element and parts', () => {
   it('draws the circle alone with no label or hint', () => {
     const wrapper = mountWith(Radio, { props: { value: 'a' }, attrs: { 'aria-label': 'Pick' } });
     expect(wrapper.find('[data-part="label"]').exists()).toBe(false);
-    expect(wrapper.classes()).toContain('grid-cols-[auto]');
+    expect(wrapper.classes()).toContain('eldra:grid-cols-[auto]');
     wrapper.unmount();
   });
 
   it('draws the lg circle', () => {
     const wrapper = mountWith(Radio, { props: { value: 'a', label: 'A', size: 'lg' } });
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('size-6');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:size-6');
     wrapper.unmount();
   });
 
   it('accepts a class override for every part', () => {
     const wrapper = mountWith(Radio, {
+      attrs: { class: 'o-x' },
       props: {
         value: 'a',
         label: 'A',
         hint: 'h',
         classes: {
-          option: 'o-x',
           radio: 'r-x',
           input: 'i-x',
           dot: 'd-x',
@@ -149,7 +149,7 @@ describe('Radio — value and v-model', () => {
   it('is checked only when modelValue equals value, numbers included', () => {
     const on = mountWith(Radio, { props: { value: 2, modelValue: 2, label: 'Two' } });
     expect(input(on).checked).toBe(true);
-    expect(on.find('[data-part="radio"]').classes()).toContain('bg-primary');
+    expect(on.find('[data-part="radio"]').classes()).toContain('eldra:bg-primary');
     on.unmount();
     const off = mountWith(Radio, { props: { value: 2, modelValue: '2', label: 'Two' } });
     expect(input(off).checked).toBe(false);
@@ -176,8 +176,8 @@ describe('Radio — value and v-model', () => {
     expect(model.value).toBe('regular');
     expect(regular.checked).toBe(true);
     expect(slim.checked).toBe(false);
-    expect(wrapper.findAll('[data-part="radio"]')[0].classes()).not.toContain('bg-primary');
-    expect(wrapper.findAll('[data-part="radio"]')[1].classes()).toContain('bg-primary');
+    expect(wrapper.findAll('[data-part="radio"]')[0].classes()).not.toContain('eldra:bg-primary');
+    expect(wrapper.findAll('[data-part="radio"]')[1].classes()).toContain('eldra:bg-primary');
     wrapper.unmount();
   });
 
@@ -207,9 +207,9 @@ describe('Radio — states', () => {
   it('is disabled natively, dashed and muted, and cannot be chosen', async () => {
     const wrapper = mountWith(Radio, { props: { value: 'a', label: 'A', disabled: true } });
     expect(input(wrapper).disabled).toBe(true);
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('border-dashed');
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('text-muted');
-    expect(wrapper.classes()).toContain('cursor-not-allowed');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:border-dashed');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:text-muted');
+    expect(wrapper.classes()).toContain('eldra:cursor-not-allowed');
     await wrapper.trigger('click');
     expect(wrapper.emitted('update:modelValue')).toBeUndefined();
     wrapper.unmount();
@@ -218,7 +218,7 @@ describe('Radio — states', () => {
   it('sets aria-invalid and the danger boundary when invalid', async () => {
     const wrapper = mountWith(Radio, { props: { value: 'a', label: 'A', invalid: true } });
     expect(input(wrapper).getAttribute('aria-invalid')).toBe('true');
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('border-danger');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:border-danger');
     await wrapper.setProps({ invalid: false });
     expect(input(wrapper).hasAttribute('aria-invalid')).toBe(false);
     wrapper.unmount();
@@ -232,7 +232,7 @@ describe('Radio — states', () => {
 });
 
 describe('Radio — attributes', () => {
-  it('puts every attribute on the input, not the label, and keeps its own type and name', async () => {
+  it('puts every attribute but class on the input, and keeps its own type and name', async () => {
     const seen: FocusEvent[] = [];
     const wrapper = mountWith(Radio, {
       props: { value: 'a', label: 'A', name: 'fit' },
@@ -247,14 +247,14 @@ describe('Radio — attributes', () => {
     });
     const el = input(wrapper);
     expect(el.id).toBe('fit-a');
-    expect(el.classList.contains('extra')).toBe(true);
-    expect(el.classList.contains('opacity-0')).toBe(true);
+    expect(el.classList.contains('extra')).toBe(false);
+    expect(el.classList.contains('eldra:opacity-0')).toBe(true);
     expect(el.getAttribute('data-option-id')).toBe('a');
     expect(el.getAttribute('aria-describedby')).toBe('help');
     expect(el.type).toBe('radio');
     expect(el.name).toBe('fit');
     expect(wrapper.attributes('id')).toBeUndefined();
-    expect(wrapper.classes()).not.toContain('extra');
+    expect(wrapper.classes()).toContain('extra');
     await wrapper.find('input').trigger('blur');
     expect(seen).toHaveLength(1);
     wrapper.unmount();
@@ -289,7 +289,7 @@ describe('Radio — accessibility', () => {
   it('is keyboard-reachable natively: no tabindex, and the focus ring on the circle', () => {
     const wrapper = mountWith(Radio, { props: { value: 'a', label: 'A' } });
     expect(input(wrapper).hasAttribute('tabindex')).toBe(false);
-    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra-focus-proxy');
+    expect(wrapper.find('[data-part="radio"]').classes()).toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
@@ -300,7 +300,7 @@ describe('Radio — accessibility', () => {
         label: 'Deliver to the address already on my account rather than a new one',
       },
     });
-    expect(wrapper.find('[data-part="label"]').classes()).toContain('min-w-0');
+    expect(wrapper.find('[data-part="label"]').classes()).toContain('eldra:min-w-0');
     wrapper.unmount();
   });
 });

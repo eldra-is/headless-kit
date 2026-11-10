@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import { chromium, type Browser, type Page } from '@playwright/test';
-import { compile } from '@tailwindcss/node';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import { compileKitCss } from '../../../test/kitCss';
 import FilterPanel from '../FilterPanel.vue';
 import type { FilterFacet } from '../types';
 import { COLOUR_FACET, PRICE_FACET, SIZE_FACET } from '../northwind';
@@ -47,8 +46,6 @@ const SIDEBAR_WIDTH = 240;
  */
 const UNDER_TWO_COLUMNS = 415;
 const OVER_TWO_COLUMNS = 417;
-
-const stylesDir = fileURLToPath(new URL('../../../styles/', import.meta.url));
 
 /** The real component's HTML, one facet at a time so a single `Tab` reaches the control at issue. */
 async function render(facets: FilterFacet[], props: Record<string, unknown> = {}): Promise<string> {
@@ -182,7 +179,7 @@ async function resting(page: Page, selector: string): Promise<{ ring: Box; reach
 const RING = 128;
 
 beforeAll(async () => {
-  // The package's real Tailwind entry — `@theme`, the `--eldra-*` tokens, the `eldra-focus` ring
+  // The package's own stylesheet, compiled as `style.css` builds it — `@theme`, the `--eldra-*` tokens, the `eldra-focus` ring
   // and this panel's own utilities — compiled over exactly the classes this markup uses, gathered
   // from every shape the spec renders below.
   const candidates = new Set<string>();
@@ -203,11 +200,7 @@ beforeAll(async () => {
       for (const name of match[1]!.split(/\s+/)) if (name) candidates.add(name);
     }
   }
-  const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';\n`, {
-    base: stylesDir,
-    onDependency() {},
-  });
-  css = compiler.build([...candidates]);
+  css = await compileKitCss(candidates);
   browser = await chromium.launch();
 }, 180_000);
 

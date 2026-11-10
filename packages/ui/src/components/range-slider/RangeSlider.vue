@@ -25,8 +25,8 @@ import { computed, ref, watch, watchEffect } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
+import { mergeClass } from '../../utils/mergeClass';
 import { formatNumber, localeSeparators, parseLocaleNumber } from '../../utils/number-format';
 import { filterNumericBeforeInput } from '../../utils/numeric-input';
 import { FIELD_BASE, FIELD_DISABLED, FIELD_LIVE, FIELD_SIZE } from '../input/classes';
@@ -546,25 +546,27 @@ function onInputBlur(thumb: RangeSliderThumb): void {
  * touch-size rules measure against — the spec's breakpoint rule is the width of the block a
  * control sits in, not the viewport.
  */
-const ROOT_BASE = '@container flex w-full flex-col';
+const ROOT_BASE = 'eldra:@container eldra:flex eldra:w-full eldra:flex-col';
 /** Spec → Sizes, Label row: "0.875rem, weight 500, `text`; 0.5rem above the rail." */
-const LABEL_BASE = 'mb-2 block text-label text-text';
+const LABEL_BASE = 'eldra:mb-2 eldra:block eldra:text-label eldra:text-text';
 /** Spec → Anatomy item 2: the gutter keeps a thumb's outer half inside the control's own box. */
-const GROUP_BASE = 'eldra-range-gutter relative w-full';
+const GROUP_BASE = 'eldra:eldra-range-gutter eldra:relative eldra:w-full';
 /**
  * The rail (spec → Anatomy item 2, Sizes, Rail row). `touch-none` is what stops a touch drag from
  * scrolling the page instead of moving the thumb; `select-none` stops a mouse drag selecting the
  * label text beside it.
  */
-const RAIL_BASE = 'eldra-range-rail relative flex w-full touch-none select-none items-center';
-const RAIL_ENABLED = 'cursor-pointer';
-const RAIL_DISABLED = 'cursor-not-allowed';
+const RAIL_BASE =
+  'eldra:eldra-range-rail eldra:relative eldra:flex eldra:w-full eldra:touch-none eldra:select-none eldra:items-center';
+const RAIL_ENABLED = 'eldra:cursor-pointer';
+const RAIL_DISABLED = 'eldra:cursor-not-allowed';
 /** Spec → Anatomy item 3 and States, Track column. */
 const TRACK_BASE =
-  'eldra-range-track relative w-full overflow-hidden rounded-full bg-surface-strong';
+  'eldra:eldra-range-track eldra:relative eldra:w-full eldra:overflow-hidden eldra:rounded-full eldra:bg-surface-strong';
 /** Spec → Anatomy item 4 and States, Range column (`border` while disabled). */
-const RANGE_BASE = 'absolute inset-y-0 bg-primary';
-const RANGE_DISABLED = 'bg-border';
+const RANGE_BASE = 'eldra:absolute eldra:inset-y-0';
+const RANGE_ENABLED = 'eldra:bg-primary';
+const RANGE_DISABLED = 'eldra:bg-border';
 /**
  * A thumb (spec → Anatomy item 5, States, Thumb column). The circle's size, its 1.5px edge, the
  * hover/drag halo and the pointer target live in the `eldra-range-thumb` utility; what is here is
@@ -575,8 +577,8 @@ const RANGE_DISABLED = 'bg-border';
  * animated — see the spec's own Behaviour & motion note.
  */
 const THUMB_BASE =
-  'eldra-range-thumb absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ' +
-  'border-border-strong bg-background eldra-focus';
+  'eldra:eldra-range-thumb eldra:absolute eldra:top-1/2 eldra:-translate-x-1/2 eldra:-translate-y-1/2 eldra:rounded-full ' +
+  'eldra:eldra-focus';
 /**
  * Spec → States, "Thumb hover" row: "a 0.25rem halo of `text` at 8%, edge `text`". The halo is the
  * `eldra-range-thumb` utility's `::before`; the edge is this colour change. A plain
@@ -584,17 +586,18 @@ const THUMB_BASE =
  * element's transition list (`src/__tests__/focus-transition.spec.ts`) and the border colour
  * changes over the `border-color` entry that list already carries.
  *
- * On `THUMB_ENABLED` rather than `THUMB_BASE`: `THUMB_DISABLED` replaces the rest colour
- * (`border-border-strong` → `border-border`), but `hover:border-text` is a different
- * `tailwind-merge` group, so on the base it would survive into the disabled state and a dead thumb
- * would still light up under the pointer.
+ * On `THUMB_ENABLED` rather than `THUMB_BASE`, with the rest colours: on the base it would survive
+ * into the disabled state and a dead thumb would still light up under the pointer.
  */
-const THUMB_ENABLED = 'cursor-grab hover:border-text';
-const THUMB_DISABLED = 'cursor-not-allowed border-border bg-surface-strong shadow-none';
+const THUMB_ENABLED =
+  'eldra:cursor-grab eldra:border-border-strong eldra:bg-background eldra:hover:border-text';
+const THUMB_DISABLED =
+  'eldra:cursor-not-allowed eldra:border-border eldra:bg-surface-strong eldra:shadow-none';
 /** Spec → Anatomy item 6: `1fr | auto | 1fr`, 0.5rem gaps, bottom-aligned, 0.75rem below the rail. */
-const INPUTS_BASE = 'mt-3 grid grid-cols-[1fr_auto_1fr] items-end gap-2';
+const INPUTS_BASE =
+  'eldra:mt-3 eldra:grid eldra:grid-cols-[1fr_auto_1fr] eldra:items-end eldra:gap-2';
 /** Spec → Anatomy item 6: the word "to", 0.875rem `muted`. */
-const SEPARATOR_BASE = 'self-center text-center text-body-sm text-muted';
+const SEPARATOR_BASE = 'eldra:self-center eldra:text-center eldra:text-body-sm eldra:text-muted';
 /**
  * The fields are the spec's own Input box at `md` (`components/input/classes.ts` — the shared
  * recipe `Input`, `SearchBar` and `UnitInput` draw from, never a second copy of it), centred and
@@ -611,30 +614,34 @@ const SEPARATOR_BASE = 'self-center text-center text-body-sm text-muted';
  * disabled signal. `src/__tests__/fieldStateRecipes.spec.ts` is the gate that stops the next
  * partial copy.
  */
-const INPUT_BASE = `${FIELD_BASE} ${FIELD_SIZE.md} text-center tabular-nums`;
+const INPUT_BASE = `${FIELD_BASE} ${FIELD_SIZE.md} eldra:text-center eldra:tabular-nums`;
 
-const rootClass = computed(() => partClass(ROOT_BASE, props.classes, 'root'));
-const labelClass = computed(() => partClass(LABEL_BASE, props.classes, 'label'));
-const groupClass = computed(() => partClass(GROUP_BASE, props.classes, 'group'));
-const railClass = computed(() =>
-  partClass(cx(RAIL_BASE, props.disabled ? RAIL_DISABLED : RAIL_ENABLED), props.classes, 'rail')
-);
-const trackClass = computed(() => partClass(TRACK_BASE, props.classes, 'track'));
-const rangeClass = computed(() =>
-  partClass(cx(RANGE_BASE, props.disabled && RANGE_DISABLED), props.classes, 'range')
-);
-const thumbClass = computed(() =>
-  partClass(cx(THUMB_BASE, props.disabled ? THUMB_DISABLED : THUMB_ENABLED), props.classes, 'thumb')
-);
-const inputsClass = computed(() => partClass(INPUTS_BASE, props.classes, 'inputs'));
-const separatorClass = computed(() => partClass(SEPARATOR_BASE, props.classes, 'separator'));
-const inputClass = computed(() =>
-  partClass(cx(INPUT_BASE, props.disabled ? FIELD_DISABLED : FIELD_LIVE), props.classes, 'input')
-);
+const labelClass = computed(() => [LABEL_BASE, props.classes?.label]);
+// RangeFacet overrides the group's gutter.
+const groupClass = computed(() => mergeClass(GROUP_BASE, props.classes?.group));
+const railClass = computed(() => [
+  [RAIL_BASE, props.disabled ? RAIL_DISABLED : RAIL_ENABLED],
+  props.classes?.rail,
+]);
+const trackClass = computed(() => [TRACK_BASE, props.classes?.track]);
+const rangeClass = computed(() => [
+  [RANGE_BASE, props.disabled ? RANGE_DISABLED : RANGE_ENABLED],
+  props.classes?.range,
+]);
+const thumbClass = computed(() => [
+  [THUMB_BASE, props.disabled ? THUMB_DISABLED : THUMB_ENABLED],
+  props.classes?.thumb,
+]);
+const inputsClass = computed(() => [INPUTS_BASE, props.classes?.inputs]);
+const separatorClass = computed(() => [SEPARATOR_BASE, props.classes?.separator]);
+const inputClass = computed(() => [
+  [INPUT_BASE, props.disabled ? FIELD_DISABLED : FIELD_LIVE],
+  props.classes?.input,
+]);
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="ROOT_BASE">
     <span v-if="label" :id="labelId" data-part="label" :class="labelClass">{{ label }}</span>
 
     <!-- The pair is one control, announced before either end is read (spec → Accessibility). -->

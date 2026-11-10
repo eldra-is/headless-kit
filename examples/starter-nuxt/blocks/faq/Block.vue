@@ -33,7 +33,7 @@
  * `rows[].text` for the identical reasoning).
  *
  * Answers cap at 65ch: that comes for free from `AccordionItem`'s own panel class
- * (`max-w-[65ch]`, see that component's source) — nothing here repeats it.
+ * (`eldra:max-w-[65ch]`, see that component's source) — nothing here repeats it.
  *
  * `variant`:
  *  - `one-column` (default): a centred head (heading, intro) inside a `narrow` (40rem) container —
@@ -154,12 +154,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
           <EditorPlaceholder v-else-if="showIntroHint" inline :label="t('faq.introHintLabel')" />
           <p v-if="hasContactLink" class="text-muted text-base">
             {{ contactText }}
-            <Link
-              :href="contactHref!"
-              :as="contactLinkAs"
-              variant="inline"
-              :classes="{ root: 'font-semibold' }"
-            >
+            <Link :href="contactHref!" :as="contactLinkAs" variant="inline" class="font-semibold">
               {{ contactLinkLabel }}
             </Link>
           </p>
@@ -239,12 +234,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
 
         <p v-if="hasContactLink" class="text-muted mt-8 text-center text-base">
           {{ contactText }}
-          <Link
-            :href="contactHref!"
-            :as="contactLinkAs"
-            variant="inline"
-            :classes="{ root: 'font-semibold' }"
-          >
+          <Link :href="contactHref!" :as="contactLinkAs" variant="inline" class="font-semibold">
             {{ contactLinkLabel }}
           </Link>
         </p>

@@ -1,15 +1,7 @@
 import type { UiMessages } from '../../composables/useMessages';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type DrawerPart =
-  | 'root'
-  | 'panel'
-  | 'header'
-  | 'title'
-  | 'count'
-  | 'close'
-  | 'body'
-  | 'footer';
+export type DrawerPart = 'panel' | 'header' | 'title' | 'count' | 'close' | 'body' | 'footer';
 
 /** The edge the sheet slides in from. `left` is for the mobile menu; everything else (cart,
  *  filters, quick view) is `right`, the default. */
@@ -36,6 +28,9 @@ export interface DrawerProps {
   /** Message overrides (only `close` applies here, unless a name is available — see
    *  `closeDrawer`). See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the drawer's
+   * `<dialog>` itself with `class`.
+   */
   classes?: Partial<Record<DrawerPart, string>>;
 }

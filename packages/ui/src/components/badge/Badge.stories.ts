@@ -34,7 +34,7 @@ const meta = {
           'button. `StockBadge`, documented on this page under "Stock", is the same section\'s',
           'inline stock status line: icon + words, no fill.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `icon`, `label`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `icon`, `label`,',
           '`hiddenSuffix`.',
           '',
           '**Slots**: `default` (the label, overrides the `label` prop).',

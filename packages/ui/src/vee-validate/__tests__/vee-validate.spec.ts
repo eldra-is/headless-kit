@@ -142,15 +142,15 @@ describe('the ./vee-validate entry surface', () => {
 });
 
 describe('what a Field forwards', () => {
-  it('reaches the inner component with a classes override and a slot', () => {
+  it('reaches the inner component with class, a classes override and a slot', () => {
     const wrapper = mountForm(() =>
       h(
         FieldInput,
-        { name: 'email', classes: { control: 'bg-surface', root: 'w-64' } },
+        { name: 'email', class: 'w-64', classes: { control: 'bg-surface' } },
         { suffix: () => h('span', { 'data-testid': 'suffix' }, '.is') }
       )
     );
-    // `classes` is merged by the component itself, per part — not appended to the wrapper.
+    // `classes` reaches the component's own part; `class` its root.
     expect(wrapper.find('[data-part="control"]').classes()).toContain('bg-surface');
     // Scoped: the form itself is also a `data-part="root"`, and it is the outer one.
     expect(wrapper.find('[data-part="fields"] [data-part="root"]').classes()).toContain('w-64');

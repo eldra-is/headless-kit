@@ -4,7 +4,7 @@ import type { ImageMedia } from '../image/types';
 export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type AvatarPart = 'root' | 'image' | 'initials' | 'icon';
+export type AvatarPart = 'image' | 'initials' | 'icon';
 
 export interface AvatarProps {
   /**
@@ -29,7 +29,8 @@ export interface AvatarProps {
    * instead (spec "Avatar" → Properties, `decorative` row; → Accessibility, 1.1.1/4.1.2).
    */
   decorative?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<AvatarPart, string>>;
 }
 
@@ -46,7 +47,7 @@ export interface AvatarGroupPerson {
  * plus `srText` — the visually hidden element that carries the group's one accessible sentence
  * (spec "Avatar" → Accessibility: "A group gets one name … the individual avatars and '+4' are
  * hidden"). */
-export type AvatarGroupPart = 'root' | 'item' | 'more' | 'srText';
+export type AvatarGroupPart = 'item' | 'more' | 'srText';
 
 export interface AvatarGroupProps {
   /** The people to show, in the order they stack. */
@@ -62,6 +63,7 @@ export interface AvatarGroupProps {
   /** The group's own label, e.g. `"Makers"` — prefixes the accessible sentence: `"Makers: Ingrid,
    * Tomas, Maya and 4 more"` (spec "Avatar" → Properties, Avatar group `label` row). */
   label: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<AvatarGroupPart, string>>;
 }

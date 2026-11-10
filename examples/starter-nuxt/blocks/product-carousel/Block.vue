@@ -76,7 +76,7 @@ const { t } = useI18n();
 const isEditing = useEditing();
 const headingId = `product-carousel-heading-${useUiId()}`;
 /** The h2 recipe, also applied to the heading's own link so `Link`'s standalone size and weight do
- *  not shrink the title (tailwind-merge keeps the later font-size/weight). */
+ *  not shrink the title (an app utility outranks the kit's `eldra:` classes by cascade layer). */
 const HEADING_CLASSES =
   'font-heading @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]';
 
@@ -279,11 +279,11 @@ const cardRatio = computed(() => (isRecentlyViewed.value ? '1x1' : '4x5'));
  * `min-w-56`, which is right in a grid whose columns are sized for it and wrong in a slide whose
  * width is `(track − gaps) / perView`: at six per view on a 1228px track a slide is 189px, so a
  * 224px card ran 35px past its slide, swallowed the 16px gap and overlapped the next card — the
- * operator saw the recently-viewed row drawn with no space between its tiles. `min-w-0` wins over
- * the component's own `min-w-56` through `partClass`'s tailwind-merge, so the card fills exactly
+ * operator saw the recently-viewed row drawn with no space between its tiles. `min-w-0` (an app
+ * utility) outranks the component's own `eldra:min-w-56` by cascade layer, so the card fills exactly
  * its slide on every variant and at every container width.
  */
-const CARD_CLASSES = { root: 'min-w-0' } as const;
+const CARD_CLASS = 'min-w-0';
 
 /**
  * While pending, `Carousel`'s own accessible name announces the loading state instead of
@@ -418,7 +418,7 @@ const showBlock = computed(() =>
                 variant="standalone"
                 arrow
                 :aria-label="`${heading} — ${data.viewAllLabel}${t('productCarousel.viewAllContext')}`"
-                :classes="{ root: `${HEADING_CLASSES} text-inherit` }"
+                :class="`${HEADING_CLASSES} text-inherit`"
               >
                 {{ heading }}
               </Link>
@@ -440,7 +440,7 @@ const showBlock = computed(() =>
             <ProductCard
               :product="entry.product"
               :ratio="cardRatio"
-              :classes="CARD_CLASSES"
+              :class="CARD_CLASS"
               :show-swatches="!isRecentlyViewed && showSwatchesField"
               :show-rating="!isRecentlyViewed"
               :quick-add="false"

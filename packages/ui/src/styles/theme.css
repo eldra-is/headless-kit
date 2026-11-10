@@ -1,0 +1,107 @@
+/* Tailwind v4 theme for @eldrajs/ui. Every value is a --eldra-* variable from tokens.css, so a
+   consumer restyles by setting variables. Consumers with Tailwind import this file after
+   `@import 'tailwindcss'`; consumers without Tailwind use style.css.
+
+   Two kinds of value cannot be a variable and are written out here, nowhere else:
+   - container-query breakpoints, because a `@container (width < ...)` condition may not contain
+     `var()` — Tailwind inlines the `--container-*` value into the condition at build time;
+   - the spinner's own animation timings, which the spec fixes at 700ms (spin) and 1.2s (pulse). */
+@theme {
+  --color-*: initial;
+  --color-background: var(--eldra-color-background);
+  --color-surface: var(--eldra-color-surface);
+  --color-surface-strong: var(--eldra-color-surface-strong);
+  --color-border: var(--eldra-color-border);
+  --color-border-strong: var(--eldra-color-border-strong);
+  --color-text: var(--eldra-color-text);
+  --color-muted: var(--eldra-color-muted);
+  --color-primary: var(--eldra-color-primary);
+  --color-primary-contrast: var(--eldra-color-primary-contrast);
+  --color-accent: var(--eldra-color-accent);
+  --color-accent-contrast: var(--eldra-color-accent-contrast);
+  --color-success: var(--eldra-color-success);
+  --color-warning: var(--eldra-color-warning);
+  --color-danger: var(--eldra-color-danger);
+  --color-focus: var(--eldra-color-focus);
+  --color-focus-inner: var(--eldra-color-focus-inner);
+  --color-overlay: var(--eldra-color-overlay);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-heading: var(--eldra-font-heading);
+  --font-body: var(--eldra-font-body);
+  --font-mono: var(--eldra-font-mono);
+
+  --spacing-*: initial;
+  --spacing: 0.25rem;
+  --spacing-1: var(--eldra-space-1);
+  --spacing-2: var(--eldra-space-2);
+  --spacing-3: var(--eldra-space-3);
+  --spacing-4: var(--eldra-space-4);
+  --spacing-5: var(--eldra-space-5);
+  --spacing-6: var(--eldra-space-6);
+  --spacing-8: var(--eldra-space-8);
+  --spacing-12: var(--eldra-space-12);
+  --spacing-16: var(--eldra-space-16);
+
+  --radius-*: initial;
+  --radius-sm: var(--eldra-radius-sm);
+  --radius-md: var(--eldra-radius-md);
+  --radius-lg: var(--eldra-radius-lg);
+  --radius-xl: var(--eldra-radius-xl);
+  --radius-full: var(--eldra-radius-full);
+
+  --shadow-*: initial;
+  --shadow-sm: var(--eldra-shadow-sm);
+  --shadow-md: var(--eldra-shadow-md);
+  --shadow-float: var(--eldra-shadow-float);
+
+  --ease-out: var(--eldra-ease-out);
+  --ease-in: var(--eldra-ease-in);
+
+  /* Container-query conditions cannot reference a custom property — `@container (width >=
+     var(--x))` is invalid CSS — so Tailwind requires a literal length in the `--container-*` theme
+     namespace before it emits `@narrow:`/`@content:`/`@wide:` variants at all. Shipping these three
+     as `var(--eldra-container-*)` (the tokens.css indirection every other value in this file uses)
+     compiled all three variants to nothing — no build error, no warning, just an absent rule — so
+     `Container`'s own `@content:px-[var(--eldra-gutter-desktop)]` desktop gutter, and every
+     starter block's own `@content:` layout, never engaged (bug, fixed 2026-09-27: see the README's
+     Deviations entry). The three literals below are `eldra-starter-spec/tokens.json`'s
+     `layout.container-{narrow,content,wide}` values, copied by hand — `scripts/build-tokens.mjs`
+     only ever emits a `var()`-holding `--eldra-*` custom property into `tokens.css`, never a
+     literal into this file, so it cannot generate this block for us —
+     `src/__tests__/containerQueryLiterals.spec.ts` asserts the two stay equal, catching the drift a
+     future token change could otherwise introduce silently.
+
+     This does not cost consumers runtime overridability of the three *widths*:
+     `--eldra-container-{narrow,content,wide}` in `tokens.css` are untouched, and `Container.vue`
+     reads them through its own `eldra-container-{narrow,content,wide}` utilities (declared further
+     down this file) rather than through Tailwind's auto-generated `max-w-narrow`/`-content`/
+     `-wide`. Those three still compile from the `--container-*` keys below — fine for an ad-hoc
+     `max-w-content` in a story or a consumer's own markup — but now to the *literal* number rather
+     than a `var()`, which would silently defeat `Container`'s own "a consumer restyles this by
+     setting a variable" contract were its width prop to keep reading them. */
+  --container-narrow: 40rem;
+  --container-content: 64rem;
+  --container-wide: 80rem;
+
+  /* In Tailwind v4 the `--container-*` namespace is the container-query breakpoint scale as well
+     as the width scale, so the three layout widths above already name the spec's `desktop`
+     (64rem, `--container-content`) and `wide` (80rem, `--container-wide`) breakpoints. The
+     mobile/tablet edge at 48rem has no layout width of its own, so it is named here: `@max-tablet`
+     is the spec's "narrower than 48rem", the breakpoint the spec's own "primary buttons grow to
+     `target-touch` below 48rem" rule would measure. `Button` no longer grows at any container
+     width (operator override, recorded under Deviations in the README), so nothing in this
+     package uses `@max-tablet` today — it stays declared for a future component that needs the
+     same edge. Declaring these keys does not disturb Tailwind's own `@sm`/`@md`/... container
+     scale — the theme never resets `--container-*`. */
+  --container-tablet: 48rem;
+
+  /* The two-column form layout's own edge (spec "Form layout" -> Sizes): "the form's container
+     >= 36rem", "measured on the containing block, so it works in narrow page-builder columns".
+     Like `--container-tablet` above it is a breakpoint with no layout width behind it, so it is
+     named here rather than borrowing whichever stock container key happens to be 36rem:
+     `@two-col:grid-cols-2` turns the pairs on, `@max-two-col:` is the spec's "narrow container
+     (< 36rem)" state, where the actions stack full width with the primary first. */
+  --container-two-col: 36rem;
+}

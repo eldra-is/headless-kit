@@ -1,15 +1,7 @@
 import type { UiMessages } from '../../composables/useMessages';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type DialogPart =
-  | 'root'
-  | 'panel'
-  | 'header'
-  | 'title'
-  | 'close'
-  | 'description'
-  | 'body'
-  | 'footer';
+export type DialogPart = 'panel' | 'header' | 'title' | 'close' | 'description' | 'body' | 'footer';
 
 /** The spec's two panel widths: `sm` 24rem, `md` (the default) 32rem — both capped at the
  *  viewport width minus 2rem. */
@@ -40,6 +32,9 @@ export interface DialogProps {
   closeOnEscape?: boolean;
   /** Message overrides (only `close` applies here). See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the
+   * `<dialog>` itself with `class`.
+   */
   classes?: Partial<Record<DialogPart, string>>;
 }

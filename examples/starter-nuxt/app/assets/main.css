@@ -1,21 +1,19 @@
 @import 'tailwindcss';
-/* `@eldrajs/ui`'s Tailwind entry: its `tokens.css` (`--eldra-*` — colours,
-   radii, spacing, type, motion, z-index), the `@theme` block mapping those
-   onto Tailwind's own namespaces (`--color-primary`, `--radius-md`,
-   `--font-heading`, `--shadow-md`, …), the package's custom utilities
-   (`eldra-focus`, `control-h`, `text-body`, …) and a `@source "./"` so this
-   build also scans the package's compiled components — without it a class
-   only `@eldrajs/ui`'s own `dist/*.js` uses (a Button fill, an Input border)
-   would never be emitted here.
+/* `@eldrajs/ui`'s Tailwind entry: its `tokens.css` (`--eldra-*` — colours, radii, spacing,
+   type, motion, z-index), the `@theme` block mapping those onto Tailwind's own namespaces
+   (`--color-primary`, `--radius-md`, `--font-heading`, …) and the package's custom utilities
+   (`eldra-focus`, `control-h`, `text-body`, …), for this theme's own markup. It builds none of the
+   package's components: those come prebuilt in `components.css` below, every class `eldra:`-
+   prefixed and in the `components` layer, so a class written here or on a component wins.
 
-   The colour variables it declares are the *defaults*; the theme's own token
-   CSS (`virtual:eldra/tokens.css`, generated from `tokens.json` by
-   @eldrajs/theme-core's `generateDesignTokenCss`) declares the same
-   `--eldra-color-<role>` names on `:root` and is what Studio edits, live
-   (`useEldraPreview` appends its own `<style>` to `<head>`, which wins over
-   every stylesheet). Keep `tokens.json`'s colour ids and the package's role
-   names identical: that name match is the whole wiring. */
+   The colour variables it declares are the *defaults*; the theme's own token CSS
+   (`virtual:eldra/tokens.css`, generated from `tokens.json` by @eldrajs/theme-core's
+   `generateDesignTokenCss`) declares the same `--eldra-color-<role>` names on `:root` and is what
+   Studio edits, live (`useEldraPreview` appends its own `<style>` to `<head>`, which wins over
+   every stylesheet). Keep `tokens.json`'s colour ids and the package's role names identical:
+   that name match is the whole wiring. */
 @import '@eldrajs/ui/tailwind.css';
+@import '@eldrajs/ui/components.css';
 
 /* Nuxt's Vite root is `app/`, and Tailwind's automatic source detection starts at that root, so
    `blocks/` (a sibling of `app/`) is never scanned in the site build: every class only a block

@@ -58,7 +58,7 @@ const meta = {
           'always crops (never stretches), focal-point and zoom framing, an optional caption, and a',
           'live "No image" placeholder when `media` is not set.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (`<figure>` when',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root` (`<figure>` when',
           '`caption` is set, otherwise a plain `<div>`), `frame`, `media`, `placeholder`,',
           '`caption`, `skeleton`.',
           '',

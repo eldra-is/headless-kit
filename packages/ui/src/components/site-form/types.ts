@@ -62,9 +62,11 @@ export type SiteFormSubmitOutcome =
 
 export type SiteFormLayout = 'single' | 'two' | 'inline';
 
-/** The parts `classes` restyles; which inner component each reaches is in the README, "Site forms". */
+/**
+ * The parts `classes` restyles; which inner component each reaches is in the README, "Site forms".
+ * The root is styled with `class`.
+ */
 export type SiteFormPart =
-  | 'root'
   | 'notice'
   | 'form'
   | 'heading'
@@ -106,5 +108,6 @@ export interface SiteFormProps {
   /** Follows a site-path redirect (`navigateTo`); an absolute one always uses `location.assign`. */
   navigate?: (path: string) => void;
   messages?: Partial<UiMessages>;
+  /** Per-part classes, appended to the part's own (a consumer class wins by cascade layer). */
   classes?: Partial<Record<SiteFormPart, string>>;
 }

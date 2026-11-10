@@ -2,7 +2,6 @@
 import { computed, inject, nextTick, onUpdated, ref, useSlots, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
-import { cx, partClass } from '../../utils/cx';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import { FIELD_ACTION_ROOM_REM, FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE } from '../input/classes';
@@ -145,16 +144,19 @@ watch(() => model.value, growFallback, { flush: 'post', immediate: true });
 
 /** Spec "Textarea" → Sizes and States, applied the same way Input.vue's BASE is. */
 const BASE =
-  'block w-full min-w-0 resize-y eldra-field-border bg-background text-text placeholder:text-muted ' +
-  'rounded-[var(--eldra-textarea-radius,var(--eldra-radius-md))] py-2 px-2.75 ' +
-  'text-control max-md:text-control-mobile ' +
-  'min-h-[var(--eldra-textarea-min-height)] max-h-64 overflow-y-auto ' +
-  'field-sizing-content eldra-focus eldra-focus-always';
+  'eldra:block eldra:w-full eldra:min-w-0 eldra:resize-y eldra:eldra-field-border eldra:placeholder:text-muted ' +
+  'eldra:rounded-[var(--eldra-textarea-radius,var(--eldra-radius-md))] eldra:py-2 eldra:px-2.75 ' +
+  'eldra:text-control eldra:max-md:text-control-mobile ' +
+  'eldra:min-h-[var(--eldra-textarea-min-height)] eldra:max-h-64 eldra:overflow-y-auto ' +
+  'eldra:field-sizing-content eldra:eldra-focus eldra:eldra-focus-always';
 
-const LIVE = 'border-border-strong hover:border-text focus:border-text';
-const INVALID = 'border-danger hover:border-danger focus:border-danger';
-const DISABLED = 'bg-surface-strong border-border border-dashed text-muted cursor-not-allowed';
-const READONLY = 'bg-surface border-border text-text';
+const LIVE_FILL = 'eldra:bg-background eldra:text-text';
+const READONLY_FILL = 'eldra:bg-surface eldra:text-text';
+const LIVE = `${LIVE_FILL} eldra:border-border-strong eldra:hover:border-text eldra:focus:border-text`;
+const INVALID = 'eldra:border-danger eldra:hover:border-danger eldra:focus:border-danger';
+const DISABLED =
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:text-muted eldra:cursor-not-allowed';
+const READONLY = `${READONLY_FILL} eldra:border-border`;
 
 /** See Input.vue: the danger boundary drops on a disabled field and stays on a read-only one. */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
@@ -165,23 +167,17 @@ const showsInvalid = computed(() => isInvalid.value && !props.disabled);
  * `radius-md`). A Textarea rounds by `--eldra-textarea-radius`, so it points the line's radius at
  * that one here rather than letting the line and the border round differently.
  */
-const rootClass = computed(() =>
-  partClass(
-    cx(
-      'relative block w-full [--eldra-field-radius:var(--eldra-textarea-radius,var(--eldra-radius-md))]',
-      showsInvalid.value && 'eldra-field-invalid'
-    ),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:relative eldra:block eldra:w-full eldra:[--eldra-field-radius:var(--eldra-textarea-radius,var(--eldra-radius-md))]',
+  showsInvalid.value && 'eldra:eldra-field-invalid',
+]);
 
 /**
  * `Input`'s prefix and suffix rows, pinned to the first line rather than centred: 0.25rem from the
  * top puts a 2rem action's middle on the first line's middle (0.5rem padding plus half a 1.5rem
  * line). The control reserves one action's room on that side, as `Input`'s `md` size does.
  */
-const ROW = 'absolute top-1 flex h-8 items-center gap-1';
+const ROW = 'eldra:absolute eldra:top-1 eldra:flex eldra:h-8 eldra:items-center eldra:gap-1';
 const hasPrefix = computed(() => slots.prefix !== undefined);
 /** Shown while there is a value, and never on a field that cannot be edited — as `Input`'s is. */
 const showClear = computed(
@@ -189,30 +185,34 @@ const showClear = computed(
 );
 const hasSuffix = computed(() => showClear.value || slots.suffix !== undefined);
 
-const prefixClass = computed(() => partClass(cx(ROW, 'start-1'), props.classes, 'prefix'));
-const suffixClass = computed(() => partClass(cx(ROW, 'end-1'), props.classes, 'suffix'));
-const clearButtonClass = computed(() =>
-  partClass(cx(FIELD_CLEAR_BUTTON, FIELD_CLEAR_SIZE.md), props.classes, 'clearButton')
-);
+const prefixClass = computed(() => [ROW, 'eldra:start-1', props.classes?.prefix]);
+const suffixClass = computed(() => [ROW, 'eldra:end-1', props.classes?.suffix]);
+const clearButtonClass = computed(() => [
+  FIELD_CLEAR_BUTTON,
+  FIELD_CLEAR_SIZE.md,
+  props.classes?.clearButton,
+]);
 
 const prefixRef = ref<HTMLElement | null>(null);
 const suffixRef = ref<HTMLElement | null>(null);
 const prefixRoom = useAdornmentRoom(prefixRef, () => FIELD_ACTION_ROOM_REM.md);
 const suffixRoom = useAdornmentRoom(suffixRef, () => FIELD_ACTION_ROOM_REM.md);
 
-const controlClass = computed(() =>
-  partClass(
-    cx(
-      BASE,
-      hasPrefix.value && 'ps-10',
-      hasSuffix.value && 'pe-10',
-      props.disabled ? DISABLED : props.readonly ? READONLY : LIVE,
-      showsInvalid.value && INVALID
-    ),
-    props.classes,
-    'control'
-  )
-);
+const controlClass = computed(() => [
+  BASE,
+  hasPrefix.value && 'eldra:ps-10',
+  hasSuffix.value && 'eldra:pe-10',
+  props.disabled
+    ? DISABLED
+    : props.readonly
+      ? showsInvalid.value
+        ? `${READONLY_FILL} ${INVALID}`
+        : READONLY
+      : showsInvalid.value
+        ? `${LIVE_FILL} ${INVALID}`
+        : LIVE,
+  props.classes?.control,
+]);
 
 /** Spec "Textarea" → Properties, `counter`: shows only once there is something to count against. */
 const showCounter = computed(() => props.counter && props.maxLength !== undefined);
@@ -230,20 +230,18 @@ const length = computed(() => model.value.length);
 /** Spec "Textarea" → States, Error row: "counter `danger` weight 600" once past the limit. */
 const isOverLimit = computed(() => props.maxLength !== undefined && length.value > props.maxLength);
 
-const footClass = computed(() =>
-  partClass('mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1', props.classes, 'foot')
-);
+const footClass = computed(() => [
+  'eldra:mt-1 eldra:flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-3 eldra:gap-y-1',
+  props.classes?.foot,
+]);
 
-const counterClass = computed(() =>
-  partClass(
-    cx(
-      'text-counter ms-auto shrink-0 tabular-nums whitespace-nowrap',
-      isOverLimit.value ? 'text-danger font-semibold' : 'text-muted font-normal'
-    ),
-    props.classes,
-    'counter'
-  )
-);
+const counterClass = computed(() => [
+  'eldra:text-counter eldra:ms-auto eldra:shrink-0 eldra:tabular-nums eldra:whitespace-nowrap',
+  isOverLimit.value
+    ? 'eldra:text-danger eldra:font-semibold'
+    : 'eldra:text-muted eldra:font-normal',
+  props.classes?.counter,
+]);
 
 /**
  * Spec "Textarea" → Behaviour & motion: "one polite, visually hidden live region announces once
@@ -320,7 +318,12 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" data-part="root" :class="rootClass">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="[rootClass, $attrs.class]"
+  >
     <span
       v-if="hasPrefix"
       ref="prefixRef"
@@ -333,7 +336,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
 
     <textarea
       ref="controlRef"
-      v-bind="$attrs"
+      v-bind="{ ...$attrs, class: undefined }"
       data-part="control"
       :class="controlClass"
       :style="controlStyle"
@@ -370,7 +373,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus() });
       >
         <!-- Tabler's `x`, stroke 1.75, at 1.125rem, as on `Input`. -->
         <svg
-          class="size-4.5"
+          class="eldra:size-4.5"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

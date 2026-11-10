@@ -3,7 +3,7 @@
  * A `list` facet: checkbox rows with counts, the first six behind a **Show all N**, and a search
  * field above a list of more than twelve (spec "Filter panel" → Variants, `list` facet row).
  *
- * The rows are the package's own `Checkbox`, restyled through its `classes` parts into the spec's
+ * The rows are the package's own `Checkbox`, restyled through its `class` and `classes` into the spec's
  * full-width row — a real `<input type="checkbox">` inside a `<label>`, with the package's drawn
  * box and its proxy focus ring, none of it forked. What is *not* taken from `Checkbox` is the
  * accessible name: the row carries an explicit `aria-label` of the whole sentence ("Sweaters, 18
@@ -15,9 +15,8 @@
  * why it is a role on a wrapper rather than a tree widget: every row stays an ordinary checkbox in
  * source order, so `Tab`, `Esc` and **Show all N** behave exactly as they do in a flat facet.
  */
-import { computed, ref } from 'vue';
+import { computed, normalizeClass, ref } from 'vue';
 import { useMessages } from '../../../composables/useMessages';
-import { cx, partClass } from '../../../utils/cx';
 import Button from '../../button/Button.vue';
 import Checkbox from '../../checkbox/Checkbox.vue';
 import Input from '../../input/Input.vue';
@@ -90,13 +89,13 @@ function nameOf(value: FilterFacetValue, parent?: FilterFacetValue): string {
 /* ------------------------------------------------------------------ classes */
 
 /** Spec → Sizes, Facet search: "Input sm (2rem) of type search, 0.5rem above the list." */
-const SEARCH_BASE = 'mb-2 w-full';
+const SEARCH_BASE = 'eldra:mb-2 eldra:w-full';
 /** Spec → Sizes, Facet search: '"No matches" line: 0.875rem `muted`, 0.5rem vertical padding.' */
-const NO_MATCHES_BASE = 'text-body-sm text-muted';
+const NO_MATCHES_BASE = 'eldra:text-body-sm eldra:text-muted';
 /** Only while there is a line to draw: an empty inline span takes no space of its own. */
-const NO_MATCHES_SHOWN = 'block py-2';
+const NO_MATCHES_SHOWN = 'eldra:block eldra:py-2';
 /** Spec → Sizes, Option row: "Rows 0.125rem apart." */
-const VALUES_BASE = 'flex min-w-0 flex-col gap-0.5';
+const VALUES_BASE = 'eldra:flex eldra:min-w-0 eldra:flex-col eldra:gap-0.5';
 /**
  * Spec → Sizes, Option row: "Min 2.25rem tall, padding 0.25rem 0.5rem with a −0.5rem side margin,
  * gap 0.625rem, `radius-sm`, line height 1.35."
@@ -105,40 +104,42 @@ const VALUES_BASE = 'flex min-w-0 flex-col gap-0.5';
  * the far end, which is what these overrides say — nothing about the box, the tick or their states
  * is restated, so every one of `Checkbox`'s own states still paints.
  */
-const ROW_BASE = `grid w-full min-h-9 grid-cols-[auto_1fr] items-center gap-x-2.5 rounded-sm py-1 ${FACET_ROW_GUTTER}`;
+const ROW_BASE = `eldra:grid eldra:w-full eldra:min-h-9 eldra:grid-cols-[auto_1fr] eldra:items-center eldra:gap-x-2.5 eldra:rounded-sm eldra:py-1 ${FACET_ROW_GUTTER}`;
 /** Spec → Sizes, Option row: "Label wraps (breaks long words)." */
-const ROW_LABEL_BASE = 'flex min-w-0 items-center gap-2.5 text-control break-words';
+const ROW_LABEL_BASE =
+  'eldra:flex eldra:min-w-0 eldra:items-center eldra:gap-2.5 eldra:text-control eldra:break-words';
 /** Spec → States, "Option row, checked": "label weight 600". */
-const ROW_LABEL_CHECKED = 'font-semibold';
+const ROW_LABEL_CHECKED = 'eldra:font-semibold';
 /** Spec → Sizes, Show all N: "Button link sm, 0.375rem above, 0.25rem gap, chevron 1rem." */
-const SHOW_ALL_BASE = 'mt-1.5';
+const SHOW_ALL_BASE = 'eldra:mt-1.5';
 /** A nested child list, one indent in. */
-const CHILDREN_BASE = 'ms-6 flex min-w-0 flex-col gap-0.5';
+const CHILDREN_BASE = 'eldra:ms-6 eldra:flex eldra:min-w-0 eldra:flex-col eldra:gap-0.5';
 
-function rowClass(value: FilterFacetValue): string {
-  return partClass(cx(ROW_BASE, !disabled(value) && FACET_ROW_HOVER), props.classes, 'row');
+function rowClass(value: FilterFacetValue) {
+  return [[ROW_BASE, !disabled(value) && FACET_ROW_HOVER], props.classes?.row];
 }
 
 function rowLabelClass(value: FilterFacetValue): string {
-  return partClass(
-    cx(ROW_LABEL_BASE, selected(value) && ROW_LABEL_CHECKED),
-    props.classes,
-    'rowLabel'
-  );
+  return normalizeClass([
+    ROW_LABEL_BASE,
+    selected(value) && ROW_LABEL_CHECKED,
+    props.classes?.rowLabel,
+  ]);
 }
 
-const searchClass = computed(() => partClass(SEARCH_BASE, props.classes, 'search'));
-const noMatchesClass = computed(() =>
-  partClass(cx(NO_MATCHES_BASE, noMatches.value && NO_MATCHES_SHOWN), props.classes, 'noMatches')
-);
-const valuesClass = computed(() => partClass(VALUES_BASE, props.classes, 'values'));
-const countClass = computed(() => partClass(FACET_COUNT, props.classes, 'count'));
-const showAllClass = computed(() => partClass(SHOW_ALL_BASE, props.classes, 'showAll'));
-const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
+const searchClass = computed(() => [SEARCH_BASE, props.classes?.search]);
+const noMatchesClass = computed(() => [
+  [NO_MATCHES_BASE, noMatches.value && NO_MATCHES_SHOWN],
+  props.classes?.noMatches,
+]);
+const valuesClass = computed(() => [VALUES_BASE, props.classes?.values]);
+const countClass = computed(() => [FACET_COUNT, props.classes?.count]);
+const showAllClass = computed(() => [SHOW_ALL_BASE, props.classes?.showAll]);
+const checkboxClass = computed(() => props.classes?.checkbox);
 </script>
 
 <template>
-  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="min-w-0">
+  <div data-eldra-ui :data-eldra-scope="eldra.scope" class="eldra:min-w-0">
     <!-- Spec → Accessibility, Long lists: `<input type="search">` labelled "Search material
          values", placeholder "Search material", `aria-controls` pointing at the list. `Input`
          gives a `type="search"` field its clear button on its own. -->
@@ -159,7 +160,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           <!-- Tabler's `search`, stroke 1.75. Decorative: the field is named above. -->
           <svg
             :data-eldra-scope="eldra.scope"
-            class="size-4"
+            class="eldra:size-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -183,14 +184,11 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
           :disabled="disabled(row.value)"
           :aria-label="nameOf(row.value)"
           :data-value="row.value.value"
-          :classes="{
-            root: rowClass(row.value),
-            label: rowLabelClass(row.value),
-            box: checkboxClass,
-          }"
+          :class="rowClass(row.value)"
+          :classes="{ label: rowLabelClass(row.value), box: checkboxClass }"
           @change="emit('toggle', row.value.value, $event)"
         >
-          <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ row.value.label }}</span>
+          <span :data-eldra-scope="eldra.scope" class="eldra:min-w-0">{{ row.value.label }}</span>
           <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
             row.value.count
           }}</span>
@@ -209,14 +207,11 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
             :disabled="disabled(child)"
             :aria-label="nameOf(child, row.value)"
             :data-value="child.value"
-            :classes="{
-              root: rowClass(child),
-              label: rowLabelClass(child),
-              box: checkboxClass,
-            }"
+            :class="rowClass(child)"
+            :classes="{ label: rowLabelClass(child), box: checkboxClass }"
             @change="emit('toggle', child.value, $event)"
           >
-            <span :data-eldra-scope="eldra.scope" class="min-w-0">{{ child.label }}</span>
+            <span :data-eldra-scope="eldra.scope" class="eldra:min-w-0">{{ child.label }}</span>
             <span :data-eldra-scope="eldra.scope" data-part="count" :class="countClass">{{
               child.count
             }}</span>
@@ -244,7 +239,7 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
       size="sm"
       type="button"
       data-part="showAll"
-      :classes="{ container: showAllClass }"
+      :class="showAllClass"
       :aria-expanded="expanded ? 'true' : 'false'"
       :aria-controls="listId"
       @click="expanded = !expanded"
@@ -253,8 +248,8 @@ const checkboxClass = computed(() => partClass('', props.classes, 'checkbox'));
       <template #trailingIcon>
         <svg
           :data-eldra-scope="eldra.scope"
-          class="duration-base size-4 transition-[rotate] ease-out motion-reduce:transition-none"
-          :class="expanded ? 'rotate-180' : ''"
+          class="eldra:duration-base eldra:size-4 eldra:transition-[rotate] eldra:ease-out eldra:motion-reduce:transition-none"
+          :class="expanded ? 'eldra:rotate-180' : ''"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUpdated, ref } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import { TABS_KEY, type TabsContext } from './context';
 import type { TabPanelProps } from './types';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
 
-const props = withDefaults(defineProps<TabPanelProps>(), { classes: undefined });
+const props = defineProps<TabPanelProps>();
 
 const injected = inject(TABS_KEY);
 if (!injected) {
@@ -50,9 +49,7 @@ const tabindexAttr = computed(() => (hasFocusable.value ? undefined : '0'));
  *  standard ring with the default 2px/2px offsets is already exactly "a 0.25rem `focus-inner` gap,
  *  the ring sitting 4px outside the panel" — see `eldra-focus`'s own tokens — so no override is
  *  needed beyond the utility itself, at the panel's own `radius-sm` corner. */
-const panelClass = computed(() =>
-  partClass(cx('rounded-sm pt-6 eldra-focus'), props.classes, 'panel')
-);
+const panelClass = 'eldra:rounded-sm eldra:pt-6 eldra:eldra-focus';
 </script>
 
 <template>

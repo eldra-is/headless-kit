@@ -2,7 +2,6 @@
 import { computed, nextTick, reactive, ref, watch, type ComponentPublicInstance } from 'vue';
 import { provideEldraUiMessages, useMessages } from '../../composables/useMessages';
 import type { UiMessages } from '../../messages/en-US';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Checkbox from '../checkbox/Checkbox.vue';
@@ -133,21 +132,19 @@ const successMessage = computed(
   () => form.value?.successMessage || (success.value?.pending ? m.value.formPendingMessage : '')
 );
 
-const spansRow = computed(() =>
-  cx(layout.value === 'two' && '@two-col:col-span-2', layout.value === 'inline' && 'basis-full')
-);
+const spansRow = computed(() => [
+  layout.value === 'two' && 'eldra:@two-col:col-span-2',
+  layout.value === 'inline' && 'eldra:basis-full',
+]);
 
-const rootClass = computed(() => partClass('', props.classes, 'root'));
-const noticeClass = computed(() => partClass('text-body-sm text-muted', props.classes, 'notice'));
+const noticeClass = computed(() => ['eldra:text-body-sm eldra:text-muted', props.classes?.notice]);
 const layoutClasses = computed(() => ({
-  root: props.classes?.form,
   heading: props.classes?.heading,
   errorSummary: props.classes?.errorSummary,
   fields: props.classes?.fields,
   actions: props.classes?.actions,
 }));
 const fieldClasses = computed(() => ({
-  root: props.classes?.field,
   label: props.classes?.label,
   requiredMark: props.classes?.requiredMark,
   optionalText: props.classes?.optionalText,
@@ -156,39 +153,40 @@ const fieldClasses = computed(() => ({
 const errorClasses = computed(() => ({ error: props.classes?.error }));
 const controlClasses = computed(() => ({ control: props.classes?.control }));
 const selectClasses = computed(() => ({ trigger: props.classes?.control }));
-const checkboxClasses = computed(() => ({ root: props.classes?.checkbox }));
-const booleanFieldClass = computed(() =>
-  partClass(cx('grid gap-1', spansRow.value), props.classes, 'field')
-);
-const turnstileClass = computed(() =>
-  partClass(cx(spansRow.value, layout.value === 'inline' && 'order-2'), props.classes, 'turnstile')
-);
-const consentClass = computed(() =>
-  partClass(
-    cx('text-body-sm text-muted', layout.value === 'inline' && 'order-3 basis-full'),
-    props.classes,
-    'consentText'
-  )
-);
+const booleanFieldClass = computed(() => [
+  ['eldra:grid eldra:gap-1', spansRow.value],
+  props.classes?.field,
+]);
+const turnstileClass = computed(() => [
+  [spansRow.value, layout.value === 'inline' && 'eldra:order-2'],
+  props.classes?.turnstile,
+]);
+const consentClass = computed(() => [
+  [
+    'eldra:text-body-sm eldra:text-muted',
+    layout.value === 'inline' && 'eldra:order-3 eldra:basis-full',
+  ],
+  props.classes?.consentText,
+]);
 const consentUnderButton = computed(
   () => Boolean(form.value?.consentText) && layout.value !== 'inline'
 );
-const submitClasses = computed(() => ({
-  container: partClass(
-    consentUnderButton.value ? '@two-col:justify-self-end' : '',
-    props.classes,
-    'submit'
-  ),
-}));
-const successClass = computed(() =>
-  partClass('grid gap-1 focus:outline-none', props.classes, 'success')
-);
-const successTitleClass = computed(() =>
-  partClass('text-body text-text font-semibold', props.classes, 'successTitle')
-);
-const successMessageClass = computed(() =>
-  partClass('text-body text-muted', props.classes, 'successMessage')
-);
+const submitClass = computed(() => [
+  consentUnderButton.value && 'eldra:@two-col:justify-self-end',
+  props.classes?.submit,
+]);
+const successClass = computed(() => [
+  'eldra:grid eldra:gap-1 eldra:focus:outline-none',
+  props.classes?.success,
+]);
+const successTitleClass = computed(() => [
+  'eldra:text-body eldra:text-text eldra:font-semibold',
+  props.classes?.successTitle,
+]);
+const successMessageClass = computed(() => [
+  'eldra:text-body eldra:text-muted',
+  props.classes?.successMessage,
+]);
 
 const successRoot = ref<HTMLElement | null>(null);
 
@@ -238,7 +236,6 @@ async function sendAnother(): Promise<void> {
     data-eldra-ui
     :data-eldra-scope="eldra.scope"
     data-part="root"
-    :class="rootClass"
   >
     <slot v-if="status === 'loading'" name="loading">
       <p :data-eldra-scope="eldra.scope" data-part="notice" role="status" :class="noticeClass">
@@ -283,6 +280,7 @@ async function sendAnother(): Promise<void> {
       :heading-level="headingLevel"
       :aria-label="heading ? undefined : form.name"
       :submitting="submitting"
+      :class="classes?.form"
       :classes="layoutClasses"
       @submit="onSubmit"
     >
@@ -291,7 +289,7 @@ async function sendAnother(): Promise<void> {
           v-for="(message, index) in formErrors"
           :key="index"
           :data-eldra-scope="eldra.scope"
-          class="m-0"
+          class="eldra:m-0"
         >
           {{ message }}
         </p>
@@ -311,7 +309,7 @@ async function sendAnother(): Promise<void> {
             :required="field.required"
             :invalid="Boolean(errors[field.id])"
             :described-by="errors[field.id] ? errorId(field.id) : undefined"
-            :classes="checkboxClasses"
+            :class="classes?.checkbox"
             @update:model-value="setValue(field.id, $event)"
           >
             {{ field.label }}
@@ -329,6 +327,7 @@ async function sendAnother(): Promise<void> {
           :optional="!field.required && form.fields.length > 1"
           :full="field.type === 'textarea'"
           :error="errors[field.id]"
+          :class="classes?.field"
           :classes="fieldClasses"
         >
           <Textarea
@@ -367,7 +366,7 @@ async function sendAnother(): Promise<void> {
       <div
         v-if="form.honeypotField"
         :data-eldra-scope="eldra.scope"
-        class="sr-only"
+        class="eldra:sr-only"
         aria-hidden="true"
         inert
       >
@@ -403,7 +402,7 @@ async function sendAnother(): Promise<void> {
           v-if="consentUnderButton"
           :data-eldra-slot="eldra.slotHost('submit')"
           :data-eldra-scope="eldra.scope"
-          class="grid w-full gap-2"
+          class="eldra:grid eldra:w-full eldra:gap-2"
         >
           <slot name="submit" :label="submitText" :submitting="submitting" :describedBy="consentId">
             <Button
@@ -411,7 +410,7 @@ async function sendAnother(): Promise<void> {
               variant="primary"
               :label="m.formSubmitting"
               :aria-describedby="consentId"
-              :classes="submitClasses"
+              :class="submitClass"
             >
               {{ submitText }}
             </Button>
@@ -437,7 +436,7 @@ async function sendAnother(): Promise<void> {
             variant="primary"
             :label="m.formSubmitting"
             :aria-describedby="form.consentText ? consentId : undefined"
-            :classes="submitClasses"
+            :class="submitClass"
           >
             {{ submitText }}
           </Button>
