@@ -125,9 +125,22 @@ describe('the focus ring owns its element transitions', () => {
       expect(rule).not.toContain('outline-width var(--eldra-duration');
       expect(rule).not.toContain('box-shadow var(--eldra-duration');
 
-      // The ring is drawn at full size at all times, and only its colour changes.
+      // The outer ring's colour, and its position, follow that one alpha: it rests as a 1px band
+      // against the border (a field's error line, transparent elsewhere) and moves out past the
+      // infill on focus. Its edges are box-shadow spreads, which a browser draws at fractional
+      // sizes, so the move is continuous; an outline would step at whole device pixels.
       expect(rule).toContain('--eldra-focus-alpha: 0');
-      expect(rule).toContain('calc(var(--eldra-focus-offset) + var(--eldra-focus-width))');
+      if (utility === '.eldra\\:eldra-focus') {
+        expect(rule).toContain('--eldra-focus-from-width: var(--eldra-focus-rest-width, 1px)');
+        expect(rule).toContain('--eldra-focus-from-offset: var(--eldra-focus-rest-offset, 0px)');
+        expect(rule).toMatch(/--eldra-focus-gap: calc\(/);
+        expect(rule).toMatch(/--eldra-focus-reach: calc\(/);
+        expect(rule).toMatch(/box-shadow:\s*0 0 0 var\(--eldra-focus-gap\)/);
+        expect(rule).toMatch(/0 0 0 var\(--eldra-focus-reach\)/);
+        expect(rule).not.toMatch(/outline-(width|offset): calc\(/);
+      } else {
+        expect(rule).toContain('calc(var(--eldra-focus-offset) + var(--eldra-focus-width))');
+      }
       expect(rule).toContain('calc(var(--eldra-focus-alpha) * 100%)');
       expect(rule).toContain('--eldra-focus-alpha: 1');
 

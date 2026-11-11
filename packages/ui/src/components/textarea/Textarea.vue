@@ -161,16 +161,7 @@ const READONLY = `${READONLY_FILL} eldra:border-border`;
 /** See Input.vue: the danger boundary drops on a disabled field and stays on a read-only one. */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-/**
- * `eldra-field-invalid` draws its inset line at the *field's* radius, which it reads from
- * `--eldra-field-radius` (falling back to the Input's own `--eldra-input-radius`, then to
- * `radius-md`). A Textarea rounds by `--eldra-textarea-radius`, so it points the line's radius at
- * that one here rather than letting the line and the border round differently.
- */
-const rootClass = computed(() => [
-  'eldra:relative eldra:block eldra:w-full eldra:[--eldra-field-radius:var(--eldra-textarea-radius,var(--eldra-radius-md))]',
-  showsInvalid.value && 'eldra:eldra-field-invalid',
-]);
+const rootClass = 'eldra:relative eldra:block eldra:w-full';
 
 /**
  * `Input`'s prefix and suffix rows, pinned to the first line rather than centred: 0.25rem from the
@@ -211,6 +202,7 @@ const controlClass = computed(() => [
       : showsInvalid.value
         ? `${LIVE_FILL} ${INVALID}`
         : LIVE,
+  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.control,
 ]);
 

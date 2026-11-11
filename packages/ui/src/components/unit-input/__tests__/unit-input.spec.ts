@@ -725,14 +725,12 @@ describe('UnitInput — the field wrapper', () => {
     wrapper.unmount();
   });
 
-  it('draws the error boundary on the field, and drops it when disabled', async () => {
+  it('draws the error boundary on the control, and drops it when disabled', async () => {
     const wrapper = mount({ unit: 'kilometer', invalid: true });
-    expect(wrapper.find('[data-part="field"]').classes()).toContain('eldra:eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:eldra-field-invalid');
 
     await wrapper.setProps({ disabled: true });
-    expect(wrapper.find('[data-part="field"]').classes()).not.toContain(
-      'eldra:eldra-field-invalid'
-    );
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:eldra-field-invalid');
     // `aria-invalid` stays: the field is still invalid, it just cannot be fixed here.
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
     wrapper.unmount();

@@ -28,6 +28,13 @@ export interface UseDialogOptions {
    * it is focused only when it is a text field or marked `autofocus`; otherwise the dialog itself takes focus.
    */
   initialFocus?: Ref<HTMLElement | null>;
+  /**
+   * Whether the dialog may move focus to its first control on its own. Default `true`. With
+   * `false` it focuses the dialog itself however it opened, unless `initialFocus` or a control
+   * marked `autofocus` names a target: a form dialog then opens without focusing (and, on blur,
+   * validating) a field the user has not reached yet.
+   */
+  focusFirstControl?: boolean;
   /** Ran when `Esc` is pressed (the native `cancel` event), before the dialog actually closes. */
   onCancel?: () => void;
 }
@@ -130,7 +137,8 @@ function firstMeaningfulControl(root: HTMLElement): HTMLElement | undefined {
  *   composable): the page behind does not scroll while the stack is non-empty (released only once
  *   every open modal has closed), and `TOAST_HOST_KEY` tracks the **topmost** dialog a `Toaster`
  *   should render into.
- * - **Initial focus**: `initialFocus`, else a reachable control marked `autofocus`, else the first
+ * - **Initial focus**: `initialFocus`, else a reachable control marked `autofocus`, else (unless
+ *   `focusFirstControl: false`, which focuses the dialog itself instead) the first
  *   meaningful control (never the close button — see `firstMeaningfulControl` above), else the close
  *   button itself as a last resort, else whatever the platform already focused. Opened by a tap or
  *   click, the dialog focuses itself instead unless that target is a text field or marked
@@ -179,11 +187,13 @@ export function useDialog(options: UseDialogOptions): UseDialogReturn {
   function focusInitial(): void {
     const el = dialog.value;
     if (el === null) return;
+    const named = options.initialFocus?.value ?? autofocusControl(el);
+    if (named == null && options.focusFirstControl === false) {
+      focusSurface(el);
+      return;
+    }
     const target =
-      options.initialFocus?.value ??
-      autofocusControl(el) ??
-      firstMeaningfulControl(el) ??
-      el.querySelector<HTMLElement>('[data-part="close"]');
+      named ?? firstMeaningfulControl(el) ?? el.querySelector<HTMLElement>('[data-part="close"]');
     if (lastInputWasPointer && !takesFocusOnTap(target)) {
       focusSurface(el);
       return;

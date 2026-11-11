@@ -510,46 +510,73 @@
   animation: eldra-pulse 1.2s var(--eldra-ease-out) infinite;
 }
 
-/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion): "Shimmer sweeps left to right over
-   1.4s, ease-out, infinitely… Reduced motion: shimmer removed; shapes are static." Shared
-   infrastructure rather than a `Price`-only rule: `Price`'s own loading state below is the first
-   consumer, and the `Skeleton` primitive (a later task) reuses this same utility for every shape.
-   The shape itself is a `surface-strong` fill (spec "Skeleton" → States, "Shape" row); the shimmer
-   is a `background`-coloured band at 60% strength (States, "Shimmer" row) that sweeps across it.
-   It is layered on with a `::after` that slides across rather than an animated
-   `background-position` on the shape's own fill, so the base fill and the moving highlight are
-   independent — reduced motion removes the highlight element outright (`display: none`) instead of
-   merely freezing it mid-sweep, which is what "shapes are static" asks for rather than an instant
-   jump to one frame of the animation. */
+/* The skeleton shimmer (spec "Skeleton" → Behaviour & motion: "Shimmer sweeps left to right…
+   infinitely… Reduced motion: shimmer removed; shapes are static."). The shape is a
+   `surface-strong` fill (States, "Shape" row) with a `background`-coloured glare at 60% strength
+   (States, "Shimmer" row) laid on by a `::after` that slides across it, so reduced motion removes
+   the glare outright (`display: none`) rather than freezing it mid-sweep.
+
+   The glare sweeps for the first 1.8s of a 3s cycle and then rests, eased at both ends, and is a
+   soft band across the middle of the `::after` rather than a wash over the whole shape. The
+   spec's 1.4s `ease-out` sweep, back to back with no rest, lunged and then jumped back to the
+   start, which read as fast and mechanical (operator review, 2026-11-10; README Deviations).
+
+   Consumer knobs, each with the default below: `--eldra-skeleton-duration` (3s, the whole cycle),
+   `--eldra-skeleton-color` (`surface-strong`, the shape's fill) and `--eldra-skeleton-highlight`
+   (`background` at 60%, the glare). `Price`'s loading state shares the utility. */
 @keyframes eldra-shimmer {
-  from {
+  0% {
     transform: translateX(-100%);
   }
-  to {
+  60%,
+  100% {
     transform: translateX(100%);
   }
 }
 @utility eldra-skeleton {
   position: relative;
   overflow: hidden;
-  background-color: var(--eldra-color-surface-strong);
+  background-color: var(--eldra-skeleton-color, var(--eldra-color-surface-strong));
   &::after {
     content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(
       90deg,
-      transparent,
-      color-mix(in oklab, var(--eldra-color-background), transparent 40%),
-      transparent
+      transparent 15%,
+      var(
+          --eldra-skeleton-highlight,
+          color-mix(in oklab, var(--eldra-color-background), transparent 40%)
+        )
+        50%,
+      transparent 85%
     );
-    animation: eldra-shimmer 1.4s var(--eldra-ease-out) infinite;
+    transform: translateX(-100%);
+    animation: eldra-shimmer var(--eldra-skeleton-duration, 3s) var(--eldra-ease-in-out) infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     &::after {
       display: none;
     }
   }
+}
+/* `Skeleton`'s `text` and `title` rows (spec "Skeleton" → Sizes: text "height 0.875rem, 0.3rem
+   margin above and below (one 1.5 line-height row)", title 1.5rem). Variables with the spec's
+   numbers as defaults, so a consumer sets a taller line for its own denser or larger type without
+   sizing every shape: `--eldra-skeleton-line-height`, `--eldra-skeleton-line-gap` and
+   `--eldra-skeleton-title-height`. */
+@utility eldra-skeleton-text {
+  height: var(--eldra-skeleton-line-height, 0.875rem);
+  margin-block: var(--eldra-skeleton-line-gap, 0.3rem);
+}
+@utility eldra-skeleton-title {
+  height: var(--eldra-skeleton-title-height, 1.5rem);
+}
+/* `Skeleton`'s `box`: one shape of any size, the component itself. Its height before a consumer
+   sizes it is `--eldra-skeleton-box-height`, so a bare box is visible rather than 0px tall; a
+   `height` prop (inline) or a height class (a later layer) wins over it. */
+@utility eldra-skeleton-box {
+  height: var(--eldra-skeleton-box-height, 1rem);
 }
 
 /* A value that is still on screen while a fresher one is being fetched (`Price`, `StockBadge` and,
@@ -613,10 +640,17 @@
    that never moves. Where `@property` is unsupported the alpha still switches 0 -> 1, so the ring
    simply appears at full size — the same thing reduced motion asks for, never a missing ring.
 
-   The ring's geometry is one `box-shadow` pair rather than a shadow plus an `outline`: two spreads
-   off the same box stay locked together, and the shadow is what fades. `outline` stays at width 0
-   and is reinstated only under forced colours, where a UA drops `box-shadow` entirely — that rule
-   is static, because the system Highlight colour is not ours to fade.
+   The ring is two `box-shadow` spreads off the element's border edge: the `focus-inner` infill
+   and, under it, the coloured ring. At rest the ring is a 1px band against the border
+   (`--eldra-focus-rest-width`, `--eldra-focus-rest-offset`), transparent unless a field is invalid
+   (`eldra-field-invalid` sets `--eldra-focus-rest-color`). On focus the same `--eldra-focus-alpha`
+   that fades the colours also moves the band out past the 2px infill and widens it to 2px, and
+   back on blur. Shadows, not an outline: a browser draws an outline's width and offset only at
+   whole device pixels (3 distinct frames across a 2px move at 2x, measured in Chromium), but a
+   shadow's spread at any fraction (all 9 of 9 steps), so the move is continuous. A spread is
+   measured from the border's outer edge, the edge the border itself is drawn from, so the band
+   never comes apart from the border at a fractional zoom. Under forced colours, where a UA drops
+   `box-shadow`, an `outline` stands in, static, in `Highlight`.
 
    Each mix reads `color-mix(in srgb, transparent, <colour> calc(...))` — transparent FIRST — on
    purpose. Tailwind compiles every `color-mix()` with a plain fallback for engines that lack it,
@@ -641,26 +675,72 @@
   inherits: false;
   initial-value: 0;
 }
+/* The ring's resting band (see above). Registered without inheritance, so a field's error line
+   never reaches a focusable element inside it (a tag's remove button, a clear button).
+   `--eldra-focus-rest-forced` is the band's width under forced colours, 0 unless a field sets it. */
+@property --eldra-focus-rest-width {
+  syntax: '*';
+  inherits: false;
+}
+@property --eldra-focus-rest-offset {
+  syntax: '*';
+  inherits: false;
+}
+@property --eldra-focus-rest-color {
+  syntax: '*';
+  inherits: false;
+}
+@property --eldra-focus-rest-forced {
+  syntax: '*';
+  inherits: false;
+}
 /* The ring's `box-shadow` ends with Tailwind's own shadow variables (`--tw-shadow`, `--tw-ring-shadow`
    and the rest), each falling back to an empty shadow: a consumer's `shadow-*` or `ring-*` on the
    same element is drawn under the ring rather than replaced by it, and with none set the list
-   paints exactly the ring. */
+   paints exactly the ring. The band's moving edges are lifted into `--eldra-focus-gap` and
+   `--eldra-focus-reach` so each `calc()` holds one `var()` per term: a `var()` nested in another's
+   fallback inside a `calc()` is what a bundler's postcss-calc pass warns about on every build. */
 @utility eldra-focus {
-  /* Width 0 in every colour mode but forced colours, where the ring below is dropped by the UA. */
-  outline: 0 solid transparent;
-  outline-offset: var(--eldra-focus-offset);
   --eldra-focus-alpha: 0;
+  --eldra-focus-from-width: var(--eldra-focus-rest-width, 1px);
+  --eldra-focus-from-offset: var(--eldra-focus-rest-offset, 0px);
+  --eldra-focus-from-color: var(--eldra-focus-rest-color, transparent);
+  --eldra-focus-gap: calc(
+    var(--eldra-focus-from-offset) + (var(--eldra-focus-offset) - var(--eldra-focus-from-offset)) *
+      var(--eldra-focus-alpha)
+  );
+  --eldra-focus-reach: calc(
+    var(--eldra-focus-gap) + var(--eldra-focus-from-width) +
+      (var(--eldra-focus-width) - var(--eldra-focus-from-width)) * var(--eldra-focus-alpha)
+  );
+  /* Width 0 in every colour mode but forced colours, where the shadows below are dropped. */
+  outline: 0 solid transparent;
+  /* The infill is listed three times on purpose. Both spreads are cut out at the element's edge,
+     and on a rounded corner that cut is anti-aliased: one infill lets a hairline of the ring
+     beneath show through it (a grey arc inside a ghost `Button`'s ring, at 4x), three cover it. */
   box-shadow:
-    0 0 0 var(--eldra-focus-offset)
+    0 0 0 var(--eldra-focus-gap)
       color-mix(
         in srgb,
         transparent,
         var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
       ),
-    0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+    0 0 0 var(--eldra-focus-gap)
       color-mix(
         in srgb,
         transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    0 0 0 var(--eldra-focus-gap)
+      color-mix(
+        in srgb,
+        transparent,
+        var(--eldra-color-focus-inner) calc(var(--eldra-focus-alpha) * 100%)
+      ),
+    0 0 0 var(--eldra-focus-reach)
+      color-mix(
+        in srgb,
+        var(--eldra-focus-from-color),
         var(--eldra-color-focus) calc(var(--eldra-focus-alpha) * 100%)
       ),
     var(--tw-inset-shadow, 0 0 #0000),
@@ -686,6 +766,8 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
         0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
         var(--tw-inset-shadow, 0 0 #0000),
         var(--tw-inset-ring-shadow, 0 0 #0000),
@@ -694,9 +776,14 @@
         var(--tw-shadow, 0 0 #0000);
     }
   }
+  /* Static under forced colours: a field's error line in `CanvasText` against the border (none
+     elsewhere), and the ring in `Highlight` past the infill while it shows. */
   @media (forced-colors: active) {
+    outline-width: var(--eldra-focus-rest-forced, 0px);
+    outline-color: CanvasText;
     &:focus-visible {
       outline-width: var(--eldra-focus-width);
+      outline-offset: var(--eldra-focus-offset);
       outline-color: Highlight;
     }
   }
@@ -706,6 +793,8 @@
     --eldra-focus-alpha: 1;
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
         0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
         var(--tw-inset-shadow, 0 0 #0000),
@@ -718,6 +807,7 @@
   @media (forced-colors: active) {
     &:focus {
       outline-width: var(--eldra-focus-width);
+      outline-offset: var(--eldra-focus-offset);
       outline-color: Highlight;
     }
   }
@@ -745,6 +835,8 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
         0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
         var(--tw-inset-shadow, 0 0 #0000),
         var(--tw-inset-ring-shadow, 0 0 #0000),
@@ -756,6 +848,7 @@
   @media (forced-colors: active) {
     &[aria-expanded='true'] {
       outline-width: var(--eldra-focus-width);
+      outline-offset: var(--eldra-focus-offset);
       outline-color: Highlight;
     }
   }
@@ -778,6 +871,8 @@
     @supports not (color: color-mix(in srgb, red, red)) {
       box-shadow:
         0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
         0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width)) var(--eldra-color-focus),
         var(--tw-inset-shadow, 0 0 #0000),
         var(--tw-inset-ring-shadow, 0 0 #0000),
@@ -789,6 +884,7 @@
   @media (forced-colors: active) {
     &:has(:focus-visible) {
       outline-width: var(--eldra-focus-width);
+      outline-offset: var(--eldra-focus-offset);
       outline-color: Highlight;
     }
   }
@@ -877,10 +973,10 @@
 }
 
 /* A field's own boundary (spec "Actions and forms" -> Compact controls: "1px `border-strong`
-   boundary"). The width is a variable rather than Tailwind's `border`, because the invalid inset
-   line below is inset by exactly this much and drawn exactly this thick: with `border` hard-wired
-   to 1px, setting `--eldra-field-border-width` moved the line without moving the border it sits
-   inside, and the two came apart. One variable now drives both. The literal default lives here,
+   boundary"). The width is a variable rather than Tailwind's `border`, because the invalid line
+   (`eldra-field-invalid` below) is drawn exactly this thick against it: with `border` hard-wired to
+   1px, setting `--eldra-field-border-width` thickened one and not the other. One variable drives
+   both. The literal default lives here,
    not in a component class — the same shape as `eldra-link-radius` above. `border-style` comes
    from Tailwind's preflight (`*, ::before, ::after { border: 0 solid }`), which both the
    `tailwind.css` and the `style.css` route carry, so a width alone is a solid border and
@@ -938,46 +1034,19 @@
   border-width: var(--eldra-editor-placeholder-border-width, 1.5px);
 }
 
-/* The error boundary of a field (spec "Input" → States, Error row): "2px `danger` (1px border +
-   1px inset line). On focus the inset line sits inside the `focus-inner` infill."
-
-   Two things make that impossible to draw on the `<input>` itself. `eldra-focus` owns the
-   element's `box-shadow` (the focus infill) and its `outline` (the ring), and a second rule for
-   either would replace the ring rather than add to it; and an `<input>` is a replaced element, so
-   it has no `::after` to lend. So the inset line is drawn by the field's own wrapper — the one
-   element that shares the input's box exactly — as a pseudo-element inset by the input's border
-   width. Keeping the border at 1px in every state is the point: a 2px border would move the value
-   by 1px the moment the field went invalid. `pointer-events: none` keeps the clear button
-   clickable through it, and because the line is *inside* the box while the focus infill is
-   outside it, the two never overlap — which is what the spec's focus sentence asks for. */
+/* The error boundary of a field (spec "Input" → States, Error row): "2px `danger`". Drawn as the
+   field's 1px `danger` border plus `eldra-focus`'s resting band in `danger`, as wide as the border
+   and against its outer edge. Both start from that one edge, so they stay one 2px line at every
+   zoom (a second line drawn by a pseudo-element inset by the border width came apart from it at
+   90%, 110% and 125%). The border stays 1px in every state, so the value never moves when the
+   field turns invalid. On focus the band travels out past the `focus-inner` infill and becomes the
+   ring, as on every control; the border reads 1px `danger` inside it. It goes on the element that
+   carries `eldra-focus` and the border (the input, the textarea, the select trigger, or the
+   `MultiSelect` field that wraps its tags). */
 @utility eldra-field-invalid {
-  position: relative;
-  &::after {
-    content: '';
-    position: absolute;
-    inset: var(--eldra-field-border-width, 1px);
-    border: var(--eldra-field-border-width, 1px) solid var(--eldra-color-danger);
-    /* The radius is lifted into a custom property of its own rather than written inline in the
-       `calc()`. It substitutes to exactly the same token chain — the computed value is unchanged,
-       and `source-scan.spec.ts` asserts both halves of it in the compiled stylesheet — but the
-       `calc()` a bundler's PostCSS pass then has to parse holds one level of `var()` fallback
-       instead of three. Two-deep nesting (`var(--a, var(--b, var(--c)))`) inside a `calc()` is
-       what postcss-calc's grammar chokes on, and it printed a "Parse error … got unexpected
-       RPAREN" warning on every consumer build (seen in the starter's). It is only a warning — the
-       declaration is passed through untouched — but a package cannot ship noise into every
-       consumer's build log, and a real parse error in that pass would look exactly the same. */
-    --eldra-field-invalid-radius: var(
-      --eldra-field-radius,
-      var(--eldra-input-radius, var(--eldra-radius-md))
-    );
-    border-radius: calc(var(--eldra-field-invalid-radius) - var(--eldra-field-border-width, 1px));
-    pointer-events: none;
-  }
-  @media (forced-colors: active) {
-    &::after {
-      border-color: CanvasText;
-    }
-  }
+  --eldra-focus-rest-width: var(--eldra-field-border-width, 1px);
+  --eldra-focus-rest-color: var(--eldra-color-danger);
+  --eldra-focus-rest-forced: var(--eldra-field-border-width, 1px);
 }
 
 /* The radio group Card's own boundary (spec "Radio group" → Sizes, Card row: "1px border"). The
@@ -990,8 +1059,7 @@
 }
 
 /* The selected Card's boundary (spec "Radio group" → States, Selected row: "2px `primary` (1px
-   border + 1px inset line)"). The same technique as `eldra-field-invalid` above, and for the same
-   reason: keeping the real border at 1px in every state and adding a second 1px inset line only
+   border + 1px inset line)"). Keeping the real border at 1px in every state and adding a second 1px inset line only
    when selected is what stops the card growing — and its neighbours shifting — the moment it is
    chosen. The line's colour defaults to `primary`; the invalid-and-selected state (Decision: an
    invalid `Checkbox` that is also checked keeps its fill and swaps only the border colour) sets
@@ -1308,7 +1376,7 @@
 
 /* The sold-out-and-selected pill's boundary (spec "Variant picker" → States, "Sold out + selected"
    row): "**2px** solid `text`" — the only pill row whose border is thicker than the other four.
-   The same technique as `eldra-radio-card-selected` and `eldra-field-invalid`: the real border
+   The same technique as `eldra-radio-card-selected`: the real border
    stays `eldra-variant-pill-border`'s 1px in every state, so a pill never resizes (and its row
    neighbours never reflow) the moment it becomes both sold out and selected, and a second 1px
    inset line does the rest. */

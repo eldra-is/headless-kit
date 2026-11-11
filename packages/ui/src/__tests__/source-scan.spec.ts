@@ -55,40 +55,25 @@ describe('consumer Tailwind build', () => {
       expect(css).toMatch(/@container \((?:width >= |min-width: )36rem\)/);
       expect(css).toMatch(/@container (?:\(width < |not \(min-width: )36rem\)/);
 
-      // A field's boundary and the inset line that completes its 2px error state are one
-      // measurement in two places, and the line is inset by exactly the border's own width — so a
-      // border hard-wired to 1px while the line read a variable would come apart the moment a
-      // consumer set that variable. Both now read `--eldra-field-border-width`, and the line's
-      // corner follows the *field's* radius rather than always `radius-md`, so an Input with
-      // `--eldra-input-radius` set does not round its border one way and its error line another.
+      // A field's boundary and the line that completes its 2px error state are one measurement
+      // in two places: the border, and the ring's resting band, as wide as the border and
+      // against its outer edge. Both read `--eldra-field-border-width`, so a consumer who sets it
+      // thickens both. The resting values do not inherit, so a focusable element inside a field
+      // (a tag's remove button) never draws the field's error line.
       const fieldBorder = css.slice(css.indexOf('.eldra\\:eldra-field-border {'));
       expect(fieldBorder.slice(0, 120)).toContain('var(--eldra-field-border-width, 1px)');
       const invalid = css.slice(
-        css.indexOf('.eldra\\:eldra-field-invalid'),
-        css.indexOf('.eldra\\:eldra-field-invalid') + 600
+        css.indexOf('.eldra\\:eldra-field-invalid {'),
+        css.indexOf('.eldra\\:eldra-field-invalid {') + 300
       );
-      expect(invalid).toContain('var(--eldra-field-border-width, 1px)');
-
-      // The radius is declared as `--eldra-field-invalid-radius` and then read by the `calc()`,
-      // rather than written inline, so a consumer's PostCSS pass never sees a `calc()` with a
-      // two-deep `var()` fallback in it (postcss-calc's grammar cannot parse one and warns on
-      // every build). Substitution makes the two spellings identical, and this is the proof:
-      // inlining the declared value back into the `calc()` reproduces the original expression
-      // exactly, so the computed value is unchanged.
-      // The compiler keeps the source's own line breaks, so compare on collapsed whitespace.
-      const flat = (value: string | undefined) =>
-        value?.replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').trim();
-      const declared = flat(/--eldra-field-invalid-radius:\s*([^;]+);/.exec(invalid)?.[1]);
-      expect(declared).toBe(
-        'var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md)))'
-      );
-      const radius = flat(/border-radius:\s*(calc\([^;]+\));/.exec(invalid)?.[1]);
-      expect(radius).toBe(
-        'calc(var(--eldra-field-invalid-radius) - var(--eldra-field-border-width, 1px))'
-      );
-      expect(radius?.replace('var(--eldra-field-invalid-radius)', declared as string)).toBe(
-        'calc(var(--eldra-field-radius, var(--eldra-input-radius, var(--eldra-radius-md))) - var(--eldra-field-border-width, 1px))'
-      );
+      expect(invalid).toContain('--eldra-focus-rest-width: var(--eldra-field-border-width, 1px)');
+      expect(invalid).toContain('--eldra-focus-rest-color: var(--eldra-color-danger)');
+      expect(invalid).toContain('--eldra-focus-rest-forced: var(--eldra-field-border-width, 1px)');
+      for (const name of ['width', 'offset', 'color', 'forced']) {
+        expect(css).toMatch(
+          new RegExp(`@property --eldra-focus-rest-${name} \\{[^}]*inherits: false`)
+        );
+      }
     }
   );
 

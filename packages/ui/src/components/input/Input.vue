@@ -148,15 +148,12 @@ const resolvedInputmode = computed<NativeInputMode | undefined>(() =>
  * disabled field is out of the conversation, so it keeps its dead grey boundary and drops the
  * danger one (`aria-invalid` stays: the field is still invalid, it just cannot be fixed here). A
  * read-only field keeps it — the value is shown, cannot be edited in place, and is still wrong.
- * The root and the control agree on that, so the 1px border and the 1px inset line that make up
- * the spec's 2px boundary can never appear one without the other.
+ * The border colour and `eldra-field-invalid` (the outline beside it) both read it, so the 1px
+ * border and the 1px line that make up the spec's 2px boundary never appear one without the other.
  */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() => [
-  'eldra:relative eldra:block eldra:w-full',
-  showsInvalid.value && 'eldra:eldra-field-invalid',
-]);
+const rootClass = 'eldra:relative eldra:block eldra:w-full';
 
 const controlClass = computed(() => [
   FIELD_BASE,
@@ -167,6 +164,7 @@ const controlClass = computed(() => [
   props.type === 'number' && 'eldra:tabular-nums',
   props.type === 'search' && FIELD_SEARCH_APPEARANCE,
   fieldState({ disabled: props.disabled, readonly: props.readonly, invalid: showsInvalid.value }),
+  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.control,
 ]);
 

@@ -394,17 +394,14 @@ watch(query, () => {
 // --- classes -----------------------------------------------------------------------------------
 
 /**
- * Spec "Select" → States, Error row: "2px `danger` (1px border + 1px inset line)". The same shape
- * as `Input`: the 1px border stays on the trigger in every state so the value never moves, and the
- * second line is the root's `eldra-field-invalid` pseudo-element. A disabled field drops it — it
+ * Spec "Select" → States, Error row: "2px `danger`". The same shape as `Input`: the 1px border
+ * stays on the trigger in every state so the value never moves, and the second line is the
+ * trigger's ring outline at rest (`eldra-field-invalid`). A disabled field drops it — it
  * cannot be corrected here — while a read-only one keeps it.
  */
 const showsInvalid = computed(() => isInvalid.value && !props.disabled);
 
-const rootClass = computed(() => [
-  'eldra:relative eldra:block eldra:w-full',
-  showsInvalid.value && 'eldra:eldra-field-invalid',
-]);
+const rootClass = 'eldra:relative eldra:block eldra:w-full';
 
 /**
  * The trigger box (spec "Select" → Sizes): the same box as `Input`, "so selects and text fields
@@ -455,6 +452,7 @@ const triggerClass = computed(() => [
   TRIGGER_BASE,
   SIZE[props.size],
   triggerState(),
+  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.trigger,
 ]);
 

@@ -1171,3 +1171,22 @@ describe('Select — the ring while the popover is open', () => {
     expect(triggerOf(wrapper).attributes('aria-expanded')).toBe('false');
   });
 });
+
+describe('Select — the invalid boundary', () => {
+  it('draws the error line on the trigger, which carries the border and the ring', () => {
+    const wrapper = mountWith(Select, { props: { options: TOPIC, invalid: true } });
+    const classes = wrapper.find('[data-part="trigger"]').classes();
+    expect(classes).toContain('eldra:eldra-field-invalid');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(wrapper.classes()).not.toContain('eldra:eldra-field-invalid');
+    wrapper.unmount();
+  });
+
+  it('drops it on a disabled field', () => {
+    const wrapper = mountWith(Select, { props: { options: TOPIC, invalid: true, disabled: true } });
+    expect(wrapper.find('[data-part="trigger"]').classes()).not.toContain(
+      'eldra:eldra-field-invalid'
+    );
+    wrapper.unmount();
+  });
+});

@@ -55,13 +55,13 @@ describe('Skeleton — root is block-level (the percentage-width-in-shrink-to-fi
 });
 
 describe('Skeleton — text variant', () => {
-  it('a single line (default) is w-full, h-3.5, rounded-sm', () => {
+  it('a single line (default) is w-full, a text row, rounded-sm', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text' } });
     const line = wrapper.get('[data-part="line"]');
     expect(line.classes()).toEqual(
       expect.arrayContaining([
         'eldra:eldra-skeleton',
-        'eldra:h-3.5',
+        'eldra:eldra-skeleton-text',
         'eldra:rounded-sm',
         'eldra:w-full',
       ])
@@ -124,7 +124,7 @@ describe('Skeleton — title variant', () => {
     expect(line.classes()).toEqual(
       expect.arrayContaining([
         'eldra:eldra-skeleton',
-        'eldra:h-6',
+        'eldra:eldra-skeleton-title',
         'eldra:rounded-sm',
         'eldra:w-[60%]',
       ])
@@ -296,5 +296,54 @@ describe('Skeleton — narrow container', () => {
       expect(wrapper.find('[data-part="line"]').exists()).toBe(true);
       wrapper.unmount();
     }
+  });
+});
+
+describe('Skeleton — box variant', () => {
+  it('is one shape: the root shimmers itself and holds no lines', () => {
+    const wrapper = mountWith(Skeleton, { props: { variant: 'box' } });
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining([
+        'eldra:eldra-skeleton',
+        'eldra:eldra-skeleton-box',
+        'eldra:rounded-md',
+        'eldra:w-full',
+      ])
+    );
+    expect(wrapper.findAll('[data-part="line"]')).toHaveLength(0);
+    expect(wrapper.attributes('aria-hidden')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('takes its size from width and height, or from classes on the component', () => {
+    const sized = mountWith(Skeleton, {
+      props: { variant: 'box', width: '12rem', height: '3rem' },
+    });
+    expect(sized.attributes('style')).toContain('width: 12rem');
+    expect(sized.attributes('style')).toContain('height: 3rem');
+    expect(sized.classes()).not.toContain('eldra:w-full');
+    sized.unmount();
+
+    const classed = mountWith(Skeleton, {
+      props: { variant: 'box' },
+      attrs: { class: 'h-24 rounded-full' },
+    });
+    expect(classed.classes()).toEqual(expect.arrayContaining(['h-24', 'rounded-full']));
+    classed.unmount();
+  });
+
+  it('applies classes.line to the box, the one shape it draws', () => {
+    const wrapper = mountWith(Skeleton, {
+      props: { variant: 'box', classes: { line: 'opacity-50' } },
+    });
+    expect(wrapper.classes()).toContain('opacity-50');
+    wrapper.unmount();
+  });
+
+  it('is still a named busy region with busyLabel', () => {
+    const wrapper = mountWith(Skeleton, { props: { variant: 'box', busyLabel: 'Loading chart' } });
+    expect(wrapper.attributes('role')).toBe('status');
+    expect(wrapper.attributes('aria-label')).toBe('Loading chart');
+    wrapper.unmount();
   });
 });

@@ -454,27 +454,18 @@ describe('Dialog — nested modals (operator override, 2026-09-26)', () => {
 });
 
 describe('Dialog — initial focus', () => {
-  it('focuses the first meaningful control, never the close button, when a field exists', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', modelValue: true },
-      slots: { default: '<input data-testid="email" />' },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="email"]').element);
-    wrapper.unmount();
-  });
-
-  it('opened by a tap, still focuses a text field (typing is why it opened)', async () => {
-    document.dispatchEvent(new Event('pointerdown'));
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', modelValue: true },
-      slots: { default: '<input data-testid="email" />' },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="email"]').element);
-    wrapper.unmount();
+  it('focuses the dialog itself, never its first field, opened by the keyboard or a tap', async () => {
+    for (const input of ['keydown', 'pointerdown']) {
+      document.dispatchEvent(new Event(input));
+      const wrapper = mountWith(Dialog, {
+        props: { title: 'Notify me', modelValue: true },
+        slots: { default: '<input data-testid="email" />' },
+      });
+      await nextTick();
+      await nextTick();
+      expect(document.activeElement, input).toBe(wrapper.find('[data-part="root"]').element);
+      wrapper.unmount();
+    }
     document.dispatchEvent(new Event('keydown'));
   });
 
@@ -525,33 +516,21 @@ describe('Dialog — initial focus', () => {
     document.dispatchEvent(new Event('keydown'));
   });
 
-  it('focuses the first footer action when the body has no focusable control', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: {
-        title: 'Remove from cart?',
-        description: 'This cannot be undone.',
-        modelValue: true,
-      },
-      slots: {
-        footer:
-          '<button type="button" data-testid="keep">Keep it</button>' +
-          '<button type="button" data-testid="remove">Remove</button>',
-      },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="keep"]').element);
-    wrapper.unmount();
-  });
-
-  it('falls back to the close button when nothing else is focusable', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', description: 'All set.', modelValue: true },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(closeButton(wrapper));
-    wrapper.unmount();
+  it('focuses the dialog itself when only footer actions or the close button can take focus', async () => {
+    for (const footer of ['<button type="button" data-testid="keep">Keep it</button>', undefined]) {
+      const wrapper = mountWith(Dialog, {
+        props: {
+          title: 'Remove from cart?',
+          description: 'This cannot be undone.',
+          modelValue: true,
+        },
+        slots: footer ? { footer } : {},
+      });
+      await nextTick();
+      await nextTick();
+      expect(document.activeElement).toBe(wrapper.find('[data-part="root"]').element);
+      wrapper.unmount();
+    }
   });
 
   it('returns focus to the opener once the dialog closes', async () => {

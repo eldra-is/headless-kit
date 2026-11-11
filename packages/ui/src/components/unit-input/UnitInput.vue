@@ -725,7 +725,6 @@ const labelClass = computed(() =>
 );
 const fieldClass = computed(() => [
   'eldra:relative eldra:block eldra:w-full',
-  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.field,
 ]);
 const controlClass = computed(() => [
@@ -736,6 +735,7 @@ const controlClass = computed(() => [
     (isActionPair.value ? FIELD_TRAILING_PAD_PAIR[props.size] : FIELD_TRAILING_PAD[props.size]),
   'eldra:tabular-nums',
   fieldState({ disabled: props.disabled, readonly: props.readonly, invalid: showsInvalid.value }),
+  showsInvalid.value && 'eldra:eldra-field-invalid',
   props.classes?.control,
 ]);
 const leadingIconClass = computed(() => [FIELD_LEADING_ICON, props.classes?.leadingIcon]);
