@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import {
-  computed,
-  h,
-  inject,
-  provide,
-  ref,
-  useAttrs,
-  useSlots,
-  type FunctionalComponent,
-} from 'vue';
+import { computed, h, inject, provide, useAttrs, useSlots, type FunctionalComponent } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
 import { useUiId } from '../../utils/id';
@@ -212,17 +203,6 @@ const GROUP_INLINE =
 const LabelAndControl: FunctionalComponent = (_props, { slots: own }) =>
   isInline.value ? h('div', { class: GROUP_INLINE }, own.default?.()) : (own.default?.() ?? []);
 
-const controlEl = ref<HTMLElement | null>(null);
-
-// A press on the bare frame would put a caret in the control without focusing it (a modal dialog
-// takes the focus) or focus it outside one; the label is the one target that moves focus there.
-function onFramePress(event: MouseEvent): void {
-  const root = event.currentTarget as HTMLElement;
-  const target = event.target as HTMLElement;
-  const isInlineBox = target.parentElement === root && !target.hasAttribute('data-part');
-  if (target === root || target === controlEl.value || isInlineBox) event.preventDefault();
-}
-
 /** In an inline row the error and the foot take a full-width row of their own, below the button. */
 const INLINE_ROW = 'eldra:order-1 eldra:w-full eldra:basis-full';
 
@@ -286,7 +266,6 @@ const counterClass = computed(() => [
     :aria-describedby="group ? describedBy : undefined"
     :aria-invalid="group && hasError ? 'true' : undefined"
     v-bind="forwardedAttrs"
-    @mousedown="onFramePress"
   >
     <LabelAndControl>
       <component
@@ -311,12 +290,7 @@ const counterClass = computed(() => [
         <slot name="labelSuffix" />
       </component>
 
-      <div
-        ref="controlEl"
-        :data-eldra-slot="eldra.slotHost('default')"
-        data-part="control"
-        :class="controlClass"
-      >
+      <div :data-eldra-slot="eldra.slotHost('default')" data-part="control" :class="controlClass">
         <slot />
       </div>
     </LabelAndControl>
