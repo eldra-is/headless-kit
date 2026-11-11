@@ -193,12 +193,14 @@ const trackClass = computed(() => [
  * `translate-x-*` — a `--spacing` multiple — on top of that rest position, which is also the
  * thumb's motion (spec "Behaviour & motion": "The thumb slides ... over `duration-fast` with
  * `ease-out`"). The thumb is a *separate* element from the button that carries `eldra-focus`, so
- * it may carry its own transition, exactly as Link's arrow does.
+ * it may carry its own transition, exactly as Link's arrow does. Its fill and check colour change
+ * with the track's, over the same `duration-fast`: transitioning only `translate` left the thumb
+ * snapping from `border-strong` to `primary-contrast` while the track around it faded.
  */
 const THUMB_BASE =
   'eldra:absolute eldra:top-1/2 eldra:-translate-y-1/2 eldra:inline-flex eldra:items-center eldra:justify-center ' +
   'eldra:rounded-[var(--eldra-switch-radius,var(--eldra-radius-full))] eldra:eldra-switch-thumb-offset ' +
-  'eldra:transition-[translate] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none';
+  'eldra:transition-[translate,background-color,color] eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none';
 const THUMB_SIZE: Record<SwitchSize, string> = { md: 'eldra:size-4', sm: 'eldra:size-3' };
 const THUMB_TRAVEL: Record<SwitchSize, string> = {
   md: 'eldra:translate-x-5',
