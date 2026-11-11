@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.3...ui-v0.3.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ui:** ignore a press on FieldWrapper's bare frame ([#127](https://github.com/eldra-is/headless-kit/issues/127)) ([3c1f4bf](https://github.com/eldra-is/headless-kit/commit/3c1f4bf91682ee80a1596d01268fea7107e777dc))
+
 ## [0.3.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.2...ui-v0.3.3) (2026-11-11)
 
 
