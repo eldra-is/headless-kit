@@ -1584,21 +1584,36 @@
   letter-spacing: var(--eldra-text-h3-tracking);
 }
 
-/* The panel's own box (spec "Dialog" → Sizes): "Width min(32rem, 100vw − 2rem) (sm: min(24rem,
-   100vw − 2rem))" and "Max height 100vh − 4rem; content beyond that scrolls inside the dialog." The
-   width pair keep the viewport clamp inside the utility itself, unlike `eldra-select-panel-width`'s
-   `min()` — a Dialog's own width is a fixed spec number a consumer can override with
-   `--eldra-dialog-width(-sm)`, and the clamp must still apply to whatever that override is, not
-   only to the default. Each is in Tailwind's own `w`/`max-h` group (`src/utils/mergeClass.ts`), so a
-   consumer's `classes.panel: 'w-full'` replaces the clamp instead of landing beside it. */
+/* The panel's own box (spec "Dialog" → Sizes): width 32rem (sm 24rem), clamped to the dialog's
+   padded content box (`100%`, the viewport less the root's `px-4` and any scrollbar), and the clamp
+   applies to a `--eldra-dialog-width(-sm)` override too. No height cap by default: a tall panel
+   grows and the dialog scrolls. A consumer that wants the body to scroll inside a capped panel sets
+   `--eldra-dialog-max-height`. Each is in Tailwind's own `w`/`max-h` group
+   (`src/utils/mergeClass.ts`), so a consumer's `classes.panel: 'w-full'` replaces the clamp. */
 @utility eldra-dialog-width {
-  width: min(var(--eldra-dialog-width, 32rem), calc(100vw - 2rem));
+  width: min(var(--eldra-dialog-width, 32rem), 100%);
 }
 @utility eldra-dialog-width-sm {
-  width: min(var(--eldra-dialog-width-sm, 24rem), calc(100vw - 2rem));
+  width: min(var(--eldra-dialog-width-sm, 24rem), 100%);
 }
 @utility eldra-dialog-max-height {
-  max-height: var(--eldra-dialog-max-height, calc(100vh - 4rem));
+  max-height: var(--eldra-dialog-max-height, none);
+}
+
+/* A full-screen Dialog panel, for a consumer to put under a viewport variant
+   (`classes.panel: 'max-md:eldra-dialog-fullscreen'`): the panel is pinned to the viewport's edges,
+   and the body scrolls between the header and footer the way it does under
+   `--eldra-dialog-max-height`. Not used by the kit itself; the design spec keeps Dialog centred. */
+@utility eldra-dialog-fullscreen {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  border-width: 0;
+  border-radius: 0;
 }
 
 /* The dialog's own entrance (spec "Dialog" → Behaviour & motion): "Enter: opacity 0 -> 1, 0.5rem

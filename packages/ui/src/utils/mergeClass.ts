@@ -24,6 +24,7 @@ type KitGroup =
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
   | 'eldra-switch-thumb-offset'
+  | 'eldra-dialog-fullscreen'
   | 'eldra-select-match'
   | 'eldra-select-swatch'
   | 'eldra-select-option-active'
@@ -198,6 +199,7 @@ const MERGE_CONFIG = {
       // The Switch thumb's rest inset (tailwind.css "The Switch thumb's rest position"): a logical
       // `inset-inline-start` with no stock Tailwind equivalent, so it gets its own group too.
       'eldra-switch-thumb-offset': ['eldra-switch-thumb-offset'],
+      'eldra-dialog-fullscreen': ['eldra-dialog-fullscreen'],
       // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
