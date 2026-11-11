@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.1...ui-v0.3.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ui:** fade the Switch thumb's colour with its track ([#123](https://github.com/eldra-is/headless-kit/issues/123)) ([3ed693b](https://github.com/eldra-is/headless-kit/commit/3ed693b0d18ea761cd6f0e7d7c608db5f67f7b76))
+
 ## [0.3.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.0...ui-v0.3.1) (2026-11-11)
 
 
