@@ -151,6 +151,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Fixed
 
+- **A press on a `FieldWrapper`'s bare frame** (the gap between the label and the control, or the box around the control) no longer moves the caret or the focus. In a modal `Dialog` it used to leave a blinking caret in the input while the dialog kept the focus, so typing did nothing; elsewhere it focused the input. The label still focuses it.
 - **A field's 2px error boundary no longer splits into two lines at 90%, 110% or 125% zoom.** `Input`, `Textarea`, `UnitInput`, `Select`, `MultiSelect` (and `SearchBar`, `CurrencyInput` through them) draw the second line as the focus ring's resting band in `danger`, a `box-shadow` against the outside of the border, instead of a pseudo-element inset on the field's root. `eldra-field-invalid` now sits on the control (the input, textarea, select trigger, or the `MultiSelect` field holding inside tags), and `--eldra-field-invalid-radius` is gone. On focus the line moves out to become the focus ring.
 - **`scoped.css` leaves a `Popover` or `Tooltip` trigger to the consumer.** The root is the slot host (`data-eldra-slot`) while the trigger is filled, so the consumer's own element keeps its border, padding and background instead of the kit's reset and utilities.
 - **`Popover` finds its trigger inside a fragment**, so a wrapper can forward its own `<slot>` into `trigger`.
