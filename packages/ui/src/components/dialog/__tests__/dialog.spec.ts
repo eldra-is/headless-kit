@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
@@ -120,14 +122,14 @@ describe('Dialog — open and close', () => {
    *  screen because a `display` utility on the root beat the UA's own `display: none`. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });
-    expectClosedModalRendersNothing(root(wrapper), 'block');
+    expectClosedModalRendersNothing(root(wrapper));
     wrapper.unmount();
   });
 
   it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     await wrapper.setProps({ modelValue: false });
-    expectClosedModalRendersNothing(root(wrapper), 'block');
+    expectClosedModalRendersNothing(root(wrapper));
     wrapper.unmount();
   });
 
@@ -604,6 +606,95 @@ describe('Dialog — sizes', () => {
 });
 
 describe('Dialog — long content and narrow viewports', () => {
+  it('the dialog itself is the scroll container: it fills the viewport, padded, and scrolls', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    const cls = root(wrapper).classList;
+    for (const c of [
+      'eldra:open:flex',
+      'eldra:flex-col',
+      'eldra:items-center',
+      'eldra:size-full',
+      'eldra:max-h-none',
+      'eldra:max-w-none',
+      'eldra:overflow-y-auto',
+      'eldra:px-4',
+      'eldra:py-8',
+    ]) {
+      expect(cls.contains(c), c).toBe(true);
+    }
+    wrapper.unmount();
+  });
+
+  it('a tall panel grows past the viewport instead of squeezing: centred by auto margins, never shrunk', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    const panel = wrapper.find('[data-part="panel"]').element.classList;
+    expect(panel.contains('eldra:my-auto')).toBe(true);
+    expect(panel.contains('eldra:shrink-0')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('animates the panel, not the full-viewport root', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    expect(root(wrapper).className).not.toContain('animate-eldra-dialog-in');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:animate-eldra-dialog-in'
+    );
+    wrapper.unmount();
+  });
+
+  it('caps the panel height only when --eldra-dialog-max-height is set; its width is clamped to the padded dialog', () => {
+    const css = readFileSync(
+      fileURLToPath(new NodeURL('../../../styles/utilities.css', import.meta.url)),
+      'utf8'
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-max-height \{\s*max-height: var\(--eldra-dialog-max-height, none\);/
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-width \{\s*width: min\(var\(--eldra-dialog-width, 32rem\), 100%\);/
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-width-sm \{\s*width: min\(var\(--eldra-dialog-width-sm, 24rem\), 100%\);/
+    );
+  });
+
+  it('eldra-dialog-fullscreen pins the panel to the viewport and drops its clamps, radius and border', () => {
+    const css = readFileSync(
+      fileURLToPath(new NodeURL('../../../styles/utilities.css', import.meta.url)),
+      'utf8'
+    );
+    const start = css.indexOf('@utility eldra-dialog-fullscreen {');
+    expect(start, '@utility eldra-dialog-fullscreen is missing').toBeGreaterThan(-1);
+    const body = css.slice(start, css.indexOf('}', start));
+    for (const declaration of [
+      'position: fixed;',
+      'inset: 0;',
+      'margin: 0;',
+      'width: auto;',
+      'max-width: none;',
+      'height: auto;',
+      'max-height: none;',
+      'border-width: 0;',
+      'border-radius: 0;',
+    ]) {
+      expect(body, declaration).toContain(declaration);
+    }
+  });
+
+  it('passes eldra-dialog-fullscreen through classes.panel, under a viewport variant', () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Terms',
+        modelValue: true,
+        classes: { panel: 'eldra:max-md:eldra-dialog-fullscreen' },
+      },
+    });
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:max-md:eldra-dialog-fullscreen'
+    );
+    wrapper.unmount();
+  });
+
   it('the body scrolls on its own; header and footer never shrink', () => {
     const wrapper = mountWith(Dialog, {
       props: { title: 'Terms', modelValue: true },

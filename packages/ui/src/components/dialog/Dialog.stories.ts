@@ -188,7 +188,7 @@ export const NotDismissable: Story = {
   }),
 };
 
-/** Content taller than `100vh - 4rem` scrolls inside the body; the header and footer stay put. */
+/** Content taller than the viewport grows the panel downward and the dialog scrolls, like a page. */
 export const LongContent: Story = {
   args: { title: 'Terms of service' },
   render: (args) => ({
@@ -200,8 +200,8 @@ export const LongContent: Story = {
         <Dialog v-bind="args" v-model="open">
           <div class="text-body text-muted flex flex-col gap-4">
             <p v-for="n in 14" :key="n">
-              Paragraph {{ n }} of a long agreement, long enough that it has to scroll inside the
-              dialog rather than growing the dialog past the viewport.
+              Paragraph {{ n }} of a long agreement, long enough that the dialog grows past the
+              viewport and scrolls.
             </p>
           </div>
           <template #footer>
@@ -212,6 +212,13 @@ export const LongContent: Story = {
       </div>
     `,
   }),
+};
+
+/** `eldra-dialog-fullscreen` under a viewport variant: below 48rem the panel fills the screen and the
+ *  body scrolls between the header and footer; above it, the dialog is the usual centred panel. */
+export const FullscreenOnSmallScreens: Story = {
+  args: { title: 'Terms of service', classes: { panel: 'eldra:max-md:eldra-dialog-fullscreen' } },
+  render: LongContent.render,
 };
 
 /**

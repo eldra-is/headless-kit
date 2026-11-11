@@ -100,48 +100,40 @@ function onCloseClick(): void {
  *  `<Dialog ref="dialogRef" …>` then `dialogRef.value.close('remove')`. */
 defineExpose({ close, isTop });
 
+/**
+ * The `<dialog>` is a transparent, padded, full-viewport scroll container: a panel taller than the
+ * viewport grows downward and the dialog scrolls, the way a page does, rather than squeezing its
+ * body to a sliver on a short screen.
+ *
+ * `hidden open:flex`, never a bare `flex`: the UA's `dialog:not([open]) { display: none }` loses to
+ * any author `display` utility (origin beats specificity), so `hidden` closes it unconditionally and
+ * `open:flex` (two selectors deep, see `modalClosedDisplay.spec.ts`) wins only while `[open]`.
+ *
+ * A column, not a row: width is the cross axis, so the panel keeps its own width clamp (a row
+ * shrank it at 360px), and `shrink-0` on the panel stops the main axis squeezing it.
+ */
 const rootClass = [
-  // `hidden open:block`, not a bare `m-auto` alone (fix, from the operator's own finding):
-  // the UA stylesheet's `dialog:not([open]) { display: none }` only wins on specificity, and
-  // origin always beats specificity in the cascade — any author `display` utility on this
-  // element, however unspecific, overrides it once the dialog closes. `hidden` sets
-  // `display: none` unconditionally; `open:block` (`.open\:block:is([open], …)`, two
-  // selectors deep — see `modalClosedDisplay.spec.ts`) only wins once the `open` attribute is
-  // back, by specificity, both rules being the same author origin.
-  //
-  // `open:block`, not `open:flex` like `Drawer`'s/`SearchModal`'s own roots — a deliberate
-  // deviation from the pattern those two use, proven necessary rather than assumed: this root
-  // never carried `flex` before (it only ever centres one `panel` child via `m-auto`, and
-  // `panel` already does its own `flex flex-col` internally), and turning it into a flex
-  // *container* makes that child a flex *item* — subject to default `flex-shrink: 1`. The
-  // `dialog:modal` UA rule's own `max-width` can be narrower than `panel`'s own
-  // `eldra-dialog-width` at small viewports, and a flex item shrinks to fit a constrained
-  // container in a way a block-level child (which simply keeps its specified width, overflow
-  // or not) never does — confirmed by an A/B screenshot comparison: `open:flex` here measurably
-  // narrows the panel and reflows its text at 360px (`overlays-dialog--long-content--360`, an
-  // extra word per line moved down), `open:block` is pixel-identical to every existing
-  // baseline. `position: fixed` (the UA's own modal positioning) already forces this box's
-  // *outer* display to block regardless of which inner value wins, so the auto-margin centring
-  // is unaffected either way — only the flex-shrink behaviour on the child differs.
-  'eldra:hidden eldra:open:block eldra:m-auto eldra:border-0 eldra:bg-transparent eldra:p-0',
+  'eldra:hidden eldra:open:flex eldra:flex-col eldra:items-center',
+  'eldra:m-0 eldra:size-full eldra:max-h-none eldra:max-w-none eldra:overflow-y-auto eldra:overscroll-contain',
+  'eldra:border-0 eldra:bg-transparent eldra:px-4 eldra:py-8',
   'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]',
   'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))] eldra:focus:outline-none',
-  'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced',
 ];
 
 /**
- * The visible box (spec "Dialog" → Sizes): the `<dialog>` itself stays transparent and unsized
- * above, so this inner flex column carries the border/shadow/radius and the width/max-height
- * clamps — and is what actually keeps long content scrolling inside `body` rather than growing the
- * whole dialog past the viewport (`header`/`footer` are `shrink-0`, `body` alone is `flex-1
- * overflow-y-auto`).
+ * The visible box (spec "Dialog" → Sizes), carrying the border/shadow/radius and the width clamp.
+ * `my-auto` centres a short panel and collapses to 0 on a tall one, so it starts at the top padding
+ * and scrolls. Its height is capped only when a consumer sets `--eldra-dialog-max-height`; then
+ * `body` (`flex-1 overflow-y-auto`, between `shrink-0` header and footer) scrolls inside instead.
+ * The entrance animates this box, so the full-viewport root never carries a transform.
  */
 const panelClass = computed(() => [
-  'eldra:flex eldra:flex-col eldra:overflow-hidden eldra:rounded-lg eldra:border eldra:shadow-md',
+  'eldra:my-auto eldra:flex eldra:shrink-0 eldra:flex-col eldra:overflow-hidden eldra:rounded-lg eldra:border eldra:shadow-md',
   'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]',
   'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]',
   props.size === 'sm' ? 'eldra:eldra-dialog-width-sm' : 'eldra:eldra-dialog-width',
   'eldra:eldra-dialog-max-height',
+  'eldra:animate-eldra-dialog-in eldra:motion-reduce:animate-eldra-dialog-in-reduced',
   props.classes?.panel,
 ]);
 
