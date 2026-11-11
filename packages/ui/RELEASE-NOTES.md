@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.2...ui-v0.3.3) (2026-11-11)
+
+
+### Features
+
+* **ui:** let a tall Dialog grow and scroll, and add eldra-dialog-fullscreen ([#125](https://github.com/eldra-is/headless-kit/issues/125)) ([a424c11](https://github.com/eldra-is/headless-kit/commit/a424c1179f8c476378633ff24223c70f6432aa42))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.1...ui-v0.3.2) (2026-11-11)
 
 
