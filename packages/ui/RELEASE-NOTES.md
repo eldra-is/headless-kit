@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.0...ui-v0.3.1) (2026-11-11)
+
+
+### Features
+
+* **ui:** smooth focus ring, 2px error line at every zoom, Dialog focusing itself, and a softer Skeleton with a box variant ([#121](https://github.com/eldra-is/headless-kit/issues/121)) ([33ace6e](https://github.com/eldra-is/headless-kit/commit/33ace6e529ffb8b1748e8b3566fafcc4c56f5516))
+
 ## [0.3.0](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.9...ui-v0.3.0) (2026-11-10)
 
 
