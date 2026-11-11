@@ -281,10 +281,10 @@ describe('Switch — focus ring and motion', () => {
     wrapper.unmount();
   });
 
-  it('the thumb transitions only translate, with a reduced-motion fallback', () => {
+  it('the thumb slides and changes colour together, with a reduced-motion fallback', () => {
     const wrapper = mountWith(Switch, { slots: { default: 'Restock alerts' } });
     const cls = wrapper.find('[data-part="thumb"]').element.className;
-    expect(cls).toContain('eldra:transition-[translate]');
+    expect(cls).toContain('eldra:transition-[translate,background-color,color]');
     expect(cls).toContain('eldra:duration-fast');
     expect(cls).toContain('eldra:motion-reduce:transition-none');
     wrapper.unmount();
