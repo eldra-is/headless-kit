@@ -2089,10 +2089,13 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   `disabled`, `tabindex`, `aria-pressed`, `aria-disabled` or `aria-label`, since a generic element
   takes none of them. It is for a part that only looks like a button inside a control that is
   itself the button; its name is its own text, and an icon-only one is decorative.
-- **The focus ring composes with Tailwind shadows.** `eldra-focus` ends its `box-shadow` with
-  `--tw-inset-shadow`, `--tw-inset-ring-shadow`, `--tw-ring-offset-shadow`, `--tw-ring-shadow` and
-  `--tw-shadow`, each empty by default, so a `shadow-*` or `ring-*` on the same element is drawn
-  beneath the ring rather than dropped.
+- **The focus ring composes with Tailwind shadows.** `eldra-focus` draws its infill in
+  `--tw-ring-offset-shadow` and its ring in `--tw-ring-shadow` (`eldra-focus-inset` uses
+  `--tw-inset-ring-shadow`), and its `box-shadow` is exactly the list Tailwind's `shadow-*`
+  utilities write. So a `shadow-*` on the same element, from any layer, keeps the ring and draws
+  beneath it. A `ring-*`, `ring-offset-*` or `inset-ring-*` utility replaces the ring, as
+  Tailwind's own `ring` and `focus:ring` do. A `transition-*` utility still replaces the ring's
+  transition list, so the ring appears without its fade.
 - **`Button` disabled link button keeps its `href`.** A disabled `<a>` that also drops `href`
   becomes a generic element and stops exposing `role="link"` — a screen reader stops naming what it
   is at the exact moment it needs to say "unavailable". `href` stays, and `aria-disabled="true"`,
