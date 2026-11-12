@@ -25,6 +25,8 @@ type KitGroup =
   | 'eldra-radio-card-selected'
   | 'eldra-switch-thumb-offset'
   | 'eldra-dialog-fullscreen'
+  | 'eldra-drawer-motion'
+  | 'eldra-drawer-sheet'
   | 'eldra-select-match'
   | 'eldra-select-swatch'
   | 'eldra-select-option-active'
@@ -200,6 +202,10 @@ const MERGE_CONFIG = {
       // `inset-inline-start` with no stock Tailwind equivalent, so it gets its own group too.
       'eldra-switch-thumb-offset': ['eldra-switch-thumb-offset'],
       'eldra-dialog-fullscreen': ['eldra-dialog-fullscreen'],
+      // The drawer's transitions and its mobile-sheet variables (tailwind.css "Drawer"): no stock
+      // equivalent, a group each.
+      'eldra-drawer-motion': ['eldra-drawer-motion'],
+      'eldra-drawer-sheet': ['eldra-drawer-sheet'],
       // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
@@ -208,6 +214,7 @@ const MERGE_CONFIG = {
         'eldra-search-panel-height',
         'eldra-dialog-max-height',
         'eldra-search-modal-max-height',
+        'eldra-drawer-sheet-height',
       ],
       // The Search modal's own position (tailwind.css "Search modal"): "8vh from the top, centred
       // horizontally" on desktop, no margin (full screen) below 48rem — one bundled `margin`

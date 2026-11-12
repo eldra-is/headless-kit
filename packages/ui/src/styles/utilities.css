@@ -1765,6 +1765,106 @@
   animation: eldra-drawer-in-left var(--eldra-duration-slow) var(--eldra-ease-out);
 }
 
+/* The drawer's motion, on the `<dialog>` root. The panel enters from its own edge and leaves
+   toward it: a short slide (`--eldra-drawer-slide`, 2rem) and a fade, eased like a native sheet,
+   so it reads as arriving rather than travelling across the screen. The backdrop fades with it.
+   Both directions are plain transitions: `@starting-style` gives the opening frame, and `display`
+   and `overlay` transition discretely so a closed dialog stays painted, in the top layer, until
+   the panel has gone. Where a browser lacks either, it opens and closes at once. On the root,
+   never as a transform of the root: a full-viewport transform makes the root the containing block
+   for any fixed descendant.
+
+   `--eldra-drawer-drag` (0 to 1, set while a `mobileSheet` drawer is dragged) fades the backdrop
+   with the panel's distance from rest; `data-dragging` stops both from easing behind the finger.
+   The panel's resting offset is computed from `--eldra-drawer-axis-x`/`-y`, `--eldra-drawer-away-x`
+   and `--eldra-drawer-from-opacity`, which this utility never sets, so `eldra-drawer-sheet` below
+   can turn the side slide into a bottom sheet, and a swipe can send the panel all the way off its
+   edge, without a selector of its own to outrank. */
+@utility eldra-drawer-motion {
+  --eldra-drawer-slide-x: var(--eldra-drawer-slide, 2rem);
+  --eldra-drawer-enter: var(--eldra-drawer-enter-duration, 400ms);
+  --eldra-drawer-exit: var(--eldra-drawer-exit-duration, 260ms);
+  --eldra-drawer-curve: var(--eldra-drawer-ease, cubic-bezier(0.32, 0.72, 0, 1));
+  transition-property: display, overlay;
+  transition-behavior: allow-discrete;
+  transition-duration: var(--eldra-drawer-enter);
+  &[data-side='left'] {
+    --eldra-drawer-slide-x: calc(-1 * var(--eldra-drawer-slide, 2rem));
+  }
+  &:not([open]) {
+    transition-duration: var(--eldra-drawer-exit);
+  }
+  &::backdrop {
+    opacity: calc(1 - var(--eldra-drawer-drag, 0));
+    transition-property: opacity, display, overlay;
+    transition-behavior: allow-discrete;
+    transition-duration: var(--eldra-drawer-enter);
+    transition-timing-function: var(--eldra-drawer-curve);
+  }
+  &:not([open])::backdrop {
+    opacity: 0;
+    transition-duration: var(--eldra-drawer-exit);
+  }
+  & > [data-part='panel'] {
+    transition-property: translate, opacity;
+    transition-duration: var(--eldra-drawer-enter);
+    transition-timing-function: var(--eldra-drawer-curve);
+  }
+  &:not([open]) > [data-part='panel'] {
+    translate: calc(
+        var(--eldra-drawer-slide-x) * var(--eldra-drawer-axis-x, 1) + 100% *
+          var(--eldra-drawer-away-x, 0)
+      )
+      calc(100% * var(--eldra-drawer-axis-y, 0));
+    opacity: var(--eldra-drawer-from-opacity, 0);
+    transition-duration: var(--eldra-drawer-exit);
+  }
+  @starting-style {
+    &[open] > [data-part='panel'] {
+      translate: calc(
+          var(--eldra-drawer-slide-x) * var(--eldra-drawer-axis-x, 1) + 100% *
+            var(--eldra-drawer-away-x, 0)
+        )
+        calc(100% * var(--eldra-drawer-axis-y, 0));
+      opacity: var(--eldra-drawer-from-opacity, 0);
+    }
+    &[open]::backdrop {
+      opacity: 0;
+    }
+  }
+  &[data-dragging] {
+    user-select: none;
+    cursor: grabbing;
+  }
+  &[data-dragging] > [data-part='panel'],
+  &[data-dragging]::backdrop {
+    transition-duration: 0s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    --eldra-drawer-slide-x: 0px;
+    --eldra-drawer-enter: var(--eldra-duration-base);
+    --eldra-drawer-exit: var(--eldra-duration-base);
+    --eldra-drawer-curve: linear;
+  }
+}
+
+/* `Drawer`'s `mobileSheet`: below the drawer's 48rem viewport edge the panel rises from the bottom
+   instead of sliding in from its side, and leaves the same way. Variables only; the motion is
+   `eldra-drawer-motion`'s. Reduced motion keeps that utility's plain fade. */
+@utility eldra-drawer-sheet {
+  @media (width < 48rem) and (prefers-reduced-motion: no-preference) {
+    --eldra-drawer-axis-x: 0;
+    --eldra-drawer-axis-y: 1;
+    --eldra-drawer-from-opacity: 1;
+  }
+}
+
+/* The sheet's height cap: it fits its content up to the viewport less `--eldra-drawer-sheet-gap`
+   (3rem), so the page above it stays in view and reads as the thing it was opened from. */
+@utility eldra-drawer-sheet-height {
+  max-height: calc(100% - var(--eldra-drawer-sheet-gap, 3rem) - env(safe-area-inset-top, 0px));
+}
+
 /* --- Search modal ------------------------------------------------------------------------------ */
 
 /* The field's own type (spec "Search modal" → Sizes, Field row): "1.0625rem text" (desktop and
