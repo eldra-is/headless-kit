@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.5...ui-v0.3.6) (2026-11-12)
+
+
+### Features
+
+* **ui:** slide Drawer in smoothly, swipe it closed, and add a mobile bottom sheet ([#132](https://github.com/eldra-is/headless-kit/issues/132)) ([83a27f5](https://github.com/eldra-is/headless-kit/commit/83a27f5ac3d248d191dcd0e63f42fe058c123652))
+
 ## [0.3.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.4...ui-v0.3.5) (2026-11-12)
 
 
