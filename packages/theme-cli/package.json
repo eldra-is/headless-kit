@@ -48,7 +48,7 @@
   "dependencies": {
     "@eldrajs/theme-core": "workspace:^",
     "@eldrajs/vite-plugin-theme": "workspace:^",
-    "citty": "^0.1.6",
+    "citty": "^0.2.2",
     "tar": "^7.4.3"
   },
   "devDependencies": {
