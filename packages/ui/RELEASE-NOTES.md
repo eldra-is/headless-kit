@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.4...ui-v0.3.5) (2026-11-12)
+
+
+### Features
+
+* **ui:** draw the focus ring through Tailwind's ring variables ([#131](https://github.com/eldra-is/headless-kit/issues/131)) ([2f170ea](https://github.com/eldra-is/headless-kit/commit/2f170eaa8e5e35766277193e52cf2d42b944415e))
+
+
+### Bug Fixes
+
+* **ui:** let a press on FieldWrapper's empty space blur the input again ([#129](https://github.com/eldra-is/headless-kit/issues/129)) ([6d96d4f](https://github.com/eldra-is/headless-kit/commit/6d96d4fd083748c0e7426f938c7a0409eea8a6f5))
+
 ## [0.3.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.3...ui-v0.3.4) (2026-11-11)
 
 
