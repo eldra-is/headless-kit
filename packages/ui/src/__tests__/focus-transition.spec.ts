@@ -135,7 +135,8 @@ describe('the focus ring owns its element transitions', () => {
         expect(rule).toContain('--eldra-focus-from-offset: var(--eldra-focus-rest-offset, 0px)');
         expect(rule).toMatch(/--eldra-focus-gap: calc\(/);
         expect(rule).toMatch(/--eldra-focus-reach: calc\(/);
-        expect(rule).toMatch(/box-shadow:\s*0 0 0 var\(--eldra-focus-gap\)/);
+        expect(rule).toMatch(/--tw-ring-offset-shadow:\s*0 0 0 var\(--eldra-focus-gap\)/);
+        expect(rule).toMatch(/--tw-ring-shadow:\s*0 0 0 var\(--eldra-focus-reach\)/);
         expect(rule).toMatch(/0 0 0 var\(--eldra-focus-reach\)/);
         expect(rule).not.toMatch(/outline-(width|offset): calc\(/);
       } else {
@@ -147,7 +148,13 @@ describe('the focus ring owns its element transitions', () => {
       // Tailwind compiles a plain fallback for engines with no `color-mix`, using the mix's first
       // colour. Written `transparent` first, that fallback is the *resting* state; the other way
       // round it is a permanent ring painted around every control. This pins the ordering.
-      expect(rule).toMatch(/box-shadow:[^;]*transparent[^;]*;/);
+      expect(rule).toMatch(/--tw-(ring-offset|inset-ring)-shadow:[^;]*transparent[^;]*;/);
+
+      // The ring lives in Tailwind's ring variables and `box-shadow` is exactly the list Tailwind's
+      // `shadow-*` utilities write, so a consumer's `shadow-*` on the element keeps the ring.
+      expect(rule).toMatch(
+        /box-shadow:\s*var\(--tw-inset-shadow, 0 0 #0000\),\s*var\(--tw-inset-ring-shadow, 0 0 #0000\),\s*var\(--tw-ring-offset-shadow, 0 0 #0000\),\s*var\(--tw-ring-shadow, 0 0 #0000\),\s*var\(--tw-shadow, 0 0 #0000\);/
+      );
       expect(rule).toContain('@supports not (color: color-mix(in srgb, red, red))');
 
       // ...and the colour and press changes a control makes, in the same shorthand — which is the
