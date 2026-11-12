@@ -15,12 +15,13 @@
  * file only draws the anatomy, the per-side slide and full-screen mobile variant, and the one
  * behaviour `Dialog` does not need: which control gets initial focus differs by `side` (below).
  */
-import { computed, ref, useSlots } from 'vue';
+import { computed, ref, useSlots, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
 import { useUiId } from '../../utils/id';
 import type { DrawerProps } from './types';
+import { useDrawerDrag } from './useDrawerDrag';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -32,6 +33,8 @@ const props = withDefaults(defineProps<DrawerProps>(), {
   ariaLabel: undefined,
   count: undefined,
   width: undefined,
+  mobileSheet: false,
+  swipe: true,
   messages: undefined,
   classes: undefined,
 });
@@ -40,9 +43,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean];
   /** Fires when `Esc` is pressed (the native `cancel` event), before the drawer actually closes. */
   cancel: [];
-  /** Fires after the drawer has closed, with how: `"escape"`, `"backdrop"`, `"button"`,
-   *  `"programmatic"` (a parent set `modelValue` to `false` directly), or whatever a consumer
-   *  passed to the exposed `close(returnValue)` method. */
+  /** Fires after the drawer has closed, with how: `"escape"`, `"backdrop"`, `"button"`, `"swipe"`
+   *  (dragged off its edge), `"programmatic"` (a parent set `modelValue` to `false` directly), or
+   *  whatever a consumer passed to the exposed `close(returnValue)` method. */
   close: [reason: string];
 }>();
 
@@ -61,6 +64,8 @@ const m = useMessages(() => props.messages);
 const model = useControllableModel<boolean>(props, emit, () => false);
 
 const dialogEl = ref<HTMLDialogElement | null>(null);
+const panelEl = ref<HTMLElement | null>(null);
+const bodyEl = ref<HTMLElement | null>(null);
 const closeButtonEl = ref<HTMLElement | null>(null);
 
 const titleId = useUiId('drawer-title');
@@ -96,6 +101,22 @@ const { close, isTop } = useDialog({
   onCancel: () => emit('cancel'),
 });
 
+const drag = useDrawerDrag({
+  dialog: dialogEl,
+  panel: panelEl,
+  body: bodyEl,
+  side: () => props.side,
+  sheet: () => props.mobileSheet,
+  enabled: () => props.swipe,
+  dismiss: () => close('swipe'),
+});
+
+// A swipe leaves the panel's exit offset on the root so it leaves from where it was let go; the
+// next opening starts from the usual entrance again.
+watch(model, (open) => {
+  if (open) drag.reset();
+});
+
 /** The one place the public `close` event is emitted, for every closing route at once — see
  *  `Dialog.vue`'s own comment on this exact pattern, including the `"programmatic"` reason a plain
  *  external close (a parent setting `modelValue` to `false` directly) now reads. */
@@ -129,10 +150,11 @@ const closeLabel = computed(() => {
  * child panel to `side` — `justify-end`/`justify-start`, not a per-side inset, so the same panel
  * markup works for both without swapping which physical side it reads its position from.
  *
- * The slide-in animation lives here, not on the panel (see `tailwind.css`'s own comment on
- * `eldra-drawer-in-right`/`-left` for why): translating this full-viewport-width transparent box
- * moves its panel child fully off-screen and back regardless of the panel's own width, while the
- * `::backdrop` — a sibling box, not a descendant — is untouched and simply stays in place.
+ * The motion is `eldra-drawer-motion` (see its comment in `utilities.css`): the panel slides a
+ * short way in from its edge and fades, the backdrop fades, and closing plays the same in reverse.
+ * It moves the panel, never this root, so a fixed descendant keeps the viewport as its containing
+ * block. With `mobileSheet`, below 48rem the root becomes a column that sets the panel on the
+ * bottom edge and `eldra-drawer-sheet` turns the slide into a rise from below.
  *
  * `hidden open:flex`, not a bare `flex` (fix, from the operator's own finding — see `Dialog`'s
  * own rootClass comment for the full mechanism): a bare `flex` here is exactly what left a closed
@@ -148,10 +170,10 @@ const rootClass = computed(() => [
   // undershoots in a desktop browser's device emulation and left a strip of page below the foot.
   'eldra:fixed eldra:inset-0 eldra:m-0 eldra:hidden eldra:open:flex eldra:h-auto eldra:max-h-none eldra:w-full eldra:max-w-none eldra:border-0 eldra:bg-transparent eldra:p-0 eldra:text-text',
   props.side === 'left' ? 'eldra:justify-start' : 'eldra:justify-end',
-  'eldra:backdrop:bg-overlay eldra:focus:outline-none',
-  props.side === 'left'
-    ? 'eldra:animate-eldra-drawer-in-left eldra:motion-reduce:animate-eldra-dialog-in-reduced'
-    : 'eldra:animate-eldra-drawer-in-right eldra:motion-reduce:animate-eldra-dialog-in-reduced',
+  // `clip`, not `hidden`: the panel sliding in from past an edge overflows the root, and a root
+  // that can scroll is scrolled by the initial focus and by a drag, shifting the panel.
+  'eldra:overflow-clip eldra:backdrop:bg-overlay eldra:focus:outline-none eldra:eldra-drawer-motion',
+  props.mobileSheet && 'eldra:eldra-drawer-sheet eldra:max-md:flex-col eldra:max-md:justify-end',
 ]);
 
 /**
@@ -168,8 +190,27 @@ const panelClass = computed(() => [
   props.side === 'left'
     ? 'eldra:border-r eldra:border-border eldra:max-md:border-r-0'
     : 'eldra:border-l eldra:border-border eldra:max-md:border-l-0',
+  props.mobileSheet &&
+    'eldra:max-md:h-auto eldra:max-md:eldra-drawer-sheet-height eldra:max-md:border-t eldra:max-md:rounded-t-[var(--eldra-drawer-sheet-radius,var(--eldra-radius-xl))]',
+  // A finger swiping sideways reaches the drawer instead of the browser; scrolling and zoom stay.
+  props.swipe &&
+    (props.mobileSheet
+      ? 'eldra:md:touch-pan-y eldra:md:touch-pinch-zoom'
+      : 'eldra:touch-pan-y eldra:touch-pinch-zoom'),
   props.classes?.panel,
 ]);
+
+/**
+ * The sheet's grab handle: a short bar centred above the header, below 48rem only. Decorative to
+ * assistive technology (the close button and `Esc` close it); its row, with the header below it,
+ * is where the sheet is dragged, so neither lets the browser take the touch for a scroll.
+ */
+const handleClass = computed(() => [
+  'eldra:flex eldra:shrink-0 eldra:cursor-grab eldra:touch-none eldra:justify-center eldra:pt-2 eldra:pb-1 eldra:md:hidden',
+  props.classes?.handle,
+]);
+const handleBarClass =
+  'eldra:block eldra:h-1 eldra:w-9 eldra:rounded-full eldra:bg-[var(--eldra-drawer-handle-color,var(--eldra-color-border-strong))]';
 
 /** `--eldra-drawer-width` from the `width` prop, left unset so the utility's own literal default
  *  (28rem) applies when the prop is omitted. */
@@ -180,6 +221,10 @@ const panelStyle = computed(() =>
 const headerClass = computed(() => [
   'eldra:flex eldra:shrink-0 eldra:items-center eldra:gap-4 eldra:border-b eldra:border-border',
   'eldra:eldra-drawer-header-height eldra:eldra-drawer-gutter eldra:eldra-drawer-header-top eldra:eldra-drawer-header-bottom',
+  // A sheet sits below the page's top edge, so it needs no safe-area padding there: the handle
+  // row above the header is its top.
+  props.mobileSheet && 'eldra:max-md:min-h-0 eldra:max-md:pt-1 eldra:max-md:touch-none',
+  props.swipe && 'eldra:select-none',
   props.classes?.header,
 ]);
 
@@ -235,9 +280,19 @@ const footerClass = computed(() => [
     :class="rootClass"
     :aria-labelledby="title ? titleId : undefined"
     :aria-label="!title ? ariaLabel : undefined"
+    :data-side="side"
     @close="onNativeClose"
   >
-    <div data-part="panel" :class="panelClass" :style="panelStyle">
+    <div
+      ref="panelEl"
+      data-part="panel"
+      :class="panelClass"
+      :style="panelStyle"
+      @pointerdown="drag.onPointerDown"
+    >
+      <div v-if="mobileSheet" data-part="handle" aria-hidden="true" :class="handleClass">
+        <span :class="handleBarClass" />
+      </div>
       <div data-part="header" :class="headerClass">
         <div :data-eldra-slot="eldra.slotHost('header')" :class="titleAreaClass">
           <h2
@@ -278,7 +333,16 @@ const footerClass = computed(() => [
         </button>
       </div>
 
-      <div :data-eldra-slot="eldra.slotHost('default')" data-part="body" :class="bodyClass">
+      <div
+        ref="bodyEl"
+        :data-eldra-slot="eldra.slotHost('default')"
+        data-part="body"
+        :class="bodyClass"
+        @touchstart="drag.onTouchStart"
+        @touchmove="drag.onTouchMove"
+        @touchend="drag.onTouchEnd"
+        @touchcancel="drag.onTouchEnd"
+      >
         <slot />
       </div>
 

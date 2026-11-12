@@ -4,6 +4,8 @@ import { ref } from 'vue';
 import Button from '../button/Button.vue';
 import CheckboxGroup from '../checkbox/CheckboxGroup.vue';
 import Dialog from '../dialog/Dialog.vue';
+import FieldWrapper from '../field-wrapper/FieldWrapper.vue';
+import Input from '../input/Input.vue';
 import Price from '../price/Price.vue';
 import QuantityStepper from '../quantity-stepper/QuantityStepper.vue';
 import Drawer from './Drawer.vue';
@@ -35,7 +37,8 @@ const meta = {
           'see the cart.',
           '',
           '**Parts** (`data-part`): `root` (styled with `class`), and the keys of the `classes`',
-          'prop: `panel`, `header`, `title`, `count`, `close`, `body`, `footer`. **Slots**:',
+          'prop: `panel`, `handle` (with `mobileSheet`), `header`, `title`, `count`, `close`,',
+          '`body`, `footer`. **Slots**:',
           '`default` (the scrolling body),',
           '`header` (the header row before the close button: a logo, a call to action) and',
           '`footer` (the fixed footer, which never scrolls).',
@@ -61,10 +64,25 @@ const meta = {
           'screen instead, one of only two rules in the whole design spec measured on the viewport',
           'rather than a container.',
           '',
-          '**Entrance**: slides in from its edge over `duration-slow` `ease-out`. Reduced motion',
-          "drops the slide for a plain opacity fade over `duration-base`, linear (`Dialog`'s own",
-          'reduced-motion fade, reused rather than duplicated). Exit is instant. **CSS variables**:',
-          '`--eldra-drawer-title-size`/`-line`, `--eldra-drawer-width`.',
+          '**Motion**: the panel slides a short way in from its edge (`--eldra-drawer-slide`, 2rem)',
+          'and fades, with the backdrop, over `--eldra-drawer-enter-duration` (400ms) on a native',
+          'sheet curve; closing plays it back over `--eldra-drawer-exit-duration` (260ms). Reduced',
+          'motion keeps only the fade.',
+          '',
+          '**Swipe** (`swipe`, on by default): swipe the drawer toward its edge to close it, a',
+          'finger anywhere on it or a mouse by its header. Nothing moves until the pointer has gone',
+          '`--eldra-drawer-swipe-threshold` (24px) toward the edge; past a third of its width, or',
+          'on a flick, it closes with `close("swipe")`, else springs back.',
+          '',
+          '**`mobileSheet`** (off by default): below 48rem it is a bottom sheet instead of a',
+          'full-screen panel: it rises from below, fits its content up to the viewport less',
+          '`--eldra-drawer-sheet-gap` (3rem), and has a grab handle. Drag the handle or header down,',
+          'or the body once it is scrolled to the top; the backdrop fades with the distance.',
+          '',
+          '**CSS variables**: `--eldra-drawer-title-size`/`-line`, `--eldra-drawer-width`,',
+          '`--eldra-drawer-slide`, `--eldra-drawer-enter-duration`, `--eldra-drawer-exit-duration`,',
+          '`--eldra-drawer-ease`, `--eldra-drawer-swipe-threshold`, `--eldra-drawer-sheet-gap`,',
+          '`--eldra-drawer-sheet-radius`, `--eldra-drawer-handle-color`.',
         ].join('\n'),
       },
     },
@@ -305,6 +323,41 @@ export const LongContent: Story = {
           </ul>
           <template #footer>
             <Button variant="primary" size="lg" block @click="open = false">Check out</Button>
+          </template>
+        </Drawer>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * `mobileSheet`: on a phone (narrow the preview below 48rem) a bottom sheet with a grab handle,
+ * fitting its content; drag it down by the handle or header to close it, or by the body once the
+ * body is scrolled to the top. Wider, the usual right-hand drawer, which a swipe to the right
+ * closes too.
+ */
+export const MobileSheet: Story = {
+  args: { title: 'Edit option', mobileSheet: true },
+  render: (args) => ({
+    components: { Drawer, Button, FieldWrapper, Input },
+    setup: () => ({ args, open: ref(true), values: ['Red', 'Green', 'Navy'] }),
+    template: `
+      <div>
+        <Button variant="outline" @click="open = true">Edit option</Button>
+        <Drawer v-bind="args" v-model="open">
+          <div class="flex flex-col gap-6">
+            <FieldWrapper label="Name">
+              <Input model-value="Color" name="option-name" />
+            </FieldWrapper>
+            <FieldWrapper v-for="(value, i) in values" :key="value" :label="'Value ' + (i + 1)">
+              <Input :model-value="value" :name="'option-value-' + i" />
+            </FieldWrapper>
+          </div>
+          <template #footer>
+            <div class="flex w-full items-center justify-between gap-3">
+              <Button variant="ghost" @click="open = false">Delete</Button>
+              <Button variant="primary" @click="open = false">Done</Button>
+            </div>
           </template>
         </Drawer>
       </div>

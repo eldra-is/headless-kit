@@ -97,7 +97,8 @@ describe('Drawer — side classes', () => {
   it('defaults to right: docked at the end, inner border on the left', () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
     expect(root(wrapper).className).toContain('eldra:justify-end');
-    expect(root(wrapper).className).toContain('eldra:animate-eldra-drawer-in-right');
+    expect(root(wrapper).className).toContain('eldra:eldra-drawer-motion');
+    expect(root(wrapper).getAttribute('data-side')).toBe('right');
     expect(panel(wrapper).className).toContain('eldra:border-l');
     wrapper.unmount();
   });
@@ -107,7 +108,8 @@ describe('Drawer — side classes', () => {
       props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
     });
     expect(root(wrapper).className).toContain('eldra:justify-start');
-    expect(root(wrapper).className).toContain('eldra:animate-eldra-drawer-in-left');
+    expect(root(wrapper).className).toContain('eldra:eldra-drawer-motion');
+    expect(root(wrapper).getAttribute('data-side')).toBe('left');
     expect(panel(wrapper).className).toContain('eldra:border-r');
     wrapper.unmount();
   });
@@ -588,6 +590,18 @@ describe('Drawer — accessibility', () => {
     wrapper.unmount();
   });
 
+  it('is axe-clean open as a mobile sheet, its grab handle hidden from assistive technology', async () => {
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Edit option', modelValue: true, mobileSheet: true },
+      slots: {
+        default: '<label>Name <input value="Color" /></label>',
+        footer: '<button type="button">Done</button>',
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
   it('is axe-clean open, menu-shaped (ariaLabel, left side, nav)', async () => {
     const wrapper = mountWith(Drawer, {
       props: { ariaLabel: 'Menu', side: 'left', modelValue: true },
@@ -615,6 +629,75 @@ describe('Drawer — accessibility', () => {
   it('is axe-clean closed', async () => {
     const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: false } });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Drawer — mobileSheet', () => {
+  const part = (
+    wrapper: { find: (s: string) => { exists: () => boolean; element: Element } },
+    name: string
+  ) => wrapper.find(`[data-part="${name}"]`);
+
+  it('is off by default: no handle, no sheet utility', () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Edit option', modelValue: true } });
+    expect(part(wrapper, 'handle').exists()).toBe(false);
+    expect(root(wrapper).className).not.toContain('eldra:eldra-drawer-sheet');
+    wrapper.unmount();
+  });
+
+  it('adds a decorative grab handle above the header, shown below 48rem only', () => {
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Edit option', modelValue: true, mobileSheet: true },
+    });
+    const handle = part(wrapper, 'handle').element as HTMLElement;
+    expect(handle.getAttribute('aria-hidden')).toBe('true');
+    expect(handle.className).toContain('eldra:md:hidden');
+    expect(handle.nextElementSibling?.getAttribute('data-part')).toBe('header');
+    wrapper.unmount();
+  });
+
+  it('sets the panel on the bottom edge below 48rem, rounded on top and capped in height', () => {
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Edit option', modelValue: true, mobileSheet: true },
+    });
+    expect(root(wrapper).className).toContain('eldra:eldra-drawer-sheet');
+    expect(root(wrapper).className).toContain('eldra:max-md:justify-end');
+    const panelClass = panel(wrapper).className;
+    expect(panelClass).toContain('eldra:max-md:h-auto');
+    expect(panelClass).toContain('eldra:max-md:eldra-drawer-sheet-height');
+    expect(panelClass).toContain('eldra:max-md:rounded-t-');
+    wrapper.unmount();
+  });
+
+  it('takes a handle class through classes.handle', () => {
+    const wrapper = mountWith(Drawer, {
+      props: {
+        title: 'Edit option',
+        modelValue: true,
+        mobileSheet: true,
+        classes: { handle: 'pt-4' },
+      },
+    });
+    expect((part(wrapper, 'handle').element as HTMLElement).className).toContain('pt-4');
+    wrapper.unmount();
+  });
+});
+
+describe('Drawer — swipe', () => {
+  it('is on by default: the panel lets a sideways touch reach it, the header is not selectable', () => {
+    const wrapper = mountWith(Drawer, { props: { title: 'Your cart', modelValue: true } });
+    expect(panel(wrapper).className).toContain('eldra:touch-pan-y');
+    expect(wrapper.find('[data-part="header"]').classes()).toContain('eldra:select-none');
+    wrapper.unmount();
+  });
+
+  it('swipe=false leaves touch and selection alone', () => {
+    const wrapper = mountWith(Drawer, {
+      props: { title: 'Your cart', modelValue: true, swipe: false },
+    });
+    expect(panel(wrapper).className).not.toContain('touch-pan-y');
+    expect(wrapper.find('[data-part="header"]').classes()).not.toContain('eldra:select-none');
     wrapper.unmount();
   });
 });
