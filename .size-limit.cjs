@@ -129,7 +129,8 @@ module.exports = [
     path: 'packages/ui/dist/index.js',
     import: '{ TablerIcon }',
     ignore: ['vue', 'tailwind-merge', './tablerIconData-*'],
-    limit: '3.25 kB',
+    // Includes mergeClass's group config, which grows with every utility of the kit's own.
+    limit: '3.3 kB',
   },
   {
     name: "@eldrajs/ui — TablerIcon's lazy index, without the data files",
