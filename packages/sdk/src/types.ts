@@ -328,6 +328,14 @@ export interface EldraCatalogClient {
     options?: EldraCollectionProductsOptions,
     context?: EldraRequestContext
   ): Promise<EldraProductList>;
+  /** The shop's active brands, ordered by name; `[]` for none (contract 6.4.0). */
+  listBrands(options?: EldraLocaleOptions, context?: EldraRequestContext): Promise<EldraBrand[]>;
+  /** One active brand; 404 `CATALOG_BRAND_NOT_FOUND` for a slug that is missing or not active. */
+  getBrand(
+    slug: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraBrand>;
   search(
     query: string,
     options?: EldraSearchOptions,
@@ -404,12 +412,14 @@ export type EldraCollectionProductsOptions = EldraContractQuery<
   '/catalog/v1/collections/{slug}/products',
   'get'
 >;
+export type EldraBrand = EldraContractResponse<'/catalog/v1/brands/{slug}', 'get'>;
 export type EldraSearchOptions = Omit<EldraContractQuery<'/search/v1', 'get'>, 'q'>;
 export type EldraSearchResponse = EldraContractResponse<'/search/v1', 'get'>;
 
 export type EldraCart = EldraContractResponse<'/shopping-cart/v1/cart/{cartID}', 'get'>;
 export type EldraCartItem = Item<Prop<EldraCart, 'items'>>;
 export type EldraCartTotals = Prop<EldraCart, 'totals'>;
+export type EldraCartGiftCard = Prop<EldraCart, 'giftCard'>;
 export type EldraAddCartItemInput = EldraContractBody<'/shopping-cart/v1/cart/items', 'post'>;
 
 export interface EldraDiscountResult {
@@ -491,6 +501,23 @@ export interface EldraCartClient {
     context?: EldraRequestContext
   ): Promise<EldraDiscountResult>;
   removeDiscount(
+    cartId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Applies a gift card (contract 6.4.0). A refusal is an `EldraHttpError` whose `errorId` names it:
+   * `CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`, `CART_DISCOUNT_TOO_MANY_ATTEMPTS`,
+   * `CART_GIFT_CARD_UNAVAILABLE`.
+   */
+  applyGiftCard(
+    cartId: string,
+    code: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /** Removes the cart's gift card; succeeds when none is applied. */
+  removeGiftCard(
     cartId: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext

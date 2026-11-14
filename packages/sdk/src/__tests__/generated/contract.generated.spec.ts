@@ -3,7 +3,9 @@ import { createEldraClient } from '../../index';
 import { stubHttpClient } from '../support';
 import type {
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
+  EldraCartGiftCard,
   EldraCartTotals,
   EldraContractResponse,
   EldraProductDetails,
@@ -51,6 +53,19 @@ describe('eldra sdk with generated contract types', () => {
     }>();
     expectTypeOf<EldraCart['discountCode']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<EldraAddCartItemInput['quantity']>().toEqualTypeOf<number>();
+  });
+
+  it('types brands, the product brand and seo, and the cart gift card (contract 6.4.0)', async () => {
+    const client = createEldraClient({ orgId: 'org-123', httpClient: stubHttpClient(() => []) });
+
+    expectTypeOf(await client.catalog.listBrands()).toEqualTypeOf<EldraBrand[]>();
+    expectTypeOf<EldraBrand['name']>().toEqualTypeOf<string>();
+    expectTypeOf<NonNullable<EldraProductDetails['brand']>['slug']>().toEqualTypeOf<string>();
+    expectTypeOf<NonNullable<EldraProductDetails['seo']>['title']>().toEqualTypeOf<
+      string | undefined
+    >();
+    expectTypeOf<NonNullable<EldraCartGiftCard>['amountDue']>().toEqualTypeOf<number>();
+    expectTypeOf(await client.cart.applyGiftCard('cart-1', 'GC')).toEqualTypeOf<EldraCart>();
   });
 
   it('exposes request and response shapes for any path', () => {

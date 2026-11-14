@@ -9,6 +9,16 @@ platform repository.
 
 ## Unreleased
 
+- **Brands and gift cards (contract 6.4.0).** `catalog.listBrands(options?)` reads the shop's active brands
+  (`[]` for none) and `catalog.getBrand(slug, options?)` one of them (404 `CATALOG_BRAND_NOT_FOUND` otherwise);
+  `cart.applyGiftCard(cartId, code, options?)` and `cart.removeGiftCard(cartId, options?)` put a gift card on the
+  cart and take it off, answering the cart (its `giftCard {last4, balance, applied, amountDue}`). A refused card
+  is an `EldraHttpError` with the contract's `errorId` (`CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`,
+  `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`). New types `EldraBrand` and `EldraCartGiftCard`.
+  A product's `brand` and `seo`, a variant's `regularPrice`, `priorPrice` and `discount`, a card's `priorPrice`
+  and `discountLabel`, a cart line's `salePrice` and the list filter `brandId` need nothing new: they come from
+  the generated contract. Needs a gateway on contract 6.4.0 or later.
+
 - **Typed product extensions (WS-439, contract 6.1.0).** `EldraProductDetails.extensions` is keyed by
   the apiId of each CMS schema that extends products, and its type is the new, initially empty
   `EldraProductExtensions` registry. The CMS types the Vite plugin writes now fill it in (`eldra-theme types` writes the

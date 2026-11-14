@@ -36,8 +36,10 @@ export type {
 } from './storage';
 export type {
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
   EldraCartClient,
+  EldraCartGiftCard,
   EldraCartItem,
   EldraCartTotals,
   EldraCategory,

@@ -28,6 +28,7 @@ import type {
   EldraProductDetails,
   EldraProductList,
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
   EldraCheckoutUrlOptions,
   EldraCollection,
@@ -334,6 +335,18 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}/products`,
           query: listOptions,
         }),
+      listBrands: async (localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        (await request<EldraBrand[] | null>({
+          ...context,
+          path: '/catalog/v1/brands',
+          query: localeOptions,
+        })) ?? [],
+      getBrand: (slug: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        request<EldraBrand>({
+          ...context,
+          path: `/catalog/v1/brands/${encodeURIComponent(slug)}`,
+          query: localeOptions,
+        }),
       search: (query: string, searchOptions?: EldraSearchOptions, context?: EldraRequestContext) =>
         request<EldraSearchResponse>({
           ...context,
@@ -407,6 +420,30 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ...context,
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/discount`,
+          query: localeOptions,
+        }),
+      applyGiftCard: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      removeGiftCard: (
+        cartId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
           query: localeOptions,
         }),
     },

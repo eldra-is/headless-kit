@@ -100,6 +100,31 @@ describe('eldra sdk cart', () => {
   });
 });
 
+describe('eldra sdk gift cards', () => {
+  it('applies a trimmed gift card code with PUT and the locale', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [] });
+
+    await client.cart.applyGiftCard('cart-1', '  GC-ABCDE-FGHJK ', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('PUT');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-card?locale=is-IS'
+    );
+    expect(await bodyOf(requests[0])).toEqual({ code: 'GC-ABCDE-FGHJK' });
+  });
+
+  it('removes a gift card with DELETE on the same path', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [] });
+
+    await client.cart.removeGiftCard('cart-1');
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-card'
+    );
+  });
+});
+
 describe('eldra sdk orders', () => {
   it('reads an order with the one-time access token header', async () => {
     const { client, requests } = recording({ id: 'order-1', status: 'CONFIRMED' });
@@ -429,6 +454,18 @@ describe('eldra sdk inventory and catalog extras', () => {
       'care.fabric:wool',
       'care.washable:true',
     ]);
+  });
+
+  it('normalises a null brand list and reads one brand by its encoded slug', async () => {
+    const { client, requests } = recording(null);
+
+    expect(await client.catalog.listBrands({ locale: 'en-US' })).toEqual([]);
+    await client.catalog.getBrand('nói síríus');
+
+    expect(requests[0].url).toBe('https://api.example.test/api/catalog/v1/brands?locale=en-US');
+    expect(requests[1].url).toBe(
+      'https://api.example.test/api/catalog/v1/brands/n%C3%B3i%20s%C3%ADr%C3%ADus'
+    );
   });
 
   it('normalises a null category list and searches with q', async () => {

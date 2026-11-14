@@ -122,17 +122,17 @@ Lists, relative times, names and sorting are not patched; use the functions abov
 
 ## What is in the client
 
-| Group       | Methods                                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
-| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                             |
-| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`                                        |
-| `checkout`  | `url`                                                                                                                  |
-| `orders`    | `get`, `recover`                                                                                                       |
-| `inventory` | `availability`                                                                                                         |
-| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                               |
-| `platform`  | `config`                                                                                                               |
-| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                              |
+| Group       | Methods                                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search` |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                                                       |
+| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `applyGiftCard`, `removeGiftCard`                               |
+| `checkout`  | `url`                                                                                                                                            |
+| `orders`    | `get`, `recover`                                                                                                                                 |
+| `inventory` | `availability`                                                                                                                                   |
+| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                                                         |
+| `platform`  | `config`                                                                                                                                         |
+| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                                                        |
 
 `forms` is the site-forms API: `get(key)` reads a form's definition (fields with a label per locale,
 the honeypot field's name, the Turnstile site key, the success message), and `submit(key, { values,
