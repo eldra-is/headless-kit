@@ -28,7 +28,9 @@ import type {
   EldraProductDetails,
   EldraProductList,
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
+  EldraCartAppliedCode,
   EldraCheckoutUrlOptions,
   EldraCollection,
   EldraCollectionList,
@@ -86,6 +88,13 @@ export class EldraHttpError extends Error {
    * than "something went wrong".
    */
   readonly errorId: string | undefined;
+  /**
+   * The gateway's problem `errors` — the refusal's detail, when the body carried it as an object.
+   * A refused discount code names what blocked it here: `errors.blockingCode` on
+   * `CART_DISCOUNT_NOT_COMBINABLE`, `errors.limit` on `CART_DISCOUNT_CODES_LIMIT_REACHED`. Its
+   * members depend on the `errorId`, so read each as unknown and check its type.
+   */
+  readonly errors: Readonly<Record<string, unknown>> | undefined;
 
   constructor(response: Response, body: unknown) {
     super(`Web Studio request failed with ${response.status} ${response.statusText}`);
@@ -95,6 +104,7 @@ export class EldraHttpError extends Error {
     this.body = body;
     this.code = problemString(body, 'code');
     this.errorId = problemString(body, 'errorId');
+    this.errors = problemErrors(body);
   }
 }
 
@@ -105,6 +115,34 @@ function problemString(body: unknown, key: 'code' | 'errorId'): string | undefin
     return typeof value === 'string' ? value : undefined;
   }
   return undefined;
+}
+
+/** The problem's `errors` member, when the body is an object that carries it as a plain object. */
+function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (body && typeof body === 'object' && 'errors' in body) {
+    const value = (body as Record<string, unknown>).errors;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether the cart answered to an apply holds the code: in `discountCodes` (contract 6.9.0, any
+ * case), else, from an older gateway that answers only `discountCode`, when that is the code.
+ */
+function cartHoldsDiscountCode(cart: unknown, code: string): boolean {
+  const wanted = code.toUpperCase();
+  const record = (cart ?? {}) as { discountCodes?: unknown; discountCode?: unknown };
+  const same = (value: unknown) =>
+    typeof value === 'string' && value.trim().toUpperCase() === wanted;
+  if (Array.isArray(record.discountCodes)) {
+    return record.discountCodes.some(
+      (entry) => !!entry && typeof entry === 'object' && same((entry as { code?: unknown }).code)
+    );
+  }
+  return same(record.discountCode);
 }
 
 export function initEldraClient(options: EldraClientOptions): EldraClient {
@@ -334,6 +372,18 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}/products`,
           query: listOptions,
         }),
+      listBrands: async (localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        (await request<EldraBrand[] | null>({
+          ...context,
+          path: '/catalog/v1/brands',
+          query: localeOptions,
+        })) ?? [],
+      getBrand: (slug: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        request<EldraBrand>({
+          ...context,
+          path: `/catalog/v1/brands/${encodeURIComponent(slug)}`,
+          query: localeOptions,
+        }),
       search: (query: string, searchOptions?: EldraSearchOptions, context?: EldraRequestContext) =>
         request<EldraSearchResponse>({
           ...context,
@@ -392,11 +442,7 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: localeOptions,
           body: { code: trimmed },
         });
-        const discountCode = (cart as { discountCode?: unknown }).discountCode;
-        const applied =
-          typeof discountCode === 'string' &&
-          discountCode.trim().toUpperCase() === trimmed.toUpperCase();
-        return { cart, applied };
+        return { cart, applied: cartHoldsDiscountCode(cart, trimmed) };
       },
       removeDiscount: (
         cartId: string,
@@ -407,6 +453,67 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ...context,
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/discount`,
+          query: localeOptions,
+        }),
+      applyGiftCard: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      applyCode: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCartAppliedCode>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/code`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      removeGiftCard: (
+        cartId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+        }),
+      removeGiftCardEntry: (
+        cartId: string,
+        entryId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-cards/${encodeURIComponent(entryId)}`,
+          query: localeOptions,
+        }),
+      removeDiscountEntry: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/discount-codes/${encodeURIComponent(code)}`,
           query: localeOptions,
         }),
     },

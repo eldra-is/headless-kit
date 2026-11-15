@@ -10,7 +10,10 @@ module.exports = [
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
     // The client is one object, so an unused method (forms, the campaign landing in `cart.addItem`) is not shaken out.
-    limit: '4.25 kB',
+    // Raised from 4.25 kB when the cart took one field for a code, several gift cards and several
+    // discount codes (`cart.applyCode`, `removeGiftCardEntry`, `removeDiscountEntry`) and the error
+    // took the refusal's `errors`: ~0.06 kB brotlied over the old limit.
+    limit: '4.5 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -20,11 +23,12 @@ module.exports = [
   },
   // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
   // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport. Raised again
-  // from 5.2 kB when the product list took the custom field filter `ext`.
+  // from 5.2 kB when the product list took the custom field filter `ext`, and from 5.25 kB with
+  // the cart's code methods above.
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '5.25 kB',
+    limit: '5.5 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

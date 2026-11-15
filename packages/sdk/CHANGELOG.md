@@ -9,6 +9,45 @@ platform repository.
 
 ## Unreleased
 
+- **Several discount codes on one cart (contract 6.9.0).** `applyDiscount` and `applyCode` (as `DISCOUNT`) now add
+  a code after the cart's codes instead of replacing it; each applies to what the codes before it left. Three new
+  409 refusals leave the cart as it was: `CART_DISCOUNT_NOT_COMBINABLE` (the code and one on the cart cannot be
+  combined; `errors.blockingCode` names the one on the cart), `CART_DISCOUNT_CODES_LIMIT_REACHED` (`errors.limit`,
+  6) and `CART_DISCOUNT_ALREADY_APPLIED`. `EldraHttpError` gains `errors`, the problem's `errors` object when the
+  body carries one. The cart carries `discountCodes` (`{code, amount}` in the order added; the type is
+  `EldraCartDiscountCodeEntry`); `cart.removeDiscountEntry(cartId, code, options?)` removes one code and
+  `removeDiscount` now removes every code. `applyDiscount`'s `applied` reads `discountCodes` (falling back to
+  `discountCode` from an older gateway), so a second code reports `true`. The order read and the checkout summary
+  carry `discountCodes` (`EldraOrderDiscountCode`, `EldraOrderPreviewDiscountCode`). The cart's and the order's
+  `discountCode` are deprecated in the contract: it answers them for one more version. The contract fixtures are
+  regenerated from 6.9.0.
+- **Several gift cards on one cart (contract 6.8.0).** A cart holds any number of gift cards beside its discount
+  code: `applyGiftCard` and `applyCode` now add a card after the others instead of replacing one, and the same card
+  again is 409 `CART_GIFT_CARD_ALREADY_APPLIED`. The cart carries `giftCards` (`{entryId, last4, balance, applied,
+  amountDue}` in the order applied; the type is `EldraCartGiftCardEntry`) and the cart-wide `amountDue`.
+  `cart.removeGiftCardEntry(cartId, entryId, options?)` removes one card; `removeGiftCard` now removes every card.
+  The checkout summary's type `EldraOrderPreview` carries `giftCards` (`EldraOrderPreviewGiftCard`, `{last4,
+  amount}`). The cart's `giftCard` and `EldraCartGiftCard` are deprecated: the contract answers them for one more
+  version. The contract fixtures are regenerated from 6.8.0.
+- **One code field (contract 6.7.0).** `cart.applyCode(cartId, code, options?)` applies a gift card or a discount
+  code from one input and answers the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); the type is
+  `EldraCartAppliedCode`. A code that is neither is 404 `CART_CODE_INVALID`. `applyDiscount` and
+  `applyGiftCard` stay.
+- **The shared SEO value on catalog reads (contract 6.6.0).** A product's, category's, collection's and brand's
+  `seo` now carries `canonicalUrl`, `ogTitle`, `ogDescription`, `imageAssetId`, `imageUrl` and `noindex` beside
+  `title` and `description`: the shape a CMS entry's `seo` field has. Types only; the contract fixtures are
+  regenerated from 6.6.0. A product card (the product list and a collection's products) carries `seo` with
+  `canonicalUrl` and `noindex` only, which the theme's sitemap reads.
+- **Brands and gift cards (contract 6.4.0).** `catalog.listBrands(options?)` reads the shop's active brands
+  (`[]` for none) and `catalog.getBrand(slug, options?)` one of them (404 `CATALOG_BRAND_NOT_FOUND` otherwise);
+  `cart.applyGiftCard(cartId, code, options?)` and `cart.removeGiftCard(cartId, options?)` put a gift card on the
+  cart and take it off, answering the cart (its `giftCard {last4, balance, applied, amountDue}`). A refused card
+  is an `EldraHttpError` with the contract's `errorId` (`CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`,
+  `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`). New types `EldraBrand` and `EldraCartGiftCard`.
+  A product's `brand` and `seo`, a variant's `regularPrice`, `priorPrice` and `discount`, a card's `priorPrice`
+  and `discountLabel`, a cart line's `salePrice` and the list filter `brandId` need nothing new: they come from
+  the generated contract. Needs a gateway on contract 6.4.0 or later.
+
 - **Typed product extensions (WS-439, contract 6.1.0).** `EldraProductDetails.extensions` is keyed by
   the apiId of each CMS schema that extends products, and its type is the new, initially empty
   `EldraProductExtensions` registry. The CMS types the Vite plugin writes now fill it in (`eldra-theme types` writes the
