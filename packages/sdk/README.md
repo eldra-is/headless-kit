@@ -122,17 +122,17 @@ Lists, relative times, names and sorting are not patched; use the functions abov
 
 ## What is in the client
 
-| Group       | Methods                                                                                                                |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search` |
-| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                             |
-| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`                                        |
-| `checkout`  | `url`                                                                                                                  |
-| `orders`    | `get`, `recover`                                                                                                       |
-| `inventory` | `availability`                                                                                                         |
-| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                               |
-| `platform`  | `config`                                                                                                               |
-| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                              |
+| Group       | Methods                                                                                                                                                                       |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search`                              |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                                                                                    |
+| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `removeDiscountEntry`, `applyCode`, `applyGiftCard`, `removeGiftCard`, `removeGiftCardEntry` |
+| `checkout`  | `url`                                                                                                                                                                         |
+| `orders`    | `get`, `recover`                                                                                                                                                              |
+| `inventory` | `availability`                                                                                                                                                                |
+| `features`  | `getOrganization`, `list`, `isEnabled`, `getCapabilities`, `getCommerce`                                                                                                      |
+| `platform`  | `config`                                                                                                                                                                      |
+| `forms`     | `get`, `submit`, `confirm`, `unsubscribe`                                                                                                                                     |
 
 `forms` is the site-forms API: `get(key)` reads a form's definition (fields with a label per locale,
 the honeypot field's name, the Turnstile site key, the success message), and `submit(key, { values,
@@ -272,6 +272,9 @@ createEldraClient({ orgId: 'your-organisation-id', retry: { attempts: 0 } });
 A consumer-supplied `httpClient` replaces the transport, so the retry is that client's own.
 
 Every failed request throws `EldraHttpError` with `status`, the problem's category `code` (such as
-`NOT_FOUND`) and its specific `errorId` (such as `CART_NOT_FOUND`); branch on `errorId`.
+`NOT_FOUND`) and its specific `errorId` (such as `CART_NOT_FOUND`); branch on `errorId`. A refusal
+that says more carries it in `errors`, the problem's `errors` object: a discount code refused with
+`CART_DISCOUNT_NOT_COMBINABLE` names the code on the cart that blocks it in `errors.blockingCode`,
+and `CART_DISCOUNT_CODES_LIMIT_REACHED` the limit (6) in `errors.limit`.
 `createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without
 throwing where storage is unavailable.
