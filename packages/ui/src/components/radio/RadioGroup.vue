@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, h, inject, ref, watchPostEffect, type FunctionalComponent } from 'vue';
+import { computed, h, inject, ref, useSlots, watchPostEffect, type FunctionalComponent } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
+import { useSlotPresence } from '../../composables/useSlotPresence';
 import { joinIds, useUiId } from '../../utils/id';
 import { FIELD_KEY } from '../field-wrapper/context';
 import FieldError from '../field-wrapper/FieldError.vue';
@@ -9,6 +10,7 @@ import RequiredMark from '../field-wrapper/RequiredMark.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {
   HINT,
+  HINT_TEXT,
   INPUT,
   PLAIN_COLUMNS,
   PLAIN_OPTION,
@@ -51,6 +53,9 @@ const emit = defineEmits<{
 const field = inject(FIELD_KEY, null);
 
 const m = useMessages();
+
+const slots = useSlots();
+const present = useSlotPresence(slots, ['leading']);
 
 const errorId = useUiId('radio-group-error');
 const helpId = useUiId('radio-group-help');
@@ -169,7 +174,7 @@ const optionsClass = computed(() => [
  * card a different number than the radio's 1.5px, so it cannot share the checkbox's utility.
  */
 const CARD_OPTION =
-  'eldra:group eldra:relative eldra:grid eldra:w-full eldra:grid-cols-[auto_1fr_auto] eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 ' +
+  'eldra:group eldra:relative eldra:grid eldra:w-full eldra:items-start eldra:gap-x-2.5 eldra:gap-y-0.5 ' +
   'eldra:min-h-14 eldra:rounded-md eldra:px-4 eldra:py-3 eldra:eldra-radio-card-border eldra:eldra-transition-colors';
 
 const CARD_UNSELECTED = 'eldra:bg-background eldra:border-border-strong eldra:hover:border-text';
@@ -195,9 +200,30 @@ function cardState(option: RadioGroupOption): string {
   return inError.value ? CARD_INVALID : CARD_UNSELECTED;
 }
 
+/** The card's columns: radio, text, meta. */
+const CARD_COLUMNS = 'eldra:grid-cols-[auto_1fr_auto]';
+/** With a leading icon or logo: radio, leading, text, meta. */
+const CARD_COLUMNS_LEADING = 'eldra:grid-cols-[auto_auto_1fr_auto]';
+
+/**
+ * Cards only: whether this option draws the `leading` part — its own `icon`, or the group's
+ * `leading` slot. A card without one keeps the three columns it always had, so a group that never
+ * uses either renders exactly as before.
+ */
+function hasLeading(option: RadioGroupOption): boolean {
+  return props.layout === 'cards' && (present.value.leading || option.icon !== undefined);
+}
+
+/** Whether a hint row sits under the title, for the leading part to span. */
+function hasHint(option: RadioGroupOption): boolean {
+  return !!option.hint || slots.hint !== undefined;
+}
+
 function optionClass(option: RadioGroupOption) {
   const layout =
-    props.layout === 'cards' ? [CARD_OPTION, cardState(option)] : [PLAIN_OPTION, PLAIN_COLUMNS];
+    props.layout === 'cards'
+      ? [CARD_OPTION, hasLeading(option) ? CARD_COLUMNS_LEADING : CARD_COLUMNS, cardState(option)]
+      : [PLAIN_OPTION, PLAIN_COLUMNS];
   return [layout, optionCursor(option.disabled), props.classes?.option];
 }
 
@@ -222,7 +248,27 @@ function labelClass(option: RadioGroupOption) {
   return [labelRecipe(props.layout === 'cards', option.disabled), props.classes?.label];
 }
 
-const hintClass = computed(() => [HINT, props.classes?.hint]);
+/** Under the title: column 2, or column 3 when a leading part takes the second. */
+function hintClass(option: RadioGroupOption) {
+  return [hasLeading(option) ? `${HINT_TEXT} eldra:col-start-3` : HINT, props.classes?.hint];
+}
+
+/**
+ * The leading part: an icon or a logo between the radio and the text, centred against the title
+ * and the hint together (it spans both rows when there is a hint). `text` so an icon follows the
+ * title's colour, `muted` when the option is disabled.
+ */
+function leadingClass(option: RadioGroupOption) {
+  return [
+    'eldra:col-start-2 eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:self-center',
+    hasHint(option) ? 'eldra:row-span-2' : 'eldra:row-span-1',
+    option.disabled ? 'eldra:text-muted' : 'eldra:text-text',
+    props.classes?.leading,
+  ];
+}
+
+/** The stroke `Icon` draws with. */
+const ICON_STROKE_WIDTH = 1.75;
 
 /**
  * Spec "Radio group" → Sizes, Card title / hint / meta row: "1rem 600 tabular, no wrap, pushed to
@@ -233,7 +279,8 @@ const hintClass = computed(() => [HINT, props.classes?.hint]);
 function metaClass(option: RadioGroupOption) {
   return [
     [
-      'eldra:text-card-title eldra:col-start-3 eldra:min-w-0 eldra:justify-self-end eldra:tabular-nums eldra:whitespace-nowrap',
+      'eldra:text-card-title eldra:min-w-0 eldra:justify-self-end eldra:tabular-nums eldra:whitespace-nowrap',
+      hasLeading(option) ? 'eldra:col-start-4' : 'eldra:col-start-3',
       option.disabled ? 'eldra:text-muted' : 'eldra:text-text',
     ],
     props.classes?.meta,
@@ -282,6 +329,23 @@ function metaClass(option: RadioGroupOption) {
         </span>
 
         <span
+          v-if="hasLeading(option)"
+          :data-eldra-slot="eldra.slotHost('leading')"
+          data-part="leading"
+          :class="leadingClass(option)"
+        >
+          <slot name="leading" :option="option">
+            <component
+              :is="option.icon"
+              class="eldra:size-5"
+              :stroke-width="ICON_STROKE_WIDTH"
+              aria-hidden="true"
+              focusable="false"
+            />
+          </slot>
+        </span>
+
+        <span
           :data-eldra-slot="eldra.slotHost('label')"
           data-part="label"
           :class="labelClass(option)"
@@ -293,7 +357,7 @@ function metaClass(option: RadioGroupOption) {
           v-if="option.hint || $slots.hint"
           :data-eldra-slot="eldra.slotHost('hint')"
           data-part="hint"
-          :class="hintClass"
+          :class="hintClass(option)"
         >
           <slot name="hint" :option="option">{{ option.hint }}</slot>
         </span>

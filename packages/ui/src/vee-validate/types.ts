@@ -40,6 +40,32 @@ export interface FieldBinding<TValue = unknown> {
   rules?: RuleExpression<TValue>;
   /** The name a rule message uses for this field ("Email address"), not a visible label. */
   label?: string;
+  /**
+   * Validates the field as soon as it is mounted **and shows the message at once**, without waiting
+   * for a blur or a submit — for a form opened on values that are already known to be wrong (an
+   * edit form over stored data). Default `false`.
+   */
+  validateOnMount?: boolean;
+  /**
+   * Validates the field when it loses focus, and shows or clears its message then. Default `true`.
+   * `false` leaves validation to the submit (or to `validateOnValueUpdate`): a blur then only marks
+   * the field touched.
+   */
+  validateOnBlur?: boolean;
+  /**
+   * Validates the field on every change of its value, so the message follows each change once the
+   * field has been touched or the form submitted.
+   *
+   * The default depends on the control. **`false`** for a typed one (`FieldInput`, `FieldTextarea`,
+   * `FieldCurrencyInput`, `FieldUnitInput`, `FieldSearchBar`): while the customer types, no
+   * message appears and a message already showing stays as it is until the next blur or submit.
+   * **`true`** for a choice (`FieldCheckbox`, `FieldCheckboxGroup`, `FieldRadioGroup`,
+   * `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`, `FieldVariantPicker`,
+   * `FieldQuantityStepper`), where one click is the whole value.
+   *
+   * Read once, when the field is set up — it is vee-validate's own `useField` option.
+   */
+  validateOnValueUpdate?: boolean;
 }
 
 /**

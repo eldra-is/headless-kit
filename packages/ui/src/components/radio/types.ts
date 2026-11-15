@@ -1,3 +1,5 @@
+import type { IconComponent } from '../icon/types';
+
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type RadioGroupPart =
   | 'legend'
@@ -5,6 +7,7 @@ export type RadioGroupPart =
   | 'options'
   | 'option'
   | 'radio'
+  | 'leading'
   | 'input'
   | 'dot'
   | 'label'
@@ -30,6 +33,12 @@ export interface RadioGroupOption {
   hint?: string;
   /** Cards only: a price or note, end-aligned, tabular numerals ("Free", "$12.00"). */
   meta?: string;
+  /**
+   * Cards only: a decorative icon between the radio and the title (a truck, a credit card), drawn
+   * at 1.25rem and hidden from assistive technology. For a logo or any other image, use the
+   * `leading` slot instead.
+   */
+  icon?: IconComponent;
   /** Native `disabled` for this option alone. Say why in `hint`. */
   disabled?: boolean;
   /**

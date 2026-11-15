@@ -6,9 +6,14 @@
  */
 import RadioGroup from '../components/radio/RadioGroup.vue';
 import type { FieldRadioGroupProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldRadioGroupProps>();
+const props = withDefaults(defineProps<FieldRadioGroupProps>(), FIELD_CHOICE_VALIDATION_DEFAULTS);
 
 const { model, ownError, onBlur } = useFieldControl<string>(props, { empty: '', hasIdProp: false });
 

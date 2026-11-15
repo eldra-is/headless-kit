@@ -107,5 +107,7 @@ export function labelRecipe(card: boolean, disabled: boolean | undefined): strin
   ];
 }
 
-/** Spec "Radio group" → Sizes: the hint is `muted` in every layout, under the label's column. */
-export const HINT = 'eldra:text-body-sm eldra:text-muted eldra:col-start-2 eldra:min-w-0';
+/** Spec "Radio group" → Sizes: the hint is `muted` in every layout. */
+export const HINT_TEXT = 'eldra:text-body-sm eldra:text-muted eldra:min-w-0';
+/** The hint under the label's column: column 2, after the radio. */
+export const HINT = `${HINT_TEXT} eldra:col-start-2`;

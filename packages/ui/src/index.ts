@@ -39,6 +39,7 @@ export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as NavMenu } from './components/nav-menu/NavMenu.vue';
+export { default as Notice } from './components/notice/Notice.vue';
 export { default as Pagination } from './components/pagination/Pagination.vue';
 export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
@@ -54,6 +55,8 @@ export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as SiteForm } from './components/site-form/SiteForm.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
+export { default as Spinner } from './components/spinner/Spinner.vue';
+export { default as StepIndicator } from './components/step-indicator/StepIndicator.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Tab } from './components/tabs/Tab.vue';
@@ -216,6 +219,7 @@ export type {
   NavMenuProps,
   NavMenuVariant,
 } from './components/nav-menu/types';
+export type { NoticePart, NoticeProps, NoticeTone } from './components/notice/types';
 export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
@@ -278,6 +282,14 @@ export type {
   SiteFormValue,
 } from './components/site-form/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
+export type { SpinnerProps } from './components/spinner/types';
+export type {
+  StepIndicatorOrientation,
+  StepIndicatorPart,
+  StepIndicatorProps,
+  StepIndicatorState,
+  StepIndicatorStep,
+} from './components/step-indicator/types';
 export type {
   SwitchPart,
   SwitchProps,

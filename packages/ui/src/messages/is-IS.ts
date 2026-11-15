@@ -223,6 +223,8 @@ export const isIS: UiMessages = {
   formSuccessTitle: 'Takk fyrir',
   formPendingTitle: 'Kíktu í pósthólfið',
   formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
+  stepCompleted: 'lokið',
+  stepNotStarted: 'ekki hafið',
 };
 
 export default isIS;

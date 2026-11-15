@@ -7,9 +7,14 @@
  */
 import Switch from '../components/switch/Switch.vue';
 import type { FieldSwitchProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldSwitchProps>();
+const props = withDefaults(defineProps<FieldSwitchProps>(), FIELD_CHOICE_VALIDATION_DEFAULTS);
 
 const { model, id, onBlur } = useFieldControl<boolean>(props, { empty: false });
 

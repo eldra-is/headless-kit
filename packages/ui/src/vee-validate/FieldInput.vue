@@ -8,9 +8,14 @@
  */
 import Input from '../components/input/Input.vue';
 import type { FieldInputProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_ONLY,
+  FIELD_VALIDATION_DEFAULTS,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldInputProps>();
+const props = withDefaults(defineProps<FieldInputProps>(), FIELD_VALIDATION_DEFAULTS);
 
 const { model, invalid, id, onBlur } = useFieldControl<string>(props, { empty: '' });
 

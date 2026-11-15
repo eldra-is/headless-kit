@@ -67,6 +67,12 @@ table and Storybook for the full contract of each).
   with a "+N" overflow count.
 - `LogoItem` — one logo cell in a stockist or press logo cloud.
 - `Skeleton` — a neutral, shimmering loading placeholder shape.
+- `Spinner` — the turning circle `Button` draws while loading, for a wait outside a button;
+  decorative unless `label` names it.
+- `Notice` — an inline message that stays in the page flow (information, success, warning or
+  danger), with an optional icon, title and actions; a polite status, or an alert for danger.
+- `StepIndicator` — a non-interactive ordered list of done, current and upcoming steps,
+  horizontal or vertical, each with an optional secondary line.
 - `EmptyState` — the shared "nothing here / no results / error" panel shown inside a block.
 - `EditorPlaceholder` — Studio's own hint for an unfilled block field; never rendered on the live
   storefront.
@@ -278,7 +284,12 @@ The form components are validation-agnostic: `FieldWrapper` takes an `error` str
 [vee-validate](https://vee-validate.logaretm.com/v4/), the optional `@eldrajs/ui/vee-validate` entry
 ships `Form` (over `useForm` and `FormLayout`) and a `Field*` component per control (over
 `useField`) — see `packages/ui/README.md`'s `./vee-validate` section for the exact list.
-`vee-validate ^4.12` is an optional peer; nothing else in the package imports it.
+`vee-validate ^4.12` is an optional peer; nothing else in the package imports it. A `Field*`
+validates when it loses focus and when the form is submitted. A typed field (`FieldInput`,
+`FieldTextarea`…) never validates while typing; a choice field (`FieldCheckbox`, `FieldSelect`…)
+also validates on each change. Three props per field change that: `validateOnBlur` (default
+`true`), `validateOnValueUpdate` (default `false` typed, `true` choice) and `validateOnMount`
+(default `false`; it also shows the message at once).
 
 The components' own text (close, clear, "N results"…) can come from the app's vue-i18n through the
 optional `@eldrajs/ui/vue-i18n` entry (`useEldraUiI18n()`); see the README's Messages section.
