@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.2...sdk-v0.4.3) (2026-11-15)
+
+
+### Features
+
+* **sdk:** WS-962 sdk brands gift card ([#134](https://github.com/eldra-is/headless-kit/issues/134)) ([6ee27b5](https://github.com/eldra-is/headless-kit/commit/6ee27b5465928a0576d7a4f18c7aaff2beb185f1))
+
 ## [0.4.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.1...sdk-v0.4.2) (2026-11-10)
 
 
