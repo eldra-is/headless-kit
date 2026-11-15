@@ -60,6 +60,11 @@ describe('eldra sdk with generated contract types', () => {
 
     expectTypeOf(await client.catalog.listBrands()).toEqualTypeOf<EldraBrand[]>();
     expectTypeOf<EldraBrand['name']>().toEqualTypeOf<string>();
+    // The shared SEO value (contract 6.6.0): the members a CMS entry's `seo` field has.
+    type BrandSeo = NonNullable<EldraBrand['seo']>;
+    expectTypeOf<BrandSeo['canonicalUrl']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<BrandSeo['imageUrl']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<BrandSeo['noindex']>().toEqualTypeOf<boolean | undefined>();
     expectTypeOf<NonNullable<EldraProductDetails['brand']>['slug']>().toEqualTypeOf<string>();
     expectTypeOf<NonNullable<EldraProductDetails['seo']>['title']>().toEqualTypeOf<
       string | undefined

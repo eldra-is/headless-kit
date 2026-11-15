@@ -413,8 +413,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
               continue;
             }
             generated.add(path);
-            // The route template's `seo` is what `useEldraSeo` reads for a catalog route.
-            addRoute(path, { lastmod: doc.updatedAt, seo: template.data.seo });
+            // What `useEldraSeo` reads for a catalog route: the record's own `seo` where the list
+            // read carries it (categories and collections; a product card does not), then the
+            // route template's.
+            addRoute(path, {
+              lastmod: doc.updatedAt,
+              seo: (doc as { seo?: unknown }).seo,
+              templateSeo: template.data.seo,
+            });
           }
           continue;
         }

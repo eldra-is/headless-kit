@@ -18,9 +18,18 @@ useEldraSeo(
     'product.name': product.title,
     'product.price': money.format(product.price),
   }),
-  () => ({ template: templateEntry.data.seo, contentImage: product.images[0]?.url })
+  () => ({
+    entry: product.seo,
+    template: templateEntry.data.seo,
+    contentImage: product.images[0]?.url,
+  })
 );
 ```
+
+A product, category, collection or brand carries the merchant's own `seo` value in the same shape a
+page does (contract 6.6.0: `title`, `description`, `canonicalUrl`, `ogTitle`, `ogDescription`,
+`imageUrl`, `noindex`). Pass it as `entry`: it then wins over the route template's value field by
+field, exactly as a page's own does. Only the page reads carry it, never a product card.
 
 `useEldraSeo(context, data, options?)` takes refs or getters, so the tags follow the route. It sets
 `<title>`, `description`, `<link rel="canonical">`, `og:title`, `og:description`, `og:type`,
@@ -118,7 +127,9 @@ prerendered, so neither can list a page that does not exist:
   locale, so the sitemap's canonicals (a plain string counts only on a single-locale site) and its
   `noindex` apply to the build locale's read: on a multi-locale site, set `noindex` and canonicals
   per page in every locale or treat the sitemap as path-derived. `useEldraSeo` still writes each
-  page's own canonical in its head.
+  page's own canonical in its head. A catalog route uses the record's own `seo` where the list
+  read carries it (a category or a collection), then the route template's; a product's own
+  `noindex` and canonical are not in the product list, so they reach its head but not the sitemap.
 - Past 50,000 URLs or 50 MiB per file, `sitemap.xml` becomes a `sitemapindex` over `sitemap-1.xml`,
   `sitemap-2.xml`, ... (the module option `sitemap: { maxUrls, maxBytes }` lowers the limits;
   `sitemap: false` turns the sitemap off). Every locale counts, so a store's URL count is its page
