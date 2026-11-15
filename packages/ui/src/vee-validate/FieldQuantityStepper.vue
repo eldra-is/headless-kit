@@ -9,9 +9,17 @@
  */
 import QuantityStepper from '../components/quantity-stepper/QuantityStepper.vue';
 import type { FieldQuantityStepperProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldQuantityStepperProps>();
+const props = withDefaults(
+  defineProps<FieldQuantityStepperProps>(),
+  FIELD_CHOICE_VALIDATION_DEFAULTS
+);
 
 /** `QuantityStepper`'s own `min` default, read once exactly as the component reads it. */
 const initial = props.min ?? 1;

@@ -8,12 +8,20 @@
  */
 import CheckboxGroup from '../components/checkbox/CheckboxGroup.vue';
 import type { FieldCheckboxGroupProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
 /** Module-level, so an empty selection is the same array identity on every render. */
 const EMPTY: string[] = [];
 
-const props = defineProps<FieldCheckboxGroupProps>();
+const props = withDefaults(
+  defineProps<FieldCheckboxGroupProps>(),
+  FIELD_CHOICE_VALIDATION_DEFAULTS
+);
 
 const { model, ownError, onBlur } = useFieldControl<string[]>(props, {
   empty: EMPTY,

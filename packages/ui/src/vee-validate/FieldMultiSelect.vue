@@ -7,12 +7,17 @@
  */
 import MultiSelect from '../components/select/MultiSelect.vue';
 import type { FieldMultiSelectProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
 /** Module-level, so an empty selection is the same array identity on every render. */
 const EMPTY: string[] = [];
 
-const props = defineProps<FieldMultiSelectProps>();
+const props = withDefaults(defineProps<FieldMultiSelectProps>(), FIELD_CHOICE_VALIDATION_DEFAULTS);
 
 const { model, invalid, id, onBlur } = useFieldControl<string[]>(props, { empty: EMPTY });
 

@@ -70,7 +70,7 @@ function mountForm(
 }
 
 describe('FieldInput inside a Form', () => {
-  it('shows the rule error only once the field has been left, and clears it on a valid value', async () => {
+  it('shows the rule error only once the field has been left, and clears it at the next blur', async () => {
     const wrapper = mountForm(() =>
       h(FieldInput, {
         name: 'email',
@@ -79,8 +79,7 @@ describe('FieldInput inside a Form', () => {
     );
     const input = wrapper.find('input');
 
-    // The field already knows it is invalid — vee-validate revalidates on every keystroke — but
-    // nothing says so on screen while the customer is still typing.
+    // Nothing says the value is wrong while the customer is still typing.
     await input.setValue('maren');
     await flushPromises();
     expect(input.attributes('aria-invalid')).toBeUndefined();
@@ -89,7 +88,13 @@ describe('FieldInput inside a Form', () => {
     await flushPromises();
     expect(input.attributes('aria-invalid')).toBe('true');
 
+    // Typing a valid value does not take the message away (`validateOnValueUpdate` is `false` by
+    // default): the field is validated again when it is left.
     await input.setValue('maren@example.com');
+    await flushPromises();
+    expect(input.attributes('aria-invalid')).toBe('true');
+
+    await input.trigger('blur');
     await flushPromises();
     expect(input.attributes('aria-invalid')).toBeUndefined();
 
@@ -136,7 +141,25 @@ describe('the ./vee-validate entry surface', () => {
     // props their wrapper must keep rather than forward. Without it they rediscover it by reading
     // this package's source.
     expect(entry.FIELD_ONLY).toBe(FIELD_ONLY);
-    expect([...entry.FIELD_ONLY]).toEqual(['path', 'rules', 'label', 'id']);
+    expect([...entry.FIELD_ONLY]).toEqual([
+      'path',
+      'rules',
+      'label',
+      'id',
+      'validateOnMount',
+      'validateOnBlur',
+      'validateOnValueUpdate',
+    ]);
+    expect(entry.FIELD_VALIDATION_DEFAULTS).toEqual({
+      validateOnMount: false,
+      validateOnBlur: true,
+      validateOnValueUpdate: false,
+    });
+    expect(entry.FIELD_CHOICE_VALIDATION_DEFAULTS).toEqual({
+      validateOnMount: false,
+      validateOnBlur: true,
+      validateOnValueUpdate: true,
+    });
     expect(typeof entry.useFieldControl).toBe('function');
   });
 });
@@ -476,7 +499,12 @@ describe('FieldWrapper integration', () => {
     // The wrapper's `<label for>` still names the control, which is what the summary links to.
     expect(wrapper.find('label').attributes('for')).toBe(input.attributes('id'));
 
+    // The message stays while the customer types the fix, and goes when the field is left.
     await input.setValue('Maren');
+    await flushPromises();
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(true);
+
+    await input.trigger('blur');
     await flushPromises();
     expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
 
@@ -793,7 +821,7 @@ describe('how long a server error survives a change elsewhere', () => {
     wrapper.unmount();
   });
 
-  it("is cleared by vee-validate's post-submit revalidation when the Form carries a schema", async () => {
+  it('stays on the other field while this one is edited, when the Form carries a schema', async () => {
     const wrapper = mountTwo({ validationSchema: { first: () => true, postcode: () => true } });
 
     await wrapper.find('form').trigger('submit');
@@ -807,10 +835,15 @@ describe('how long a server error survives a change elsewhere', () => {
     await wrapper.findAll('input')[0]?.setValue('Maren');
     await settle();
 
-    // Deliberate, and vee-validate's own behaviour rather than a choice made here: after a submit
-    // every already-validated field is revalidated on each change (`validated-only`), and a field
-    // that now passes has its manually set error replaced by that pass. So re-send `apiErrors`
-    // with each response rather than treating one as sticky.
+    // The edited field drops its own server error at once. The other field keeps showing its
+    // message: a field's message changes only at that field's own moments, whatever vee-validate
+    // revalidates underneath (`validated-only`, after a submit with a schema).
+    expect(wrapper.findAll('[data-part="error"]')).toHaveLength(1);
+    expect(wrapper.find('[data-part="error"]').text()).toContain(SERVER_ERRORS.postcode);
+
+    // Leaving the other field validates it, and a server error the rules do not repeat goes then.
+    await wrapper.findAll('input')[1]?.trigger('blur');
+    await settle();
     expect(wrapper.findAll('[data-part="error"]')).toHaveLength(0);
     wrapper.unmount();
   });

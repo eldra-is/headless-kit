@@ -15,9 +15,17 @@
  */
 import VariantPicker from '../components/variant-picker/VariantPicker.vue';
 import type { FieldVariantPickerProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldVariantPickerProps>();
+const props = withDefaults(
+  defineProps<FieldVariantPickerProps>(),
+  FIELD_CHOICE_VALIDATION_DEFAULTS
+);
 
 /**
  * Read once, at setup, exactly as `VariantPicker`'s own uncontrolled fallback is: the first

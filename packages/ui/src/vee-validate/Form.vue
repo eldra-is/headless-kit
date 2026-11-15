@@ -5,7 +5,7 @@ import FormLayout from '../components/form-layout/FormLayout.vue';
 import { focusInvalid } from '../components/form-layout/focusInvalid';
 import type { FormLayoutSubmitPayload } from '../components/form-layout/types';
 import { useMessages } from '../composables/useMessages';
-import { API_ERRORS_KEY, FIELD_ANCHORS_KEY } from './context';
+import { API_ERRORS_KEY, FIELD_ANCHORS_KEY, FIELD_MESSAGES_KEY } from './context';
 import type { FormProps, FormSlotProps, FormValues } from './types';
 import { useControlProps } from './useFieldControl';
 import { useEldraScope } from '../composables/useEldraScope';
@@ -57,17 +57,39 @@ const apiErrors = ref<Record<string, string>>({ ...props.apiErrors });
 provide(API_ERRORS_KEY, apiErrors);
 
 /**
+ * What each `Field*` below is showing, keyed by its path. A field holds its own displayed message
+ * and changes it only at its own moments (its blur, a submit, a value change when it asks for
+ * that — see `useFieldControl`), and reports it here, so the summary and the `errors` slot prop
+ * say what the fields say and change when they change. `known` is every path a `Field*` has
+ * registered, with or without a message.
+ */
+const reported = ref<Record<string, string | undefined>>({});
+/** Rises once a submit's validation has finished; every `Field*` reads its message again then. */
+const settled = ref(0);
+provide(FIELD_MESSAGES_KEY, {
+  report(path: string, message: string | undefined) {
+    reported.value[path] = message;
+  },
+  forget(path: string) {
+    delete reported.value[path];
+  },
+  settled,
+});
+
+/**
  * The errors that should currently be **shown**, which is not the same set as the errors that
- * exist. vee-validate revalidates on every keystroke, so a field knows its message long before the
- * customer is done typing; the spec's rule (Form layout → Behaviour & motion) is to validate on
- * submit and then on blur, so a message surfaces once its field has been touched or the form has
- * been submitted. Each `Field*` applies the same gate to its own `invalid` state, so what a
- * `FieldWrapper` shows and what the control marks itself as cannot disagree.
+ * exist. For a path a `Field*` owns it is exactly what that field shows. Any other path — a
+ * consumer's own `useField`, or an error set on a path with no field — keeps the plain gate: its
+ * message surfaces once its field has been touched, the form has been submitted, or the server
+ * sent one.
  */
 const visibleErrors = computed<Record<string, string>>(() => {
   const shown: Record<string, string> = {};
+  for (const [path, message] of Object.entries(reported.value)) {
+    if (message !== undefined) shown[path] = message;
+  }
   for (const [path, message] of Object.entries(errors.value)) {
-    if (message === undefined) continue;
+    if (message === undefined || path in reported.value) continue;
     if (submitCount.value > 0 || form.isFieldTouched(path) || path in apiErrors.value) {
       shown[path] = message;
     }
@@ -175,10 +197,12 @@ const submitted = ref(false);
 
 const runSubmit = handleSubmit(
   (submitValues, ctx) => {
+    settled.value += 1;
     submitted.value = true;
     emit('submit', submitValues, ctx);
   },
   ({ errors: failed }) => {
+    settled.value += 1;
     emit('invalid', failed);
     void nextTick(focusFirstInvalid);
   }

@@ -79,6 +79,16 @@ const meta = {
           'schema through yup / `@vee-validate/zod`) or `rules` on each `Field*`. `label` on a',
           '`Field*` is the name a rule message uses for it, not a visible label.',
           '',
+          '**When a field validates.** When it loses focus and when the form is submitted. A typed',
+          'field (`FieldInput`, `FieldTextarea`…) never validates while typing, so no message appears',
+          'under a half-typed value and one already showing stays until the next blur or submit. A',
+          'choice field (`FieldCheckbox`, `FieldSelect`…) also validates on each change, because one',
+          'click is the whole value. Three props per `Field*` change that: `validateOnBlur` (default',
+          '`true`), `validateOnValueUpdate` (default `false` typed, `true` choice; the message',
+          'follows every change once the field is touched or the form submitted) and',
+          '`validateOnMount` (default `false`; validates and shows the message at once). See the',
+          'four "Validation" stories.',
+          '',
           "**Submit.** `submit` fires with `(values, ctx)` — vee-validate's own submission context, so",
           '`ctx.resetForm()` and `ctx.setErrors()` are to hand — and never with values that failed',
           'validation. A failed attempt emits `invalid` with the messages instead, after focus has',
@@ -274,4 +284,96 @@ export const ApiErrors: Story = {
       </div>
     `,
   }),
+};
+
+/**
+ * The three validation props, one story per mode. Each form is the same two fields, so the only
+ * difference is when a message appears: type an invalid value, leave the field, fix it, submit.
+ */
+function validationStory(
+  fieldProps: Record<string, boolean>,
+  note: string,
+  initialValues: Record<string, string> = {}
+): Story {
+  return {
+    args: { ariaLabel: 'Validation timing' },
+    render: (args) => ({
+      components: { Form, FieldWrapper, FieldInput, FieldCheckbox, Button },
+      setup: () => ({ args, email, required, fieldProps, note, initialValues }),
+      template: `
+        <div class="max-w-narrow flex flex-col gap-4">
+          <p class="text-body-sm text-muted">{{ note }}</p>
+          <Form v-bind="args" :initial-values="initialValues">
+            <template #default="{ errors }">
+              <FieldWrapper label="Name" required :error="errors.name">
+                <FieldInput
+                  name="name"
+                  :rules="required('Enter your name.')"
+                  autocomplete="off"
+                  v-bind="fieldProps"
+                />
+              </FieldWrapper>
+              <FieldWrapper label="Email address" required :error="errors.email">
+                <FieldInput
+                  name="email"
+                  :rules="email"
+                  type="text"
+                  autocomplete="off"
+                  v-bind="fieldProps"
+                />
+              </FieldWrapper>
+              <FieldCheckbox
+                name="terms"
+                :rules="required('Accept the terms to continue.')"
+                :error="errors.terms"
+                v-bind="fieldProps"
+              >
+                I accept the terms
+              </FieldCheckbox>
+            </template>
+            <template #actions>
+              <Button variant="primary" type="submit" label="Sending">Send</Button>
+            </template>
+          </Form>
+        </div>
+      `,
+    }),
+  };
+}
+
+/** The defaults: a field validates when it is left and when the form is submitted. */
+export const ValidationOnBlur: Story = {
+  name: 'Validation: on blur (default)',
+  ...validationStory(
+    {},
+    'Defaults. Nothing appears while you type in a text field: its message appears when you leave it, stays while you fix it, and goes when you leave it again. The checkbox is a choice, so after a submit its message goes the moment you tick it.'
+  ),
+};
+
+/** `validateOnValueUpdate`: the message follows every change once the field has been touched. */
+export const ValidationLive: Story = {
+  name: 'Validation: live (validateOnValueUpdate)',
+  ...validationStory(
+    { validateOnValueUpdate: true },
+    'validate-on-value-update on every field. Nothing appears on the first pass through a field; once you have left it (or submitted), its message follows every keystroke.'
+  ),
+};
+
+/** `validateOnBlur: false`: nothing until the form is submitted. */
+export const ValidationOnSubmit: Story = {
+  name: 'Validation: on submit only (validateOnBlur off)',
+  ...validationStory(
+    { validateOnBlur: false, validateOnValueUpdate: false },
+    ':validate-on-blur="false" and :validate-on-value-update="false" on every field. Leaving a field shows nothing. Messages appear when you submit, and change only at the next submit.'
+  ),
+};
+
+/** `validateOnMount`: validated and shown at once, for a form opened on values already wrong. */
+export const ValidationOnMount: Story = {
+  name: 'Validation: on mount (validateOnMount)',
+  ...validationStory(
+    { validateOnMount: true },
+    'validate-on-mount. The stored email address is wrong and says so as soon as the form opens; from there it behaves like the default.',
+    { name: 'Maren Holt', email: 'maren.example.com' }
+  ),
 };

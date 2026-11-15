@@ -1112,11 +1112,66 @@ Vue refuses a `v-slot` on a component that also has named slot templates as chil
 go in an explicit `<template #default="{ errors }">` whenever there is an actions row — which there
 almost always is.
 
-`errors` is keyed by each field's `name`, and holds only the messages that should currently
-**show**: a field appears there once it has been touched or the form has been submitted. That is
-the same gate each `Field*` puts on its own `aria-invalid`, so the wrapper and the control cannot
-disagree about whether the field is in error. The other default-slot props are `values`, `meta`,
-`isSubmitting` and `submitCount`.
+`errors` is keyed by each field's `name`, and holds only the messages the fields are currently
+**showing**: each `Field*` reports the message it shows, and `errors` (and the error summary) is
+that report. So the wrapper, the control's own `aria-invalid` and the summary cannot disagree about
+whether a field is in error, and they change at the same moment. The other default-slot props are
+`values`, `meta`, `isSubmitting` and `submitCount`.
+
+### When a field validates
+
+Three boolean props on every `Field*` decide it, field by field:
+
+| Prop                    | Default                              | What it does                                                                                                                                     |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `validateOnBlur`        | `true`                               | Validates the field when it loses focus and shows or clears its message then. `false`: a blur only marks the field touched.                      |
+| `validateOnValueUpdate` | `false` typed, `true` choice (below) | Validates on every change of the value; the message follows each change once the field has been touched or the form submitted.                   |
+| `validateOnMount`       | `false`                              | Validates as soon as the field mounts **and shows the message at once**, without waiting for a blur or a submit (an edit form over stored data). |
+
+Submitting the form always validates every field and shows every result, whatever the props say.
+
+`validateOnValueUpdate` has two defaults, by the kind of control:
+
+| Kind   | Components                                                                                                                                               | `validateOnValueUpdate` | Why                                                                                                                                                               |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typed  | `FieldInput`, `FieldTextarea`, `FieldCurrencyInput`, `FieldUnitInput`, `FieldSearchBar`                                                                  | `false`                 | The value is built up one keystroke at a time, so validating each change would judge a half-typed value.                                                          |
+| Choice | `FieldCheckbox`, `FieldCheckboxGroup`, `FieldRadioGroup`, `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`, `FieldVariantPicker`, `FieldQuantityStepper` | `true`                  | One click or selection is the whole value, often with no blur after it: a box that only validated on blur would go on saying "required" after it had been ticked. |
+
+`FieldQuantityStepper` is a choice although it has a text field: a `QuantityStepper` writes its
+value only when a typed number is committed (on blur or `Enter`) or a button is pressed, never per
+keystroke, so every change it reports is a complete quantity.
+
+So in a typed field, **typing never changes what the customer sees**: no message appears while a
+value is being typed, and a message already showing stays until the field is left or the form is
+submitted. A choice field answers the click: once it has been touched or the form submitted, its
+message appears or goes with each change. Every default can be overridden per field:
+
+```vue
+<!-- Typed default: on blur, and on submit. -->
+<FieldInput name="email" type="email" />
+
+<!-- Live: as the default, plus every change once the field is touched or the form submitted. -->
+<FieldInput name="email" type="email" validate-on-value-update />
+
+<!-- Submit only: nothing until the form is submitted, and nothing again until the next submit. -->
+<FieldInput name="email" type="email" :validate-on-blur="false" />
+
+<!-- Choice default: live. Turn it off to make a checkbox wait for a blur or a submit. -->
+<FieldCheckbox name="terms" :validate-on-value-update="false">I agree</FieldCheckbox>
+```
+
+The same holds with `rules` on the field and with a `validationSchema` on the `Form`. A field
+holds the message it shows and changes it only at its own moments, because vee-validate's own
+error state can move at others: with a form-level schema, validating one field revalidates every
+field that has been validated before, so another field's blur would otherwise clear or change the
+message under a field that is still being typed in. A server error (`apiErrors`) is the exception
+in both directions: it shows at once, and goes the moment its own field is edited.
+
+`validateOnValueUpdate` is vee-validate's own `useField` option and is read once, when the field is
+set up; the other two are read each time. There is no form-level switch: set the props per field.
+`FIELD_VALIDATION_DEFAULTS` (typed), `FIELD_CHOICE_VALIDATION_DEFAULTS` (choice) and
+`FIELD_VALIDATION_PROPS` are exported beside `FIELD_ONLY` for a wrapper of your own built on
+`useFieldControl`.
 
 Three of the controls own an `error` prop of their own — `FieldRadioGroup`, `FieldCheckboxGroup`
 and `FieldQuantityStepper` — and those draw their message themselves **only outside** a
@@ -2596,15 +2651,15 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   wrapper is in the root entry and cannot know about vee-validate, and a control cannot write to
   the wrapper that provides its context — so `Form`'s default slot carries `errors`, keyed by field
   `name`, and the wrapper is bound to it (`:error="errors.email"`). It carries only the messages
-  that should currently show, on the same "touched, or the form has been submitted" gate each
-  `Field*` puts on its own `aria-invalid`, so the two cannot disagree.
+  the fields are currently showing — each `Field*` reports its own — so the wrapper and the
+  control's `aria-invalid` cannot disagree.
 - **`Form` adds `successMessage`, which is not in the spec's Form layout property table.** The
   spec's Success state asks for the confirmation to be "announced in a polite live region", and
   `FormLayout` already has that region (`statusMessage`) — `successMessage` is simply the half a
   form component can own: it fills the region once a submit passes validation. The visible half —
   replacing the form or navigating — stays the page's. An explicit `statusMessage` wins over it.
-- **A server error shows immediately, without waiting for a blur or a submit.** The display gate
-  above exists so a rule message does not appear under a half-typed value; an `apiErrors` entry is
+- **A server error shows immediately, without waiting for a blur or a submit.** A rule message
+  waits for one of those so it does not appear under a half-typed value; an `apiErrors` entry is
   the answer to a submit that has already happened, so there is nothing left to wait for — and a
   form rendered with errors from an earlier round trip would otherwise show none of them.
 - **`FieldSearchBar` takes neither an `id` nor a `name` from the field.** A `SearchBar` sets its
@@ -2622,11 +2677,17 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   validate in the browser. `action` and `method` are still forwarded (they are `FormLayout`'s
   props), and the hidden native `<select>` inside every `Select` still carries its value — so a
   scripting-free post is one `FormLayout` away, without this entry.
-- **Fields are revalidated while submitting.** The spec's Submitting state says the fields "stay
-  editable but aren't re-validated". vee-validate revalidates on value update regardless of
-  `isSubmitting`, and suppressing that would mean a field edited mid-flight keeping a message that
-  no longer matches its value. The _display_ gate is unchanged, so nothing new appears while the
-  customer is mid-word.
+- **A field validates on blur from the start, not only "for fields that were invalid after the
+  first submit"** (operator decision, 2026-11-15). The spec's rule is "Validate on submit, then on
+  blur for fields that were invalid after the first submit"; here every `Field*` validates on blur
+  by default (`validateOnBlur`), before a first submit too. A typed field never validates while
+  typing unless `validateOnValueUpdate` is set; a choice field (a checkbox, a select) validates on
+  each change by default. Until 0.3.x a field revalidated on every change and its message
+  followed each keystroke once it had been touched. See [When a field validates](#when-a-field-validates).
+- **Fields can be revalidated while submitting.** The spec's Submitting state says the fields "stay
+  editable but aren't re-validated". A blur still validates its field while a submit is in flight
+  (and a `validateOnValueUpdate` field still follows its value): suppressing that would leave a
+  field edited mid-flight with a message that no longer matches its value.
 - **A `group` `FieldWrapper` renders `tabindex="-1"` on its `<fieldset>`.** Not in the spec's
   anatomy; it is what makes an error summary's link land. A group has no single control, so the
   summary points `#<id>` at the fieldset itself, and a browser moves focus to a fragment's target

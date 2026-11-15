@@ -53,15 +53,21 @@ export type {
 /**
  * The building block the thirteen `Field*` components are made of, exported so a consumer wrapping a
  * control this package does not ship — or one of its own — binds it the same way: the value, the
- * message gated on "touched or submitted", the `id` the error summary links to, and the server
- * error that clears when the value changes.
+ * message shown at the field's own moments (blur, submit, and the two opt-in ones), the `id` the
+ * error summary links to, and the server error that clears when the value changes.
  *
  * `FIELD_ONLY` comes with it: the prop names a `Field*` keeps for itself and must **not** forward
- * to the control it wraps (`path`, `rules`, `label`, `id`). Without it a consumer writing their own
- * wrapper has to rediscover the list by reading this package's source.
+ * to the control it wraps (`path`, `rules`, `label`, `id` and the three in
+ * `FIELD_VALIDATION_PROPS`). Without it a consumer writing their own wrapper has to rediscover the
+ * list by reading this package's source. `FIELD_VALIDATION_DEFAULTS` (a typed control) or
+ * `FIELD_CHOICE_VALIDATION_DEFAULTS` (a choice control) is what to hand `withDefaults`, so that
+ * wrapper's `validateOnBlur` defaults to `true` like every `Field*`'s.
  */
 export {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
   FIELD_ONLY,
+  FIELD_VALIDATION_DEFAULTS,
+  FIELD_VALIDATION_PROPS,
   useFieldControl,
   type UseFieldControlOptions,
   type UseFieldControlReturn,
