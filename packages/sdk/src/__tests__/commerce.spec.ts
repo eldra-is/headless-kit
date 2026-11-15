@@ -113,6 +113,19 @@ describe('eldra sdk gift cards', () => {
     expect(await bodyOf(requests[0])).toEqual({ code: 'GC-ABCDE-FGHJK' });
   });
 
+  it('applies a code of either kind with PUT on /code and answers what it was applied as', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], appliedAs: 'GIFT_CARD' });
+
+    const cart = await client.cart.applyCode('cart-1', '  GC-ABCDE-FGHJK ', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('PUT');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/code?locale=is-IS'
+    );
+    expect(await bodyOf(requests[0])).toEqual({ code: 'GC-ABCDE-FGHJK' });
+    expect((cart as { appliedAs: string }).appliedAs).toBe('GIFT_CARD');
+  });
+
   it('removes a gift card with DELETE on the same path', async () => {
     const { client, requests } = recording({ id: 'cart-1', items: [] });
 

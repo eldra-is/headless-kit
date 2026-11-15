@@ -39,6 +39,7 @@ export type {
   EldraBrand,
   EldraCart,
   EldraCartClient,
+  EldraCartAppliedCode,
   EldraCartGiftCard,
   EldraCartItem,
   EldraCartTotals,

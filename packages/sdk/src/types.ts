@@ -420,6 +420,11 @@ export type EldraCart = EldraContractResponse<'/shopping-cart/v1/cart/{cartID}',
 export type EldraCartItem = Item<Prop<EldraCart, 'items'>>;
 export type EldraCartTotals = Prop<EldraCart, 'totals'>;
 export type EldraCartGiftCard = Prop<EldraCart, 'giftCard'>;
+/** The cart after `cart.applyCode`, with `appliedAs` saying which kind the code was. */
+export type EldraCartAppliedCode = EldraContractResponse<
+  '/shopping-cart/v1/cart/{cartID}/code',
+  'put'
+>;
 export type EldraAddCartItemInput = EldraContractBody<'/shopping-cart/v1/cart/items', 'post'>;
 
 export interface EldraDiscountResult {
@@ -516,6 +521,20 @@ export interface EldraCartClient {
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraCart>;
+  /**
+   * Applies a code from one field, as whichever it is (contract 6.7.0): a gift card or a discount
+   * code. The answer is the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); remove it again with
+   * `removeGiftCard` or `removeDiscount`. A refusal is an `EldraHttpError` whose `errorId` names it:
+   * `CART_CODE_INVALID` (neither kind; the answer does not say which exists), `CART_CODE_REQUIRED`,
+   * `CART_GIFT_CARD_EXHAUSTED`, `CART_DISCOUNT_EXHAUSTED`, `CART_DISCOUNT_TOO_MANY_ATTEMPTS`,
+   * `CART_GIFT_CARD_UNAVAILABLE`.
+   */
+  applyCode(
+    cartId: string,
+    code: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCartAppliedCode>;
   /** Removes the cart's gift card; succeeds when none is applied. */
   removeGiftCard(
     cartId: string,

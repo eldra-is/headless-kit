@@ -30,6 +30,7 @@ import type {
   EldraAddCartItemInput,
   EldraBrand,
   EldraCart,
+  EldraCartAppliedCode,
   EldraCheckoutUrlOptions,
   EldraCollection,
   EldraCollectionList,
@@ -432,6 +433,19 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ...context,
           method: 'PUT',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      applyCode: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCartAppliedCode>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/code`,
           query: localeOptions,
           body: { code: code.trim() },
         }),

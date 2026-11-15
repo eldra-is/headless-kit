@@ -9,6 +9,10 @@ platform repository.
 
 ## Unreleased
 
+- **One code field (contract 6.7.0).** `cart.applyCode(cartId, code, options?)` applies a gift card or a discount
+  code from one input and answers the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); the type is
+  `EldraCartAppliedCode`. A code that is neither is 404 `CART_CODE_INVALID`. `applyDiscount` and
+  `applyGiftCard` stay.
 - **The shared SEO value on catalog reads (contract 6.6.0).** A product's, category's, collection's and brand's
   `seo` now carries `canonicalUrl`, `ogTitle`, `ogDescription`, `imageAssetId`, `imageUrl` and `noindex` beside
   `title` and `description`: the shape a CMS entry's `seo` field has. Types only; the contract fixtures are

@@ -74,6 +74,9 @@ describe('eldra sdk with generated contract types', () => {
     >();
     expectTypeOf<NonNullable<EldraCartGiftCard>['amountDue']>().toEqualTypeOf<number>();
     expectTypeOf(await client.cart.applyGiftCard('cart-1', 'GC')).toEqualTypeOf<EldraCart>();
+    const applied = await client.cart.applyCode('cart-1', 'GC');
+    expectTypeOf(applied.appliedAs).toEqualTypeOf<'DISCOUNT' | 'GIFT_CARD'>();
+    expectTypeOf(applied.giftCard).toEqualTypeOf<EldraCart['giftCard']>();
   });
 
   it('exposes request and response shapes for any path', () => {

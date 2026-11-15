@@ -126,7 +126,7 @@ Lists, relative times, names and sorting are not patched; use the functions abov
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search` |
 | `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList`                                                                                       |
-| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `applyGiftCard`, `removeGiftCard`                               |
+| `cart`      | `addItem`, `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `applyCode`, `applyGiftCard`, `removeGiftCard`                  |
 | `checkout`  | `url`                                                                                                                                            |
 | `orders`    | `get`, `recover`                                                                                                                                 |
 | `inventory` | `availability`                                                                                                                                   |
