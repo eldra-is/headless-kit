@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.3](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.2...theme-nuxt-v0.4.3) (2026-11-15)
+
+
+### Features
+
+* **sdk:** WS-962 sdk brands gift card ([#134](https://github.com/eldra-is/headless-kit/issues/134)) ([6ee27b5](https://github.com/eldra-is/headless-kit/commit/6ee27b5465928a0576d7a4f18c7aaff2beb185f1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.3
+
 ## [0.4.2](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.1...theme-nuxt-v0.4.2) (2026-11-10)
 
 

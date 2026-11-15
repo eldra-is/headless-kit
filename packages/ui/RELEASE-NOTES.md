@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.6...ui-v0.3.7) (2026-11-15)
+
+
+### Features
+
+* **ui:** Notice, StepIndicator, exported Spinner, a leading part on RadioGroup cards, and per-field validation timing (WS-982) ([#136](https://github.com/eldra-is/headless-kit/issues/136)) ([ab7cde4](https://github.com/eldra-is/headless-kit/commit/ab7cde47490f1a165e7c1d6048afcc96f7920840))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.3
+
 ## [0.3.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.5...ui-v0.3.6) (2026-11-12)
 
 
