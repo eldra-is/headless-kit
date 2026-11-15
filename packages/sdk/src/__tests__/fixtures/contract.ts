@@ -1172,6 +1172,10 @@ export type components = {
             name: string;
             slug: string;
         };
+        catalogweb_WebProductCardSEO: {
+            canonicalUrl?: string;
+            noindex?: boolean;
+        };
         catalogweb_WebProductFacets: {
             availability?: components["schemas"]["catalogweb_WebFacetAvailability"];
             brands?: components["schemas"]["catalogweb_WebFacetTerm"][] | null;
@@ -1420,6 +1424,7 @@ export type components = {
             /** Format: double */
             priorPrice?: number;
             requiresShipping: boolean;
+            seo?: components["schemas"]["catalogweb_WebProductCardSEO"];
             shipsAbroad: boolean;
             slug: string;
             status: string;

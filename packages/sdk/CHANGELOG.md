@@ -12,7 +12,8 @@ platform repository.
 - **The shared SEO value on catalog reads (contract 6.6.0).** A product's, category's, collection's and brand's
   `seo` now carries `canonicalUrl`, `ogTitle`, `ogDescription`, `imageAssetId`, `imageUrl` and `noindex` beside
   `title` and `description`: the shape a CMS entry's `seo` field has. Types only; the contract fixtures are
-  regenerated from 6.6.0.
+  regenerated from 6.6.0. A product card (the product list and a collection's products) carries `seo` with
+  `canonicalUrl` and `noindex` only, which the theme's sitemap reads.
 - **Brands and gift cards (contract 6.4.0).** `catalog.listBrands(options?)` reads the shop's active brands
   (`[]` for none) and `catalog.getBrand(slug, options?)` one of them (404 `CATALOG_BRAND_NOT_FOUND` otherwise);
   `cart.applyGiftCard(cartId, code, options?)` and `cart.removeGiftCard(cartId, options?)` put a gift card on the

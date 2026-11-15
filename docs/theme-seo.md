@@ -127,9 +127,10 @@ prerendered, so neither can list a page that does not exist:
   locale, so the sitemap's canonicals (a plain string counts only on a single-locale site) and its
   `noindex` apply to the build locale's read: on a multi-locale site, set `noindex` and canonicals
   per page in every locale or treat the sitemap as path-derived. `useEldraSeo` still writes each
-  page's own canonical in its head. A catalog route uses the record's own `seo` where the list
-  read carries it (a category or a collection), then the route template's; a product's own
-  `noindex` and canonical are not in the product list, so they reach its head but not the sitemap.
+  page's own canonical in its head. A catalog route uses the record's own `seo` from the list
+  read, then the route template's: a category's and a collection's whole value, and a product
+  card's two crawl members (`noindex` and `canonicalUrl`), so a product hidden from search
+  engines is left out.
 - Past 50,000 URLs or 50 MiB per file, `sitemap.xml` becomes a `sitemapindex` over `sitemap-1.xml`,
   `sitemap-2.xml`, ... (the module option `sitemap: { maxUrls, maxBytes }` lowers the limits;
   `sitemap: false` turns the sitemap off). Every locale counts, so a store's URL count is its page

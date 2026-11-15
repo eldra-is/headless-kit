@@ -65,6 +65,9 @@ describe('eldra sdk with generated contract types', () => {
     expectTypeOf<BrandSeo['canonicalUrl']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<BrandSeo['imageUrl']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<BrandSeo['noindex']>().toEqualTypeOf<boolean | undefined>();
+    // A product card carries only the two crawl members.
+    type CardSeo = NonNullable<EldraProductListItem['seo']>;
+    expectTypeOf<CardSeo>().toEqualTypeOf<{ canonicalUrl?: string; noindex?: boolean }>();
     expectTypeOf<NonNullable<EldraProductDetails['brand']>['slug']>().toEqualTypeOf<string>();
     expectTypeOf<NonNullable<EldraProductDetails['seo']>['title']>().toEqualTypeOf<
       string | undefined
