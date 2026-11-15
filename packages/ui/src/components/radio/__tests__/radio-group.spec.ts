@@ -1,3 +1,4 @@
+import { IconTruck } from '@tabler/icons-vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computed, nextTick } from 'vue';
 import { axe } from '../../../test/axe';
@@ -437,6 +438,151 @@ describe('RadioGroup — cards', () => {
     expect(disabledCard).toContain('eldra:border-dashed');
     expect(disabledCard).toContain('eldra:cursor-not-allowed');
     expect(wrapper.findAll('[data-part="label"]')[2].classes()).toContain('eldra:text-muted');
+    wrapper.unmount();
+  });
+});
+
+describe('RadioGroup — cards, leading', () => {
+  const ICON_OPTIONS: RadioGroupOption[] = [
+    { value: 'deliver', label: 'Deliver it', icon: IconTruck },
+    { value: 'collect', label: 'Collect in store', hint: 'Ready in an hour', meta: 'Free' },
+  ];
+
+  it('renders no leading part and keeps the three columns without an icon or the slot', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Shipping', layout: 'cards', options: SHIPPING },
+    });
+    expect(wrapper.find('[data-part="leading"]').exists()).toBe(false);
+    for (const option of wrapper.findAll('[data-part="option"]')) {
+      expect(option.classes()).toContain('eldra:grid-cols-[auto_1fr_auto]');
+      expect(option.classes()).not.toContain('eldra:grid-cols-[auto_auto_1fr_auto]');
+    }
+    expect(wrapper.find('[data-part="hint"]').classes()).toContain('eldra:col-start-2');
+    expect(wrapper.find('[data-part="meta"]').classes()).toContain('eldra:col-start-3');
+    wrapper.unmount();
+  });
+
+  it("draws an option's icon, decorative, only on the option that has one", () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fulfilment', layout: 'cards', options: ICON_OPTIONS },
+    });
+    const [withIcon, without] = wrapper.findAll('[data-part="option"]');
+    const leading = withIcon!.get('[data-part="leading"]');
+    expect(leading.get('svg').attributes('aria-hidden')).toBe('true');
+    expect(withIcon!.classes()).toContain('eldra:grid-cols-[auto_auto_1fr_auto]');
+    expect(without!.find('[data-part="leading"]').exists()).toBe(false);
+    expect(without!.classes()).toContain('eldra:grid-cols-[auto_1fr_auto]');
+    wrapper.unmount();
+  });
+
+  it('sits between the radio and the title, with the hint and meta moved one column on', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Shipping', layout: 'cards', options: SHIPPING },
+      slots: {
+        leading:
+          '<template #leading="{ option }"><img alt="" :data-for="option.value" /></template>',
+      },
+    });
+    const option = wrapper.get('[data-part="option"]');
+    const parts = [...option.element.children].map((el) => el.getAttribute('data-part'));
+    expect(parts).toEqual(['radio', 'leading', 'label', 'hint', 'meta']);
+    expect(option.get('[data-part="leading"]').classes()).toContain('eldra:col-start-2');
+    expect(option.get('[data-part="hint"]').classes()).toContain('eldra:col-start-3');
+    expect(option.get('[data-part="hint"]').classes()).not.toContain('eldra:col-start-2');
+    expect(option.get('[data-part="meta"]').classes()).toContain('eldra:col-start-4');
+    expect(option.get('[data-part="meta"]').classes()).not.toContain('eldra:col-start-3');
+    wrapper.unmount();
+  });
+
+  it('gives the slot each option, and the slot wins over the icon', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fulfilment', layout: 'cards', options: ICON_OPTIONS },
+      slots: { leading: '<template #leading="{ option }"><b>{{ option.value }}</b></template>' },
+    });
+    const leadings = wrapper.findAll('[data-part="leading"]');
+    expect(leadings.map((leading) => leading.text())).toEqual(['deliver', 'collect']);
+    expect(wrapper.find('[data-part="leading"] svg').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('spans the title and the hint when there is a hint, one row when there is not', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fulfilment', layout: 'cards', options: ICON_OPTIONS },
+      slots: { leading: '<template #leading><i /></template>' },
+    });
+    const [noHint, withHint] = wrapper.findAll('[data-part="leading"]');
+    expect(noHint!.classes()).toContain('eldra:row-span-1');
+    expect(withHint!.classes()).toContain('eldra:row-span-2');
+    wrapper.unmount();
+  });
+
+  it('is cards only: plain layouts ignore the icon and the slot', () => {
+    for (const layout of ['vertical', 'row'] as const) {
+      const wrapper = mountWith(RadioGroup, {
+        props: { legend: 'Fulfilment', layout, options: ICON_OPTIONS },
+        slots: { leading: '<template #leading><i /></template>' },
+      });
+      expect(wrapper.find('[data-part="leading"]').exists()).toBe(false);
+      wrapper.unmount();
+    }
+  });
+
+  it('takes `classes.leading`, and mutes a disabled option', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: {
+        legend: 'Fulfilment',
+        layout: 'cards',
+        options: [{ value: 'a', label: 'A', icon: IconTruck, disabled: true }],
+        classes: { leading: 'x-leading' },
+      },
+    });
+    const leading = wrapper.get('[data-part="leading"]');
+    expect(leading.classes()).toContain('x-leading');
+    expect(leading.classes()).toContain('eldra:text-muted');
+    wrapper.unmount();
+  });
+
+  it('keeps the card the label: a click on the leading part selects the option', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Fulfilment', layout: 'cards', options: ICON_OPTIONS },
+    });
+    (wrapper.get('[data-part="leading"]').element as HTMLElement).click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['deliver']);
+    wrapper.unmount();
+  });
+
+  it('leaves the keyboard alone: one named radio per option, nothing else focusable', () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Shipping', name: 'shipping', layout: 'cards', options: SHIPPING },
+      slots: { leading: '<template #leading><img alt="" /></template>' },
+    });
+    const radios = wrapper.findAll('input[type="radio"]');
+    expect(radios).toHaveLength(3);
+    expect(new Set(radios.map((radio) => radio.attributes('name')))).toEqual(new Set(['shipping']));
+    expect(wrapper.element.querySelectorAll('[tabindex], button, a')).toHaveLength(0);
+    wrapper.unmount();
+  });
+
+  it('with an icon: no axe violations', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: {
+        legend: 'Fulfilment',
+        layout: 'cards',
+        options: ICON_OPTIONS,
+        modelValue: 'deliver',
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('with a logo in the slot, a disabled option and an error: no axe violations', async () => {
+    const wrapper = mountWith(RadioGroup, {
+      props: { legend: 'Shipping', layout: 'cards', options: SHIPPING, error: 'Choose a method' },
+      slots: { leading: '<template #leading><img alt="" src="data:," /></template>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 });

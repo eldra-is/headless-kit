@@ -67,6 +67,12 @@ table and Storybook for the full contract of each).
   with a "+N" overflow count.
 - `LogoItem` — one logo cell in a stockist or press logo cloud.
 - `Skeleton` — a neutral, shimmering loading placeholder shape.
+- `Spinner` — the turning circle `Button` draws while loading, for a wait outside a button;
+  decorative unless `label` names it.
+- `Notice` — an inline message that stays in the page flow (information, success, warning or
+  danger), with an optional icon, title and actions; a polite status, or an alert for danger.
+- `StepIndicator` — a non-interactive ordered list of done, current and upcoming steps,
+  horizontal or vertical, each with an optional secondary line.
 - `EmptyState` — the shared "nothing here / no results / error" panel shown inside a block.
 - `EditorPlaceholder` — Studio's own hint for an unfilled block field; never rendered on the live
   storefront.

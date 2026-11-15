@@ -559,6 +559,14 @@ export const enUS = {
   /** A subscribing form's success: the address is confirmed from an email. */
   formPendingTitle: 'Check your inbox',
   formPendingMessage: 'We sent you an email. Open the link in it to confirm.',
+  /**
+   * `StepIndicator`: what a screen reader hears, in brackets after a step's label, for a step
+   * before the current one. The current step says so with `aria-current="step"`, so it has no
+   * message of its own.
+   */
+  stepCompleted: 'completed',
+  /** `StepIndicator`: the same, for a step after the current one. */
+  stepNotStarted: 'not started',
 };
 
 /**
