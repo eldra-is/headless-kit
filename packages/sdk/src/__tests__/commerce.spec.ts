@@ -136,6 +136,17 @@ describe('eldra sdk gift cards', () => {
       'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-card'
     );
   });
+
+  it('removes one gift card by its entry id with DELETE on /gift-cards/{entryId}', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], giftCards: [] });
+
+    await client.cart.removeGiftCardEntry('cart-1', 'entry/1', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-cards/entry%2F1?locale=is-IS'
+    );
+  });
 });
 
 describe('eldra sdk orders', () => {

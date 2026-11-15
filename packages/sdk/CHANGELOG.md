@@ -9,6 +9,14 @@ platform repository.
 
 ## Unreleased
 
+- **Several gift cards on one cart (contract 6.8.0).** A cart holds any number of gift cards beside its discount
+  code: `applyGiftCard` and `applyCode` now add a card after the others instead of replacing one, and the same card
+  again is 409 `CART_GIFT_CARD_ALREADY_APPLIED`. The cart carries `giftCards` (`{entryId, last4, balance, applied,
+  amountDue}` in the order applied; the type is `EldraCartGiftCardEntry`) and the cart-wide `amountDue`.
+  `cart.removeGiftCardEntry(cartId, entryId, options?)` removes one card; `removeGiftCard` now removes every card.
+  The checkout summary's type `EldraOrderPreview` carries `giftCards` (`EldraOrderPreviewGiftCard`, `{last4,
+  amount}`). The cart's `giftCard` and `EldraCartGiftCard` are deprecated: the contract answers them for one more
+  version. The contract fixtures are regenerated from 6.8.0.
 - **One code field (contract 6.7.0).** `cart.applyCode(cartId, code, options?)` applies a gift card or a discount
   code from one input and answers the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); the type is
   `EldraCartAppliedCode`. A code that is neither is 404 `CART_CODE_INVALID`. `applyDiscount` and

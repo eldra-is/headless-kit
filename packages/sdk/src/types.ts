@@ -419,7 +419,21 @@ export type EldraSearchResponse = EldraContractResponse<'/search/v1', 'get'>;
 export type EldraCart = EldraContractResponse<'/shopping-cart/v1/cart/{cartID}', 'get'>;
 export type EldraCartItem = Item<Prop<EldraCart, 'items'>>;
 export type EldraCartTotals = Prop<EldraCart, 'totals'>;
+/**
+ * @deprecated Contract 6.8.0: a cart holds several gift cards. The cart's `giftCard` is the first
+ * of `giftCards`, except that its `amountDue` is the cart's `amountDue` (what is due after every
+ * card); it is answered for one more contract version. Read `giftCards`
+ * ({@link EldraCartGiftCardEntry}) and the cart's `amountDue` instead.
+ */
 export type EldraCartGiftCard = Prop<EldraCart, 'giftCard'>;
+/**
+ * One gift card on the cart (contract 6.8.0), from `giftCards`, in the order applied:
+ * `{entryId, last4, balance, applied, amountDue}`. `applied` is what it pays after the cards
+ * before it (0 when they already cover the total; such a card stays on the cart), `amountDue`
+ * what is still due after it. `entryId` names the card on this cart for
+ * `cart.removeGiftCardEntry`; it is not the card's id or code.
+ */
+export type EldraCartGiftCardEntry = Item<Prop<EldraCart, 'giftCards'>>;
 /** The cart after `cart.applyCode`, with `appliedAs` saying which kind the code was. */
 export type EldraCartAppliedCode = EldraContractResponse<
   '/shopping-cart/v1/cart/{cartID}/code',
@@ -437,6 +451,13 @@ export type EldraOrder = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
 export type EldraOrderLine = Item<Prop<EldraOrder, 'orderLines'>>;
 export type EldraRecoveredBasket = EldraContractResponse<'/order/v1/recover', 'post'>;
 export type EldraRecoveredBasketItem = Item<Prop<EldraRecoveredBasket, 'items'>>;
+/** The checkout summary `POST /order/v1/preview` answers (the hosted checkout reads it). */
+export type EldraOrderPreview = EldraContractResponse<'/order/v1/preview', 'post'>;
+/**
+ * One gift card of the checkout summary (contract 6.8.0), from `giftCards`: each card that would
+ * pay something, in the order applied, as `{last4, amount}`; they sum to `giftCardAmount`.
+ */
+export type EldraOrderPreviewGiftCard = Item<Prop<EldraOrderPreview, 'giftCards'>>;
 
 export interface EldraOrderReadOptions {
   /** The one-time token returned when the order was created. Required unless the caller owns the order. */
@@ -511,9 +532,11 @@ export interface EldraCartClient {
     context?: EldraRequestContext
   ): Promise<EldraCart>;
   /**
-   * Applies a gift card (contract 6.4.0). A refusal is an `EldraHttpError` whose `errorId` names it:
-   * `CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`, `CART_DISCOUNT_TOO_MANY_ATTEMPTS`,
-   * `CART_GIFT_CARD_UNAVAILABLE`.
+   * Adds a gift card (contract 6.4.0; since 6.8.0 it adds the card after the cart's other cards
+   * instead of replacing one, with no limit, and the discount code stays). A refusal is an
+   * `EldraHttpError` whose `errorId` names it: `CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`,
+   * `CART_GIFT_CARD_ALREADY_APPLIED` (409, the cart already holds this card),
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`.
    */
   applyGiftCard(
     cartId: string,
@@ -523,11 +546,13 @@ export interface EldraCartClient {
   ): Promise<EldraCart>;
   /**
    * Applies a code from one field, as whichever it is (contract 6.7.0): a gift card or a discount
-   * code. The answer is the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); remove it again with
-   * `removeGiftCard` or `removeDiscount`. A refusal is an `EldraHttpError` whose `errorId` names it:
+   * code. The answer is the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`). Since 6.8.0 a gift
+   * card is added after the cart's other cards; remove one with `removeGiftCardEntry`, or the
+   * discount code with `removeDiscount`. A refusal is an `EldraHttpError` whose `errorId` names it:
    * `CART_CODE_INVALID` (neither kind; the answer does not say which exists), `CART_CODE_REQUIRED`,
-   * `CART_GIFT_CARD_EXHAUSTED`, `CART_DISCOUNT_EXHAUSTED`, `CART_DISCOUNT_TOO_MANY_ATTEMPTS`,
-   * `CART_GIFT_CARD_UNAVAILABLE`.
+   * `CART_GIFT_CARD_EXHAUSTED`, `CART_GIFT_CARD_ALREADY_APPLIED` (409, the cart already holds this
+   * card; the code is not then tried as a discount code), `CART_DISCOUNT_EXHAUSTED`,
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`.
    */
   applyCode(
     cartId: string,
@@ -535,9 +560,23 @@ export interface EldraCartClient {
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraCartAppliedCode>;
-  /** Removes the cart's gift card; succeeds when none is applied. */
+  /**
+   * Removes every gift card on the cart (contract 6.8.0; before it, the one card); succeeds when
+   * none is applied. To take off one card, use `removeGiftCardEntry`.
+   */
   removeGiftCard(
     cartId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Removes one gift card, the one whose `giftCards[].entryId` is `entryId` (contract 6.8.0), and
+   * answers the cart; the other cards keep their order. An `entryId` the cart does not hold answers
+   * the cart unchanged, so a double click does not fail.
+   */
+  removeGiftCardEntry(
+    cartId: string,
+    entryId: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraCart>;

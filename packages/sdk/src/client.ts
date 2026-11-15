@@ -460,6 +460,18 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
           query: localeOptions,
         }),
+      removeGiftCardEntry: (
+        cartId: string,
+        entryId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-cards/${encodeURIComponent(entryId)}`,
+          query: localeOptions,
+        }),
     },
     orders: {
       get: (orderId: string, readOptions?: EldraOrderReadOptions, context?: EldraRequestContext) =>
