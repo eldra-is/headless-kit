@@ -9,6 +9,18 @@ platform repository.
 
 ## Unreleased
 
+- **Several discount codes on one cart (contract 6.9.0).** `applyDiscount` and `applyCode` (as `DISCOUNT`) now add
+  a code after the cart's codes instead of replacing it; each applies to what the codes before it left. Three new
+  409 refusals leave the cart as it was: `CART_DISCOUNT_NOT_COMBINABLE` (the code and one on the cart cannot be
+  combined; `errors.blockingCode` names the one on the cart), `CART_DISCOUNT_CODES_LIMIT_REACHED` (`errors.limit`,
+  6) and `CART_DISCOUNT_ALREADY_APPLIED`. `EldraHttpError` gains `errors`, the problem's `errors` object when the
+  body carries one. The cart carries `discountCodes` (`{code, amount}` in the order added; the type is
+  `EldraCartDiscountCodeEntry`); `cart.removeDiscountEntry(cartId, code, options?)` removes one code and
+  `removeDiscount` now removes every code. `applyDiscount`'s `applied` reads `discountCodes` (falling back to
+  `discountCode` from an older gateway), so a second code reports `true`. The order read and the checkout summary
+  carry `discountCodes` (`EldraOrderDiscountCode`, `EldraOrderPreviewDiscountCode`). The cart's and the order's
+  `discountCode` are deprecated in the contract: it answers them for one more version. The contract fixtures are
+  regenerated from 6.9.0.
 - **Several gift cards on one cart (contract 6.8.0).** A cart holds any number of gift cards beside its discount
   code: `applyGiftCard` and `applyCode` now add a card after the others instead of replacing one, and the same card
   again is 409 `CART_GIFT_CARD_ALREADY_APPLIED`. The cart carries `giftCards` (`{entryId, last4, balance, applied,

@@ -136,17 +136,17 @@ the script and the event endpoint are proxied through the storefront's own domai
 
 ## What the client covers
 
-| Group       | Methods                                                                                                                                                                                      |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search`                                             |
-| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                                                                                                    |
-| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `applyCode`, `applyGiftCard`, `removeGiftCard`, `removeGiftCardEntry` |
-| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                                                                                                 |
-| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                                                                                            |
-| `inventory` | `availability`                                                                                                                                                                               |
-| `features`  | the organisation's enabled features                                                                                                                                                          |
-| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                                                                                       |
-| `forms`     | `get(key)`, `submit(key, { values, locale, pagePath })` (a 422 resolves as field errors), `confirm(token)`, `unsubscribe(token)`                                                             |
+| Group       | Methods                                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search`                                                                    |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                                                                                                                           |
+| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `removeDiscountEntry`, `applyCode`, `applyGiftCard`, `removeGiftCard`, `removeGiftCardEntry` |
+| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                                                                                                                        |
+| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                                                                                                                   |
+| `inventory` | `availability`                                                                                                                                                                                                      |
+| `features`  | the organisation's enabled features                                                                                                                                                                                 |
+| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                                                                                                              |
+| `forms`     | `get(key)`, `submit(key, { values, locale, pagePath })` (a 422 resolves as field errors), `confirm(token)`, `unsubscribe(token)`                                                                                    |
 
 Totals come from the server. The cart's `totals` are the truth; never sum lines in the storefront.
 
@@ -293,4 +293,12 @@ Every failed request throws `EldraHttpError` with `status`, `code` and `errorId`
 problem body. `code` is the category, such as `NOT_FOUND` or `CONFLICT`; `errorId` is the specific
 reason, such as `CART_NOT_FOUND`, `CART_INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`, and
 equals `code` when the gateway has nothing more specific to say. Branch on `errorId`, not on the
-message; the [node script example](../examples/node-script/index.ts) prints both.
+message; the [node script example](../examples/node-script/index.ts) prints both. A refusal that
+says more carries it in `errors`, the problem's `errors` object: a discount code refused with
+`CART_DISCOUNT_NOT_COMBINABLE` names the code on the cart that blocks it in `errors.blockingCode`
+("cannot be combined with SUMMER10"), and `CART_DISCOUNT_CODES_LIMIT_REACHED` the limit in
+`errors.limit`.
+
+Applying a discount code adds it to the cart's codes (contract 6.9.0): the cart's `discountCodes`
+lists each as `{code, amount}`, `removeDiscountEntry(cartId, code)` takes one off and
+`removeDiscount(cartId)` takes them all off.

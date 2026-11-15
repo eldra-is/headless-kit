@@ -88,6 +88,33 @@ describe('eldra sdk cart', () => {
     expect(no.cart).toEqual({ id: 'cart-1' });
   });
 
+  it('reads the verdict from discountCodes, so a second code is applied too (contract 6.9.0)', async () => {
+    const both = recording({
+      id: 'cart-1',
+      discountCode: 'SUMMER10',
+      discountCodes: [
+        { code: 'SUMMER10', amount: 1000 },
+        { code: 'VIP5', amount: 0 },
+      ],
+    });
+    const none = recording({ id: 'cart-1', discountCode: 'VIP5', discountCodes: [] });
+
+    expect((await both.client.cart.applyDiscount('cart-1', 'vip5')).applied).toBe(true);
+    expect((await both.client.cart.applyDiscount('cart-1', 'WINTER')).applied).toBe(false);
+    expect((await none.client.cart.applyDiscount('cart-1', 'VIP5')).applied).toBe(false);
+  });
+
+  it('removes one discount code with DELETE on /discount-codes/{code}', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], discountCodes: [] });
+
+    await client.cart.removeDiscountEntry('cart-1', 'SUMMER/10', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/discount-codes/SUMMER%2F10?locale=is-IS'
+    );
+  });
+
   it('removes a discount code', async () => {
     const { client, requests } = recording({ id: 'cart-1' });
 
@@ -543,5 +570,26 @@ describe('eldra sdk errors', () => {
     expect(error.errorId).toBe('CART_INSUFFICIENT_STOCK');
     expect(new EldraHttpError(response, { code: 'CONFLICT' }).errorId).toBeUndefined();
     expect(new EldraHttpError(response, { errorId: 7 }).errorId).toBeUndefined();
+  });
+
+  it('exposes the problem errors, where a refused discount code names what blocked it', () => {
+    const response = { status: 409, statusText: 'Conflict' } as Response;
+
+    const blocked = new EldraHttpError(response, {
+      code: 'CONFLICT',
+      errorId: 'CART_DISCOUNT_NOT_COMBINABLE',
+      errors: { blockingCode: 'SUMMER10' },
+    });
+    const full = new EldraHttpError(response, {
+      errorId: 'CART_DISCOUNT_CODES_LIMIT_REACHED',
+      errors: { limit: 6 },
+    });
+
+    expect(blocked.errors?.blockingCode).toBe('SUMMER10');
+    expect(full.errors?.limit).toBe(6);
+    expect(new EldraHttpError(response, { errorId: 'X' }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, { errors: ['a'] }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, { errors: 'a' }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, 'nope').errors).toBeUndefined();
   });
 });

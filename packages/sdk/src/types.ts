@@ -434,6 +434,15 @@ export type EldraCartGiftCard = Prop<EldraCart, 'giftCard'>;
  * `cart.removeGiftCardEntry`; it is not the card's id or code.
  */
 export type EldraCartGiftCardEntry = Item<Prop<EldraCart, 'giftCards'>>;
+/**
+ * One discount code on the cart (contract 6.9.0), from `discountCodes`, in the order added:
+ * `{code, amount}`. Each code applies to what the codes before it left, and `amount` (major
+ * units) is what it takes now: 0 for a code that reduces nothing at the moment (nothing left to
+ * reduce, only gift-card lines, or a code the shop has since stopped letting combine); such a
+ * code stays on the cart. `code` names it for `cart.removeDiscountEntry`. The cart's deprecated
+ * `discountCode` is the first of these whose `amount` is above 0.
+ */
+export type EldraCartDiscountCodeEntry = Item<Prop<EldraCart, 'discountCodes'>>;
 /** The cart after `cart.applyCode`, with `appliedAs` saying which kind the code was. */
 export type EldraCartAppliedCode = EldraContractResponse<
   '/shopping-cart/v1/cart/{cartID}/code',
@@ -443,12 +452,22 @@ export type EldraAddCartItemInput = EldraContractBody<'/shopping-cart/v1/cart/it
 
 export interface EldraDiscountResult {
   cart: EldraCart;
-  /** The server drops a code it will not honour, so the returned cart is the verdict. */
+  /**
+   * The server drops a code it will not honour, so the returned cart is the verdict: true when the
+   * cart's `discountCodes` holds the code (any case; since contract 6.9.0, even while it takes 0),
+   * or, from a gateway older than 6.9.0, when its single `discountCode` is the code.
+   */
   applied: boolean;
 }
 
 export type EldraOrder = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
 export type EldraOrderLine = Item<Prop<EldraOrder, 'orderLines'>>;
+/**
+ * One discount code of an order (contract 6.9.0), from the order's `discountCodes`: each code that
+ * reduced the order, in the order applied, as `{code, amount}`. The order's `discountCode` is
+ * deprecated (the first of these).
+ */
+export type EldraOrderDiscountCode = Item<Prop<EldraOrder, 'discountCodes'>>;
 export type EldraRecoveredBasket = EldraContractResponse<'/order/v1/recover', 'post'>;
 export type EldraRecoveredBasketItem = Item<Prop<EldraRecoveredBasket, 'items'>>;
 /** The checkout summary `POST /order/v1/preview` answers (the hosted checkout reads it). */
@@ -458,6 +477,11 @@ export type EldraOrderPreview = EldraContractResponse<'/order/v1/preview', 'post
  * pay something, in the order applied, as `{last4, amount}`; they sum to `giftCardAmount`.
  */
 export type EldraOrderPreviewGiftCard = Item<Prop<EldraOrderPreview, 'giftCards'>>;
+/**
+ * One discount code of the checkout summary (contract 6.9.0), from `discountCodes`: each code that
+ * would reduce the order, in the order applied, as `{code, amount}`.
+ */
+export type EldraOrderPreviewDiscountCode = Item<Prop<EldraOrderPreview, 'discountCodes'>>;
 
 export interface EldraOrderReadOptions {
   /** The one-time token returned when the order was created. Required unless the caller owns the order. */
@@ -520,12 +544,30 @@ export interface EldraCartClient {
     context?: EldraRequestContext
   ): Promise<EldraCart>;
   removeItem(cartId: string, itemId: string, context?: EldraRequestContext): Promise<EldraCart>;
+  /**
+   * Applies a discount code and answers the cart with `applied` (see {@link EldraDiscountResult}).
+   * Since contract 6.9.0 a discount code is **added** after the cart's codes instead of replacing
+   * one; each applies to what the codes before it left, at most 6 per cart, and two codes sit
+   * together only when both allow combining. Three refusals leave the cart exactly as it was, each a
+   * 409 `EldraHttpError` read from `errorId`, with its detail in `errors` (the problem's `errors`
+   * object): `CART_DISCOUNT_NOT_COMBINABLE` (the code and a code on the cart cannot both be used;
+   * `errors.blockingCode` is the code on the cart that blocks it, for "cannot be combined with
+   * SUMMER10"; remove it with `removeDiscountEntry` and apply again to change codes),
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED` (the cart already holds `errors.limit` codes, 6) and
+   * `CART_DISCOUNT_ALREADY_APPLIED` (the cart already holds this code).
+   * Other refusals are unchanged: `CART_DISCOUNT_NOT_USABLE`, `CART_DISCOUNT_EXHAUSTED`,
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`.
+   */
   applyDiscount(
     cartId: string,
     code: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraDiscountResult>;
+  /**
+   * Removes every discount code on the cart (contract 6.9.0; before it, the one code); succeeds
+   * when none is applied. To take off one code, use `removeDiscountEntry`.
+   */
   removeDiscount(
     cartId: string,
     options?: EldraLocaleOptions,
@@ -547,12 +589,22 @@ export interface EldraCartClient {
   /**
    * Applies a code from one field, as whichever it is (contract 6.7.0): a gift card or a discount
    * code. The answer is the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`). Since 6.8.0 a gift
-   * card is added after the cart's other cards; remove one with `removeGiftCardEntry`, or the
-   * discount code with `removeDiscount`. A refusal is an `EldraHttpError` whose `errorId` names it:
+   * card is added after the cart's other cards; remove one with `removeGiftCardEntry`, or one
+   * discount code with `removeDiscountEntry`. A refusal is an `EldraHttpError` whose `errorId` names it:
    * `CART_CODE_INVALID` (neither kind; the answer does not say which exists), `CART_CODE_REQUIRED`,
    * `CART_GIFT_CARD_EXHAUSTED`, `CART_GIFT_CARD_ALREADY_APPLIED` (409, the cart already holds this
    * card; the code is not then tried as a discount code), `CART_DISCOUNT_EXHAUSTED`,
    * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`.
+   *
+   * Since contract 6.9.0 a discount code is **added** after the cart's codes instead of replacing
+   * one; each applies to what the codes before it left, at most 6 per cart, and two codes sit
+   * together only when both allow combining. Three refusals leave the cart exactly as it was, each a
+   * 409 `EldraHttpError` read from `errorId`, with its detail in `errors` (the problem's `errors`
+   * object): `CART_DISCOUNT_NOT_COMBINABLE` (the code and a code on the cart cannot both be used;
+   * `errors.blockingCode` is the code on the cart that blocks it, for "cannot be combined with
+   * SUMMER10"; remove it with `removeDiscountEntry` and apply again to change codes),
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED` (the cart already holds `errors.limit` codes, 6) and
+   * `CART_DISCOUNT_ALREADY_APPLIED` (the cart already holds this code).
    */
   applyCode(
     cartId: string,
@@ -577,6 +629,17 @@ export interface EldraCartClient {
   removeGiftCardEntry(
     cartId: string,
     entryId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Removes one discount code, the one whose `discountCodes[].code` is `code` (any case; contract
+   * 6.9.0), and answers the cart; the other codes keep their order. A code the cart does not hold
+   * answers the cart unchanged, so a double click does not fail.
+   */
+  removeDiscountEntry(
+    cartId: string,
+    code: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraCart>;

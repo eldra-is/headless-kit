@@ -6,10 +6,13 @@ import type {
   EldraBrand,
   EldraCart,
   EldraCartGiftCard,
+  EldraCartDiscountCodeEntry,
   EldraCartGiftCardEntry,
   EldraCartTotals,
   EldraContractResponse,
+  EldraOrderDiscountCode,
   EldraOrderPreview,
+  EldraOrderPreviewDiscountCode,
   EldraOrderPreviewGiftCard,
   EldraProductDetails,
   EldraProductExtensions,
@@ -94,6 +97,17 @@ describe('eldra sdk with generated contract types', () => {
     ).toEqualTypeOf<EldraCart>();
     expectTypeOf<EldraOrderPreviewGiftCard>().toEqualTypeOf<{ amount: number; last4: string }>();
     expectTypeOf<EldraOrderPreview['amountDue']>().toEqualTypeOf<number>();
+  });
+
+  it('types several discount codes on the cart, the order and the checkout summary (contract 6.9.0)', async () => {
+    const client = createEldraClient({ orgId: 'org-123', httpClient: stubHttpClient(() => ({})) });
+
+    expectTypeOf<EldraCartDiscountCodeEntry>().toEqualTypeOf<{ amount: number; code: string }>();
+    expectTypeOf<EldraOrderDiscountCode>().toEqualTypeOf<{ amount: number; code: string }>();
+    expectTypeOf<EldraOrderPreviewDiscountCode>().toEqualTypeOf<{ amount: number; code: string }>();
+    expectTypeOf(
+      await client.cart.removeDiscountEntry('cart-1', 'SUMMER10')
+    ).toEqualTypeOf<EldraCart>();
   });
 
   it('exposes request and response shapes for any path', () => {
