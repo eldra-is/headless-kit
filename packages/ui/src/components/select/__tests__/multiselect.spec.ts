@@ -336,6 +336,62 @@ describe('MultiSelect — the footer', () => {
     expect(document.activeElement).toBe(search(wrapper));
   });
 
+  it('leaves Select all out when told to', async () => {
+    const wrapper = mount({ modelValue: [], searchable: false, selectAll: false });
+    await press(triggerOf(wrapper));
+    expect(panel(wrapper).find('[data-part="footerSelectAll"]').exists()).toBe(false);
+  });
+
+  it('selects every enabled option with Select all, after what was chosen, and stays open', async () => {
+    const wrapper = mount({ modelValue: ['mugs'], searchable: false, selectAll: true });
+    await press(triggerOf(wrapper));
+    const button = panel(wrapper).find('[data-part="footerSelectAll"]')
+      .element as HTMLButtonElement;
+    expect(button.textContent?.trim()).toBe(enUS.selectAll);
+    button.click();
+    await flush();
+
+    const enabled = CATEGORIES.filter((option) => option.disabled !== true).map(
+      (option) => option.value
+    );
+    const [[value]] = wrapper.emitted('change') as [[string[]]];
+    expect(value[0]).toBe('mugs');
+    expect([...value].sort()).toEqual([...enabled].sort());
+    expect(value).not.toContain('bowls');
+    expect(panel(wrapper).exists()).toBe(true);
+    expect(document.activeElement).toBe(triggerOf(wrapper).element);
+  });
+
+  it('selects only what a search matches, and keeps the rest of the selection', async () => {
+    const wrapper = mount({
+      modelValue: ['sweaters'],
+      options: MANY.concat(CATEGORIES),
+      selectAll: true,
+    });
+    await press(triggerOf(wrapper));
+    await wrapper.findComponent({ name: 'SelectPanel' }).vm.$emit('search', 'mug');
+    await flush();
+    (panel(wrapper).find('[data-part="footerSelectAll"]').element as HTMLButtonElement).click();
+    await flush();
+
+    expect(wrapper.emitted('change')).toEqual([[['sweaters', 'mugs']]]);
+    expect(document.activeElement).toBe(search(wrapper));
+  });
+
+  it('disables Select all once everything it would add is selected', async () => {
+    const enabled = CATEGORIES.filter((option) => option.disabled !== true).map(
+      (option) => option.value
+    );
+    const wrapper = mount({ modelValue: enabled, searchable: false, selectAll: true });
+    await press(triggerOf(wrapper));
+    const button = panel(wrapper).find('[data-part="footerSelectAll"]')
+      .element as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+
+    await wrapper.setProps({ modelValue: [] });
+    expect(button.disabled).toBe(false);
+  });
+
   it('closes on Done without changing the value', async () => {
     const wrapper = mount({ modelValue: ['sweaters'], searchable: false });
     await press(triggerOf(wrapper));
@@ -358,11 +414,17 @@ describe('MultiSelect — the footer', () => {
     expect(event.defaultPrevented).toBe(false);
     expect(panel(wrapper).exists()).toBe(true);
 
-    // The footer's two buttons are the next focusables inside the panel, in that order.
+    // The footer's buttons are the next focusables inside the panel, in that order.
+    const selectAll = panel(wrapper).find('[data-part="footerSelectAll"]').element as HTMLElement;
     const focusables = [...panel(wrapper).element.querySelectorAll<HTMLElement>('input, button')];
-    expect(focusables).toEqual([search(wrapper), footerClear(wrapper), footerDone(wrapper)]);
+    expect(focusables).toEqual([
+      search(wrapper),
+      selectAll,
+      footerClear(wrapper),
+      footerDone(wrapper),
+    ]);
 
-    focusOut(search(wrapper), footerClear(wrapper));
+    focusOut(search(wrapper), selectAll);
     await flush();
     expect(panel(wrapper).exists()).toBe(true);
 

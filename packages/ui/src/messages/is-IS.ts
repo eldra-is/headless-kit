@@ -62,6 +62,7 @@ export const isIS: UiMessages = {
   selectedCount: (n: number) => `${n} valin`,
   noneSelected: 'Ekkert valið',
   done: 'Lokið',
+  selectAll: 'Velja allt',
   decrease: 'Minnka',
   increase: 'Auka',
   quantity: 'Magn',

@@ -246,6 +246,27 @@ export const Searchable: Story = {
   }),
 };
 
+/** "Select all" sits before Clear (`selectAll`, on by default). With a search typed it adds the matches only. */
+export const SelectAll: Story = {
+  args: {
+    options: MATERIALS,
+    searchPlaceholder: 'Search materials',
+    name: 'materials',
+    selectAll: true,
+  },
+  render: (args) => ({
+    components: { MultiSelect, FieldWrapper },
+    setup: () => ({ args, value: ref(['linen']) }),
+    template: `
+      <div class="max-w-96">
+        <FieldWrapper label="Materials" help="Select all adds every material the list shows.">
+          <MultiSelect v-bind="args" v-model="value" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
 /** Groups with facet counts, and swatches on a colour filter. */
 export const Groups: Story = {
   args: { options: CATEGORIES, searchable: false },

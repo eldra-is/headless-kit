@@ -108,6 +108,8 @@ export const enUS = {
   noneSelected: 'None selected',
   /** Closes a `MultiSelect`'s popover. It commits nothing: every toggle already applied. */
   done: 'Done',
+  /** A `MultiSelect` footer's button that selects every option shown (`selectAll`). */
+  selectAll: 'Select all',
   /** The accessible name of a `QuantityStepper`'s minus button. */
   decrease: 'Decrease',
   /** The accessible name of a `QuantityStepper`'s plus button. */

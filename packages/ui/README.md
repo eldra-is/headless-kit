@@ -2716,6 +2716,15 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   consumer owns the remove control then: render it only while `removable` (false when `disabled` or
   `readonly`), as a real `<button type="button">` named `removeLabel` ("Remove <label>"), calling
   `remove`, which deselects and returns focus to the trigger.
+- **`MultiSelect` can offer "Select all" (`selectAll`).** Not in the spec's footer ("live count ·
+  Clear · Done"), and on by default: a multi-select without it makes a long list a chore, and
+  `:select-all="false"` leaves it out. A link button before Clear adds every enabled
+  option the list is showing to the selection: all of them, or only a search's matches, whatever
+  the render batch has drawn so far. Values already chosen keep their place and the new ones
+  follow in list order; disabled options are never touched. It is the footer's first tab stop, so
+  the `Tab` walk the spec describes runs Select all, Clear, Done. It fires `change` once, keeps the
+  popover open and returns focus as Clear does, and is disabled when there is nothing left to
+  add. Part `footerSelectAll`, message `selectAll`.
 - **`MultiSelect`'s tags can sit inside the field (`tagPlacement: 'inside'`).** The field then
   draws the trigger box (the `field` part) and wraps the tags and the trigger, growing a row at a
   time; the trigger is the rest of the last row, or a row of its own, and the panel matches the
