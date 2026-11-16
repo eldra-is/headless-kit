@@ -174,6 +174,7 @@ export type MultiSelectPart =
   | 'field'
   | 'footer'
   | 'footerCount'
+  | 'footerSelectAll'
   | 'footerClear'
   | 'footerDone';
 
@@ -209,6 +210,12 @@ export interface MultiSelectProps extends Omit<
    * exactly that many.
    */
   maxSummary?: number | 'fit';
+  /**
+   * A "Select all" button in the footer, before Clear. It adds every option the list is showing,
+   * so with a search typed it selects the matches only; disabled options are left as they are.
+   * It is disabled once all of them are selected. On by default; `false` leaves it out.
+   */
+  selectAll?: boolean;
   /**
    * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
    * `class`.

@@ -7,7 +7,7 @@ import { provideEldraUiMessages } from '../../composables/useMessages';
 import isIS from '../../messages/is-IS';
 import { axe } from '../../test/axe';
 import { mountWith } from '../../test/mount';
-import { preloadPhoneFlags } from '../flags';
+import { preloadCountryFlags as preloadPhoneFlags } from '../../flag/flags';
 import PhoneInput from '../PhoneInput.vue';
 import type { PhoneInputChange } from '../types';
 

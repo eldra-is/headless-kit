@@ -463,22 +463,22 @@ describe('the Tab walk into a teleported panel', () => {
     // and the redirect happens there. The case with one is the next test.
     const { wrapper, trigger, panel } = await openMulti();
     expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
-    const clear = panel().find('[data-part="footerClear"]').element as HTMLElement;
+    const first = panel().find('[data-part="footerSelectAll"]').element as HTMLElement;
     const done = panel().find('[data-part="footerDone"]').element as HTMLElement;
     expect(document.activeElement).toBe(trigger);
 
-    // Forwards: into the panel's first tab stop, which is the footer's Clear.
+    // Forwards: into the panel's first tab stop, which is the footer's Select all.
     const forward = tab(trigger);
     expect(forward.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(clear);
+    expect(document.activeElement).toBe(first);
     expect(panel().exists()).toBe(true);
 
     // Between the footer's own buttons nothing is touched: the browser's order is already right.
-    const inside = tab(clear);
+    const inside = tab(first);
     expect(inside.defaultPrevented).toBe(false);
 
     // Backwards out of the first row: onto the trigger, popover still open.
-    const back = tab(clear, true);
+    const back = tab(first, true);
     expect(back.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(trigger);
     expect(panel().exists()).toBe(true);
@@ -490,12 +490,12 @@ describe('the Tab walk into a teleported panel', () => {
 
   it('passes the trigger clear button on the way into the panel, and returns to it', async () => {
     // Spec → Keyboard, and the clear button's own `data-eldra-overlay-owner`: it belongs to the
-    // popover while that is open, so the walk runs trigger → clear → footer Clear → Done. Only the
+    // popover while that is open, so the walk runs trigger → clear → footer Select all → Clear → Done. Only the
     // step the teleport broke — the last one out of the control — is redirected; the step from the
     // trigger to the clear button is still the browser's, because they are siblings in the DOM.
     const { wrapper, trigger, panel } = await openMulti({ modelValue: ['oat'] });
     const clear = wrapper.find('[data-part="clearButton"]').element as HTMLElement;
-    const footerClear = panel().find('[data-part="footerClear"]').element as HTMLElement;
+    const first = panel().find('[data-part="footerSelectAll"]').element as HTMLElement;
 
     // Trigger → clear button: untouched, so the browser's own order takes it there.
     const toClear = tab(trigger);
@@ -505,12 +505,12 @@ describe('the Tab walk into a teleported panel', () => {
     clear.focus();
     const intoPanel = tab(clear);
     expect(intoPanel.defaultPrevented).toBe(true);
-    expect(document.activeElement).toBe(footerClear);
+    expect(document.activeElement).toBe(first);
     expect(panel().exists()).toBe(true);
 
     // And back: `Shift+Tab` off the panel's first row returns to the clear button, not past it to
     // the trigger — from there the browser's own reverse order finishes the walk.
-    const back = tab(footerClear, true);
+    const back = tab(first, true);
     expect(back.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(clear);
     expect(panel().exists()).toBe(true);

@@ -47,6 +47,7 @@ const props = withDefaults(defineProps<MultiSelectProps>(), {
   tagPlacement: 'below',
   maxTagRows: 2,
   maxSummary: 'fit',
+  selectAll: true,
   messages: undefined,
   classes: undefined,
 });
@@ -484,6 +485,30 @@ function clearAll(): boolean {
 }
 
 /**
+ * What "Select all" would add: every enabled option the list is showing (all of them, or a
+ * search's matches; the render batch does not limit it) that is not selected yet.
+ */
+const selectableValues = computed(() => {
+  const chosen = new Set(model.value);
+  return listOptions.value
+    .filter(
+      (option) =>
+        option.value !== CREATE_VALUE && option.disabled !== true && !chosen.has(option.value)
+    )
+    .map((option) => option.value);
+});
+const canSelectAll = computed(
+  () => !props.disabled && !props.readonly && selectableValues.value.length > 0
+);
+
+/** Adds them after what is already chosen, in list order; focus follows the footer Clear's rule. */
+function onSelectAll(): void {
+  if (canSelectAll.value) commit([...model.value, ...selectableValues.value]);
+  if (searchable.value) searchRef.value?.focus();
+  else triggerRef.value?.focus();
+}
+
+/**
  * The trigger's clear button. Focus goes back to the trigger — except while the panel is open with a
  * search field, where focus belongs in that field: it is the element carrying
  * `aria-activedescendant` (the trigger drops it the moment the search field takes focus), so
@@ -701,6 +726,7 @@ const footerCountClass = computed(() => [
 
 /** Spec: "Clear = Button link sm (0.5rem side padding), Done = Button primary sm." */
 const footerClearClass = computed(() => ['eldra:px-2', props.classes?.footerClear]);
+const footerSelectAllClass = computed(() => ['eldra:px-2', props.classes?.footerSelectAll]);
 const footerDoneClass = computed(() => props.classes?.footerDone);
 
 const emptyText = computed(() =>
@@ -975,6 +1001,18 @@ const emptyText = computed(() =>
             <span data-part="footerCount" :class="footerCountClass" aria-live="polite">
               {{ countText }}
             </span>
+            <Button
+              v-if="props.selectAll"
+              variant="link"
+              size="sm"
+              type="button"
+              data-part="footerSelectAll"
+              :class="footerSelectAllClass"
+              :disabled="!canSelectAll"
+              @click="onSelectAll"
+            >
+              {{ m.selectAll }}
+            </Button>
             <Button
               variant="link"
               size="sm"

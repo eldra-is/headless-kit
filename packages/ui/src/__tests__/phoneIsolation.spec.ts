@@ -66,7 +66,7 @@ const mentions = (entry: string): string[] =>
   );
 
 describe('the built entries', () => {
-  it.runIf(built).each(['index.js', 'vee-validate.js', 'vue-i18n.js', 'resolver.js'])(
+  it.runIf(built).each(['index.js', 'vee-validate.js', 'vue-i18n.js', 'resolver.js', 'flag.js'])(
     'dist/%s reaches no file that names libphonenumber-js',
     (entry) => {
       expect(reachable(`${distDir}${entry}`).size).toBeGreaterThan(0);
@@ -96,6 +96,16 @@ describe('the built entries', () => {
         file
       ).toBe(false);
     }
+  });
+
+  it.runIf(built)('gives dist/flag.js the same chunk, and the root entry none of it', () => {
+    const chunk = (entry: string): string[] =>
+      [...reachable(`${distDir}${entry}`)].filter((file) => /phoneFlagData-[\w-]+\.js$/.test(file));
+    expect(chunk('flag.js')).toEqual(chunk('phone.js'));
+    expect(chunk('flag.js')).toHaveLength(1);
+    expect(readFileSync(`${distDir}flag.js`, 'utf8')).not.toContain('0 0 513 342|');
+    expect(chunk('index.js')).toEqual([]);
+    expect(chunk('vee-validate.js')).toEqual([]);
   });
 
   // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
