@@ -153,6 +153,20 @@ const consumers = {
       }
       assert(typeof vee.API_ERRORS_KEY === 'symbol', 'API_ERRORS_KEY');
       assert(typeof vee.useFieldControl === 'function', 'useFieldControl');
+      // The phone entry and its own optional peer, libphonenumber-js: installed here, so the entry
+      // loads, formats and validates for real; the root entry above loaded before it was touched.
+      const phone = await import('@eldrajs/ui/phone');
+      assert(typeof phone.PhoneInput.setup === 'function' || typeof phone.PhoneInput.render === 'function', 'PhoneInput');
+      assert.equal(phone.isValidPhone('+3545812345', 'IS'), true, 'isValidPhone');
+      assert.equal(phone.parsePhone('+3545812345').national, '581 2345', 'parsePhone');
+      assert.equal(phone.phoneRule({ country: 'IS', locale: 'is-IS', messages: isIS })('+45321'), isIS.phoneInvalid('Ísland'), 'phoneRule');
+      assert.equal(typeof phone.phoneExample('IS'), 'string', 'phoneExample');
+      await phone.preloadPhoneFlags();
+      assert.deepEqual(EldraUiResolver().resolve('EldraPhoneInput'), { name: 'PhoneInput', from: '@eldrajs/ui/phone' }, 'EldraUiResolver resolves EldraPhoneInput');
+      const phoneFields = await import('@eldrajs/ui/phone/vee-validate');
+      assert(typeof phoneFields.FieldPhoneInput.setup === 'function' || typeof phoneFields.FieldPhoneInput.render === 'function', 'FieldPhoneInput');
+      assert.equal(phoneFields.phoneRule, phone.phoneRule, 'one phoneRule');
+      assert(existsSync(resolve('@eldrajs/ui/package.json').replace('package.json', 'LICENSE-country-flag-icons')), 'the flag licence ships');
     `,
     types: `
       import * as ui from '@eldrajs/ui';
@@ -177,6 +191,14 @@ const consumers = {
       export const apiErrorsKey = API_ERRORS_KEY;
       export const fieldProps: FieldInputProps = { name: 'email', type: 'email', size: 'lg' };
       export const formProps: FormProps = { layout: 'two', apiErrors: { email: 'Taken.' } };
+      import { PhoneInput, phoneRule, parsePhone, type PhoneInputChange, type PhoneInputProps } from '@eldrajs/ui/phone';
+      import { FieldPhoneInput, type FieldPhoneInputProps } from '@eldrajs/ui/phone/vee-validate';
+      export const phoneComponents = { PhoneInput, FieldPhoneInput };
+      export const phoneProps: PhoneInputProps = { defaultCountry: 'IS', preferredCountries: ['IS'], size: 'lg' };
+      export const phoneFieldProps: FieldPhoneInputProps = { name: 'phone', defaultCountry: 'IS' };
+      export const phoneChange: PhoneInputChange | null = null;
+      export const phoneCheck: true | string = phoneRule({ country: 'IS' })('+3545812345');
+      export const phoneNational: string | undefined = parsePhone('+3545812345')?.national;
     `,
   },
   '@eldrajs/theme-core': {
@@ -300,6 +322,8 @@ async function main() {
         'vue@^3',
         // `@eldrajs/ui`'s optional peer: the `./vee-validate` entry is only reachable with it.
         'vee-validate@^4',
+        // `@eldrajs/ui`'s other optional peer: the `./phone` entries are only reachable with it.
+        'libphonenumber-js@^1.13.0',
         // …and the `./vue-i18n` entry with this one.
         'vue-i18n@^11',
         '@nuxt/kit@^4',

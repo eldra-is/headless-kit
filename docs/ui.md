@@ -37,6 +37,10 @@ table and Storybook for the full contract of each).
   fields that set the same value by another route.
 - `Select` / `MultiSelect` — a single- or multi-value select with a popover listbox.
 - `SearchBar` — a typeahead search field with a popover results panel.
+- `PhoneInput` — a phone number field with a searchable country picker, as-you-type spacing and
+  an E.164 value, from the `@eldrajs/ui/phone` entry (it needs the optional `libphonenumber-js`
+  peer; see `packages/ui/README.md`, "`./phone`"). `FieldPhoneInput` and `phoneRule` for
+  vee-validate are in `@eldrajs/ui/phone/vee-validate`.
 - `VariantPicker` — a product's option groups, rendered as pills or colour swatches.
 - `Link` — an inline or standalone link, with the package's own external-link and underline
   conventions.

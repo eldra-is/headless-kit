@@ -844,6 +844,32 @@
     }
   }
 }
+/* The ring while a popup opened from *inside* the element is open: `eldra-focus-open` for a box
+   that is not itself the trigger. `PhoneInput`'s field is a box around a country button and a
+   number input; the list opens from the button, focus moves into the list's search field (which is
+   teleported away), and the field would otherwise lose its ring while its own popup hangs off it.
+   A modifier of the same shape as `eldra-focus-open` and `eldra-focus-proxy`: it carries no ring
+   of its own and only turns on the one `eldra-focus` put on the element. */
+@utility eldra-focus-has-open {
+  &:has([aria-expanded='true']) {
+    --eldra-focus-alpha: 1;
+    @supports not (color: color-mix(in srgb, red, red)) {
+      --tw-ring-offset-shadow:
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner),
+        0 0 0 var(--eldra-focus-offset) var(--eldra-color-focus-inner);
+      --tw-ring-shadow: 0 0 0 calc(var(--eldra-focus-offset) + var(--eldra-focus-width))
+        var(--eldra-color-focus);
+    }
+  }
+  @media (forced-colors: active) {
+    &:has([aria-expanded='true']) {
+      outline-width: var(--eldra-focus-width);
+      outline-offset: var(--eldra-focus-offset);
+      outline-color: Highlight;
+    }
+  }
+}
 /* Proxy focus (spec 1 "Focus ring" → Proxy focus): "When the focusable element is visually hidden
    (the radio inside a size pill, the stretched link of a card), draw the ring on the visible shape
    (the pill, the whole card), not on the hidden element."
@@ -1158,6 +1184,17 @@
 }
 @utility eldra-select-panel-width {
   max-width: min(var(--eldra-select-panel-max-width, 22rem), 90vw);
+}
+
+/* A `PhoneInput` flag's edge. The artwork is 1.25 × 0.875rem; neither its corner nor its hairline
+   is a token (the radius scale starts at 0.375rem, more than a third of the flag's height), so
+   both are per-component variables with literal defaults, the same shape as `eldra-link-radius`.
+   The hairline keeps a white flag visible on a white field, and its fill shows until the artwork
+   has loaded. */
+@utility eldra-phone-flag {
+  border-radius: var(--eldra-phone-flag-radius, 2px);
+  box-shadow: 0 0 0 1px var(--eldra-phone-flag-border, var(--eldra-color-border));
+  background-color: var(--eldra-phone-flag-fill, var(--eldra-color-surface-strong));
 }
 
 /* The matched run of a filtered option (spec "Select" -> States, "Option filtered match"):

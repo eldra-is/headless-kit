@@ -567,6 +567,25 @@ export const enUS = {
   stepCompleted: 'completed',
   /** `StepIndicator`: the same, for a step after the current one. */
   stepNotStarted: 'not started',
+  /**
+   * `PhoneInput` (`@eldrajs/ui/phone`): the country button's accessible name, the chosen country
+   * and its dialling code ("Country: Iceland, +354").
+   */
+  phoneCountry: (name: string, code: string) => `Country: ${name}, ${code}`,
+  /** `PhoneInput`: the country list's accessible name. */
+  phoneCountryList: 'Country',
+  /** `PhoneInput`: the search field over the country list, its placeholder and its name. */
+  phoneSearch: 'Search country or code',
+  /** `PhoneInput`: the heading over the `preferredCountries`. */
+  phoneSuggested: 'Suggested',
+  /** `PhoneInput`: the heading over every other country. */
+  phoneAllCountries: 'All countries',
+  /** `PhoneInput`: the country list's empty state while a search is showing. */
+  phoneNoMatch: (query: string) => `No country matches “${query}”.`,
+  /** `phoneRule`: the number is not one the chosen country has. `country` is its localised name. */
+  phoneInvalid: (country: string) => `Enter a valid phone number for ${country}.`,
+  /** `phoneRule`: the same, when no country is known for the number. */
+  phoneInvalidNumber: 'Enter a valid phone number.',
 };
 
 /**
