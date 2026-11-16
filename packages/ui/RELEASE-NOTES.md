@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.8](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.7...ui-v0.3.8) (2026-11-16)
+
+
+### Features
+
+* **ui:** PhoneInput with a country picker and per-country validation (WS-1006) ([#138](https://github.com/eldra-is/headless-kit/issues/138)) ([438dff9](https://github.com/eldra-is/headless-kit/commit/438dff9eaf6968df45f2e33aba04b2aabd328268))
+
 ## [0.3.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.6...ui-v0.3.7) (2026-11-15)
 
 
