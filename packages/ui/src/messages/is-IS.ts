@@ -225,6 +225,15 @@ export const isIS: UiMessages = {
   formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
   stepCompleted: 'lokið',
   stepNotStarted: 'ekki hafið',
+  phoneCountry: (name: string, code: string) => `Land: ${name}, ${code}`,
+  phoneCountryList: 'Land',
+  phoneSearch: 'Leita að landi eða landsnúmeri',
+  phoneSuggested: 'Tillögur',
+  phoneAllCountries: 'Öll lönd',
+  phoneNoMatch: (query: string) => `Ekkert land passar við „${query}“.`,
+  // The name follows a colon so it stays in the nominative, the only case `Intl` gives.
+  phoneInvalid: (country: string) => `Símanúmerið er ekki gilt í landinu sem er valið: ${country}.`,
+  phoneInvalidNumber: 'Sláðu inn gilt símanúmer.',
 };
 
 export default isIS;

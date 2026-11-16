@@ -30,6 +30,20 @@ describe('EldraUiResolver', () => {
     }
   });
 
+  it('resolves EldraPhoneInput from the phone entry, which the root does not export', async () => {
+    expect(EldraUiResolver().resolve('EldraPhoneInput')).toEqual({
+      name: 'PhoneInput',
+      from: '@eldrajs/ui/phone',
+    });
+    const entry = await import('../resolver');
+    const phone = await import('../phone/index');
+    const { componentNames } = await import('../componentNames');
+    // Every component the phone entry exports, and none the root already has.
+    const exported = Object.keys(phone).filter((key) => /^[A-Z]/.test(key));
+    expect([...entry.phoneComponentNames]).toEqual(exported);
+    expect(componentNames.filter((name) => exported.includes(name))).toEqual([]);
+  });
+
   it('resolves under a custom prefix', () => {
     expect(EldraUiResolver({ prefix: 'Acme' }).resolve('AcmeSelect')).toEqual({
       name: 'Select',

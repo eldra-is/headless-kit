@@ -178,11 +178,13 @@ module.exports = [
   // Raised 160 kB -> 172 kB for the wrapper options (Popover, Select/MultiSelect with inside tags and
   // fit-to-width summaries, Toaster's external queue, Pagination, Radio, Button's static tag and `to`,
   // the field chrome on standalone controls): measured at 167.87 kB.
+  // Raised 172 kB -> 173 kB for `PhoneInput`'s eight messages and its two utilities' merge groups,
+  // the only parts of `@eldrajs/ui/phone` the root entry carries: measured at 172.27 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '172 kB',
+    limit: '173 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
@@ -193,6 +195,28 @@ module.exports = [
     import: '{ Badge }',
     ignore: ['vue', 'tailwind-merge'],
     limit: '12 kB',
+  },
+  // The phone entry (`@eldrajs/ui/phone`). Three rows, because three different things can grow:
+  // the component and the list it shares with `Select`; the phone library with its `min`
+  // metadata, which is the app's own optional peer; and the flag artwork, which must stay a lazy
+  // chunk. A static import of the flags anywhere on the entry's path fails the first two rows.
+  // Measured at 29.69 kB (of which the list shared with `Select` is most), 61.27 kB and 38.52 kB.
+  {
+    name: '@eldrajs/ui/phone — PhoneInput, without vue, the sdk, libphonenumber-js or the flags',
+    path: 'packages/ui/dist/phone.js',
+    ignore: ['vue', '@eldrajs/sdk', 'libphonenumber-js', './phoneFlagData-*'],
+    limit: '31 kB',
+  },
+  {
+    name: '@eldrajs/ui/phone — PhoneInput with libphonenumber-js (min), without vue, the sdk or the flags',
+    path: 'packages/ui/dist/phone.js',
+    ignore: ['vue', '@eldrajs/sdk', './phoneFlagData-*'],
+    limit: '63 kB',
+  },
+  {
+    name: '@eldrajs/ui/phone — the lazy flag chunk',
+    path: 'packages/ui/dist/phoneFlagData-*.js',
+    limit: '40 kB',
   },
   // The vue-i18n adapter: one shape per message function, the conversion, and the list join.
   // Measured at 3.83 kB.

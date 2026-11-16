@@ -22,7 +22,8 @@
     "dist",
     "CHANGELOG.md",
     "LICENSE",
-    "LICENSE-tabler-icons"
+    "LICENSE-tabler-icons",
+    "LICENSE-country-flag-icons"
   ],
   "type": "module",
   "sideEffects": [
@@ -44,6 +45,14 @@
     "./vue-i18n": {
       "types": "./dist/vue-i18n/index.d.ts",
       "import": "./dist/vue-i18n.js"
+    },
+    "./phone": {
+      "types": "./dist/phone/index.d.ts",
+      "import": "./dist/phone.js"
+    },
+    "./phone/vee-validate": {
+      "types": "./dist/phone/vee-validate/index.d.ts",
+      "import": "./dist/phone/vee-validate.js"
     },
     "./messages/is-IS": {
       "types": "./dist/messages/is-IS.d.ts",
@@ -67,6 +76,8 @@
     "check:tokens": "node scripts/build-tokens.mjs --check",
     "build-tabler-icons": "node scripts/build-tabler-icons.mjs",
     "check:tabler-icons": "node scripts/build-tabler-icons.mjs --check",
+    "build-phone-flags": "node scripts/build-phone-flags.mjs",
+    "check:phone-flags": "node scripts/build-phone-flags.mjs --check",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
     "lint": "oxlint src scripts",
     "test": "vitest run",
@@ -91,7 +102,9 @@
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",
+    "country-flag-icons": "1.6.20",
     "happy-dom": "^21.0.4",
+    "libphonenumber-js": "^1.13.16",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
     "postcss": "^8.5.32",
@@ -108,11 +121,15 @@
     "vue-tsc": "^3.3.11"
   },
   "peerDependencies": {
+    "libphonenumber-js": "^1.13.0",
     "vee-validate": "^4.12.0",
     "vue": "^3.5.0",
     "vue-i18n": "^11.0.0"
   },
   "peerDependenciesMeta": {
+    "libphonenumber-js": {
+      "optional": true
+    },
     "vee-validate": {
       "optional": true
     },

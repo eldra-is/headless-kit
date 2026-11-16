@@ -21,6 +21,8 @@ type KitGroup =
   | 'eldra-focus-inset-always'
   | 'eldra-focus-open'
   | 'eldra-focus-proxy'
+  | 'eldra-focus-has-open'
+  | 'eldra-phone-flag'
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
   | 'eldra-switch-thumb-offset'
@@ -267,6 +269,12 @@ const MERGE_CONFIG = {
       // leaves focused but not `:focus-visible`). It carries no base, so sharing a group with what
       // it modifies would let `cx` drop the ring and keep only the trigger.
       'eldra-focus-open': ['eldra-focus-open'],
+      // `eldra-focus-has-open` is the same modifier for a box whose popup opens from a button
+      // inside it (`PhoneInput`'s field), so it gets its own group for the same reason.
+      'eldra-focus-has-open': ['eldra-focus-has-open'],
+      // A `PhoneInput` flag's corner, hairline and loading fill in one rule: no stock group covers
+      // the three together, so it gets its own.
+      'eldra-phone-flag': ['eldra-phone-flag'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
       rounded: ['eldra-link-radius', 'eldra-select-check-radius'],
