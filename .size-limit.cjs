@@ -218,6 +218,14 @@ module.exports = [
     path: 'packages/ui/dist/phoneFlagData-*.js',
     limit: '40 kB',
   },
+  // The flag entry (`@eldrajs/ui/flag`): the component and the loader only. The artwork is the
+  // row above; a static import of it here fails this row.
+  {
+    name: '@eldrajs/ui/flag — CountryFlag, without vue or the flags',
+    path: 'packages/ui/dist/flag.js',
+    ignore: ['vue', './phoneFlagData-*'],
+    limit: '2 kB',
+  },
   // The vue-i18n adapter: one shape per message function, the conversion, and the list join.
   // Measured at 3.83 kB.
   {

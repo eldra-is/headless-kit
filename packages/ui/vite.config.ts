@@ -21,6 +21,7 @@ export default defineConfig({
         resolver: entry('./src/resolver.ts'),
         'vee-validate': entry('./src/vee-validate/index.ts'),
         'vue-i18n': entry('./src/vue-i18n/index.ts'),
+        flag: entry('./src/flag/index.ts'),
         phone: entry('./src/phone/index.ts'),
         'phone/vee-validate': entry('./src/phone/vee-validate/index.ts'),
         'messages/is-IS': entry('./src/messages/is-IS.ts'),

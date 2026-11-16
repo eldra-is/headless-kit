@@ -44,6 +44,19 @@ describe('EldraUiResolver', () => {
     expect(componentNames.filter((name) => exported.includes(name))).toEqual([]);
   });
 
+  it('resolves EldraCountryFlag from the flag entry, which the root does not export', async () => {
+    expect(EldraUiResolver().resolve('EldraCountryFlag')).toEqual({
+      name: 'CountryFlag',
+      from: '@eldrajs/ui/flag',
+    });
+    const entry = await import('../resolver');
+    const flag = await import('../flag/index');
+    const { componentNames } = await import('../componentNames');
+    const exported = Object.keys(flag).filter((key) => /^[A-Z]/.test(key));
+    expect([...entry.flagComponentNames]).toEqual(exported);
+    expect(componentNames.filter((name) => exported.includes(name))).toEqual([]);
+  });
+
   it('resolves under a custom prefix', () => {
     expect(EldraUiResolver({ prefix: 'Acme' }).resolve('AcmeSelect')).toEqual({
       name: 'Select',

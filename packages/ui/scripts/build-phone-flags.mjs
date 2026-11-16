@@ -82,7 +82,7 @@ function generate() {
 
 function license() {
   const text = readFileSync(join(dirname(packageJson), 'LICENSE'), 'utf8').trim();
-  return `The country flags drawn by PhoneInput (dist/phoneFlagData-*.js) are copied from\ncountry-flag-icons ${version} (https://gitlab.com/catamphetamine/country-flag-icons), under:\n\n${text}\n`;
+  return `The country flags drawn by CountryFlag and PhoneInput (dist/phoneFlagData-*.js) are copied from\ncountry-flag-icons ${version} (https://gitlab.com/catamphetamine/country-flag-icons), under:\n\n${text}\n`;
 }
 
 const { count, data } = generate();

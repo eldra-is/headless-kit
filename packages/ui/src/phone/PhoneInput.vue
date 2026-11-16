@@ -28,7 +28,6 @@ import { useMessages } from '../composables/useMessages';
 import { joinIds, useUiId } from '../utils/id';
 import { caretAfter, significantBefore } from './caret';
 import { phoneExample } from './examples';
-import { preloadPhoneFlags } from './flags';
 import {
   isValidPhone,
   phoneCallingCode,
@@ -37,7 +36,7 @@ import {
   typePhone,
   type PhoneInputState,
 } from './phone';
-import PhoneFlag from './PhoneFlag.vue';
+import CountryFlag from '../flag/CountryFlag.vue';
 import { phoneCountryName } from './rule';
 import type { PhoneInputChange, PhoneInputProps, PhoneInputSize } from './types';
 
@@ -196,7 +195,6 @@ onMounted(() => {
   if (props.country !== undefined && props.country !== country.value) {
     emit('update:country', country.value);
   }
-  void preloadPhoneFlags();
 });
 
 // --- typing --------------------------------------------------------------------------------------
@@ -463,7 +461,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus(), coun
       >
         <span :data-eldra-slot="eldra.slotHost('flag')" class="eldra:flex eldra:shrink-0">
           <slot name="flag" :country="country">
-            <PhoneFlag :country="country" :class="classes?.flag" />
+            <CountryFlag :country="country" :class="classes?.flag" />
           </slot>
         </span>
         <span data-part="callingCode" :class="classes?.callingCode">+{{ callingCode }}</span>
@@ -544,7 +542,7 @@ defineExpose({ control: controlRef, focus: () => controlRef.value?.focus(), coun
       >
         <template #optionContent="{ option, match }">
           <slot name="flag" :country="option.value">
-            <PhoneFlag :country="option.value" :class="classes?.flag" />
+            <CountryFlag :country="option.value" :class="classes?.flag" />
           </slot>
           <span
             data-part="optionLabel"

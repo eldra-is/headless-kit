@@ -7,7 +7,8 @@
  */
 export { default as PhoneInput } from './PhoneInput.vue';
 export { phoneExample } from './examples';
-export { preloadPhoneFlags } from './flags';
+// The name this entry released the preload under; `@eldrajs/ui/flag` has it as `preloadCountryFlags`.
+export { preloadCountryFlags as preloadPhoneFlags } from '../flag/flags';
 export {
   isValidPhone,
   parsePhone,

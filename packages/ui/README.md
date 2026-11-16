@@ -1274,6 +1274,40 @@ status region are the ones documented above. It adds:
 
 <a id="phone"></a>
 
+## `./flag`
+
+`@eldrajs/ui/flag` is a country's flag by its ISO 3166-1 alpha-2 code, for a country select, an
+address or a language switch. It needs no peer. It is an entry of its own because of its artwork,
+which the root entry never reaches.
+
+```vue
+<script setup lang="ts">
+import { CountryFlag } from '@eldrajs/ui/flag';
+</script>
+
+<template>
+  <!-- Beside the country's name: decorative, the name says it. -->
+  <span class="flex items-center gap-2"><CountryFlag country="NO" /> Norway</span>
+  <!-- On its own: give it a name. -->
+  <CountryFlag country="NO" label="Norway" />
+</template>
+```
+
+| Prop      | Type     | What it does                                                                     |
+| --------- | -------- | -------------------------------------------------------------------------------- |
+| `country` | `string` | The two-letter code, in either case. A code with no flag keeps the empty box     |
+| `label`   | `string` | Makes the flag an image with this name (`role="img"`). Without it, `aria-hidden` |
+
+The flag is 1.25 × 0.875rem (3:2); a `class` of your own sizes it differently. Its corner, hairline
+and loading fill are the `--eldra-phone-flag-*` variables under Customisation, the ones
+`PhoneInput`'s flags use. The artwork is
+[country-flag-icons](https://gitlab.com/catamphetamine/country-flag-icons) (MIT;
+`LICENSE-country-flag-icons` ships in the package), one lazy chunk of about 46 kB gzipped that is
+fetched when the first flag mounts in a browser and shared with `@eldrajs/ui/phone`. Until it
+arrives, and in server-rendered HTML, a flag is an empty box of the same size, so nothing moves.
+`preloadCountryFlags()` fetches it sooner. With the resolver, `<EldraCountryFlag>` imports from
+this entry.
+
 ## `./phone`
 
 `@eldrajs/ui/phone` is a phone number field with its country inside it. It is an entry of its own
@@ -1381,7 +1415,8 @@ the code are always in text, so the country is never told by a flag alone.
 (MIT; `LICENSE-country-flag-icons` ships in the package), copied into the package by
 `pnpm --filter @eldrajs/ui build-phone-flags`. It is one lazy chunk (about 46 kB gzipped), fetched
 when the first `PhoneInput` mounts in a browser; until then a flag is an empty box of the same
-size, so nothing moves. `preloadPhoneFlags()` fetches it sooner.
+size, so nothing moves. `preloadPhoneFlags()` fetches it sooner. The flag itself is `CountryFlag`
+from [`./flag`](#flag), for use outside the field.
 
 **Helpers**, from the same entry: `isValidPhone(value, country?)`, `parsePhone(value, country?)`
 (`{ e164, country, callingCode, nationalNumber, national, valid } | null`), `phoneCountries()`,

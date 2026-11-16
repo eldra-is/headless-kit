@@ -8,7 +8,7 @@ export interface EldraUiResolverOptions {
 
 interface ResolvedComponent {
   name: string;
-  from: '@eldrajs/ui' | '@eldrajs/ui/phone';
+  from: '@eldrajs/ui' | '@eldrajs/ui/phone' | '@eldrajs/ui/flag';
 }
 
 const componentNameSet: ReadonlySet<string> = new Set(componentNames);
@@ -20,6 +20,13 @@ const componentNameSet: ReadonlySet<string> = new Set(componentNames);
  */
 export const phoneComponentNames = ['PhoneInput'] as const;
 const phoneComponentNameSet: ReadonlySet<string> = new Set(phoneComponentNames);
+
+/**
+ * The components of `@eldrajs/ui/flag`, which the root entry does not export either: its artwork
+ * is a chunk the root entry must never reach.
+ */
+export const flagComponentNames = ['CountryFlag'] as const;
+const flagComponentNameSet: ReadonlySet<string> = new Set(flagComponentNames);
 
 /**
  * Resolver for [`unplugin-vue-components`](https://github.com/unplugin/unplugin-vue-components):
@@ -36,7 +43,8 @@ const phoneComponentNameSet: ReadonlySet<string> = new Set(phoneComponentNames);
  * A template can then use `<EldraButton>`, `<EldraSelect>`, and so on, with no explicit import —
  * the plugin rewrites the tag into `import { Button } from '@eldrajs/ui'` (auto-imported, not
  * globally registered) the first time it sees it. `<EldraPhoneInput>` resolves the same way from
- * `@eldrajs/ui/phone` (`phoneComponentNames`), the entry that needs `libphonenumber-js`. `EldraUiResolver` resolves against exactly the
+ * `@eldrajs/ui/phone` (`phoneComponentNames`), the entry that needs `libphonenumber-js`, and
+ * `<EldraCountryFlag>` from `@eldrajs/ui/flag` (`flagComponentNames`). `EldraUiResolver` resolves against exactly the
  * names in `componentNames` (`src/index.ts`'s component exports — see
  * `src/__tests__/componentNames.spec.ts` for the guard that keeps the two in sync); anything else,
  * including the private library's own `Ui*` names, resolves to `undefined` and is left for another
@@ -59,6 +67,8 @@ export function EldraUiResolver(options: EldraUiResolverOptions = {}): {
       if (componentNameSet.has(componentName)) return { name: componentName, from: '@eldrajs/ui' };
       if (phoneComponentNameSet.has(componentName))
         return { name: componentName, from: '@eldrajs/ui/phone' };
+      if (flagComponentNameSet.has(componentName))
+        return { name: componentName, from: '@eldrajs/ui/flag' };
       return undefined;
     },
   };
