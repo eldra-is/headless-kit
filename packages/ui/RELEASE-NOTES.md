@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.8...ui-v0.3.9) (2026-11-16)
+
+
+### Features
+
+* **ui:** country flags from @eldrajs/ui/flag, and Select all in MultiSelect (WS-1013) ([#140](https://github.com/eldra-is/headless-kit/issues/140)) ([b38ad62](https://github.com/eldra-is/headless-kit/commit/b38ad62b150727d03a114d22a1c12070fb7196b8))
+
 ## [0.3.8](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.7...ui-v0.3.8) (2026-11-16)
 
 
