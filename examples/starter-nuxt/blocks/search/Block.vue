@@ -398,7 +398,7 @@ const sectionAriaLabel = computed(() =>
 /** Spec "Search results page" → Container/Section: "2rem top, `section-md` bottom" — the shared
  *  `sm`/`md`/`lg` scale is symmetric, so `spacing="none"` on `Section` and the padding is written
  *  here, the same pattern `collection-header`'s/`footer`'s own asymmetric padding uses. */
-const sectionClasses = { root: 'pt-8 pb-[var(--eldra-section-md)]' };
+const sectionClass = 'pt-8 pb-[var(--eldra-section-md)]';
 
 const headingClass =
   'font-heading text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em] break-words ' +
@@ -408,7 +408,7 @@ const headingClass =
 <template>
   <Section
     spacing="none"
-    :classes="sectionClasses"
+    :class="sectionClass"
     :labelled-by="sectionLabelledBy"
     :aria-label="sectionAriaLabel"
   >

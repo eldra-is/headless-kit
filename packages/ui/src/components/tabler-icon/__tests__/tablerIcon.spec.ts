@@ -80,29 +80,29 @@ describe('TablerIcon', () => {
   });
 
   it.each([
-    ['sm', 'size-4'],
-    ['md', 'size-5'],
-    ['lg', 'size-6'],
-    ['xl', 'size-8'],
+    ['sm', 'eldra:size-4'],
+    ['md', 'eldra:size-5'],
+    ['lg', 'eldra:size-6'],
+    ['xl', 'eldra:size-8'],
   ] as Array<[IconSize, string]>)("renders Icon's size %s as %s", (size, expected) => {
     const wrapper = mountWith(TablerIcon, { props: { name: 'IconCalendar', size } });
-    expect(wrapper.classes()).toEqual(expect.arrayContaining([expected, 'shrink-0']));
+    expect(wrapper.classes()).toEqual(expect.arrayContaining([expected, 'eldra:shrink-0']));
     wrapper.unmount();
   });
 
   it('defaults to the medium size and marks its root part', () => {
     const wrapper = mountWith(TablerIcon, { props: { name: 'IconCalendar' } });
-    expect(wrapper.classes()).toContain('size-5');
+    expect(wrapper.classes()).toContain('eldra:size-5');
     expect(wrapper.attributes('data-part')).toBe('root');
     wrapper.unmount();
   });
 
-  it('lets classes.root replace a conflicting utility', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(TablerIcon, {
-      props: { name: 'IconCalendar', classes: { root: 'size-12 text-accent' } },
+      props: { name: 'IconCalendar' },
+      attrs: { class: 'size-12 text-accent' },
     });
     expect(wrapper.classes()).toEqual(expect.arrayContaining(['size-12', 'text-accent']));
-    expect(wrapper.classes()).not.toContain('size-5');
     wrapper.unmount();
   });
 
@@ -127,7 +127,7 @@ describe('TablerIcon', () => {
 
   it('renders in a narrow container', () => {
     const wrapper = mountNarrow(TablerIcon, { props: { name: 'IconCalendar', size: 'xl' } });
-    expect(wrapper.classes()).toContain('size-8');
+    expect(wrapper.classes()).toContain('eldra:size-8');
     wrapper.unmount();
   });
 

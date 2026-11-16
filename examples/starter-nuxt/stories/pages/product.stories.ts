@@ -17,9 +17,8 @@ import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlock
 
 const fixture = productPage as unknown as PageFixture;
 
-const SKIP_LINK_CLASSES = {
-  root: 'bg-primary text-primary-contrast rounded-md sr-only px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50',
-};
+const SKIP_LINK_CLASS =
+  'bg-primary text-primary-contrast rounded-md sr-only px-4 py-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50';
 
 const ProductPage = defineComponent({
   name: 'ProductPageStory',
@@ -28,7 +27,7 @@ const ProductPage = defineComponent({
     return () => [
       h(
         Link,
-        { href: '#main', as: EldraRouterLink, variant: 'standalone', classes: SKIP_LINK_CLASSES },
+        { href: '#main', as: EldraRouterLink, variant: 'standalone', class: SKIP_LINK_CLASS },
         { default: () => t('nav.skipToContent') }
       ),
       ...renderPageFixtureRegions(fixture, 'Pages/Product story'),

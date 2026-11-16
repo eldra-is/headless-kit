@@ -760,7 +760,7 @@ describe('product-carousel block', () => {
       const { storefront, revalidating } = refreshableSource();
       const wrapper = mountBlock(mock, { storefront });
       await flushPromises();
-      const region = () => wrapper.get('p.sr-only[role="status"]');
+      const region = () => wrapper.get('p.eldra\\:sr-only[role="status"]');
 
       // Mounted and empty first: a live region that arrives already holding its message is
       // announced unreliably, which is what a prerendered page would produce if the block read
@@ -771,7 +771,7 @@ describe('product-carousel block', () => {
       await flushPromises();
 
       expect(region().text()).toBe(enUS.storefront.updatingValues);
-      expect(wrapper.findAll('p.sr-only[role="status"]')).toHaveLength(1);
+      expect(wrapper.findAll('p.eldra\\:sr-only[role="status"]')).toHaveLength(1);
       // `announce: false` on every card — the per-value regions are gone, not merely empty.
       expect(wrapper.findAll('[data-part="srStatus"]')).toHaveLength(0);
       expect(
@@ -794,12 +794,14 @@ describe('product-carousel block', () => {
       const wrapper = mountBlock(mock, { storefront });
 
       expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
-      expect(wrapper.get('p.sr-only[role="status"]').text()).toBe('');
+      expect(wrapper.get('p.eldra\\:sr-only[role="status"]').text()).toBe('');
 
       await flushPromises();
 
       expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
-      expect(wrapper.get('p.sr-only[role="status"]').text()).toBe(enUS.storefront.updatingValues);
+      expect(wrapper.get('p.eldra\\:sr-only[role="status"]').text()).toBe(
+        enUS.storefront.updatingValues
+      );
     });
 
     it('never draws a skeleton over cards the visitor can already see', async () => {
@@ -848,10 +850,16 @@ describe('product-carousel block', () => {
 
     /**
      * Every utility rule the build emits, in source order, with the container query it sits under.
-     * Only `@layer utilities`: the same stylesheet carries a preflight `padding: 0` and the
+     * Only `@layer components` (the package's prebuilt, `eldra:`-prefixed rules) and `@layer
+     * utilities` (this theme's own): the same stylesheet carries a preflight `padding: 0` and the
      * rich-text `padding-left` of a blockquote, and neither is on this element.
      */
-    type Rule = { condition: string; declarations: Array<[string, string]> };
+    type Rule = {
+      condition: string;
+      layer: string;
+      selector: string;
+      declarations: Array<[string, string]>;
+    };
 
     function flatten(css: string, condition: string, layer: string, out: Rule[]): void {
       let i = 0;
@@ -875,9 +883,11 @@ describe('product-carousel block', () => {
             namedLayer ? namedLayer[1]! : layer,
             out
           );
-        } else if (layer === 'utilities') {
+        } else if (layer === 'utilities' || layer === 'components') {
           out.push({
             condition,
+            layer,
+            selector: head,
             declarations: body
               .split(';')
               .map((part) => part.trim())
@@ -915,7 +925,15 @@ describe('product-carousel block', () => {
       });
       const rules: Rule[] = [];
       flatten(compiler.build(classes), '', '', rules);
-      return rules;
+      // `components.css` ships whole, whatever the candidates, so only its rules for this
+      // element's own classes apply; and every utility outranks every component rule by layer.
+      const own = new Set(classes.map((name) => `.${name}`));
+      return [
+        ...rules.filter(
+          (rule) => rule.layer === 'components' && own.has(rule.selector.replace(/\\(.)/g, '$1'))
+        ),
+        ...rules.filter((rule) => rule.layer === 'utilities'),
+      ];
     }
 
     /** `max(bleed, reach)` can only be at least the reach; the bare reach is exactly it. */

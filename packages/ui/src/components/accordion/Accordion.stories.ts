@@ -11,9 +11,6 @@ const meta = {
   title: 'Navigation/Accordion',
   component: Accordion,
   tags: ['autodocs'],
-  argTypes: {
-    classes: { table: { disable: true } },
-  },
   parameters: {
     docs: {
       description: {
@@ -31,8 +28,8 @@ const meta = {
           'no JavaScript coordinates it.',
           '',
           '**`AccordionItem`** (`title`, `help`, `modelValue` two-way, `headingLevel`, `href`).',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the `<details>`),',
-          '`summary`, `title`, `help`, `chevron`, `panel`. A link row (`href` set) renders only',
+          '**Parts** (`data-part`): `root` (the `<details>`, styled with `class`), and the keys of',
+          'the `classes` prop: `summary`, `title`, `help`, `chevron`, `panel`. A link row (`href` set) renders only',
           '`root`, as a plain `<a>` — no `summary`, `chevron` or `panel`.',
           '',
           "**Two-way state, not the spec's own `open`.** Every stateful control in this package",

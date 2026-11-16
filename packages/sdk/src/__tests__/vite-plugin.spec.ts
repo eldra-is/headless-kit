@@ -3,7 +3,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ELDRA_API_BASE_URL } from '../client';
-import { createContractSource, eldra, generateEldraFiles } from '../vite-plugin';
+import {
+  createContractSource,
+  eldra,
+  generateEldraFiles,
+  retargetSdkAugmentation,
+} from '../vite-plugin';
 
 let tmpRoot: string | undefined;
 
@@ -67,7 +72,7 @@ describe('eldra vite plugin generator', () => {
     });
 
     expect(calls.map((call) => call.url)).toEqual([
-      'https://api.example.test/api/cms/v1/typescript-definitions?moduleName=Storefront&maxDepth=2&schemas=blog%2Cauthor',
+      'https://api.example.test/api/cms/v1/typescript-definitions?moduleName=Storefront&sdkAugmentation=true&maxDepth=2&schemas=blog%2Cauthor',
       'https://api.example.test/api/public/openapi.json',
     ]);
     expect(calls[0].headers.get('X-Org-Id')).toBe('org-123');
@@ -93,6 +98,47 @@ describe('eldra vite plugin generator', () => {
 
     expect(await readFile(join(out, 'index.ts'), 'utf8')).toBe(
       "export * from './client';\nexport * from './contract';\n"
+    );
+  });
+
+  it('writes the product extensions augmentation the server emits, aimed at the SDK import', async () => {
+    const augmented =
+      'export interface StorefrontProductExtensions {\n  "clothing"?: ClothingData<0>;\n}\n' +
+      "declare module '@eldrajs/sdk' {\n  interface EldraProductExtensions extends StorefrontProductExtensions {}\n}\n";
+    const out = async (sdkImport?: string) => {
+      tmpRoot = await mkdtemp(join(tmpdir(), 'eldra-'));
+      const { fetch } = gateway({ cms: new Response(augmented) });
+      await generateEldraFiles(tmpRoot, {
+        apiBaseUrl: 'https://api.example.test/api',
+        orgId: 'org-123',
+        sdkImport,
+        fetch,
+      });
+      const text = await readFile(join(tmpRoot, '.eldra/web-studio/cms-types.ts'), 'utf8');
+      await rm(tmpRoot, { force: true, recursive: true });
+      tmpRoot = undefined;
+      return text;
+    };
+
+    expect(await out()).toBe(augmented);
+    expect(await out('~/vendor/sdk')).toBe(augmented.replace('@eldrajs/sdk', '~/vendor/sdk'));
+  });
+
+  it('retargets a declaration written with either quote style', () => {
+    expect(retargetSdkAugmentation('declare module "@eldrajs/sdk" {}', '~/sdk')).toBe(
+      'declare module "~/sdk" {}'
+    );
+    expect(retargetSdkAugmentation("declare module '@eldrajs/sdk' {}", '~/sdk')).toBe(
+      "declare module '~/sdk' {}"
+    );
+  });
+
+  it('retargets only the module declaration, never other text', () => {
+    expect(retargetSdkAugmentation("// from '@eldrajs/sdk'\n", 'x')).toBe(
+      "// from '@eldrajs/sdk'\n"
+    );
+    expect(retargetSdkAugmentation("declare module '@eldrajs/sdk' {}", '@eldrajs/sdk')).toBe(
+      "declare module '@eldrajs/sdk' {}"
     );
   });
 
@@ -243,7 +289,7 @@ describe('eldra vite plugin generator', () => {
     await generateEldraFiles(tmpRoot, { orgId: 'org-123', fetch });
 
     expect(calls[0].url).toBe(
-      `${DEFAULT_ELDRA_API_BASE_URL}/cms/v1/typescript-definitions?moduleName=EldraCMS`
+      `${DEFAULT_ELDRA_API_BASE_URL}/cms/v1/typescript-definitions?moduleName=EldraCMS&sdkAugmentation=true`
     );
     expect(calls[1].url).toBe(`${DEFAULT_ELDRA_API_BASE_URL}/public/openapi.json`);
   });

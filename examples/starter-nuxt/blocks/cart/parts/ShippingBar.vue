@@ -90,7 +90,7 @@ const rootClass = computed(() =>
       </template>
       <template v-else>
         <span>{{ awayParts.before }}</span>
-        <Price :amount="money.minor(remaining)" :classes="{ root: 'inline font-semibold' }" />
+        <Price :amount="money.minor(remaining)" class="inline font-semibold" />
         <span>{{ awayParts.after }}</span>
       </template>
     </div>

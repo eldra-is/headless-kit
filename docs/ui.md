@@ -37,6 +37,12 @@ table and Storybook for the full contract of each).
   fields that set the same value by another route.
 - `Select` / `MultiSelect` — a single- or multi-value select with a popover listbox.
 - `SearchBar` — a typeahead search field with a popover results panel.
+- `PhoneInput` — a phone number field with a searchable country picker, as-you-type spacing and
+  an E.164 value, from the `@eldrajs/ui/phone` entry (it needs the optional `libphonenumber-js`
+  peer; see `packages/ui/README.md`, "`./phone`"). `FieldPhoneInput` and `phoneRule` for
+  vee-validate are in `@eldrajs/ui/phone/vee-validate`.
+- `CountryFlag` — a country's flag by its two-letter code, from the `@eldrajs/ui/flag` entry (no
+  peer; the artwork is a lazy chunk shared with `PhoneInput`).
 - `VariantPicker` — a product's option groups, rendered as pills or colour swatches.
 - `Link` — an inline or standalone link, with the package's own external-link and underline
   conventions.
@@ -67,6 +73,12 @@ table and Storybook for the full contract of each).
   with a "+N" overflow count.
 - `LogoItem` — one logo cell in a stockist or press logo cloud.
 - `Skeleton` — a neutral, shimmering loading placeholder shape.
+- `Spinner` — the turning circle `Button` draws while loading, for a wait outside a button;
+  decorative unless `label` names it.
+- `Notice` — an inline message that stays in the page flow (information, success, warning or
+  danger), with an optional icon, title and actions; a polite status, or an alert for danger.
+- `StepIndicator` — a non-interactive ordered list of done, current and upcoming steps,
+  horizontal or vertical, each with an optional secondary line.
 - `EmptyState` — the shared "nothing here / no results / error" panel shown inside a block.
 - `EditorPlaceholder` — Studio's own hint for an unfilled block field; never rendered on the live
   storefront.
@@ -229,27 +241,21 @@ currency rather than formatting an amount in it. It never throws. All of them si
 
 ## Styles
 
-Pick one of four CSS entries, depending on how the consuming project builds CSS:
+The components ship prebuilt: a project never compiles the package's styles and needs no Tailwind
+to use them. Every class a component renders is `eldra:`-prefixed and every variable it reads is
+`--eldra-*`, so nothing collides with a project's own Tailwind. The styles sit in
+`@layer components`, below Tailwind's `utilities`, so a class you put on a component (`class`,
+`classes`) wins over the component's own.
 
-- `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
-- `@eldrajs/ui/tailwind.css` — the tokens plus a Tailwind v4 `@theme` block and the package's own
-  utilities, for a project that runs Tailwind v4 itself:
-
-  ```css
-  @import 'tailwindcss';
-  @import '@eldrajs/ui/tailwind.css';
-  ```
-
-- `@eldrajs/ui/style.css` — the package's own compiled stylesheet, for a project with no Tailwind
-  build of its own:
+- `@eldrajs/ui/style.css` — the compiled components with Tailwind's page-wide reset, for a page
+  built from the package:
 
   ```css
   @import '@eldrajs/ui/style.css';
   ```
 
-- `@eldrajs/ui/components.css` — the same stylesheet without Tailwind's page-wide reset, for a site
-  with its own CSS that adds a few components: its own headings, lists and links keep their
-  browser defaults.
+- `@eldrajs/ui/components.css` — the same without the page-wide reset, for a site with its own CSS
+  or its own Tailwind: its own headings, lists and links keep their defaults.
 
   ```css
   @import '@eldrajs/ui/components.css';
@@ -262,6 +268,21 @@ Pick one of four CSS entries, depending on how the consuming project builds CSS:
   hook. The one exception: an element with its own `data-part` passed into a component's slot is
   inside the scope and gets the reset too.
 
+- `@eldrajs/ui/tokens.css` — the `--eldra-*` design token variables only.
+- `@eldrajs/ui/tailwind.css` — for a project running Tailwind v4 whose own markup should use the
+  same tokens: the tokens, a `@theme` block and the package's utilities. It builds no component,
+  so import the prebuilt ones beside it:
+
+  ```css
+  @import 'tailwindcss';
+  @import '@eldrajs/ui/tailwind.css';
+  @import '@eldrajs/ui/components.css';
+  ```
+
+`provideEldraScope(name)` marks every component below it with `data-eldra-scope="<name>"`,
+teleported parts included, so `[data-eldra-scope='<name>'] { --eldra-color-primary: … }` re-themes
+those alone. The package README's "Styles" section has the details.
+
 ## Forms
 
 The form components are validation-agnostic: `FieldWrapper` takes an `error` string, `Input` takes
@@ -269,7 +290,15 @@ The form components are validation-agnostic: `FieldWrapper` takes an `error` str
 [vee-validate](https://vee-validate.logaretm.com/v4/), the optional `@eldrajs/ui/vee-validate` entry
 ships `Form` (over `useForm` and `FormLayout`) and a `Field*` component per control (over
 `useField`) — see `packages/ui/README.md`'s `./vee-validate` section for the exact list.
-`vee-validate ^4.12` is an optional peer; nothing else in the package imports it.
+`vee-validate ^4.12` is an optional peer; nothing else in the package imports it. A `Field*`
+validates when it loses focus and when the form is submitted. A typed field (`FieldInput`,
+`FieldTextarea`…) never validates while typing; a choice field (`FieldCheckbox`, `FieldSelect`…)
+also validates on each change. Three props per field change that: `validateOnBlur` (default
+`true`), `validateOnValueUpdate` (default `false` typed, `true` choice) and `validateOnMount`
+(default `false`; it also shows the message at once).
+
+The components' own text (close, clear, "N results"…) can come from the app's vue-i18n through the
+optional `@eldrajs/ui/vue-i18n` entry (`useEldraUiI18n()`); see the README's Messages section.
 
 ```vue
 <Form :validation-schema="schema" @submit="send">

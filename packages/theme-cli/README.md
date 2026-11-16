@@ -19,6 +19,12 @@ pnpm exec eldra-theme types --schemas page,hero --out generated/eldra.d.ts
 pnpm exec eldra-theme deploy
 ```
 
+`eldra-theme types` writes the org's CMS schema types, including a `declare module '@eldrajs/sdk'`
+block that fills the SDK's `EldraProductExtensions` registry, so `product.extensions` is typed. Pass
+`--no-sdk-augmentation` in a project that does not depend on `@eldrajs/sdk`; the file then has plain
+interfaces only and never names a module the project cannot resolve. `eldra-theme types --blocks`
+writes only `.eldra/block-types.d.ts`, from the theme's `block.json` files, with no gateway.
+
 See [docs/themes.md](../../docs/themes.md) for the full theme integration guide.
 
 ## Development

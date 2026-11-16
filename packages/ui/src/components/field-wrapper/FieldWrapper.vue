@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { computed, h, inject, provide, useSlots, type FunctionalComponent } from 'vue';
+import { computed, h, inject, provide, useAttrs, useSlots, type FunctionalComponent } from 'vue';
 import { useMessages } from '../../composables/useMessages';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
+import { mergeClass } from '../../utils/mergeClass';
 import { FORM_LAYOUT_KEY } from '../form-layout/context';
 import { FIELD_KEY, type FieldContext } from './context';
 import FieldError from './FieldError.vue';
+import RequiredMark from './RequiredMark.vue';
 import type { FieldWrapperProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(defineProps<FieldWrapperProps>(), {
+  label: undefined,
   id: undefined,
   required: false,
   optional: false,
@@ -22,6 +29,11 @@ const props = withDefaults(defineProps<FieldWrapperProps>(), {
 });
 
 const slots = useSlots();
+const attrs = useAttrs();
+const forwardedAttrs = computed(() => {
+  const { class: _class, ...rest } = attrs;
+  return rest;
+});
 const m = useMessages();
 
 /**
@@ -41,7 +53,7 @@ const errorId = computed(() => `${controlId.value}-error`);
 const counterId = computed(() => `${controlId.value}-counter`);
 
 /** Slots are not reactive; see `useSlotPresence` for the defect this avoids. */
-const slotContent = useSlotPresence(slots, ['error', 'help'] as const);
+const slotContent = useSlotPresence(slots, ['error', 'help', 'label'] as const);
 
 /**
  * A slot counts as content: `<template #error>` is a richer way of writing the `error` prop (a
@@ -51,6 +63,12 @@ const slotContent = useSlotPresence(slots, ['error', 'help'] as const);
 const hasError = computed(() => Boolean(props.error) || slotContent.value.error);
 const hasHelp = computed(() => Boolean(props.help) || slotContent.value.help);
 const hasCounter = computed(() => props.counter !== undefined);
+
+/**
+ * A field with no visible label is one whose control is named some other way (`aria-label`), so
+ * the wrapper draws no empty `<label>` for it. `label=""` still renders one, as it always has.
+ */
+const hasLabel = computed(() => props.label !== undefined || slotContent.value.label);
 const hasFoot = computed(() => hasHelp.value || hasCounter.value);
 
 /**
@@ -77,6 +95,7 @@ const describedBy = computed(() => {
 const context = computed<FieldContext>(() => ({
   id: controlId.value,
   labelId: labelId.value,
+  labelled: hasLabel.value,
   describedBy: describedBy.value,
   invalid: hasError.value,
   required: props.required,
@@ -114,14 +133,22 @@ const isInline = computed(() => layout?.value === 'inline' && !props.group);
 
 /** Spec "Field wrapper" → Properties: a counter with no `value` is an empty field, so "0 / max". */
 const count = computed(() => props.counter?.value ?? 0);
-const isOverLimit = computed(() => props.counter !== undefined && count.value > props.counter.max);
+const isOverLimit = computed(
+  () => props.counter?.max !== undefined && count.value > props.counter.max
+);
+/** With no `max` the counter is the length alone: there is no limit to read it against. */
+const counterText = computed(() =>
+  props.counter?.max === undefined
+    ? String(count.value)
+    : m.value.counter(count.value, props.counter.max)
+);
 
 /**
  * One root, two shapes. A `group` is a `<fieldset>` named by its `<legend>` and described as a
  * whole: there is no single control for a `<label for>` to point at, so `aria-describedby` and
  * `aria-invalid` sit on the fieldset itself. Everything inside is identical either way, which is
  * why the template branches on the tag rather than duplicating itself — and why the root stays a
- * single node, as `@vue/test-utils` and every `classes` override expect.
+ * single node, as `@vue/test-utils` and a consumer's `class` expect.
  *
  * The vertical rhythm (spec "Field wrapper" → Sizes, "Vertical rhythm"): "Grid with a 0.25rem gap:
  * label → control 0.375rem (gap + label margin), control → help/error 0.25rem." So the gap is the
@@ -141,16 +168,18 @@ const isOverLimit = computed(() => props.counter !== undefined && count.value > 
  * and a browser moves focus to a fragment's target only when that target can take focus. `-1`
  * keeps it out of the tab order while making the link actually land on the question it names.
  */
+// RangeFacet's plain Min / Max fields override the root.
 const rootClass = computed(() =>
-  partClass(
-    cx(
-      'grid content-start gap-1',
-      props.group && 'min-w-0 gap-3 rounded-none border-0 p-0',
-      isInline.value && 'contents',
-      spansBothColumns.value && '@two-col:col-span-2'
-    ),
-    props.classes,
-    'root'
+  mergeClass(
+    [
+      isInline.value ? 'eldra:contents' : 'eldra:grid',
+      'eldra:content-start',
+      props.group
+        ? 'eldra:min-w-0 eldra:gap-3 eldra:rounded-none eldra:border-0 eldra:p-0'
+        : 'eldra:gap-1',
+      spansBothColumns.value && 'eldra:@two-col:col-span-2',
+    ],
+    attrs.class
   )
 );
 
@@ -169,12 +198,13 @@ const rootClass = computed(() =>
  * duplicated `v-if`/`v-else` pair of the same two elements is exactly the kind of thing that drifts
  * apart later. It carries no `data-part`, because it is not one of the spec's parts.
  */
-const GROUP_INLINE = 'grid min-w-0 flex-[1_1_14rem] content-start gap-1';
+const GROUP_INLINE =
+  'eldra:grid eldra:min-w-0 eldra:flex-[1_1_14rem] eldra:content-start eldra:gap-1';
 const LabelAndControl: FunctionalComponent = (_props, { slots: own }) =>
   isInline.value ? h('div', { class: GROUP_INLINE }, own.default?.()) : (own.default?.() ?? []);
 
 /** In an inline row the error and the foot take a full-width row of their own, below the button. */
-const INLINE_ROW = 'order-1 w-full basis-full';
+const INLINE_ROW = 'eldra:order-1 eldra:w-full eldra:basis-full';
 
 /**
  * Spec "Field wrapper" → States: the label is `text` in every state, including error — "Don't turn
@@ -184,51 +214,44 @@ const INLINE_ROW = 'order-1 w-full basis-full';
  * The legend is the same type style with the fieldset variant's own 0.5rem bottom margin, and with
  * the `padding-inline` a `<legend>` carries by default removed.
  */
-const LABEL_TYPE = 'text-label text-text block w-fit';
-const labelClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-0.5'), props.classes, 'label'));
-const legendClass = computed(() => partClass(cx(LABEL_TYPE, 'mb-2 p-0'), props.classes, 'legend'));
-
-/** 0.125rem start margin, `danger`, inheriting the label's weight 600. */
-const requiredMarkClass = computed(() =>
-  partClass('text-danger ms-0.5', props.classes, 'requiredMark')
-);
+const LABEL_TYPE = 'eldra:text-label eldra:text-text eldra:block eldra:w-fit';
+// RangeFacet's plain Min / Max fields override the label.
+const labelClass = computed(() => mergeClass([LABEL_TYPE, 'eldra:mb-0.5'], props.classes?.label));
+const legendClass = computed(() => [LABEL_TYPE, 'eldra:mb-2 eldra:p-0', props.classes?.legend]);
 
 /** 0.25rem start margin, `muted`, weight 400 against the label's 600. */
-const optionalTextClass = computed(() =>
-  partClass('text-muted ms-1 font-normal', props.classes, 'optionalText')
-);
+const optionalTextClass = computed(() => [
+  'eldra:text-muted eldra:ms-1 eldra:font-normal',
+  props.classes?.optionalText,
+]);
 
 /** The control's row. `min-w-0` because a grid item's default `auto` floor would let it overflow. */
-const controlClass = computed(() => partClass('min-w-0', props.classes, 'control'));
+const controlClass = computed(() => ['eldra:min-w-0', props.classes?.control]);
 
 /** Spec "Field wrapper" → Sizes, Foot row: "help and counter on one line, 0.75rem gap". */
-const footClass = computed(() =>
-  partClass(
-    cx('flex flex-wrap items-baseline gap-x-3 gap-y-1', isInline.value && INLINE_ROW),
-    props.classes,
-    'foot'
-  )
-);
+const footClass = computed(() => [
+  'eldra:flex eldra:flex-wrap eldra:items-baseline eldra:gap-x-3 eldra:gap-y-1',
+  isInline.value && INLINE_ROW,
+  props.classes?.foot,
+]);
 
 /** 0.8125rem / 1.45, weight 400, `muted`. */
-const helpClass = computed(() =>
-  partClass('text-field-note text-muted min-w-0 font-normal', props.classes, 'help')
-);
+const helpClass = computed(() => [
+  'eldra:text-field-note eldra:text-muted eldra:min-w-0 eldra:font-normal',
+  props.classes?.help,
+]);
 
 /**
  * Spec "Field wrapper" → Sizes, Counter row: "0.8125rem / 1.5, tabular numerals, no wrap … pushed
  * to the end of the foot row", `muted` weight 400 under the limit and `danger` weight 600 over it.
  */
-const counterClass = computed(() =>
-  partClass(
-    cx(
-      'text-counter ms-auto shrink-0 tabular-nums whitespace-nowrap',
-      isOverLimit.value ? 'text-danger font-semibold' : 'text-muted font-normal'
-    ),
-    props.classes,
-    'counter'
-  )
-);
+const counterClass = computed(() => [
+  'eldra:text-counter eldra:ms-auto eldra:shrink-0 eldra:tabular-nums eldra:whitespace-nowrap',
+  isOverLimit.value
+    ? 'eldra:text-danger eldra:font-semibold'
+    : 'eldra:text-muted eldra:font-normal',
+  props.classes?.counter,
+]);
 </script>
 
 <template>
@@ -236,31 +259,40 @@ const counterClass = computed(() =>
     :is="group ? 'fieldset' : 'div'"
     :id="group ? controlId : undefined"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :tabindex="group ? -1 : undefined"
     :aria-describedby="group ? describedBy : undefined"
     :aria-invalid="group && hasError ? 'true' : undefined"
+    v-bind="forwardedAttrs"
   >
     <LabelAndControl>
       <component
         :is="group ? 'legend' : 'label'"
+        v-if="hasLabel"
+        :data-eldra-slot="eldra.slotHost('label', 'labelSuffix')"
         :id="labelId"
         :for="group ? undefined : controlId"
         :data-part="group ? 'legend' : 'label'"
         :class="group ? legendClass : labelClass"
       >
         <slot name="label">{{ label }}</slot>
-        <!-- The asterisk is decorative: the control's native `required` is what announces it. -->
-        <span v-if="required" data-part="requiredMark" :class="requiredMarkClass" aria-hidden="true"
-          >*</span
-        >
-        <span v-else-if="optional" data-part="optionalText" :class="optionalTextClass"
+        <RequiredMark v-if="required" :classes="classes" />
+        <span
+          v-else-if="optional"
+          :data-eldra-scope="eldra.scope"
+          data-part="optionalText"
+          :class="optionalTextClass"
           >({{ m.optional }})</span
         >
+        <!-- After the marks, and inside the label: its text is part of the control's name. -->
+        <slot name="labelSuffix" />
       </component>
 
-      <div data-part="control" :class="controlClass"><slot /></div>
+      <div :data-eldra-slot="eldra.slotHost('default')" data-part="control" :class="controlClass">
+        <slot />
+      </div>
     </LabelAndControl>
 
     <!-- The error row is `FieldError`, shared with `CheckboxGroup`: the `error` and `errorIcon`
@@ -274,11 +306,17 @@ const counterClass = computed(() =>
     >
 
     <div v-if="hasFoot" data-part="foot" :class="footClass">
-      <span v-if="hasHelp" :id="helpId" data-part="help" :class="helpClass">
+      <span
+        v-if="hasHelp"
+        :data-eldra-slot="eldra.slotHost('help')"
+        :id="helpId"
+        data-part="help"
+        :class="helpClass"
+      >
         <slot name="help">{{ help }}</slot>
       </span>
       <span v-if="counter" :id="counterId" data-part="counter" :class="counterClass">
-        {{ m.counter(count, counter.max) }}
+        {{ counterText }}
       </span>
     </div>
   </component>

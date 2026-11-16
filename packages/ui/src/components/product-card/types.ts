@@ -57,7 +57,6 @@ export interface ProductCardProduct {
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them,
  * plus `stockLine` for the addition beyond it (see `ProductCardProduct.stock`). */
 export type ProductCardPart =
-  | 'root'
   | 'media'
   | 'badges'
   | 'body'
@@ -125,6 +124,7 @@ export interface ProductCardProps {
    * see this package's README "as vs linkAs" note.
    */
   linkAs?: string | Component;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<ProductCardPart, string>>;
 }

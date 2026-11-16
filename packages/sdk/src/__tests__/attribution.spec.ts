@@ -3,7 +3,9 @@ import {
   captureCampaignAttribution,
   clearCampaignAttribution,
   createEldraClient,
+  grantCampaignAttributionConsent,
   readCampaignAttribution,
+  withdrawCampaignAttributionConsent,
 } from '../index';
 import type { EldraKeyValueStorage } from '../index';
 import { stubHttpClient } from './support';
@@ -25,11 +27,14 @@ function memoryStorage(): EldraKeyValueStorage & { data: Map<string, string> } {
   };
 }
 
+// Every test but the consent ones runs as a visitor who agreed; consent lives in the module, so each test resets it.
 beforeEach(() => {
   vi.useFakeTimers({ now: new Date('2026-10-28T12:00:00Z') });
+  grantCampaignAttributionConsent({ storage: null });
 });
 
 afterEach(() => {
+  withdrawCampaignAttributionConsent({ storage: null });
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -51,6 +56,7 @@ describe('captureCampaignAttribution', () => {
       ...expected,
       capturedAt: Date.parse('2026-10-28T12:00:00Z'),
       expiresAt: Date.parse('2026-10-28T12:00:00Z') + 30 * DAY,
+      consented: true,
     });
     expect(readCampaignAttribution({ storage })).toEqual(expected);
   });
@@ -66,6 +72,7 @@ describe('captureCampaignAttribution', () => {
     expect(Object.keys(JSON.parse(storage.data.get(KEY)!)).sort()).toEqual([
       'campaignId',
       'capturedAt',
+      'consented',
       'expiresAt',
       'utmCampaign',
       'utmMedium',
@@ -186,15 +193,122 @@ describe('readCampaignAttribution', () => {
     const expiresAt = Date.now() + DAY;
     storage.data.set(
       KEY,
-      JSON.stringify({ utmSource: 'eldra', email: 'jon@example.is', campaignId: 'x', expiresAt })
+      JSON.stringify({
+        utmSource: 'eldra',
+        email: 'jon@example.is',
+        campaignId: 'x',
+        expiresAt,
+        consented: true,
+      })
     );
     expect(readCampaignAttribution({ storage })).toEqual({ utmSource: 'eldra' });
 
-    for (const broken of ['{', '"eldra"', JSON.stringify({ utmSource: 'eldra' })]) {
+    for (const broken of [
+      '{',
+      '"eldra"',
+      JSON.stringify({ utmSource: 'eldra', consented: true }),
+      JSON.stringify({ utmSource: 'eldra', expiresAt }),
+    ]) {
       storage.data.set(KEY, broken);
       expect(readCampaignAttribution({ storage })).toBeNull();
       expect(storage.data.has(KEY)).toBe(false);
     }
+  });
+});
+
+describe('consent', () => {
+  beforeEach(() => {
+    withdrawCampaignAttributionConsent({ storage: null });
+  });
+
+  it('keeps nothing and carts carry nothing until the visitor agrees', async () => {
+    const storage = memoryStorage();
+
+    expect(captureCampaignAttribution(LANDING, { storage })).toEqual(
+      expect.objectContaining({ campaignId: CAMPAIGN_ID })
+    );
+
+    expect(storage.data.size).toBe(0);
+    expect(readCampaignAttribution({ storage })).toBeNull();
+    const bodies: unknown[] = [];
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      campaignAttribution: { storage },
+      httpClient: stubHttpClient((request) => {
+        bodies.push(JSON.parse(request.body as string));
+        return { id: 'cart-1' };
+      }),
+    });
+    await client.cart.addItem({ productId: 'p', variantId: 'v', quantity: 1 });
+    expect(bodies).toEqual([{ productId: 'p', variantId: 'v', quantity: 1 }]);
+  });
+
+  it('keeps the landing of this page load once the visitor agrees, from when they landed', () => {
+    const storage = memoryStorage();
+    captureCampaignAttribution(LANDING, { storage });
+    vi.advanceTimersByTime(60_000);
+
+    grantCampaignAttributionConsent({ storage });
+
+    expect(readCampaignAttribution({ storage })?.campaignId).toBe(CAMPAIGN_ID);
+    expect(JSON.parse(storage.data.get(KEY)!).capturedAt).toBe(Date.parse('2026-10-28T12:00:00Z'));
+    captureCampaignAttribution('/?utm_source=facebook', { storage });
+    expect(readCampaignAttribution({ storage })).toEqual({ utmSource: 'facebook' });
+  });
+
+  it('removes what was kept when the visitor withdraws, and keeps nothing after', () => {
+    const storage = memoryStorage();
+    grantCampaignAttributionConsent({ storage });
+    captureCampaignAttribution(LANDING, { storage });
+
+    withdrawCampaignAttributionConsent({ storage });
+
+    expect(storage.data.has(KEY)).toBe(false);
+    expect(readCampaignAttribution({ storage })).toBeNull();
+    captureCampaignAttribution(LANDING, { storage });
+    expect(storage.data.size).toBe(0);
+    grantCampaignAttributionConsent({ storage });
+    expect(readCampaignAttribution({ storage })?.campaignId).toBe(CAMPAIGN_ID);
+  });
+
+  it('drops a landing kept before consent was asked, and never sends it', () => {
+    const storage = memoryStorage();
+    const legacy = { utmSource: 'eldra', capturedAt: Date.now(), expiresAt: Date.now() + DAY };
+    storage.data.set(KEY, JSON.stringify(legacy));
+    grantCampaignAttributionConsent({ storage });
+    expect(readCampaignAttribution({ storage })).toBeNull();
+
+    storage.data.set(KEY, JSON.stringify(legacy));
+    withdrawCampaignAttributionConsent({ storage: null });
+    captureCampaignAttribution('https://shop.example/karfa', { storage });
+    expect(storage.data.has(KEY)).toBe(false);
+  });
+
+  it('keeps a landing a visitor agreed to on an earlier visit, until they withdraw', () => {
+    const storage = memoryStorage();
+    grantCampaignAttributionConsent({ storage });
+    captureCampaignAttribution(LANDING, { storage });
+    withdrawCampaignAttributionConsent({ storage: null });
+
+    captureCampaignAttribution('https://shop.example/karfa', { storage });
+    expect(storage.data.has(KEY)).toBe(true);
+    expect(
+      readCampaignAttribution({ storage }),
+      'not sent before this page load reports consent'
+    ).toBeNull();
+    grantCampaignAttributionConsent({ storage });
+    expect(readCampaignAttribution({ storage })?.campaignId).toBe(CAMPAIGN_ID);
+  });
+
+  it('keeps nothing for a landing that expired before the visitor agreed', () => {
+    const storage = memoryStorage();
+    captureCampaignAttribution(LANDING, { storage, maxAgeMs: DAY });
+    vi.advanceTimersByTime(DAY);
+
+    grantCampaignAttributionConsent({ storage });
+
+    expect(storage.data.size).toBe(0);
   });
 });
 

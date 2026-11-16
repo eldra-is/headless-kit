@@ -29,7 +29,7 @@ const meta = {
           'count, a linked form that jumps to the reviews, and a no-reviews state — never a control',
           'for writing a review (use a `RadioGroup` of five options for that).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `stars`, `star`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `stars`, `star`,',
           "`value`, `count`, `empty` (the no-reviews text), `link` (the linked variant's `<a>` —",
           'see the component doc comment for why it is a second element rather than `root` itself',
           'changing tag).',

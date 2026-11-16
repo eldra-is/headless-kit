@@ -271,7 +271,7 @@ const DRAWER_CLASSES = {
           <span class="text-text text-base font-semibold">{{ t('cart.subtotal') }}</span>
           <Price
             :amount="money.minor(subtotal)"
-            :classes="{ root: 'text-text text-base font-semibold tabular-nums' }"
+            class="text-text text-base font-semibold tabular-nums"
           />
         </div>
         <p v-if="note" class="text-muted text-body-sm text-center">{{ note }}</p>

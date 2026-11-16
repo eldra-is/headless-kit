@@ -5,9 +5,14 @@
  */
 import CurrencyInput from '../components/currency-input/CurrencyInput.vue';
 import type { FieldCurrencyInputProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_ONLY,
+  FIELD_VALIDATION_DEFAULTS,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldCurrencyInputProps>();
+const props = withDefaults(defineProps<FieldCurrencyInputProps>(), FIELD_VALIDATION_DEFAULTS);
 
 const { model, invalid, id, onBlur } = useFieldControl<number | null>(props, { empty: null });
 

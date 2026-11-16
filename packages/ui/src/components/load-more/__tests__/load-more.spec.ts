@@ -84,8 +84,8 @@ describe('LoadMore — the button hides once shown reaches total', () => {
   it('carries cursor-pointer and the standard focus ring', () => {
     const wrapper = mountWith(LoadMore, { props: { shown: 24, total: 96 } });
     const cls = wrapper.get('[data-part="button"]').classes();
-    expect(cls).toContain('cursor-pointer');
-    expect(cls).toContain('eldra-focus');
+    expect(cls).toContain('eldra:cursor-pointer');
+    expect(cls).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 });
@@ -145,14 +145,13 @@ describe('LoadMore — the meter', () => {
 });
 
 describe('LoadMore — classes prop', () => {
-  it('merges a classes override onto a named part instead of landing beside it', () => {
+  it('takes class on the root and appends a classes override to a named part', () => {
     const wrapper = mountWith(LoadMore, {
-      props: { shown: 24, total: 96, classes: { root: 'gap-6', status: 'text-body' } },
+      props: { shown: 24, total: 96, classes: { status: 'text-body' } },
+      attrs: { class: 'gap-6' },
     });
     expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-6');
-    const statusClasses = wrapper.get('[data-part="status"]').classes();
-    expect(statusClasses).toContain('text-body');
-    expect(statusClasses).not.toContain('text-body-sm');
+    expect(wrapper.get('[data-part="status"]').classes()).toContain('text-body');
     wrapper.unmount();
   });
 });
@@ -182,8 +181,8 @@ describe('LoadMore — narrow container', () => {
     const wrapper = mountNarrow(LoadMore, { props: { shown: 24, total: 96 } });
     expect(wrapper.find('[data-part="root"]').exists()).toBe(true);
     const track = wrapper.find('[aria-hidden="true"]').element as HTMLElement;
-    expect(track.className).toContain('w-full');
-    expect(track.className).toContain('max-w-56');
+    expect(track.className).toContain('eldra:w-full');
+    expect(track.className).toContain('eldra:max-w-56');
     wrapper.unmount();
   });
 });

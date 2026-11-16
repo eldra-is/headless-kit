@@ -8,10 +8,25 @@ export interface EldraUiResolverOptions {
 
 interface ResolvedComponent {
   name: string;
-  from: '@eldrajs/ui';
+  from: '@eldrajs/ui' | '@eldrajs/ui/phone' | '@eldrajs/ui/flag';
 }
 
 const componentNameSet: ReadonlySet<string> = new Set(componentNames);
+
+/**
+ * The components of `@eldrajs/ui/phone`, which the root entry does not export: that entry needs
+ * the optional `libphonenumber-js` peer. Named here as plain strings, so this entry never imports
+ * the phone one.
+ */
+export const phoneComponentNames = ['PhoneInput'] as const;
+const phoneComponentNameSet: ReadonlySet<string> = new Set(phoneComponentNames);
+
+/**
+ * The components of `@eldrajs/ui/flag`, which the root entry does not export either: its artwork
+ * is a chunk the root entry must never reach.
+ */
+export const flagComponentNames = ['CountryFlag'] as const;
+const flagComponentNameSet: ReadonlySet<string> = new Set(flagComponentNames);
 
 /**
  * Resolver for [`unplugin-vue-components`](https://github.com/unplugin/unplugin-vue-components):
@@ -27,7 +42,9 @@ const componentNameSet: ReadonlySet<string> = new Set(componentNames);
  *
  * A template can then use `<EldraButton>`, `<EldraSelect>`, and so on, with no explicit import —
  * the plugin rewrites the tag into `import { Button } from '@eldrajs/ui'` (auto-imported, not
- * globally registered) the first time it sees it. `EldraUiResolver` resolves against exactly the
+ * globally registered) the first time it sees it. `<EldraPhoneInput>` resolves the same way from
+ * `@eldrajs/ui/phone` (`phoneComponentNames`), the entry that needs `libphonenumber-js`, and
+ * `<EldraCountryFlag>` from `@eldrajs/ui/flag` (`flagComponentNames`). `EldraUiResolver` resolves against exactly the
  * names in `componentNames` (`src/index.ts`'s component exports — see
  * `src/__tests__/componentNames.spec.ts` for the guard that keeps the two in sync); anything else,
  * including the private library's own `Ui*` names, resolves to `undefined` and is left for another
@@ -47,8 +64,12 @@ export function EldraUiResolver(options: EldraUiResolverOptions = {}): {
     resolve(name: string): ResolvedComponent | undefined {
       if (!name.startsWith(prefix)) return undefined;
       const componentName = name.slice(prefix.length);
-      if (!componentNameSet.has(componentName)) return undefined;
-      return { name: componentName, from: '@eldrajs/ui' };
+      if (componentNameSet.has(componentName)) return { name: componentName, from: '@eldrajs/ui' };
+      if (phoneComponentNameSet.has(componentName))
+        return { name: componentName, from: '@eldrajs/ui/phone' };
+      if (flagComponentNameSet.has(componentName))
+        return { name: componentName, from: '@eldrajs/ui/flag' };
+      return undefined;
     },
   };
 }

@@ -279,7 +279,7 @@ describe('footer block', () => {
     const heading = wrapper.find(`#${labelledBy}`);
     expect(heading.element.tagName).toBe('H2');
     expect(heading.text()).toBe(enUS.footer.title);
-    expect(heading.classes()).toContain('sr-only');
+    expect(heading.classes()).toContain('eldra:sr-only');
   });
 
   it('names the <footer> landmark with aria-label directly in the minimal variant (no hidden <h2>)', () => {
@@ -301,7 +301,7 @@ describe('footer block', () => {
     const wrapper = mountFooter(mock);
     const footer = wrapper.find('footer');
     expect(footer.exists()).toBe(true);
-    expect(footer.classes()).toContain('@container');
+    expect(footer.classes()).toContain('eldra:@container');
   });
 
   it('labels the link-groups nav', () => {
@@ -367,7 +367,7 @@ describe('footer block', () => {
     await flushPromises();
     // The field wrapper is `display: contents` by default, which turns its error into a flex item of
     // its own that lands after the button row; a real block keeps the two together.
-    const cell = wrapper.get('input[type="email"]').element.closest('.content-start');
+    const cell = wrapper.get('input[type="email"]').element.closest('.eldra\\:content-start');
     expect(cell?.parentElement?.classList.contains('block')).toBe(true);
   });
 
@@ -655,7 +655,7 @@ describe('footer block', () => {
 
       // The content locale is Icelandic here (`locale: 'is-IS'`), so the visually hidden label
       // is `isIS`'s, not `enUS`'s.
-      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      const hiddenLabels = wrapper.findAll('.eldra\\:sr-only').map((el) => el.text());
       expect(hiddenLabels).toContain(isIS.footer.currencyLabel);
 
       expect(await axe(wrapper.element)).toHaveNoViolations();
@@ -666,7 +666,7 @@ describe('footer block', () => {
 
       // No currency text and no combobox of either kind.
       expect(selectTriggers(wrapper)).toHaveLength(0);
-      const hiddenLabels = wrapper.findAll('.sr-only').map((el) => el.text());
+      const hiddenLabels = wrapper.findAll('.eldra\\:sr-only').map((el) => el.text());
       expect(hiddenLabels).not.toContain(enUS.footer.currencyLabel);
 
       expect(await axe(wrapper.element)).toHaveNoViolations();

@@ -632,7 +632,7 @@ const successText = computed(() => data.value.successText || t('contact.successT
                   variant="standalone"
                   arrow
                   external
-                  :classes="{ root: 'text-body-sm font-semibold' }"
+                  class="text-body-sm font-semibold"
                   >{{ mapLinkLabel }}</Link
                 >
               </div>

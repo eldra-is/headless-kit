@@ -32,7 +32,7 @@
  * (`text-text` on `none`/`surface`/`surface-strong`, `text-primary-contrast`/`text-accent-contrast`
  * on the two inverting grounds), and that is a normal inherited CSS `color` — so the quote paragraph
  * and the `<cite>` name carry no colour class of their own and simply inherit whichever one is
- * right. `Link` already inverts its own `muted` tone through its `group-data-[section=…]/section:`
+ * right. `Link` already inverts its own `muted` tone through its `section-primary:`/`section-accent:`
  * classes, so the role line needs no extra handling when it is a link. Only the two parts with no
  * such built-in mechanism branch by hand: the quote mark (`accent` by default, since an `accent`
  * mark would vanish on an `accent` ground) and the plain-text role line for when there is no

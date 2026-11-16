@@ -136,17 +136,17 @@ the script and the event endpoint are proxied through the storefront's own domai
 
 ## What the client covers
 
-| Group       | Methods                                                                                                                          |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `search`           |
-| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                                        |
-| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`            |
-| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                                     |
-| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                                |
-| `inventory` | `availability`                                                                                                                   |
-| `features`  | the organisation's enabled features                                                                                              |
-| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                           |
-| `forms`     | `get(key)`, `submit(key, { values, locale, pagePath })` (a 422 resolves as field errors), `confirm(token)`, `unsubscribe(token)` |
+| Group       | Methods                                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`   | `listProducts`, `getProduct`, `listCategories`, `listCollections`, `getCollection`, `listCollectionProducts`, `listBrands`, `getBrand`, `search`                                                                    |
+| `cms`       | `list`, `get`, `getEntryByUniqueField`, `resolveEntryList` — typed by the generator below                                                                                                                           |
+| `cart`      | `addItem` (creates the cart when there is none), `get`, `updateItem`, `removeItem`, `applyDiscount`, `removeDiscount`, `removeDiscountEntry`, `applyCode`, `applyGiftCard`, `removeGiftCard`, `removeGiftCardEntry` |
+| `checkout`  | `url({ cartId, locale })` — the platform-hosted checkout takes it from there                                                                                                                                        |
+| `orders`    | `get(orderId, { accessToken })`, `recover(token)`                                                                                                                                                                   |
+| `inventory` | `availability`                                                                                                                                                                                                      |
+| `features`  | the organisation's enabled features                                                                                                                                                                                 |
+| `platform`  | `config()` — the platform's public settings, cached per client; today the checkout URL                                                                                                                              |
+| `forms`     | `get(key)`, `submit(key, { values, locale, pagePath })` (a 422 resolves as field errors), `confirm(token)`, `unsubscribe(token)`                                                                                    |
 
 Totals come from the server. The cart's `totals` are the truth; never sum lines in the storefront.
 
@@ -161,6 +161,23 @@ absolute `http(s)` URL, with a distinct message for each. A storefront that keep
 in that case stays usable either way. The read takes no organisation header (the route is
 organisation-independent) and is shared by every caller of one client, so its only per-call option
 is a `signal` that abandons your own wait.
+
+## Addresses Eldra links to
+
+Eldra's emails link into your storefront: a campaign may link to a product, collection, category or
+page, and its product cards link to each product. Eldra builds those links from the storefront
+address set in Studio (Settings, Your sites) and this convention, so serve these routes:
+
+| Item       | Path                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- |
+| Product    | `/products/<slug>`                                                                    |
+| Collection | `/collections/<slug>`                                                                 |
+| Category   | `/categories/<path>`: the slugs from the top category down, `/categories/men/jackets` |
+| Page       | `/<slug>`, after its parents' slugs when it has a parent: `/about`, `/about/team`     |
+
+A page is an entry of the organisation's `page` content type: its `slug`, and its `parent` when it
+has one. A site deployed through Eldra as a theme follows its route templates instead
+([themes](themes.md)).
 
 ## Generated types
 
@@ -261,11 +278,13 @@ drop the stored id and start a new cart.
 
 ## Campaign attribution
 
-Call `captureCampaignAttribution()` in the browser on the first page and after every navigation:
-it keeps a campaign landing's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` for 30 days,
-and `cart.addItem` sends them with every add so the order is credited to the campaign. Campaign
-tags only, nothing about the visitor, and nothing on a server. A theme on `@eldrajs/theme-nuxt` gets
-this without code. Details in
+Call `captureCampaignAttribution()` in the browser on the first page and after every navigation,
+and `grantCampaignAttributionConsent()` / `withdrawCampaignAttributionConsent()` from your consent
+tool. Once the visitor agrees, the kit keeps a campaign landing's `utm_source`, `utm_medium`,
+`utm_campaign` and `utm_id` for 30 days, and `cart.addItem` sends them with every add so the order is
+credited to the campaign. Without consent nothing is kept. Campaign tags only, nothing about the
+visitor, and nothing on a server. A theme on `@eldrajs/theme-nuxt` captures without code and takes
+the consent answer from the window. Details in
 [`packages/sdk/README.md`](../packages/sdk/README.md#campaign-attribution).
 
 ## Errors
@@ -274,4 +293,12 @@ Every failed request throws `EldraHttpError` with `status`, `code` and `errorId`
 problem body. `code` is the category, such as `NOT_FOUND` or `CONFLICT`; `errorId` is the specific
 reason, such as `CART_NOT_FOUND`, `CART_INSUFFICIENT_STOCK` or `CART_DISCOUNT_EXHAUSTED`, and
 equals `code` when the gateway has nothing more specific to say. Branch on `errorId`, not on the
-message; the [node script example](../examples/node-script/index.ts) prints both.
+message; the [node script example](../examples/node-script/index.ts) prints both. A refusal that
+says more carries it in `errors`, the problem's `errors` object: a discount code refused with
+`CART_DISCOUNT_NOT_COMBINABLE` names the code on the cart that blocks it in `errors.blockingCode`
+("cannot be combined with SUMMER10"), and `CART_DISCOUNT_CODES_LIMIT_REACHED` the limit in
+`errors.limit`.
+
+Applying a discount code adds it to the cart's codes (contract 6.9.0): the cart's `discountCodes`
+lists each as `{code, amount}`, `removeDiscountEntry(cartId, code)` takes one off and
+`removeDiscount(cartId)` takes them all off.

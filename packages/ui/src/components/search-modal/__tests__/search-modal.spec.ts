@@ -1,13 +1,10 @@
-// happy-dom's global `URL` refuses the `file:` scheme that `import.meta.url` is here; Node's own
-// `URL` under another name resolves it (the same workaround `drawer.spec.ts` documents).
-import { fileURLToPath, URL as NodeURL } from 'node:url';
 import type { VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { currentDialog } from '../../../composables/dialogStack';
 import { enUS } from '../../../messages/en-US';
 import { axe } from '../../../test/axe';
-import { isBuilt, itFailsWithoutDist } from '../../../test/built';
+import { compileKitCss } from '../../../test/kitCss';
 import { expectClosedModalRendersNothing } from '../../../test/modal';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import Dialog from '../../dialog/Dialog.vue';
@@ -162,8 +159,8 @@ describe('SearchModal — element and parts', () => {
     const wrapper = mount({ modelValue: true });
     const footer = wrapper.find('[data-part="footer"]');
     expect(footer.attributes('aria-hidden')).toBe('true');
-    expect(footer.classes()).toContain('hidden');
-    expect(footer.classes()).toContain('md:flex');
+    expect(footer.classes()).toContain('eldra:hidden');
+    expect(footer.classes()).toContain('eldra:md:flex');
   });
 });
 
@@ -631,14 +628,13 @@ describe('SearchModal — the / and ⌘K/Ctrl+K shortcuts', () => {
 });
 
 describe('SearchModal — styling hooks', () => {
-  it('takes per-part classes, including the reused panel’s own parts', () => {
-    const wrapper = mount({
-      modelValue: true,
-      query: 'mer',
-      results: RESULTS,
-      classes: { root: 'rounded-none', item: 'italic' },
-    });
+  it('takes class on the root and per-part classes, including the reused panel’s own parts', () => {
+    const wrapper = mount(
+      { modelValue: true, query: 'mer', results: RESULTS, classes: { item: 'italic' } },
+      { attrs: { class: 'rounded-none' } }
+    );
     expect(root(wrapper).className).toContain('rounded-none');
+    expect(wrapper.find('[data-part="field"]').classes()).not.toContain('rounded-none');
     expect(wrapper.find('[data-part="item"]').classes()).toContain('italic');
   });
 
@@ -692,50 +688,36 @@ describe('SearchModal — accessibility', () => {
     });
     mounted.push(wrapper as unknown as VueWrapper);
     await settle();
-    expect(wrapper.find('[data-part="itemTitle"]').classes()).toContain('truncate');
+    expect(wrapper.find('[data-part="itemTitle"]').classes()).toContain('eldra:truncate');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 });
 
-describe('SearchModal — built CSS', () => {
-  const distDir = fileURLToPath(new NodeURL('../../../../dist/', import.meta.url));
-  const built = isBuilt(`${distDir}tailwind.css`, `${distDir}index.js`);
+describe('SearchModal — compiled CSS', () => {
+  it('the width, max-height and position utilities go full-screen below a 48rem viewport', async () => {
+    const css = await compileKitCss([
+      'eldra:eldra-search-modal-width',
+      'eldra:eldra-search-modal-max-height',
+      'eldra:eldra-search-modal-position',
+    ]);
 
-  it.runIf(built)(
-    'the width, max-height and position utilities go full-screen below a 48rem viewport',
-    async () => {
-      const { compile } = await import('@tailwindcss/node');
-      const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';`, {
-        base: distDir,
-        onDependency() {},
-      });
-      const css = compiler.build([
-        'eldra-search-modal-width',
-        'eldra-search-modal-max-height',
-        'eldra-search-modal-position',
-      ]);
+    expect(css).toContain('.eldra\\:eldra-search-modal-width {');
+    expect(css).toContain(
+      'width: min(var(--eldra-search-modal-width, 40rem), calc(100vw - 2rem));'
+    );
+    expect(css).toContain(
+      'max-height: min(var(--eldra-search-modal-max-height, 40rem), calc(100vh - 6rem));'
+    );
+    expect(css).toContain('margin: 8vh auto auto;');
+    // A plain @media query on the viewport, never a @container query — the design spec's own
+    // exception for Drawer/Lightbox/Search modal.
+    expect(css).not.toContain('@container');
 
-      expect(css).toContain('.eldra-search-modal-width {');
-      expect(css).toContain(
-        'width: min(var(--eldra-search-modal-width, 40rem), calc(100vw - 2rem));'
-      );
-      expect(css).toContain(
-        'max-height: min(var(--eldra-search-modal-max-height, 40rem), calc(100vh - 6rem));'
-      );
-      expect(css).toContain('margin: 8vh auto auto;');
-      // A plain @media query on the viewport, never a @container query — the design spec's own
-      // exception for Drawer/Lightbox/Search modal.
-      expect(css).not.toContain('@container');
-
-      const mediaBlocks = [...css.matchAll(/@media \(width < 48rem\) \{([^{}]*)\}/g)];
-      expect(mediaBlocks.length).toBeGreaterThanOrEqual(3);
-      const bodies = mediaBlocks.map((match) => match[1]).join('\n');
-      expect(bodies).toContain('width: 100vw;');
-      expect(bodies).toContain('max-height: 100vh;');
-      expect(bodies).toContain('margin: 0;');
-    }
-  );
-
-  // A missing `dist/` is a skip locally and a **failure** under `CI`; see `src/test/built.ts`.
-  itFailsWithoutDist(built);
+    const mediaBlocks = [...css.matchAll(/@media \(width < 48rem\) \{([^{}]*)\}/g)];
+    expect(mediaBlocks.length).toBeGreaterThanOrEqual(3);
+    const bodies = mediaBlocks.map((match) => match[1]).join('\n');
+    expect(bodies).toContain('width: 100vw;');
+    expect(bodies).toContain('max-height: 100vh;');
+    expect(bodies).toContain('margin: 0;');
+  });
 });

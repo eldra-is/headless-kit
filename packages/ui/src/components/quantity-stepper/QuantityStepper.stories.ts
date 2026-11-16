@@ -25,7 +25,7 @@ const meta = {
           'item to add to the basket or keep in a cart line. It never goes to 0 — removing an item',
           'is a separate "Remove" `Button` (`variant="link"`), outside this control.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the one bordered',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root` (the one bordered',
           'group), `decrease`, `input`, `increase`, `error`.',
           '',
           '**Field**: `type="text"` with `inputmode="numeric"` and `role="spinbutton"`, not the',

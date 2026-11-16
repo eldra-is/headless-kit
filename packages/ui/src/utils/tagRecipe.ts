@@ -10,24 +10,25 @@
  * neither one appears to depend on the other: `MultiSelect` shipped first and `Chip` reuses its
  * visual language, but the recipe itself belongs to neither.
  */
-export const TAG_FILL = 'bg-surface-strong text-text';
+export const TAG_FILL = 'eldra:bg-surface-strong eldra:text-text';
 
 /** The pill shape and type: rounded-full, min 1.75rem tall, the caption size, `space-1` gap. */
-export const TAG_SHAPE = 'inline-flex min-h-7 items-center gap-1 rounded-full text-caption';
+export const TAG_SHAPE =
+  'eldra:inline-flex eldra:min-h-7 eldra:items-center eldra:gap-1 eldra:rounded-full eldra:text-caption';
 
 /**
  * Start padding is 0.625rem either way; the end padding is the remove button's own room, so a tag
  * with no remove button is padded evenly instead of ending short.
  */
 export function tagPadding(hasRemoveButton: boolean): string {
-  return hasRemoveButton ? 'ps-2.5 pe-0.5' : 'px-2.5';
+  return hasRemoveButton ? 'eldra:ps-2.5 eldra:pe-0.5' : 'eldra:px-2.5';
 }
 
 /** The remove button: a 1.5rem circle, `muted` at rest, `text` on hover at 11% opacity. */
 export const TAG_REMOVE_BUTTON =
-  'inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted ' +
-  'hover:text-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)] ' +
-  'eldra-focus';
+  'eldra:inline-flex eldra:size-6 eldra:shrink-0 eldra:cursor-pointer eldra:items-center eldra:justify-center eldra:rounded-full eldra:text-muted ' +
+  'eldra:hover:text-text eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_89%)] ' +
+  'eldra:eldra-focus';
 
 /** The remove button's icon: Tabler's `x` at 0.875rem, 1.75 stroke. */
-export const TAG_REMOVE_ICON_SIZE = 'size-3.5';
+export const TAG_REMOVE_ICON_SIZE = 'eldra:size-3.5';

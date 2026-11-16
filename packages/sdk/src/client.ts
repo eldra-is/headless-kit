@@ -28,7 +28,9 @@ import type {
   EldraProductDetails,
   EldraProductList,
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
+  EldraCartAppliedCode,
   EldraCheckoutUrlOptions,
   EldraCollection,
   EldraCollectionList,
@@ -98,8 +100,12 @@ export class EldraHttpError extends Error {
    */
   readonly errorId: EldraErrorId | undefined;
   /**
-   * The problem's `errors` object, when the body carried one: for example `salesOrderId` on
-   * `SALES_ORDER_CART_ALREADY_ORDERED` or `variantId` on `SALES_ORDER_LINE_INVALID`.
+   * The gateway's problem `errors` — the refusal's detail, when the body carried it as an object.
+   * For example `salesOrderId` on `SALES_ORDER_CART_ALREADY_ORDERED` or `variantId` on
+   * `SALES_ORDER_LINE_INVALID`; a refused discount code names what blocked it here:
+   * `errors.blockingCode` on `CART_DISCOUNT_NOT_COMBINABLE`, `errors.limit` on
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED`. Its members depend on the `errorId`, so read each as
+   * unknown and check its type (or narrow with `isEldraError`).
    */
   readonly errors: Readonly<Record<string, unknown>> | undefined;
 
@@ -157,6 +163,16 @@ export function isEldraError<Id extends EldraErrorId>(
   return error instanceof EldraHttpError && error.errorId === errorId;
 }
 
+/** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
+function problemString(body: unknown, key: 'code' | 'errorId'): string | undefined {
+  if (body && typeof body === 'object' && key in body) {
+    const value = (body as Record<string, unknown>)[key];
+    return typeof value === 'string' ? value : undefined;
+  }
+  return undefined;
+}
+
+/** The problem's `errors` member, when the body is an object that carries it as a plain object. */
 function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undefined {
   if (body && typeof body === 'object' && 'errors' in body) {
     const value = (body as Record<string, unknown>).errors;
@@ -167,13 +183,21 @@ function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undef
   return undefined;
 }
 
-/** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
-function problemString(body: unknown, key: 'code' | 'errorId'): string | undefined {
-  if (body && typeof body === 'object' && key in body) {
-    const value = (body as Record<string, unknown>)[key];
-    return typeof value === 'string' ? value : undefined;
+/**
+ * Whether the cart answered to an apply holds the code: in `discountCodes` (contract 6.9.0, any
+ * case), else, from an older gateway that answers only `discountCode`, when that is the code.
+ */
+function cartHoldsDiscountCode(cart: unknown, code: string): boolean {
+  const wanted = code.toUpperCase();
+  const record = (cart ?? {}) as { discountCodes?: unknown; discountCode?: unknown };
+  const same = (value: unknown) =>
+    typeof value === 'string' && value.trim().toUpperCase() === wanted;
+  if (Array.isArray(record.discountCodes)) {
+    return record.discountCodes.some(
+      (entry) => !!entry && typeof entry === 'object' && same((entry as { code?: unknown }).code)
+    );
   }
-  return undefined;
+  return same(record.discountCode);
 }
 
 export function initEldraClient(options: EldraClientOptions): EldraClient {
@@ -418,6 +442,18 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}/products`,
           query: listOptions,
         }),
+      listBrands: async (localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        (await request<EldraBrand[] | null>({
+          ...context,
+          path: '/catalog/v1/brands',
+          query: localeOptions,
+        })) ?? [],
+      getBrand: (slug: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
+        request<EldraBrand>({
+          ...context,
+          path: `/catalog/v1/brands/${encodeURIComponent(slug)}`,
+          query: localeOptions,
+        }),
       /** Search results carry list prices, never customer prices. */
       search: (query: string, searchOptions?: EldraSearchOptions, context?: EldraRequestContext) =>
         request<EldraSearchResponse>({
@@ -498,11 +534,7 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           query: localeOptions,
           body: { code: trimmed },
         });
-        const discountCode = (cart as { discountCode?: unknown }).discountCode;
-        const applied =
-          typeof discountCode === 'string' &&
-          discountCode.trim().toUpperCase() === trimmed.toUpperCase();
-        return { cart, applied };
+        return { cart, applied: cartHoldsDiscountCode(cart, trimmed) };
       },
       /**
        * Removes the discount code. A guest write to a bound cart is 409 CART_SIGN_IN_REQUIRED.
@@ -516,6 +548,67 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ...context,
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/discount`,
+          query: localeOptions,
+        }),
+      applyGiftCard: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      applyCode: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCartAppliedCode>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/code`,
+          query: localeOptions,
+          body: { code: code.trim() },
+        }),
+      removeGiftCard: (
+        cartId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-card`,
+          query: localeOptions,
+        }),
+      removeGiftCardEntry: (
+        cartId: string,
+        entryId: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/gift-cards/${encodeURIComponent(entryId)}`,
+          query: localeOptions,
+        }),
+      removeDiscountEntry: (
+        cartId: string,
+        code: string,
+        localeOptions?: EldraLocaleOptions,
+        context?: EldraRequestContext
+      ) =>
+        request<EldraCart>({
+          ...context,
+          method: 'DELETE',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/discount-codes/${encodeURIComponent(code)}`,
           query: localeOptions,
         }),
     },
@@ -998,8 +1091,8 @@ function buildUrl(apiBaseUrl: string, path: string, query: object | undefined): 
  * `filter` has to be in here — a filter token is `[groupIndex:]field:op:value`
  * whose value may itself contain commas (`slug:in:a,b`), so joining several
  * tokens into one parameter runs them together and every token after the first
- * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`
- * on `GET /catalog/v1/products/list` and
+ * is lost. The catalog product filters (`categoryId`, `collectionId`, `option`,
+ * `ext` on `GET /catalog/v1/products/list` and
  * `GET /catalog/v1/collections/{slug}/products`) are declared the same way, and
  * each is an OR over its values: comma-joined, `categoryId=a,b` is one id the
  * catalogue has never heard of, so a shopper ticking two categories would see
@@ -1010,6 +1103,7 @@ const REPEATED_QUERY_KEYS: ReadonlySet<string> = new Set([
   'categoryId',
   'collectionId',
   'option',
+  'ext',
 ]);
 
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: unknown): void {

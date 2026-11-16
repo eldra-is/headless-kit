@@ -119,6 +119,7 @@
   --eldra-duration-base: 200ms;
   --eldra-duration-slow: 250ms;
   --eldra-ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --eldra-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --eldra-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --eldra-z-sticky: 20;
   --eldra-z-drawer: 40;

@@ -45,7 +45,7 @@ const meta = {
           'with no role), a real `<button type="button" aria-pressed>` when `selectable`, and',
           '`removable` adds a separate `<button>` named `"Remove <label>"`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `icon`, `avatar`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `icon`, `avatar`,',
           '`label`, `removeButton`.',
           '',
           '**Slots**: `default` (the label, overrides `label`), `icon`, `avatar`.',

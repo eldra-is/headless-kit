@@ -207,7 +207,8 @@ const STEPPER_CLASSES = {
             <Price
               :amount="money.minor(line.unitPrice)"
               size="sm"
-              :classes="{ root: 'inline', current: 'text-muted' }"
+              class="inline"
+              :classes="{ current: 'text-muted' }"
             />
             <span class="text-muted">{{ t('cart.each') }}</span>
           </div>
@@ -218,7 +219,7 @@ const STEPPER_CLASSES = {
           :aria-busy="busy"
         >
           <VisuallyHidden>{{ t('cart.lineTotal') }}</VisuallyHidden>
-          <Price :amount="money.minor(line.lineTotal)" :classes="{ root: 'inline' }" />
+          <Price :amount="money.minor(line.lineTotal)" class="inline" />
         </div>
 
         <div

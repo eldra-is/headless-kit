@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { fileURLToPath } from 'node:url';
 import type { EldraFormDefinition } from '@eldrajs/sdk';
 import { chromium, type Browser, type Page } from '@playwright/test';
-import { compile } from '@tailwindcss/node';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import { compileKitCss } from '../../../test/kitCss';
 import SiteForm from '../SiteForm.vue';
 
 // A real browser decides what the honeypot is to a person: whether it paints, takes focus or reaches the accessibility tree.
@@ -24,7 +23,6 @@ const CONTACT: EldraFormDefinition = {
   kinds: ['store', 'notify'],
 };
 
-const stylesDir = fileURLToPath(new URL('../../../styles/', import.meta.url));
 const client = {
   forms: {
     get: async () => CONTACT,
@@ -44,11 +42,7 @@ beforeAll(async () => {
   for (const match of html.matchAll(/class="([^"]*)"/g)) {
     for (const name of match[1]!.split(/\s+/)) if (name) candidates.add(name);
   }
-  const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';\n`, {
-    base: stylesDir,
-    onDependency() {},
-  });
-  css = compiler.build([...candidates]);
+  css = await compileKitCss(candidates);
   browser = await chromium.launch();
 }, 120_000);
 

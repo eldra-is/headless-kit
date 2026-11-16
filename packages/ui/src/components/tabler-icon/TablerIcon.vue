@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, onServerPrefetch, shallowRef, useTemplateRef, watch } from 'vue';
-import { partClass } from '../../utils/cx';
 import { ICON_SIZE_CLASS, ICON_STROKE_WIDTH } from '../icon/sizes';
 import { cachedTablerIcon, loadTablerIcon, warnTablerIconOnce } from './registry';
 import { tablerIconName } from './tablerIconName';
 import type { TablerIconProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TablerIconProps>(), {
   name: undefined,
   size: 'md',
   label: undefined,
   strokeWidth: ICON_STROKE_WIDTH,
-  classes: undefined,
 });
 
 const OUTLINE = {
@@ -69,7 +70,7 @@ const svgAttrs = computed(() => ({
   ...(iconName.value?.endsWith('Filled')
     ? FILLED
     : { ...OUTLINE, 'stroke-width': props.strokeWidth }),
-  class: partClass(`${ICON_SIZE_CLASS[props.size]} shrink-0`, props.classes, 'root'),
+  class: [ICON_SIZE_CLASS[props.size], 'eldra:shrink-0'],
   'aria-hidden': props.label === undefined ? true : undefined,
   role: props.label === undefined ? undefined : 'img',
   'aria-label': props.label,
@@ -81,5 +82,12 @@ const svgAttrs = computed(() => ({
 </script>
 
 <template>
-  <svg v-if="iconName !== null" ref="root" data-eldra-ui data-part="root" v-bind="svgAttrs" />
+  <svg
+    v-if="iconName !== null"
+    ref="root"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    v-bind="svgAttrs"
+  />
 </template>

@@ -41,7 +41,7 @@ export interface ImageCrop {
 }
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type ImagePart = 'root' | 'frame' | 'media' | 'placeholder' | 'caption' | 'skeleton';
+export type ImagePart = 'frame' | 'media' | 'placeholder' | 'caption' | 'skeleton';
 
 export interface ImageProps {
   /** The image or video. `null`/omitted renders the live "No image" placeholder. */
@@ -91,6 +91,7 @@ export interface ImageProps {
   priority?: boolean;
   /** Renders a skeleton at the frame's own ratio instead of `media`/the placeholder. */
   loading?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<ImagePart, string>>;
 }

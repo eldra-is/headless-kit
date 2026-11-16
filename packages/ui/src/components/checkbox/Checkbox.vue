@@ -1,10 +1,31 @@
 <script setup lang="ts">
-import { computed, inject, ref, useSlots, watchPostEffect } from 'vue';
+import {
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  inject,
+  onMounted,
+  ref,
+  useAttrs,
+  h,
+  useSlots,
+  watchPostEffect,
+  type FunctionalComponent,
+  type VNode,
+} from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
+import { useMessages } from '../../composables/useMessages';
 import { joinIds, useUiId } from '../../utils/id';
+import { mergeClass } from '../../utils/mergeClass';
 import { FIELD_KEY } from '../field-wrapper/context';
+import FieldError from '../field-wrapper/FieldError.vue';
+import RequiredMark from '../field-wrapper/RequiredMark.vue';
+import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import type { CheckboxProps, CheckboxSize } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 defineOptions({ inheritAttrs: false });
 
@@ -19,6 +40,8 @@ const props = withDefaults(defineProps<CheckboxProps>(), {
   // would be an answer rather than "no opinion" (see Input.vue).
   invalid: undefined,
   required: undefined,
+  requiredMark: false,
+  error: undefined,
   disabled: false,
   controls: undefined,
   id: undefined,
@@ -33,6 +56,7 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const attrs = useAttrs();
 
 /** See Input.vue for the field-context rationale: any explicit prop wins over the wrapper. */
 const field = inject(FIELD_KEY, null);
@@ -49,7 +73,8 @@ const field = inject(FIELD_KEY, null);
  * clickable either way, because the control itself covers it (see `CONTROL` below).
  */
 const isNamedByField = computed(
-  () => props.id === undefined && field?.value.labelsControl === true
+  () =>
+    props.id === undefined && field?.value.labelsControl === true && field.value.labelled !== false
 );
 
 /**
@@ -67,8 +92,15 @@ const controlId = useUiId(
  * `<FieldWrapper error="…">` still describes its error when the control is given a `describedBy`
  * of its own. `joinIds` dedupes and drops the attribute when there is nothing to say.
  */
-const describedBy = computed(() => joinIds(props.describedBy, field?.value.describedBy));
-const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
+const errorId = computed(() => `${controlId.value}-error`);
+const hasError = computed(() => Boolean(props.error));
+const describedBy = computed(() =>
+  joinIds(hasError.value && errorId.value, props.describedBy, field?.value.describedBy)
+);
+const isInvalid = computed(
+  () => props.invalid ?? (hasError.value || undefined) ?? field?.value.invalid ?? false
+);
+const m = useMessages();
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
 
 const controlRef = ref<HTMLInputElement | null>(null);
@@ -117,15 +149,19 @@ const hasHint = computed(() => props.hint !== undefined || slots.hint !== undefi
  * the target, so even a one-word option is at least 1.5rem tall"), which is WCAG 2.5.8.
  * `gap-x-2.5` is the 0.625rem box-to-text gap, `gap-y-0.5` the hint's own line spacing.
  */
-const ROOT =
-  'group grid w-fit max-w-full grid-cols-[auto_1fr] items-start gap-x-2.5 gap-y-0.5 target-min';
+const ROOT = 'eldra:group eldra:grid eldra:max-w-full eldra:gap-y-0.5 eldra:target-min';
+const ROOT_COLUMNS = 'eldra:grid-cols-[auto_1fr] eldra:gap-x-2.5';
+const ROOT_INLINE = 'eldra:w-fit eldra:items-start';
 
 /**
  * Spec "Checkbox" → Sizes: box 1.125rem "nudged 0.1875rem down to align with the first text line"
  * at md, 1.5rem "top-aligned" at lg. `--spacing` is 0.25rem, so `size-4.5` is 1.125rem, `size-6`
  * is 1.5rem and `mt-0.75` is the 0.1875rem nudge. A 1.5rem box on a 1.5rem line needs none.
  */
-const BOX_SIZE: Record<CheckboxSize, string> = { md: 'size-4.5 mt-0.75', lg: 'size-6' };
+const BOX_SIZE: Record<CheckboxSize, string> = {
+  md: 'eldra:size-4.5 eldra:mt-0.75',
+  lg: 'eldra:size-6',
+};
 
 /**
  * The drawn box (spec "Checkbox" → Anatomy: "a native `<input type="checkbox">` with custom
@@ -138,8 +174,8 @@ const BOX_SIZE: Record<CheckboxSize, string> = { md: 'size-4.5 mt-0.75', lg: 'si
  * spec's Behaviour section asks for. See `src/styles/tailwind.css`.
  */
 const BOX =
-  'relative inline-flex shrink-0 items-center justify-center ' +
-  'rounded-[var(--eldra-checkbox-radius,var(--eldra-radius-sm))] eldra-focus eldra-focus-proxy';
+  'eldra:relative eldra:inline-flex eldra:shrink-0 eldra:items-center eldra:justify-center ' +
+  'eldra:rounded-[var(--eldra-checkbox-radius,var(--eldra-radius-sm))] eldra:eldra-focus eldra:eldra-focus-proxy';
 
 /**
  * States (spec "Checkbox" → States). Driven from the component's own state rather than from CSS
@@ -149,11 +185,11 @@ const BOX =
  * it is written only into the two states that have a hover.
  */
 const UNCHECKED =
-  'bg-background border-border-strong group-hover:border-text eldra-checkbox-border';
-const CHECKED = 'bg-primary border-primary eldra-checkbox-border';
+  'eldra:bg-background eldra:border-border-strong eldra:group-hover:border-text eldra:eldra-checkbox-border';
+const CHECKED = 'eldra:bg-primary eldra:border-primary eldra:eldra-checkbox-border';
 /** Spec "Checkbox" → States, Error: `background` fill and a **2px** `danger` border. */
 const INVALID =
-  'bg-background border-danger group-hover:border-danger eldra-checkbox-border-invalid';
+  'eldra:bg-background eldra:border-danger eldra:group-hover:border-danger eldra:eldra-checkbox-border-invalid';
 /**
  * The error row of the spec's States table describes an *unchecked* box — that is the required
  * consent it is written for. A box that is checked or indeterminate keeps its `primary` fill and
@@ -163,9 +199,10 @@ const INVALID =
  * every state, error included.
  */
 const INVALID_MARKED =
-  'bg-primary border-danger group-hover:border-danger eldra-checkbox-border-invalid';
-const DISABLED = 'bg-surface-strong border-border border-dashed eldra-checkbox-border';
-const DISABLED_CHECKED = 'bg-muted border-muted eldra-checkbox-border';
+  'eldra:bg-primary eldra:border-danger eldra:group-hover:border-danger eldra:eldra-checkbox-border-invalid';
+const DISABLED =
+  'eldra:bg-surface-strong eldra:border-border eldra:border-dashed eldra:eldra-checkbox-border';
+const DISABLED_CHECKED = 'eldra:bg-muted eldra:border-muted eldra:eldra-checkbox-border';
 
 /**
  * A disabled box drops the danger boundary and keeps `aria-invalid` — the same reading as Input
@@ -178,13 +215,61 @@ const boxState = computed(() => {
   return isInvalid.value ? INVALID : UNCHECKED;
 });
 
-const rootClass = computed(() =>
-  partClass(
-    cx(ROOT, props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'),
-    props.classes,
-    'root'
-  )
-);
+/** Whether slot output draws anything: a `v-if`'d-out label leaves only a comment node. */
+function hasContent(nodes: VNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === Comment) return false;
+    if (node.type === Text) return String(node.children ?? '').trim() !== '';
+    if (node.type === Fragment)
+      return Array.isArray(node.children) && hasContent(node.children as VNode[]);
+    return true;
+  });
+}
+
+/**
+ * Whether there is a label to lay out. Read during render (the root's class and the label's
+ * `v-if`), never in a `computed`, because it calls the slot. Without a label and a hint the row is
+ * the box alone: no label column, no box-to-text gap, so the control is as wide as its box (and
+ * `target-min`). Such a box takes its name from an `aria-label` on it, or from a `FieldWrapper`.
+ */
+function isLabelled(): boolean {
+  return hasHint.value || hasContent(slots.default?.() ?? []);
+}
+
+const BOX_ONLY = 'eldra:grid-cols-[auto] eldra:gap-x-0';
+
+// ListFacet's full-width rows override the root.
+function rootClass(labelled: boolean): string {
+  return mergeClass(
+    [
+      ROOT,
+      labelled ? ROOT_COLUMNS : BOX_ONLY,
+      ROOT_INLINE,
+      props.disabled ? 'eldra:cursor-not-allowed' : 'eldra:cursor-pointer',
+    ],
+    attrs.class
+  );
+}
+
+/** Every attribute but `class` lands on the control; `class` styles the root. */
+function controlAttrs(): Record<string, unknown> {
+  const rest: Record<string, unknown> = { ...attrs };
+  delete rest.class;
+  return rest;
+}
+
+if (import.meta.env?.DEV) {
+  onMounted(() => {
+    const el = controlRef.value;
+    if (el === null || isNamedByField.value) return;
+    if (attrs['aria-label'] !== undefined || attrs['aria-labelledby'] !== undefined) return;
+    if ([...(el.labels ?? [])].some((label) => label.textContent?.trim())) return;
+    console.warn(
+      '[@eldrajs/ui] <Checkbox> has no label, so its box has no accessible name. Give it a ' +
+        'label in the default slot, or an `aria-label` for a box drawn on its own.'
+    );
+  });
+}
 
 /**
  * The control itself, stretched over the drawn box rather than `sr-only` in a corner of it.
@@ -198,12 +283,10 @@ const rootClass = computed(() =>
  * click on it is a click on the control rather than a label forwarding one.
  */
 const CONTROL =
-  'absolute inset-0 m-0 size-full cursor-pointer appearance-none opacity-0 ' +
-  'disabled:cursor-not-allowed';
+  'eldra:absolute eldra:inset-0 eldra:m-0 eldra:size-full eldra:cursor-pointer eldra:appearance-none eldra:opacity-0 ' +
+  'eldra:disabled:cursor-not-allowed';
 
-const boxClass = computed(() =>
-  partClass(cx(BOX, BOX_SIZE[props.size], boxState.value), props.classes, 'box')
-);
+const boxClass = computed(() => [[BOX, BOX_SIZE[props.size], boxState.value], props.classes?.box]);
 
 /**
  * The mark (spec "Checkbox" → Behaviour & motion): "The tick scales in from 0 over `duration-fast`
@@ -214,16 +297,13 @@ const boxClass = computed(() =>
  * The mark is one part with two shapes, so a disabled *checked* box keeps its tick (spec's States
  * table) while an empty one has nothing to show.
  */
-const checkClass = computed(() =>
-  partClass(
-    cx(
-      'pointer-events-none size-2.5 text-primary-contrast transition-transform duration-fast ease-out',
-      isMarked.value ? 'scale-100' : 'scale-0'
-    ),
-    props.classes,
-    'check'
-  )
-);
+const checkClass = computed(() => [
+  [
+    'eldra:pointer-events-none eldra:size-2.5 eldra:text-primary-contrast eldra:transition-transform eldra:duration-fast eldra:ease-out',
+    isMarked.value ? 'eldra:scale-100' : 'eldra:scale-0',
+  ],
+  props.classes?.check,
+]);
 
 /**
  * Spec "Checkbox" → Sizes: label 0.9375rem on a 1.5rem line — the same two numbers as the
@@ -231,18 +311,35 @@ const checkClass = computed(() =>
  * it. (Not the mobile 1rem override: that rule is scoped to "inputs, textareas, select triggers
  * and select search fields", where it stops iOS zooming into a focused field.)
  */
-const labelClass = computed(() =>
-  partClass(
-    cx('text-control min-w-0', props.disabled ? 'text-muted' : 'text-text'),
-    props.classes,
-    'label'
-  )
-);
+const labelClass = computed(() => [
+  ['eldra:text-control eldra:min-w-0', props.disabled ? 'eldra:text-muted' : 'eldra:text-text'],
+  props.classes?.label,
+]);
 
 /** Spec "Checkbox" → Sizes: "Hint: 0.875rem, `muted`, on its own line", in column 2 under it. */
-const hintClass = computed(() =>
-  partClass('text-body-sm text-muted col-start-2 min-w-0', props.classes, 'hint')
-);
+const hintClass = computed(() => [
+  'eldra:text-body-sm eldra:text-muted eldra:col-start-2 eldra:min-w-0',
+  props.classes?.hint,
+]);
+
+/**
+ * With an `error`, the row and its error message sit in one box (the `field` part), so the message
+ * stays outside the `<label>` and out of the control's name. Without one, the row is the root as
+ * it always was.
+ */
+const fieldClass = computed(() => [
+  'eldra:grid eldra:w-fit eldra:max-w-full eldra:content-start eldra:gap-1',
+  props.classes?.field,
+]);
+const Field: FunctionalComponent = (_props, { slots: own }) => {
+  const row = own.default?.()[0];
+  if (!hasError.value) return row;
+  const attrs = { 'data-eldra-ui': '', 'data-eldra-scope': eldra.scope, 'data-part': 'field' };
+  return h('div', { ...attrs, class: fieldClass.value }, [
+    row,
+    h(FieldError, { id: errorId.value, classes: props.classes }, () => props.error),
+  ]);
+};
 
 function onChange(event: Event): void {
   const el = event.target as HTMLInputElement;
@@ -253,33 +350,35 @@ function onChange(event: Event): void {
 </script>
 
 <template>
-  <component
-    :is="isNamedByField ? 'span' : 'label'"
-    data-eldra-ui
-    data-part="root"
-    :class="rootClass"
-  >
-    <span data-part="box" :class="boxClass">
-      <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
+  <Field>
+    <component
+      :is="isNamedByField ? 'span' : 'label'"
+      data-eldra-ui
+      :data-eldra-scope="eldra.scope"
+      data-part="root"
+      :class="rootClass(isLabelled())"
+    >
+      <span data-part="box" :class="boxClass">
+        <!-- The native control, invisible but focusable, in the tab order and over the drawn box,
            which is its appearance. -->
-      <input
-        ref="controlRef"
-        v-bind="$attrs"
-        :class="CONTROL"
-        type="checkbox"
-        :id="controlId"
-        :name="name"
-        :value="value"
-        :checked="model"
-        :required="isRequired || undefined"
-        :disabled="disabled || undefined"
-        :aria-invalid="isInvalid ? 'true' : undefined"
-        :aria-describedby="describedBy"
-        :aria-controls="controls"
-        :aria-checked="indeterminate ? 'mixed' : undefined"
-        @change="onChange"
-      />
-      <!-- The mark. The box is 0.625rem across and the viewBox 10 units, so one unit is one pixel
+        <input
+          ref="controlRef"
+          v-bind="controlAttrs()"
+          :class="CONTROL"
+          type="checkbox"
+          :id="controlId"
+          :name="name"
+          :value="value"
+          :checked="model"
+          :required="isRequired || undefined"
+          :disabled="disabled || undefined"
+          :aria-invalid="isInvalid ? 'true' : undefined"
+          :aria-describedby="describedBy"
+          :aria-controls="controls"
+          :aria-checked="indeterminate ? 'mixed' : undefined"
+          @change="onChange"
+        />
+        <!-- The mark. The box is 0.625rem across and the viewBox 10 units, so one unit is one pixel
            of the mark at its drawn size: `stroke-width="2"` is the spec's 2px, and the dash is the
            spec's 0.625rem wide (10 × 2 units of ink).
 
@@ -289,27 +388,42 @@ function onChange(event: Event): void {
            tick (operator finding) — and the ratio was the reason. Ink (centreline plus a 1-unit
            round cap each side) is 9.5 × 7 units, inside the box at every edge. Decorative: the
            checked state is the input's, which assistive technology reads. -->
-      <svg
-        data-part="check"
-        :class="checkClass"
-        viewBox="0 0 10 10"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
+        <svg
+          data-part="check"
+          :class="checkClass"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
+          <path v-else data-mark="tick" d="M1.25 5l2.5 2.5l5 -5" />
+        </svg>
+      </span>
+
+      <span
+        v-if="isLabelled()"
+        :data-eldra-slot="eldra.slotHost('default')"
+        data-part="label"
+        :class="labelClass"
+        ><slot /><RequiredMark v-if="requiredMark" :classes="classes" /><VisuallyHidden
+          v-if="requiredMark && !isRequired"
+          >{{ m.required }}</VisuallyHidden
+        ></span
       >
-        <path v-if="indeterminate" data-mark="dash" d="M1 5h8" />
-        <path v-else data-mark="tick" d="M1.25 5l2.5 2.5l5 -5" />
-      </svg>
-    </span>
 
-    <span data-part="label" :class="labelClass"><slot /></span>
-
-    <span v-if="hasHint" data-part="hint" :class="hintClass">
-      <slot name="hint">{{ hint }}</slot>
-    </span>
-  </component>
+      <span
+        v-if="hasHint"
+        :data-eldra-slot="eldra.slotHost('hint')"
+        data-part="hint"
+        :class="hintClass"
+      >
+        <slot name="hint">{{ hint }}</slot>
+      </span>
+    </component>
+  </Field>
 </template>

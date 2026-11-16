@@ -180,11 +180,6 @@ export interface StorefrontProduct extends StorefrontProductListItem {
   inventory: number | null;
   shipsBy?: string | null;
   /**
-   * The product's brand, when the platform carries one (`brand` on the public product read). Read
-   * by the page's structured data only; the page itself does not show it.
-   */
-  brand?: string | null;
-  /**
    * **Every variant, with the price and stock the page's own variant resolves from** — what the
    * page's structured data writes one offer per. Absent from a source that has no variants to
    * list (the demo), where the structured data falls back to one offer from `price` and `stock`.

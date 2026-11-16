@@ -12,9 +12,14 @@
  */
 import UnitInput from '../components/unit-input/UnitInput.vue';
 import type { FieldUnitInputProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_ONLY,
+  FIELD_VALIDATION_DEFAULTS,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldUnitInputProps>();
+const props = withDefaults(defineProps<FieldUnitInputProps>(), FIELD_VALIDATION_DEFAULTS);
 
 const { model, invalid, id, onBlur } = useFieldControl<number | null>(props, { empty: null });
 

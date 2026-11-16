@@ -31,7 +31,7 @@ const meta = {
           'items), when search or filters return nothing, or when content failed to load. Never',
           'shown while data is still loading — use `Skeleton` for that.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `icon` (the',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are `classes` keys): `root`, `icon` (the',
           'decorative circle), `title`, `text`, `actions`.',
           '',
           '**Slots**: `actions`, scoped with `{ retrying }` so a caller-supplied "Try again"',

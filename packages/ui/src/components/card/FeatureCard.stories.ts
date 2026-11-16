@@ -30,7 +30,7 @@ const meta = {
           'three or four (shipping, returns, guarantees). Optionally linked. For articles use',
           '`ContentCard`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `iconTile`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `iconTile`,',
           '`title`, `titleLink` (linked only), `body`, `cue` (linked only).',
           '',
           '**Slots**: `title`, `body`, `cue` — each falls back to the matching prop (`cue` falls',

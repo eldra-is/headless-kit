@@ -10,6 +10,7 @@ import { ALL_FACETS } from '../../components/filter-panel/northwind';
 import type { NavMenuItem } from '../../components/nav-menu/types';
 import * as ui from '../../index';
 import { isBuilt, itFailsWithoutDist } from '../../test/built';
+import { classCandidates, compileKitCss } from '../../test/kitCss';
 
 const packageRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const dist = `${packageRoot}dist/`;
@@ -145,6 +146,16 @@ afterAll(async () => {
   await browser?.close();
 }, 60_000);
 
+/** A consumer's own Tailwind build over the unprefixed classes `markup` carries (a `classes` override). */
+async function consumerCss(markup: string): Promise<string> {
+  const own = [...classCandidates(markup)].filter((name) => !name.startsWith('eldra:'));
+  const compiler = await compile(`@import 'tailwindcss';\n`, {
+    base: packageRoot,
+    onDependency() {},
+  });
+  return compiler.build(own);
+}
+
 async function weightOf(css: string, markup: string, selector: string, text: string) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
   try {
@@ -167,7 +178,7 @@ describe('a weight utility beside a type style', () => {
     async (_name, render, selector, text, weight) => {
       const markup = await renderToString(createSSRApp({ render }));
       const weights = await weightOf(
-        readFileSync(`${dist}style.css`, 'utf8'),
+        readFileSync(`${dist}style.css`, 'utf8') + (await consumerCss(markup)),
         markup,
         selector,
         text
@@ -178,6 +189,24 @@ describe('a weight utility beside a type style', () => {
   );
 
   it('wins even when the type style is emitted after it', async () => {
+    const css = await compileKitCss([
+      'eldra:font-semibold',
+      'eldra:text-body',
+      'eldra:md:text-body-sm',
+      'eldra:md:text-h2',
+      'eldra:font-normal',
+    ]);
+    expect(css.indexOf('.eldra\\:md\\:text-body-sm')).toBeGreaterThan(
+      css.indexOf('.eldra\\:font-semibold')
+    );
+    const markup =
+      '<p id="a" class="eldra:text-body eldra:md:text-body-sm eldra:font-semibold">a</p>' +
+      '<h2 id="b" class="eldra:font-normal eldra:md:text-h2">b</h2>';
+    expect(await weightOf(css, markup, '#a', 'a')).toEqual(['600']);
+    expect(await weightOf(css, markup, '#b', 'b')).toEqual(['400']);
+  });
+
+  it("wins on a consumer's own markup too, through tailwind.css", async () => {
     const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';\n`, {
       base: `${packageRoot}src/styles/`,
       onDependency() {},
@@ -186,7 +215,7 @@ describe('a weight utility beside a type style', () => {
       'font-semibold',
       'text-body',
       'md:text-body-sm',
-      'text-h2',
+      'md:text-h2',
       'font-normal',
     ]);
     expect(css.indexOf('.md\\:text-body-sm')).toBeGreaterThan(css.indexOf('.font-semibold'));

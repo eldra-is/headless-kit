@@ -33,7 +33,7 @@ const meta = {
           'collection toolbar. When there is no room for a field, the Search **modal** is the same',
           'component inside a native `<dialog>`.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `form`, `field`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): `root`, `form`, `field`,',
           '`leadingIcon`, `clearButton`, `shortcutHint`, `panel`, `listbox`, `section`,',
           '`sectionHeading`, `item`, `itemImage`, `itemTitle`, `itemMeta`, `itemArrow`, `recent`,',
           '`clearRecent`, `popular`, `chip`, `viewAll`, `loading`, `empty` and `liveRegion`.',

@@ -71,7 +71,7 @@ describe('ContentCard — variants', () => {
       variant: 'plain',
     });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('bg-background');
+    expect(root.classes()).toContain('eldra:bg-background');
     expect(root.classes().some((c) => c.startsWith('p-'))).toBe(false);
     expect(wrapper.find('[data-part="media"]').exists()).toBe(true);
     wrapper.unmount();
@@ -80,24 +80,24 @@ describe('ContentCard — variants', () => {
   it('a plain card with no image renders as the surface variant', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', variant: 'plain' });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('bg-surface');
-    expect(root.classes()).toContain('p-6');
+    expect(root.classes()).toContain('eldra:bg-surface');
+    expect(root.classes()).toContain('eldra:p-6');
     wrapper.unmount();
   });
 
   it('an explicit surface variant with no image is unchanged by the auto-conversion', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', variant: 'surface' });
-    expect(wrapper.get('[data-part="root"]').classes()).toContain('bg-surface');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 
   it('outlined: 1px border and padding, no auto-conversion to surface', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', variant: 'outlined' });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('border');
-    expect(root.classes()).toContain('border-border');
-    expect(root.classes()).toContain('bg-background');
-    expect(root.classes()).not.toContain('bg-surface');
+    expect(root.classes()).toContain('eldra:border');
+    expect(root.classes()).toContain('eldra:border-border');
+    expect(root.classes()).toContain('eldra:bg-background');
+    expect(root.classes()).not.toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 });
@@ -111,8 +111,8 @@ describe('ContentCard — eyebrow', () => {
     });
     const eyebrow = wrapper.get('[data-part="eyebrow"]');
     expect(eyebrow.text()).toBe('Studio journal');
-    expect(eyebrow.classes()).toContain('text-overline');
-    expect(eyebrow.classes()).toContain('text-accent');
+    expect(eyebrow.classes()).toContain('eldra:text-overline');
+    expect(eyebrow.classes()).toContain('eldra:text-accent');
     wrapper.unmount();
   });
 
@@ -176,7 +176,7 @@ describe('ContentCard — date formatting', () => {
     });
     const meta = wrapper.get('[data-part="meta"]');
     expect(meta.text()).toBe('24 products');
-    expect(meta.classes()).toContain('mt-auto');
+    expect(meta.classes()).toContain('eldra:mt-auto');
     expect(wrapper.find('[data-part="meta"] time').exists()).toBe(false);
     wrapper.unmount();
   });
@@ -245,14 +245,14 @@ describe('ContentCard — stretched link and focus ring', () => {
   it('the root carries the focus proxy and rounded-lg corners, the link an inset-covering pseudo', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x' });
     const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('eldra-focus');
-    expect(root.classes()).toContain('eldra-focus-proxy');
-    expect(root.classes()).toContain('rounded-lg');
-    expect(root.classes()).toContain('relative');
+    expect(root.classes()).toContain('eldra:eldra-focus');
+    expect(root.classes()).toContain('eldra:eldra-focus-proxy');
+    expect(root.classes()).toContain('eldra:rounded-lg');
+    expect(root.classes()).toContain('eldra:relative');
     const link = wrapper.get('[data-part="titleLink"]');
-    expect(link.classes()).toContain('after:absolute');
-    expect(link.classes()).toContain('after:inset-0');
-    expect(link.classes()).toContain('outline-none');
+    expect(link.classes()).toContain('eldra:after:absolute');
+    expect(link.classes()).toContain('eldra:after:inset-0');
+    expect(link.classes()).toContain('eldra:outline-none');
     wrapper.unmount();
   });
 
@@ -265,11 +265,11 @@ describe('ContentCard — stretched link and focus ring', () => {
 
   it('underlines the title at rest, thickening on hover via the root group (operator decision: all links underlined)', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x' });
-    expect(wrapper.get('[data-part="root"]').classes()).toContain('group');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('eldra:group');
     const titleLink = wrapper.get('[data-part="titleLink"]').classes();
-    expect(titleLink).toContain('underline');
-    expect(titleLink).not.toContain('no-underline');
-    expect(titleLink).toContain('group-hover:decoration-2');
+    expect(titleLink).toContain('eldra:underline');
+    expect(titleLink).not.toContain('eldra:no-underline');
+    expect(titleLink).toContain('eldra:group-hover:decoration-2');
     wrapper.unmount();
   });
 });
@@ -302,9 +302,9 @@ describe('ContentCard — loading', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', loading: true });
     expect(wrapper.get('[data-part="root"]').attributes('aria-busy')).toBe('true');
     const media = wrapper.get('[data-part="media"]');
-    expect(media.find('.eldra-skeleton').exists()).toBe(true);
+    expect(media.find('.eldra\\:eldra-skeleton').exists()).toBe(true);
     const body = wrapper.get('[data-part="body"]');
-    expect(body.findAll('.eldra-skeleton').length).toBe(3);
+    expect(body.findAll('.eldra\\:eldra-skeleton').length).toBe(3);
     expect(wrapper.find('a').exists()).toBe(false);
     expect(wrapper.find('[data-part="title"]').exists()).toBe(false);
     wrapper.unmount();
@@ -312,7 +312,7 @@ describe('ContentCard — loading', () => {
 
   it('renders no focus ring while loading — there is no focusable descendant', () => {
     const wrapper = mountCard({ title: 'Studio notes', href: '/x', loading: true });
-    expect(wrapper.get('[data-part="root"]').classes()).not.toContain('eldra-focus-proxy');
+    expect(wrapper.get('[data-part="root"]').classes()).not.toContain('eldra:eldra-focus-proxy');
     wrapper.unmount();
   });
 
@@ -367,7 +367,7 @@ describe('ContentCard — excerpt', () => {
       href: '/x',
       excerpt: LONG_EXCERPT,
     });
-    expect(wrapper.get('[data-part="excerpt"]').classes()).toContain('line-clamp-3');
+    expect(wrapper.get('[data-part="excerpt"]').classes()).toContain('eldra:line-clamp-3');
     wrapper.unmount();
   });
 
@@ -379,19 +379,16 @@ describe('ContentCard — excerpt', () => {
 });
 
 describe('ContentCard — customisation', () => {
-  it('lets classes.root replace a layout utility instead of landing beside it', () => {
-    const wrapper = mountCard({
-      title: 'Studio notes',
-      href: '/x',
-      classes: { root: 'gap-8' },
+  it('puts a consumer class on the root', () => {
+    const wrapper = mountWith(ContentCard, {
+      props: { title: 'Studio notes', href: '/x' },
+      attrs: { class: 'gap-8' },
     });
-    const root = wrapper.get('[data-part="root"]');
-    expect(root.classes()).toContain('gap-8');
-    expect(root.classes()).not.toContain('gap-4');
+    expect(wrapper.get('[data-part="root"]').classes()).toContain('gap-8');
     wrapper.unmount();
   });
 
-  it('merges an override onto another part', () => {
+  it('appends an override to another part', () => {
     const wrapper = mountCard({
       title: 'Studio notes',
       href: '/x',

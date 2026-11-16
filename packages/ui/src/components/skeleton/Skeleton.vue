@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, type StyleValue } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import { frameAspectRatio } from '../../utils/ratio';
-import type { SkeletonPart, SkeletonProps, SkeletonVariant } from './types';
+import type { SkeletonProps, SkeletonVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<SkeletonProps>(), {
   variant: 'text',
   lines: 1,
   width: undefined,
+  height: undefined,
   ratio: '4x5',
   size: '2.5rem',
   busyLabel: null,
@@ -50,12 +53,21 @@ const rootAria = computed(() =>
  * rather than its own default percentage of it, so the rendered result is exactly `width` wide,
  * not a fraction of it.
  */
-const rootClass = computed(() =>
-  partClass(cx('block', !props.width && 'w-full'), props.classes, 'root')
-);
-const rootStyle = computed<StyleValue | undefined>(() =>
-  props.width ? { width: props.width } : undefined
-);
+const isBox = computed(() => props.variant === 'box');
+// `box` is one shape and nothing else: the root draws the shimmer itself, so `class`, `style`,
+// `width` and `height` size the placeholder directly.
+const rootClass = computed(() => [
+  'eldra:block',
+  !props.width && 'eldra:w-full',
+  isBox.value && 'eldra:eldra-skeleton eldra:eldra-skeleton-box eldra:rounded-md',
+  isBox.value && props.classes?.line,
+]);
+const rootStyle = computed<StyleValue | undefined>(() => {
+  const style: Record<string, string> = {};
+  if (props.width) style.width = props.width;
+  if (props.height) style.height = props.height;
+  return Object.keys(style).length ? style : undefined;
+});
 
 /**
  * Spec "Skeleton" → Properties, `width` row: "Vary text widths between 35% and 85%." Deterministic
@@ -63,18 +75,18 @@ const rootStyle = computed<StyleValue | undefined>(() =>
  * cycle, widest first. A single line (the default `lines`) instead renders the row's other stated
  * default, `100%` (`w-full`) — spec: "Default 100% (title 60%)".
  */
-const TEXT_WIDTH_CYCLE = ['w-[85%]', 'w-[70%]', 'w-[55%]', 'w-[35%]'];
+const TEXT_WIDTH_CYCLE = ['eldra:w-[85%]', 'eldra:w-[70%]', 'eldra:w-[55%]', 'eldra:w-[35%]'];
 
 /** `title` row: "Default 100% (title 60%)" — one fixed width, no cycling. */
-const TITLE_WIDTH_CLASS = 'w-[60%]';
+const TITLE_WIDTH_CLASS = 'eldra:w-[60%]';
 
 const lineCount = computed(() =>
   props.variant === 'text' ? Math.max(1, Math.trunc(props.lines)) : 1
 );
 
 function textWidthClass(index: number): string {
-  if (props.width) return 'w-full';
-  if (lineCount.value <= 1) return 'w-full';
+  if (props.width) return 'eldra:w-full';
+  if (lineCount.value <= 1) return 'eldra:w-full';
   return TEXT_WIDTH_CYCLE[index % TEXT_WIDTH_CYCLE.length] as string;
 }
 
@@ -88,29 +100,28 @@ const mediaAspectRatio = computed(() => frameAspectRatio(props.ratio, null));
  * control height, so all three are always `w-full` (never a fraction of the root, `width` or not).
  * `text` and `title` are the two percentage-wide shapes and are handled in `lineClass` below, since
  * their width also depends on `width`/`lines`. */
-const SHAPE_CLASS: Record<Exclude<SkeletonVariant, 'text' | 'title'>, string> = {
-  circle: 'rounded-full shrink-0',
-  media: 'w-full rounded-lg',
+const SHAPE_CLASS: Record<Exclude<SkeletonVariant, 'text' | 'title' | 'box'>, string> = {
+  circle: 'eldra:rounded-full eldra:shrink-0',
+  media: 'eldra:w-full eldra:rounded-lg',
   // `--eldra-control-height` (the `control-h` utility `Button`'s `md` size also uses) rather than
   // the spec's own literal 2.75rem: that figure is `target-touch`, the width Button only grows to
   // below a 48rem *container* (a container query this placeholder does not replicate) — the shape
   // that actually needs to be reserved here, in the common (non-narrow) case, is the button's own
   // resting height, which is `control-height`.
-  btn: 'control-h w-full rounded-md',
+  btn: 'eldra:control-h eldra:w-full eldra:rounded-md',
 };
 
 function lineClass(index: number): string {
-  const base = 'eldra-skeleton block';
+  const base = 'eldra:eldra-skeleton eldra:block';
   const variant = props.variant;
-  // `0.3rem` is the spec's own literal margin (Skeleton → Sizes, `text` row: "height 0.875rem,
-  // 0.3rem margin above and below (one 1.5 line-height row)"), not a rounding of a spacing-scale
-  // step — the package's `0.25rem` unit has no `0.3rem` multiple — so it stays a documented
-  // arbitrary value rather than a token that would not actually match the spec's own number.
-  if (variant === 'text') return cx(base, 'h-3.5 my-[0.3rem] rounded-sm', textWidthClass(index));
+  // The row heights and the text gap are the spec's numbers, behind `--eldra-skeleton-*` variables
+  // (see `eldra-skeleton-text` in `src/styles/utilities.css`).
+  if (variant === 'text')
+    return `${base} eldra:eldra-skeleton-text eldra:rounded-sm ${textWidthClass(index)}`;
   if (variant === 'title') {
-    return cx(base, 'h-6 rounded-sm', props.width ? 'w-full' : TITLE_WIDTH_CLASS);
+    return `${base} eldra:eldra-skeleton-title eldra:rounded-sm ${props.width ? 'eldra:w-full' : TITLE_WIDTH_CLASS}`;
   }
-  return cx(base, SHAPE_CLASS[variant]);
+  return `${base} ${SHAPE_CLASS[variant as Exclude<SkeletonVariant, 'text' | 'title' | 'box'>]}`;
 }
 
 function lineStyle(): StyleValue | undefined {
@@ -119,18 +130,24 @@ function lineStyle(): StyleValue | undefined {
   return undefined;
 }
 
-const PART: SkeletonPart = 'line';
 const lines = computed(() =>
-  Array.from({ length: lineCount.value }, (_, index) => ({
+  Array.from({ length: isBox.value ? 0 : lineCount.value }, (_, index) => ({
     key: index,
-    class: partClass(lineClass(index), props.classes, PART),
+    class: [lineClass(index), props.classes?.line],
     style: lineStyle(),
   }))
 );
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass" :style="rootStyle" v-bind="rootAria">
+  <div
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    :style="rootStyle"
+    v-bind="rootAria"
+  >
     <div
       v-for="line in lines"
       :key="line.key"

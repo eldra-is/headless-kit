@@ -11,10 +11,13 @@ module.exports = [
     import: '{ createEldraClient }',
     // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
     // about 0.2 kB brotlied, and the client is one object, so an unused method (forms, the campaign
-    // landing in `cart.addItem`) is not shaken out. Main's budget with the campaign landing: 4.25 kB.
-    // With the business-customer calls on top (B2B: customer.me and locations, the sales-order
-    // calls, the idempotency-key check, typed problem `errors`) it measures 4.37 kB.
-    limit: '4.4 kB',
+    // landing in `cart.addItem`) is not shaken out. Main's budget: 4.5 kB, raised from 4.25 kB when
+    // the cart took one field for a code, several gift cards and several discount codes
+    // (`cart.applyCode`, `removeGiftCardEntry`, `removeDiscountEntry`) and the error took the
+    // refusal's `errors`. With the business-customer calls on top (B2B: customer.me and locations,
+    // the sales-order calls, the idempotency-key check, typed problem `errors`) it measures
+    // 4.53 kB.
+    limit: '4.6 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -30,15 +33,17 @@ module.exports = [
     limit: '1.5 kB',
   },
   // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
-  // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport.
+  // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport. Raised again
+  // from 5.2 kB when the product list took the custom field filter `ext`, and from 5.25 kB with
+  // the cart's code methods above.
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
     // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
-    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget with the campaign
-    // landing: 5.2 kB. With the B2B work on top (business login: OIDC with PKCE, `customerHeaders`;
-    // the sales-order calls and `isEldraError`) it measures 6.24 kB.
-    limit: '6.3 kB',
+    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget: 5.5 kB. With the
+    // B2B work on top (business login: OIDC with PKCE, `customerHeaders`; the sales-order calls and
+    // `isEldraError`) it measures 6.49 kB.
+    limit: '6.55 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
@@ -91,6 +96,12 @@ module.exports = [
     path: 'packages/sdk/dist/format/display-names.js',
     limit: '32 kB',
   },
+  // The patch around the date and number entries: their data, plus a few hundred bytes of routing.
+  {
+    name: '@eldrajs/sdk/format/intl — installIcelandicIntl',
+    path: 'packages/sdk/dist/format/intl.js',
+    limit: '70 kB',
+  },
   {
     name: '@eldrajs/vue — RichText, without vue',
     path: 'packages/vue/dist/index.js',
@@ -137,7 +148,8 @@ module.exports = [
     path: 'packages/ui/dist/index.js',
     import: '{ TablerIcon }',
     ignore: ['vue', 'tailwind-merge', './tablerIconData-*'],
-    limit: '3.25 kB',
+    // Includes mergeClass's group config, which grows with every utility of the kit's own.
+    limit: '3.3 kB',
   },
   {
     name: "@eldrajs/ui — TablerIcon's lazy index, without the data files",
@@ -178,11 +190,16 @@ module.exports = [
   // Raised from 152 kB for `NavMenu`'s variant, arrow keys and hover intent (152.16 kB with them).
   // Raised from 153 kB for `Image`'s `zoomOrigin` and `crops` (153.12 kB with them).
   // Raised from 154 kB for `TablerIcon` (its icon data stays lazy, so is ignored here) and `SiteForm` with its `form*` messages.
+  // Raised 160 kB -> 172 kB for the wrapper options (Popover, Select/MultiSelect with inside tags and
+  // fit-to-width summaries, Toaster's external queue, Pagination, Radio, Button's static tag and `to`,
+  // the field chrome on standalone controls): measured at 167.87 kB.
+  // Raised 172 kB -> 173 kB for `PhoneInput`'s eight messages and its two utilities' merge groups,
+  // the only parts of `@eldrajs/ui/phone` the root entry carries: measured at 172.27 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '160 kB',
+    limit: '173 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
@@ -194,19 +211,59 @@ module.exports = [
     ignore: ['vue', 'tailwind-merge'],
     limit: '12 kB',
   },
+  // The phone entry (`@eldrajs/ui/phone`). Three rows, because three different things can grow:
+  // the component and the list it shares with `Select`; the phone library with its `min`
+  // metadata, which is the app's own optional peer; and the flag artwork, which must stay a lazy
+  // chunk. A static import of the flags anywhere on the entry's path fails the first two rows.
+  // Measured at 29.69 kB (of which the list shared with `Select` is most), 61.27 kB and 38.52 kB.
+  {
+    name: '@eldrajs/ui/phone — PhoneInput, without vue, the sdk, libphonenumber-js or the flags',
+    path: 'packages/ui/dist/phone.js',
+    ignore: ['vue', '@eldrajs/sdk', 'libphonenumber-js', './phoneFlagData-*'],
+    limit: '31 kB',
+  },
+  {
+    name: '@eldrajs/ui/phone — PhoneInput with libphonenumber-js (min), without vue, the sdk or the flags',
+    path: 'packages/ui/dist/phone.js',
+    ignore: ['vue', '@eldrajs/sdk', './phoneFlagData-*'],
+    limit: '63 kB',
+  },
+  {
+    name: '@eldrajs/ui/phone — the lazy flag chunk',
+    path: 'packages/ui/dist/phoneFlagData-*.js',
+    limit: '40 kB',
+  },
+  // The flag entry (`@eldrajs/ui/flag`): the component and the loader only. The artwork is the
+  // row above; a static import of it here fails this row.
+  {
+    name: '@eldrajs/ui/flag — CountryFlag, without vue or the flags',
+    path: 'packages/ui/dist/flag.js',
+    ignore: ['vue', './phoneFlagData-*'],
+    limit: '2 kB',
+  },
+  // The vue-i18n adapter: one shape per message function, the conversion, and the list join.
+  // Measured at 3.83 kB.
+  {
+    name: '@eldrajs/ui/vue-i18n — everything, without vue, vue-i18n or the sdk',
+    path: 'packages/ui/dist/vue-i18n.js',
+    ignore: ['vue', 'vue-i18n', '@eldrajs/sdk'],
+    limit: '5 kB',
+  },
   // Raised 13.5 kB -> 14.5 kB for `FilterPanel`, which is mostly new CSS: a disclosure, five facet
   // shapes, a swatch and its ring, a size tile in four states, a histogram bar and the
   // container-query switch to two colour columns. Measured at 13.63 kB with it, so this keeps a
   // little under a kilobyte of headroom rather than sitting on the number.
+  // Raised 14.5 kB -> 16 kB for the same wrapper options' parts and states (inside tags, `Radio`,
+  // the Popover and Toaster variants): measured at 15.04 kB (style.css) and 14.64 kB.
   {
     name: '@eldrajs/ui — style.css',
     path: 'packages/ui/dist/style.css',
-    limit: '14.5 kB',
+    limit: '16 kB',
   },
   {
     name: '@eldrajs/ui — components.css',
     path: 'packages/ui/dist/components.css',
-    limit: '14.5 kB',
+    limit: '16 kB',
   },
   {
     name: '@eldrajs/theme-vue — everything, without vue',

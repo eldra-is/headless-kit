@@ -47,7 +47,7 @@ export const Focusable: Story = {
         <VisuallyHidden
           v-bind="args"
           href="#content"
-          :classes="{ root: 'focus:eldra-focus focus:bg-surface focus:px-4 focus:py-2' }"
+          class="focus:eldra-focus focus:bg-surface focus:px-4 focus:py-2"
         >
           Skip to content
         </VisuallyHidden>

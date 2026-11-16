@@ -100,9 +100,8 @@ export interface NavMenuGroupHeadingSlotProps {
   placement: NavMenuPlacement;
 }
 
-/** The parts a consumer can restyle through `classes`. */
+/** The parts a consumer can restyle through `classes`. The root is styled with `class`. */
 export type NavMenuPart =
-  | 'root'
   | 'nav'
   | 'list'
   | 'item'
@@ -158,6 +157,6 @@ export interface NavMenuProps {
   linkAs?: string | Component;
   /** Message overrides. See `useMessages`. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (a consumer class wins by cascade layer). */
   classes?: Partial<Record<NavMenuPart, string>>;
 }

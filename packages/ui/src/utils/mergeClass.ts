@@ -1,40 +1,18 @@
-import { getCurrentInstance } from 'vue';
+import { normalizeClass } from 'vue';
 import { extendTailwindMerge } from 'tailwind-merge';
 
 /**
- * Anything `cx` accepts: a class string, a falsy placeholder for a branch that
- * did not apply, or an object whose truthy keys are class names.
+ * Where one of this package's components restyles another it renders (FilterGroup's count
+ * `Badge`, Lightbox's `Image`), both sets of classes are `eldra:` classes in the same layer, so
+ * stylesheet order would pick the winner. The child merges what it receives with
+ * `mergeClass`, so the parent's class replaces the child's own. A consumer's classes need no
+ * merge: they win by layer.
  *
- * An **array is deliberately not in this union**, and neither is it in a
- * `classes` prop's own `Partial<Record<Part, string>>` type: this package's
- * `classes` contract is one string per part, so a TypeScript consumer writing
- * `classes: { root: ['a', 'b'] }` gets a type error where it belongs — at the
- * call. `cx` still *flattens* one at runtime (see `flattenClassValue` below),
- * and `partClass` warns about it in dev, because the type cannot help a
- * JavaScript consumer, a `v-bind` of an untyped object, or a value that arrived
- * from JSON.
+ * `tailwind-merge` only knows Tailwind's own utilities, so every custom `@utility` in
+ * `utilities.css` is registered under the stock group it shares a concern with, or a group of its
+ * own; `custom-utility-coverage.spec.ts` checks none is missing.
  */
-export type ClassValue = string | false | null | undefined | Record<string, boolean>;
-
-/**
- * Stock `twMerge` only knows Tailwind's own utilities: it has no idea `text-button-md` is a
- * "font-size" utility, so a consumer's `classes.container: 'text-lg'` used to land *beside* it
- * instead of replacing it, and CSS source order (not the override) decided which one painted.
- *
- * `src/styles/tailwind.css`'s `@utility` rules are invisible to `tailwind-merge` the same way —
- * it never reads the package's CSS, it only pattern-matches class names against its built-in
- * config — so every custom utility that shares a *concern* with a stock group (a font size, a
- * height, a duration, a z-index, an animation, a border radius) is registered here under that
- * group's id. The three with no stock equivalent (`eldra-focus*`, `target-min`, `target-touch`)
- * get their own group ids instead, so they still conflict with each other without conflicting
- * with unrelated utilities.
- *
- * `src/__tests__/custom-utility-coverage.spec.ts` parses every `@utility <name>` out of
- * `tailwind.css` and fails if `cx(name, name)` does not collapse to one token, so a new custom
- * utility that is never added here (as `eldra-link-radius` first shipped) is caught by a test
- * instead of shipping unmerged.
- */
-const twMerge = extendTailwindMerge<
+type KitGroup =
   | 'target-min'
   | 'target-touch'
   | 'eldra-scrollbar-hide'
@@ -43,15 +21,21 @@ const twMerge = extendTailwindMerge<
   | 'eldra-focus-inset-always'
   | 'eldra-focus-open'
   | 'eldra-focus-proxy'
+  | 'eldra-focus-has-open'
+  | 'eldra-phone-flag'
   | 'eldra-field-invalid'
   | 'eldra-radio-card-selected'
   | 'eldra-switch-thumb-offset'
+  | 'eldra-dialog-fullscreen'
+  | 'eldra-drawer-motion'
+  | 'eldra-drawer-sheet'
   | 'eldra-select-match'
   | 'eldra-select-swatch'
   | 'eldra-select-option-active'
   | 'eldra-select-option-selected'
   | 'eldra-variant-pill-selected-line'
   | 'eldra-skeleton'
+  | 'eldra-skeleton-text'
   | 'eldra-rating-half'
   | 'eldra-image-placeholder-hatch'
   | 'eldra-editor-placeholder-border'
@@ -64,8 +48,9 @@ const twMerge = extendTailwindMerge<
   | 'eldra-range-thumb'
   | 'eldra-filter-swatch-edge'
   | 'eldra-filter-histogram-bar'
-  | 'eldra-nav-menu-dropdown'
->({
+  | 'eldra-nav-menu-dropdown';
+
+const MERGE_CONFIG = {
   extend: {
     // tailwind.css `@theme` keys that are not t-shirt sizes, so `shadow-float`/`w-narrow` merge too.
     theme: {
@@ -143,7 +128,14 @@ const twMerge = extendTailwindMerge<
       ],
       // Control heights (tailwind.css "Control heights and targets"): whole class names, not a
       // `h-*` suffix, but the same "h" group as Tailwind's own `h-*` scale.
-      h: ['control-h', 'control-h-sm', 'control-h-lg', 'eldra-range-track'],
+      h: [
+        'control-h',
+        'control-h-sm',
+        'control-h-lg',
+        'eldra-range-track',
+        'eldra-skeleton-title',
+        'eldra-skeleton-box',
+      ],
       // The Range slider rail's own touch band (tailwind.css "Range slider"): a `min-height` with
       // a container-query step, in Tailwind's own `min-h` group so a consumer's `min-h-0` on the
       // rail replaces it rather than landing beside it.
@@ -181,12 +173,16 @@ const twMerge = extendTailwindMerge<
       // The Tabs list's hidden scrollbar (tailwind.css "Tabs"): no stock group covers hiding a
       // scrollbar either, so it gets its own.
       'eldra-scrollbar-hide': ['eldra-scrollbar-hide'],
+      // The colour transition (tailwind.css "Colour changes"): a `transition` shorthand, so it
+      // replaces a stock `transition-*` beside it instead of the two fighting over one property.
+      transition: ['eldra-transition-colors'],
       // Border widths (tailwind.css "A field's own boundary" and "The Checkbox box"): whole class
       // names rather than a `border-*` suffix, but the same "border-w" group as Tailwind's own
       // `border`/`border-2`, so a consumer's `border-2` replaces them and — the reason the two
       // checkbox widths exist — the invalid width replaces the ordinary one.
       'border-w': [
         'eldra-field-border',
+        'eldra-button-border',
         'eldra-checkbox-border',
         'eldra-checkbox-border-invalid',
         'eldra-radio-card-border',
@@ -207,6 +203,11 @@ const twMerge = extendTailwindMerge<
       // The Switch thumb's rest inset (tailwind.css "The Switch thumb's rest position"): a logical
       // `inset-inline-start` with no stock Tailwind equivalent, so it gets its own group too.
       'eldra-switch-thumb-offset': ['eldra-switch-thumb-offset'],
+      'eldra-dialog-fullscreen': ['eldra-dialog-fullscreen'],
+      // The drawer's transitions and its mobile-sheet variables (tailwind.css "Drawer"): no stock
+      // equivalent, a group each.
+      'eldra-drawer-motion': ['eldra-drawer-motion'],
+      'eldra-drawer-sheet': ['eldra-drawer-sheet'],
       // The Select popover's own box (tailwind.css "Select"): whole class names rather than a
       // `max-h-*`/`max-w-*` suffix, but Tailwind's own groups, so a consumer's
       // `classes.panel: 'max-h-64'` replaces the height and leaves the width clamp alone.
@@ -215,6 +216,7 @@ const twMerge = extendTailwindMerge<
         'eldra-search-panel-height',
         'eldra-dialog-max-height',
         'eldra-search-modal-max-height',
+        'eldra-drawer-sheet-height',
       ],
       // The Search modal's own position (tailwind.css "Search modal"): "8vh from the top, centred
       // horizontally" on desktop, no margin (full screen) below 48rem — one bundled `margin`
@@ -267,6 +269,12 @@ const twMerge = extendTailwindMerge<
       // leaves focused but not `:focus-visible`). It carries no base, so sharing a group with what
       // it modifies would let `cx` drop the ring and keep only the trigger.
       'eldra-focus-open': ['eldra-focus-open'],
+      // `eldra-focus-has-open` is the same modifier for a box whose popup opens from a button
+      // inside it (`PhoneInput`'s field), so it gets its own group for the same reason.
+      'eldra-focus-has-open': ['eldra-focus-has-open'],
+      // A `PhoneInput` flag's corner, hairline and loading fill in one rule: no stock group covers
+      // the three together, so it gets its own.
+      'eldra-phone-flag': ['eldra-phone-flag'],
       // Link's focus-ring corner radius (tailwind.css "eldra-link-radius"): the same "rounded"
       // group as `rounded-*`, so a consumer's `classes.root: 'rounded-full'` replaces it.
       rounded: ['eldra-link-radius', 'eldra-select-check-radius'],
@@ -280,6 +288,8 @@ const twMerge = extendTailwindMerge<
       // moving highlight `::after`, no stock Tailwind equivalent, so it gets its own group. Shared
       // by `Price`'s loading state and, later, `Skeleton` itself.
       'eldra-skeleton': ['eldra-skeleton'],
+      // A text row's height and its gap above and below: two properties, so a group of its own.
+      'eldra-skeleton-text': ['eldra-skeleton-text'],
       // The Rating half star's clip overlay (tailwind.css "Rating"): a one-off `clip-path` with no
       // stock Tailwind group, so it gets its own.
       'eldra-rating-half': ['eldra-rating-half'],
@@ -342,123 +352,11 @@ const twMerge = extendTailwindMerge<
       ],
     },
   },
-});
+};
 
-/**
- * Flattens one `cx` input into the class names it contributes.
- *
- * The array branch is the one that is not in `ClassValue`, and it exists
- * because the alternative is silent nonsense rather than an error. `Object.
- * entries(['flex', 'gap-4'])` yields `[['0', 'flex'], ['1', 'gap-4']]`, so the
- * object branch below used to read an array's *indices* as class names and emit
- * `"0 1"` — two classes that style nothing, in place of the two the consumer
- * wrote. Flattening (recursively, so a nested array works the way Vue's own
- * `:class` array syntax does) is what a caller passing one always meant;
- * `partClass` is where it also gets told, in dev, that this package's `classes`
- * prop takes a string per part.
- */
-function flattenClassValue(input: unknown, out: string[]): void {
-  if (!input) return;
-  if (typeof input === 'string') {
-    out.push(input);
-    return;
-  }
-  if (Array.isArray(input)) {
-    for (const item of input) flattenClassValue(item, out);
-    return;
-  }
-  if (typeof input !== 'object') return;
-  for (const [name, enabled] of Object.entries(input)) {
-    if (enabled) out.push(name);
-  }
-}
+export const kitMerge = extendTailwindMerge<KitGroup>({ ...MERGE_CONFIG, prefix: 'eldra' });
 
-/**
- * Join class values, then resolve Tailwind conflicts so the last one wins.
- *
- * Every component builds its classes with this, which is what makes the
- * `classes` prop work without `!important`: a consumer's `px-6` replaces the
- * component's `px-4` instead of landing beside it and losing to source order.
- */
-export function cx(...inputs: ClassValue[]): string {
-  const parts: string[] = [];
-  for (const input of inputs) flattenClassValue(input, parts);
-  return twMerge(parts.join(' '));
-}
-
-/**
- * The name of the component whose render is currently running, for a dev
- * warning's sake only.
- *
- * `partClass` is called from a `computed` in every component, and a component's
- * class computeds are first evaluated while that component renders — which is
- * exactly when Vue has a current instance (`getCurrentInstance()` reads the
- * rendering instance as well as the setup one). So the name is available
- * without every one of the ~60 call sites passing it, and a call from outside a
- * render (a consumer composing classes in a plain function) still degrades to a
- * readable label rather than throwing.
- *
- * `name` before `__name`: `name` is what a component sets explicitly, `__name`
- * what the SFC compiler derives from the filename.
- */
-function currentComponentName(): string {
-  const type = getCurrentInstance()?.type as { name?: string; __name?: string } | undefined;
-  return type?.name ?? type?.__name ?? 'an @eldrajs/ui component';
-}
-
-/**
- * Parts already warned about, keyed by component **and** part: one warning per
- * component/part pair, not one per render — `partClass` runs on every render of
- * every component, so an unkeyed `console.warn` would flood a dev console with
- * the same line hundreds of times, which is how a warning stops being read.
- */
-const warnedArrayParts = new Set<string>();
-
-/**
- * Warns, once, that a `classes` part was given an array (see
- * `flattenClassValue` for what happens to it).
- *
- * Dev only (`import.meta.env?.DEV`, the same guard `formatDate`,
- * `Section`, `Chip`, `Image`, `Drawer`, `Popover` and `Tooltip` use for their
- * own warnings), so a production bundle carries no message text and does
- * nothing at runtime: this is a wrong-shape-of-prop mistake a developer fixes
- * once, never a condition a visitor's browser should spend anything on.
- */
-function warnArrayClassesValue(part: string): void {
-  if (!import.meta.env?.DEV) return;
-  const component = currentComponentName();
-  const key = `${component}.${part}`;
-  if (warnedArrayParts.has(key)) return;
-  warnedArrayParts.add(key);
-  console.warn(
-    `[@eldrajs/ui] ${component} received an array for \`classes.${part}\`. Every \`classes\` ` +
-      'part takes a single class string — the array is flattened for you, but pass ' +
-      `\`classes: { ${part}: 'a b' }\` (or a template literal) instead.`
-  );
-}
-
-/**
- * The classes for one named part of a component: the part's own classes with
- * the consumer's override for that part merged over them.
- *
- * `Part` is the union of the part names in the component's spec anatomy, so a
- * typo in a `classes` key is a type error rather than a silently ignored
- * override.
- */
-export function partClass<P extends string>(
-  base: string,
-  classes: Partial<Record<P, string>> | undefined,
-  part: P
-): string {
-  const override = classes?.[part] as unknown;
-  // `Partial<Record<P, string>>` says this is a string, so the `Array.isArray`
-  // check is about the callers TypeScript cannot reach: a JavaScript consumer, a
-  // `v-bind` of an untyped object, a `classes` value that came out of JSON. The
-  // array is flattened by `cx` either way (`flattenClassValue`); this is only
-  // where the developer is told, once, that the prop takes a string per part.
-  if (Array.isArray(override)) {
-    warnArrayClassesValue(part);
-    return cx(base, ...(override as ClassValue[]));
-  }
-  return cx(base, override as ClassValue);
+/** The component's own classes with `incoming` (a parent component's) merged over them. */
+export function mergeClass(own: unknown, incoming: unknown): string {
+  return kitMerge(normalizeClass([own, incoming]));
 }

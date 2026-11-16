@@ -51,7 +51,6 @@ export type SearchSelectType = SearchResultType | 'viewAll';
  * `itemArrow` is the Sizes table's "Active arrow".
  */
 export type SearchBarPart =
-  | 'root'
   | 'form'
   | 'field'
   | 'leadingIcon'
@@ -120,7 +119,10 @@ export interface SearchBarProps {
   teleport?: boolean | string;
   /** Message overrides for this control alone. */
   messages?: Partial<UiMessages>;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<SearchBarPart, string>>;
 }
 

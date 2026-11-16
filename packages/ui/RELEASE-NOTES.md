@@ -1,5 +1,122 @@
 # Changelog
 
+## [0.3.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.8...ui-v0.3.9) (2026-11-16)
+
+
+### Features
+
+* **ui:** country flags from @eldrajs/ui/flag, and Select all in MultiSelect (WS-1013) ([#140](https://github.com/eldra-is/headless-kit/issues/140)) ([b38ad62](https://github.com/eldra-is/headless-kit/commit/b38ad62b150727d03a114d22a1c12070fb7196b8))
+
+## [0.3.8](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.7...ui-v0.3.8) (2026-11-16)
+
+
+### Features
+
+* **ui:** PhoneInput with a country picker and per-country validation (WS-1006) ([#138](https://github.com/eldra-is/headless-kit/issues/138)) ([438dff9](https://github.com/eldra-is/headless-kit/commit/438dff9eaf6968df45f2e33aba04b2aabd328268))
+
+## [0.3.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.6...ui-v0.3.7) (2026-11-15)
+
+
+### Features
+
+* **ui:** Notice, StepIndicator, exported Spinner, a leading part on RadioGroup cards, and per-field validation timing (WS-982) ([#136](https://github.com/eldra-is/headless-kit/issues/136)) ([ab7cde4](https://github.com/eldra-is/headless-kit/commit/ab7cde47490f1a165e7c1d6048afcc96f7920840))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.3
+
+## [0.3.6](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.5...ui-v0.3.6) (2026-11-12)
+
+
+### Features
+
+* **ui:** slide Drawer in smoothly, swipe it closed, and add a mobile bottom sheet ([#132](https://github.com/eldra-is/headless-kit/issues/132)) ([83a27f5](https://github.com/eldra-is/headless-kit/commit/83a27f5ac3d248d191dcd0e63f42fe058c123652))
+
+## [0.3.5](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.4...ui-v0.3.5) (2026-11-12)
+
+
+### Features
+
+* **ui:** draw the focus ring through Tailwind's ring variables ([#131](https://github.com/eldra-is/headless-kit/issues/131)) ([2f170ea](https://github.com/eldra-is/headless-kit/commit/2f170eaa8e5e35766277193e52cf2d42b944415e))
+
+
+### Bug Fixes
+
+* **ui:** let a press on FieldWrapper's empty space blur the input again ([#129](https://github.com/eldra-is/headless-kit/issues/129)) ([6d96d4f](https://github.com/eldra-is/headless-kit/commit/6d96d4fd083748c0e7426f938c7a0409eea8a6f5))
+
+## [0.3.4](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.3...ui-v0.3.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ui:** ignore a press on FieldWrapper's bare frame ([#127](https://github.com/eldra-is/headless-kit/issues/127)) ([3c1f4bf](https://github.com/eldra-is/headless-kit/commit/3c1f4bf91682ee80a1596d01268fea7107e777dc))
+
+## [0.3.3](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.2...ui-v0.3.3) (2026-11-11)
+
+
+### Features
+
+* **ui:** let a tall Dialog grow and scroll, and add eldra-dialog-fullscreen ([#125](https://github.com/eldra-is/headless-kit/issues/125)) ([a424c11](https://github.com/eldra-is/headless-kit/commit/a424c1179f8c476378633ff24223c70f6432aa42))
+
+## [0.3.2](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.1...ui-v0.3.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ui:** fade the Switch thumb's colour with its track ([#123](https://github.com/eldra-is/headless-kit/issues/123)) ([3ed693b](https://github.com/eldra-is/headless-kit/commit/3ed693b0d18ea761cd6f0e7d7c608db5f67f7b76))
+
+## [0.3.1](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.0...ui-v0.3.1) (2026-11-11)
+
+
+### Features
+
+* **ui:** smooth focus ring, 2px error line at every zoom, Dialog focusing itself, and a softer Skeleton with a box variant ([#121](https://github.com/eldra-is/headless-kit/issues/121)) ([33ace6e](https://github.com/eldra-is/headless-kit/commit/33ace6e529ffb8b1748e8b3566fafcc4c56f5516))
+
+## [0.3.0](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.9...ui-v0.3.0) (2026-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ui:** component classes are `eldra:`-prefixed, `tailwind.css` no longer builds the components (import `components.css` beside it), and `@eldrajs/ui/scoped.css` is removed.
+
+### Features
+
+* **ui:** button border width, content-width buttons and softer colour transitions ([#117](https://github.com/eldra-is/headless-kit/issues/117)) ([9faf3bd](https://github.com/eldra-is/headless-kit/commit/9faf3bd6fe6dab1c441d4cf486401ddb6f4e052a))
+* **ui:** ship the components prebuilt with eldra:-prefixed classes ([#119](https://github.com/eldra-is/headless-kit/issues/119)) ([f8b3d93](https://github.com/eldra-is/headless-kit/commit/f8b3d9373ad5d6de72cc1c8b2a06eeb876a09b68))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.2
+
+## [0.2.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.8...ui-v0.2.9) (2026-11-09)
+
+
+### Features
+
+* **ui:** wrapper options, scoped.css and inside tags for embedding the kit ([#106](https://github.com/eldra-is/headless-kit/issues/106)) ([5a23cf6](https://github.com/eldra-is/headless-kit/commit/5a23cf69c7c622de68b894f10d335d42e02157ba))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.1
+
+## [0.2.8](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.7...ui-v0.2.8) (2026-11-09)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.0
+
 ## [0.2.7](https://github.com/eldra-is/headless-kit/compare/ui-v0.2.6...ui-v0.2.7) (2026-10-24)
 
 

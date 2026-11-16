@@ -23,7 +23,7 @@ const meta = {
           '**Checkbox** instead.',
           '',
           '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the',
-          '`<button type="button" role="switch">`), `track`, `thumb`, `label` and `description`.',
+          '`<button type="button" role="switch">`, styled with `class`), `track`, `thumb`, `label` and `description`.',
           'The hidden mirror `<input type="checkbox">` has no `classes` key, the same reasoning as',
           "Checkbox's own native input: restyling it would break the pattern rather than restyle it.",
           '',

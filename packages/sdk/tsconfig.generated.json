@@ -8,5 +8,5 @@
     "src/__tests__/generated/**/*.ts",
     "src/__tests__/fixtures/contract.ts"
   ],
-  "exclude": ["src/__tests__/contract.spec.ts"]
+  "exclude": ["src/__tests__/contract.spec.ts", "src/__tests__/generated-bare/**"]
 }

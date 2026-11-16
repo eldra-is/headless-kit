@@ -9,6 +9,63 @@ platform repository.
 
 ## Unreleased
 
+- **Several discount codes on one cart (contract 6.9.0).** `applyDiscount` and `applyCode` (as `DISCOUNT`) now add
+  a code after the cart's codes instead of replacing it; each applies to what the codes before it left. Three new
+  409 refusals leave the cart as it was: `CART_DISCOUNT_NOT_COMBINABLE` (the code and one on the cart cannot be
+  combined; `errors.blockingCode` names the one on the cart), `CART_DISCOUNT_CODES_LIMIT_REACHED` (`errors.limit`,
+  6) and `CART_DISCOUNT_ALREADY_APPLIED`. `EldraHttpError` gains `errors`, the problem's `errors` object when the
+  body carries one. The cart carries `discountCodes` (`{code, amount}` in the order added; the type is
+  `EldraCartDiscountCodeEntry`); `cart.removeDiscountEntry(cartId, code, options?)` removes one code and
+  `removeDiscount` now removes every code. `applyDiscount`'s `applied` reads `discountCodes` (falling back to
+  `discountCode` from an older gateway), so a second code reports `true`. The order read and the checkout summary
+  carry `discountCodes` (`EldraOrderDiscountCode`, `EldraOrderPreviewDiscountCode`). The cart's and the order's
+  `discountCode` are deprecated in the contract: it answers them for one more version. The contract fixtures are
+  regenerated from 6.9.0.
+- **Several gift cards on one cart (contract 6.8.0).** A cart holds any number of gift cards beside its discount
+  code: `applyGiftCard` and `applyCode` now add a card after the others instead of replacing one, and the same card
+  again is 409 `CART_GIFT_CARD_ALREADY_APPLIED`. The cart carries `giftCards` (`{entryId, last4, balance, applied,
+  amountDue}` in the order applied; the type is `EldraCartGiftCardEntry`) and the cart-wide `amountDue`.
+  `cart.removeGiftCardEntry(cartId, entryId, options?)` removes one card; `removeGiftCard` now removes every card.
+  The checkout summary's type `EldraOrderPreview` carries `giftCards` (`EldraOrderPreviewGiftCard`, `{last4,
+  amount}`). The cart's `giftCard` and `EldraCartGiftCard` are deprecated: the contract answers them for one more
+  version. The contract fixtures are regenerated from 6.8.0.
+- **One code field (contract 6.7.0).** `cart.applyCode(cartId, code, options?)` applies a gift card or a discount
+  code from one input and answers the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`); the type is
+  `EldraCartAppliedCode`. A code that is neither is 404 `CART_CODE_INVALID`. `applyDiscount` and
+  `applyGiftCard` stay.
+- **The shared SEO value on catalog reads (contract 6.6.0).** A product's, category's, collection's and brand's
+  `seo` now carries `canonicalUrl`, `ogTitle`, `ogDescription`, `imageAssetId`, `imageUrl` and `noindex` beside
+  `title` and `description`: the shape a CMS entry's `seo` field has. Types only; the contract fixtures are
+  regenerated from 6.6.0. A product card (the product list and a collection's products) carries `seo` with
+  `canonicalUrl` and `noindex` only, which the theme's sitemap reads.
+- **Brands and gift cards (contract 6.4.0).** `catalog.listBrands(options?)` reads the shop's active brands
+  (`[]` for none) and `catalog.getBrand(slug, options?)` one of them (404 `CATALOG_BRAND_NOT_FOUND` otherwise);
+  `cart.applyGiftCard(cartId, code, options?)` and `cart.removeGiftCard(cartId, options?)` put a gift card on the
+  cart and take it off, answering the cart (its `giftCard {last4, balance, applied, amountDue}`). A refused card
+  is an `EldraHttpError` with the contract's `errorId` (`CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`,
+  `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`). New types `EldraBrand` and `EldraCartGiftCard`.
+  A product's `brand` and `seo`, a variant's `regularPrice`, `priorPrice` and `discount`, a card's `priorPrice`
+  and `discountLabel`, a cart line's `salePrice` and the list filter `brandId` need nothing new: they come from
+  the generated contract. Needs a gateway on contract 6.4.0 or later.
+
+- **Typed product extensions (WS-439, contract 6.1.0).** `EldraProductDetails.extensions` is keyed by
+  the apiId of each CMS schema that extends products, and its type is the new, initially empty
+  `EldraProductExtensions` registry. The CMS types the Vite plugin writes now fill it in (`eldra-theme types` writes the
+  same augmentation, for `@eldrajs/sdk`; both ask the gateway for it with `sdkAugmentation=true`, so any other
+  consumer of `/cms/v1/typescript-definitions` gets plain interfaces with no `declare module`), so `product.extensions?.clothing?.material` type-checks; before generation it is
+  `{}`, not `unknown`. If you set the plugin's `sdkImport`, the augmentation in `cms-types.ts` names that import;
+  `eldra-theme types` has no such option and always targets `@eldrajs/sdk` (`--no-sdk-augmentation` leaves the block out).
+  Needs a gateway on contract 6.1.0 or later to return `extensions`.
+
+- **`installIcelandicIntl()` (new entry `@eldrajs/sdk/format/intl`)** — Icelandic for code that calls
+  `Intl` itself (date pickers, vue-i18n, chart libraries). Where the runtime has no Icelandic data,
+  it patches `Intl.NumberFormat`, `Intl.DateTimeFormat`, `Number.prototype.toLocaleString` and
+  `Date.prototype.toLocale{,Date,Time}String` so Icelandic requests use this package's data; every
+  other locale stays with the runtime. Opt-in, nothing runs on import; `{ force: true }` patches
+  runtimes that have Icelandic too (use it on both sides of a server render), and the function the
+  installing call returns restores the runtime; a repeat call is a no-op. Only dates in a UTC zone
+  are patched; a date in another zone, the runtime's default included, stays with the runtime.
+
 - **Campaign attribution (WS-546, contract 5.4.0).** `captureCampaignAttribution(url?)` keeps a
   landing URL's `utm_source`, `utm_medium`, `utm_campaign` and `utm_id` (as `campaignId`, only when
   it is a uuid) in `localStorage` for 30 days, replacing an earlier landing whole; nothing else, and
@@ -18,10 +75,10 @@ platform repository.
   `clearCampaignAttribution()`, the `EldraCampaignAttribution` type and the client option
   `campaignAttribution` (`{ storage }`, or `false` to send none). Nothing clears it automatically.
 
-Business customers (B2B), for the next release after 0.3.2. Every entry below needs a gateway
-serving public contract 5.6.0.
+Business customers (B2B), for the next release after 0.4.3. Every entry below needs a gateway
+serving public contract 6.11.0 (core merged main's 6.10.0 first).
 
-- Contract 5.6.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
+- Contract 6.11.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
   `pkceChallenge`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`, `refreshTokens` and
   `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm, `EldraOidcError` on
   failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in business customer
@@ -32,22 +89,22 @@ serving public contract 5.6.0.
 - `buildAuthorizeUrl` takes an optional `uiLocales` (a BCP 47 tag or a list, most preferred
   first), sent as the OIDC `ui_locales` parameter so the shop login pages use the storefront's
   language. No contract change.
-- Customer prices (contract 5.6.0): catalog product, list and collection-product reads and cart
+- Customer prices (contract 6.11.0): catalog product, list and collection-product reads and cart
   writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
   responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
   headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
-- Customer carts (contract 5.6.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+- Customer carts (contract 6.11.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
   signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
   `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
   `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
   code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
-- Customer carts (contract 5.6.0): an archived or unknown company answers 409
+- Customer carts (contract 6.11.0): an archived or unknown company answers 409
   `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
   preview; treat them like `*_CUSTOMER_PRICES_OFF`. A bound
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
-- Sales orders and delivery locations (contract 5.6.0) for a signed-in business customer's active
+- Sales orders and delivery locations (contract 6.11.0) for a signed-in business customer's active
   company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
   envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
   context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`

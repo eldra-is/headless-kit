@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`getTypeScriptDefinitions({ sdkAugmentation })` (WS-434, contract 6.1.0).** `true` sends
+  `sdkAugmentation=true`, asking the gateway to append the `declare module '@eldrajs/sdk'` block that
+  fills `EldraProductExtensions`, so product extensions are typed. Off by default: without it the
+  definitions are plain interfaces with no module declaration.
+
 - **Company facts in `Organization`, alternate names in `WebSite`.** `buildOrganizationLd` takes
   optional `legalName`, `taxID` (the kennitala in Iceland) and `address` (written as a
   `PostalAddress`, left out when every part is empty); `buildWebSiteLd` takes an optional

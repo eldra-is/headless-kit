@@ -50,23 +50,46 @@ describe('seoInput', () => {
     expect(input.options.contentImage).toMatch(/\/lg$/);
   });
 
-  it('sets product.brand from the projection and product.category from the resolved name', () => {
+  it("passes a catalog record's own seo value as the entry, beside the template's", () => {
+    const own = {
+      title: 'The mug',
+      canonicalUrl: 'https://shop.example/mugs/the-mug',
+      imageUrl: 'https://media.example/share.jpg',
+      noindex: true,
+    };
+    const input = seoInput({
+      ...base,
+      catalog: { kind: 'product', slug: 'mug' },
+      template: { data: { title: 'Product', seo: { description: 'From the template' } } },
+      entry: { data: { title: 'Mug', variants: [], seo: own } },
+    });
+    expect(input.options.entry).toEqual(own);
+    expect(input.options.template).toEqual({ description: 'From the template' });
+    // A record with none leaves the template's alone.
+    expect(
+      seoInput({ ...base, catalog: { kind: 'collection', slug: 'mugs' }, entry: { data: {} } })
+        .options.entry
+    ).toBeNull();
+  });
+
+  it('sets product.category from the resolved name and no product.brand, even from a record that has one', () => {
     const input = seoInput({
       ...base,
       catalog: { kind: 'product', slug: 'mug' },
       productCategory: 'Mugs',
       entry: { data: { title: 'Mug', brand: 'Acme', variants: [] } },
     });
-    expect(input.data).toMatchObject({ 'product.brand': 'Acme', 'product.category': 'Mugs' });
+    expect(input.data).toMatchObject({ 'product.category': 'Mugs' });
+    expect('product.brand' in input.data).toBe(false);
   });
 
-  it('leaves product.brand and product.category empty when the product has none', () => {
+  it('leaves product.category empty when the product has none', () => {
     const input = seoInput({
       ...base,
       catalog: { kind: 'product', slug: 'mug' },
       entry: { data: { title: 'Mug' } },
     });
-    expect(input.data).toMatchObject({ 'product.brand': '', 'product.category': '' });
+    expect(input.data).toMatchObject({ 'product.category': '' });
   });
 
   it('leaves a missing price empty instead of inventing one', () => {

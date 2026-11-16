@@ -13,7 +13,7 @@ describe('VisuallyHidden', () => {
 
   it('hides the content visually but not from assistive technology', () => {
     const wrapper = mountWith(VisuallyHidden, { slots: { default: 'Loading' } });
-    expect(wrapper.classes()).toContain('sr-only');
+    expect(wrapper.classes()).toContain('eldra:sr-only');
     expect(wrapper.attributes('aria-hidden')).toBeUndefined();
     wrapper.unmount();
   });
@@ -47,23 +47,23 @@ describe('VisuallyHidden', () => {
       props: { focusable: true },
       slots: { default: 'Skip to content' },
     });
-    expect(wrapper.classes()).toContain('sr-only');
-    expect(wrapper.classes()).toContain('focus:not-sr-only');
+    expect(wrapper.classes()).toContain('eldra:sr-only');
+    expect(wrapper.classes()).toContain('eldra:focus:not-sr-only');
     wrapper.unmount();
   });
 
   it('does not add the focus escape hatch by default', () => {
     const wrapper = mountWith(VisuallyHidden, { slots: { default: 'Loading' } });
-    expect(wrapper.classes()).not.toContain('focus:not-sr-only');
+    expect(wrapper.classes()).not.toContain('eldra:focus:not-sr-only');
     wrapper.unmount();
   });
 
-  it('merges classes.root', () => {
+  it('takes a consumer class on the root', () => {
     const wrapper = mountWith(VisuallyHidden, {
-      props: { classes: { root: 'text-caption' } },
+      attrs: { class: 'text-caption' },
       slots: { default: 'Loading' },
     });
-    expect(wrapper.classes()).toContain('sr-only');
+    expect(wrapper.classes()).toContain('eldra:sr-only');
     expect(wrapper.classes()).toContain('text-caption');
     wrapper.unmount();
   });

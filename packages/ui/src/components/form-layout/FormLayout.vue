@@ -2,12 +2,14 @@
 import { computed, provide, useSlots } from 'vue';
 import { useHeadingTag } from '../../composables/useHeadingTag';
 import { useSlotPresence } from '../../composables/useSlotPresence';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import { FORM_LAYOUT_KEY, FORM_SUBMITTING_KEY } from './context';
 import { focusInvalid } from './focusInvalid';
 import type { FormLayoutProps, FormLayoutSubmitPayload, FormLayoutVariant } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<FormLayoutProps>(), {
   layout: 'single',
@@ -72,7 +74,7 @@ const hasErrorSummary = computed(() => present.value.errorSummary);
  * every Button on the shared control-height scale instead, so nothing inside this form measures
  * this container for that purpose any more.
  */
-const ROOT_BASE = '@container w-full';
+const ROOT_BASE = 'eldra:@container eldra:w-full';
 
 /**
  * Spec "Form layout" → Anatomy: "form (grid, 1rem row gap)". The inline form is the one exception:
@@ -80,11 +82,11 @@ const ROOT_BASE = '@container w-full';
  * ("inline form (flex, wraps, bottom-aligned)", 0.5rem gap).
  */
 const ROOT: Record<FormLayoutVariant, string> = {
-  single: 'grid gap-4',
-  two: 'grid gap-4',
+  single: 'eldra:grid eldra:gap-4',
+  two: 'eldra:grid eldra:gap-4',
   // 0.5rem between the field and the button; 0.25rem between the control row and the help or
   // error row below it, which is the Field wrapper's own rhythm carried onto the form's row.
-  inline: 'flex flex-wrap items-end gap-x-2 gap-y-1',
+  inline: 'eldra:flex eldra:flex-wrap eldra:items-end eldra:gap-x-2 eldra:gap-y-1',
 };
 
 /**
@@ -98,12 +100,12 @@ const ROOT: Record<FormLayoutVariant, string> = {
  * row.
  */
 const FIELDS: Record<FormLayoutVariant, string> = {
-  single: 'grid gap-4',
-  two: 'grid gap-4 @two-col:grid-cols-2',
+  single: 'eldra:grid eldra:gap-4',
+  two: 'eldra:grid eldra:gap-4 eldra:@two-col:grid-cols-2',
   // `display: contents` in the inline row: the field's label-and-control group, its error and its
   // foot row become items of the form's own flex row, which is what lets the button sit level with
   // the control while the error takes a full-width row below both (see `FieldWrapper.vue`).
-  inline: 'contents',
+  inline: 'eldra:contents',
 };
 
 /**
@@ -122,18 +124,17 @@ const FIELDS: Record<FormLayoutVariant, string> = {
  * container's visual order flips. `*:w-full` is the `block` button the spec asks for, applied from
  * the row so a caller does not have to set it per button for one breakpoint.
  */
-const ACTIONS_BASE = 'flex flex-wrap items-center gap-3 [&>a:first-child]:me-auto';
+const ACTIONS_BASE =
+  'eldra:flex eldra:flex-wrap eldra:items-center eldra:[&>a:first-child]:me-auto';
 const ACTIONS_STACKED =
-  '@max-two-col:flex-col-reverse @max-two-col:items-stretch @max-two-col:gap-2 @max-two-col:*:w-full';
+  'eldra:@max-two-col:flex-col-reverse eldra:@max-two-col:items-stretch eldra:@max-two-col:gap-2 eldra:@max-two-col:*:w-full';
 const ACTIONS: Record<FormLayoutVariant, string> = {
-  single: `justify-end pt-1 ${ACTIONS_STACKED}`,
-  two: `justify-end pt-1 ${ACTIONS_STACKED}`,
-  inline: 'shrink-0 gap-2',
+  single: `eldra:gap-3 eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  two: `eldra:gap-3 eldra:justify-end eldra:pt-1 ${ACTIONS_STACKED}`,
+  inline: 'eldra:shrink-0 eldra:gap-2',
 };
 
-const rootClass = computed(() =>
-  partClass(cx(ROOT_BASE, ROOT[props.layout]), props.classes, 'root')
-);
+const rootClass = computed(() => [ROOT_BASE, ROOT[props.layout]]);
 
 /**
  * Spec "Form layout" → Anatomy: "Heading (optional): h4 style (1.125rem, 600)". `h4` names the
@@ -142,13 +143,10 @@ const rootClass = computed(() =>
  * the field and the button.
  */
 const headingTag = useHeadingTag(() => props.headingLevel);
-const headingClass = computed(() =>
-  partClass(
-    cx('text-h4 text-text', props.layout === 'inline' && 'basis-full'),
-    props.classes,
-    'heading'
-  )
-);
+const headingClass = computed(() => [
+  ['eldra:text-h4 eldra:text-text', props.layout === 'inline' && 'eldra:basis-full'],
+  props.classes?.heading,
+]);
 
 /**
  * Spec "Form layout" → States, Invalid on submit: "Long forms add an error summary alert at the
@@ -156,23 +154,21 @@ const headingClass = computed(() =>
  * component draws the box and the icon; the slot supplies the list, because only the caller knows
  * which fields failed and what to link to.
  */
-const errorSummaryClass = computed(() =>
-  partClass(
-    'text-body-sm text-text border-danger bg-surface flex items-start gap-2 ' +
-      'rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] border p-3',
-    props.classes,
-    'errorSummary'
-  )
-);
+const errorSummaryClass = computed(() => [
+  'eldra:text-body-sm eldra:text-text eldra:border-danger eldra:bg-surface eldra:flex eldra:items-start eldra:gap-2 ' +
+    'eldra:rounded-[var(--eldra-form-summary-radius,var(--eldra-radius-md))] eldra:border eldra:p-3',
+  props.classes?.errorSummary,
+]);
 
-const fieldsClass = computed(() => partClass(FIELDS[props.layout], props.classes, 'fields'));
+const fieldsClass = computed(() => [FIELDS[props.layout], props.classes?.fields]);
 
-const actionsClass = computed(() =>
-  partClass(cx(ACTIONS_BASE, ACTIONS[props.layout]), props.classes, 'actions')
-);
+const actionsClass = computed(() => [
+  [ACTIONS_BASE, ACTIONS[props.layout]],
+  props.classes?.actions,
+]);
 
 /** Never visible; `classes.status` is here so a consumer can unhide it while debugging. */
-const statusClass = computed(() => partClass('', props.classes, 'status'));
+const statusClass = computed(() => props.classes?.status);
 
 /**
  * Spec "Form layout" → Events and States, Invalid on submit.
@@ -215,6 +211,7 @@ function onSubmit(event: Event): void {
 <template>
   <form
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     :class="rootClass"
     :action="action"
@@ -237,7 +234,7 @@ function onSubmit(event: Event): void {
     <div v-if="hasErrorSummary" data-part="errorSummary" :class="errorSummaryClass" role="alert">
       <!-- Tabler's `alert-circle`, stroke 1.75, at 1.25rem. Decorative: the list is the message. -->
       <svg
-        class="text-danger mt-0.5 size-5 shrink-0"
+        class="eldra:text-danger eldra:mt-0.5 eldra:size-5 eldra:shrink-0"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -251,12 +248,23 @@ function onSubmit(event: Event): void {
         <path d="M12 8v4" />
         <path d="M12 16h.01" />
       </svg>
-      <div class="min-w-0"><slot name="errorSummary" /></div>
+      <div :data-eldra-slot="eldra.slotHost('errorSummary')" class="eldra:min-w-0">
+        <slot name="errorSummary" />
+      </div>
     </div>
 
-    <div data-part="fields" :class="fieldsClass"><slot /></div>
+    <div :data-eldra-slot="eldra.slotHost('default')" data-part="fields" :class="fieldsClass">
+      <slot />
+    </div>
 
-    <div v-if="hasActions" data-part="actions" :class="actionsClass"><slot name="actions" /></div>
+    <div
+      v-if="hasActions"
+      :data-eldra-slot="eldra.slotHost('actions')"
+      data-part="actions"
+      :class="actionsClass"
+    >
+      <slot name="actions" />
+    </div>
 
     <!-- Spec "Form layout" → States, Success: "announce it in a polite live region". Always in the
          DOM so a message set later is announced; empty until there is something to say. -->
@@ -265,7 +273,7 @@ function onSubmit(event: Event): void {
       data-part="status"
       role="status"
       aria-live="polite"
-      :classes="{ root: statusClass }"
+      :class="statusClass"
       >{{ statusMessage }}</VisuallyHidden
     >
   </form>

@@ -11,6 +11,8 @@ import type {
   EldraCustomerLocationList,
   EldraCustomerMe,
   EldraCustomerMembership,
+  EldraProductDetails,
+  EldraProductExtensions,
   EldraProductListItem,
   EldraSalesOrder,
   EldraSalesOrderLine,
@@ -50,6 +52,12 @@ describe('eldra sdk without generated contract types', () => {
     expectTypeOf<EldraSalesOrderPreview>().toBeUnknown();
     expectTypeOf<EldraCreateSalesOrderInput>().toEqualTypeOf<Record<string, unknown>>();
     expectTypeOf<EldraSalesOrderListOptions>().toEqualTypeOf<Record<string, unknown>>();
+  });
+
+  it('leaves product details unknown and the extensions registry empty', () => {
+    expectTypeOf<EldraProductDetails>().toBeUnknown();
+    expectTypeOf<EldraProductExtensions>().toEqualTypeOf<{}>();
+    expectTypeOf<keyof EldraProductExtensions>().toBeNever();
   });
 
   it('still lets a caller name a response type explicitly', async () => {

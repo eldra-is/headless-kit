@@ -139,7 +139,7 @@ const linkRootClass = computed(() =>
           :as="linkAs"
           :underline="false"
           :aria-label="linkAriaLabel"
-          :classes="{ root: linkRootClass }"
+          :class="linkRootClass"
         >
           <UiImage
             :src="data.image!.url"
@@ -172,7 +172,7 @@ const linkRootClass = computed(() =>
           :icon="PhotoIcon"
           :label="t('imageBlock.hintLabel')"
           :help="t('imageBlock.hintHelp')"
-          :classes="{ root: 'aspect-[3/2] w-full rounded-none' }"
+          class="aspect-[3/2] w-full rounded-none"
         />
         <Container width="content" class="mt-3">
           <p class="text-muted text-body-sm">{{ t('imageBlock.captionHintLabel') }}</p>
@@ -188,7 +188,7 @@ const linkRootClass = computed(() =>
           :as="linkAs"
           :underline="false"
           :aria-label="linkAriaLabel"
-          :classes="{ root: linkRootClass }"
+          :class="linkRootClass"
         >
           <UiImage
             :src="data.image!.url"
@@ -223,7 +223,7 @@ const linkRootClass = computed(() =>
           :icon="PhotoIcon"
           :label="t('imageBlock.hintLabel')"
           :help="t('imageBlock.hintHelp')"
-          :classes="{ root: 'aspect-[3/2] w-full' }"
+          class="aspect-[3/2] w-full"
         />
         <p class="text-muted text-body-sm mt-3">{{ t('imageBlock.captionHintLabel') }}</p>
       </template>

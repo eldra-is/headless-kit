@@ -75,7 +75,7 @@ const meta = {
           '`"below"`), `dots`, `counter`, `autoplay` (ms; any non-zero value always renders the',
           'Pause/Play button, WCAG 2.2.2).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `header`,',
+          '**Parts** (`data-part`): `root` (styled with `class`), and the keys of the `classes` prop: `header`,',
           '`instructions`, `track`, `slide`, `prev`, `next`, `dots`, `dot`, `counter`, `pause`.',
           '`slide` is not an element',
           "this component renders itself — `useCarousel` annotates the default slot's own",

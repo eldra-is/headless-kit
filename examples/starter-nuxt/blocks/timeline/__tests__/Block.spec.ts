@@ -101,7 +101,7 @@ describe('timeline block', () => {
   it('renders the block root as a labelled <section> that measures its own width (@container)', () => {
     const wrapper = mountBlock(mock);
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
     expect(section.attributes('aria-labelledby')).toBeTruthy();
   });
 
@@ -126,7 +126,7 @@ describe('timeline block', () => {
     // The visually hidden prefix and the visible number are two different nodes: the sr-only
     // text is read once via the h3's own text content, and the visual number is separately
     // aria-hidden so nothing doubles it up.
-    expect(firstTitle.findAll('.sr-only')).toHaveLength(1);
+    expect(firstTitle.findAll('.eldra\\:sr-only')).toHaveLength(1);
     const number = wrapper.get('li span[aria-hidden="true"].tabular-nums');
     expect(number.text()).toBe('1');
   });

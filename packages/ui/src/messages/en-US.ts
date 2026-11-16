@@ -91,6 +91,8 @@ export const enUS = {
    * curly quotation marks are the spec's own.
    */
   noMatchesFor: (query: string) => `No matches for “${query}”`,
+  /** A creatable `Select`'s or `MultiSelect`'s last row, offering the query as a new option. */
+  createOption: (query: string) => `Create “${query}”`,
   /** The overflow badge on a `MultiSelect` that cannot show every tag. */
   moreSelected: (n: number) => `+${n}`,
   /** The accessible name of a selected tag's remove button. */
@@ -106,6 +108,8 @@ export const enUS = {
   noneSelected: 'None selected',
   /** Closes a `MultiSelect`'s popover. It commits nothing: every toggle already applied. */
   done: 'Done',
+  /** A `MultiSelect` footer's button that selects every option shown (`selectAll`). */
+  selectAll: 'Select all',
   /** The accessible name of a `QuantityStepper`'s minus button. */
   decrease: 'Decrease',
   /** The accessible name of a `QuantityStepper`'s plus button. */
@@ -557,6 +561,33 @@ export const enUS = {
   /** A subscribing form's success: the address is confirmed from an email. */
   formPendingTitle: 'Check your inbox',
   formPendingMessage: 'We sent you an email. Open the link in it to confirm.',
+  /**
+   * `StepIndicator`: what a screen reader hears, in brackets after a step's label, for a step
+   * before the current one. The current step says so with `aria-current="step"`, so it has no
+   * message of its own.
+   */
+  stepCompleted: 'completed',
+  /** `StepIndicator`: the same, for a step after the current one. */
+  stepNotStarted: 'not started',
+  /**
+   * `PhoneInput` (`@eldrajs/ui/phone`): the country button's accessible name, the chosen country
+   * and its dialling code ("Country: Iceland, +354").
+   */
+  phoneCountry: (name: string, code: string) => `Country: ${name}, ${code}`,
+  /** `PhoneInput`: the country list's accessible name. */
+  phoneCountryList: 'Country',
+  /** `PhoneInput`: the search field over the country list, its placeholder and its name. */
+  phoneSearch: 'Search country or code',
+  /** `PhoneInput`: the heading over the `preferredCountries`. */
+  phoneSuggested: 'Suggested',
+  /** `PhoneInput`: the heading over every other country. */
+  phoneAllCountries: 'All countries',
+  /** `PhoneInput`: the country list's empty state while a search is showing. */
+  phoneNoMatch: (query: string) => `No country matches “${query}”.`,
+  /** `phoneRule`: the number is not one the chosen country has. `country` is its localised name. */
+  phoneInvalid: (country: string) => `Enter a valid phone number for ${country}.`,
+  /** `phoneRule`: the same, when no country is known for the number. */
+  phoneInvalidNumber: 'Enter a valid phone number.',
 };
 
 /**

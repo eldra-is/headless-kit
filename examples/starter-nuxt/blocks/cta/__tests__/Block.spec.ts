@@ -37,7 +37,7 @@ describe('cta block', () => {
     // `Container` or `div` (a `Container` never sets `@container` on its own).
     for (const variant of ['primary', 'subtle', 'split', 'banner'] as const) {
       const wrapper = mountBlock({ ...withImage, variant });
-      expect(wrapper.get('section').classes()).toContain('@container');
+      expect(wrapper.get('section').classes()).toContain('eldra:@container');
     }
   });
 
@@ -141,26 +141,22 @@ describe('cta block', () => {
     const classes = button.classes();
     // `control-h` (the package's regular control height, closest token-backed step to the spec's
     // 2.75rem) below `@tablet` (48rem of the block's own width); `@tablet:control-h-lg` (3rem)
-    // from 48rem on — see `Block.vue`'s own doc comment on the banner Button's `classes.container`.
+    // from 48rem on — see `Block.vue`'s own doc comment on the banner Button's `class`.
     expect(classes).toContain('control-h');
     expect(classes).toContain('@tablet:control-h-lg');
-    // `size="lg"`'s own *unprefixed* `control-h-lg` must be gone — `cx`'s custom `twMerge` config
-    // treats `control-h`/`control-h-lg` as one conflicting group, so the override replaces it
-    // rather than sitting beside it (which would let the bare `control-h-lg` win the cascade at
-    // every width, silently keeping the button at 3rem below 48rem too). Its `lg` padding/text
-    // sizing (`px-6`, `text-button-lg`) stay untouched — a different, non-conflicting class group.
-    expect(classes).not.toContain('control-h-lg');
-    expect(classes).toContain('px-6');
-    expect(classes).toContain('text-button-lg');
+    // `size="lg"`'s own `eldra:control-h-lg` stays beside them and loses by cascade layer: an app
+    // utility outranks every `eldra:` class. Its `lg` padding/text sizing stay as they are.
+    expect(classes).toContain('eldra:px-6');
+    expect(classes).toContain('eldra:text-button-lg');
   });
 
   it('marks the banner panel data-section="accent" — the attribute that inverts the button, not a colour class', () => {
     const wrapper = mountBlock({ ...mock, variant: 'banner' });
     const panel = wrapper.get('[data-section="accent"]');
-    expect(panel.classes()).toContain('group/section');
+    expect(panel.classes()).toContain('bg-accent');
     // Mutation check (manual): removing `data-section="accent"` from the panel while keeping
     // `bg-accent` leaves the button unstyled by the package's own inversion rules (its classes are
-    // `group-data-[section=accent]/section:*`) — confirmed by temporarily dropping the attribute
+    // `eldra:section-accent:*`) — confirmed by temporarily dropping the attribute
     // here and observing the assertion above fail (`get()` throws, no such element).
   });
 

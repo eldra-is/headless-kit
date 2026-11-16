@@ -12,14 +12,9 @@ import { expect } from 'vitest';
  * specificity, both being the same author origin (`.open\:<value>:is([open], …)` — two selectors
  * deep — outranks the single-class `.hidden`).
  *
- * `<value>` is `flex` for `Drawer`/`SearchModal` (their roots already laid out more than one part
- * with `flex` before this fix existed) and `block` for `Dialog`/`Lightbox` (their roots only ever
- * centre or size one `panel` child, and never carried `flex`) — **not** a stylistic choice:
- * `Dialog`'s own rootClass comment records an A/B screenshot comparison proving `open:flex` there
- * measurably narrows the panel (a flex item's default `flex-shrink: 1` fighting the UA
- * `dialog:modal` rule's own `max-width` at small viewports, which a block-level child never does),
- * while `open:block` is pixel-identical to every existing baseline. `open` defaults to `'flex'`
- * here since that is the more common case across the four.
+ * `<value>` is `flex` for `Dialog`/`Drawer`/`SearchModal` (their roots lay out their parts with
+ * `flex`; `Dialog`'s is a column, so its panel keeps its width) and `block` for `Lightbox` (its
+ * root only sizes one child). `open` defaults to `'flex'`, the common case.
  *
  * See `modalClosedDisplay.spec.ts` for the built-CSS half of this guard: happy-dom does not compute
  * layout, so `getComputedStyle(...).display` cannot prove any of this here — asserting the two
@@ -31,6 +26,6 @@ export function expectClosedModalRendersNothing(
   open: 'flex' | 'block' = 'flex'
 ): void {
   expect(root.hasAttribute('open')).toBe(false);
-  expect(root.classList.contains('hidden')).toBe(true);
-  expect(root.classList.contains(`open:${open}`)).toBe(true);
+  expect(root.classList.contains('eldra:hidden')).toBe(true);
+  expect(root.classList.contains(`eldra:open:${open}`)).toBe(true);
 }

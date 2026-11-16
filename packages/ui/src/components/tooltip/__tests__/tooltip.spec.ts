@@ -72,7 +72,7 @@ function bubbleOf(trigger: { element: Element }): HTMLElement {
   return bubble as HTMLElement;
 }
 
-const isVisible = (bubble: HTMLElement): boolean => bubble.className.includes('opacity-100');
+const isVisible = (bubble: HTMLElement): boolean => bubble.className.includes('eldra:opacity-100');
 
 // ---------------------------------------------------------------------------------------------
 
@@ -484,12 +484,12 @@ describe('Tooltip — role modes and the trigger’s ARIA', () => {
 
 describe('Tooltip — placement and align', () => {
   it.each([
-    ['top', 'center', 'top', 'left-1/2'],
-    ['bottom', 'center', 'bottom', 'left-1/2'],
-    ['top', 'start', 'top-start', 'left-5'],
-    ['top', 'end', 'top-end', 'right-5'],
-    ['bottom', 'start', 'bottom-start', 'left-5'],
-    ['bottom', 'end', 'bottom-end', 'right-5'],
+    ['top', 'center', 'top', 'eldra:left-1/2'],
+    ['bottom', 'center', 'bottom', 'eldra:left-1/2'],
+    ['top', 'start', 'top-start', 'eldra:left-5'],
+    ['top', 'end', 'top-end', 'eldra:right-5'],
+    ['bottom', 'start', 'bottom-start', 'eldra:left-5'],
+    ['bottom', 'end', 'bottom-end', 'eldra:right-5'],
   ])(
     'placement=%s align=%s resolves to data-placement=%s with arrow class %s',
     async (placement, align, expectedPlacement, arrowAlignClass) => {
@@ -502,7 +502,7 @@ describe('Tooltip — placement and align', () => {
       expect(arrow?.className).toContain(arrowAlignClass);
       // The bridge and the arrow both key off which edge the bubble sits on.
       const above = expectedPlacement.startsWith('top');
-      expect(bubble.className).toContain(above ? 'before:-bottom-2' : 'before:-top-2');
+      expect(bubble.className).toContain(above ? 'eldra:before:-bottom-2' : 'eldra:before:-top-2');
     }
   );
 });
@@ -544,7 +544,7 @@ describe('Tooltip — content', () => {
     const wrapper = mountTooltip({ text: long });
     const bubble = bubbleOf(triggerOf(wrapper));
     expect(bubble.textContent?.trim()).toContain(long);
-    expect(bubble.className).toContain('whitespace-nowrap');
+    expect(bubble.className).toContain('eldra:whitespace-nowrap');
   });
 
   it('renders inside a narrow (20rem) container without throwing', () => {
@@ -558,13 +558,12 @@ describe('Tooltip — content', () => {
 });
 
 describe('Tooltip — classes prop', () => {
-  it('merges classes.root/bubble/arrow with tailwind-merge', async () => {
-    const wrapper = mountTooltip({ classes: { root: 'gap-1', bubble: 'py-4', arrow: 'size-2' } });
+  it('takes class on the root and appends classes.bubble/arrow', async () => {
+    const wrapper = mountTooltip({ class: 'gap-1', classes: { bubble: 'py-4', arrow: 'size-2' } });
     await flush();
     expect(wrapper.attributes('class')).toContain('gap-1');
     const bubble = bubbleOf(triggerOf(wrapper));
     expect(bubble.className).toContain('py-4');
-    expect(bubble.className).not.toContain('py-1.5');
     const arrow = bubble.querySelector('[data-part="arrow"]');
     expect(arrow?.className).toContain('size-2');
   });
@@ -617,8 +616,8 @@ describe('Tooltip — dev warnings', () => {
   });
 
   /**
-   * Final review M5: a component trigger whose focusable root receives `$attrs` (the default —
-   * `Button` declares no `inheritAttrs: false`) works exactly like a plain element, so the graft
+   * Final review M5: a component trigger whose focusable root receives `$attrs` (`Button` binds
+   * every attribute but `class` last on its root) works exactly like a plain element, so the graft
    * both lands on the DOM and raises no warning.
    */
   it('grafts the aria attribute onto a component trigger whose root forwards $attrs (e.g. Button)', async () => {

@@ -11,13 +11,13 @@ import type { InjectionKey, Ref } from 'vue';
  * true as soon as the customer edits it, and nothing else would reliably clear it (a rule that
  * already passes has no new message to overwrite it with).
  *
- * How long an entry survives a change to a *different* field is vee-validate's, not this key's.
- * Before the first submit — and with per-field `rules` at any time — only the changed field is
- * revalidated, so another field's server error stays put. After a submit, with a form-level
- * `validationSchema`, every already-validated field is revalidated on each change
- * (`validated-only`), and a field that now passes has its manually set error replaced by that
- * pass — so the server's message for it goes too. Send the current map with each response rather
- * than treating one as sticky; `src/vee-validate/__tests__/vee-validate.spec.ts` pins both halves.
+ * A server error on a *different* field stays on screen while this one is edited: each `Field*`
+ * holds the message it shows and changes it only at its own moments (its blur, a submit, its own
+ * edit of a server error — see `useFieldControl`). Underneath, vee-validate may already have
+ * dropped it: with a form-level `validationSchema`, validating one field revalidates every field
+ * that has been validated before (`validated-only`), and a field that now passes has its manually
+ * set error replaced by that pass. So the entry is gone for good at that field's next blur or the
+ * next submit; send the current map with each response rather than treating one as sticky.
  *
  * It is a plain `Ref`, so a consumer can provide one itself and drive server errors from outside a
  * `Form`:
@@ -51,3 +51,31 @@ export interface FieldAnchorRegistry {
 /** The key a `Form` provides its {@link FieldAnchorRegistry} on. Internal to this entry. */
 export const FIELD_ANCHORS_KEY: InjectionKey<FieldAnchorRegistry> =
   Symbol('eldra-ui:field-anchors');
+
+/**
+ * How a `Field*` tells the `Form` above it which message it is **showing**, so the form's error
+ * summary and its `errors` slot prop say exactly what the fields say, at the same moment.
+ *
+ * A field holds its displayed message itself (see `useFieldControl`): it changes on the field's
+ * blur, on a submit, and on a value change only when the field asks for that. vee-validate's own
+ * `errors` can move at other moments — a form-level schema revalidates already-validated fields
+ * whenever any one of them is validated — so the form reads what the fields report rather than
+ * `errors`.
+ *
+ * Internal: not exported from the entry.
+ */
+export interface FieldMessageRegistry {
+  /** Record the message the field at `path` is showing; `undefined` while it shows none. */
+  report(path: string, message: string | undefined): void;
+  /** Forget `path`, when the field unmounts or is renamed. */
+  forget(path: string): void;
+  /**
+   * Counts the submits whose validation has finished. A field reads its message again each time
+   * it rises: that is the "on submit" moment, after the form has validated every field.
+   */
+  settled: Readonly<Ref<number>>;
+}
+
+/** The key a `Form` provides its {@link FieldMessageRegistry} on. Internal to this entry. */
+export const FIELD_MESSAGES_KEY: InjectionKey<FieldMessageRegistry> =
+  Symbol('eldra-ui:field-messages');

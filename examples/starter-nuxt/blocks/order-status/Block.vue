@@ -60,7 +60,7 @@
  * **Badge tone.** `Badge`'s `outline` prop replaces its tone-coloured fill with a fixed
  * `background`/`text-text`/`border-strong` look, independent of `tone` (`Badge.vue`'s own
  * `colorClass`) — so `pill outline` alone renders every status in the same neutral colour. Each
- * non-neutral status (`delivered`/`delayed`/`cancelled`) therefore also passes `classes.root` with
+ * non-neutral status (`delivered`/`delayed`/`cancelled`) therefore also passes a `class` with
  * that state's own `text-*`/`border-*` utility pair (`STATUS_BADGE_TONE_CLASS`, always a
  * `--eldra-*`-backed Tailwind colour name, never a literal value) to recolour the icon, word and
  * border together — `neutral` (`processing`/`shipped`) needs no override, since the `outline`
@@ -231,10 +231,9 @@ const statusTone = computed<BadgeTone>(() =>
   order.value ? STATUS_TONE[order.value.status] : 'neutral'
 );
 const statusWord = computed(() => (order.value ? t(STATUS_WORD_KEY[order.value.status]) : ''));
-const statusBadgeClasses = computed(() => {
-  const override = order.value ? STATUS_BADGE_TONE_CLASS[order.value.status] : undefined;
-  return override ? { root: override } : undefined;
-});
+const statusBadgeClass = computed(() =>
+  order.value ? STATUS_BADGE_TONE_CLASS[order.value.status] : undefined
+);
 
 /* ------------------------------------------------------------------------------------------- */
 /* Status panel: title, text, carrier/ETA, alert, call to action                                 */
@@ -499,8 +498,7 @@ const helpLinks = computed<HelpLinkView[]>(() =>
           outline
           :tone="statusTone"
           :icon="statusIcon"
-          :classes="statusBadgeClasses"
-          class="shrink-0"
+          :class="['shrink-0', statusBadgeClass]"
         >
           <VisuallyHidden>{{ t('order.statusPrefix') }}</VisuallyHidden
           >{{ statusWord }}
@@ -643,7 +641,7 @@ const helpLinks = computed<HelpLinkView[]>(() =>
                   <Link
                     :href="lineHref(line) ?? undefined"
                     :as="lineLinkAs(line)"
-                    :classes="{ root: 'font-semibold text-text' }"
+                    class="text-text font-semibold"
                   >
                     {{ line.title }}
                   </Link>
@@ -723,7 +721,8 @@ const helpLinks = computed<HelpLinkView[]>(() =>
                     :as="link.as"
                     variant="standalone"
                     :underline="false"
-                    :classes="{ root: 'min-h-9', label: 'inline-flex items-center gap-2' }"
+                    class="min-h-9"
+                    :classes="{ label: 'inline-flex items-center gap-2' }"
                   >
                     <EldraIcon v-if="link.icon" :name="link.icon" size="md" class="text-muted" />{{
                       link.label

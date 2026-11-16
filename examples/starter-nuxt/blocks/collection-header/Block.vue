@@ -402,9 +402,9 @@ function pillClass(pill: ResolvedPill): string {
  *  carry these exact asymmetric steps, so `spacing="none"` on `Section` and the padding is written
  *  here — the same pattern `footer`'s own `paddingClass` uses. */
 const PADDING_CLASS = 'pt-6 pb-8 @tablet:pt-8 @tablet:pb-12';
-const sectionClasses = computed(() => ({
-  root: isImageVariant.value ? PADDING_CLASS : `${PADDING_CLASS} border-border border-b`,
-}));
+const sectionClass = computed(() =>
+  isImageVariant.value ? PADDING_CLASS : `${PADDING_CLASS} border-border border-b`
+);
 
 const rootClass = computed(() =>
   isImageVariant.value
@@ -424,7 +424,7 @@ const textColumnClass = computed(() =>
     as="header"
     spacing="none"
     :labelled-by="headingId"
-    :classes="sectionClasses"
+    :class="sectionClass"
   >
     <Container width="wide">
       <div :class="rootClass">
@@ -519,7 +519,7 @@ const textColumnClass = computed(() =>
                   :as="pill.as"
                   :underline="false"
                   :aria-current="pill.current ? 'page' : undefined"
-                  :classes="{ root: pillClass(pill) }"
+                  :class="pillClass(pill)"
                 >
                   {{ pill.label }}
                 </Link>

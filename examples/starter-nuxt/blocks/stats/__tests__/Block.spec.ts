@@ -72,7 +72,7 @@ describe('stats block', () => {
   it('renders the block root as a labelled <section> that measures its own width (@container)', () => {
     const wrapper = mountBlock(mock);
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
     expect(section.attributes('aria-labelledby')).toBeTruthy();
   });
 

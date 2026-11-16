@@ -23,14 +23,7 @@ export interface BreadcrumbItem {
 }
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type BreadcrumbPart =
-  | 'root'
-  | 'list'
-  | 'item'
-  | 'link'
-  | 'current'
-  | 'separator'
-  | 'ellipsis';
+export type BreadcrumbPart = 'list' | 'item' | 'link' | 'current' | 'separator' | 'ellipsis';
 
 export interface BreadcrumbProps {
   /** The trail, root first. The last entry is always rendered as the current page — see
@@ -64,6 +57,9 @@ export interface BreadcrumbProps {
    * page-level structured data), because two `BreadcrumbList`s on one page are duplicate markup.
    */
   structuredData?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the `<nav>`
+   * itself with `class`.
+   */
   classes?: Partial<Record<BreadcrumbPart, string>>;
 }

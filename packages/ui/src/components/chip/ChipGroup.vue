@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, provide } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import { CHIP_GROUP_KEY, type ChipGroupContext } from './context';
 import type { ChipGroupProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ChipGroupProps>(), {
   disabled: false,
-  classes: undefined,
 });
 
 const emit = defineEmits<{
@@ -47,12 +48,14 @@ provide(CHIP_GROUP_KEY, context);
  * group of chips uses, distinct from `space-3`'s "gap inside control groups" (`ButtonGroup`'s own
  * loose `gap-3`), which is a wider gap for a row of whole controls rather than a row of chips.
  */
-const rootClass = computed(() => partClass(cx('flex flex-wrap gap-2'), props.classes, 'root'));
+const rootClass = 'eldra:flex eldra:flex-wrap eldra:gap-2';
 </script>
 
 <template>
   <div
+    :data-eldra-slot="eldra.slotHost('default')"
     data-eldra-ui
+    :data-eldra-scope="eldra.scope"
     data-part="root"
     role="group"
     :aria-label="ariaLabel"

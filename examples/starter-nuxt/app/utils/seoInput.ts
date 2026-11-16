@@ -72,7 +72,6 @@ export function seoInput(parts: SeoInputParts): SeoInput {
     data['product.sku'] = text(variants[0]?.sku) ?? '';
     data['product.price'] = prices.length === 0 ? '' : parts.formatPrice(Math.min(...prices));
     data['product.shortDescription'] = shortDescription(entryData.description);
-    data['product.brand'] = text(entryData.brand) ?? '';
     data['product.category'] = text(parts.productCategory) ?? '';
     contentImage = shareImage(list(entryData.images)[0]);
   } else if (catalogKind !== null) {
@@ -83,9 +82,10 @@ export function seoInput(parts: SeoInputParts): SeoInput {
     if (catalogKind === 'collection') contentImage = shareImage(entryData.image);
   }
 
-  // A catalog object is not an authored document: its own fields are not an `seo` value, only the
-  // shared route template's are.
-  const entry = catalogKind === null ? seoValue(parts.page?.data?.seo) : null;
+  // A catalog object carries the merchant's own `seo` value in the same shape a CMS entry does
+  // (contract 6.6.0: title, description, canonicalUrl, ogTitle, ogDescription, imageUrl, noindex),
+  // so it is the route's entry value and wins over the shared route template's, field by field.
+  const entry = seoValue(catalogKind === null ? parts.page?.data?.seo : entryData.seo);
   const template = seoValue(parts.template?.data?.seo);
 
   if (parts.isNotFound) {

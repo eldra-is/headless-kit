@@ -427,22 +427,22 @@ describe('Price — sale', () => {
   it('strikes through and mutes the compare-at', () => {
     const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
     const compareAt = wrapper.get('[data-part="compareAt"]');
-    expect(compareAt.classes()).toContain('line-through');
-    expect(compareAt.classes()).toContain('text-muted');
+    expect(compareAt.classes()).toContain('eldra:line-through');
+    expect(compareAt.classes()).toContain('eldra:text-muted');
     wrapper.unmount();
   });
 
   it('colours the current price accent on sale', () => {
     const wrapper = mountWith(Price, { props: { amount: 3840, compareAt: 4800 } });
-    expect(wrapper.get('[data-part="current"]').classes()).toContain('text-accent');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra:text-accent');
     wrapper.unmount();
   });
 
   it('colours the current price with the ordinary text role when not on sale', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800 } });
     const current = wrapper.get('[data-part="current"]');
-    expect(current.classes()).toContain('text-text');
-    expect(current.classes()).not.toContain('text-accent');
+    expect(current.classes()).toContain('eldra:text-text');
+    expect(current.classes()).not.toContain('eldra:text-accent');
     wrapper.unmount();
   });
 
@@ -459,9 +459,9 @@ describe('Price — sale', () => {
     const labels = wrapper.findAll('[data-part="srText"]');
     expect(labels).toHaveLength(2);
     expect(labels[0]?.text()).toBe('Sale price');
-    expect(labels[0]?.classes()).toContain('sr-only');
+    expect(labels[0]?.classes()).toContain('eldra:sr-only');
     expect(labels[1]?.text()).toBe('Regular price');
-    expect(labels[1]?.classes()).toContain('sr-only');
+    expect(labels[1]?.classes()).toContain('eldra:sr-only');
     wrapper.unmount();
   });
 
@@ -526,7 +526,7 @@ describe('Price — unit price', () => {
     const wrapper = mountWith(Price, {
       props: { amount: 1530, unitPrice: { amount: 510, per: '100 g' } },
     });
-    expect(wrapper.get('[data-part="unit"]').classes()).toContain('basis-full');
+    expect(wrapper.get('[data-part="unit"]').classes()).toContain('eldra:basis-full');
     wrapper.unmount();
   });
 
@@ -581,31 +581,31 @@ describe('Price — loading', () => {
 
   it('shimmers with the shared eldra-skeleton utility on a surface-strong shape', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
-    expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('eldra-skeleton');
+    expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('eldra:eldra-skeleton');
     wrapper.unmount();
   });
 
   it("is 35% wide, per the spec's Loading row, not a fixed width", () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
     const classes = wrapper.get('[data-part="skeleton"]').classes();
-    expect(classes).toContain('w-[35%]');
-    expect(classes).not.toContain('w-14');
+    expect(classes).toContain('eldra:w-[35%]');
+    expect(classes).not.toContain('eldra:w-14');
     wrapper.unmount();
   });
 
   it('gives the root a definite width while loading, so the 35% skeleton has something to resolve against', () => {
     const loading = mountWith(Price, { props: { amount: 4800, loading: true } });
-    expect(loading.classes()).toContain('w-full');
+    expect(loading.classes()).toContain('eldra:w-full');
     loading.unmount();
 
     const regular = mountWith(Price, { props: { amount: 4800 } });
-    expect(regular.classes()).not.toContain('w-full');
+    expect(regular.classes()).not.toContain('eldra:w-full');
     regular.unmount();
   });
 
   it("keeps the skeleton's height tied to the current type size", () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, loading: true } });
-    expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('h-[0.85em]');
+    expect(wrapper.get('[data-part="skeleton"]').classes()).toContain('eldra:h-[0.85em]');
     wrapper.unmount();
   });
 
@@ -636,9 +636,11 @@ describe('Price — tabular numerals', () => {
         unitPrice: { amount: 510, per: '100 g' },
       },
     });
-    expect(wrapper.get('[data-part="current"]').classes()).toContain('text-price-current');
-    expect(wrapper.get('[data-part="compareAt"]').classes()).toContain('text-price-secondary');
-    expect(wrapper.get('[data-part="unit"]').classes()).toContain('text-price-unit');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra:text-price-current');
+    expect(wrapper.get('[data-part="compareAt"]').classes()).toContain(
+      'eldra:text-price-secondary'
+    );
+    expect(wrapper.get('[data-part="unit"]').classes()).toContain('eldra:text-price-unit');
     wrapper.unmount();
   });
 });
@@ -646,38 +648,39 @@ describe('Price — tabular numerals', () => {
 describe('Price — sizes', () => {
   it('sets an explicit size class for sm', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, size: 'sm' } });
-    expect(wrapper.classes()).toContain('text-price-sm');
+    expect(wrapper.classes()).toContain('eldra:text-price-sm');
     wrapper.unmount();
   });
 
   it('sets an explicit size class for lg', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, size: 'lg' } });
-    expect(wrapper.classes()).toContain('text-price-lg');
+    expect(wrapper.classes()).toContain('eldra:text-price-lg');
     wrapper.unmount();
   });
 
   it('sets no size class for md, inheriting the surrounding text size', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, size: 'md' } });
-    expect(wrapper.classes()).not.toContain('text-price-sm');
-    expect(wrapper.classes()).not.toContain('text-price-lg');
+    expect(wrapper.classes()).not.toContain('eldra:text-price-sm');
+    expect(wrapper.classes()).not.toContain('eldra:text-price-lg');
     wrapper.unmount();
   });
 
   it('defaults to md', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800 } });
-    expect(wrapper.classes()).not.toContain('text-price-sm');
-    expect(wrapper.classes()).not.toContain('text-price-lg');
+    expect(wrapper.classes()).not.toContain('eldra:text-price-sm');
+    expect(wrapper.classes()).not.toContain('eldra:text-price-lg');
     wrapper.unmount();
   });
 });
 
 describe('Price — customisation', () => {
-  it('merges an override onto every part', () => {
+  it('appends an override to every part, and a root class to the root', () => {
     const wrapper = mountWith(Price, {
+      attrs: { class: 'gap-x-4' },
       props: {
         amount: 3840,
         compareAt: 4800,
-        classes: { root: 'gap-x-4', current: 'uppercase', compareAt: 'italic', srText: 'italic' },
+        classes: { current: 'uppercase', compareAt: 'italic', srText: 'italic' },
       },
     });
     expect(wrapper.classes()).toContain('gap-x-4');
@@ -701,7 +704,7 @@ describe('Price — narrow container', () => {
       },
     });
     expect(wrapper.element.tagName).toBe('P');
-    expect(wrapper.classes()).toContain('flex-wrap');
+    expect(wrapper.classes()).toContain('eldra:flex-wrap');
     expect(wrapper.get('[data-part="unit"]').text()).toBe('$5.10 / 100 g');
     wrapper.unmount();
   });
@@ -764,8 +767,8 @@ describe('Price — revalidating', () => {
     expect(spinner.attributes('aria-hidden')).toBe('true');
     // Zero width, with the negative inline-start margin that cancels the root's own gap: the
     // spinner is drawn in the space after the value without reserving any of it.
-    expect(spinner.classes()).toContain('w-0');
-    expect(spinner.get('svg').classes()).toContain('absolute');
+    expect(spinner.classes()).toContain('eldra:w-0');
+    expect(spinner.get('svg').classes()).toContain('eldra:absolute');
     plain.unmount();
     busy.unmount();
   });
@@ -781,10 +784,14 @@ describe('Price — revalidating', () => {
       },
     });
     for (const part of ['current', 'compareAt', 'from', 'unit']) {
-      expect(wrapper.get(`[data-part="${part}"]`).classes(), part).toContain('eldra-revalidating');
+      expect(wrapper.get(`[data-part="${part}"]`).classes(), part).toContain(
+        'eldra:eldra-revalidating'
+      );
     }
     // The spinner is the state's own signal and stays at full strength.
-    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="spinner"]').classes()).not.toContain(
+      'eldra:eldra-revalidating'
+    );
     wrapper.unmount();
   });
 
@@ -792,7 +799,9 @@ describe('Price — revalidating', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, compareAt: 6000 } });
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
     expect(wrapper.attributes('aria-busy')).toBeUndefined();
-    expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="current"]').classes()).not.toContain(
+      'eldra:eldra-revalidating'
+    );
     wrapper.unmount();
   });
 
@@ -812,7 +821,7 @@ describe('Price — revalidating', () => {
     const status = wrapper.get('[data-part="srStatus"]');
     expect(status.text()).toBe('Updating price');
     expect(status.attributes('aria-live')).toBe('polite');
-    expect(status.classes()).toContain('sr-only');
+    expect(status.classes()).toContain('eldra:sr-only');
     wrapper.unmount();
   });
 
@@ -848,8 +857,8 @@ describe('Price — revalidating', () => {
   it('turns the spinner, and pulses it under reduced motion', () => {
     const wrapper = mountWith(Price, { props: { amount: 4800, revalidating: true } });
     const svg = wrapper.get('[data-part="spinner"] svg');
-    expect(svg.classes()).toContain('animate-eldra-spin');
-    expect(svg.classes()).toContain('motion-reduce:animate-eldra-pulse');
+    expect(svg.classes()).toContain('eldra:animate-eldra-spin');
+    expect(svg.classes()).toContain('eldra:motion-reduce:animate-eldra-pulse');
     wrapper.unmount();
   });
 
@@ -865,7 +874,7 @@ describe('Price — revalidating', () => {
     expect(wrapper.find('[data-part="srStatus"]').exists()).toBe(false);
     expect(wrapper.attributes('aria-busy')).toBe('true');
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
-    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra:eldra-revalidating');
     wrapper.unmount();
   });
 
@@ -1058,7 +1067,7 @@ describe('Price — the amount changing', () => {
   it('settles the value, the busy flag, the dim and the spinner together', async () => {
     const wrapper = readyPrice({ amount: 4800, compareAt: 6000, revalidating: true });
     expect(wrapper.attributes('aria-busy')).toBe('true');
-    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="current"]').classes()).toContain('eldra:eldra-revalidating');
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(true);
 
     // The shape of a real refresh: the flag clears and the fresher amount arrives together.
@@ -1066,7 +1075,9 @@ describe('Price — the amount changing', () => {
 
     expect(wrapper.get('[data-part="currentValue"]').text()).toBe('$36.00');
     expect(wrapper.attributes('aria-busy')).toBeUndefined();
-    expect(wrapper.get('[data-part="current"]').classes()).not.toContain('eldra-revalidating');
+    expect(wrapper.get('[data-part="current"]').classes()).not.toContain(
+      'eldra:eldra-revalidating'
+    );
     expect(wrapper.find('[data-part="spinner"]').exists()).toBe(false);
     expect(wrapper.get('[data-part="srStatus"]').text()).toBe('');
     wrapper.unmount();

@@ -10,8 +10,8 @@ import type { IconComponent } from '../icon/types';
 export type EmptyStateVariant = 'empty' | 'noResults' | 'error';
 
 /** The parts a consumer can restyle through `classes`, named after the spec's anatomy: the icon
- * circle (1), the title (2), the text (3) and the actions row (4). */
-export type EmptyStatePart = 'root' | 'icon' | 'title' | 'text' | 'actions';
+ * circle (1), the title (2), the text (3) and the actions row (4). The root is styled with `class`. */
+export type EmptyStatePart = 'icon' | 'title' | 'text' | 'actions';
 
 export interface EmptyStateProps {
   /** Which state this is (spec "Empty and error states" → Variants). Defaults to `empty`. */
@@ -39,15 +39,16 @@ export interface EmptyStateProps {
    * from the slot's own scope instead (see the `actions` slot below).
    */
   retrying?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<EmptyStatePart, string>>;
 }
 
 /**
  * The parts a consumer can restyle through `classes`: the icon (optional), the action label
- * (strong) and the guidance text, named after the spec's own editor-hint anatomy.
+ * (strong) and the guidance text, named after the spec's own editor-hint anatomy. The root is
+ * styled with `class`.
  */
-export type EditorPlaceholderPart = 'root' | 'icon' | 'label' | 'help';
+export type EditorPlaceholderPart = 'icon' | 'label' | 'help';
 
 export interface EditorPlaceholderProps {
   /** E.g. `plus`, `photo`. `null` (the default) renders no icon. */
@@ -59,6 +60,6 @@ export interface EditorPlaceholderProps {
   help?: string | null;
   /** Compact padding, for an empty inline field (e.g. an empty heading). Defaults to `false`. */
   inline?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<EditorPlaceholderPart, string>>;
 }

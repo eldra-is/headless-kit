@@ -1,5 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type TextareaPart = 'root' | 'control' | 'foot' | 'counter';
+export type TextareaPart = 'prefix' | 'control' | 'clearButton' | 'suffix' | 'foot' | 'counter';
 
 export interface TextareaProps {
   /** The text (two-way). */
@@ -12,9 +12,18 @@ export interface TextareaProps {
   counter?: boolean;
   /** Also sets the native `maxlength`, so typing stops at the limit. */
   hardLimit?: boolean;
+  /**
+   * Shows `Input`'s clear button at the end of the first line while there is a value and the field
+   * can be edited. Clicking it empties the field, emits `clear` and returns focus. Defaults to
+   * `false`.
+   */
+  clearable?: boolean;
   /** Size to the expected answer, in rem. Defaults to `5rem` (about 3 lines). */
   minHeight?: string;
-  /** Sets `aria-invalid="true"`. Comes from the `FieldWrapper` otherwise. */
+  /**
+   * Sets `aria-invalid="true"`. Comes from the `FieldWrapper` otherwise. While it is not invalid,
+   * an `aria-invalid` attribute the caller passes is kept.
+   */
   invalid?: boolean;
   /** Native `required`. Comes from the `FieldWrapper` otherwise. */
   required?: boolean;
@@ -28,6 +37,9 @@ export interface TextareaProps {
   name?: string;
   /** `aria-describedby` ids, error id first. Comes from the `FieldWrapper` otherwise. */
   describedBy?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<TextareaPart, string>>;
 }

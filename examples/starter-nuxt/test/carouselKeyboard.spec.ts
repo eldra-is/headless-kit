@@ -219,7 +219,7 @@ describe('hero split-carousel — linked and unlinked slides in one row', () => 
     // Slide 1 holds no link, so the slide element itself is the stop — with the package's own
     // focus ring, since it has no control of its own to bring one. Slide 2's link is parked.
     expect(figures[0]?.getAttribute('tabindex')).toBe('0');
-    expect(figures[0]?.classList.contains('eldra-focus')).toBe(true);
+    expect(figures[0]?.classList.contains('eldra:eldra-focus')).toBe(true);
     expect(tabbableIn(track(wrapper))).toEqual([figures[0]]);
 
     press(figures[0]!, 'ArrowRight');
@@ -229,7 +229,7 @@ describe('hero split-carousel — linked and unlinked slides in one row', () => 
     const link = figures[1]!.querySelector<HTMLElement>('a[href]')!;
     expect(document.activeElement).toBe(link);
     expect(figures[1]?.getAttribute('tabindex')).toBeNull();
-    expect(figures[1]?.classList.contains('eldra-focus')).toBe(false);
+    expect(figures[1]?.classList.contains('eldra:eldra-focus')).toBe(false);
     expect(figures[0]?.getAttribute('tabindex')).toBe('-1');
     expect(tabbableIn(track(wrapper))).toEqual([link]);
     expect(await axe(wrapper.element)).toHaveNoViolations();

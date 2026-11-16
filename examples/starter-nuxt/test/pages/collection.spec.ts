@@ -125,12 +125,12 @@ describe('collection sample page', () => {
     expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'surface-strong']);
 
     // The grid starts directly under the collection header with its own short 1.5rem top padding
-    // (`pt-6`) rather than the shared spacing scale, and the call to action keeps a full band of
-    // padding on its `surface` ground (`pt-[var(--eldra-section-md)]`) — both blocks hand-roll
-    // their own padding rather than reading `Section`'s `spacing` prop (see each block's own
-    // top-of-file comment), so this is what proves the page actually renders those literal values.
+    // (`pt-6`, hand-rolled rather than read from `Section`'s `spacing` prop — see the block's own
+    // top-of-file comment), and the call to action keeps a full band of padding on its `surface`
+    // ground (`Section`'s own `eldra:pt-[var(--eldra-section-md)]`), so this is what proves the
+    // page actually renders those values.
     expect(gridEl!.classList.contains('pt-6')).toBe(true);
-    expect(ctaEl!.classList.contains('pt-[var(--eldra-section-md)]')).toBe(true);
+    expect(ctaEl!.classList.contains('eldra:pt-[var(--eldra-section-md)]')).toBe(true);
   });
 
   it('has exactly one h1 (the collection title) and one breadcrumb nav on the page', async () => {

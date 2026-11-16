@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `eldra-theme types` asks the gateway for the `declare module '@eldrajs/sdk'` augmentation and
+  writes it with the CMS types, so `product.extensions` is typed through the SDK's
+  `EldraProductExtensions` registry (WS-434, contract 6.1.0). It is on by default;
+  `--no-sdk-augmentation` leaves it out, for a project that does not depend on `@eldrajs/sdk`.
 - `eldra-theme deploy` explains a 413 whose body is not JSON instead of printing `gateway responded 413`: a proxy or CDN in front of the API may have refused the upload as too large, with the platform's own artifact limits for comparison.
 - `eldra-theme init` scaffolds a starter whose `studioOrigins` default to production Studio (`https://eldra.app`) instead of `https://localhost:4311`, so a deploy that forgets `ELDRA_STUDIO_ORIGIN` still lets production Studio connect to the preview rather than failing silently; `ELDRA_STUDIO_ORIGIN` accepts a comma-separated list.
 - `eldra-theme validate` and the plugin build fail naming `package.json: eldra.themeId` when a theme

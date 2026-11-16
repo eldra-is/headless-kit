@@ -1,5 +1,6 @@
 import { h } from 'vue';
 import type { Decorator, Preview } from '@storybook/vue3-vite';
+import '../src/styles/style.css';
 import './preview.css';
 
 /**
@@ -55,9 +56,9 @@ function sectionOf(globals: Record<string, unknown>): SectionName {
  * be inspected (and asserted on) for the surface it sits on, plus the section's
  * own background and text colour so the story matches what the toolbar says.
  *
- * It also carries `group/section`, which is the hook the components' coloured-section
- * variants read (`group-data-[section=primary]/section:…`). Without it the toolbar
- * would paint the background but leave a primary Button in its light-ground colours.
+ * `data-section` is also the hook the components' coloured-section variants read
+ * (`eldra:section-primary:…`). Without it the toolbar would paint the background but
+ * leave a primary Button in its light-ground colours.
  */
 const withSection: Decorator = (story, context) => {
   const section = sectionOf(context.globals);
@@ -67,7 +68,7 @@ const withSection: Decorator = (story, context) => {
         'div',
         {
           'data-section': section,
-          class: `group/section ${SECTIONS[section].classes} font-body p-6`,
+          class: `${SECTIONS[section].classes} font-body p-6`,
         },
         [h(story())]
       ),

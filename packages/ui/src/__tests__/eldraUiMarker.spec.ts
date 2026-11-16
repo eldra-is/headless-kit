@@ -33,12 +33,18 @@ const packageComponents = new Set(files.map((file) => basename(file, '.vue')));
 
 const elements = (nodes: TemplateNode[] = []) => nodes.filter((node) => node.type === ELEMENT);
 
-/** What a template puts in the DOM at its top level, seen through wrappers that render no element. */
-function roots(nodes: TemplateNode[] = []): TemplateNode[] {
+/** What a template puts in the DOM at its top level, seen through wrappers that render no element
+ *  of their own: Vue's, and a file's own `FunctionalComponent`s, whose extra element (if any) is
+ *  marked in its render function and checked by that component's spec. */
+function roots(nodes: TemplateNode[] = [], local = new Set<string>()): TemplateNode[] {
   return elements(nodes).flatMap((node) =>
-    WRAPPERS.has(node.tag ?? '') ? roots(node.children) : [node]
+    WRAPPERS.has(node.tag ?? '') || local.has(node.tag ?? '') ? roots(node.children, local) : [node]
   );
 }
+
+/** The names a file declares as `const Name: FunctionalComponent`. */
+const functionalWrappers = (source: string) =>
+  new Set([...source.matchAll(/const (\w+): FunctionalComponent\b/g)].map((match) => match[1]!));
 
 function teleports(node: TemplateNode): TemplateNode[] {
   return elements(node.children).flatMap((child) => [
@@ -53,10 +59,9 @@ const marked = (node: TemplateNode) =>
   (node.props ?? []).some((prop) => prop.type === ATTRIBUTE && prop.name === 'data-eldra-ui');
 
 const templates = files.map((file) => {
-  const ast = parse(readFileSync(file, 'utf8')).descriptor.template?.ast as
-    | TemplateNode
-    | undefined;
-  return { file: relative(src, file), ast };
+  const source = readFileSync(file, 'utf8');
+  const ast = parse(source).descriptor.template?.ast as TemplateNode | undefined;
+  return { file: relative(src, file), ast, local: functionalWrappers(source) };
 });
 
 describe('data-eldra-ui, the marker components.css scopes its reset to', () => {
@@ -66,9 +71,12 @@ describe('data-eldra-ui, the marker components.css scopes its reset to', () => {
   });
 
   it('is on every root a component renders and every root it teleports', () => {
-    const missing = templates.flatMap(({ file, ast }) => {
+    const missing = templates.flatMap(({ file, ast, local }) => {
       if (!ast) return [`${file}: no <template> to check`];
-      const outer = [...roots(ast.children), ...teleports(ast).flatMap((t) => roots(t.children))];
+      const outer = [
+        ...roots(ast.children, local),
+        ...teleports(ast).flatMap((t) => roots(t.children, local)),
+      ];
       return outer.filter((node) => !marked(node)).map((node) => `${file}: <${node.tag}>`);
     });
     expect(missing).toEqual([]);

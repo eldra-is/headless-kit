@@ -46,7 +46,7 @@ const meta = {
           '**Parts** (`data-part`): `Toaster` — `root` (the fixed region), `list` (the polite',
           '`role="status"` element inside it — a danger toast is a further direct child of `root`,',
           'a sibling of `list`, never nested inside it, so the two live regions never nest). `Toast`',
-          '— `root`, `icon`, `title`, `text`, `action`, `close`.',
+          '— `root` (styled with `class`), `icon`, `title`, `text`, `action`, `close`.',
           '',
           '**Variants and timing**: `success` (default) auto-dismisses after 6s; `warning` after',
           '10s; `danger` never — it is `role="alert"`, the other two sit inside the always-present,',

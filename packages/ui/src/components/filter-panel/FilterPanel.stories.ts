@@ -94,7 +94,7 @@ const meta = {
           'choice inside a form use **Checkbox**, **RadioGroup** or **Select**; to choose a',
           "product's own variant use **VariantPicker**.",
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `head`, `title`,',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (styled with `class`), `head`, `title`,',
           '`clear`, `applied`, `chip`, `group`, `trigger`, `groupLabel`, `badge`, `summary`,',
           '`chevron`, `body`, `legend`, `search`, `noMatches`, `values`, `row`, `rowLabel`,',
           '`count`, `checkbox`, `showAll`, `swatch`, `swatchMark`, `swatchStrike`, `subheading`,',

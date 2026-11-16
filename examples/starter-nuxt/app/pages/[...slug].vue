@@ -137,7 +137,7 @@ const structure = computed(() =>
       spacing="lg"
       labelled-by="not-found-title"
       data-eldra-not-found
-      :classes="{ root: 'text-center' }"
+      class="text-center"
     >
       <Container width="narrow">
         <p class="text-muted text-sm font-semibold tracking-widest uppercase">

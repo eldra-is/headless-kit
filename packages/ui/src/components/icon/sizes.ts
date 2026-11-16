@@ -6,10 +6,10 @@ import type { IconSize } from './types';
  * literal length appears here or in the built CSS.
  */
 export const ICON_SIZE_CLASS: Record<IconSize, string> = {
-  sm: 'size-4',
-  md: 'size-5',
-  lg: 'size-6',
-  xl: 'size-8',
+  sm: 'eldra:size-4',
+  md: 'eldra:size-5',
+  lg: 'eldra:size-6',
+  xl: 'eldra:size-8',
 };
 
 /** The spec's outline stroke weight. */

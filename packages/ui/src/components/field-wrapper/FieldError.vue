@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 /**
  * A field's error row: the `alert-circle` icon and the message, as the design spec's Field wrapper
@@ -27,22 +29,21 @@ const props = defineProps<{
   classes?: Partial<Record<'error' | 'errorIcon', string>>;
 }>();
 
-const errorClass = computed(() =>
-  partClass(
-    cx('text-field-note text-danger flex items-start gap-1.25 font-medium', props.rowClass),
-    props.classes,
-    'error'
-  )
-);
+const errorClass = computed(() => [
+  'eldra:text-field-note eldra:text-danger eldra:flex eldra:items-start eldra:gap-1.25 eldra:font-medium',
+  props.rowClass,
+  props.classes?.error,
+]);
 
 /** 1rem, nudged 0.1em down so it sits on the text rather than above it. */
-const errorIconClass = computed(() =>
-  partClass('size-4 shrink-0 translate-y-[0.1em]', props.classes, 'errorIcon')
-);
+const errorIconClass = computed(() => [
+  'eldra:size-4 eldra:shrink-0 eldra:translate-y-[0.1em]',
+  props.classes?.errorIcon,
+]);
 </script>
 
 <template>
-  <p :id="id" data-eldra-ui data-part="error" :class="errorClass">
+  <p :id="id" data-eldra-ui :data-eldra-scope="eldra.scope" data-part="error" :class="errorClass">
     <!-- Tabler's `alert-circle`, stroke 1.75, at 1rem. Decorative: the message is the text. -->
     <svg
       data-part="errorIcon"
@@ -60,6 +61,6 @@ const errorIconClass = computed(() =>
       <path d="M12 8v4" />
       <path d="M12 16h.01" />
     </svg>
-    <span><slot /></span>
+    <span :data-eldra-slot="eldra.slotHost('default')"><slot /></span>
   </p>
 </template>

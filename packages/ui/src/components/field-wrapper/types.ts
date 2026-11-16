@@ -1,6 +1,5 @@
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
 export type FieldWrapperPart =
-  | 'root'
   | 'label'
   | 'legend'
   | 'requiredMark'
@@ -14,15 +13,23 @@ export type FieldWrapperPart =
 
 /** The character counter shown at the end of the foot row. */
 export interface FieldWrapperCounter {
-  /** The limit the value is counted against. */
-  max: number;
+  /**
+   * The limit the value is counted against. Without one the counter shows the length alone
+   * ("12"), for a field that reports how much has been written but sets no limit.
+   */
+  max?: number;
   /** The current length. Defaults to `0`, so an empty field reads "0 / 200". */
   value?: number;
 }
 
 export interface FieldWrapperProps {
-  /** The visible label, written as a noun ("Postcode"). */
-  label: string;
+  /**
+   * The visible label, written as a noun ("Postcode"). Leave it out (and fill no `label` slot) for
+   * a field with no visible label: no `<label>` (or `<legend>`) renders, so name the control
+   * itself with `aria-label` (a group: the wrapper, whose attributes reach the `<fieldset>`). The
+   * required and optional marks live in the label, so they go with it.
+   */
+  label?: string;
   /** The control's id. Generated when it is not given, and handed to the control either way. */
   id?: string;
   /** Shows `*` and sets native `required` on the control. */
@@ -46,6 +53,9 @@ export interface FieldWrapperProps {
   group?: boolean;
   /** Spans both columns of a two-column `FormLayout`. */
   full?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (they win by cascade layer). Style the root with
+   * `class`.
+   */
   classes?: Partial<Record<FieldWrapperPart, string>>;
 }

@@ -27,7 +27,7 @@ describe('EldraIcon', () => {
     const wrapper = mount(EldraIcon, { props: { name: 'lock' } });
     await flushPromises();
     const svg = wrapper.find('svg');
-    expect(svg.classes()).toContain('size-8');
+    expect(svg.classes()).toContain('eldra:size-8');
     expect(svg.attributes('stroke-width')).toBe('1.75');
     expect(svg.attributes('aria-hidden')).toBe('true');
   });

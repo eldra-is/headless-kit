@@ -81,7 +81,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   `eldra-is/studio-media-worker` `src/index.ts`; change both together.
   `src/format/` is the `./format` entries (`./format/date`, `/list`, `/relative-time`,
   `/display-names`): Icelandic and English formatting that prints the same on every runtime
-  (`docs/icelandic-formatting.md`). The formatjs classes are devDependencies **bundled** into
+  (`docs/icelandic-formatting.md`). `./format/intl` is `installIcelandicIntl()`, the opt-in patch of
+  `Intl` for code that calls it directly; nothing in the package may call it on import. The formatjs classes are devDependencies **bundled** into
   `dist`, never runtime dependencies: each formatjs package ships every locale's data (344 MB
   installed for the five). `is`/`en` data lives in `src/format/data`, copied by `pnpm --filter
 @eldrajs/sdk format-data`; `check:format-data` in `lint:check` fails on drift.
@@ -102,7 +103,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `packages/ui` — `@eldrajs/ui`. The public Vue 3 core component library, built to
   `eldra-starter-spec/01-core-components.md` (WCAG 2.2 AA). Peers on `vue` **3.5 or newer**
   (`src/utils/id.ts` calls Vue's `useId()`, added in 3.5, and nearly every component calls it),
-  optionally on `vee-validate` (the `./vee-validate` entry only); runtime deps are
+  optionally on `vee-validate` (the `./vee-validate` entry only) and `vue-i18n` (the `./vue-i18n`
+  entry only); runtime deps are
   `@floating-ui/vue`, `tailwind-merge` and `@eldrajs/sdk` (`./format`, for every number, price, date and list it
   prints), all external in the Vite build. Built by Vite in library mode with `vite-plugin-dts`, the
   same shape as `packages/vue`. **No value is written literally**: every colour, radius, height,
@@ -118,15 +120,26 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   **outside `pnpm check` and outside CI**, and the baselines are **not tracked** (git-ignored):
   font rasterisation differs enough per platform that one machine's PNGs fail nearly every story
   on another. Create your own once with `screenshots --update`, then compare against them.
-  Four CSS entries ship: `./tokens.css` (the variables),
-  `./tailwind.css` (the `@theme` block and the `@utility` rules — type styles, control heights,
-  the `eldra-focus` ring, motion and layer utilities — copied to `dist/` verbatim so a consumer's
-  own Tailwind build reads them, with `@source './'` resolving against `dist/`), `./style.css`
-  (the package's compiled stylesheet for consumers without Tailwind, emitted by the `style` lib
-  entry, with Tailwind's page-wide preflight) and `./components.css` (the same without it: its
-  reset touches only `[data-eldra-ui]` and the `data-part` elements inside one, derived by
+  **Every class a component authors is written `eldra:`-prefixed** (`eldra:px-4`,
+  `eldra:hover:bg-primary`, `eldra:group`), and `src/__tests__/prefixedClasses.spec.ts` fails on an
+  unprefixed one. Components bind classes with plain Vue `class`/`:class`, one class per concern
+  on each element (exclusive branches, never a base class a variant overrides); a `classes` part is
+  appended, and the outermost element takes `class`. Where one component restyles another it
+  renders, the child merges that part with `mergeClass` (`src/utils/mergeClass.ts`,
+  tailwind-merge with `prefix: 'eldra'`). `src/__tests__/renderedClasses.spec.ts` mounts every
+  story and fails on two conflicting `eldra:` classes on one element. The components ship prebuilt: `src/styles/style.css` compiles them with
+  `prefix(eldra)` into `@layer components`, below an app's `utilities`, so a consumer's unprefixed
+  class on a component wins by layer. Section inversions use the `section-primary:` /
+  `section-accent:` custom variants (`[data-section] &`) in `src/styles/utilities.css`.
+  CSS entries: `./style.css` (the compiled components, emitted by the `style` lib entry, with
+  Tailwind's page-wide preflight), `./components.css` (the same without it: its reset touches only
+  `[data-eldra-ui]` and the `data-part` elements inside one, derived by
   `scripts/components-css.mjs`; every SFC's root and teleported root carries `data-eldra-ui`,
-  enforced by `src/__tests__/eldraUiMarker.spec.ts`). `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
+  enforced by `src/__tests__/eldraUiMarker.spec.ts`), `./tokens.css` (the variables), and for an
+  app's own Tailwind markup `./tailwind.css` (tokens + `./theme.css`, the `@theme` block, +
+  `./utilities.css`, the `@utility` rules — type styles, control heights, the `eldra-focus` ring,
+  motion and layer utilities), all copied to `dist/` verbatim; it builds no component.
+  `scripts/copy-css.mjs` does the copying. `scripts/check-framework-free.mjs` does not
   apply — this is a framework package. Entries (`exports`): `.` (every component, composable and
   type, unprefixed — `Button`, `Select`, no global registration), `./resolver`
   (`EldraUiResolver({ prefix = 'Eldra' })` for `unplugin-vue-components`, resolving
@@ -137,8 +150,13 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   twelve `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
   and `useFieldControl`; `src/vee-validate/**` is the only place in the package that may import
   `vee-validate`, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry loads
-  without it in both the source graph and the built `dist/`), `./messages/is-IS` (the Icelandic message set, its
-  own entry so an English-only store never bundles it), and the four CSS entries above. Text a
+  without it in both the source graph and the built `dist/`), `./vue-i18n` (`useEldraUiI18n`,
+  `eldraUiI18nMessages`, `toVueI18nMessages`, `icelandicPluralRule`: the messages read through an
+  app's vue-i18n; `SHAPES` in `src/vue-i18n/shapes.ts` maps every message function onto named values,
+  plural forms and suffixed keys, and `vue-i18n.spec.ts` proves both shipped sets print the same
+  through it; `vueI18nIsolation.spec.ts` guards the optional peer like vee-validate's),
+  `./messages/is-IS` (the Icelandic message set, its
+  own entry so an English-only store never bundles it), and the five CSS entries above. Text a
   component renders itself goes through a `messages` prop / `provideEldraUiMessages`, English
   defaults built in. Composables exported from the root are the same building blocks the package's
   own components are built on, not a separate layer over private internals, so a consumer building
@@ -214,7 +232,8 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   destination (always after `safeHref`). Tailwind v4 is wired through the fallback route, not the
   plugin's `virtual:eldra/tailwind-theme.css` CSS-level `@import` (that import only resolves at the
   JS level — see `docs/theme-design-tokens.md`): `eldra.tailwind: false`, `app/assets/main.css` is
-  `@import 'tailwindcss'` then `@import '@eldrajs/ui/tailwind.css'`. There is no generated colour
+  `@import 'tailwindcss'`, `@import '@eldrajs/ui/tailwind.css'`, then the prebuilt
+  `@import '@eldrajs/ui/components.css'`. There is no generated colour
   block and no sync script: `tokens.json`'s ids _are_ the package's `--eldra-color-*` role names,
   so one edit restyles both, and `virtual:eldra/tokens.css` must stay ordered after the package's
   defaults (it is, in the Nuxt build; `.storybook/preview.ts` imports them in that order
@@ -239,7 +258,7 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   implementation), `customer-prices.md`, `sales-orders.md` (its code is
   `examples/node-script/sales-orders.ts`), `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
-  four CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
+  five CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the
   starter's own conventions — see the `examples/starter-nuxt` entry above) plus the four
   `theme-*.md` docs `themes.md` links to, and `roadmap.md` (planned work; remove a line in the

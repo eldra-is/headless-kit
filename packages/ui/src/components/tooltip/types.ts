@@ -11,8 +11,9 @@ export type TooltipAlign = 'start' | 'center' | 'end';
  */
 export type TooltipRole = 'label' | 'description';
 
-/** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type TooltipPart = 'root' | 'bubble' | 'arrow';
+/** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. The
+ * root is styled with `class`. */
+export type TooltipPart = 'bubble' | 'arrow';
 
 /**
  * The default slot's first element is the trigger `Tooltip` names or describes. **It must be a
@@ -45,6 +46,6 @@ export interface TooltipProps {
    * `label`.
    */
   role?: TooltipRole;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<TooltipPart, string>>;
 }

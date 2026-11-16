@@ -14,9 +14,6 @@ export type IconComponent = Component;
  */
 export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
 
-/** The parts a consumer can restyle through `classes`. */
-export type IconPart = 'root';
-
 export interface IconProps {
   /** The icon component to render. */
   icon: IconComponent;
@@ -28,6 +25,4 @@ export interface IconProps {
    * assistive technology.
    */
   label?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<IconPart, string>>;
 }

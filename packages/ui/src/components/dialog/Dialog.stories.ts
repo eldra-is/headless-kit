@@ -32,9 +32,12 @@ const meta = {
           'A small modal window for one decision or a short form. Use a Drawer for long content',
           '(cart, filters, menu) and a Toast for announcements — never open a Dialog on page load.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `panel`, `header`,',
-          '`title`, `close`, `description`, `body`, `footer`. **Slots**: `default` (the body) and',
-          '`footer` (the action buttons).',
+          '**Parts** (`data-part`): `root` (styled with `class`), and the keys of the `classes`',
+          'prop: `panel`, `header`, `title`, `close`, `description`, `body`, `footer`. **Slots**:',
+          '`default` (the body),',
+          '`footer` (the action buttons) and `title` (markup of your own in place of the `<h2>`,',
+          'still the accessible name). With neither a `title` prop nor slot, name the dialog with',
+          '`aria-label` or `aria-labelledby` on the component.',
           '',
           '**Native `<dialog>`, no custom focus trap.** Opened with `showModal()`; the rest of the',
           'page becomes inert and does not scroll while it is open. `Tab`/`Shift+Tab` already cycle',
@@ -50,7 +53,8 @@ const meta = {
           '`footer` slot) — never the close button itself while one exists. Focus returns to',
           'whatever opened the dialog the moment it closes, by any route.',
           '',
-          '**Closing**: `Esc` and the close button always close it; a backdrop click closes it only',
+          '**Closing**: `Esc` and the close button close it (`closeOnEscape: false` and',
+          '`closeButton: false` opt out; keep a visible way out); a backdrop click closes it only',
           'when `dismissable` is `true` (the default). `close` fires with how: `"escape"`,',
           '`"backdrop"`, `"button"`, or an action value passed to the exposed `close(value)` method',
           '(`<Dialog ref="dialogRef">`, then `dialogRef.value.close(\'remove\')` from a footer',
@@ -59,7 +63,9 @@ const meta = {
           '**Entrance**: fade plus a 0.5rem rise and scale from 98%, over `duration-slow` `ease-out`.',
           'Reduced motion drops the rise/scale for a plain opacity fade over `duration-base`, linear.',
           'Exit is instant. **CSS variables**: `--eldra-dialog-title-size`/`-line`,',
-          '`--eldra-dialog-width`/`-sm`, `--eldra-dialog-max-height`.',
+          '`--eldra-dialog-width`/`-sm`, `--eldra-dialog-max-height`, and the chrome colours',
+          '`--eldra-dialog-background`/`-border`/`-text`/`-muted`/`-backdrop` (each falling back to',
+          "the matching theme colour, and read by the dialog's own parts only).",
         ].join('\n'),
       },
     },
@@ -182,7 +188,7 @@ export const NotDismissable: Story = {
   }),
 };
 
-/** Content taller than `100vh - 4rem` scrolls inside the body; the header and footer stay put. */
+/** Content taller than the viewport grows the panel downward and the dialog scrolls, like a page. */
 export const LongContent: Story = {
   args: { title: 'Terms of service' },
   render: (args) => ({
@@ -194,8 +200,8 @@ export const LongContent: Story = {
         <Dialog v-bind="args" v-model="open">
           <div class="text-body text-muted flex flex-col gap-4">
             <p v-for="n in 14" :key="n">
-              Paragraph {{ n }} of a long agreement, long enough that it has to scroll inside the
-              dialog rather than growing the dialog past the viewport.
+              Paragraph {{ n }} of a long agreement, long enough that the dialog grows past the
+              viewport and scrolls.
             </p>
           </div>
           <template #footer>
@@ -206,6 +212,13 @@ export const LongContent: Story = {
       </div>
     `,
   }),
+};
+
+/** `eldra-dialog-fullscreen` under a viewport variant: below 48rem the panel fills the screen and the
+ *  body scrolls between the header and footer; above it, the dialog is the usual centred panel. */
+export const FullscreenOnSmallScreens: Story = {
+  args: { title: 'Terms of service', classes: { panel: 'eldra:max-md:eldra-dialog-fullscreen' } },
+  render: LongContent.render,
 };
 
 /**

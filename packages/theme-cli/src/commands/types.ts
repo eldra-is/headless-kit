@@ -10,6 +10,12 @@ export async function generateTypes(opts: {
   orgId: string;
   out: string;
   schemas?: string[];
+  /**
+   * Ask for the `declare module '@eldrajs/sdk'` block that fills `EldraProductExtensions`. On by
+   * default, since a theme normally depends on the SDK; turn it off for a project that does not,
+   * which could not resolve that module.
+   */
+  sdkAugmentation?: boolean;
   fetch?: typeof globalThis.fetch;
 }): Promise<string> {
   const client = createEldraClient({
@@ -20,6 +26,7 @@ export async function generateTypes(opts: {
   const definitions = await client.getTypeScriptDefinitions({
     schemas: opts.schemas,
     moduleName: 'Eldra',
+    sdkAugmentation: opts.sdkAugmentation ?? true,
   });
   const target = resolve(opts.themeDir, opts.out);
   mkdirSync(dirname(target), { recursive: true });

@@ -177,7 +177,7 @@ describe('video-embed block', () => {
     await flushPromises();
     const heading = wrapper.get('h2');
     expect(heading.text()).toBe(mock.videoTitle);
-    expect(heading.classes()).toContain('sr-only');
+    expect(heading.classes()).toContain('eldra:sr-only');
     const section = wrapper.get('section');
     expect(section.attributes('aria-labelledby')).toBe(heading.attributes('id'));
     expect(await axe(wrapper.element)).toHaveNoViolations();

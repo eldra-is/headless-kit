@@ -22,7 +22,9 @@ export type {
 export {
   captureCampaignAttribution,
   clearCampaignAttribution,
+  grantCampaignAttributionConsent,
   readCampaignAttribution,
+  withdrawCampaignAttributionConsent,
 } from './attribution';
 export type { EldraCampaignAttribution, EldraCampaignAttributionOptions } from './attribution';
 export {
@@ -59,8 +61,13 @@ export type {
 } from './storage';
 export type {
   EldraAddCartItemInput,
+  EldraBrand,
   EldraCart,
   EldraCartClient,
+  EldraCartAppliedCode,
+  EldraCartGiftCard,
+  EldraCartDiscountCodeEntry,
+  EldraCartGiftCardEntry,
   EldraCartItem,
   EldraCartTotals,
   EldraCategory,
@@ -99,7 +106,11 @@ export type {
   EldraInventoryClient,
   EldraLocaleOptions,
   EldraOrder,
+  EldraOrderDiscountCode,
   EldraOrderLine,
+  EldraOrderPreview,
+  EldraOrderPreviewDiscountCode,
+  EldraOrderPreviewGiftCard,
   EldraOrderReadOptions,
   EldraOrdersClient,
   EldraPlatformClient,
@@ -116,6 +127,7 @@ export type {
 export type {
   EldraCatalogClient,
   EldraProductDetails,
+  EldraProductExtensions,
   EldraProductList,
   EldraProductListItem,
   EldraProductMediaLink,

@@ -3,7 +3,8 @@
  * The one toast host an app mounts once (design spec "Toast", shared "Modal dialogs" rules: "While
  * a modal dialog or drawer is open, toasts render inside the open dialog"). Owns everything
  * `Toast.vue` itself does not: the queue comes from `useToast` (a module-level store, so this is
- * the only place that ever reads `toasts` to render), every toast's auto-dismiss timer (paused
+ * the only place that ever reads `toasts` to render) unless the caller hands it a list of its own
+ * (`toasts`), every toast's auto-dismiss timer (paused
  * while the pointer is over the stack or focus is inside it), and where the region actually lives
  * in the DOM — a sibling of whatever opens a `Dialog` when one is open (`TOAST_HOST_KEY`, from
  * `dialogStack.ts`), `<body>` otherwise.
@@ -26,12 +27,19 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { TOAST_HOST_KEY } from '../../composables/dialogStack';
 import { useMessages } from '../../composables/useMessages';
-import { useToast, type ToastItem } from '../../composables/useToast';
-import { cx, partClass } from '../../utils/cx';
+import { useToast } from '../../composables/useToast';
 import Toast from './Toast.vue';
-import type { ToasterProps } from './types';
+import type { ToasterPosition, ToasterProps, ToasterToast } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ToasterProps>(), {
+  toasts: undefined,
+  position: 'bottom-right',
+  maxVisible: undefined,
+  newestOnTop: false,
+  teleportTo: 'body',
   messages: undefined,
   classes: undefined,
 });
@@ -44,11 +52,27 @@ const emit = defineEmits<{
   action: [id: string];
 }>();
 
-const { toasts, dismiss } = useToast();
+const store = useToast();
 const m = useMessages(() => props.messages);
 
-const nonDanger = computed(() => toasts.value.filter((toast) => toast.variant !== 'danger'));
-const danger = computed(() => toasts.value.filter((toast) => toast.variant === 'danger'));
+/** The queue rendered: the caller's own list when `toasts` is given, `useToast`'s otherwise. */
+const toasts = computed<readonly ToasterToast[]>(() => props.toasts ?? store.toasts.value);
+
+/** An external list is its owner's to change: closing only emits. */
+function dismiss(id: string): void {
+  if (props.toasts === undefined) store.dismiss(id);
+}
+
+const variantOf = (toast: ToasterToast) => toast.variant ?? 'success';
+
+/** `maxVisible` keeps the newest (the end of the queue); `newestOnTop` reverses the drawing order. */
+const visible = computed(() => {
+  const list =
+    props.maxVisible === undefined ? toasts.value : toasts.value.slice(-props.maxVisible);
+  return props.newestOnTop ? [...list].reverse() : list;
+});
+const nonDanger = computed(() => visible.value.filter((toast) => variantOf(toast) !== 'danger'));
+const danger = computed(() => visible.value.filter((toast) => variantOf(toast) === 'danger'));
 
 /* ---------------------------------------------------------------------------------------------
  * Timers. One per toast with `duration > 0`, tracked here (never in the store — see `useToast`'s
@@ -59,7 +83,7 @@ interface TimerEntry {
   /** The exact item this timer belongs to — an *object identity* check, not just an id match, so
    *  a dedupe-replaced toast (`useToast`'s `show()` reusing an `id`) gets a fresh full-length
    *  timer rather than continuing whatever was left of the one it replaced. */
-  item: ToastItem;
+  item: ToasterToast;
   /** Time left, in ms. Kept even while paused (`handle === null`) so resuming restarts for
    *  whatever was left rather than the full duration. */
   remaining: number;
@@ -90,10 +114,11 @@ function expire(id: string): void {
   emit('dismiss', id, 'timeout');
 }
 
-function startTimer(item: ToastItem): void {
-  if (item.duration <= 0) return; // danger, or an explicit `duration: 0` — stays until closed.
-  const handle = paused.value ? null : setTimeout(() => expire(item.id), item.duration);
-  timers.set(item.id, { item, remaining: item.duration, handle, startedAt: Date.now() });
+function startTimer(item: ToasterToast): void {
+  const duration = variantOf(item) === 'danger' ? 0 : (item.duration ?? 0);
+  if (duration <= 0) return; // danger, or an explicit `duration: 0` — stays until closed.
+  const handle = paused.value ? null : setTimeout(() => expire(item.id), duration);
+  timers.set(item.id, { item, remaining: duration, handle, startedAt: Date.now() });
 }
 
 function pauseAll(): void {
@@ -119,7 +144,7 @@ watch(paused, (isPaused) => (isPaused ? pauseAll() : resumeAll()));
  *  it (by id), and restarts one for a toast that was dedupe-replaced in place (by object identity
  *  — see `TimerEntry.item`'s own comment). */
 watch(
-  toasts,
+  () => toasts.value.slice(),
   (list) => {
     const currentIds = new Set(list.map((toast) => toast.id));
     for (const id of [...timers.keys()]) {
@@ -170,13 +195,19 @@ function onFocusOut(event: FocusEvent): void {
  * Classes.
  * ------------------------------------------------------------------------------------------- */
 
-const rootClass = computed(() =>
-  partClass(
-    cx('fixed right-4 bottom-4 z-toast flex w-full flex-col gap-3 eldra-toast-width'),
-    props.classes,
-    'root'
-  )
-);
+const POSITION_CLASS: Record<ToasterPosition, string> = {
+  'top-left': 'eldra:left-4 eldra:top-4',
+  'top-center': 'eldra:left-1/2 eldra:top-4 eldra:-translate-x-1/2',
+  'top-right': 'eldra:right-4 eldra:top-4',
+  'bottom-left': 'eldra:left-4 eldra:bottom-4',
+  'bottom-center': 'eldra:left-1/2 eldra:bottom-4 eldra:-translate-x-1/2',
+  'bottom-right': 'eldra:right-4 eldra:bottom-4',
+};
+
+const rootClass = computed(() => [
+  `eldra:fixed ${POSITION_CLASS[props.position]} eldra:z-toast eldra:flex eldra:flex-col eldra:gap-3 eldra:eldra-toast-width`,
+  props.classes?.root,
+]);
 
 /** `list` collapses to `hidden` while empty rather than `flex flex-col gap-3` — not for the aria
  *  region itself (an empty `aria-live="polite"` region announces nothing regardless of its own
@@ -184,19 +215,19 @@ const rootClass = computed(() =>
  *  markup, so the region is already visible by the time any announcement fires), but so the outer
  *  `root`'s own `gap-3` does not insert a spare 0.75rem gap above a danger-only stack (`list`
  *  would otherwise still count as one empty flex item). */
-const listClass = computed(() =>
-  partClass(
-    nonDanger.value.length > 0 ? 'flex w-full flex-col gap-3' : 'hidden',
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  nonDanger.value.length > 0
+    ? 'eldra:flex eldra:w-full eldra:flex-col eldra:gap-3'
+    : 'eldra:hidden',
+  props.classes?.list,
+]);
 </script>
 
 <template>
-  <Teleport :to="TOAST_HOST_KEY ?? 'body'">
+  <Teleport :to="TOAST_HOST_KEY ?? teleportTo">
     <div
       data-eldra-ui
+      :data-eldra-scope="eldra.scope"
       data-part="root"
       :class="rootClass"
       @mouseenter="hovering = true"
@@ -214,10 +245,11 @@ const listClass = computed(() =>
         <Toast
           v-for="item in nonDanger"
           :key="item.id"
-          :variant="item.variant"
+          :variant="variantOf(item)"
           :title="item.title"
           :text="item.text"
           :action="item.action"
+          :closable="item.closable ?? true"
           :messages="messages"
           @close="(reason) => onToastClose(item.id, reason)"
           @action="onToastAction(item.id)"
@@ -226,10 +258,11 @@ const listClass = computed(() =>
       <Toast
         v-for="item in danger"
         :key="item.id"
-        :variant="item.variant"
+        :variant="variantOf(item)"
         :title="item.title"
         :text="item.text"
         :action="item.action"
+        :closable="item.closable ?? true"
         :messages="messages"
         @close="(reason) => onToastClose(item.id, reason)"
         @action="onToastAction(item.id)"

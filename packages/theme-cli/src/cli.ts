@@ -100,6 +100,12 @@ const main = defineCommand({
           default: false,
           description: 'Write only .eldra/block-types.d.ts from blocks/*/block.json (no gateway)',
         },
+        'sdk-augmentation': {
+          type: 'boolean',
+          default: true,
+          description:
+            "Leave out the declare module '@eldrajs/sdk' block that types product extensions (for a project that does not depend on @eldrajs/sdk)",
+        },
         ...gatewayArgs,
       },
       async run({ args }) {
@@ -130,6 +136,7 @@ const main = defineCommand({
                     .map((schema) => schema.trim())
                     .filter(Boolean)
                 : undefined,
+            sdkAugmentation: args['sdk-augmentation'] !== false,
           });
           console.log(`wrote ${target}`);
         } catch (error) {

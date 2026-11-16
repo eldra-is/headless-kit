@@ -1,6 +1,3 @@
-/** The parts a consumer can restyle through `classes`. */
-export type VisuallyHiddenPart = 'root';
-
 export interface VisuallyHiddenProps {
   /** The element to render. Defaults to `span`. */
   as?: string;
@@ -10,6 +7,4 @@ export interface VisuallyHiddenProps {
    * control's name).
    */
   focusable?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
-  classes?: Partial<Record<VisuallyHiddenPart, string>>;
 }

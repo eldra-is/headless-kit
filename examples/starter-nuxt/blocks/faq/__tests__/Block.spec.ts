@@ -114,14 +114,14 @@ describe('faq block', () => {
   it('renders the block root as a labelled <section> that measures its own width (@container)', () => {
     const wrapper = mountBlock(mock);
     const section = wrapper.get('section');
-    expect(section.classes()).toContain('@container');
+    expect(section.classes()).toContain('eldra:@container');
     expect(section.attributes('aria-labelledby')).toBeTruthy();
   });
 
   it('answers cap at 65ch — the package panel class, not repeated here', () => {
     const wrapper = mountBlock(mock);
     for (const panel of wrapper.findAll('[data-part="panel"]')) {
-      expect(panel.classes()).toContain('max-w-[65ch]');
+      expect(panel.classes()).toContain('eldra:max-w-[65ch]');
     }
   });
 

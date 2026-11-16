@@ -28,16 +28,16 @@ describe('Skeleton — element and parts', () => {
 describe('Skeleton — root is block-level (the percentage-width-in-shrink-to-fit trap)', () => {
   it('is block and w-full by default, with no inline width', () => {
     const wrapper = mountWith(Skeleton);
-    expect(wrapper.classes()).toContain('block');
-    expect(wrapper.classes()).toContain('w-full');
+    expect(wrapper.classes()).toContain('eldra:block');
+    expect(wrapper.classes()).toContain('eldra:w-full');
     expect(wrapper.attributes('style')).toBeUndefined();
     wrapper.unmount();
   });
 
   it('drops w-full and sets an explicit style width when `width` is given, staying block', () => {
     const wrapper = mountWith(Skeleton, { props: { width: '12rem' } });
-    expect(wrapper.classes()).toContain('block');
-    expect(wrapper.classes()).not.toContain('w-full');
+    expect(wrapper.classes()).toContain('eldra:block');
+    expect(wrapper.classes()).not.toContain('eldra:w-full');
     expect(wrapper.attributes('style')).toContain('width: 12rem');
     wrapper.unmount();
   });
@@ -45,21 +45,26 @@ describe('Skeleton — root is block-level (the percentage-width-in-shrink-to-fi
   it("every line falls back to w-full (the root's own definite width) once `width` is set", () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text', lines: 3, width: '12rem' } });
     for (const line of wrapper.findAll('[data-part="line"]')) {
-      expect(line.classes()).toContain('w-full');
+      expect(line.classes()).toContain('eldra:w-full');
     }
     const title = mountWith(Skeleton, { props: { variant: 'title', width: '8rem' } });
-    expect(title.get('[data-part="line"]').classes()).toContain('w-full');
+    expect(title.get('[data-part="line"]').classes()).toContain('eldra:w-full');
     title.unmount();
     wrapper.unmount();
   });
 });
 
 describe('Skeleton — text variant', () => {
-  it('a single line (default) is w-full, h-3.5, rounded-sm', () => {
+  it('a single line (default) is w-full, a text row, rounded-sm', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text' } });
     const line = wrapper.get('[data-part="line"]');
     expect(line.classes()).toEqual(
-      expect.arrayContaining(['eldra-skeleton', 'h-3.5', 'rounded-sm', 'w-full'])
+      expect.arrayContaining([
+        'eldra:eldra-skeleton',
+        'eldra:eldra-skeleton-text',
+        'eldra:rounded-sm',
+        'eldra:w-full',
+      ])
     );
     wrapper.unmount();
   });
@@ -68,10 +73,10 @@ describe('Skeleton — text variant', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text', lines: 4 } });
     const rows = wrapper.findAll('[data-part="line"]');
     expect(rows).toHaveLength(4);
-    expect(rows[0]?.classes()).toContain('w-[85%]');
-    expect(rows[1]?.classes()).toContain('w-[70%]');
-    expect(rows[2]?.classes()).toContain('w-[55%]');
-    expect(rows[3]?.classes()).toContain('w-[35%]');
+    expect(rows[0]?.classes()).toContain('eldra:w-[85%]');
+    expect(rows[1]?.classes()).toContain('eldra:w-[70%]');
+    expect(rows[2]?.classes()).toContain('eldra:w-[55%]');
+    expect(rows[3]?.classes()).toContain('eldra:w-[35%]');
     wrapper.unmount();
   });
 
@@ -79,7 +84,7 @@ describe('Skeleton — text variant', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text', lines: 5 } });
     const rows = wrapper.findAll('[data-part="line"]');
     expect(rows).toHaveLength(5);
-    expect(rows[4]?.classes()).toContain('w-[85%]');
+    expect(rows[4]?.classes()).toContain('eldra:w-[85%]');
     wrapper.unmount();
   });
 
@@ -88,9 +93,9 @@ describe('Skeleton — text variant', () => {
     const rows = wrapper.findAll('[data-part="line"]');
     for (const row of rows) {
       expect(row.classes()).not.toEqual(
-        expect.arrayContaining(['w-[85%]', 'w-[70%]', 'w-[55%]', 'w-[35%]'])
+        expect.arrayContaining(['eldra:w-[85%]', 'eldra:w-[70%]', 'eldra:w-[55%]', 'eldra:w-[35%]'])
       );
-      expect(row.classes()).toContain('w-full');
+      expect(row.classes()).toContain('eldra:w-full');
     }
     wrapper.unmount();
   });
@@ -117,7 +122,12 @@ describe('Skeleton — title variant', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'title' } });
     const line = wrapper.get('[data-part="line"]');
     expect(line.classes()).toEqual(
-      expect.arrayContaining(['eldra-skeleton', 'h-6', 'rounded-sm', 'w-[60%]'])
+      expect.arrayContaining([
+        'eldra:eldra-skeleton',
+        'eldra:eldra-skeleton-title',
+        'eldra:rounded-sm',
+        'eldra:w-[60%]',
+      ])
     );
     wrapper.unmount();
   });
@@ -127,7 +137,7 @@ describe('Skeleton — circle variant', () => {
   it('sets width and height from `size`, fully round', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'circle' } });
     const line = wrapper.get('[data-part="line"]');
-    expect(line.classes()).toContain('rounded-full');
+    expect(line.classes()).toContain('eldra:rounded-full');
     expect(line.attributes('style')).toContain('width: 2.5rem');
     expect(line.attributes('style')).toContain('height: 2.5rem');
     wrapper.unmount();
@@ -146,7 +156,7 @@ describe('Skeleton — media variant', () => {
   it('defaults to the 4x5 ratio and radius-lg', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'media' } });
     const line = wrapper.get('[data-part="line"]');
-    expect(line.classes()).toEqual(expect.arrayContaining(['rounded-lg', 'w-full']));
+    expect(line.classes()).toEqual(expect.arrayContaining(['eldra:rounded-lg', 'eldra:w-full']));
     expect(line.attributes('style')).toContain('aspect-ratio: 4 / 5');
     wrapper.unmount();
   });
@@ -168,7 +178,9 @@ describe('Skeleton — btn variant', () => {
   it('takes the shared control height, full width, radius-md', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'btn' } });
     const line = wrapper.get('[data-part="line"]');
-    expect(line.classes()).toEqual(expect.arrayContaining(['control-h', 'w-full', 'rounded-md']));
+    expect(line.classes()).toEqual(
+      expect.arrayContaining(['eldra:control-h', 'eldra:w-full', 'eldra:rounded-md'])
+    );
     wrapper.unmount();
   });
 });
@@ -179,7 +191,7 @@ describe('Skeleton — shimmer (eldra-skeleton, reduced-motion aware)', () => {
     (variant) => {
       const wrapper = mountWith(Skeleton, { props: { variant } });
       for (const line of wrapper.findAll('[data-part="line"]')) {
-        expect(line.classes()).toContain('eldra-skeleton');
+        expect(line.classes()).toContain('eldra:eldra-skeleton');
       }
       wrapper.unmount();
     }
@@ -188,7 +200,7 @@ describe('Skeleton — shimmer (eldra-skeleton, reduced-motion aware)', () => {
   it('carries the shimmer on every line of a multi-row text skeleton, not just the first', () => {
     const wrapper = mountWith(Skeleton, { props: { variant: 'text', lines: 3 } });
     for (const line of wrapper.findAll('[data-part="line"]')) {
-      expect(line.classes()).toContain('eldra-skeleton');
+      expect(line.classes()).toContain('eldra:eldra-skeleton');
     }
     wrapper.unmount();
   });
@@ -256,10 +268,9 @@ describe('Skeleton — busyLabel', () => {
 });
 
 describe('Skeleton — customisation', () => {
-  it('lets classes.root replace a utility instead of landing beside it', () => {
-    const wrapper = mountWith(Skeleton, { props: { classes: { root: 'w-40' } } });
+  it('takes a consumer class on the root', () => {
+    const wrapper = mountWith(Skeleton, { attrs: { class: 'w-40' } });
     expect(wrapper.classes()).toContain('w-40');
-    expect(wrapper.classes()).not.toContain('w-full');
     wrapper.unmount();
   });
 
@@ -269,7 +280,6 @@ describe('Skeleton — customisation', () => {
     });
     for (const line of wrapper.findAll('[data-part="line"]')) {
       expect(line.classes()).toContain('rounded-full');
-      expect(line.classes()).not.toContain('rounded-sm');
     }
     wrapper.unmount();
   });
@@ -286,5 +296,54 @@ describe('Skeleton — narrow container', () => {
       expect(wrapper.find('[data-part="line"]').exists()).toBe(true);
       wrapper.unmount();
     }
+  });
+});
+
+describe('Skeleton — box variant', () => {
+  it('is one shape: the root shimmers itself and holds no lines', () => {
+    const wrapper = mountWith(Skeleton, { props: { variant: 'box' } });
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining([
+        'eldra:eldra-skeleton',
+        'eldra:eldra-skeleton-box',
+        'eldra:rounded-md',
+        'eldra:w-full',
+      ])
+    );
+    expect(wrapper.findAll('[data-part="line"]')).toHaveLength(0);
+    expect(wrapper.attributes('aria-hidden')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('takes its size from width and height, or from classes on the component', () => {
+    const sized = mountWith(Skeleton, {
+      props: { variant: 'box', width: '12rem', height: '3rem' },
+    });
+    expect(sized.attributes('style')).toContain('width: 12rem');
+    expect(sized.attributes('style')).toContain('height: 3rem');
+    expect(sized.classes()).not.toContain('eldra:w-full');
+    sized.unmount();
+
+    const classed = mountWith(Skeleton, {
+      props: { variant: 'box' },
+      attrs: { class: 'h-24 rounded-full' },
+    });
+    expect(classed.classes()).toEqual(expect.arrayContaining(['h-24', 'rounded-full']));
+    classed.unmount();
+  });
+
+  it('applies classes.line to the box, the one shape it draws', () => {
+    const wrapper = mountWith(Skeleton, {
+      props: { variant: 'box', classes: { line: 'opacity-50' } },
+    });
+    expect(wrapper.classes()).toContain('opacity-50');
+    wrapper.unmount();
+  });
+
+  it('is still a named busy region with busyLabel', () => {
+    const wrapper = mountWith(Skeleton, { props: { variant: 'box', busyLabel: 'Loading chart' } });
+    expect(wrapper.attributes('role')).toBe('status');
+    expect(wrapper.attributes('aria-label')).toBe('Loading chart');
+    wrapper.unmount();
   });
 });

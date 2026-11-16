@@ -1,4 +1,13 @@
-import { computed, onBeforeUnmount, ref, watch, type ComputedRef, type Ref } from 'vue';
+import type { ReferenceElement } from '@floating-ui/vue';
+import {
+  computed,
+  onBeforeUnmount,
+  ref,
+  watch,
+  type ComputedRef,
+  type MaybeRefOrGetter,
+  type Ref,
+} from 'vue';
 import { useFloating, type FloatingPlacement } from '../../composables/useFloating';
 import { useTeleportTarget } from '../../composables/teleportTarget';
 import { OVERLAY_OWNER_ATTRIBUTE, useOverlay } from '../../composables/useOverlay';
@@ -11,14 +20,37 @@ export interface UsePopoverOptions {
   content: Ref<HTMLElement | null> | ComputedRef<HTMLElement | null>;
   /** Whether the control may open at all (a disabled or read-only field may not). Default `true`. */
   canOpen?: () => boolean;
-  /** Read once, like every `useFloating` option. Default `'auto'`. */
-  placement?: FloatingPlacement;
-  /** The gap between the control and the panel, in pixels. Default `4` (0.25rem). */
-  offset?: number;
+  /** Default `'auto'`. A ref or getter is followed, as `useFloating` follows it. */
+  placement?: MaybeRefOrGetter<FloatingPlacement>;
+  /** The gap between the control and the panel, in pixels. Default `4` (0.25rem). Followed. */
+  offset?: MaybeRefOrGetter<number | undefined>;
+  /** The least room kept between the panel and the viewport edge, in pixels. Default `8`. */
+  padding?: MaybeRefOrGetter<number | undefined>;
+  /**
+   * What the panel is positioned against, when not the trigger: another element, or a Floating UI
+   * virtual element (a caret, a pointer position). `null` (the default) means the trigger.
+   * Focus still returns to the trigger, and the teleport target is still looked up from it — or
+   * from this element, when there is no trigger.
+   */
+  anchor?: Readonly<Ref<ReferenceElement | null>>;
+  /**
+   * Take part in "only one open at a time" (`openRegistry`). Default `true`. A getter is asked on
+   * every open. `false` opens without closing any other popup, and no other popup's opening
+   * closes this one.
+   */
+  exclusive?: boolean | (() => boolean);
+  /** Passed to `useOverlay`. Default `true`. */
+  closeOnOutsideClick?: boolean | (() => boolean);
+  /** Passed to `useOverlay`. Default: whatever `closeOnOutsideClick` is. */
+  closeOnFocusOutside?: boolean | (() => boolean);
+  /** Passed to `useOverlay`. Default `true`. */
+  closeOnEscape?: boolean | (() => boolean);
+  /** Passed to `useOverlay`: return focus to the trigger on `Esc`. Default `true`. */
+  returnFocus?: boolean | (() => boolean);
   /** Give the panel a `minWidth` equal to the control's — and, under `'exact'`, a `maxWidth` too. */
   matchWidth?: boolean | 'exact';
   /**
-   * Where the panel is rendered. Read once, like every `useFloating` option.
+   * Where the panel is rendered. Read once.
    *
    * - `true` (the default) — through a `<Teleport>` to `document.body`, or to the nearest **open
    *   native `<dialog>`** above the trigger when there is one (see `teleportTo` below).
@@ -115,6 +147,12 @@ export interface UsePopoverReturn {
   /** Put these two on the trigger to get the label-forwarded-click rule (see below). */
   onTriggerPointerDown(): void;
   onTriggerClick(event: MouseEvent): void;
+  /** Focus the panel's first tab stop, if it has one. */
+  focusFirst(): void;
+  /** Whether a node belongs to this popup (`useOverlay`'s `isInside`). */
+  isInside(node: EventTarget | null): boolean;
+  /** Reposition now — after a virtual `anchor` has moved. */
+  update(): void;
 }
 
 /**
@@ -141,20 +179,75 @@ export interface UsePopoverReturn {
  *   state — run `afterOpen` a tick later, which is where focus moves into the panel.
  * - **The label-forwarded-click latch**: a `<label for>` naming the trigger forwards its click to
  *   it, and the spec is explicit that clicking a field's label focuses the control **without**
- *   opening it. A forwarded click is indistinguishable from a real one except that no pointer was
- *   pressed on the trigger and its `detail` is 0 — the same shape as a programmatic
- *   `element.click()`. The latch is armed on `pointerdown` and released on the `pointerup` or
- *   `pointercancel` that follows, wherever it lands: a press that ends off the trigger (a drag, a
- *   cancelled touch) would otherwise leave the latch standing and arm the *next* click.
+ *   opening it. A forwarded click differs from a real one in that no pointer was pressed on the
+ *   trigger and its `detail` is 0. The latch is armed on `pointerdown` and released on the
+ *   `pointerup` or `pointercancel` that follows, wherever it lands: a press that ends off the
+ *   trigger (a drag, a cancelled touch) would otherwise leave the latch standing and arm the
+ *   *next* click. A programmatic `element.click()` has the same shape, so it is told apart by what
+ *   it is not (see `isProgrammaticClick`): not forwarded from a label clicked in the same task,
+ *   not trusted, and a `PointerEvent`, which is what `click()` dispatches.
  *
  * What stays with each control is what actually differs: which rows there are, what choosing one
  * does, and which element the popup is anchored to.
  */
+/**
+ * The control a `<label>` click is about to forward to, until the task that clicked it ends. A
+ * label's activation behaviour fires its forwarded click synchronously after its own click's
+ * dispatch, so a capture listener on `document` sees the label's click first. One listener for the
+ * whole page, attached on first use in a browser.
+ */
+let forwardingTo: HTMLElement | null = null;
+let labelWatcherAttached = false;
+
+function watchLabelClicks(): void {
+  if (labelWatcherAttached || typeof document === 'undefined') return;
+  labelWatcherAttached = true;
+  document.addEventListener(
+    'click',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const label = target.closest('label');
+      const control = label?.control ?? null;
+      if (!(control instanceof HTMLElement) || control.contains(target)) return;
+      forwardingTo = control;
+      setTimeout(() => {
+        if (forwardingTo === control) forwardingTo = null;
+      }, 0);
+    },
+    true
+  );
+}
+
+/**
+ * Whether a click with no pointer press behind it came from code (`trigger.click()`) rather than a
+ * `<label>` forwarding its own: not forwarded from a label clicked in this task, untrusted (a
+ * user's label click forwards a trusted one), and a `PointerEvent`, which is what `click()`
+ * dispatches. A bare `dispatchEvent(new MouseEvent('click'))` keeps counting as forwarded, as it
+ * always has; so does every click in an engine whose `click()` still sends a `MouseEvent`.
+ */
+function isProgrammaticClick(event: MouseEvent, trigger: HTMLElement | null): boolean {
+  if (trigger !== null && forwardingTo !== null && trigger.contains(forwardingTo)) return false;
+  return !event.isTrusted && typeof PointerEvent !== 'undefined' && event instanceof PointerEvent;
+}
+
 export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   const { trigger, content } = options;
+  watchLabelClicks();
   const canOpen = (): boolean => options.canOpen?.() !== false;
 
   const isOpen = ref(false);
+
+  const isExclusive = (): boolean => {
+    const setting = options.exclusive ?? true;
+    return typeof setting === 'function' ? setting() : setting;
+  };
+
+  /** The `anchor`, when it is a real element rather than a virtual one. */
+  const anchorElement = (): HTMLElement | null => {
+    const anchor = options.anchor?.value ?? null;
+    return typeof HTMLElement !== 'undefined' && anchor instanceof HTMLElement ? anchor : null;
+  };
 
   /** The registry's handle on this popup. Stable, so the registry can tell ours from another's. */
   const closeFromRegistry = (): void => setOpen(false);
@@ -164,7 +257,12 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     if (next) {
       if (!canOpen()) return;
       isOpen.value = true;
-      registerOpen(closeFromRegistry);
+      if (isExclusive()) {
+        registerOpen(closeFromRegistry, {
+          anchor: trigger.value ?? anchorElement(),
+          contains: (node) => overlay.isInside(node),
+        });
+      }
       options.onOpen?.();
       return;
     }
@@ -178,6 +276,10 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     trigger,
     content,
     setOpen: (next) => setOpen(next),
+    closeOnOutsideClick: options.closeOnOutsideClick,
+    closeOnFocusOutside: options.closeOnFocusOutside,
+    closeOnEscape: options.closeOnEscape,
+    returnFocus: options.returnFocus,
   });
 
   // --- where the panel is rendered ----------------------------------------------------------------
@@ -192,11 +294,22 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
    * that dialog instead: same escape from clipping and stacking, same top layer. See
    * `../../composables/teleportTarget`, shared with `Tooltip`.
    */
-  const { teleportTo, teleportDisabled } = useTeleportTarget({ trigger, teleport, isOpen });
+  const teleportAnchor = computed(() => trigger.value ?? anchorElement());
+  const { teleportTo, teleportDisabled } = useTeleportTarget({
+    trigger: teleportAnchor,
+    teleport,
+    isOpen,
+  });
 
-  const { styles: floatingStyles, placement } = useFloating(trigger, content, {
+  const reference = computed<ReferenceElement | null>(() => options.anchor?.value ?? trigger.value);
+  const {
+    styles: floatingStyles,
+    placement,
+    update,
+  } = useFloating(reference, content, {
     placement: options.placement ?? 'auto',
     offset: options.offset,
+    padding: options.padding,
     matchWidth: options.matchWidth,
     // A teleported panel has left its control's positioning context behind, so the viewport is the
     // only frame both elements still share. `autoUpdate` observes the reference's scroll ancestors
@@ -341,7 +454,8 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
   }
 
   function onTriggerClick(event: MouseEvent): void {
-    const fromPointer = pressedTrigger || event.detail > 0;
+    const fromPointer =
+      pressedTrigger || event.detail > 0 || isProgrammaticClick(event, trigger.value);
     pressedTrigger = false;
     if (!canOpen()) return;
     if (!fromPointer) {
@@ -368,10 +482,14 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
    * (`left`/`right`, never `inline-start`), and every panel in this package is `start`-aligned and
    * at least as wide as its control, so the horizontal half barely moves the result either way.
    */
-  const isAbove = computed(() => placement.value.startsWith('top'));
+  const origin = computed(() => {
+    if (placement.value.startsWith('top')) return 'bottom left';
+    if (placement.value.startsWith('left')) return 'top right';
+    return 'top left';
+  });
   const panelStyle = computed<Record<string, string>>(() => ({
     ...floatingStyles.value,
-    '--eldra-popover-origin': isAbove.value ? 'bottom left' : 'top left',
+    '--eldra-popover-origin': origin.value,
   }));
 
   return {
@@ -385,5 +503,8 @@ export function usePopover(options: UsePopoverOptions): UsePopoverReturn {
     teleportDisabled,
     onTriggerPointerDown,
     onTriggerClick,
+    focusFirst: overlay.focusFirst,
+    isInside: overlay.isInside,
+    update,
   };
 }

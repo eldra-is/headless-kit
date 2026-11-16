@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { axe } from '../../../test/axe';
@@ -120,14 +122,14 @@ describe('Dialog — open and close', () => {
    *  screen because a `display` utility on the root beat the UA's own `display: none`. */
   it('renders nothing while closed — hidden open:flex on the root, not a bare flex', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });
-    expectClosedModalRendersNothing(root(wrapper), 'block');
+    expectClosedModalRendersNothing(root(wrapper));
     wrapper.unmount();
   });
 
   it('closing it (modelValue turns false) goes back to hidden open:flex, not a leftover flex', async () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     await wrapper.setProps({ modelValue: false });
-    expectClosedModalRendersNothing(root(wrapper), 'block');
+    expectClosedModalRendersNothing(root(wrapper));
     wrapper.unmount();
   });
 
@@ -144,8 +146,8 @@ describe('Dialog — open and close', () => {
   it('the close button carries cursor-pointer and the standard focus ring', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
     const cls = closeButton(wrapper).className;
-    expect(cls).toContain('cursor-pointer');
-    expect(cls).toContain('eldra-focus');
+    expect(cls).toContain('eldra:cursor-pointer');
+    expect(cls).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -250,6 +252,27 @@ describe('Dialog — backdrop click', () => {
       .element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await nextTick();
     expect(root(wrapper).open).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('a press that starts inside the panel and ends on the backdrop does not close it', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    wrapper
+      .find('[data-part="panel"]')
+      .element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    root(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(true);
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('a press and release both on the backdrop closes it', async () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    root(wrapper).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
     wrapper.unmount();
   });
 
@@ -433,27 +456,18 @@ describe('Dialog — nested modals (operator override, 2026-09-26)', () => {
 });
 
 describe('Dialog — initial focus', () => {
-  it('focuses the first meaningful control, never the close button, when a field exists', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', modelValue: true },
-      slots: { default: '<input data-testid="email" />' },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="email"]').element);
-    wrapper.unmount();
-  });
-
-  it('opened by a tap, still focuses a text field (typing is why it opened)', async () => {
-    document.dispatchEvent(new Event('pointerdown'));
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', modelValue: true },
-      slots: { default: '<input data-testid="email" />' },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="email"]').element);
-    wrapper.unmount();
+  it('focuses the dialog itself, never its first field, opened by the keyboard or a tap', async () => {
+    for (const input of ['keydown', 'pointerdown']) {
+      document.dispatchEvent(new Event(input));
+      const wrapper = mountWith(Dialog, {
+        props: { title: 'Notify me', modelValue: true },
+        slots: { default: '<input data-testid="email" />' },
+      });
+      await nextTick();
+      await nextTick();
+      expect(document.activeElement, input).toBe(wrapper.find('[data-part="root"]').element);
+      wrapper.unmount();
+    }
     document.dispatchEvent(new Event('keydown'));
   });
 
@@ -504,33 +518,21 @@ describe('Dialog — initial focus', () => {
     document.dispatchEvent(new Event('keydown'));
   });
 
-  it('focuses the first footer action when the body has no focusable control', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: {
-        title: 'Remove from cart?',
-        description: 'This cannot be undone.',
-        modelValue: true,
-      },
-      slots: {
-        footer:
-          '<button type="button" data-testid="keep">Keep it</button>' +
-          '<button type="button" data-testid="remove">Remove</button>',
-      },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(wrapper.find('[data-testid="keep"]').element);
-    wrapper.unmount();
-  });
-
-  it('falls back to the close button when nothing else is focusable', async () => {
-    const wrapper = mountWith(Dialog, {
-      props: { title: 'Notify me', description: 'All set.', modelValue: true },
-    });
-    await nextTick();
-    await nextTick();
-    expect(document.activeElement).toBe(closeButton(wrapper));
-    wrapper.unmount();
+  it('focuses the dialog itself when only footer actions or the close button can take focus', async () => {
+    for (const footer of ['<button type="button" data-testid="keep">Keep it</button>', undefined]) {
+      const wrapper = mountWith(Dialog, {
+        props: {
+          title: 'Remove from cart?',
+          description: 'This cannot be undone.',
+          modelValue: true,
+        },
+        slots: footer ? { footer } : {},
+      });
+      await nextTick();
+      await nextTick();
+      expect(document.activeElement).toBe(wrapper.find('[data-part="root"]').element);
+      wrapper.unmount();
+    }
   });
 
   it('returns focus to the opener once the dialog closes', async () => {
@@ -587,7 +589,9 @@ describe('Dialog — labelling', () => {
 describe('Dialog — sizes', () => {
   it('defaults to md (32rem, capped at the viewport)', () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
-    expect(wrapper.find('[data-part="panel"]').element.className).toContain('eldra-dialog-width');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:eldra-dialog-width'
+    );
     wrapper.unmount();
   });
 
@@ -596,12 +600,101 @@ describe('Dialog — sizes', () => {
       props: { title: 'Remove from cart?', modelValue: true, size: 'sm' },
     });
     const cls = wrapper.find('[data-part="panel"]').element.className;
-    expect(cls).toContain('eldra-dialog-width-sm');
+    expect(cls).toContain('eldra:eldra-dialog-width-sm');
     wrapper.unmount();
   });
 });
 
 describe('Dialog — long content and narrow viewports', () => {
+  it('the dialog itself is the scroll container: it fills the viewport, padded, and scrolls', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    const cls = root(wrapper).classList;
+    for (const c of [
+      'eldra:open:flex',
+      'eldra:flex-col',
+      'eldra:items-center',
+      'eldra:size-full',
+      'eldra:max-h-none',
+      'eldra:max-w-none',
+      'eldra:overflow-y-auto',
+      'eldra:px-4',
+      'eldra:py-8',
+    ]) {
+      expect(cls.contains(c), c).toBe(true);
+    }
+    wrapper.unmount();
+  });
+
+  it('a tall panel grows past the viewport instead of squeezing: centred by auto margins, never shrunk', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    const panel = wrapper.find('[data-part="panel"]').element.classList;
+    expect(panel.contains('eldra:my-auto')).toBe(true);
+    expect(panel.contains('eldra:shrink-0')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('animates the panel, not the full-viewport root', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Terms', modelValue: true } });
+    expect(root(wrapper).className).not.toContain('animate-eldra-dialog-in');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:animate-eldra-dialog-in'
+    );
+    wrapper.unmount();
+  });
+
+  it('caps the panel height only when --eldra-dialog-max-height is set; its width is clamped to the padded dialog', () => {
+    const css = readFileSync(
+      fileURLToPath(new NodeURL('../../../styles/utilities.css', import.meta.url)),
+      'utf8'
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-max-height \{\s*max-height: var\(--eldra-dialog-max-height, none\);/
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-width \{\s*width: min\(var\(--eldra-dialog-width, 32rem\), 100%\);/
+    );
+    expect(css).toMatch(
+      /@utility eldra-dialog-width-sm \{\s*width: min\(var\(--eldra-dialog-width-sm, 24rem\), 100%\);/
+    );
+  });
+
+  it('eldra-dialog-fullscreen pins the panel to the viewport and drops its clamps, radius and border', () => {
+    const css = readFileSync(
+      fileURLToPath(new NodeURL('../../../styles/utilities.css', import.meta.url)),
+      'utf8'
+    );
+    const start = css.indexOf('@utility eldra-dialog-fullscreen {');
+    expect(start, '@utility eldra-dialog-fullscreen is missing').toBeGreaterThan(-1);
+    const body = css.slice(start, css.indexOf('}', start));
+    for (const declaration of [
+      'position: fixed;',
+      'inset: 0;',
+      'margin: 0;',
+      'width: auto;',
+      'max-width: none;',
+      'height: auto;',
+      'max-height: none;',
+      'border-width: 0;',
+      'border-radius: 0;',
+    ]) {
+      expect(body, declaration).toContain(declaration);
+    }
+  });
+
+  it('passes eldra-dialog-fullscreen through classes.panel, under a viewport variant', () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Terms',
+        modelValue: true,
+        classes: { panel: 'eldra:max-md:eldra-dialog-fullscreen' },
+      },
+    });
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:max-md:eldra-dialog-fullscreen'
+    );
+    wrapper.unmount();
+  });
+
   it('the body scrolls on its own; header and footer never shrink', () => {
     const wrapper = mountWith(Dialog, {
       props: { title: 'Terms', modelValue: true },
@@ -610,34 +703,36 @@ describe('Dialog — long content and narrow viewports', () => {
         footer: '<button type="button">Accept</button>',
       },
     });
-    expect(wrapper.find('[data-part="body"]').element.className).toContain('overflow-y-auto');
-    expect(wrapper.find('[data-part="header"]').element.className).toContain('shrink-0');
-    expect(wrapper.find('[data-part="footer"]').element.className).toContain('shrink-0');
+    expect(wrapper.find('[data-part="body"]').element.className).toContain('eldra:overflow-y-auto');
+    expect(wrapper.find('[data-part="header"]').element.className).toContain('eldra:shrink-0');
+    expect(wrapper.find('[data-part="footer"]').element.className).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
   it('keeps its own width clamp regardless of a narrow ancestor', () => {
     const wrapper = mountNarrow(Dialog, { props: { title: 'Notify me', modelValue: true } });
-    expect(wrapper.find('[data-part="panel"]').element.className).toContain('eldra-dialog-width');
+    expect(wrapper.find('[data-part="panel"]').element.className).toContain(
+      'eldra:eldra-dialog-width'
+    );
     wrapper.unmount();
   });
 });
 
 describe('Dialog — classes prop', () => {
-  it('merges a classes override onto the named part instead of landing beside it', () => {
+  it('appends a classes override to the named part, and puts class on the dialog', () => {
     const wrapper = mountWith(Dialog, {
       props: {
         title: 'Notify me',
         modelValue: true,
         classes: { panel: 'rounded-none', title: 'text-h1' },
       },
+      attrs: { class: 'mt-8' },
     });
+    expect(wrapper.find('[data-part="root"]').classes()).toContain('mt-8');
     const panelClass = wrapper.find('[data-part="panel"]').element.className;
     const titleClass = wrapper.find('[data-part="title"]').element.className;
     expect(panelClass).toContain('rounded-none');
-    expect(panelClass).not.toContain('rounded-lg');
     expect(titleClass).toContain('text-h1');
-    expect(titleClass).not.toContain('text-dialog-title');
     wrapper.unmount();
   });
 });
@@ -696,6 +791,256 @@ describe('Dialog — accessibility', () => {
 
   it('is axe-clean closed', async () => {
     const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: false } });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — title slot', () => {
+  it('replaces the h2 with the slot, still the accessible name', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h3 class="text-center">Delete page?</h3>' },
+    });
+    const title = wrapper.find('[data-part="title"]').element;
+    expect(title.tagName).toBe('DIV');
+    expect(title.querySelector('h3')?.textContent).toBe('Delete page?');
+    expect(wrapper.find('h2').exists()).toBe(false);
+    expect(root(wrapper).getAttribute('aria-labelledby')).toBe(title.id);
+    wrapper.unmount();
+  });
+
+  it('wins over the title prop', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Prop title', modelValue: true },
+      slots: { title: '<h2>Slot title</h2>' },
+    });
+    expect(wrapper.findAll('[data-part="title"]')).toHaveLength(1);
+    expect(wrapper.find('[data-part="title"]').text()).toBe('Slot title');
+    wrapper.unmount();
+  });
+
+  it('fills the header row beside the close button', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h2>Delete page?</h2>' },
+    });
+    expect(wrapper.find('[data-part="title"]').classes()).toContain('eldra:flex-1');
+    expect(wrapper.find('[data-part="header"] [data-part="close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      slots: { title: '<h2>Delete page?</h2>', default: '<p>This cannot be undone.</p>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — without a title', () => {
+  it('renders no title part and no aria-labelledby; the close button sits at the end', () => {
+    const wrapper = mountWith(Dialog, { props: { modelValue: true } });
+    expect(wrapper.find('[data-part="title"]').exists()).toBe(false);
+    expect(root(wrapper).hasAttribute('aria-labelledby')).toBe(false);
+    expect(wrapper.find('[data-part="header"]').classes()).toContain('eldra:justify-end');
+    expect(wrapper.find('[data-part="close"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('takes its name from an aria-label on the component', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true },
+      attrs: { 'aria-label': 'Search' },
+      slots: { default: '<label for="q">Search</label><input id="q" type="search" />' },
+    });
+    expect(root(wrapper).getAttribute('aria-label')).toBe('Search');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('an aria-labelledby on the component replaces the title id', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Search', modelValue: true },
+      attrs: { 'aria-labelledby': 'outside-heading' },
+    });
+    expect(root(wrapper).getAttribute('aria-labelledby')).toBe('outside-heading');
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — closeButton', () => {
+  it('false renders no close button', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+    });
+    expect(wrapper.find('[data-part="close"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="title"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('false with no title renders no header, and the body takes the header padding', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { modelValue: true, closeButton: false },
+      attrs: { 'aria-label': 'Search' },
+    });
+    expect(wrapper.find('[data-part="header"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="body"]').classes()).toContain('eldra:pt-6');
+    wrapper.unmount();
+  });
+
+  it('false still closes on Esc', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+    });
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('false is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Pick a plan', modelValue: true, closeButton: false },
+      slots: { footer: '<button type="button">Continue</button>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — closeOnEscape', () => {
+  it('false ignores Esc: no cancel, no close, and the native close is prevented', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    const cancel = new Event('cancel', { cancelable: true });
+    root(wrapper).dispatchEvent(cancel);
+    await nextTick();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(root(wrapper).open).toBe(true);
+    expect(wrapper.emitted('cancel')).toBeUndefined();
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('false cancels the Escape keydown itself, so the browser never raises the close request', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    const key = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    root(wrapper).dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('leaves the Escape keydown alone by default, and other keys always', () => {
+    const wrapper = mountWith(Dialog, { props: { title: 'Notify me', modelValue: true } });
+    const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    root(wrapper).dispatchEvent(esc);
+    expect(esc.defaultPrevented).toBe(false);
+    wrapper.unmount();
+    const off = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true, closeOnEscape: false },
+    });
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    root(off).dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    off.unmount();
+  });
+
+  it('is read on every press, so it can change while open', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    await wrapper.setProps({ closeOnEscape: true });
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    expect(wrapper.emitted('close')?.[0]).toEqual(['escape']);
+    wrapper.unmount();
+  });
+
+  it('false still closes from the close button', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+    });
+    closeButton(wrapper).click();
+    await nextTick();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('false is axe-clean', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Confirm payment', modelValue: true, closeOnEscape: false },
+      slots: { footer: '<button type="button">Cancel</button><button type="button">Pay</button>' },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Dialog — chrome colour variables', () => {
+  it('reads its own --eldra-dialog-* colours, falling back to the theme colours', () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Remove from cart?',
+        description: 'It goes back on the shelf.',
+        modelValue: true,
+      },
+    });
+    const classesOf = (part: string) => wrapper.find(`[data-part="${part}"]`).classes();
+    expect(classesOf('root')).toContain(
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]'
+    );
+    expect(classesOf('root')).toContain(
+      'eldra:backdrop:bg-[var(--eldra-dialog-backdrop,var(--eldra-color-overlay))]'
+    );
+    expect(classesOf('panel')).toContain(
+      'eldra:bg-[var(--eldra-dialog-background,var(--eldra-color-background))]'
+    );
+    expect(classesOf('panel')).toContain(
+      'eldra:border-[color:var(--eldra-dialog-border,var(--eldra-color-border))]'
+    );
+    expect(classesOf('title')).toContain(
+      'eldra:text-[color:var(--eldra-dialog-text,var(--eldra-color-text))]'
+    );
+    expect(classesOf('description')).toContain(
+      'eldra:text-[color:var(--eldra-dialog-muted,var(--eldra-color-muted))]'
+    );
+    expect(classesOf('close').join(' ')).toContain(
+      'var(--eldra-dialog-text,var(--eldra-color-text))'
+    );
+    wrapper.unmount();
+  });
+
+  it('never redefines a theme-wide colour variable on the dialog itself', () => {
+    const wrapper = mountWith(Dialog, {
+      props: { title: 'Notify me', modelValue: true },
+      slots: { default: '<p class="text-muted">Body</p>' },
+    });
+    const html = wrapper.html();
+    expect(html).not.toMatch(/--(eldra-)?color-[a-z-]+:/);
+    wrapper.unmount();
+  });
+
+  it('is axe-clean with the chrome recoloured through its variables', async () => {
+    const wrapper = mountWith(Dialog, {
+      props: {
+        title: 'Remove from cart?',
+        description: 'It goes back on the shelf.',
+        modelValue: true,
+      },
+      attrs: {
+        style:
+          '--eldra-dialog-background: #10151c; --eldra-dialog-text: #f5f7fa; --eldra-dialog-muted: #c3cad4; --eldra-dialog-border: #2b3440;',
+      },
+      attachTo: document.body,
+    });
+    await nextTick();
     expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });

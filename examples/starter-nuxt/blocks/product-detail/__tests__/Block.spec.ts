@@ -1285,7 +1285,7 @@ describe('product-detail block', () => {
       expect(bar.text()).toContain('Oat / XS · $96.00');
       // The quick-add button is the one control that exists only below 48rem, where primary
       // actions are at least 2.75rem tall: it takes the package's `lg` size.
-      expect(bar.get('button[type="button"]').classes()).toContain('control-h-lg');
+      expect(bar.get('button[type="button"]').classes()).toContain('eldra:control-h-lg');
       expect(await axe(wrapper.element)).toHaveNoViolations();
 
       observers[0]!([{ isIntersecting: true }]);

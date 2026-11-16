@@ -80,7 +80,7 @@ const meta = {
           'optional vendor, title, price, rating, colour dots and an optional quick-add button. The',
           'whole card is one link to the product; quick add is the only other control.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root`, `media`, `badges`,',
+          '**Parts** (`data-part`; every one but `root` is a `classes` key): `root`, `media`, `badges`,',
           '`body`, `vendor`, `title`, `link`, `price`, `rating`, `stockLine` (an addition beyond',
           'the literal spec anatomy — see below), `swatches`, `swatch`, `swatchOverflow`,',
           '`quickAdd`, `skeleton`.',

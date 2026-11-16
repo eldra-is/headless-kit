@@ -9,9 +9,8 @@ import { isBuilt, itFailsWithoutDist } from '../test/built';
  * The built-CSS half of the "closed dialogs render nothing" fix (see `src/test/modal.ts`'s own doc
  * comment for the full mechanism) — every modal root's `hidden open:<value>` pair, compiled,
  * actually behaves the way the unit-level class-list assertions assume it does. Both values this
- * package actually ships are covered: `open:flex` (`Drawer`/`SearchModal`) and `open:block`
- * (`Dialog`/`Lightbox` — see `Dialog.vue`'s own rootClass comment for why those two deliberately
- * do not use `open:flex`).
+ * package actually ships are covered: `open:flex` (`Dialog`/`Drawer`/`SearchModal`) and
+ * `open:block` (`Lightbox`).
  *
  * `hidden`/`flex`/`block`/`open:*` are stock Tailwind utilities, not this package's own `@utility`
  * declarations, so `custom-utility-coverage.spec.ts`'s scan of `@utility <name> {` never sees them —

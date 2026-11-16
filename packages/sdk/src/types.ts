@@ -275,7 +275,25 @@ export interface EldraCmsClient {
 
 export type EldraProductList = EldraContractResponse<'/catalog/v1/products/list', 'get'>;
 export type EldraProductListItem = Item<Prop<EldraProductList, 'data'>>;
-export type EldraProductDetails = EldraContractResponse<'/catalog/v1/products/{productId}', 'get'>;
+
+// Typed product extensions, keyed by CMS schema apiId. Empty until the CMS types the Vite plugin (or
+// `eldra-theme types`) writes fill it in:
+//
+//   declare module '@eldrajs/sdk' { interface EldraProductExtensions extends EldraCMSProductExtensions {} }
+//
+// Then `product.extensions?.clothing?.material` is typed. Before that it is `{}`: nothing is
+// guessed, and nothing can be read off it either.
+export interface EldraProductExtensions {}
+
+// The contract serves `extensions` as `{ [schemaApiId]: { [fieldId]: unknown } }`; that is replaced
+// by the registry above. Before generation `Omit<unknown, ...>` would be `{}`, so the detail stays
+// `unknown` there instead of turning into a guess.
+export type EldraProductDetails =
+  EldraContractResponse<'/catalog/v1/products/{productId}', 'get'> extends infer Generated
+    ? unknown extends Generated
+      ? unknown
+      : Omit<Generated, 'extensions'> & { extensions?: EldraProductExtensions }
+    : never;
 export type EldraProductVariant = Item<Prop<EldraProductDetails, 'variants'>>;
 export type EldraProductOption = Item<Prop<EldraProductDetails, 'options'>>;
 export type EldraProductOptionValue = Item<Prop<EldraProductOption, 'values'>>;
@@ -310,6 +328,14 @@ export interface EldraCatalogClient {
     options?: EldraCollectionProductsOptions,
     context?: EldraRequestContext
   ): Promise<EldraProductList>;
+  /** The shop's active brands, ordered by name; `[]` for none (contract 6.4.0). */
+  listBrands(options?: EldraLocaleOptions, context?: EldraRequestContext): Promise<EldraBrand[]>;
+  /** One active brand; 404 `CATALOG_BRAND_NOT_FOUND` for a slug that is missing or not active. */
+  getBrand(
+    slug: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraBrand>;
   search(
     query: string,
     options?: EldraSearchOptions,
@@ -388,24 +414,76 @@ export type EldraCollectionProductsOptions = EldraContractQuery<
   '/catalog/v1/collections/{slug}/products',
   'get'
 >;
+export type EldraBrand = EldraContractResponse<'/catalog/v1/brands/{slug}', 'get'>;
 export type EldraSearchOptions = Omit<EldraContractQuery<'/search/v1', 'get'>, 'q'>;
 export type EldraSearchResponse = EldraContractResponse<'/search/v1', 'get'>;
 
 export type EldraCart = EldraContractResponse<'/shopping-cart/v1/cart/{cartID}', 'get'>;
 export type EldraCartItem = Item<Prop<EldraCart, 'items'>>;
 export type EldraCartTotals = Prop<EldraCart, 'totals'>;
+/**
+ * @deprecated Contract 6.8.0: a cart holds several gift cards. The cart's `giftCard` is the first
+ * of `giftCards`, except that its `amountDue` is the cart's `amountDue` (what is due after every
+ * card); it is answered for one more contract version. Read `giftCards`
+ * ({@link EldraCartGiftCardEntry}) and the cart's `amountDue` instead.
+ */
+export type EldraCartGiftCard = Prop<EldraCart, 'giftCard'>;
+/**
+ * One gift card on the cart (contract 6.8.0), from `giftCards`, in the order applied:
+ * `{entryId, last4, balance, applied, amountDue}`. `applied` is what it pays after the cards
+ * before it (0 when they already cover the total; such a card stays on the cart), `amountDue`
+ * what is still due after it. `entryId` names the card on this cart for
+ * `cart.removeGiftCardEntry`; it is not the card's id or code.
+ */
+export type EldraCartGiftCardEntry = Item<Prop<EldraCart, 'giftCards'>>;
+/**
+ * One discount code on the cart (contract 6.9.0), from `discountCodes`, in the order added:
+ * `{code, amount}`. Each code applies to what the codes before it left, and `amount` (major
+ * units) is what it takes now: 0 for a code that reduces nothing at the moment (nothing left to
+ * reduce, only gift-card lines, or a code the shop has since stopped letting combine); such a
+ * code stays on the cart. `code` names it for `cart.removeDiscountEntry`. The cart's deprecated
+ * `discountCode` is the first of these whose `amount` is above 0.
+ */
+export type EldraCartDiscountCodeEntry = Item<Prop<EldraCart, 'discountCodes'>>;
+/** The cart after `cart.applyCode`, with `appliedAs` saying which kind the code was. */
+export type EldraCartAppliedCode = EldraContractResponse<
+  '/shopping-cart/v1/cart/{cartID}/code',
+  'put'
+>;
 export type EldraAddCartItemInput = EldraContractBody<'/shopping-cart/v1/cart/items', 'post'>;
 
 export interface EldraDiscountResult {
   cart: EldraCart;
-  /** The server drops a code it will not honour, so the returned cart is the verdict. */
+  /**
+   * The server drops a code it will not honour, so the returned cart is the verdict: true when the
+   * cart's `discountCodes` holds the code (any case; since contract 6.9.0, even while it takes 0),
+   * or, from a gateway older than 6.9.0, when its single `discountCode` is the code.
+   */
   applied: boolean;
 }
 
 export type EldraOrder = EldraContractResponse<'/order/v1/{orderId}', 'get'>;
 export type EldraOrderLine = Item<Prop<EldraOrder, 'orderLines'>>;
+/**
+ * One discount code of an order (contract 6.9.0), from the order's `discountCodes`: each code that
+ * reduced the order, in the order applied, as `{code, amount}`. The order's `discountCode` is
+ * deprecated (the first of these).
+ */
+export type EldraOrderDiscountCode = Item<Prop<EldraOrder, 'discountCodes'>>;
 export type EldraRecoveredBasket = EldraContractResponse<'/order/v1/recover', 'post'>;
 export type EldraRecoveredBasketItem = Item<Prop<EldraRecoveredBasket, 'items'>>;
+/** The checkout summary `POST /order/v1/preview` answers (the hosted checkout reads it). */
+export type EldraOrderPreview = EldraContractResponse<'/order/v1/preview', 'post'>;
+/**
+ * One gift card of the checkout summary (contract 6.8.0), from `giftCards`: each card that would
+ * pay something, in the order applied, as `{last4, amount}`; they sum to `giftCardAmount`.
+ */
+export type EldraOrderPreviewGiftCard = Item<Prop<EldraOrderPreview, 'giftCards'>>;
+/**
+ * One discount code of the checkout summary (contract 6.9.0), from `discountCodes`: each code that
+ * would reduce the order, in the order applied, as `{code, amount}`.
+ */
+export type EldraOrderPreviewDiscountCode = Item<Prop<EldraOrderPreview, 'discountCodes'>>;
 
 export interface EldraOrderReadOptions {
   /** The one-time token returned when the order was created. Required unless the caller owns the order. */
@@ -468,14 +546,102 @@ export interface EldraCartClient {
     context?: EldraRequestContext
   ): Promise<EldraCart>;
   removeItem(cartId: string, itemId: string, context?: EldraRequestContext): Promise<EldraCart>;
+  /**
+   * Applies a discount code and answers the cart with `applied` (see {@link EldraDiscountResult}).
+   * Since contract 6.9.0 a discount code is **added** after the cart's codes instead of replacing
+   * one; each applies to what the codes before it left, at most 6 per cart, and two codes sit
+   * together only when both allow combining. Three refusals leave the cart exactly as it was, each a
+   * 409 `EldraHttpError` read from `errorId`, with its detail in `errors` (the problem's `errors`
+   * object): `CART_DISCOUNT_NOT_COMBINABLE` (the code and a code on the cart cannot both be used;
+   * `errors.blockingCode` is the code on the cart that blocks it, for "cannot be combined with
+   * SUMMER10"; remove it with `removeDiscountEntry` and apply again to change codes),
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED` (the cart already holds `errors.limit` codes, 6) and
+   * `CART_DISCOUNT_ALREADY_APPLIED` (the cart already holds this code).
+   * Other refusals are unchanged: `CART_DISCOUNT_NOT_USABLE`, `CART_DISCOUNT_EXHAUSTED`,
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`.
+   */
   applyDiscount(
     cartId: string,
     code: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraDiscountResult>;
+  /**
+   * Removes every discount code on the cart (contract 6.9.0; before it, the one code); succeeds
+   * when none is applied. To take off one code, use `removeDiscountEntry`.
+   */
   removeDiscount(
     cartId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Adds a gift card (contract 6.4.0; since 6.8.0 it adds the card after the cart's other cards
+   * instead of replacing one, with no limit, and the discount code stays). A refusal is an
+   * `EldraHttpError` whose `errorId` names it: `CART_GIFT_CARD_INVALID`, `CART_GIFT_CARD_EXHAUSTED`,
+   * `CART_GIFT_CARD_ALREADY_APPLIED` (409, the cart already holds this card),
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`.
+   */
+  applyGiftCard(
+    cartId: string,
+    code: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Applies a code from one field, as whichever it is (contract 6.7.0): a gift card or a discount
+   * code. The answer is the cart with `appliedAs` (`GIFT_CARD` or `DISCOUNT`). Since 6.8.0 a gift
+   * card is added after the cart's other cards; remove one with `removeGiftCardEntry`, or one
+   * discount code with `removeDiscountEntry`. A refusal is an `EldraHttpError` whose `errorId` names it:
+   * `CART_CODE_INVALID` (neither kind; the answer does not say which exists), `CART_CODE_REQUIRED`,
+   * `CART_GIFT_CARD_EXHAUSTED`, `CART_GIFT_CARD_ALREADY_APPLIED` (409, the cart already holds this
+   * card; the code is not then tried as a discount code), `CART_DISCOUNT_EXHAUSTED`,
+   * `CART_DISCOUNT_TOO_MANY_ATTEMPTS`, `CART_GIFT_CARD_UNAVAILABLE`.
+   *
+   * Since contract 6.9.0 a discount code is **added** after the cart's codes instead of replacing
+   * one; each applies to what the codes before it left, at most 6 per cart, and two codes sit
+   * together only when both allow combining. Three refusals leave the cart exactly as it was, each a
+   * 409 `EldraHttpError` read from `errorId`, with its detail in `errors` (the problem's `errors`
+   * object): `CART_DISCOUNT_NOT_COMBINABLE` (the code and a code on the cart cannot both be used;
+   * `errors.blockingCode` is the code on the cart that blocks it, for "cannot be combined with
+   * SUMMER10"; remove it with `removeDiscountEntry` and apply again to change codes),
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED` (the cart already holds `errors.limit` codes, 6) and
+   * `CART_DISCOUNT_ALREADY_APPLIED` (the cart already holds this code).
+   */
+  applyCode(
+    cartId: string,
+    code: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCartAppliedCode>;
+  /**
+   * Removes every gift card on the cart (contract 6.8.0; before it, the one card); succeeds when
+   * none is applied. To take off one card, use `removeGiftCardEntry`.
+   */
+  removeGiftCard(
+    cartId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Removes one gift card, the one whose `giftCards[].entryId` is `entryId` (contract 6.8.0), and
+   * answers the cart; the other cards keep their order. An `entryId` the cart does not hold answers
+   * the cart unchanged, so a double click does not fail.
+   */
+  removeGiftCardEntry(
+    cartId: string,
+    entryId: string,
+    options?: EldraLocaleOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraCart>;
+  /**
+   * Removes one discount code, the one whose `discountCodes[].code` is `code` (any case; contract
+   * 6.9.0), and answers the cart; the other codes keep their order. A code the cart does not hold
+   * answers the cart unchanged, so a double click does not fail.
+   */
+  removeDiscountEntry(
+    cartId: string,
+    code: string,
     options?: EldraLocaleOptions,
     context?: EldraRequestContext
   ): Promise<EldraCart>;
@@ -573,7 +739,7 @@ export type EldraShopErrorId =
   | 'FEATURE_DISABLED';
 
 /**
- * Error ids of the sales-order routes (contract 5.6.0). `SALES_ORDER_CART_ALREADY_ORDERED`
+ * Error ids of the sales-order routes (contract 6.11.0). `SALES_ORDER_CART_ALREADY_ORDERED`
  * carries `errors.salesOrderId`, `SALES_ORDER_LINE_INVALID` `errors.variantId` and
  * `ORDER_PRODUCT_UNAVAILABLE` `errors.variantIds` on `EldraHttpError.errors`.
  */
@@ -621,7 +787,7 @@ export type EldraErrorId =
   | (string & {});
 
 /**
- * Orders on account for a signed-in business customer's active company (contract 5.6.0).
+ * Orders on account for a signed-in business customer's active company (contract 6.11.0).
  * Server-side only: pass `customerHeaders(accessToken, customerId)` as `context.headers` on every
  * call. Every answer is `Cache-Control: private, no-store`; never cache one. See
  * docs/sales-orders.md.

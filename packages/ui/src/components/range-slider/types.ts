@@ -7,7 +7,6 @@ import type { UiMessages } from '../../messages/en-US';
  * attribute of `"min"` or `"max"` for the rare rule that has to tell them apart.
  */
 export type RangeSliderPart =
-  | 'root'
   | 'label'
   | 'group'
   | 'rail'
@@ -157,7 +156,10 @@ export interface RangeSliderProps {
    * nothing left to render at all, which is this prop's business to allow, not to guard against.
    */
   trackVisible?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /**
+   * Per-part classes, appended to the part's own (a consumer class wins by cascade layer). The
+   * root is styled with `class`.
+   */
   classes?: Partial<Record<RangeSliderPart, string>>;
   /** Overrides for the strings this component renders itself (the thumb names, the word "to"). */
   messages?: Partial<UiMessages>;

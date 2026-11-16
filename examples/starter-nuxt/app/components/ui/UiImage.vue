@@ -34,7 +34,7 @@
  *   default `'none'`) — the two presets the design spec's frame radius actually has.
  * - **`fill`** is for a background image that has to cover its positioned ancestor (the hero
  *   `image-background` variant): it sets `ratio="auto"` and adds `absolute inset-0 h-full w-full`
- *   to `classes.root` and `h-full w-full` to `classes.frame`, so the frame's own height tracks its
+ *   to the root and `h-full w-full` to `classes.frame`, so the frame's own height tracks its
  *   *positioned ancestor* (via the `inset-0`/`h-full` chain) instead of trying to derive one from
  *   `media`, which this wrapper never has `width`/`height` for. `media`'s own `object-cover`
  *   (`Image`'s default) does the rest.
@@ -53,9 +53,9 @@
  *   the media, so the browser's replaced-element sizing algorithm scales the image down to fit
  *   inside both caps at once, the same thing the original bare `<img class="max-h-[85vh] w-auto
  *   object-contain">` did by being the frame itself).
- * - **`classes`** is `Image`'s own `classes` prop, passed straight through and merged with
- *   whatever `rounded`/`fill`/`fit` above already set (the caller's own value for a part always
- *   wins) — the general escape hatch for a radius `rounded` has no preset for (`rounded-full`,
+ * - **`classes`** is `Image`'s own `classes` prop, passed straight through. `fill`/`fit`'s own
+ *   classes and the caller's (`class` for the root, `classes` for a part) are all app utilities in
+ *   one layer, so they are combined with `twMerge` and the caller's wins a conflict — the general escape hatch for a radius `rounded` has no preset for (`rounded-full`,
  *   `rounded-md`) or a frame-level size constraint neither `fill` nor `fit` covers on their own
  *   (the gallery lightbox's `max-h-[85vh]`).
  *
@@ -65,9 +65,12 @@
  * class landing on the `<img>` now use `rounded`/`fill`/`fit`/`classes` instead — see each block's
  * own diff and `docs/starter-kit.md`'s `UiImage` row.
  */
-import { computed } from 'vue';
-import { Image, cx, type ImagePart, type ImageRatio } from '@eldrajs/ui';
+import { computed, normalizeClass, useAttrs } from 'vue';
+import { twMerge } from 'tailwind-merge';
+import { Image, type ImagePart, type ImageRatio } from '@eldrajs/ui';
 import { imageFramingAttrs, type ImageFraming } from '@eldrajs/theme-vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
   defineProps<{
@@ -98,8 +101,8 @@ const props = withDefaults(
     /** `Image`'s media covers its frame by default (`cover`); `contain` letterboxes instead, for a
      * full, uncropped view (a lightbox). */
     fit?: 'cover' | 'contain';
-    /** Passed straight through to `Image`'s own `classes` prop, merged with whatever `rounded`/
-     * `fill`/`fit` above already set — the caller's own value for a part always wins. */
+    /** Passed straight through to `Image`'s own `classes` prop, merged with whatever `fill`/`fit`
+     * above already set — the caller's own value for a part always wins. */
     classes?: Partial<Record<ImagePart, string>>;
   }>(),
   {
@@ -156,19 +159,27 @@ const CONTAIN_FRAME_CLASS = 'w-auto max-w-full';
  * height exceeds that cap. */
 const CONTAIN_MEDIA_CLASS = 'object-contain h-auto w-auto max-w-full max-h-[inherit]';
 
-/** `fill`/`fit` set `root`/`frame`/`media` first; the caller's own `classes` prop is merged on top
- * of each (via `cx`, so a real conflict resolves in the caller's favour) rather than replacing it
- * outright, and every other part passes through untouched. */
+const attrs = useAttrs();
+const forwardedAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs;
+  return rest;
+});
+
+/** `fill`'s root classes, then the caller's `class` on top (`twMerge`: the caller wins). */
+const rootClass = computed(() =>
+  twMerge(props.fill ? FILL_ROOT_CLASS : '', normalizeClass(attrs.class))
+);
+
+/** `fill`/`fit` set `frame`/`media` first, the caller's `classes` on top; other parts pass through. */
 const mergedClasses = computed<Partial<Record<ImagePart, string>>>(() => {
   const base = props.classes ?? {};
   const result: Partial<Record<ImagePart, string>> = { ...base };
   if (props.fill) {
-    result.root = cx(FILL_ROOT_CLASS, base.root);
-    result.frame = cx(FILL_FRAME_CLASS, base.frame);
+    result.frame = twMerge(FILL_FRAME_CLASS, base.frame);
   }
   if (props.fit === 'contain') {
-    result.frame = cx(CONTAIN_FRAME_CLASS, result.frame ?? base.frame);
-    result.media = cx(CONTAIN_MEDIA_CLASS, base.media);
+    result.frame = twMerge(CONTAIN_FRAME_CLASS, result.frame ?? base.frame);
+    result.media = twMerge(CONTAIN_MEDIA_CLASS, base.media);
   }
   return result;
 });
@@ -217,8 +228,9 @@ const framingDataAttrs = computed(() => {
     :rounded="rounded"
     :sizes="sizes"
     :priority="priority"
+    v-bind="{ ...forwardedAttrs, ...framingDataAttrs }"
+    :class="rootClass || undefined"
     :classes="mergedClasses"
-    :style="rootStyle"
-    v-bind="framingDataAttrs"
+    :style="[rootStyle, attrs.style]"
   />
 </template>

@@ -54,6 +54,7 @@ export const isIS: UiMessages = {
   multiSelectPlaceholder: 'Allt',
   noResults: 'Engar niðurstöður',
   noMatchesFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,
+  createOption: (query: string) => `Búa til „${query}“`,
   noResultsFor: (query: string) => `Engar niðurstöður fyrir „${query}“`,
   moreSelected: (n: number) => `+${n}`,
   removeTag: (label: string) => `Fjarlægja ${label}`,
@@ -61,6 +62,7 @@ export const isIS: UiMessages = {
   selectedCount: (n: number) => `${n} valin`,
   noneSelected: 'Ekkert valið',
   done: 'Lokið',
+  selectAll: 'Velja allt',
   decrease: 'Minnka',
   increase: 'Auka',
   quantity: 'Magn',
@@ -222,6 +224,17 @@ export const isIS: UiMessages = {
   formSuccessTitle: 'Takk fyrir',
   formPendingTitle: 'Kíktu í pósthólfið',
   formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
+  stepCompleted: 'lokið',
+  stepNotStarted: 'ekki hafið',
+  phoneCountry: (name: string, code: string) => `Land: ${name}, ${code}`,
+  phoneCountryList: 'Land',
+  phoneSearch: 'Leita að landi eða landsnúmeri',
+  phoneSuggested: 'Tillögur',
+  phoneAllCountries: 'Öll lönd',
+  phoneNoMatch: (query: string) => `Ekkert land passar við „${query}“.`,
+  // The name follows a colon so it stays in the nominative, the only case `Intl` gives.
+  phoneInvalid: (country: string) => `Símanúmerið er ekki gilt í landinu sem er valið: ${country}.`,
+  phoneInvalidNumber: 'Sláðu inn gilt símanúmer.',
 };
 
 export default isIS;

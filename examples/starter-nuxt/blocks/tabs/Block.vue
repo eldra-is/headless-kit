@@ -159,10 +159,9 @@ const tabListClasses = {
     '-mx-[var(--eldra-gutter-mobile)] px-[var(--eldra-gutter-mobile)] ' +
     'scroll-px-[var(--eldra-gutter-mobile)] @tablet:mx-0 @tablet:px-0 @tablet:scroll-px-0',
 };
-/** Spec → Layout: "Panel: 2rem top padding." `TabPanel`'s own baked-in default is 1.5rem (see that
- *  component's own doc comment) — overridden through the package's sanctioned per-part `classes`
- *  prop, never by patching the component itself. */
-const tabPanelClasses = { panel: 'pt-8' };
+/** Spec → Layout: "Panel: 2rem top padding." `TabPanel`'s own default is 1.5rem (see that
+ *  component's own doc comment); a class on it wins by layer, never a patch to the component. */
+const TAB_PANEL_CLASS = 'pt-8';
 
 /** Image | copy grid, only when the panel has an image (spec → Layout): stacked below 48rem, two
  *  equal columns 48–64rem, `7fr`/`5fr` from 64rem — the same gap steps `split-content`'s own row
@@ -219,7 +218,7 @@ useRichTextScrollRegions(panelsRoot, (caption) => caption ?? t('tabsBlock.richTe
             v-for="(tab, index) in tabs"
             :key="index"
             :value="tabValue(index)"
-            :classes="tabPanelClasses"
+            :class="TAB_PANEL_CLASS"
           >
             <div class="grid" :class="tabHasImage(tab) ? IMAGE_PANEL_GRID : ''">
               <UiImage

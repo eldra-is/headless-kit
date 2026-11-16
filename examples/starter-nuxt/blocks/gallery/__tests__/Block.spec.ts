@@ -81,7 +81,7 @@ describe('gallery block', () => {
       await flushPromises();
       const frames = wrapper.findAll('[data-part="frame"]');
       expect(frames.length).toBe(withImages.items.length);
-      for (const frame of frames) expect(frame.classes()).toContain('rounded-lg');
+      for (const frame of frames) expect(frame.classes()).toContain('eldra:rounded-lg');
     }
   });
 

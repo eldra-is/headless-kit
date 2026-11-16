@@ -88,6 +88,33 @@ describe('eldra sdk cart', () => {
     expect(no.cart).toEqual({ id: 'cart-1' });
   });
 
+  it('reads the verdict from discountCodes, so a second code is applied too (contract 6.9.0)', async () => {
+    const both = recording({
+      id: 'cart-1',
+      discountCode: 'SUMMER10',
+      discountCodes: [
+        { code: 'SUMMER10', amount: 1000 },
+        { code: 'VIP5', amount: 0 },
+      ],
+    });
+    const none = recording({ id: 'cart-1', discountCode: 'VIP5', discountCodes: [] });
+
+    expect((await both.client.cart.applyDiscount('cart-1', 'vip5')).applied).toBe(true);
+    expect((await both.client.cart.applyDiscount('cart-1', 'WINTER')).applied).toBe(false);
+    expect((await none.client.cart.applyDiscount('cart-1', 'VIP5')).applied).toBe(false);
+  });
+
+  it('removes one discount code with DELETE on /discount-codes/{code}', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], discountCodes: [] });
+
+    await client.cart.removeDiscountEntry('cart-1', 'SUMMER/10', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/discount-codes/SUMMER%2F10?locale=is-IS'
+    );
+  });
+
   it('removes a discount code', async () => {
     const { client, requests } = recording({ id: 'cart-1' });
 
@@ -96,6 +123,55 @@ describe('eldra sdk cart', () => {
     expect(requests[0].method).toBe('DELETE');
     expect(requests[0].url).toBe(
       'https://api.example.test/api/shopping-cart/v1/cart/cart-1/discount'
+    );
+  });
+});
+
+describe('eldra sdk gift cards', () => {
+  it('applies a trimmed gift card code with PUT and the locale', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [] });
+
+    await client.cart.applyGiftCard('cart-1', '  GC-ABCDE-FGHJK ', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('PUT');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-card?locale=is-IS'
+    );
+    expect(await bodyOf(requests[0])).toEqual({ code: 'GC-ABCDE-FGHJK' });
+  });
+
+  it('applies a code of either kind with PUT on /code and answers what it was applied as', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], appliedAs: 'GIFT_CARD' });
+
+    const cart = await client.cart.applyCode('cart-1', '  GC-ABCDE-FGHJK ', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('PUT');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/code?locale=is-IS'
+    );
+    expect(await bodyOf(requests[0])).toEqual({ code: 'GC-ABCDE-FGHJK' });
+    expect((cart as { appliedAs: string }).appliedAs).toBe('GIFT_CARD');
+  });
+
+  it('removes a gift card with DELETE on the same path', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [] });
+
+    await client.cart.removeGiftCard('cart-1');
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-card'
+    );
+  });
+
+  it('removes one gift card by its entry id with DELETE on /gift-cards/{entryId}', async () => {
+    const { client, requests } = recording({ id: 'cart-1', items: [], giftCards: [] });
+
+    await client.cart.removeGiftCardEntry('cart-1', 'entry/1', { locale: 'is-IS' });
+
+    expect(requests[0].method).toBe('DELETE');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/gift-cards/entry%2F1?locale=is-IS'
     );
   });
 });
@@ -408,6 +484,41 @@ describe('eldra sdk inventory and catalog extras', () => {
     ]);
   });
 
+  /**
+   * `ext` (product custom fields, contract 6.1.0) is declared `explode: true` like `option`: each
+   * token is `<schemaApiId>.<fieldId>:<value>`, and a comma-joined pair would reach the gateway as
+   * one token whose value is `wool,care.size:m`, which matches nothing.
+   */
+  it('repeats the ext custom-field filter rather than comma-joining it', async () => {
+    const { client, requests } = recording({ data: [], meta: {} });
+
+    await client.catalog.listProducts({ ext: ['care.fabric:wool', 'care.size:m'] });
+    await client.catalog.listCollectionProducts('the-winter-edit', {
+      ext: ['care.fabric:wool', 'care.washable:true'],
+    });
+
+    expect(new URL(requests[0].url).searchParams.getAll('ext')).toEqual([
+      'care.fabric:wool',
+      'care.size:m',
+    ]);
+    expect(new URL(requests[1].url).searchParams.getAll('ext')).toEqual([
+      'care.fabric:wool',
+      'care.washable:true',
+    ]);
+  });
+
+  it('normalises a null brand list and reads one brand by its encoded slug', async () => {
+    const { client, requests } = recording(null);
+
+    expect(await client.catalog.listBrands({ locale: 'en-US' })).toEqual([]);
+    await client.catalog.getBrand('nói síríus');
+
+    expect(requests[0].url).toBe('https://api.example.test/api/catalog/v1/brands?locale=en-US');
+    expect(requests[1].url).toBe(
+      'https://api.example.test/api/catalog/v1/brands/n%C3%B3i%20s%C3%ADr%C3%ADus'
+    );
+  });
+
   it('normalises a null category list and searches with q', async () => {
     const { client, requests } = recording(null);
 
@@ -459,6 +570,27 @@ describe('eldra sdk errors', () => {
     expect(error.errorId).toBe('CART_INSUFFICIENT_STOCK');
     expect(new EldraHttpError(response, { code: 'CONFLICT' }).errorId).toBeUndefined();
     expect(new EldraHttpError(response, { errorId: 7 }).errorId).toBeUndefined();
+  });
+
+  it('exposes the problem errors, where a refused discount code names what blocked it', () => {
+    const response = { status: 409, statusText: 'Conflict' } as Response;
+
+    const blocked = new EldraHttpError(response, {
+      code: 'CONFLICT',
+      errorId: 'CART_DISCOUNT_NOT_COMBINABLE',
+      errors: { blockingCode: 'SUMMER10' },
+    });
+    const full = new EldraHttpError(response, {
+      errorId: 'CART_DISCOUNT_CODES_LIMIT_REACHED',
+      errors: { limit: 6 },
+    });
+
+    expect(blocked.errors?.blockingCode).toBe('SUMMER10');
+    expect(full.errors?.limit).toBe(6);
+    expect(new EldraHttpError(response, { errorId: 'X' }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, { errors: ['a'] }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, { errors: 'a' }).errors).toBeUndefined();
+    expect(new EldraHttpError(response, 'nope').errors).toBeUndefined();
   });
 });
 

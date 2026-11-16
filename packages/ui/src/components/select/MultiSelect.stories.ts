@@ -33,7 +33,7 @@ const meta = {
           'live count and removable tags under the control. It shares every measure, state and key',
           'of **Select**; only the differences are listed here.',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): every part of `Select` —',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of the `classes` prop): every part of `Select` —',
           '`root`, `trigger`, `leadingIcon`, `placeholder`, `chevron`, `clearButton`, `panel`,',
           '`search`, `listbox`, `group`, `groupLabel`, `option`, `optionLabel`, `optionHint`,',
           '`optionMeta`, `optionSwatch`, `optionIcon`, `optionCheck`, `empty`, `native` — plus',
@@ -164,6 +164,35 @@ export const WithTags: Story = {
   }),
 };
 
+/** `tagPlacement: 'inside'`: the tags sit in the field, which grows a row at a time, and past
+ *  `maxTagRows` (2 here) the rest collapse into a "+N" tag. Backspace on the trigger takes the
+ *  last tag off. Shown at three widths, the narrowest one tag to a row. */
+export const TagsInside: Story = {
+  args: { options: SIZES, name: 'sizes', tagPlacement: 'inside' },
+  render: (args) => ({
+    components: { MultiSelect, FieldWrapper },
+    setup: () => ({
+      args,
+      few: ref(['xs', 's']),
+      many: ref(SIZES.map((size) => size.value)),
+      narrow: ref(SIZES.map((size) => size.value)),
+    }),
+    template: `
+      <div class="grid max-w-[32rem] gap-6">
+        <FieldWrapper label="Sizes">
+          <MultiSelect v-bind="args" v-model="few" placeholder="Any size" />
+        </FieldWrapper>
+        <FieldWrapper label="Every size, two rows at most">
+          <MultiSelect v-bind="args" v-model="many" />
+        </FieldWrapper>
+        <FieldWrapper label="Narrow, every row shown" class="w-48">
+          <MultiSelect v-bind="args" v-model="narrow" :max-tag-rows="0" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
 /** `showTags: false` for a compact toolbar, where the trigger summary is enough. The sm size is
  *  the spec's own example of a dense desktop filter bar. */
 export const NoTags: Story = {
@@ -210,6 +239,27 @@ export const Searchable: Story = {
     template: `
       <div class="max-w-96">
         <FieldWrapper label="Materials" help="Type to narrow the list.">
+          <MultiSelect v-bind="args" v-model="value" />
+        </FieldWrapper>
+      </div>
+    `,
+  }),
+};
+
+/** "Select all" sits before Clear (`selectAll`, on by default). With a search typed it adds the matches only. */
+export const SelectAll: Story = {
+  args: {
+    options: MATERIALS,
+    searchPlaceholder: 'Search materials',
+    name: 'materials',
+    selectAll: true,
+  },
+  render: (args) => ({
+    components: { MultiSelect, FieldWrapper },
+    setup: () => ({ args, value: ref(['linen']) }),
+    template: `
+      <div class="max-w-96">
+        <FieldWrapper label="Materials" help="Select all adds every material the list shows.">
           <MultiSelect v-bind="args" v-model="value" />
         </FieldWrapper>
       </div>

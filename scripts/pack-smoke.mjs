@@ -20,6 +20,11 @@ const consumers = {
       import { listFormat } from '@eldrajs/sdk/format/list';
       import { relativeTimeFormat } from '@eldrajs/sdk/format/relative-time';
       import { displayNames } from '@eldrajs/sdk/format/display-names';
+      import { installIcelandicIntl } from '@eldrajs/sdk/format/intl';
+      const restoreIntl = installIcelandicIntl({ force: true });
+      assert.equal(new Intl.DateTimeFormat('is-IS', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 12))), '12. október 2026');
+      assert.equal(new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 12))), '12/10/2026');
+      restoreIntl();
       assert.equal(formatPrice(12900, 'ISK', 'is-IS'), '12.900\u00a0kr.');
       assert.equal(formatPrice(12900, 'ISK', 'en-US'), 'ISK\u00a012,900');
       assert.equal(numberFormat('is-IS').format(1234.5), '1.234,5');
@@ -43,6 +48,9 @@ const consumers = {
       export const price: string = formatPrice(1, 'ISK', 'is-IS');
       export const number: Intl.NumberFormat = numberFormat('en-US', { style: 'percent' });
       export const date: Intl.DateTimeFormat = dateTimeFormat('is-IS', { dateStyle: 'short' });
+      import { installIcelandicIntl } from '@eldrajs/sdk/format/intl';
+      const restoreIntl: () => void = installIcelandicIntl({ force: true });
+      restoreIntl();
       import { createEldraClient, type EldraClient, type EldraContractResponse } from '@eldrajs/sdk';
       import { eldra } from '@eldrajs/sdk/vite';
       // What the generated .eldra/web-studio/contract.ts does in a real project.
@@ -116,11 +124,24 @@ const consumers = {
       assert(isIS && typeof isIS === 'object', '@eldrajs/ui/messages/is-IS exports isIS');
       assert.equal(typeof isIS.close, 'string', 'isIS carries the message catalogue');
       const resolve = createRequire(import.meta.url).resolve;
-      for (const css of ['tokens.css', 'tailwind.css', 'style.css', 'components.css']) {
+      for (const css of ['tokens.css', 'tailwind.css', 'style.css', 'components.css', 'theme.css', 'utilities.css']) {
         assert(existsSync(resolve('@eldrajs/ui/' + css)), css);
       }
       // The optional entry: it resolves, its components really are components, and — the point of
       // it being optional — the root entry above loaded without vee-validate being touched.
+      // The other optional entry: the kit's messages read through a real vue-i18n.
+      const { eldraUiI18nMessages, icelandicPluralRule, toVueI18nMessages } = await import('@eldrajs/ui/vue-i18n');
+      const { createI18n } = await import('vue-i18n');
+      const i18n = createI18n({
+        legacy: false,
+        locale: 'is-IS',
+        pluralRules: { 'is-IS': icelandicPluralRule },
+        messages: { 'is-IS': { eldraUi: toVueI18nMessages(isIS) } },
+      });
+      const kit = eldraUiI18nMessages(i18n.global);
+      assert.equal(kit.close, isIS.close);
+      assert.equal(kit.charactersLeft(21), isIS.charactersLeft(21));
+      assert.equal(kit.resultsCount(3, 'peysa'), isIS.resultsCount(3, 'peysa'));
       const vee = await import('@eldrajs/ui/vee-validate');
       for (const name of ['Form', 'FieldInput', 'FieldSelect', 'FieldCheckboxGroup']) {
         const component = vee[name];
@@ -132,6 +153,20 @@ const consumers = {
       }
       assert(typeof vee.API_ERRORS_KEY === 'symbol', 'API_ERRORS_KEY');
       assert(typeof vee.useFieldControl === 'function', 'useFieldControl');
+      // The phone entry and its own optional peer, libphonenumber-js: installed here, so the entry
+      // loads, formats and validates for real; the root entry above loaded before it was touched.
+      const phone = await import('@eldrajs/ui/phone');
+      assert(typeof phone.PhoneInput.setup === 'function' || typeof phone.PhoneInput.render === 'function', 'PhoneInput');
+      assert.equal(phone.isValidPhone('+3545812345', 'IS'), true, 'isValidPhone');
+      assert.equal(phone.parsePhone('+3545812345').national, '581 2345', 'parsePhone');
+      assert.equal(phone.phoneRule({ country: 'IS', locale: 'is-IS', messages: isIS })('+45321'), isIS.phoneInvalid('Ísland'), 'phoneRule');
+      assert.equal(typeof phone.phoneExample('IS'), 'string', 'phoneExample');
+      await phone.preloadPhoneFlags();
+      assert.deepEqual(EldraUiResolver().resolve('EldraPhoneInput'), { name: 'PhoneInput', from: '@eldrajs/ui/phone' }, 'EldraUiResolver resolves EldraPhoneInput');
+      const phoneFields = await import('@eldrajs/ui/phone/vee-validate');
+      assert(typeof phoneFields.FieldPhoneInput.setup === 'function' || typeof phoneFields.FieldPhoneInput.render === 'function', 'FieldPhoneInput');
+      assert.equal(phoneFields.phoneRule, phone.phoneRule, 'one phoneRule');
+      assert(existsSync(resolve('@eldrajs/ui/package.json').replace('package.json', 'LICENSE-country-flag-icons')), 'the flag licence ships');
     `,
     types: `
       import * as ui from '@eldrajs/ui';
@@ -156,6 +191,14 @@ const consumers = {
       export const apiErrorsKey = API_ERRORS_KEY;
       export const fieldProps: FieldInputProps = { name: 'email', type: 'email', size: 'lg' };
       export const formProps: FormProps = { layout: 'two', apiErrors: { email: 'Taken.' } };
+      import { PhoneInput, phoneRule, parsePhone, type PhoneInputChange, type PhoneInputProps } from '@eldrajs/ui/phone';
+      import { FieldPhoneInput, type FieldPhoneInputProps } from '@eldrajs/ui/phone/vee-validate';
+      export const phoneComponents = { PhoneInput, FieldPhoneInput };
+      export const phoneProps: PhoneInputProps = { defaultCountry: 'IS', preferredCountries: ['IS'], size: 'lg' };
+      export const phoneFieldProps: FieldPhoneInputProps = { name: 'phone', defaultCountry: 'IS' };
+      export const phoneChange: PhoneInputChange | null = null;
+      export const phoneCheck: true | string = phoneRule({ country: 'IS' })('+3545812345');
+      export const phoneNational: string | undefined = parsePhone('+3545812345')?.national;
     `,
   },
   '@eldrajs/theme-core': {
@@ -279,6 +322,10 @@ async function main() {
         'vue@^3',
         // `@eldrajs/ui`'s optional peer: the `./vee-validate` entry is only reachable with it.
         'vee-validate@^4',
+        // `@eldrajs/ui`'s other optional peer: the `./phone` entries are only reachable with it.
+        'libphonenumber-js@^1.13.0',
+        // …and the `./vue-i18n` entry with this one.
+        'vue-i18n@^11',
         '@nuxt/kit@^4',
         ...Object.values(tarballs),
       ],

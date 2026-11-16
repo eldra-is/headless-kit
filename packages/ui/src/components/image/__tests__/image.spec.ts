@@ -100,7 +100,9 @@ describe('Image — ratio', () => {
     // The media still covers whatever box the frame (now sized by its ancestor, not by an
     // aspect-ratio) ends up with — `object-cover` plus `h-full`/`w-full` is unconditional.
     const media = wrapper.get('[data-part="media"]');
-    expect(media.classes()).toEqual(expect.arrayContaining(['object-cover', 'h-full', 'w-full']));
+    expect(media.classes()).toEqual(
+      expect.arrayContaining(['eldra:object-cover', 'eldra:h-full', 'eldra:w-full'])
+    );
     wrapper.unmount();
   });
 });
@@ -538,7 +540,7 @@ describe('Image — loading skeleton', () => {
     expect(wrapper.find('[data-part="media"]').exists()).toBe(false);
     expect(wrapper.find('[data-part="placeholder"]').exists()).toBe(false);
     const skeleton = wrapper.get('[data-part="skeleton"]');
-    expect(skeleton.classes()).toContain('eldra-skeleton');
+    expect(skeleton.classes()).toContain('eldra:eldra-skeleton');
     expect(skeleton.attributes('aria-hidden')).toBe('true');
     wrapper.unmount();
   });
@@ -556,14 +558,14 @@ describe('Image — rounded', () => {
   it('applies no radius class by default', () => {
     const wrapper = mountWith(Image, { props: { media: MEDIA } });
     const frame = wrapper.get('[data-part="frame"]');
-    expect(frame.classes()).not.toContain('rounded-lg');
-    expect(frame.classes()).not.toContain('rounded-xl');
+    expect(frame.classes()).not.toContain('eldra:rounded-lg');
+    expect(frame.classes()).not.toContain('eldra:rounded-xl');
     wrapper.unmount();
   });
 
   it.each([
-    ['lg', 'rounded-lg'],
-    ['xl', 'rounded-xl'],
+    ['lg', 'eldra:rounded-lg'],
+    ['xl', 'eldra:rounded-xl'],
   ] as const)('applies %s as %s on the frame', (rounded, expected) => {
     const wrapper = mountWith(Image, { props: { media: MEDIA, rounded } });
     expect(wrapper.get('[data-part="frame"]').classes()).toContain(expected);

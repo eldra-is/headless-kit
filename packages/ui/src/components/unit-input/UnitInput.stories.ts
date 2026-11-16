@@ -35,7 +35,7 @@ const meta = {
           'many have gone by — so a group separator can appear to the left of the caret without',
           'the caret moving.',
           '',
-          '**Parts** (`data-part`, and the keys of `classes`): `root`, `label`, `field`,',
+          '**Parts** (`data-part`; `root` takes `class`, the rest are keys of `classes`): `root`, `label`, `field`,',
           '`leadingIcon`, `control`, `suffix`, `dragHandle`, `clearButton`. **Slots**:',
           '`leadingIcon`, `suffix`.',
           '',

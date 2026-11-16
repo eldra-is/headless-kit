@@ -9,9 +9,14 @@
  */
 import SearchBar from '../components/search-bar/SearchBar.vue';
 import type { FieldSearchBarProps } from './types';
-import { useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_VALIDATION_DEFAULTS,
+  FIELD_VALIDATION_PROPS,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldSearchBarProps>();
+const props = withDefaults(defineProps<FieldSearchBarProps>(), FIELD_VALIDATION_DEFAULTS);
 
 /**
  * `hasIdProp: false`: a `SearchBar` sets the id on its own field after its attribute fall-through,
@@ -24,7 +29,13 @@ const { model, onBlur } = useFieldControl<string>(props, { empty: '', hasIdProp:
 // `name` is kept back too: a `SearchBar` has no `name` prop and its native field is always
 // `q`, because its form posts to the Search page. `label` is forwarded, because there it
 // means the same thing on both sides.
-const control = useControlProps(props, ['path', 'rules', 'id', 'name'] as const);
+const control = useControlProps(props, [
+  'path',
+  'rules',
+  'id',
+  'name',
+  ...FIELD_VALIDATION_PROPS,
+] as const);
 </script>
 
 <template>

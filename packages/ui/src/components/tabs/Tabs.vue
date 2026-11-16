@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, provide, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import { TABS_KEY, type TabsContext, type TabsEntry } from './context';
 import Tab from './Tab.vue';
 import TabPanel from './TabPanel.vue';
 import type { TabsProps } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<TabsProps>(), {
   modelValue: undefined,
@@ -42,8 +44,13 @@ function register(entry: TabsEntry): () => void {
   };
 }
 
-/** Spec "Tabs" → Properties, `value` row: "Default first tab." */
-const selectedValue = computed(() => (model.value === '' ? registry.value[0]?.value : model.value));
+/** Spec "Tabs" → Properties, `value` row: "Default first tab." The first one that can be chosen,
+ *  so a disabled first tab is never selected for the user; the first of all when every tab is. */
+const selectedValue = computed(() =>
+  model.value === ''
+    ? (registry.value.find((tab) => !tab.disabled?.()) ?? registry.value[0])?.value
+    : model.value
+);
 
 function isSelected(value: string): boolean {
   return selectedValue.value === value;
@@ -54,18 +61,26 @@ function select(value: string): void {
   emit('change', value);
 }
 
+/** Walks from `current` in `delta`'s direction, wrapping, past every disabled tab. Nothing moves
+ *  when no other tab can be chosen. */
 function moveFocus(current: string, delta: 1 | -1): void {
   const tabs = registry.value;
   if (tabs.length === 0) return;
   const index = tabs.findIndex((tab) => tab.value === current);
-  const nextIndex = index === -1 ? 0 : (index + delta + tabs.length) % tabs.length;
-  activate(tabs[nextIndex]!);
+  const start = index === -1 ? (delta === 1 ? -1 : tabs.length) : index;
+  for (let step = 1; step <= tabs.length; step++) {
+    const candidate = tabs[(start + delta * step + tabs.length * 2) % tabs.length]!;
+    if (!candidate.disabled?.()) {
+      activate(candidate);
+      return;
+    }
+  }
 }
 
 function focusEdge(edge: 'first' | 'last'): void {
-  const tabs = registry.value;
-  if (tabs.length === 0) return;
-  activate(edge === 'first' ? tabs[0]! : tabs[tabs.length - 1]!);
+  const enabled = registry.value.filter((tab) => !tab.disabled?.());
+  const target = edge === 'first' ? enabled[0] : enabled[enabled.length - 1];
+  if (target) activate(target);
 }
 
 /** Moves DOM focus, and — spec "Tabs" → Behaviour & motion: "With automatic activation, moving
@@ -92,7 +107,7 @@ provide(TABS_KEY, context);
 /** `min-w-0` is the usual flex/grid fix (see `RadioGroup`'s own root): without it, a `Tabs` inside
  *  a flex row never shrinks below its content's natural width, and the list's own `overflow-x-auto`
  *  (below) never gets a chance to engage. */
-const rootClass = computed(() => partClass('min-w-0', props.classes, 'root'));
+const rootClass = 'eldra:min-w-0';
 
 /**
  * The room the pills list keeps for a focused tab's ring, on both axes, plus the scroll padding
@@ -110,11 +125,11 @@ const rootClass = computed(() => partClass('min-w-0', props.classes, 'root'));
  * `dist/` and asserts all five of these declarations come out of it.
  */
 const PILLS_RING_RESERVE =
-  'py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  '-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  'px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  '-mx-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
-  'scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]';
+  'eldra:py-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:-my-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:-mx-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))] ' +
+  'eldra:scroll-px-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]';
 
 /**
  * Spec "Tabs" → Anatomy, point 1 and → Sizes: the list "scrolls horizontally when the tabs
@@ -138,11 +153,8 @@ const PILLS_RING_RESERVE =
  * list's box back in by the same amount, so its rendered footprint — the hairline's position in the
  * underline variant included, were it ever to carry one — is unchanged.
  *
- * **Per axis, not one uniform `p-[…]`/`-m-[…]`.** `padding`/`padding-inline` are different
- * `tailwind-merge` groups, so a `classes.list` of `px-6` would leave both alive and then win in the
- * cascade (Tailwind emits every `padding-inline` rule after every `padding` one) — the exact way
- * `Carousel`'s first uniform reservation lost its inline half on a deployed page. Written as
- * `px-*`/`py-*` a consumer's own `px-*` replaces ours outright instead, which at least shows up as
+ * **Per axis, not one uniform `p-[…]`/`-m-[…]`.** Written as `px-*`/`py-*`, a `classes.list` of
+ * `px-6` overrides exactly the inline half (it wins by cascade layer), which at least shows up as
  * the consumer's own gutter rather than as a reservation silently reduced to `0px`; a gutter wider
  * than the ring (`blocks/tabs` in the starter bleeds the list by `--eldra-gutter-mobile`) is itself
  * all the room the ring needs. `Carousel`'s `--eldra-carousel-bleed` is the shape to reach for if a
@@ -160,46 +172,53 @@ const PILLS_RING_RESERVE =
  * reservation there would push the list's 1px hairline down away from the tabs it underlines, for
  * no ring at all.
  */
-const listClass = computed(() =>
-  partClass(
-    cx(
-      'flex items-center overflow-x-auto eldra-scrollbar-hide',
-      props.variant === 'underline'
-        ? 'gap-1 border-b border-border'
-        : cx('gap-2', PILLS_RING_RESERVE)
-    ),
-    props.classes,
-    'list'
-  )
-);
+const listClass = computed(() => [
+  'eldra:flex eldra:items-center eldra:overflow-x-auto eldra:eldra-scrollbar-hide',
+  props.variant === 'underline'
+    ? 'eldra:gap-1 eldra:border-b eldra:border-border'
+    : ['eldra:gap-2', PILLS_RING_RESERVE],
+  props.classes?.list,
+]);
 
 /** Forwarded onto every internally-rendered `Tab`/`TabPanel` in the `items` API, so a consumer's
- *  `classes.tab`/`.indicator`/`.panel` reaches them exactly as it would a standalone `<Tab>`. */
-const childClasses = computed(() => ({
-  tab: props.classes?.tab,
-  indicator: props.classes?.indicator,
-  panel: props.classes?.panel,
-}));
+ *  `classes.tab`/`.indicator`/`.panel` reaches them exactly as a `class` (or `classes.indicator`)
+ *  reaches a standalone `<Tab>`/`<TabPanel>`. */
+const tabChildClasses = computed(() => ({ indicator: props.classes?.indicator }));
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+  >
     <!-- Per the ARIA APG tabs pattern, the tablist contains tab elements only — panels are
          siblings after it, not inside it. -->
-    <div role="tablist" data-part="list" :aria-label="ariaLabel" :class="listClass">
+    <div
+      :data-eldra-slot="eldra.slotHost('tabs')"
+      :data-eldra-scope="eldra.scope"
+      role="tablist"
+      data-part="list"
+      :aria-label="ariaLabel"
+      :class="listClass"
+    >
       <template v-if="items">
         <Tab
           v-for="item in items"
           :key="item.value"
           :value="item.value"
           :title="item.title"
-          :classes="childClasses"
+          :disabled="item.disabled"
+          :class="classes?.tab"
+          :classes="tabChildClasses"
         />
       </template>
       <slot v-else name="tabs" />
     </div>
     <template v-if="items">
-      <TabPanel v-for="item in items" :key="item.value" :value="item.value" :classes="childClasses">
+      <TabPanel v-for="item in items" :key="item.value" :value="item.value" :class="classes?.panel">
         {{ item.content }}
       </TabPanel>
     </template>

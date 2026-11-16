@@ -13,7 +13,7 @@ export type BadgeTone = 'neutral' | 'primary' | 'accent' | 'success' | 'warning'
 export type BadgeVariant = 'none' | 'sale' | 'new';
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them. */
-export type BadgePart = 'root' | 'icon' | 'label' | 'hiddenSuffix';
+export type BadgePart = 'icon' | 'label' | 'hiddenSuffix';
 
 export interface BadgeProps {
   /** Visible text (content). Sentence case. Also the fallback for the default slot. */
@@ -38,7 +38,8 @@ export interface BadgeProps {
   hiddenSuffix?: string | null;
   /** Render a different root element than the default `<span>`. */
   as?: string;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<BadgePart, string>>;
 }
 
@@ -53,7 +54,7 @@ export type StockLevel = 'in' | 'low' | 'out' | 'preorder';
  *  words inside `label`: it exists so the refresh dim (on `label`) and the fade a changed stock
  *  line plays (on the span) are not one element fighting over `opacity`. It adds no box of its
  *  own. */
-export type StockBadgePart = 'root' | 'icon' | 'label' | 'labelValue' | 'spinner' | 'srStatus';
+export type StockBadgePart = 'icon' | 'label' | 'labelValue' | 'spinner' | 'srStatus';
 
 export interface StockBadgeProps {
   /** Picks the colour, icon and default message. */
@@ -81,6 +82,7 @@ export interface StockBadgeProps {
    * region per card. `aria-busy`, the dim and the spinner are unaffected; only the region goes.
    */
   announce?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<StockBadgePart, string>>;
 }

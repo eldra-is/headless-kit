@@ -53,8 +53,8 @@ describe('Link — element and semantics', () => {
 
   it('does not carry the focus ring or link styling on the plain-text span', () => {
     const wrapper = mountWith(Link, { slots: { default: 'Read the care guide' } });
-    expect(wrapper.classes()).not.toContain('eldra-focus');
-    expect(wrapper.classes()).not.toContain('underline');
+    expect(wrapper.classes()).not.toContain('eldra:eldra-focus');
+    expect(wrapper.classes()).not.toContain('eldra:underline');
     wrapper.unmount();
   });
 
@@ -124,8 +124,8 @@ describe('Link — variants', () => {
       props: { href: '/x' },
       slots: { default: 'care for stoneware' },
     });
-    expect(wrapper.classes()).toContain('underline');
-    expect(wrapper.classes()).toContain('underline-offset-[0.2em]');
+    expect(wrapper.classes()).toContain('eldra:underline');
+    expect(wrapper.classes()).toContain('eldra:underline-offset-[0.2em]');
     wrapper.unmount();
   });
 
@@ -134,8 +134,8 @@ describe('Link — variants', () => {
       props: { href: '/x' },
       slots: { default: 'care for stoneware' },
     });
-    expect(wrapper.classes()).toContain('underline');
-    expect(wrapper.classes()).not.toContain('font-semibold');
+    expect(wrapper.classes()).toContain('eldra:underline');
+    expect(wrapper.classes()).not.toContain('eldra:font-semibold');
     wrapper.unmount();
   });
 
@@ -144,11 +144,11 @@ describe('Link — variants', () => {
       props: { href: '/x', variant: 'standalone' },
       slots: { default: 'Shop all knitwear' },
     });
-    expect(wrapper.classes()).toContain('font-semibold');
-    expect(wrapper.classes()).toContain('underline');
-    expect(wrapper.classes()).not.toContain('no-underline');
-    expect(wrapper.classes()).toContain('target-min');
-    expect(wrapper.classes()).toContain('inline-flex');
+    expect(wrapper.classes()).toContain('eldra:font-semibold');
+    expect(wrapper.classes()).toContain('eldra:underline');
+    expect(wrapper.classes()).not.toContain('eldra:no-underline');
+    expect(wrapper.classes()).toContain('eldra:target-min');
+    expect(wrapper.classes()).toContain('eldra:inline-flex');
     wrapper.unmount();
   });
 
@@ -159,7 +159,7 @@ describe('Link — variants', () => {
         props: { href: '/x', variant },
         slots: { default: LONG_LABEL },
       });
-      expect(wrapper.classes()).not.toContain('whitespace-nowrap');
+      expect(wrapper.classes()).not.toContain('eldra:whitespace-nowrap');
       wrapper.unmount();
     }
   );
@@ -173,8 +173,8 @@ describe('Link — underline', () => {
         props: { href: '/x', variant },
         slots: { default: 'care for stoneware' },
       });
-      expect(wrapper.classes()).toContain('underline');
-      expect(wrapper.classes()).not.toContain('no-underline');
+      expect(wrapper.classes()).toContain('eldra:underline');
+      expect(wrapper.classes()).not.toContain('eldra:no-underline');
       wrapper.unmount();
     }
   );
@@ -186,10 +186,10 @@ describe('Link — underline', () => {
         props: { href: '/x', variant, underline: false },
         slots: { default: 'care for stoneware' },
       });
-      expect(wrapper.classes()).toContain('no-underline');
-      expect(wrapper.classes()).not.toContain('underline');
-      expect(wrapper.classes()).toContain('hover:underline');
-      expect(wrapper.classes()).toContain('active:underline');
+      expect(wrapper.classes()).toContain('eldra:no-underline');
+      expect(wrapper.classes()).not.toContain('eldra:underline');
+      expect(wrapper.classes()).toContain('eldra:hover:underline');
+      expect(wrapper.classes()).toContain('eldra:active:underline');
       wrapper.unmount();
     }
   );
@@ -203,7 +203,7 @@ describe('Link — arrow', () => {
     });
     const arrow = wrapper.get('[data-part="arrow"]');
     expect(arrow.attributes('aria-hidden')).toBe('true');
-    expect(arrow.classes()).toContain('size-4.5');
+    expect(arrow.classes()).toContain('eldra:size-4.5');
     wrapper.unmount();
   });
 
@@ -236,7 +236,7 @@ describe('Link — external', () => {
     expect(wrapper.attributes('rel')).toBe('noopener noreferrer');
     const icon = wrapper.get('[data-part="externalIcon"]');
     expect(icon.attributes('aria-hidden')).toBe('true');
-    expect(icon.classes()).toContain('size-3.5');
+    expect(icon.classes()).toContain('eldra:size-3.5');
     expect(wrapper.text()).toContain('(opens in a new tab)');
     wrapper.unmount();
   });
@@ -270,7 +270,7 @@ describe('Link — tone', () => {
       props: { href: '/x' },
       slots: { default: 'care for stoneware' },
     });
-    expect(wrapper.classes()).toContain('text-text');
+    expect(wrapper.classes()).toContain('eldra:text-text');
     wrapper.unmount();
   });
 
@@ -279,8 +279,8 @@ describe('Link — tone', () => {
       props: { href: '/x', tone: 'muted' },
       slots: { default: 'Size guide' },
     });
-    expect(wrapper.classes()).toContain('text-muted');
-    expect(wrapper.classes()).toContain('hover:text-text');
+    expect(wrapper.classes()).toContain('eldra:text-muted');
+    expect(wrapper.classes()).toContain('eldra:hover:text-text');
     wrapper.unmount();
   });
 
@@ -289,10 +289,8 @@ describe('Link — tone', () => {
       props: { href: '/x' },
       slots: { default: 'Learn more' },
     });
-    expect(wrapper.classes()).toContain(
-      'group-data-[section=primary]/section:text-primary-contrast'
-    );
-    expect(wrapper.classes()).toContain('group-data-[section=accent]/section:text-accent-contrast');
+    expect(wrapper.classes()).toContain('eldra:section-primary:text-primary-contrast');
+    expect(wrapper.classes()).toContain('eldra:section-accent:text-accent-contrast');
     wrapper.unmount();
   });
 });
@@ -303,7 +301,7 @@ describe('Link — focus and motion', () => {
       props: { href: '/x' },
       slots: { default: 'care for stoneware' },
     });
-    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
     wrapper.unmount();
   });
 
@@ -317,7 +315,7 @@ describe('Link — focus and motion', () => {
     // shorthand from a `transition-*`/`duration-*` utility on this element would replace all of
     // it and the ring would snap in instead of growing — see
     // `src/__tests__/focus-transition.spec.ts`, which enforces this across every component.
-    expect(wrapper.classes()).toContain('eldra-focus');
+    expect(wrapper.classes()).toContain('eldra:eldra-focus');
     // `[^\s:]+` (not `\S+`) keeps the colon out of the repeated group: since a
     // variant token never contains one itself, this matches exactly the same
     // class strings, but without the ambiguous ways to split a long run of
@@ -333,23 +331,23 @@ describe('Link — focus and motion', () => {
     });
     // The rule is per element, not per component: the arrow carries no focus ring, so its own
     // `transition-[translate] duration-fast` is exactly right and must survive.
-    expect(wrapper.get('[data-part="arrow"]').classes()).toContain('duration-fast');
+    expect(wrapper.get('[data-part="arrow"]').classes()).toContain('eldra:duration-fast');
     wrapper.unmount();
   });
 });
 
 describe('Link — customisation', () => {
-  it('lets classes.root replace a colour utility instead of landing beside it', () => {
+  it('puts a consumer class on the link itself', () => {
     const wrapper = mountWith(Link, {
-      props: { href: '/x', classes: { root: 'text-accent' } },
+      props: { href: '/x' },
+      attrs: { class: 'text-accent' },
       slots: { default: 'care for stoneware' },
     });
     expect(wrapper.classes()).toContain('text-accent');
-    expect(wrapper.classes()).not.toContain('text-text');
     wrapper.unmount();
   });
 
-  it('merges an override onto the arrow and external icon parts', () => {
+  it('appends an override to the arrow and external icon parts', () => {
     const wrapper = mountWith(Link, {
       props: {
         href: '/x',

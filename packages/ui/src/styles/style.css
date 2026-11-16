@@ -1,6 +1,16 @@
-/* The package's own compiled stylesheet, for consumers without Tailwind: Tailwind's base plus the
-   theme in tailwind.css, with the utilities the package's components use compiled in. Consumers
-   who run Tailwind themselves import tailwind.css instead and their own build emits the same
-   utilities. Built by vite.config.ts's `style` lib entry into dist/style.css. */
-@import 'tailwindcss';
-@import './tailwind.css';
+/* The package's compiled stylesheet. Every class a component renders carries the `eldra:` prefix,
+   so Tailwind runs with `prefix(eldra)`: an app's own utilities can never match a component's
+   element by name. The utilities are compiled into the `components` layer, below an app's own
+   `utilities`, so a class an app puts on a component wins whatever the load order. The theme is
+   imported `inline reference`: the utilities read the `--eldra-*` tokens directly and no theme
+   variable is emitted (the prefix would otherwise name `--color-primary` `--eldra-color-primary`,
+   the token itself). Built by vite.config.ts's `style` lib entry; components.css is derived from
+   it without the page-wide preflight. */
+@layer properties, theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(eldra);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(components) prefix(eldra);
+@import './tokens.css';
+@import './theme.css' theme(inline reference);
+@import './utilities.css';
+@source '../';

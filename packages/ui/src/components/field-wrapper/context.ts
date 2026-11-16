@@ -22,8 +22,16 @@ export interface FieldContext {
    * named with `aria-labelledby` pointing here instead. It lives on the context rather than being
    * rebuilt from `id` by string convention in each control, so renaming it is one edit and cannot
    * leave a control pointing at an element that no longer exists.
+   *
+   * Always set, even for a wrapper with no visible label; read `labelled` before pointing at it.
    */
   labelId: string;
+  /**
+   * Whether the wrapper renders its label (or legend) element, so `labelId` names something. False
+   * for a wrapper with no visible label, whose control is named with its own `aria-label`.
+   * Optional so a hand-built context still compiles; leaving it out reads as `true`.
+   */
+  labelled?: boolean;
   /** The `aria-describedby` value: the error id first, then help. */
   describedBy?: string;
   /** Whether the field is in error, which the control mirrors as `aria-invalid="true"`. */

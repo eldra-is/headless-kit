@@ -664,23 +664,55 @@ key there.)
 ## Campaign attribution
 
 A merchant's campaign mails link to the site with `utm_source`, `utm_medium`, `utm_campaign` and
-`utm_id` (the campaign's id) in the URL. `@eldrajs/theme-nuxt` remembers the latest such landing and
-every cart add sends it, so the order made from that cart is credited to the campaign in Studio. A
-theme writes no code for it: a client plugin calls `@eldrajs/sdk`'s `captureCampaignAttribution` on
-the first page and after every navigation, and the SDK's `cart.addItem` (the starter's cart goes
-through it) adds the remembered landing as `attribution`.
+`utm_id` (the campaign's id) in the URL. `@eldrajs/theme-nuxt` notes the latest such landing on the
+first page and after every navigation. **It keeps it only once the visitor agrees** through the shop's
+own consent tool. From then on every cart add sends it, so the order made from that cart is credited
+to the campaign in Studio ("Orders after a click").
 
-**What is kept, for your privacy notice.** One `localStorage` key, `eldra.campaignAttribution`,
-holding those four campaign-level tags and the time they were captured, for 30 days; a later tagged
-landing replaces it. No click id (`gclid`, `fbclid`), referrer or visitor id, and nothing about the
-person. It is never cleared on an order (the platform's checkout has no moment in the theme to clear
-it from); `clearCampaignAttribution()` does it on demand. Whether keeping it needs the visitor's
-consent is the site owner's call.
+**Telling the kit the visitor's answer.** In the consent tool's callback, set
+`window.eldraCampaignAttributionConsent` to `true` or `false` and send the
+`eldra:campaign-attribution-consent` event:
 
-**Turning it off.** `eldra: { campaignAttribution: false }` in `nuxt.config.ts` leaves the plugin out,
-and nothing is captured. A site that asks for consent first turns it off and calls
-`captureCampaignAttribution()` itself once the visitor agrees; carts then carry it as before. The SDK
-side, its options and the behaviour against a gateway older than public contract 5.4.0 are in
+```js
+window.eldraCampaignAttributionConsent = choice.marketing;
+window.dispatchEvent(new Event('eldra:campaign-attribution-consent'));
+```
+
+The module's plugin reads the value when it starts and on every event, so the order of the two scripts
+does not matter. Code inside the theme can call `@eldrajs/sdk`'s `grantCampaignAttributionConsent()`
+and `withdrawCampaignAttributionConsent()` instead. Report the answer on every page load where it
+stands: the kit does not store consent. Withdrawing removes what was kept, and later carts carry
+none. A site with no consent tool keeps nothing, and its orders are still credited by the platform's
+email match ("Orders from recipients").
+
+**What is kept, for your privacy page.** With consent, one `localStorage` key,
+`eldra.campaignAttribution`, holding those four campaign-level tags and the time they were captured,
+for 30 days; a later tagged landing replaces it. No click id (`gclid`, `fbclid`), referrer or visitor
+id, and nothing about the person. It is never cleared on an order, since the platform's checkout has
+no moment in the theme to clear it from; `clearCampaignAttribution()` does it on demand. Wording for
+the shop's privacy page, with the shop's own cookie-settings link and address filled in:
+
+> **Tenglar í markaðspósti og heiti herferðar í vafranum.** Þegar þú kemur í vefverslunina fylgja
+> slóðinni merki sem segja frá hvaða herferð þú komst (til dæmis utm_campaign). Ef þú samþykkir það
+> geymir vefverslunin þessi merki í vafranum þínum (localStorage, undir heitinu
+> `eldra.campaignAttribution`) í 30 daga. Ef þú setur vöru í körfu á þeim tíma fylgir heiti
+> herferðarinnar með og skráist á pöntunina. Þannig sjáum við hvaða herferðir skila pöntunum. Án
+> samþykkis þíns geymum við ekkert. Þú getur breytt vali þínu hvenær sem er undir [Stillingar
+> vafrakaka]. Geymslan eyðist sjálfkrafa eftir 30 daga. Þú getur eytt henni fyrr með því að hreinsa
+> vefgögn fyrir [vefslóð verslunar] í stillingum vafrans.
+
+> **Links in marketing email and the campaign name in your browser.** When you arrive at the shop,
+> the web address carries tags that say which campaign you came from (for example utm_campaign). If
+> you agree, the shop keeps these tags in your browser (localStorage, under the name
+> `eldra.campaignAttribution`) for 30 days. If you add a product to your cart in that time, the
+> campaign name is sent along and recorded on the order. This shows us which campaigns lead to
+> orders. Without your agreement nothing is kept. You can change your choice at any time under
+> [Cookie settings]. The stored value deletes itself after 30 days. You can delete it sooner by
+> clearing site data for [shop address] in your browser settings.
+
+**Turning it off.** `eldra: { campaignAttribution: false }` in `nuxt.config.ts` leaves the plugin out:
+nothing is noted, kept or sent. The SDK side, its options and the behaviour against a gateway older
+than public contract 5.4.0 are in
 [`packages/sdk/README.md`](../packages/sdk/README.md#campaign-attribution).
 
 ## More

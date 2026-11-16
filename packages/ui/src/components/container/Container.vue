@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cx, partClass } from '../../utils/cx';
 import type { ContainerProps, ContainerWidth } from './types';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ContainerProps>(), {
   width: 'content',
-  classes: undefined,
   as: 'div',
 });
 
@@ -26,10 +27,10 @@ const props = withDefaults(defineProps<ContainerProps>(), {
  * gets neither: "100%, no gutters".
  */
 const WIDTH: Record<ContainerWidth, string> = {
-  narrow: 'eldra-container-narrow',
-  content: 'eldra-container-content',
-  wide: 'eldra-container-wide',
-  full: 'max-w-none',
+  narrow: 'eldra:eldra-container-narrow',
+  content: 'eldra:eldra-container-content',
+  wide: 'eldra:eldra-container-wide',
+  full: 'eldra:max-w-none',
 };
 
 /**
@@ -42,18 +43,24 @@ const WIDTH: Record<ContainerWidth, string> = {
  * viewport, and one used with no `Section` ancestor simply stays at the mobile gutter throughout.
  */
 const GUTTER =
-  'px-[var(--eldra-gutter-mobile)] @tablet:px-[var(--eldra-gutter-tablet)] ' +
-  '@content:px-[var(--eldra-gutter-desktop)]';
+  'eldra:px-[var(--eldra-gutter-mobile)] eldra:@tablet:px-[var(--eldra-gutter-tablet)] ' +
+  'eldra:@content:px-[var(--eldra-gutter-desktop)]';
 
-const rootClass = computed(() =>
-  partClass(
-    cx('mx-auto w-full', WIDTH[props.width], props.width === 'full' ? '' : GUTTER),
-    props.classes,
-    'root'
-  )
-);
+const rootClass = computed(() => [
+  'eldra:mx-auto eldra:w-full',
+  WIDTH[props.width],
+  props.width === 'full' ? '' : GUTTER,
+]);
 </script>
 
 <template>
-  <component :is="as" data-eldra-ui data-part="root" :class="rootClass"><slot /></component>
+  <component
+    :is="as"
+    :data-eldra-slot="eldra.slotHost('default')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+    :class="rootClass"
+    ><slot
+  /></component>
 </template>

@@ -26,13 +26,21 @@ export interface UseOverlayOptions {
   content: Ref<HTMLElement | null>;
   /** Asked to close. The consumer writes `open`; nothing here does. */
   setOpen: (open: boolean) => void;
-  /** Close when a pointer press, or focus, lands outside the overlay. Default `true`. */
-  closeOnOutsideClick?: boolean;
-  /** Close on `Escape`. Default `true`. */
-  closeOnEscape?: boolean;
+  /**
+   * Close when a pointer press lands outside the overlay — and, unless `closeOnFocusOutside` says
+   * otherwise, when focus does. Default `true`. A getter is asked on every event.
+   */
+  closeOnOutsideClick?: boolean | (() => boolean);
+  /** Close when focus moves outside the overlay. Default: whatever `closeOnOutsideClick` is. */
+  closeOnFocusOutside?: boolean | (() => boolean);
+  /** Close on `Escape`. Default `true`. A getter is asked on every keystroke. */
+  closeOnEscape?: boolean | (() => boolean);
   /** Put focus back on the trigger when closing would otherwise lose it. Default `true`. */
-  returnFocus?: boolean;
+  returnFocus?: boolean | (() => boolean);
 }
+
+const read = (setting: boolean | (() => boolean) | undefined, fallback: boolean): boolean =>
+  setting === undefined ? fallback : typeof setting === 'function' ? setting() : setting;
 
 export interface UseOverlayReturn {
   /** Ask the consumer to close. */
@@ -100,9 +108,11 @@ export interface UseOverlayReturn {
  */
 export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
   const { open, trigger, content, setOpen } = options;
-  const closeOnOutsideClick = options.closeOnOutsideClick ?? true;
-  const closeOnEscape = options.closeOnEscape ?? true;
-  const returnFocus = options.returnFocus ?? true;
+  const closeOnOutsideClick = (): boolean => read(options.closeOnOutsideClick, true);
+  const closeOnFocusOutside = (): boolean =>
+    read(options.closeOnFocusOutside, closeOnOutsideClick());
+  const closeOnEscape = (): boolean => read(options.closeOnEscape, true);
+  const returnFocus = (): boolean => read(options.returnFocus, true);
 
   const focusables = (from?: HTMLElement | null): HTMLElement[] => {
     const root = from === undefined ? content.value : from;
@@ -128,47 +138,76 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
 
   const close = (): void => setOpen(false);
 
-  const isInside = (node: EventTarget | null): boolean => {
-    if (!(node instanceof Node)) return false;
+  /**
+   * A teleported part of the overlay is in the DOM somewhere else entirely, so containment says
+   * nothing about it. It is claimed one of two ways, both followed transitively:
+   *
+   * - **An owner marker**: an ancestor carrying `data-eldra-overlay-owner` names the content's id —
+   *   or the id of any element that is itself inside this overlay, so a picker teleported out of a
+   *   panel can point at the field inside the panel it belongs to.
+   * - **An open control inside the overlay**: an element with `aria-expanded="true"` inside this
+   *   overlay names, in `aria-controls`, an element in the node's popup — the owner-marked panel
+   *   that element sits in, or the element itself. That is a nested popup (a `Select` or another
+   *   `Popover` opened from this panel) whose own panel is teleported too.
+   *
+   * Walked by hand rather than through selectors so an id with a character CSS would have to
+   * escape cannot break the check.
+   */
+  const isInside = (node: EventTarget | null, visited = new Set<Node>()): boolean => {
+    if (!(node instanceof Node) || visited.has(node)) return false;
+    visited.add(node);
     if (trigger.value?.contains(node) === true) return true;
     if (content.value?.contains(node) === true) return true;
 
-    // A teleported part of the overlay is in the DOM somewhere else entirely, so containment says
-    // nothing about it. It claims the content's id instead. Walked by hand rather than through a
-    // selector so an id with a character CSS would have to escape cannot break the check.
     const id = content.value?.id;
-    if (id === undefined || id === '') return false;
+    if (id === undefined || id === '' || typeof document === 'undefined') return false;
     for (
       let element = node instanceof Element ? node : node.parentElement;
       element !== null;
       element = element.parentElement
     ) {
-      if (element.getAttribute(OVERLAY_OWNER_ATTRIBUTE) === id) return true;
+      const owner = element.getAttribute(OVERLAY_OWNER_ATTRIBUTE);
+      if (owner === id) return true;
+      if (owner === null || owner === '') continue;
+      const named = document.getElementById(owner);
+      if (named !== null && !named.contains(element) && isInside(named, visited)) return true;
+    }
+
+    for (const control of document.querySelectorAll<HTMLElement>('[aria-controls]')) {
+      if (control.getAttribute('aria-expanded') !== 'true' || control.contains(node)) continue;
+      for (const controlled of (control.getAttribute('aria-controls') ?? '').split(/\s+/)) {
+        const target = controlled === '' ? null : document.getElementById(controlled);
+        if (target === null) continue;
+        // The popup the control opens: the owner-marked panel its target sits in, else the target.
+        const popup = target.closest(`[${OVERLAY_OWNER_ATTRIBUTE}]`) ?? target;
+        if (!popup.contains(node) || popup.contains(control)) continue;
+        if (isInside(control, visited)) return true;
+      }
     }
     return false;
   };
 
   const onPointerDown = (event: Event): void => {
-    if (!open.value || isInside(event.target)) return;
+    if (!open.value || !closeOnOutsideClick() || isInside(event.target)) return;
     close();
   };
 
   const onFocusOut = (event: FocusEvent): void => {
-    if (!open.value) return;
+    if (!open.value || !closeOnFocusOutside()) return;
     // `focusout` bubbles from everywhere; only focus leaving *this* overlay is ours to act on.
     if (!isInside(event.target)) return;
     const next = event.relatedTarget;
     if (isInside(next)) return;
     close();
-    if (returnFocus && next === null) trigger.value?.focus();
+    if (returnFocus() && next === null) trigger.value?.focus();
   };
 
   const onKeyDown = (event: KeyboardEvent): void => {
-    if (!open.value || event.key !== 'Escape') return;
+    if (!open.value || event.key !== 'Escape' || !closeOnEscape()) return;
     event.preventDefault();
     event.stopPropagation();
     close();
-    if (returnFocus) trigger.value?.focus();
+    if (returnFocus()) trigger.value?.focus();
   };
 
   let listening = false;
@@ -176,11 +215,9 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
   const attach = (): void => {
     if (listening || typeof document === 'undefined') return;
     listening = true;
-    if (closeOnOutsideClick) {
-      document.addEventListener('pointerdown', onPointerDown, true);
-      document.addEventListener('focusout', onFocusOut);
-    }
-    if (closeOnEscape) document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('focusout', onFocusOut);
+    document.addEventListener('keydown', onKeyDown);
   };
 
   const detach = (): void => {
@@ -194,5 +231,5 @@ export function useOverlay(options: UseOverlayOptions): UseOverlayReturn {
   watch(open, (isOpen) => (isOpen ? attach() : detach()), { immediate: true });
   onScopeDispose(detach);
 
-  return { close, focusFirst, focusables, isInside };
+  return { close, focusFirst, focusables, isInside: (node) => isInside(node) };
 }

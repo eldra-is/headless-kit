@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.4.3](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.2...theme-nuxt-v0.4.3) (2026-11-15)
+
+
+### Features
+
+* **sdk:** WS-962 sdk brands gift card ([#134](https://github.com/eldra-is/headless-kit/issues/134)) ([6ee27b5](https://github.com/eldra-is/headless-kit/commit/6ee27b5465928a0576d7a4f18c7aaff2beb185f1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.3
+
+## [0.4.2](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.1...theme-nuxt-v0.4.2) (2026-11-10)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.2
+    * @eldrajs/theme-core bumped to 0.3.4
+    * @eldrajs/theme-vue bumped to 0.2.5
+    * @eldrajs/vite-plugin-theme bumped to 0.3.4
+
+## [0.4.1](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.0...theme-nuxt-v0.4.1) (2026-11-09)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.1
+    * @eldrajs/theme-core bumped to 0.3.3
+    * @eldrajs/theme-vue bumped to 0.2.4
+    * @eldrajs/vite-plugin-theme bumped to 0.3.3
+
+## [0.4.0](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.4...theme-nuxt-v0.4.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105))
+
+### Features
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105)) ([e39d86f](https://github.com/eldra-is/headless-kit/commit/e39d86f1c2c4a98824a00492ca8aa105e2d2fb26))
+* **sdk:** remember a campaign landing and send it with add to cart (WS-546) ([#96](https://github.com/eldra-is/headless-kit/issues/96)) ([1084718](https://github.com/eldra-is/headless-kit/commit/10847180ac225c11eb99411dec45c37fc7f68cfd))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.4.0
+
 ## [0.3.4](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.3.3...theme-nuxt-v0.3.4) (2026-10-26)
 
 

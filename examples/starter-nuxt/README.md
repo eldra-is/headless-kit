@@ -239,7 +239,9 @@ true`). Each id becomes a `--eldra-color-<id>` custom property, which is the _sa
 - **`app/assets/main.css`** — `@import 'tailwindcss'` then `@import '@eldrajs/ui/tailwind.css'`,
   which brings in the `--eldra-*` variables, the Tailwind `@theme` mapping over them
   (`bg-primary`, `rounded-md`, `shadow-md`, `font-heading`, `text-body`, …) and the package's own
-  utilities. What is left in the file is the theme's own: the section spacing scale, the container
+  utilities, then `@import '@eldrajs/ui/components.css'`, the package's components prebuilt (every
+  class `eldra:`-prefixed, below this file's utilities, so a class a block puts on a component
+  wins). What is left in the file is the theme's own: the section spacing scale, the container
   rules, the base layer and the rich-text typography. Edit it directly; there's no build step.
   Fonts are `--eldra-font-heading` / `--eldra-font-body` — override them here (the package names
   its two faces but never loads them).

@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.4.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.2...sdk-v0.4.3) (2026-11-15)
+
+
+### Features
+
+* **sdk:** WS-962 sdk brands gift card ([#134](https://github.com/eldra-is/headless-kit/issues/134)) ([6ee27b5](https://github.com/eldra-is/headless-kit/commit/6ee27b5465928a0576d7a4f18c7aaff2beb185f1))
+
+## [0.4.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.1...sdk-v0.4.2) (2026-11-10)
+
+
+### Features
+
+* **sdk:** typed product custom fields and the ext filter (WS-434) ([#114](https://github.com/eldra-is/headless-kit/issues/114)) ([d9d885b](https://github.com/eldra-is/headless-kit/commit/d9d885bbbbb8e12895c881aa1b6974b6b5b8aa40))
+
+## [0.4.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.0...sdk-v0.4.1) (2026-11-09)
+
+
+### Features
+
+* **sdk:** installIcelandicIntl() formats Icelandic for code that calls Intl itself ([#107](https://github.com/eldra-is/headless-kit/issues/107)) ([ce768ca](https://github.com/eldra-is/headless-kit/commit/ce768cada80c96f58eea9ab43118d5c1b8650959))
+
+## [0.4.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.2...sdk-v0.4.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105))
+
+### Features
+
+* **sdk:** keep campaign tags only after the visitor agrees (WS-760) ([#105](https://github.com/eldra-is/headless-kit/issues/105)) ([e39d86f](https://github.com/eldra-is/headless-kit/commit/e39d86f1c2c4a98824a00492ca8aa105e2d2fb26))
+* **sdk:** remember a campaign landing and send it with add to cart (WS-546) ([#96](https://github.com/eldra-is/headless-kit/issues/96)) ([1084718](https://github.com/eldra-is/headless-kit/commit/10847180ac225c11eb99411dec45c37fc7f68cfd))
+
 ## [0.3.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.3.1...sdk-v0.3.2) (2026-10-22)
 
 

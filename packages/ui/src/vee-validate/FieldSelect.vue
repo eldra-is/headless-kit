@@ -5,9 +5,14 @@
  */
 import Select from '../components/select/Select.vue';
 import type { FieldSelectProps } from './types';
-import { FIELD_ONLY, useControlProps, useFieldControl } from './useFieldControl';
+import {
+  FIELD_CHOICE_VALIDATION_DEFAULTS,
+  FIELD_ONLY,
+  useControlProps,
+  useFieldControl,
+} from './useFieldControl';
 
-const props = defineProps<FieldSelectProps>();
+const props = withDefaults(defineProps<FieldSelectProps>(), FIELD_CHOICE_VALIDATION_DEFAULTS);
 
 const { model, invalid, id, onBlur } = useFieldControl<string>(props, { empty: '' });
 

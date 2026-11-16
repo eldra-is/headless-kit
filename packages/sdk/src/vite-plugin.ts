@@ -133,6 +133,7 @@ export async function generateEldraFiles(
       maxDepth: options.maxDepth,
       moduleName,
       schemas: options.schemas,
+      sdkImport,
     })
   );
   const contractSource =
@@ -191,10 +192,13 @@ async function fetchCmsTypes(
     maxDepth: number | undefined;
     moduleName: string;
     schemas: string[] | undefined;
+    sdkImport: string;
   }
 ): Promise<string> {
   const url = new URL(`${trimSlash(apiBaseUrl)}/cms/v1/typescript-definitions`);
   url.searchParams.set('moduleName', options.moduleName);
+  // Without this the server leaves out the `declare module '@eldrajs/sdk'` block, which only an SDK consumer can compile.
+  url.searchParams.set('sdkAugmentation', 'true');
   if (options.maxDepth !== undefined) {
     url.searchParams.set('maxDepth', String(options.maxDepth));
   }
@@ -203,7 +207,25 @@ async function fetchCmsTypes(
   }
 
   const body = await fetchText(url, orgId, { ...options, accept: 'text/plain' });
-  return body.endsWith('\n') ? body : `${body}\n`;
+  return retargetSdkAugmentation(body.endsWith('\n') ? body : `${body}\n`, options.sdkImport);
+}
+
+// The server's definitions augment the SDK by its package name (`EldraProductExtensions`). A project
+// that imports the SDK under another specifier (`sdkImport`) needs the augmentation to name that one.
+export function retargetSdkAugmentation(source: string, sdkImport: string): string {
+  if (sdkImport === defaultSdkImport) return source;
+  const declaration = new RegExp(
+    `declare\\s+module\\s+(['"])${escapeRegExp(defaultSdkImport)}\\1`,
+    'g'
+  );
+  return source.replace(
+    declaration,
+    (_match, quote: string) => `declare module ${quote}${sdkImport}${quote}`
+  );
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function fetchContract(

@@ -39,11 +39,13 @@ export { default as LoadMore } from './components/load-more/LoadMore.vue';
 export { default as LogoItem } from './components/logo-item/LogoItem.vue';
 export { default as MultiSelect } from './components/select/MultiSelect.vue';
 export { default as NavMenu } from './components/nav-menu/NavMenu.vue';
+export { default as Notice } from './components/notice/Notice.vue';
 export { default as Pagination } from './components/pagination/Pagination.vue';
 export { default as Popover } from './components/popover/Popover.vue';
 export { default as Price } from './components/price/Price.vue';
 export { default as ProductCard } from './components/product-card/ProductCard.vue';
 export { default as QuantityStepper } from './components/quantity-stepper/QuantityStepper.vue';
+export { default as Radio } from './components/radio/Radio.vue';
 export { default as RadioGroup } from './components/radio/RadioGroup.vue';
 export { default as RangeSlider } from './components/range-slider/RangeSlider.vue';
 export { default as Rating } from './components/rating/Rating.vue';
@@ -53,6 +55,8 @@ export { default as Section } from './components/section/Section.vue';
 export { default as Select } from './components/select/Select.vue';
 export { default as SiteForm } from './components/site-form/SiteForm.vue';
 export { default as Skeleton } from './components/skeleton/Skeleton.vue';
+export { default as Spinner } from './components/spinner/Spinner.vue';
+export { default as StepIndicator } from './components/step-indicator/StepIndicator.vue';
 export { default as StockBadge } from './components/badge/StockBadge.vue';
 export { default as Switch } from './components/switch/Switch.vue';
 export { default as Tab } from './components/tabs/Tab.vue';
@@ -120,6 +124,7 @@ export type {
   ButtonPart,
   ButtonProps,
   ButtonSize,
+  ButtonSpinnerPlacement,
   ButtonVariant,
 } from './components/button/types';
 export type {
@@ -144,7 +149,7 @@ export type {
   ChipProps,
   ChipSize,
 } from './components/chip/types';
-export type { ContainerPart, ContainerProps, ContainerWidth } from './components/container/types';
+export type { ContainerProps, ContainerWidth } from './components/container/types';
 export type {
   ContentCardPart,
   ContentCardProps,
@@ -176,7 +181,7 @@ export type {
   FormLayoutSubmitPayload,
   FormLayoutVariant,
 } from './components/form-layout/types';
-export type { IconComponent, IconPart, IconProps, IconSize } from './components/icon/types';
+export type { IconComponent, IconProps, IconSize } from './components/icon/types';
 export type {
   ImageCrop,
   ImageMedia,
@@ -214,6 +219,7 @@ export type {
   NavMenuProps,
   NavMenuVariant,
 } from './components/nav-menu/types';
+export type { NoticePart, NoticeProps, NoticeTone } from './components/notice/types';
 export type { PaginationPart, PaginationProps } from './components/pagination/types';
 export type { PopoverPart, PopoverProps } from './components/popover/types';
 export type { PricePart, PriceProps, PriceSize } from './components/price/types';
@@ -234,6 +240,9 @@ export type {
   RadioGroupPart,
   RadioGroupProps,
   RadioGroupSize,
+  RadioPart,
+  RadioProps,
+  RadioValue,
 } from './components/radio/types';
 export type {
   RangeSliderEnd,
@@ -257,12 +266,7 @@ export type {
   SearchSelectType,
 } from './components/search-bar/types';
 export type { SearchModalPart, SearchModalProps } from './components/search-modal/types';
-export type {
-  SectionBackground,
-  SectionPart,
-  SectionProps,
-  SectionSpacing,
-} from './components/section/types';
+export type { SectionBackground, SectionProps, SectionSpacing } from './components/section/types';
 export type {
   SiteFormClient,
   SiteFormDefinition,
@@ -278,7 +282,20 @@ export type {
   SiteFormValue,
 } from './components/site-form/types';
 export type { SkeletonPart, SkeletonProps, SkeletonVariant } from './components/skeleton/types';
-export type { SwitchPart, SwitchProps, SwitchSize } from './components/switch/types';
+export type { SpinnerProps } from './components/spinner/types';
+export type {
+  StepIndicatorOrientation,
+  StepIndicatorPart,
+  StepIndicatorProps,
+  StepIndicatorState,
+  StepIndicatorStep,
+} from './components/step-indicator/types';
+export type {
+  SwitchPart,
+  SwitchProps,
+  SwitchSize,
+  SwitchSlotProps,
+} from './components/switch/types';
 export type {
   TabPanelPart,
   TabPanelProps,
@@ -290,7 +307,7 @@ export type {
   TabsProps,
   TabsVariant,
 } from './components/tabs/types';
-export type { TablerIconPart, TablerIconProps } from './components/tabler-icon/types';
+export type { TablerIconProps } from './components/tabler-icon/types';
 export type { TextareaPart, TextareaProps } from './components/textarea/types';
 export type {
   ToastAction,
@@ -298,7 +315,9 @@ export type {
   ToastProps,
   ToastVariant,
   ToasterPart,
+  ToasterPosition,
   ToasterProps,
+  ToasterToast,
 } from './components/toast/types';
 export type {
   TooltipAlign,
@@ -314,7 +333,7 @@ export type {
   VariantPickerProps,
   VariantPickerType,
 } from './components/variant-picker/types';
-export type { VisuallyHiddenPart, VisuallyHiddenProps } from './components/visually-hidden/types';
+export type { VisuallyHiddenProps } from './components/visually-hidden/types';
 
 // Messages
 export { defaultMessages, enUS } from './messages';
@@ -338,6 +357,11 @@ export {
   useEldraUiCurrency,
   useEldraUiLocale,
 } from './composables/useLocale';
+
+// A theming scope: a wrapper calls `provideEldraScope()` and every component below it renders
+// `data-eldra-scope` on its roots and `data-eldra-slot` on the elements holding the wrapper's slot
+// content (README, "Theming a subtree").
+export { ELDRA_SCOPE_KEY, provideEldraScope } from './composables/useEldraScope';
 
 // Composables
 export { useControllableModel } from './composables/useControllableModel';
@@ -370,6 +394,9 @@ export {
   type UseFloatingOptions,
   type UseFloatingReturn,
 } from './composables/useFloating';
+// The open top-layer `<dialog>` a popup has to render inside instead of `body`, for a consumer's own
+// teleported popup (a third-party date picker) to follow the rule this package's popovers follow.
+export { topLayerDialog } from './composables/teleportTarget';
 // `headingLevel` → `<component :is>` tag, shared by every component with a `headingLevel` prop
 // (`ContentCard`, `FeatureCard`, `ProductCard`, `EmptyState`, `FormLayout`) — exported so a
 // consumer's own wrapper picks the same heading tag the same way.
@@ -519,7 +546,6 @@ export { TABS_KEY, type TabsContext, type TabsEntry } from './components/tabs/co
 
 // Styling helpers, so a consumer composing its own wrapper merges classes the
 // same way the components do.
-export { cx, partClass, type ClassValue } from './utils/cx';
 export { mixToward } from './utils/color';
 export { joinIds, useUiId } from './utils/id';
 export { applyMask, defaultCharacterMeaning, stripMask } from './utils/mask';

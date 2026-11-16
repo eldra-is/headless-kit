@@ -1,4 +1,4 @@
-import { nextTick } from 'vue';
+import { defineComponent, h, inject, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { VueWrapper } from '@vue/test-utils';
 import { axe } from '../../../test/axe';
@@ -6,6 +6,7 @@ import { mountNarrow, mountWith } from '../../../test/mount';
 import Tab from '../Tab.vue';
 import TabPanel from '../TabPanel.vue';
 import Tabs from '../Tabs.vue';
+import { TABS_KEY } from '../context';
 import type { TabsItem } from '../types';
 
 /** The spec's own "Product information" tabs. */
@@ -241,7 +242,7 @@ describe('Tabs — indicator', () => {
   it('gives the underline variant a colour-only transition, never a slide', async () => {
     const wrapper = await mount();
     const classes = wrapper.get('[data-part="indicator"]').classes();
-    expect(classes).toEqual(expect.arrayContaining(['transition-colors', 'duration-fast']));
+    expect(classes).toContain('eldra:eldra-transition-colors');
     expect(classes.some((name) => name.includes('translate') || name.includes('transform'))).toBe(
       false
     );
@@ -251,11 +252,11 @@ describe('Tabs — indicator', () => {
     const wrapper = await mount();
     const indicatorOf = (index: number) =>
       wrapper.findAll('[data-part="indicator"]')[index]!.classes();
-    expect(indicatorOf(0)).toContain('bg-primary');
-    expect(indicatorOf(1)).toContain('bg-transparent');
+    expect(indicatorOf(0)).toContain('eldra:bg-primary');
+    expect(indicatorOf(1)).toContain('eldra:bg-transparent');
     await tabsOf(wrapper)[1]!.trigger('click');
-    expect(indicatorOf(0)).toContain('bg-transparent');
-    expect(indicatorOf(1)).toContain('bg-primary');
+    expect(indicatorOf(0)).toContain('eldra:bg-transparent');
+    expect(indicatorOf(1)).toContain('eldra:bg-primary');
   });
 
   it('renders no indicator part in the pills variant', async () => {
@@ -269,9 +270,9 @@ describe('Tabs — variants', () => {
     const wrapper = await mount({ variant: 'pills' });
     const tabs = tabsOf(wrapper);
     expect(tabs[0]!.classes()).toEqual(
-      expect.arrayContaining(['bg-primary', 'border-primary', 'rounded-full'])
+      expect.arrayContaining(['eldra:bg-primary', 'eldra:border-primary', 'eldra:rounded-full'])
     );
-    expect(tabs[1]!.classes()).toEqual(expect.arrayContaining(['border-border-strong']));
+    expect(tabs[1]!.classes()).toEqual(expect.arrayContaining(['eldra:border-border-strong']));
   });
 });
 
@@ -345,28 +346,30 @@ describe('Tabs — v-model through the slots API (M7)', () => {
 
 describe('Tabs — classes', () => {
   it('accepts a class override for every part, including the parts a child component draws', async () => {
-    const wrapper = await mount({
-      classes: { root: 'ring-1', list: 'italic', tab: 'uppercase', indicator: 'opacity-50' },
-    });
+    const wrapper = await mount(
+      { classes: { list: 'italic', tab: 'uppercase', indicator: 'opacity-50', panel: 'pt-2' } },
+      { attrs: { class: 'ring-1' } }
+    );
     expect(wrapper.classes()).toContain('ring-1');
     expect(wrapper.get('[data-part="list"]').classes()).toContain('italic');
     expect(tabsOf(wrapper)[0]!.classes()).toContain('uppercase');
     expect(wrapper.get('[data-part="indicator"]').classes()).toContain('opacity-50');
+    expect(wrapper.get('[role="tabpanel"]').classes()).toContain('pt-2');
   });
 
   it('accepts a class override on a standalone Tab and TabPanel', async () => {
     const wrapper = mountWith(Tabs, {
       props: { ariaLabel: 'Product information' },
       slots: {
-        tabs: '<Tab value="description" :classes="{ tab: \'uppercase\' }">Description</Tab>',
-        default:
-          '<TabPanel value="description" :classes="{ panel: \'italic\' }">Content</TabPanel>',
+        tabs: '<Tab value="description" class="uppercase" :classes="{ indicator: \'opacity-50\' }">Description</Tab>',
+        default: '<TabPanel value="description" class="italic">Content</TabPanel>',
       },
       global: { components: { Tab, TabPanel } },
     });
     mounted.push(wrapper as unknown as VueWrapper);
     await nextTick();
     expect(wrapper.get('[role="tab"]').classes()).toContain('uppercase');
+    expect(wrapper.get('[data-part="indicator"]').classes()).toContain('opacity-50');
     expect(wrapper.get('[role="tabpanel"]').classes()).toContain('italic');
   });
 });
@@ -383,9 +386,125 @@ describe('Tabs — narrow', () => {
     mounted.push(wrapper as unknown as VueWrapper);
     await nextTick();
     const list = wrapper.get('[role="tablist"]');
-    expect(list.classes()).toContain('overflow-x-auto');
-    expect(list.classes()).toContain('eldra-scrollbar-hide');
-    expect(list.classes()).not.toContain('flex-wrap');
+    expect(list.classes()).toContain('eldra:overflow-x-auto');
+    expect(list.classes()).toContain('eldra:eldra-scrollbar-hide');
+    expect(list.classes()).not.toContain('eldra:flex-wrap');
+  });
+});
+
+const WITH_DISABLED: TabsItem[] = [
+  { value: 'description', title: 'Description', content: 'A relaxed-fit crew neck sweater.' },
+  { value: 'materials', title: 'Materials & care', content: 'Hand wash cold.', disabled: true },
+  { value: 'shipping', title: 'Shipping & returns', content: 'Ships in 2-3 business days.' },
+];
+
+describe('Tabs — disabled tabs', () => {
+  it('marks a disabled tab aria-disabled, never native disabled, and leaves the others alone', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    const tabs = tabsOf(wrapper);
+    expect(tabs.map((tab) => tab.attributes('aria-disabled'))).toEqual([
+      undefined,
+      'true',
+      undefined,
+    ]);
+    expect(tabs[1]!.attributes('disabled')).toBeUndefined();
+    expect(tabs[1]!.classes()).toContain('eldra:cursor-not-allowed');
+  });
+
+  it('renders exactly as before when no tab is disabled', async () => {
+    const wrapper = await mount();
+    for (const tab of tabsOf(wrapper)) {
+      expect(tab.attributes('aria-disabled')).toBeUndefined();
+      expect(tab.classes()).toContain('eldra:cursor-pointer');
+    }
+  });
+
+  it('ignores a click on a disabled tab', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    await tabsOf(wrapper)[1]!.trigger('click');
+    expect(tabsOf(wrapper)[0]!.attributes('aria-selected')).toBe('true');
+    expect(tabsOf(wrapper)[1]!.attributes('aria-selected')).toBe('false');
+    expect(wrapper.emitted('change')).toBeUndefined();
+  });
+
+  it('skips a disabled tab with the arrow keys, both ways', async () => {
+    const wrapper = await mount({ items: WITH_DISABLED });
+    const tabs = tabsOf(wrapper);
+    (tabs[0]!.element as HTMLElement).focus();
+    await tabs[0]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[2]!.element);
+    expect(tabs[2]!.attributes('aria-selected')).toBe('true');
+    await tabs[2]!.trigger('keydown', { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(tabs[0]!.element);
+  });
+
+  it('Home/End land on the first/last tab that is not disabled', async () => {
+    const items = [
+      { ...WITH_DISABLED[0]!, disabled: true },
+      WITH_DISABLED[2]!,
+      { value: 'reviews', title: 'Reviews', disabled: true },
+    ];
+    const wrapper = await mount({ items, modelValue: 'shipping' });
+    const tabs = tabsOf(wrapper);
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'Home' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+    await tabs[1]!.trigger('keydown', { key: 'End' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+  });
+
+  it('defaults to the first tab that is not disabled', async () => {
+    const items = [{ ...WITH_DISABLED[0]!, disabled: true }, ...WITH_DISABLED.slice(1)];
+    const wrapper = await mount({ items });
+    expect(tabsOf(wrapper).map((tab) => tab.attributes('aria-selected'))).toEqual([
+      'false',
+      'false',
+      'true',
+    ]);
+  });
+
+  it('keeps a selected disabled tab as the one tab stop, and moves nowhere when every tab is disabled', async () => {
+    const items = ITEMS.map((item) => ({ ...item, disabled: true }));
+    const wrapper = await mount({ items, modelValue: 'materials' });
+    const tabs = tabsOf(wrapper);
+    expect(tabs.map((tab) => tab.attributes('tabindex'))).toEqual(['-1', '0', '-1']);
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'ArrowRight' });
+    await tabs[1]!.trigger('keydown', { key: 'End' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+  });
+
+  it('draws a selected disabled underline tab with a muted bar, not the primary one', async () => {
+    const items = ITEMS.map((item) => ({ ...item, disabled: true }));
+    const wrapper = await mount({ items });
+    const indicators = wrapper.findAll('[data-part="indicator"]');
+    expect(indicators[0]!.classes()).toContain('eldra:bg-muted');
+    expect(indicators[0]!.classes()).not.toContain('eldra:bg-primary');
+  });
+
+  it('takes disabled on a standalone Tab in the slots API', async () => {
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Product information' },
+      slots: {
+        tabs: '<Tab value="a" title="A" /><Tab value="b" title="B" disabled />',
+        default: '<TabPanel value="a">A</TabPanel><TabPanel value="b">B</TabPanel>',
+      },
+      global: { components: { Tab, TabPanel } },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const tabs = wrapper.findAll('[role="tab"]');
+    expect(tabs[1]!.attributes('aria-disabled')).toBe('true');
+    await tabs[1]!.trigger('click');
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true');
+  });
+
+  it('has no axe violations with a disabled tab (underline and pills)', async () => {
+    const underline = await mount({ items: WITH_DISABLED });
+    expect(await axe(underline.element)).toHaveNoViolations();
+    const pills = await mount({ items: WITH_DISABLED, variant: 'pills' });
+    expect(await axe(pills.element)).toHaveNoViolations();
   });
 });
 
@@ -403,5 +522,55 @@ describe('Tabs — accessibility', () => {
   it('has no axe violations under manual activation', async () => {
     const wrapper = await mount({ activation: 'manual' });
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});
+
+describe('Tabs — a registered entry without `disabled`', () => {
+  it('reads an entry registered without `disabled` as enabled, for selection and the arrow keys', async () => {
+    const CustomTab = defineComponent({
+      props: { value: { type: String, required: true } },
+      setup(props) {
+        const context = inject(TABS_KEY)!;
+        const el = ref<HTMLButtonElement | null>(null);
+        let unregister: (() => void) | undefined;
+        onMounted(() => {
+          unregister = context.register({ value: props.value, focus: () => el.value?.focus() });
+        });
+        onBeforeUnmount(() => unregister?.());
+        return () =>
+          h(
+            'button',
+            {
+              ref: el,
+              type: 'button',
+              role: 'tab',
+              id: context.tabId(props.value),
+              'aria-selected': context.isSelected(props.value) ? 'true' : 'false',
+              onKeydown: (event: KeyboardEvent) => {
+                if (event.key === 'ArrowRight') context.moveFocus(props.value, 1);
+              },
+            },
+            props.value
+          );
+      },
+    });
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Product information' },
+      slots: {
+        tabs: '<CustomTab value="custom" /><Tab value="materials">Materials</Tab>',
+        default:
+          '<TabPanel value="custom">Custom</TabPanel><TabPanel value="materials">Materials</TabPanel>',
+      },
+      global: { components: { CustomTab, Tab, TabPanel } },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    const tabs = tabsOf(wrapper);
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true');
+    (tabs[1]!.element as HTMLElement).focus();
+    await tabs[1]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[0]!.element);
+    await tabs[0]!.trigger('keydown', { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[1]!.element);
   });
 });

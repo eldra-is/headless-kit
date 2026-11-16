@@ -224,7 +224,7 @@ describe('order-status block', () => {
 
     /** `Badge`'s own `outline` look ignores `tone` entirely (`bg-background text-text
      *  border-border-strong` regardless of the prop), so without an explicit override every status
-     *  would render in the same neutral colour — this pins the per-state `classes.root` override
+     *  would render in the same neutral colour — this pins the per-state `class` override
      *  that recolours the icon/word/border for the three non-neutral states. */
     it.each([
       ['delivered', enUS.storefront.orderStatus.delivered, 'success'],
@@ -237,7 +237,6 @@ describe('order-status block', () => {
         const badge = badgeFor(wrapper, word);
         expect(badge.classes()).toContain(`text-${tone}`);
         expect(badge.classes()).toContain(`border-${tone}`);
-        expect(badge.classes()).not.toContain('text-text');
       }
     );
 

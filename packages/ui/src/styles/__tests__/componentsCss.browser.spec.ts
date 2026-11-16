@@ -2,10 +2,11 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Page } from '@playwright/test';
+import { compile } from '@tailwindcss/node';
 import vue from '@vitejs/plugin-vue';
 import { build, type Rollup } from 'vite';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createSSRApp, h, type VNode } from 'vue';
+import { createSSRApp, defineComponent, h, type VNode } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { ALL_FACETS } from '../../components/filter-panel/northwind';
 import type { NavMenuItem } from '../../components/nav-menu/types';
@@ -328,9 +329,11 @@ function documentWith(css: string, body: string): string {
 
 const OVERLAY_ENTRY = `
 import { createApp } from 'vue';
+import { provideEldraScope } from ${JSON.stringify(fileURLToPath(new URL('../../composables/useEldraScope.ts', import.meta.url)))};
 import { OVERLAY_SAMPLES } from ${JSON.stringify(fileURLToPath(new URL('./overlaySamples.ts', import.meta.url)))};
-window.mountOverlay = (name) => {
-  createApp({ render: OVERLAY_SAMPLES.find((sample) => sample.name === name).render }).mount('#app');
+window.mountOverlay = (name, scope) => {
+  const render = OVERLAY_SAMPLES.find((sample) => sample.name === name).render;
+  createApp({ setup: () => (scope && provideEldraScope(scope), render) }).mount('#app');
 };
 `;
 
@@ -380,7 +383,7 @@ async function settle(page: Page): Promise<void> {
   );
 }
 
-async function shotOpen(sample: OverlaySample, css: string): Promise<Buffer> {
+async function shotOpen(sample: OverlaySample, css: string, scope?: string): Promise<Buffer> {
   const page = await browser.newPage({
     viewport: { width: 1100, height: 700 },
     reducedMotion: 'reduce',
@@ -388,8 +391,12 @@ async function shotOpen(sample: OverlaySample, css: string): Promise<Buffer> {
   await page.setContent(documentWith(css, '<div class="frame"><div id="app"></div></div>'));
   await page.addScriptTag({ content: overlayScript });
   await page.evaluate(
-    (name) => (window as unknown as { mountOverlay(n: string): void }).mountOverlay(name),
-    sample.name
+    ([name, scope]) =>
+      (window as unknown as { mountOverlay(n: string, s?: string): void }).mountOverlay(
+        name,
+        scope
+      ),
+    [sample.name, scope] as const
   );
   if (sample.open) {
     const target = page.locator(`#app ${sample.open.selector}`).first();
@@ -479,6 +486,192 @@ describe('components.css', () => {
       expect(Buffer.compare(componentsOnly, withPreflight)).toBe(0);
     }
   );
+
+  itFailsWithoutDist(built);
+});
+
+/**
+ * A consumer that runs Tailwind itself, with a theme that disagrees with the kit's on every name
+ * they share, compiling every utility the kit uses under its unprefixed name: each one would
+ * restyle a component if the kit's classes were not `eldra:`-prefixed.
+ */
+async function consumerTailwind(): Promise<string> {
+  const candidates = new Set<string>();
+  for (const [, name] of stylesheet('components.css').matchAll(/\.((?:\\.|[\w-])+)/g))
+    candidates.add(name!.replace(/\\(.)/g, '$1').replace(/^eldra:/, ''));
+  const compiler = await compile(
+    `@import 'tailwindcss';
+@theme {
+  --color-text: rgb(1 2 3); --color-primary: rgb(200 0 0); --color-background: rgb(250 250 0);
+  --color-surface: rgb(0 250 250); --color-border: rgb(0 200 0); --color-muted: rgb(0 0 200);
+  --spacing: 1px; --radius-sm: 0; --radius-md: 0; --radius-lg: 0; --radius-full: 0;
+  --text-sm: 30px; --font-body: monospace; --shadow-md: 0 0 0 4px red;
+}`,
+    { base: packageRoot, onDependency() {} }
+  );
+  return compiler.build([...candidates, 'text-text', 'p-4', 'border', 'bg-surface', 'w-[333px]']);
+}
+
+describe('components.css in a consumer Tailwind app', () => {
+  let consumer = '';
+  beforeAll(async () => {
+    if (built) consumer = await consumerTailwind();
+  }, 60_000);
+  // Both orders: the layers, not the order, decide who wins.
+  const ORDERS = [
+    ['kit first', () => `${stylesheet('components.css')}\n${consumer}`],
+    ['kit last', () => `${consumer}\n${stylesheet('components.css')}`],
+  ] as const;
+
+  it.runIf(built).each(SAMPLES.flatMap((s) => ORDERS.map((o) => [s[0], o[0], s, o[1]] as const)))(
+    'draws %s (%s) exactly as style.css does alone',
+    async (_name, _order, [, render, modal = false], css) => {
+      const shot = async (sheet: string, markup: string) => {
+        const page = await browser.newPage({
+          viewport: { width: 1100, height: 700 },
+          reducedMotion: 'reduce',
+        });
+        await page.setContent(documentWith(sheet, `<div class="frame">${markup}</div>`));
+        if (modal) {
+          await page.evaluate(() => {
+            for (const dialog of document.querySelectorAll('dialog')) dialog.showModal();
+          });
+        }
+        await settle(page);
+        const png = await page.screenshot({ fullPage: true });
+        await page.close();
+        return png;
+      };
+      const markup = await renderToString(createSSRApp({ render }));
+      const reference = await shot(stylesheet('style.css'), markup);
+      expect(Buffer.compare(await shot(css(), markup), reference)).toBe(0);
+    }
+  );
+
+  it.runIf(built).each(OVERLAY_SAMPLES.map((sample) => [sample.name, sample] as const))(
+    'draws %s open, teleported parts too, exactly as style.css does alone',
+    async (_name, sample) => {
+      const reference = await shotOpen(sample, stylesheet('style.css'));
+      expect(Buffer.compare(await shotOpen(sample, ORDERS[1][1]()), reference)).toBe(0);
+    }
+  );
+
+  it.runIf(built).each(ORDERS)(
+    "lets a consumer class on a component beat the kit's own (%s)",
+    async (_order, css) => {
+      const markup = await renderToString(
+        createSSRApp({
+          render: () => h(ui.Button, { variant: 'primary', class: 'w-[333px] p-4' }, () => 'Add'),
+        })
+      );
+      const page = await browser.newPage();
+      await page.setContent(documentWith(css(), markup));
+      const style = await page.evaluate(() => {
+        const s = getComputedStyle(document.querySelector('button')!);
+        return [s.width, s.paddingTop];
+      });
+      expect(style).toEqual(['333px', '4px']);
+      await page.close();
+    }
+  );
+
+  it.runIf(built)(
+    "leaves the consumer's own markup in a slot to the consumer's Tailwind",
+    async () => {
+      const label = () => h('span', { id: 'mine', class: 'text-text p-4' }, 'Mine');
+      const markup = await renderToString(
+        createSSRApp({ render: () => h(ui.Button, { variant: 'secondary' }, label) })
+      );
+      const page = await browser.newPage();
+      await page.setContent(documentWith(ORDERS[1][1](), markup));
+      const read = (selector: string) =>
+        page.evaluate((s) => {
+          const style = getComputedStyle(document.querySelector(s)!);
+          return `${style.color} ${style.paddingTop}`;
+        }, selector);
+      expect(await read('#mine')).toBe('rgb(1, 2, 3) 4px');
+      expect(await read('[data-part="label"]')).not.toBe('rgb(1, 2, 3) 4px');
+      await page.close();
+    }
+  );
+
+  const MINE = 'text-text border p-4 bg-surface';
+  const CONSUMER_SLOTS: Array<[name: string, render: () => VNode]> = [
+    [
+      'Popover trigger',
+      () =>
+        h(ui.Popover, null, {
+          trigger: ({ attrs }: { attrs: Record<string, unknown> }) =>
+            h('button', { ...attrs, id: 'mine', class: [attrs.class, MINE] }, 'Filters'),
+          default: () => 'Panel',
+        }),
+    ],
+    [
+      'Tooltip trigger',
+      () =>
+        h(ui.Tooltip, { text: 'Tip' }, () =>
+          h('button', { id: 'mine', type: 'button', 'data-part': 'trigger', class: MINE }, 'Info')
+        ),
+    ],
+    [
+      'FieldWrapper error',
+      () =>
+        h(
+          ui.FieldWrapper,
+          { label: 'Name' },
+          {
+            default: () => h(ui.Input),
+            error: () => h('span', { id: 'mine', 'data-part': 'message', class: MINE }, 'Wrong'),
+          }
+        ),
+    ],
+  ];
+
+  it.runIf(built).each(CONSUMER_SLOTS)(
+    "leaves the consumer's own element in a %s to the consumer's Tailwind",
+    async (_name, render) => {
+      const markup = await renderToString(createSSRApp({ render }));
+      const page = await browser.newPage();
+      await page.setContent(documentWith(ORDERS[0][1](), `<div class="frame">${markup}</div>`));
+      const style = await page.evaluate(() => {
+        const s = getComputedStyle(document.getElementById('mine')!);
+        return [s.color, s.borderTopWidth, s.paddingTop, s.backgroundColor];
+      });
+      expect(style).toEqual(['rgb(1, 2, 3)', '1px', '4px', 'rgb(0, 250, 250)']);
+      await page.close();
+    }
+  );
+
+  it.runIf(built)('re-themes through --eldra-* on :root and on a scope root', async () => {
+    const button = () => h(ui.Button, { variant: 'primary' }, () => 'Add');
+    const host = await renderToString(createSSRApp({ render: button }));
+    const embedded = await renderToString(
+      createSSRApp(
+        defineComponent({
+          setup() {
+            ui.provideEldraScope('toolbar');
+            return button;
+          },
+        })
+      )
+    );
+    const page = await browser.newPage({ reducedMotion: 'reduce' });
+    const css =
+      `${stylesheet('components.css')}\n${consumer}\n` +
+      ':root { --eldra-color-primary: rgb(0, 128, 0); }\n' +
+      "[data-eldra-scope='toolbar'] { --eldra-color-primary: rgb(0, 0, 128); }";
+    await page.setContent(
+      documentWith(css, `<div id="host">${host}</div><div id="embedded">${embedded}</div>`)
+    );
+    const background = (id: string) =>
+      page.evaluate(
+        (i) => getComputedStyle(document.querySelector(`#${i} button`)!).backgroundColor,
+        id
+      );
+    expect(await background('host')).toBe('rgb(0, 128, 0)');
+    expect(await background('embedded')).toBe('rgb(0, 0, 128)');
+    await page.close();
+  });
 
   itFailsWithoutDist(built);
 });

@@ -18,9 +18,18 @@ useEldraSeo(
     'product.name': product.title,
     'product.price': money.format(product.price),
   }),
-  () => ({ template: templateEntry.data.seo, contentImage: product.images[0]?.url })
+  () => ({
+    entry: product.seo,
+    template: templateEntry.data.seo,
+    contentImage: product.images[0]?.url,
+  })
 );
 ```
+
+A product, category, collection or brand carries the merchant's own `seo` value in the same shape a
+page does (contract 6.6.0: `title`, `description`, `canonicalUrl`, `ogTitle`, `ogDescription`,
+`imageUrl`, `noindex`). Pass it as `entry`: it then wins over the route template's value field by
+field, exactly as a page's own does. Only the page reads carry it, never a product card.
 
 `useEldraSeo(context, data, options?)` takes refs or getters, so the tags follow the route. It sets
 `<title>`, `description`, `<link rel="canonical">`, `og:title`, `og:description`, `og:type`,
@@ -29,13 +38,13 @@ useEldraSeo(
 search, `robots: noindex`. It returns the resolved values. A tag whose value is empty is not
 written, and a canonical, `og:url` or `og:image` is written only when it is an absolute URL.
 
-| Context              | Variables the theme supplies (besides `site.*`)                                                                                                                             |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `page`               | `page.title`, `page.slug`                                                                                                                                                   |
-| `home`               | `page.title`                                                                                                                                                                |
-| `catalog:product`    | `product.name`, `product.brand`, `product.price` (formatted by the theme in the store's currency and locale), `product.sku`, `product.shortDescription`, `product.category` |
-| `catalog:collection` | `collection.name`, `collection.description`, `collection.productCount`                                                                                                      |
-| `catalog:category`   | `category.name`, `category.description`, `category.productCount`                                                                                                            |
+| Context              | Variables the theme supplies (besides `site.*`)                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`               | `page.title`, `page.slug`                                                                                                                                  |
+| `home`               | `page.title`                                                                                                                                               |
+| `catalog:product`    | `product.name`, `product.price` (formatted by the theme in the store's currency and locale), `product.sku`, `product.shortDescription`, `product.category` |
+| `catalog:collection` | `collection.name`, `collection.description`, `collection.productCount`                                                                                     |
+| `catalog:category`   | `category.name`, `category.description`, `category.productCount`                                                                                           |
 
 `site.name`, `site.url` and `site.locale` are filled in for every context. The registry is
 code-owned in Core (`GET /seo/variables`); a variable the theme does not supply renders empty.
@@ -118,7 +127,10 @@ prerendered, so neither can list a page that does not exist:
   locale, so the sitemap's canonicals (a plain string counts only on a single-locale site) and its
   `noindex` apply to the build locale's read: on a multi-locale site, set `noindex` and canonicals
   per page in every locale or treat the sitemap as path-derived. `useEldraSeo` still writes each
-  page's own canonical in its head.
+  page's own canonical in its head. A catalog route uses the record's own `seo` from the list
+  read, then the route template's: a category's and a collection's whole value, and a product
+  card's two crawl members (`noindex` and `canonicalUrl`), so a product hidden from search
+  engines is left out.
 - Past 50,000 URLs or 50 MiB per file, `sitemap.xml` becomes a `sitemapindex` over `sitemap-1.xml`,
   `sitemap-2.xml`, ... (the module option `sitemap: { maxUrls, maxBytes }` lowers the limits;
   `sitemap: false` turns the sitemap off). Every locale counts, so a store's URL count is its page
@@ -166,8 +178,8 @@ trail as a trail. The builders are framework-free and live in `@eldrajs/theme-co
 - **Nothing made up.** A value that is unset is left out, never written empty. `gtin` is written
   only when the barcode is a valid GTIN-8/12/13/14 (check digit included). There is no
   `AggregateRating` until real review data exists. `priceValidUntil` is not written until the
-  platform has a sale schedule to give it. `Product.brand` is the product's own `brand`, else the
-  shop's name.
+  platform has a sale schedule to give it. `Product.brand` is the shop's name: products carry no
+  brand of their own.
 - **Static HTML is a snapshot.** The markup is in the prerendered file, so `availability` is the
   stock at build time; it is not rewritten in the browser. Search engines re-crawl.
 - **The shop's profile.** `Organization` takes its name, logo, social profile links (`sameAs`),

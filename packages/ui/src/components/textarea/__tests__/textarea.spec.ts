@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { computed, createSSRApp, h, nextTick, ref } from 'vue';
+import { computed, createSSRApp, defineComponent, h, nextTick, ref, type Ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { axe } from '../../../test/axe';
+import type { VueWrapper } from '@vue/test-utils';
 import { mountNarrow, mountWith } from '../../../test/mount';
 import { FIELD_KEY, type FieldContext } from '../../field-wrapper/context';
 import * as supportsFieldSizingModule from '../supportsFieldSizing';
@@ -63,12 +64,14 @@ describe('Textarea — element and parts', () => {
     wrapper.unmount();
   });
 
-  it('merges a per-part class override', () => {
+  it('puts class on the root and appends a per-part class override', () => {
     const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 10, modelValue: 'hi', classes: { root: 'mt-4' } },
-      attrs: NAME,
+      props: { counter: true, maxLength: 10, modelValue: 'hi', classes: { counter: 'opacity-50' } },
+      attrs: { ...NAME, class: 'mt-4' },
     });
     expect(wrapper.classes()).toContain('mt-4');
+    expect(control(wrapper).classList).not.toContain('mt-4');
+    expect(wrapper.find('[data-part="counter"]').classes()).toContain('opacity-50');
     wrapper.unmount();
   });
 });
@@ -190,16 +193,16 @@ describe('Textarea — sizing', () => {
   it('grows with field-sizing: content, and a resize handle stays vertical only', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).toContain('field-sizing-content');
-    expect(classes).toContain('resize-y');
-    expect(classes).toContain('max-h-64');
+    expect(classes).toContain('eldra:field-sizing-content');
+    expect(classes).toContain('eldra:resize-y');
+    expect(classes).toContain('eldra:max-h-64');
     wrapper.unmount();
   });
 
   it('reads minHeight from a CSS variable, not a literal utility', () => {
     const wrapper = mountWith(Textarea, { props: { minHeight: '8rem' }, attrs: NAME });
     const el = control(wrapper);
-    expect(el.className).toContain('min-h-[var(--eldra-textarea-min-height)]');
+    expect(el.className).toContain('eldra:min-h-[var(--eldra-textarea-min-height)]');
     expect(el.style.getPropertyValue('--eldra-textarea-min-height')).toBe('8rem');
     wrapper.unmount();
   });
@@ -350,8 +353,8 @@ describe('Textarea — counter', () => {
       attrs: NAME,
     });
     const underClasses = under.find('[data-part="counter"]').classes();
-    expect(underClasses).toContain('text-muted');
-    expect(underClasses).not.toContain('text-danger');
+    expect(underClasses).toContain('eldra:text-muted');
+    expect(underClasses).not.toContain('eldra:text-danger');
     under.unmount();
 
     const over = mountWith(Textarea, {
@@ -359,14 +362,19 @@ describe('Textarea — counter', () => {
       attrs: NAME,
     });
     const overClasses = over.find('[data-part="counter"]').classes();
-    expect(overClasses).toContain('text-danger');
-    expect(overClasses).toContain('font-semibold');
+    expect(overClasses).toContain('eldra:text-danger');
+    expect(overClasses).toContain('eldra:font-semibold');
     over.unmount();
   });
 
   it('allows typing past a soft limit', async () => {
-    const wrapper = mountWith(Textarea, {
-      props: { counter: true, maxLength: 5, modelValue: '' },
+    const wrapper: VueWrapper = mountWith(Textarea, {
+      props: {
+        counter: true,
+        maxLength: 5,
+        modelValue: '',
+        'onUpdate:modelValue': (value: string) => void wrapper.setProps({ modelValue: value }),
+      },
       attrs: NAME,
     });
     const el = control(wrapper);
@@ -402,8 +410,8 @@ describe('Textarea — counter', () => {
       attrs: NAME,
     });
     const classes = wrapper.find('[data-part="counter"]').classes();
-    expect(classes).toContain('tabular-nums');
-    expect(classes).toContain('whitespace-nowrap');
+    expect(classes).toContain('eldra:tabular-nums');
+    expect(classes).toContain('eldra:whitespace-nowrap');
     wrapper.unmount();
   });
 });
@@ -517,15 +525,15 @@ describe('Textarea — states', () => {
   it('sets aria-invalid and the danger boundary when invalid', () => {
     const wrapper = mountWith(Textarea, { props: { invalid: true }, attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
-    expect(control(wrapper).className).toContain('border-danger');
-    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    expect(control(wrapper).className).toContain('eldra:border-danger');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('sets no aria-invalid when valid', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
     expect(control(wrapper).getAttribute('aria-invalid')).toBeNull();
-    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
@@ -534,9 +542,9 @@ describe('Textarea — states', () => {
     const el = control(wrapper);
     expect(el.disabled).toBe(true);
     const classes = el.className.split(/\s+/);
-    expect(classes).toContain('border-dashed');
-    expect(classes).toContain('bg-surface-strong');
-    expect(classes).toContain('cursor-not-allowed');
+    expect(classes).toContain('eldra:border-dashed');
+    expect(classes).toContain('eldra:bg-surface-strong');
+    expect(classes).toContain('eldra:cursor-not-allowed');
     wrapper.unmount();
   });
 
@@ -557,30 +565,30 @@ describe('Textarea — states', () => {
     expect(el.disabled).toBe(false);
     el.focus();
     expect(document.activeElement).toBe(el);
-    expect(el.className.split(/\s+/)).toContain('bg-surface');
+    expect(el.className.split(/\s+/)).toContain('eldra:bg-surface');
     wrapper.unmount();
   });
 
   it('carries the text-field focus ring, which shows on any focus', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).toContain('eldra-focus');
-    expect(classes).toContain('eldra-focus-always');
+    expect(classes).toContain('eldra:eldra-focus');
+    expect(classes).toContain('eldra:eldra-focus-always');
     wrapper.unmount();
   });
 
   it('puts no transition utility beside the focus ring, which owns them', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
-    expect(control(wrapper).className).not.toMatch(/(?:^|\s)(transition|duration)-/);
+    expect(control(wrapper).className).not.toMatch(/(?:^|\s)eldra:(transition|duration)-/);
     wrapper.unmount();
   });
 
   it('draws the hover and focus boundary in text, per the states table', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
     const classes = control(wrapper).className;
-    expect(classes).toContain('border-border-strong');
-    expect(classes).toContain('hover:border-text');
-    expect(classes).toContain('focus:border-text');
+    expect(classes).toContain('eldra:border-border-strong');
+    expect(classes).toContain('eldra:hover:border-text');
+    expect(classes).toContain('eldra:focus:border-text');
     wrapper.unmount();
   });
 
@@ -589,7 +597,7 @@ describe('Textarea — states', () => {
       props: { placeholder: 'A short note for the card' },
       attrs: NAME,
     });
-    expect(control(wrapper).className).toContain('placeholder:text-muted');
+    expect(control(wrapper).className).toContain('eldra:placeholder:text-muted');
     wrapper.unmount();
   });
 });
@@ -661,7 +669,7 @@ describe('Textarea — content and layout', () => {
   it('renders long content without clipping the field', () => {
     const wrapper = mountWith(Textarea, { props: { modelValue: LONG_VALUE }, attrs: NAME });
     expect(control(wrapper).value).toBe(LONG_VALUE);
-    expect(control(wrapper).className).toContain('w-full');
+    expect(control(wrapper).className).toContain('eldra:w-full');
     wrapper.unmount();
   });
 
@@ -671,9 +679,9 @@ describe('Textarea — content and layout', () => {
       attrs: NAME,
     });
     const foot = wrapper.find('[data-part="foot"]');
-    expect(foot.classes()).toContain('flex-wrap');
-    expect(wrapper.find('[data-part="counter"]').classes()).toContain('whitespace-nowrap');
-    expect(wrapper.classes()).toContain('w-full');
+    expect(foot.classes()).toContain('eldra:flex-wrap');
+    expect(wrapper.find('[data-part="counter"]').classes()).toContain('eldra:whitespace-nowrap');
+    expect(wrapper.classes()).toContain('eldra:w-full');
     wrapper.unmount();
   });
 });
@@ -722,24 +730,24 @@ describe('Textarea — the invalid boundary against the other states', () => {
   it('draws its boundary from the field border-width variable', () => {
     const wrapper = mountWith(Textarea, { attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).toContain('eldra-field-border');
-    expect(classes).not.toContain('border');
+    expect(classes).toContain('eldra:eldra-field-border');
+    expect(classes).not.toContain('eldra:border');
     wrapper.unmount();
   });
 
   it('drops every invalid style on a disabled field', () => {
     const wrapper = mountWith(Textarea, { props: { invalid: true, disabled: true }, attrs: NAME });
     const classes = control(wrapper).className.split(/\s+/);
-    expect(classes).not.toContain('border-danger');
-    expect(classes).toContain('border-dashed');
-    expect(wrapper.classes()).not.toContain('eldra-field-invalid');
+    expect(classes).not.toContain('eldra:border-danger');
+    expect(classes).toContain('eldra:border-dashed');
+    expect(control(wrapper).className.split(/\s+/)).not.toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
   it('keeps the invalid boundary on a read-only field', () => {
     const wrapper = mountWith(Textarea, { props: { invalid: true, readonly: true }, attrs: NAME });
-    expect(control(wrapper).className.split(/\s+/)).toContain('border-danger');
-    expect(wrapper.classes()).toContain('eldra-field-invalid');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:border-danger');
+    expect(control(wrapper).className.split(/\s+/)).toContain('eldra:eldra-field-invalid');
     wrapper.unmount();
   });
 
@@ -761,6 +769,225 @@ describe('Textarea — inside a group field wrapper', () => {
     expect(el.id).not.toBe('field-group');
     expect(el.id).toMatch(/^eldra-textarea-/);
     expect(el.required).toBe(true);
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — wrapper hooks', () => {
+  it('keeps a caller aria-invalid while valid, and says "true" once invalid', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { invalid: false },
+      attrs: { ...NAME, 'aria-invalid': 'false' },
+    });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('false');
+    await wrapper.setProps({ invalid: true });
+    expect(control(wrapper).getAttribute('aria-invalid')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('exposes the native control and a focus method', () => {
+    const wrapper = mountWith(Textarea, { attrs: NAME, attachTo: document.body });
+    const vm = wrapper.vm as unknown as { control: HTMLTextAreaElement | null; focus: () => void };
+    expect(vm.control).toBe(control(wrapper));
+    vm.focus();
+    expect(document.activeElement).toBe(control(wrapper));
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — clear button', () => {
+  it('renders no clear button by default', () => {
+    const wrapper = mountWith(Textarea, { props: { modelValue: 'Hello' }, attrs: NAME });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('shows the clear button only while there is a value and the field can be edited', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: '', clearable: true },
+      attrs: NAME,
+    });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    await wrapper.setProps({ modelValue: 'Hello' });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(true);
+    await wrapper.setProps({ readonly: true });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    await wrapper.setProps({ readonly: false, disabled: true });
+    expect(wrapper.find('[data-part="clearButton"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('names the button with the same message as Input, and is a type="button"', () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+    });
+    const button = wrapper.find('[data-part="clearButton"]');
+    expect(button.attributes('aria-label')).toBe('Clear');
+    expect(button.attributes('type')).toBe('button');
+    wrapper.unmount();
+  });
+
+  it('empties the field, emits clear and input, and returns focus to it', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      attachTo: document.body,
+    });
+    await wrapper.find('[data-part="clearButton"]').trigger('click');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['']);
+    expect(wrapper.emitted('input')?.at(-1)).toEqual(['']);
+    expect(wrapper.emitted('clear')).toHaveLength(1);
+    expect(document.activeElement).toBe(control(wrapper));
+    wrapper.unmount();
+  });
+
+  it('reserves one action of end room while the suffix row shows', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+    });
+    expect(control(wrapper).classList.contains('eldra:pe-10')).toBe(true);
+    await wrapper.setProps({ modelValue: '' });
+    expect(control(wrapper).classList.contains('eldra:pe-10')).toBe(false);
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — prefix and suffix slots', () => {
+  it('renders the prefix before the control and the suffix after the clear button', () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      slots: {
+        prefix: '<button type="button" aria-label="Insert emoji">e</button>',
+        suffix: '<button type="button" aria-label="Dictate">d</button>',
+      },
+    });
+    const prefix = wrapper.find('[data-part="prefix"]');
+    expect(prefix.element.nextElementSibling).toBe(control(wrapper));
+    const order = wrapper.findAll('button, textarea').map((w) => w.attributes('aria-label'));
+    expect(order).toEqual(['Insert emoji', 'Gift message', 'Clear', 'Dictate']);
+    expect(control(wrapper).classList.contains('eldra:ps-10')).toBe(true);
+    expect(control(wrapper).classList.contains('eldra:pe-10')).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('pins both rows to the first line', () => {
+    const wrapper = mountWith(Textarea, {
+      attrs: NAME,
+      slots: { prefix: '<span>a</span>', suffix: '<span>b</span>' },
+    });
+    expect(wrapper.find('[data-part="prefix"]').classes()).toEqual(
+      expect.arrayContaining(['eldra:absolute', 'eldra:top-1', 'eldra:start-1'])
+    );
+    expect(wrapper.find('[data-part="suffix"]').classes()).toEqual(
+      expect.arrayContaining(['eldra:absolute', 'eldra:top-1', 'eldra:end-1'])
+    );
+    wrapper.unmount();
+  });
+
+  it('keeps a bare Textarea free of rows and padding changes', () => {
+    const wrapper = mountWith(Textarea, { attrs: NAME });
+    expect(wrapper.find('[data-part="prefix"]').exists()).toBe(false);
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+    expect(control(wrapper).classList.contains('eldra:pe-10')).toBe(false);
+    expect(control(wrapper).getAttribute('style')).toBe('--eldra-textarea-min-height: 5rem;');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with a clear button and both slots', async () => {
+    const wrapper = mountWith(Textarea, {
+      props: { modelValue: 'Hello', clearable: true },
+      attrs: NAME,
+      slots: {
+        prefix: '<button type="button" aria-label="Insert emoji">e</button>',
+        suffix: '<button type="button" aria-label="Dictate">d</button>',
+      },
+      attachTo: document.body,
+    });
+    expect(await axe(document.body)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('Textarea — a controlled parent that does not take the input', () => {
+  /** A real parent owning the value: `update` decides what, if anything, it keeps. */
+  function mountParent(initial: string, update: (value: Ref<string>, next: string) => void) {
+    const value = ref(initial);
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(Textarea, {
+          ...NAME,
+          modelValue: value.value,
+          'onUpdate:modelValue': (next: string) => update(value, next),
+        }),
+    });
+    return { value, wrapper: mountWith(Parent) };
+  }
+
+  async function type(wrapper: ReturnType<typeof mountWith>, next: string, caret = next.length) {
+    const el = wrapper.find('[data-part="control"]').element as HTMLTextAreaElement;
+    el.focus();
+    el.value = next;
+    el.setSelectionRange(caret, caret);
+    await wrapper.find('[data-part="control"]').trigger('input');
+    await nextTick();
+    await nextTick();
+    return el;
+  }
+
+  const digits = (next: string) => next.replace(/\D/g, '');
+
+  it('shows what a parent that strips non-digits keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows what a parent that formats on the next tick keeps', async () => {
+    const { value, wrapper } = mountParent('12', (model, next) => {
+      void nextTick(() => {
+        model.value = digits(next);
+      });
+    });
+    const el = await type(wrapper, '12a');
+    expect(value.value).toBe('12');
+    expect(el.value).toBe('12');
+    wrapper.unmount();
+  });
+
+  it('shows the old value when the parent rejects the change', async () => {
+    const { value, wrapper } = mountParent('Maren', () => {});
+    const el = await type(wrapper, 'Marent');
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    wrapper.unmount();
+  });
+
+  it('keeps the caret where a refused character was typed', async () => {
+    const { wrapper } = mountParent('1234', (model, next) => {
+      model.value = digits(next);
+    });
+    const el = await type(wrapper, '12a34', 3);
+    expect(el.value).toBe('1234');
+    expect([el.selectionStart, el.selectionEnd]).toEqual([2, 2]);
+    wrapper.unmount();
+  });
+
+  it('leaves a value the parent takes alone', async () => {
+    const { value, wrapper } = mountParent('', (model, next) => {
+      model.value = next;
+    });
+    const el = await type(wrapper, 'Maren', 2);
+    expect(value.value).toBe('Maren');
+    expect(el.value).toBe('Maren');
+    expect(el.selectionStart).toBe(2);
     wrapper.unmount();
   });
 });

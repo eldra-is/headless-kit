@@ -1,3 +1,10 @@
 {
-  "excludeEntrypoints": ["./tokens.css", "./tailwind.css", "./style.css", "./components.css"]
+  "excludeEntrypoints": [
+    "./tokens.css",
+    "./tailwind.css",
+    "./style.css",
+    "./components.css",
+    "./theme.css",
+    "./utilities.css"
+  ]
 }

@@ -2,7 +2,6 @@
 import { computed, nextTick, reactive, ref, watch, type ComponentPublicInstance } from 'vue';
 import { provideEldraUiMessages, useMessages } from '../../composables/useMessages';
 import type { UiMessages } from '../../messages/en-US';
-import { cx, partClass } from '../../utils/cx';
 import { useUiId } from '../../utils/id';
 import Button from '../button/Button.vue';
 import Checkbox from '../checkbox/Checkbox.vue';
@@ -24,6 +23,9 @@ import type {
   SiteFormValue,
 } from './types';
 import { useSiteForm } from './useSiteForm';
+import { useEldraScope } from '../../composables/useEldraScope';
+
+const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<SiteFormProps>(), {
   definition: undefined,
@@ -130,21 +132,19 @@ const successMessage = computed(
   () => form.value?.successMessage || (success.value?.pending ? m.value.formPendingMessage : '')
 );
 
-const spansRow = computed(() =>
-  cx(layout.value === 'two' && '@two-col:col-span-2', layout.value === 'inline' && 'basis-full')
-);
+const spansRow = computed(() => [
+  layout.value === 'two' && 'eldra:@two-col:col-span-2',
+  layout.value === 'inline' && 'eldra:basis-full',
+]);
 
-const rootClass = computed(() => partClass('', props.classes, 'root'));
-const noticeClass = computed(() => partClass('text-body-sm text-muted', props.classes, 'notice'));
+const noticeClass = computed(() => ['eldra:text-body-sm eldra:text-muted', props.classes?.notice]);
 const layoutClasses = computed(() => ({
-  root: props.classes?.form,
   heading: props.classes?.heading,
   errorSummary: props.classes?.errorSummary,
   fields: props.classes?.fields,
   actions: props.classes?.actions,
 }));
 const fieldClasses = computed(() => ({
-  root: props.classes?.field,
   label: props.classes?.label,
   requiredMark: props.classes?.requiredMark,
   optionalText: props.classes?.optionalText,
@@ -153,39 +153,40 @@ const fieldClasses = computed(() => ({
 const errorClasses = computed(() => ({ error: props.classes?.error }));
 const controlClasses = computed(() => ({ control: props.classes?.control }));
 const selectClasses = computed(() => ({ trigger: props.classes?.control }));
-const checkboxClasses = computed(() => ({ root: props.classes?.checkbox }));
-const booleanFieldClass = computed(() =>
-  partClass(cx('grid gap-1', spansRow.value), props.classes, 'field')
-);
-const turnstileClass = computed(() =>
-  partClass(cx(spansRow.value, layout.value === 'inline' && 'order-2'), props.classes, 'turnstile')
-);
-const consentClass = computed(() =>
-  partClass(
-    cx('text-body-sm text-muted', layout.value === 'inline' && 'order-3 basis-full'),
-    props.classes,
-    'consentText'
-  )
-);
+const booleanFieldClass = computed(() => [
+  ['eldra:grid eldra:gap-1', spansRow.value],
+  props.classes?.field,
+]);
+const turnstileClass = computed(() => [
+  [spansRow.value, layout.value === 'inline' && 'eldra:order-2'],
+  props.classes?.turnstile,
+]);
+const consentClass = computed(() => [
+  [
+    'eldra:text-body-sm eldra:text-muted',
+    layout.value === 'inline' && 'eldra:order-3 eldra:basis-full',
+  ],
+  props.classes?.consentText,
+]);
 const consentUnderButton = computed(
   () => Boolean(form.value?.consentText) && layout.value !== 'inline'
 );
-const submitClasses = computed(() => ({
-  container: partClass(
-    consentUnderButton.value ? '@two-col:justify-self-end' : '',
-    props.classes,
-    'submit'
-  ),
-}));
-const successClass = computed(() =>
-  partClass('grid gap-1 focus:outline-none', props.classes, 'success')
-);
-const successTitleClass = computed(() =>
-  partClass('text-body text-text font-semibold', props.classes, 'successTitle')
-);
-const successMessageClass = computed(() =>
-  partClass('text-body text-muted', props.classes, 'successMessage')
-);
+const submitClass = computed(() => [
+  consentUnderButton.value && 'eldra:w-full eldra:@two-col:w-fit eldra:@two-col:justify-self-end',
+  props.classes?.submit,
+]);
+const successClass = computed(() => [
+  'eldra:grid eldra:gap-1 eldra:focus:outline-none',
+  props.classes?.success,
+]);
+const successTitleClass = computed(() => [
+  'eldra:text-body eldra:text-text eldra:font-semibold',
+  props.classes?.successTitle,
+]);
+const successMessageClass = computed(() => [
+  'eldra:text-body eldra:text-muted',
+  props.classes?.successMessage,
+]);
 
 const successRoot = ref<HTMLElement | null>(null);
 
@@ -230,18 +231,29 @@ async function sendAnother(): Promise<void> {
 </script>
 
 <template>
-  <div data-eldra-ui data-part="root" :class="rootClass">
+  <div
+    :data-eldra-slot="eldra.slotHost('loading', 'failed')"
+    data-eldra-ui
+    :data-eldra-scope="eldra.scope"
+    data-part="root"
+  >
     <slot v-if="status === 'loading'" name="loading">
-      <p data-part="notice" role="status" :class="noticeClass">{{ m.formLoading }}</p>
+      <p :data-eldra-scope="eldra.scope" data-part="notice" role="status" :class="noticeClass">
+        {{ m.formLoading }}
+      </p>
     </slot>
 
     <slot v-else-if="status === 'failed' || !form" name="failed">
-      <p data-part="notice" role="alert" :class="noticeClass">{{ m.formLoadFailed }}</p>
+      <p :data-eldra-scope="eldra.scope" data-part="notice" role="alert" :class="noticeClass">
+        {{ m.formLoadFailed }}
+      </p>
     </slot>
 
     <div
       v-else-if="success"
       ref="successRoot"
+      :data-eldra-slot="eldra.slotHost('success')"
+      :data-eldra-scope="eldra.scope"
       data-part="success"
       role="status"
       tabindex="-1"
@@ -268,15 +280,28 @@ async function sendAnother(): Promise<void> {
       :heading-level="headingLevel"
       :aria-label="heading ? undefined : form.name"
       :submitting="submitting"
+      :class="classes?.form"
       :classes="layoutClasses"
       @submit="onSubmit"
     >
       <template v-if="formErrors.length > 0" #errorSummary>
-        <p v-for="(message, index) in formErrors" :key="index" class="m-0">{{ message }}</p>
+        <p
+          v-for="(message, index) in formErrors"
+          :key="index"
+          :data-eldra-scope="eldra.scope"
+          class="eldra:m-0"
+        >
+          {{ message }}
+        </p>
       </template>
 
       <template v-for="field in form.fields" :key="field.id">
-        <div v-if="isBooleanField(field)" data-part="field" :class="booleanFieldClass">
+        <div
+          v-if="isBooleanField(field)"
+          :data-eldra-scope="eldra.scope"
+          data-part="field"
+          :class="booleanFieldClass"
+        >
           <Checkbox
             :id="fieldId(field.id)"
             :model-value="values[field.id] === true"
@@ -284,7 +309,7 @@ async function sendAnother(): Promise<void> {
             :required="field.required"
             :invalid="Boolean(errors[field.id])"
             :described-by="errors[field.id] ? errorId(field.id) : undefined"
-            :classes="checkboxClasses"
+            :class="classes?.checkbox"
             @update:model-value="setValue(field.id, $event)"
           >
             {{ field.label }}
@@ -302,6 +327,7 @@ async function sendAnother(): Promise<void> {
           :optional="!field.required && form.fields.length > 1"
           :full="field.type === 'textarea'"
           :error="errors[field.id]"
+          :class="classes?.field"
           :classes="fieldClasses"
         >
           <Textarea
@@ -337,7 +363,13 @@ async function sendAnother(): Promise<void> {
       </template>
 
       <!-- The honeypot: hidden from people and assistive technology, filled only by a bot. -->
-      <div v-if="form.honeypotField" class="sr-only" aria-hidden="true" inert>
+      <div
+        v-if="form.honeypotField"
+        :data-eldra-scope="eldra.scope"
+        class="eldra:sr-only"
+        aria-hidden="true"
+        inert
+      >
         <input
           v-model="honeypot"
           type="text"
@@ -349,6 +381,7 @@ async function sendAnother(): Promise<void> {
 
       <div
         v-if="form.turnstileSiteKey"
+        :data-eldra-scope="eldra.scope"
         :ref="setTurnstileRoot"
         data-part="turnstile"
         :class="turnstileClass"
@@ -356,6 +389,7 @@ async function sendAnother(): Promise<void> {
 
       <p
         v-if="form.consentText && layout === 'inline'"
+        :data-eldra-scope="eldra.scope"
         :id="consentId"
         data-part="consentText"
         :class="consentClass"
@@ -364,19 +398,29 @@ async function sendAnother(): Promise<void> {
       </p>
 
       <template #actions>
-        <div v-if="consentUnderButton" class="grid w-full gap-2">
+        <div
+          v-if="consentUnderButton"
+          :data-eldra-slot="eldra.slotHost('submit')"
+          :data-eldra-scope="eldra.scope"
+          class="eldra:grid eldra:w-full eldra:gap-2"
+        >
           <slot name="submit" :label="submitText" :submitting="submitting" :describedBy="consentId">
             <Button
               type="submit"
               variant="primary"
               :label="m.formSubmitting"
               :aria-describedby="consentId"
-              :classes="submitClasses"
+              :class="submitClass"
             >
               {{ submitText }}
             </Button>
           </slot>
-          <p :id="consentId" data-part="consentText" :class="consentClass">
+          <p
+            :data-eldra-scope="eldra.scope"
+            :id="consentId"
+            data-part="consentText"
+            :class="consentClass"
+          >
             {{ form.consentText }}
           </p>
         </div>
@@ -392,7 +436,7 @@ async function sendAnother(): Promise<void> {
             variant="primary"
             :label="m.formSubmitting"
             :aria-describedby="form.consentText ? consentId : undefined"
-            :classes="submitClasses"
+            :class="submitClass"
           >
             {{ submitText }}
           </Button>

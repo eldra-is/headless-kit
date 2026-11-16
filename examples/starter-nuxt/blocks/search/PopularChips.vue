@@ -31,7 +31,7 @@ const CHIP_CLASS =
   <p class="text-body-sm text-text font-semibold">{{ heading }}</p>
   <ul class="flex flex-wrap gap-2">
     <li v-for="item in items" :key="item.label">
-      <Link :href="item.href" :as="linkAs" :underline="false" :classes="{ root: CHIP_CLASS }">
+      <Link :href="item.href" :as="linkAs" :underline="false" :class="CHIP_CLASS">
         <EldraIcon name="search" size="sm" />
         {{ item.label }}
       </Link>

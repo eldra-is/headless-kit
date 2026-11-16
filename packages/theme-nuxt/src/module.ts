@@ -154,7 +154,7 @@ export interface ModuleOptions {
    * proxy on the site's own domain. No cookie or storage identifier is written.
    */
   analytics?: AnalyticsOption;
-  /** Keeps a landing's campaign `utm_*` tags for cart adds (docs/themes.md, Campaign attribution); `false` turns it off. */
+  /** Keeps a landing's campaign `utm_*` tags for cart adds once the visitor agrees (docs/themes.md, Campaign attribution); `false` leaves it out. */
   campaignAttribution?: boolean;
 }
 
@@ -413,8 +413,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
               continue;
             }
             generated.add(path);
-            // The route template's `seo` is what `useEldraSeo` reads for a catalog route.
-            addRoute(path, { lastmod: doc.updatedAt, seo: template.data.seo });
+            // What `useEldraSeo` reads for a catalog route: the record's own `seo` from the list
+            // read (a category's and a collection's whole value, a product card's `noindex` and
+            // `canonicalUrl`), then the route template's.
+            addRoute(path, {
+              lastmod: doc.updatedAt,
+              seo: (doc as { seo?: unknown }).seo,
+              templateSeo: template.data.seo,
+            });
           }
           continue;
         }

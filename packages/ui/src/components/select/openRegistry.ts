@@ -15,26 +15,54 @@
  * `Select` and `MultiSelect` share this module, which is what makes the rule hold *between* the
  * two rather than only within each.
  */
-let openClose: (() => void) | null = null;
+interface OpenEntry {
+  close: () => void;
+  contains?: (node: Node) => boolean;
+}
+
+export interface RegisterOpenOptions {
+  /** The element the opening popup is anchored to — its trigger. */
+  anchor?: Node | null;
+  /**
+   * Whether a node belongs to the opening popup (its `useOverlay` `isInside`). Asked later, when
+   * another popup opens: one whose `anchor` this popup contains is *nested* in it — a `Select` in
+   * a `Popover`'s panel — and opening it leaves this one open.
+   */
+  contains?: (node: Node) => boolean;
+}
 
 /**
- * Claim the slot and close whatever held it.
+ * The open popups, outermost first. Without nesting it never holds more than one entry; a popup
+ * opened from inside another's panel is stacked on it instead of closing it.
+ */
+let stack: OpenEntry[] = [];
+
+/**
+ * Claim the slot and close whatever held it — except the popups the new one is nested in.
  *
- * The slot is reassigned *before* the previous popup is closed, so the `unregisterOpen` that
+ * The slot is reassigned *before* the previous popups are closed, so the `unregisterOpen` that
  * closing triggers sees a slot that is no longer its own and leaves the new owner alone.
  */
-export function registerOpen(close: () => void): void {
-  const previous = openClose;
-  openClose = close;
-  if (previous !== null && previous !== close) previous();
+export function registerOpen(close: () => void, options: RegisterOpenOptions = {}): void {
+  if (stack.at(-1)?.close === close) return;
+  const { anchor } = options;
+  const kept: OpenEntry[] = [];
+  const closed: OpenEntry[] = [];
+  for (const entry of stack) {
+    if (entry.close === close) continue;
+    const isAncestor = anchor !== undefined && anchor !== null && entry.contains?.(anchor) === true;
+    (isAncestor ? kept : closed).push(entry);
+  }
+  stack = [...kept, { close, contains: options.contains }];
+  for (const entry of closed) entry.close();
 }
 
 /** Release the slot, if it is still this popup's. */
 export function unregisterOpen(close: () => void): void {
-  if (openClose === close) openClose = null;
+  stack = stack.filter((entry) => entry.close !== close);
 }
 
-/** The currently open popup's close function, or `null`. Exposed for tests. */
+/** The innermost open popup's close function, or `null`. Exposed for tests. */
 export function currentOpen(): (() => void) | null {
-  return openClose;
+  return stack.at(-1)?.close ?? null;
 }

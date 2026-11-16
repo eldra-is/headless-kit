@@ -120,11 +120,11 @@ describe('article sample page', () => {
     const roots = pageBlockRoots(wrapper);
     const articleEl = roots[2]!;
 
-    const contentContainers = articleEl.querySelectorAll('.eldra-container-content');
-    const narrowContainers = articleEl.querySelectorAll('.eldra-container-narrow');
+    const contentContainers = articleEl.querySelectorAll('.eldra\\:eldra-container-content');
+    const narrowContainers = articleEl.querySelectorAll('.eldra\\:eldra-container-narrow');
     expect(contentContainers.length).toBeGreaterThan(0);
     expect(narrowContainers.length).toBeGreaterThan(0);
-    expect(articleEl.querySelectorAll('.eldra-container-wide')).toHaveLength(0);
+    expect(articleEl.querySelectorAll('.eldra\\:eldra-container-wide')).toHaveLength(0);
 
     // The content container (header + cover) precedes the narrow one (body + author card).
     const firstContent = contentContainers[0]!;
@@ -134,8 +134,8 @@ describe('article sample page', () => {
     ).toBeTruthy();
 
     // The header/breadcrumbs stay on the 80rem wide container.
-    expect(roots[0]!.querySelector('.eldra-container-wide')).not.toBeNull();
-    expect(roots[1]!.querySelector('.eldra-container-wide')).not.toBeNull();
+    expect(roots[0]!.querySelector('.eldra\\:eldra-container-wide')).not.toBeNull();
+    expect(roots[1]!.querySelector('.eldra\\:eldra-container-wide')).not.toBeNull();
   });
 
   it('wraps the body table in a named, focusable region and marks its code block focusable', async () => {

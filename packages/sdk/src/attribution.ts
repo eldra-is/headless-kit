@@ -19,6 +19,8 @@ export interface EldraCampaignAttributionOptions {
 interface StoredAttribution extends EldraCampaignAttribution {
   capturedAt: number;
   expiresAt: number;
+  /** Set on every value kept after the visitor agreed; a value without it was kept before consent was asked. */
+  consented?: true;
 }
 
 const STORAGE_KEY = 'eldra.campaignAttribution';
@@ -26,11 +28,21 @@ const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_TAG_LENGTH = 100;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Remembers the campaign tags `url` (default `location.href`) carries, replacing any earlier landing; `null` when none. */
+// Consent is the visitor's answer in this page load, from the site's consent tool; it is never stored here.
+let consented = false;
+let pending: StoredAttribution | null = null;
+
+/**
+ * Notes the campaign tags `url` (default `location.href`) carries, replacing any earlier landing; `null` when none.
+ * The landing stays in memory until the visitor agrees (`grantCampaignAttributionConsent`), and is kept in storage
+ * only from then on.
+ */
 export function captureCampaignAttribution(
   url?: string | URL,
   options: EldraCampaignAttributionOptions = {}
 ): EldraCampaignAttribution | null {
+  const storage = storageOf(options);
+  if (!consented) dropUnconsented(storage);
   const params = searchParamsOf(url ?? currentHref());
   if (params === null) return null;
   const attribution = toAttribution({
@@ -42,36 +54,75 @@ export function captureCampaignAttribution(
   if (attribution === null) return null;
   const capturedAt = Date.now();
   const maxAgeMs = options.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
-  const stored: StoredAttribution = {
+  const landing: StoredAttribution = {
     ...attribution,
     capturedAt,
     // JSON writes Infinity as null, which would read back as an expired landing.
     expiresAt: capturedAt + (Number.isFinite(maxAgeMs) ? maxAgeMs : DEFAULT_MAX_AGE_MS),
   };
-  safeWrite(storageOf(options), STORAGE_KEY, JSON.stringify(stored));
+  // A server serves every visitor from one module, so it holds no landing for any of them.
+  if (storage === null) return attribution;
+  pending = landing;
+  if (consented) keep(storage, landing);
   return attribution;
 }
 
-/** The remembered landing, or `null` when there is none or it has expired. */
+/**
+ * The visitor agreed, through the site's consent tool, to the campaign tags being kept: the landing noted in this
+ * page load is kept now, and later landings as they come. Call it on every page load where consent stands.
+ */
+export function grantCampaignAttributionConsent(
+  options: Pick<EldraCampaignAttributionOptions, 'storage'> = {}
+): void {
+  consented = true;
+  const storage = storageOf(options);
+  if (pending !== null && Date.now() < pending.expiresAt) keep(storage, pending);
+}
+
+/** The visitor withdrew or refused consent: the kept landing is removed and carts carry none. */
+export function withdrawCampaignAttributionConsent(
+  options: Pick<EldraCampaignAttributionOptions, 'storage'> = {}
+): void {
+  consented = false;
+  pending = null;
+  safeWrite(storageOf(options), STORAGE_KEY, null);
+}
+
+function keep(storage: EldraKeyValueStorage | null, landing: StoredAttribution): void {
+  safeWrite(storage, STORAGE_KEY, JSON.stringify({ ...landing, consented: true }));
+}
+
+/** Removes a value kept before the kit asked for consent, so nothing kept without it outlives this release. */
+function dropUnconsented(storage: EldraKeyValueStorage | null): void {
+  const raw = safeRead(storage, STORAGE_KEY);
+  if (raw !== null && parseStored(raw)?.consented !== true) safeWrite(storage, STORAGE_KEY, null);
+}
+
+/** The kept landing while the visitor's consent stands, or `null` when there is none, it expired or no consent. */
 export function readCampaignAttribution(
   options: Pick<EldraCampaignAttributionOptions, 'storage'> = {}
 ): EldraCampaignAttribution | null {
+  if (!consented) return null;
   const storage = storageOf(options);
   const raw = safeRead(storage, STORAGE_KEY);
   if (raw === null) return null;
   const stored = parseStored(raw);
   const attribution =
-    stored !== null && typeof stored.expiresAt === 'number' && Date.now() < stored.expiresAt
+    stored !== null &&
+    stored.consented === true &&
+    typeof stored.expiresAt === 'number' &&
+    Date.now() < stored.expiresAt
       ? toAttribution(stored)
       : null;
   if (attribution === null) safeWrite(storage, STORAGE_KEY, null);
   return attribution;
 }
 
-/** Forgets the remembered landing, so later carts carry none until the next tagged landing. */
+/** Forgets the landing, so later carts carry none until the next tagged landing; consent is unchanged. */
 export function clearCampaignAttribution(
   options: Pick<EldraCampaignAttributionOptions, 'storage'> = {}
 ): void {
+  pending = null;
   safeWrite(storageOf(options), STORAGE_KEY, null);
 }
 

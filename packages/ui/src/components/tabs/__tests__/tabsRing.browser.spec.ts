@@ -1,11 +1,10 @@
 // @vitest-environment node
-import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import { chromium, type Browser, type Page } from '@playwright/test';
-import { compile } from '@tailwindcss/node';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
+import { compileKitCss } from '../../../test/kitCss';
 import Tabs from '../Tabs.vue';
 
 /**
@@ -47,8 +46,6 @@ const ITEMS = [
   { value: 'lighting', title: 'Lighting', content: 'Lighting panel' },
 ];
 const HOST_WIDTH = 320;
-
-const stylesDir = fileURLToPath(new URL('../../../styles/', import.meta.url));
 
 /**
  * The real component's HTML for one variant with one tab selected. `modelValue` rather than a click:
@@ -202,7 +199,7 @@ async function restingTab(page: Page): Promise<{ tab: Box; reach: number }> {
 const RING = 128;
 
 beforeAll(async () => {
-  // The package's real Tailwind entry — `@theme`, the `--eldra-*` tokens it imports and the
+  // The package's own stylesheet, compiled as `style.css` builds it — `@theme`, the `--eldra-*` tokens it imports and the
   // `eldra-focus` utility itself — compiled over exactly the classes this markup uses.
   const candidates = new Set<string>();
   for (const html of [await render('pills', 'knitwear'), await render('underline', 'knitwear')]) {
@@ -210,11 +207,7 @@ beforeAll(async () => {
       for (const name of match[1]!.split(/\s+/)) if (name) candidates.add(name);
     }
   }
-  const compiler = await compile(`@import 'tailwindcss';\n@import './tailwind.css';\n`, {
-    base: stylesDir,
-    onDependency() {},
-  });
-  css = compiler.build([...candidates]);
+  css = await compileKitCss(candidates);
   browser = await chromium.launch();
 }, 120_000);
 

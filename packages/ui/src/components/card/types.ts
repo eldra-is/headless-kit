@@ -19,7 +19,6 @@ export type ContentCardVariant = 'plain' | 'surface' | 'outlined';
  * the media frame (1), the body wrapper (2) and its eyebrow/title/titleLink/excerpt/meta, the
  * surface variant's link cue (3) and the outlined variant's count meta, which reuses `meta`. */
 export type ContentCardPart =
-  | 'root'
   | 'media'
   | 'body'
   | 'eyebrow'
@@ -70,7 +69,8 @@ export interface ContentCardProps {
    * README "as vs linkAs" note.
    */
   linkAs?: string | Component;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<ContentCardPart, string>>;
 }
 
@@ -82,7 +82,7 @@ export type FeatureCardVariant = 'plain' | 'surface' | 'outlined';
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them:
  * the icon tile (1), the title (2) and its titleLink when linked, the body (3), and the linked-only
  * link cue (4). */
-export type FeatureCardPart = 'root' | 'iconTile' | 'title' | 'titleLink' | 'body' | 'cue';
+export type FeatureCardPart = 'iconTile' | 'title' | 'titleLink' | 'body' | 'cue';
 
 export interface FeatureCardProps {
   /** A decorative icon component (e.g. `import { IconTruck } from '@tabler/icons-vue'`). */
@@ -103,6 +103,7 @@ export interface FeatureCardProps {
   /** Render the title link through a different element/component than the default `<a>` — see
    * `ContentCardProps.linkAs`. Linked only. */
   linkAs?: string | Component;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the kit's own (they win by cascade layer). The root is styled
+   * with `class`. */
   classes?: Partial<Record<FeatureCardPart, string>>;
 }

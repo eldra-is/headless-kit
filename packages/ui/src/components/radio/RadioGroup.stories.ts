@@ -1,3 +1,4 @@
+import { IconBuildingStore, IconTruckDelivery } from '@tabler/icons-vue';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { ref } from 'vue';
 import RadioGroup from './RadioGroup.vue';
@@ -23,9 +24,9 @@ const meta = {
           'options that carry detail (a shipping method and its price). Past about 6 options use',
           '**Select** (searchable past 10).',
           '',
-          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the `<fieldset>`),',
+          '**Parts** (`data-part`, and the keys of the `classes` prop): `root` (the `<fieldset>`, styled with `class`),',
           '`legend`, `options` (the list), `option` (one row or card), `radio` (the drawn circle),',
-          '`label`, `hint`, `meta` (cards only) and `error`/`errorIcon`. The native',
+          '`leading` (cards only), `label`, `hint`, `meta` (cards only) and `error`/`errorIcon`. The native',
           '`<input type="radio">` has no `classes` key of its own, exactly like `Checkbox`’s',
           'hidden input: it is invisible but hit-testable, over the drawn circle, which is its',
           'appearance.',
@@ -45,6 +46,11 @@ const meta = {
           'a card’s radio is always the `md` circle. **`cards`** draws the whole option as a',
           'bordered card, `meta` pushed to the end with tabular numerals — selection is a filled',
           'radio, a `surface` fill and a 2px `primary` border, never colour alone.',
+          '',
+          '**A leading icon or logo** (cards only, the `leading` part): `icon` on an option draws a',
+          'decorative 1.25rem icon between the radio and the title; the `leading` slot',
+          '(`#leading="{ option }"`) takes a logo or anything else and wins over `icon`. It is',
+          'centred against the title and the hint together. A card with neither is unchanged.',
           '',
           '**Error.** `error` sets `aria-invalid="true"` on **every radio** (unlike',
           '`CheckboxGroup`’s error, which stays on the fieldset alone — the spec asks for it on the',
@@ -150,6 +156,89 @@ export const Cards: Story = {
     template: `
       <div class="max-w-96">
         <RadioGroup v-bind="args" v-model="value" />
+      </div>
+    `,
+  }),
+};
+
+/** Couriers for the leading stories: `mark` stands in for a logo file. */
+const COURIERS: RadioGroupOption[] = [
+  {
+    value: 'north',
+    label: 'Northline',
+    hint: 'To your door in 2 to 3 business days',
+    meta: '$6.00',
+  },
+  { value: 'parcel', label: 'Parcel Point', hint: 'To a pickup locker near you', meta: 'Free' },
+  {
+    value: 'bike',
+    label: 'Bike courier',
+    hint: 'Unavailable: outside the delivery area',
+    meta: '$4.00',
+    disabled: true,
+  },
+];
+const COURIER_MARKS: Record<string, string> = { north: 'N', parcel: 'P', bike: 'B' };
+
+/** Cards with a decorative icon each, through the option's own `icon`. */
+const FULFILMENT: RadioGroupOption[] = [
+  { value: 'deliver', label: 'Deliver it', icon: IconTruckDelivery },
+  { value: 'collect', label: 'Collect in store', icon: IconBuildingStore },
+];
+
+/** `icon` on an option: a decorative 1.25rem icon between the radio and the title. Cards only. */
+export const CardsWithIcon: Story = {
+  name: 'Cards with an icon',
+  args: { legend: 'How do you want it?', name: 'fulfilment', layout: 'cards', options: FULFILMENT },
+  render: (args) => ({
+    components: { RadioGroup },
+    setup: () => ({ args, value: ref('deliver') }),
+    template: `
+      <div class="max-w-96">
+        <RadioGroup v-bind="args" v-model="value" />
+      </div>
+    `,
+  }),
+};
+
+/**
+ * The `leading` slot: a logo between the radio and the text, centred against the title and the
+ * hint together. The slot is given the `option`, so the logo is looked up by its `value`. It sits
+ * inside the option's `<label>`; a logo that only repeats the title is decorative (`alt=""` on an
+ * `<img>`, `aria-hidden` here).
+ */
+export const CardsWithLogo: Story = {
+  name: 'Cards with a logo',
+  args: { legend: 'Courier', name: 'courier', layout: 'cards', options: COURIERS },
+  render: (args) => ({
+    components: { RadioGroup },
+    setup: () => ({ args, marks: COURIER_MARKS, value: ref('north') }),
+    template: `
+      <div class="max-w-xl">
+        <RadioGroup v-bind="args" v-model="value">
+          <template #leading="{ option }">
+            <span aria-hidden="true" class="flex size-10 items-center justify-center rounded-md bg-surface-strong text-body font-semibold">{{ marks[option.value] }}</span>
+          </template>
+        </RadioGroup>
+      </div>
+    `,
+  }),
+};
+
+/** A logo card in a 20rem container: the text wraps beside the logo and the price stays whole. */
+export const CardsWithLogoNarrow: Story = {
+  name: 'Cards with a logo, narrow',
+  args: { legend: 'Courier', name: 'courier-narrow', layout: 'cards', options: COURIERS },
+  render: (args) => ({
+    components: { RadioGroup },
+    setup: () => ({ args, marks: COURIER_MARKS, value: ref('north') }),
+    template: `
+      <div style="width: 20rem">
+        <RadioGroup v-bind="args" v-model="value">
+          <template #leading="{ option }">
+            <span aria-hidden="true" class="flex size-10 items-center justify-center rounded-md bg-surface-strong text-body font-semibold">{{ marks[option.value] }}</span>
+          </template>
+        </RadioGroup>
       </div>
     `,
   }),

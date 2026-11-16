@@ -1,16 +1,16 @@
+import type { ReferenceElement } from '@floating-ui/vue';
 import type { FloatingPlacement } from '../../composables/useFloating';
 
 /**
  * The parts a consumer can restyle through `classes`.
  *
- * `root` is a `display: contents` wrapper around the `trigger` slot's own element and the
- * (conditionally teleported) `panel` — it never draws a box of its own, so it exists only as a
- * `data-part`/`classes` hook and a mount point, never as a layout parent a consumer needs to work
- * around. `trigger` draws nothing here at all: the trigger is the consumer's own element, rendered
+ * The root is a `display: contents` wrapper around the `trigger` slot's own element and the
+ * (conditionally teleported) `panel`: it draws no box, so it takes no classes. `class` lands on the
+ * panel with the other fallthrough attributes. `trigger` draws nothing here at all: the trigger is the consumer's own element, rendered
  * through the `trigger` slot, and `classes.trigger` reaches it only because the `attrs` slot prop
  * carries a `class` built from it (see `Popover.vue`'s own doc comment) for the consumer to spread.
  */
-export type PopoverPart = 'root' | 'trigger' | 'panel';
+export type PopoverPart = 'trigger' | 'panel';
 
 export interface PopoverProps {
   /** Whether the panel is open (two-way). Self-managing when not bound, like every stateful
@@ -19,11 +19,64 @@ export interface PopoverProps {
   /**
    * Where the panel opens, in `useFloating`'s own vocabulary: `auto` (default) below, flipping
    * above when there is no room; `above` always above; or an explicit `@floating-ui/dom` placement
-   * for a menu that should hang off a corner (`bottom-end`, for a trigger near the inline-end edge).
-   * Read once, like every `useFloating` placement — a popover that has to change it at runtime
-   * re-keys the component instead.
+   * for a menu that should hang off a corner (`bottom-end`, for a trigger near the inline-end edge)
+   * or open beside its trigger (`right-start`, a submenu). Followed: changing it repositions an open
+   * panel.
    */
   placement?: FloatingPlacement;
+  /** The gap between the trigger and the panel, in pixels. Default `4` (0.25rem). */
+  offset?: number;
+  /** The least room kept between the panel and the viewport edge, in pixels. Default `8`. */
+  viewportPadding?: number;
+  /**
+   * Position the panel against this instead of the trigger: another element, or a Floating UI
+   * virtual element (`{ getBoundingClientRect() }`) for a caret or pointer position — call the
+   * exposed `update()` after a virtual element moves. With one set, the `trigger` slot is
+   * optional: a popover opened only through `v-model` (a slash-command menu at the caret) needs no
+   * trigger at all. Unset by default.
+   */
+  reference?: ReferenceElement | null;
+  /**
+   * Whether the trigger may open the panel. `true` adds `disabled` to the trigger slot's `attrs`,
+   * ignores every open, and closes an open panel. Default `false`.
+   */
+  disabled?: boolean;
+  /**
+   * The trigger's `aria-haspopup`. Default `'true'` (a menu, to assistive technology); set it to
+   * the role the panel actually has — `'listbox'`, `'dialog'` — when that is not a menu.
+   */
+  haspopup?: 'true' | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+  /**
+   * Name the panel by its trigger (`aria-labelledby` the trigger's id), the menu-button pattern.
+   * Ignored when `ariaLabel` is set; an `aria-labelledby` attribute on the component wins over it.
+   * Default `false`.
+   */
+  labelledByTrigger?: boolean;
+  /** `ArrowDown` on the closed trigger opens the panel (the menu-button keyboard pattern). Default
+   *  `false`. */
+  openOnArrowDown?: boolean;
+  /** Move focus to the panel's first tab stop on open — or to the panel itself when it has none.
+   *  Default `false`: see `Popover.vue`'s own doc comment. */
+  focusOnOpen?: boolean;
+  /** Close on a pointer press outside the popover. Default `true`. */
+  closeOnOutsideClick?: boolean;
+  /** Close when focus moves outside the popover. Default: whatever `closeOnOutsideClick` is. */
+  closeOnFocusOutside?: boolean;
+  /** Close on `Esc`. Default `true`. */
+  closeOnEscape?: boolean;
+  /**
+   * Put focus back on the trigger when the panel is closed by `Esc`, the default slot's `close`,
+   * the trigger itself, or focus being lost with the panel. Default `true`.
+   */
+  returnFocus?: boolean;
+  /** Close, without moving focus, once the trigger scrolls fully out of view. Default `false`. */
+  closeWhenTriggerHidden?: boolean;
+  /**
+   * Take part in "only one open at a time" with every other popover, `Select`, `MultiSelect` and
+   * `SearchBar`. Default `true`. A popover opened from inside another's panel never closes the one
+   * it was opened from either way; `false` also lets it stay open beside unrelated ones.
+   */
+  exclusive?: boolean;
   /**
    * Tie the panel's width to the trigger's: `true` for a floor (a filter panel that should never
    * be narrower than its control), `'exact'` for a floor *and* a ceiling (a menu that should match
@@ -50,6 +103,6 @@ export interface PopoverProps {
    * consumer that needs it is a one-line, non-breaking widening of this type.
    */
   teleport?: boolean;
-  /** Per-part class overrides, merged with `tailwind-merge`. */
+  /** Per-part classes, appended to the part's own (they win by cascade layer). */
   classes?: Partial<Record<PopoverPart, string>>;
 }

@@ -30,6 +30,33 @@ describe('EldraUiResolver', () => {
     }
   });
 
+  it('resolves EldraPhoneInput from the phone entry, which the root does not export', async () => {
+    expect(EldraUiResolver().resolve('EldraPhoneInput')).toEqual({
+      name: 'PhoneInput',
+      from: '@eldrajs/ui/phone',
+    });
+    const entry = await import('../resolver');
+    const phone = await import('../phone/index');
+    const { componentNames } = await import('../componentNames');
+    // Every component the phone entry exports, and none the root already has.
+    const exported = Object.keys(phone).filter((key) => /^[A-Z]/.test(key));
+    expect([...entry.phoneComponentNames]).toEqual(exported);
+    expect(componentNames.filter((name) => exported.includes(name))).toEqual([]);
+  });
+
+  it('resolves EldraCountryFlag from the flag entry, which the root does not export', async () => {
+    expect(EldraUiResolver().resolve('EldraCountryFlag')).toEqual({
+      name: 'CountryFlag',
+      from: '@eldrajs/ui/flag',
+    });
+    const entry = await import('../resolver');
+    const flag = await import('../flag/index');
+    const { componentNames } = await import('../componentNames');
+    const exported = Object.keys(flag).filter((key) => /^[A-Z]/.test(key));
+    expect([...entry.flagComponentNames]).toEqual(exported);
+    expect(componentNames.filter((name) => exported.includes(name))).toEqual([]);
+  });
+
   it('resolves under a custom prefix', () => {
     expect(EldraUiResolver({ prefix: 'Acme' }).resolve('AcmeSelect')).toEqual({
       name: 'Select',

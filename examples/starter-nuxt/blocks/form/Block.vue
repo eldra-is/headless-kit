@@ -552,7 +552,7 @@ const successTitle = computed(
                   type="submit"
                   variant="primary"
                   size="lg"
-                  class="@two-col:justify-self-end"
+                  class="@two-col:w-fit @two-col:justify-self-end w-full"
                   :label="t('form.submitting')"
                   :aria-describedby="consentSentenceId"
                 >
