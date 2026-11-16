@@ -79,8 +79,15 @@ export interface EldraLogoutUrlOptions {
   idTokenHint?: string;
 }
 
+// A loop, not /\/+$/: that pattern backtracks quadratically on a long run of slashes.
+function trimTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
 function oidcUrl(issuer: string, endpoint: string): URL {
-  return new URL(`${issuer.replace(/\/+$/, '')}/protocol/openid-connect/${endpoint}`);
+  return new URL(`${trimTrailingSlashes(issuer)}/protocol/openid-connect/${endpoint}`);
 }
 
 /** The default client id of the storefront client in every shop realm. */
@@ -88,7 +95,7 @@ export const ELDRA_SHOP_CLIENT_ID = 'storefront';
 
 /** The issuer of an organization's shop realm. */
 export function shopIssuer(options: { keycloakBaseUrl: string; orgId: string }): string {
-  return `${options.keycloakBaseUrl.replace(/\/+$/, '')}/realms/shop-${encodeURIComponent(options.orgId)}`;
+  return `${trimTrailingSlashes(options.keycloakBaseUrl)}/realms/shop-${encodeURIComponent(options.orgId)}`;
 }
 
 /** Headers carrying an access token, for `context.headers` of `customer.me()`. */
