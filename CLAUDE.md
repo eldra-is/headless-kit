@@ -147,7 +147,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   generated from `src/index.ts`, guarded by `src/__tests__/componentNames.spec.ts` importing the
   index and comparing its component keys; a generator was judged not worth a build step ahead of
   `vite build` for 19 names that change once per component, ever), `./vee-validate` (`Form` and
-  twelve `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
+  fourteen `Field*` components wrapping `vee-validate`'s `useField`/`useForm`, plus `API_ERRORS_KEY`
   and `useFieldControl`; `src/vee-validate/**` is the only place in the package that may import
   `vee-validate`, and `src/__tests__/veeValidateIsolation.spec.ts` proves the root entry loads
   without it in both the source graph and the built `dist/`), `./vue-i18n` (`useEldraUiI18n`,
@@ -165,7 +165,7 @@ which is not shipped in the tarball; the GitHub release carries the same text.
   modal surfaces use `useDialogStack` when they land), `usePopover` (`src/components/select/usePopover.ts`;
   `useOverlay` and `useFloating` wired into one non-modal popup life cycle — the "only one open at a
   time" registry, the entrance-variable positioning, the open sequence, the label-forwarded-click
-  latch — that `Select`, `MultiSelect` and `SearchBar` all open their panel with), `useListbox` (the
+  latch — that `Select`, `MultiSelect`, `SearchBar` and `Autocomplete` all open their panel with), `useListbox` (the
   select keyboard and active row, shared by `Select`/`MultiSelect`). Never a `Ui` prefix: the
   resolver entry defaults to `Eldra`, which is `packages/ui/README.md`'s job to keep straight from
   the private Eldra library's own `Ui*`/resolver.
