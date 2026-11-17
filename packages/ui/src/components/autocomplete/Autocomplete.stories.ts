@@ -54,7 +54,7 @@ const meta = {
           '**When the panel shows.** While the field has focus, the text is at least `minLength`',
           'long and there is a suggestion. With none it is closed: there is no "no results" row,',
           'because this is a help and not a search. A single suggestion whose label is exactly the',
-          'text does not open it either. After a selection, `Escape`, `Tab` or a press outside, it',
+          'text shows too: it confirms the text. After a selection, `Escape`, `Tab` or a press outside, it',
           'stays closed until the text is typed in again, the field is focused again or an arrow',
           'key asks for it, whatever `suggestions` holds meanwhile.',
           '',

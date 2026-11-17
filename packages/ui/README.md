@@ -1538,8 +1538,8 @@ disabled? }[]`, supplied by the consumer for the text now in the field; the comp
     2.25rem minimum, the description on a second line in `text-caption`), exactly as wide as the
     field; the footer is a `text-caption` line above a 1px hairline, padding 0.5rem 0.75rem.
   - _States_: the panel shows while the field has focus, the text is at least `minLength` long and
-    there is a suggestion to show. It is closed with no suggestions (there is no "no results" row)
-    and for a single suggestion whose label is exactly the text. After a selection, `Escape`, `Tab`
+    there is a suggestion to show. It is closed with no suggestions (there is no "no results" row);
+    a single suggestion whose label is exactly the text shows, as a confirmation. After a selection, `Escape`, `Tab`
     or a press outside it stays closed, whatever `suggestions` holds, until the text is typed in
     again, the field is focused again, or an arrow key asks for it. While `loading`, an open panel
     keeps its rows (`aria-busy` on the list) even if `suggestions` is emptied, a closed one stays
