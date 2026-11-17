@@ -9,17 +9,28 @@ module.exports = [
     name: '@eldrajs/sdk — createEldraClient',
     path: 'packages/sdk/dist/index.js',
     import: '{ createEldraClient }',
-    // The client is one object, so an unused method (forms, the campaign landing in `cart.addItem`) is not shaken out.
-    // Raised from 4.25 kB when the cart took one field for a code, several gift cards and several
-    // discount codes (`cart.applyCode`, `removeGiftCardEntry`, `removeDiscountEntry`) and the error
-    // took the refusal's `errors`: ~0.06 kB brotlied over the old limit.
-    limit: '4.5 kB',
+    // 3.5 kB before `client.forms` (get/submit/confirm/unsubscribe, a 422 read as field messages):
+    // about 0.2 kB brotlied, and the client is one object, so an unused method (forms, the campaign
+    // landing in `cart.addItem`) is not shaken out. Main's budget: 4.5 kB, raised from 4.25 kB when
+    // the cart took one field for a code, several gift cards and several discount codes
+    // (`cart.applyCode`, `removeGiftCardEntry`, `removeDiscountEntry`) and the error took the
+    // refusal's `errors`. With the business-customer calls on top (B2B: customer.me and locations,
+    // the sales-order calls, the idempotency-key check, typed problem `errors`) it measures
+    // 4.53 kB.
+    limit: '4.6 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
     path: 'packages/sdk/dist/index.js',
     import: '{ responsiveImage }',
     limit: '1 kB',
+  },
+  {
+    name: '@eldrajs/sdk — business login helpers',
+    path: 'packages/sdk/dist/index.js',
+    import:
+      '{ createPkcePair, buildAuthorizeUrl, exchangeAuthorizationCode, refreshTokens, buildLogoutUrl, shopIssuer }',
+    limit: '1.5 kB',
   },
   // Raised from 4 kB when `responsiveImage` and the media-variant helpers joined the
   // package (`src/image.ts`): ~0.2 kB brotlied on top of the retrying transport. Raised again
@@ -28,7 +39,11 @@ module.exports = [
   {
     name: '@eldrajs/sdk — everything',
     path: 'packages/sdk/dist/index.js',
-    limit: '5.5 kB',
+    // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
+    // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget: 5.5 kB. With the
+    // B2B work on top (business login: OIDC with PKCE, `customerHeaders`; the sales-order calls and
+    // `isEldraError`) it measures 6.49 kB.
+    limit: '6.55 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

@@ -6,9 +6,19 @@ import type {
   EldraCart,
   EldraCartTotals,
   EldraContractResponse,
+  EldraCreateSalesOrderInput,
+  EldraCustomerLocation,
+  EldraCustomerLocationList,
+  EldraCustomerMe,
+  EldraCustomerMembership,
   EldraProductDetails,
   EldraProductExtensions,
   EldraProductListItem,
+  EldraSalesOrder,
+  EldraSalesOrderLine,
+  EldraSalesOrderListOptions,
+  EldraSalesOrderPreview,
+  EldraShopUser,
 } from '../index';
 
 // Without the generated contract (see ./generated for the other half) nothing is typed and
@@ -31,7 +41,17 @@ describe('eldra sdk without generated contract types', () => {
     expectTypeOf<EldraCartTotals>().toBeUnknown();
     expectTypeOf<EldraProductListItem>().toBeUnknown();
     expectTypeOf<EldraContractResponse<'/order/v1/{orderId}', 'get'>>().toBeUnknown();
+    expectTypeOf<EldraCustomerMe>().toBeUnknown();
+    expectTypeOf<EldraShopUser>().toBeUnknown();
+    expectTypeOf<EldraCustomerMembership>().toBeUnknown();
     expectTypeOf<EldraAddCartItemInput>().toEqualTypeOf<Record<string, unknown>>();
+    expectTypeOf<EldraCustomerLocation>().toBeUnknown();
+    expectTypeOf<EldraCustomerLocationList>().toBeUnknown();
+    expectTypeOf<EldraSalesOrder>().toBeUnknown();
+    expectTypeOf<EldraSalesOrderLine>().toBeUnknown();
+    expectTypeOf<EldraSalesOrderPreview>().toBeUnknown();
+    expectTypeOf<EldraCreateSalesOrderInput>().toEqualTypeOf<Record<string, unknown>>();
+    expectTypeOf<EldraSalesOrderListOptions>().toEqualTypeOf<Record<string, unknown>>();
   });
 
   it('leaves product details unknown and the extensions registry empty', () => {

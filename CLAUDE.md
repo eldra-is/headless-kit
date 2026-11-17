@@ -253,7 +253,10 @@ build-storybook` runs in CI. **Previews** (`blocks/<id>/preview.png`, `.eldra/pr
   the full set of conventions (styling foundation, primitive table, strings, testing gates) in
   consumer terms.
 - `docs/` — plain markdown: `getting-started.md`, `images.md`, `rich-text.md`,
-  `icelandic-formatting.md`, `frameworks.md` (the contract a
+  `icelandic-formatting.md`, `business-login.md` (a public security sketch; its code is
+  `examples/node-script/business-login.ts`, and the storefront starter is the reference
+  implementation), `customer-prices.md`, `sales-orders.md` (its code is
+  `examples/node-script/sales-orders.ts`), `frameworks.md` (the contract a
   wrapper for another framework must satisfy), `ui.md` (short: what `@eldrajs/ui` is, install, the
   five CSS entries, links to `packages/ui/README.md` and Storybook), `themes.md` (theme package
   map, the framework-free rule, the Studio bridge, running the starter), `starter-kit.md` (the

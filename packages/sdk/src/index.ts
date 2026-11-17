@@ -2,9 +2,12 @@ export {
   createEldraClient,
   DEFAULT_ELDRA_API_BASE_URL,
   EldraHttpError,
+  EldraIdempotencyKeyError,
   getEldraClient,
   initEldraClient,
+  isEldraError,
 } from './client';
+export type { EldraHttpErrorWith } from './client';
 export type {
   EldraContract,
   EldraContractBody,
@@ -24,6 +27,28 @@ export {
   withdrawCampaignAttributionConsent,
 } from './attribution';
 export type { EldraCampaignAttribution, EldraCampaignAttributionOptions } from './attribution';
+export {
+  ELDRA_SHOP_CLIENT_ID,
+  EldraOidcError,
+  bearer,
+  customerHeaders,
+  buildAuthorizeUrl,
+  buildLogoutUrl,
+  createPkcePair,
+  exchangeAuthorizationCode,
+  pkceChallenge,
+  refreshTokens,
+  shopIssuer,
+} from './oidc';
+export type {
+  EldraAuthorizeUrlOptions,
+  EldraExchangeCodeOptions,
+  EldraLogoutUrlOptions,
+  EldraOidcTokens,
+  EldraPkcePair,
+  EldraRefreshTokensOptions,
+  EldraTokenClientOptions,
+} from './oidc';
 export { createCartSession, createOrderAccessTokens } from './storage';
 export { analyticsTrackerScript } from './tracker';
 export type { EldraTrackerScript, EldraTrackerScriptOptions } from './tracker';
@@ -51,6 +76,31 @@ export type {
   EldraCollection,
   EldraCollectionList,
   EldraCollectionListOptions,
+  EldraCreateSalesOrderInput,
+  EldraCreateSalesOrderOptions,
+  EldraCustomerClient,
+  EldraCustomerLocation,
+  EldraCustomerLocationList,
+  EldraCustomerMe,
+  EldraCustomerMembership,
+  EldraErrorId,
+  EldraProblemErrors,
+  EldraSalesOrder,
+  EldraSalesOrderCredit,
+  EldraSalesOrderDelivery,
+  EldraSalesOrderErrorId,
+  EldraSalesOrderLine,
+  EldraSalesOrderList,
+  EldraSalesOrderListItem,
+  EldraSalesOrderListOptions,
+  EldraSalesOrderPreview,
+  EldraSalesOrderPreviewInput,
+  EldraSalesOrderPreviewLine,
+  EldraSalesOrdersClient,
+  EldraSalesOrderStatus,
+  EldraSalesOrderWarning,
+  EldraShopErrorId,
+  EldraShopUser,
   EldraCollectionProductsOptions,
   EldraDiscountResult,
   EldraInventoryClient,

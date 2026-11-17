@@ -80,6 +80,74 @@ platform repository.
   `clearCampaignAttribution()`, the `EldraCampaignAttribution` type and the client option
   `campaignAttribution` (`{ storage }`, or `false` to send none). Nothing clears it automatically.
 
+Business customers (B2B), for the next release after 0.4.3. Every entry below needs a gateway
+serving public contract 6.15.0 (core merged main's 6.14.0 first).
+
+- Contract 6.15.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
+  `pkceChallenge`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`, `refreshTokens` and
+  `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm, `EldraOidcError` on
+  failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in business customer
+  and their company memberships (`GET /customer/v1/me`). The token is passed
+  per call in `context.headers`. `EldraCustomerMe`, `EldraShopUser` and `EldraCustomerMembership`
+  are derived from the generated contract like every other response type. `refreshExpiresAt` is
+  `undefined` when the server sends no `refresh_expires_in`. See `docs/business-login.md`.
+- `buildAuthorizeUrl` takes an optional `uiLocales` (a BCP 47 tag or a list, most preferred
+  first), sent as the OIDC `ui_locales` parameter so the shop login pages use the storefront's
+  language. No contract change.
+- Customer prices (contract 6.15.0): catalog product, list and collection-product reads and cart
+  writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
+  variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
+  responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
+  headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
+- Customer carts (contract 6.15.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+  signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
+  `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
+  `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
+  code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
+- Customer carts (contract 6.15.0): an archived or unknown company answers 409
+  `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
+  preview; treat them like `*_CUSTOMER_PRICES_OFF`. A bound
+  cart shows the prices stored when lines were added, and the order re-prices, so show the order
+  preview total before payment. No change to the generated contract.
+- Sales orders and delivery locations (contract 6.15.0) for a signed-in business customer's active
+  company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
+  envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
+  context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
+  requires the idempotency key (1 to 255 printable ASCII characters, no spaces) and rejects with
+  `EldraIdempotencyKeyError` (a `TypeError`) without a usable one, sending nothing. Catch that class,
+  not every `TypeError`: a lost connection is a `TypeError` too and is retried with the key. Keep the key across
+  retries (a 502, a 503 or a timeout may follow a placed order, and the same key replays it) and
+  mint a new one when the cart or the form changes. Types derived from the contract:
+  `EldraCustomerLocationList`, `EldraCustomerLocation`, `EldraSalesOrderPreview`, `EldraSalesOrderPreviewLine`,
+  `EldraSalesOrderCredit`, `EldraSalesOrder`, `EldraSalesOrderLine`, `EldraSalesOrderWarning`,
+  `EldraSalesOrderDelivery`, `EldraSalesOrderStatus`, `EldraSalesOrderList`,
+  `EldraSalesOrderListItem`, `EldraSalesOrderListOptions`, `EldraSalesOrderPreviewInput`,
+  `EldraCreateSalesOrderInput`. `EldraSalesOrderCredit` carries `creditCurrency` when the company's
+  credit is kept in another currency than the order's. Warnings on create:
+  `SALES_ORDER_STOCK_NOT_SET_ASIDE`, `SALES_ORDER_PAYMENT_NOT_RECORDED` (the order stands). See
+  `docs/sales-orders.md`.
+- Error ids are typed: `EldraHttpError.errorId` is `EldraErrorId`, the known `EldraShopErrorId` and
+  `EldraSalesOrderErrorId` values or any other string. New with sales orders: `CUSTOMER_BLOCKED`,
+  `SALES_ORDER_CREDIT_LIMIT_EXCEEDED`, `SALES_ORDER_CREDIT_CURRENCY_MISMATCH` (the supplier blocks
+  over-limit orders and keeps the credit in another currency; do not retry),
+  `SALES_ORDER_CREDIT_CHECK_UNAVAILABLE`,
+  `SALES_ORDER_CART_NOT_BOUND`, `SALES_ORDER_CART_EMPTY`, `SALES_ORDER_TOO_MANY_LINES`,
+  `SALES_ORDER_LINE_INVALID`, `SALES_ORDER_CART_ALREADY_ORDERED`, `SALES_ORDER_LOCATION_UNKNOWN`,
+  `SALES_ORDER_TERMS_UNAVAILABLE`, `SALES_ORDER_CART_UNAVAILABLE`,
+  `SALES_ORDER_IDEMPOTENCY_KEY_REQUIRED`, `SALES_ORDER_NOT_FOUND`, `SALES_ORDER_UPSTREAM_REFUSED`
+  (502: the supplier's order service refused the platform; never sign the person out over it), and
+  the reused `ORDER_CUSTOMER_UNAVAILABLE`, `ORDER_CUSTOMER_PRICES_OFF`, `ORDER_PRODUCT_UNAVAILABLE`,
+  `ORDER_PRICES_UNAVAILABLE`, `ORDER_IDEMPOTENCY_CONFLICT`. `EldraHttpError.errors` carries the
+  problem's details, such as `salesOrderId` on `SALES_ORDER_CART_ALREADY_ORDERED` and `variantId`
+  on `SALES_ORDER_LINE_INVALID`. `isEldraError(error, id)` narrows an unknown error to one refusal
+  and types its `errors` from `EldraProblemErrors` (`SALES_ORDER_CART_ALREADY_ORDERED`,
+  `SALES_ORDER_LINE_INVALID`, `ORDER_PRODUCT_UNAVAILABLE`, `SHIPPING_CART_NOT_EXPORTABLE`).
+- New required interface members: `EldraClient.salesOrders` and `EldraCustomerClient.locations`. Code
+  that only calls the client is unaffected; code that implements these interfaces itself (a mock or a
+  wrapper) must add them.
+
+## 0.3.2 — 2026-10-22
+
 - **Images use the size the API gives them (contract 4.14.0).** `EldraImageSource` accepts the
   `width` and `height` an image object now carries (its pixels as displayed). `imageSrcset` stops at
   that width unless `originalWidth` is passed, and `responsiveImage` sets `width`/`height` to the
@@ -94,11 +162,15 @@ platform repository.
   which most browsers cannot show as uploaded. A narrower original still ends the list at its own
   width.
 
+## 0.3.1 — 2026-10-19
+
 - **`buildToken` client option (WS-403).** When set (a string or a function returning one), every
   request carries `X-Eldra-Build-Token`, a read-only build token (`eldra_bld_…`, created in Studio → Settings → Developers → Build tokens),
   so the gateway can give a theme build's reads their own rate-limit bucket. Server and build only;
   omitted or empty sends no header. Never pass the site deploy token. Pass it from server-side code
   only; an SSR server that sends it on every visitor request shares the organisation's build budget.
+
+## 0.3.0 — 2026-10-18
 
 - **`EldraFormDefinition.consentText` (WS-386, contract 4.13.0).** A form that subscribes the
   visitor now publishes the consent sentence per locale, with the shop name already filled in
@@ -123,6 +195,7 @@ platform repository.
   and unsubscribes nobody. The two methods now `POST` the same paths with the token in the query and
   still resolve `{ status }`; confirming or unsubscribing twice is a success. Needs a gateway at
   contract 4.10.0 or later (the `GET` JSON answer of 4.7.0 to 4.9.0, never released, is gone).
+
 - **`client.forms`: the site-forms API (WS-386).** `get(key)` reads a form definition,
   `submit(key, { values, locale, pagePath, turnstileToken?, hp? })` posts a submission and
   `confirm(token)` / `unsubscribe(token)` finish a subscriber's emailed links. A `422` resolves as
@@ -130,12 +203,18 @@ platform repository.
   `404`, `413` and `429` reject with `EldraHttpError`. New types `EldraFormDefinition`,
   `EldraFormField`, `EldraFormSubmitInput`, `EldraFormSubmitResult` and friends, hand-written like
   `EldraPlatformConfig`. Needs a gateway at contract 4.4.0 or later.
+
+## 0.2.9 — 2026-10-12
+
 - **Icelandic formatting that prints the same on every runtime: `@eldrajs/sdk/format`.**
   `numberFormat`, `formatPrice` and `comparator`/`compareIcelandic`, plus `./format/date`,
   `./format/list`, `./format/relative-time` and `./format/display-names`. Icelandic and English come
   from the package's own CLDR 48.2 data, so Chrome and Cloudflare Workers, which lack it, print what
   Node and Safari do; every other locale goes to the runtime's `Intl`. Dates are UTC. No new
   runtime dependency: the formatjs code is bundled.
+
+## 0.2.8 — 2026-10-10
+
 - **A request that answered `429` or `503` is retried instead of failing.** The gateway rate-limits a
   client by requests per minute, which a static build of a real catalogue meets routinely. The
   default `fetch` transport now repeats an **idempotent** request (`GET`/`HEAD`/`OPTIONS` — never a
@@ -152,6 +231,8 @@ platform repository.
   header name or a `GET` with a body fails on the first attempt, because repeating it can only fail
   the same way. **This is a minor**: the behaviour is a repair, but `retry` is a new public option
   and `EldraRetryOptions` a new exported type.
+
+## 0.2.7 — 2026-10-09
 
 - `analyticsTrackerScript`'s documentation no longer says events always reach the gateway; with
   `eventOrigin` set they go to that first-party proxy.

@@ -37,7 +37,13 @@ import type {
   EldraCollectionListOptions,
   EldraCollectionProductsOptions,
   EldraCategory,
+  EldraCreateSalesOrderInput,
+  EldraCreateSalesOrderOptions,
+  EldraCustomerLocationList,
+  EldraCustomerMe,
   EldraDiscountResult,
+  EldraErrorId,
+  EldraProblemErrors,
   EldraLocaleOptions,
   EldraOrder,
   EldraOrderReadOptions,
@@ -48,6 +54,11 @@ import type {
   EldraStockAvailabilityInput,
   EldraRequestContext,
   EldraRequestOptions,
+  EldraSalesOrder,
+  EldraSalesOrderList,
+  EldraSalesOrderListOptions,
+  EldraSalesOrderPreview,
+  EldraSalesOrderPreviewInput,
   EldraRetryOptions,
   RuntimeEnv,
   RuntimeValue,
@@ -87,12 +98,14 @@ export class EldraHttpError extends Error {
    * telling it apart from any other conflict is what lets a storefront say "out of stock" rather
    * than "something went wrong".
    */
-  readonly errorId: string | undefined;
+  readonly errorId: EldraErrorId | undefined;
   /**
    * The gateway's problem `errors` — the refusal's detail, when the body carried it as an object.
-   * A refused discount code names what blocked it here: `errors.blockingCode` on
-   * `CART_DISCOUNT_NOT_COMBINABLE`, `errors.limit` on `CART_DISCOUNT_CODES_LIMIT_REACHED`. Its
-   * members depend on the `errorId`, so read each as unknown and check its type.
+   * For example `salesOrderId` on `SALES_ORDER_CART_ALREADY_ORDERED` or `variantId` on
+   * `SALES_ORDER_LINE_INVALID`; a refused discount code names what blocked it here:
+   * `errors.blockingCode` on `CART_DISCOUNT_NOT_COMBINABLE`, `errors.limit` on
+   * `CART_DISCOUNT_CODES_LIMIT_REACHED`. Its members depend on the `errorId`, so read each as
+   * unknown and check its type (or narrow with `isEldraError`).
    */
   readonly errors: Readonly<Record<string, unknown>> | undefined;
 
@@ -106,6 +119,48 @@ export class EldraHttpError extends Error {
     this.errorId = problemString(body, 'errorId');
     this.errors = problemErrors(body);
   }
+}
+
+/**
+ * Thrown by `salesOrders.create`, before anything is sent, when the idempotency key is missing or not
+ * 1 to 255 printable ASCII characters without spaces. A bug in the calling code: fix it, never retry.
+ * Catch this class, not every `TypeError`: `fetch` reports a lost connection as a `TypeError` too,
+ * and that one may follow a placed order, so it is retried with the same key.
+ */
+export class EldraIdempotencyKeyError extends TypeError {
+  override name = 'EldraIdempotencyKeyError';
+}
+
+const idempotencyKeyPattern = /^[\x21-\x7e]{1,255}$/;
+
+function checkIdempotencyKey(key: unknown): string {
+  if (typeof key !== 'string' || !idempotencyKeyPattern.test(key)) {
+    throw new EldraIdempotencyKeyError(
+      'salesOrders.create needs an idempotency key of 1 to 255 printable ASCII characters'
+    );
+  }
+  return key;
+}
+
+/** An `EldraHttpError` whose `errorId` is `Id`, with that refusal's `errors` typed. */
+export type EldraHttpErrorWith<Id extends EldraErrorId> = EldraHttpError & {
+  readonly errorId: Id;
+  readonly errors:
+    | (Id extends keyof EldraProblemErrors
+        ? Readonly<Partial<EldraProblemErrors[Id]>>
+        : Readonly<Record<string, unknown>>)
+    | undefined;
+};
+
+/**
+ * Narrows an unknown error to an `EldraHttpError` with the given `errorId`. For an id in
+ * `EldraProblemErrors` its `errors` is typed (each field optional: it is as the gateway sent it).
+ */
+export function isEldraError<Id extends EldraErrorId>(
+  error: unknown,
+  errorId: Id
+): error is EldraHttpErrorWith<Id> {
+  return error instanceof EldraHttpError && error.errorId === errorId;
 }
 
 /** One field of an RFC 9457 problem body, when the body is an object that carries it as a string. */
@@ -321,6 +376,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       },
     },
     catalog: {
+      /**
+       * Lists products. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
+       */
       listProducts: <Response = EldraProductList>(
         listOptions?: EldraCatalogListProductsOptions,
         context?: EldraRequestContext
@@ -330,6 +390,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: '/catalog/v1/products/list',
           query: listOptions,
         }),
+      /**
+       * Reads one product. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
+       */
       getProduct: <Response = EldraProductDetails>(
         productId: string,
         getOptions?: EldraCatalogGetProductOptions,
@@ -362,6 +427,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/collections/${encodeURIComponent(slug)}`,
           query: localeOptions,
         }),
+      /**
+       * Lists a collection's products. Pass `customerHeaders(token, customerId)` as `context.headers` to get a
+       * signed-in business customer's prices (`listPrice` is the list price). Server-side only;
+       * never cache the result. See docs/customer-prices.md.
+       */
       listCollectionProducts: (
         slug: string,
         listOptions?: EldraCollectionProductsOptions,
@@ -384,6 +454,7 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/catalog/v1/brands/${encodeURIComponent(slug)}`,
           query: localeOptions,
         }),
+      /** Search results carry list prices, never customer prices. */
       search: (query: string, searchOptions?: EldraSearchOptions, context?: EldraRequestContext) =>
         request<EldraSearchResponse>({
           ...context,
@@ -392,6 +463,11 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         }),
     },
     cart: {
+      /**
+       * Adds a line. A signed-in token in `context.headers` binds the cart to that customer and
+       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
+       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       addItem: (input: EldraAddCartItemInput, context?: EldraRequestContext) => {
         const attribution =
           options.campaignAttribution === false || 'attribution' in input
@@ -404,12 +480,20 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           body: attribution === null ? input : { ...input, attribution },
         });
       },
+      /**
+       * Reads a cart by id. Reads stay open for a cart bound to a customer (hosted checkout).
+       */
       get: (cartId: string, localeOptions?: EldraLocaleOptions, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}`,
           query: localeOptions,
         }),
+      /**
+       * Changes a line's quantity. A signed-in token in `context.headers` binds the cart to that customer and
+       * prices its lines for them. Errors: 409 CART_CUSTOMER_MISMATCH, CART_SIGN_IN_REQUIRED;
+       * 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       updateItem: (
         cartId: string,
         itemId: string,
@@ -422,12 +506,20 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
           body: input,
         }),
+      /**
+       * Removes a line. A guest may remove a line from a bound cart; a signed-in token binds the
+       * cart to that customer. Errors: 409 CART_CUSTOMER_MISMATCH; 503 CART_PRICES_UNAVAILABLE. See docs/customer-prices.md.
+       */
       removeItem: (cartId: string, itemId: string, context?: EldraRequestContext) =>
         request<EldraCart>({
           ...context,
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
         }),
+      /**
+       * Applies a discount code. On a cart bound to a customer this is 409
+       * CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES: codes do not combine with customer prices.
+       */
       applyDiscount: async (
         cartId: string,
         code: string,
@@ -444,6 +536,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         });
         return { cart, applied: cartHoldsDiscountCode(cart, trimmed) };
       },
+      /**
+       * Removes the discount code. A guest write to a bound cart is 409 CART_SIGN_IN_REQUIRED.
+       */
       removeDiscount: (
         cartId: string,
         localeOptions?: EldraLocaleOptions,
@@ -608,6 +703,46 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         }
         return buildCheckoutUrl(checkoutUrl, handoff, options);
       },
+    },
+    customer: {
+      me: (context?: EldraRequestContext) =>
+        request<EldraCustomerMe>({ ...context, path: '/customer/v1/me' }),
+      locations: (context?: EldraRequestContext) =>
+        request<EldraCustomerLocationList>({ ...context, path: '/customer/v1/locations' }),
+    },
+    salesOrders: {
+      preview: (input: EldraSalesOrderPreviewInput, context?: EldraRequestContext) =>
+        request<EldraSalesOrderPreview>({
+          ...context,
+          method: 'POST',
+          path: '/sales-order/v1/preview',
+          body: input,
+        }),
+      create: async (
+        input: EldraCreateSalesOrderInput,
+        createOptions: EldraCreateSalesOrderOptions,
+        context?: EldraRequestContext
+      ) => {
+        const idempotencyKey = checkIdempotencyKey(createOptions?.idempotencyKey);
+        return request<EldraSalesOrder>({
+          ...context,
+          method: 'POST',
+          path: '/sales-order/v1',
+          headers: mergeHeaders(context?.headers, { 'Idempotency-Key': idempotencyKey }),
+          body: input,
+        });
+      },
+      list: (listOptions?: EldraSalesOrderListOptions, context?: EldraRequestContext) =>
+        request<EldraSalesOrderList>({
+          ...context,
+          path: '/sales-order/v1',
+          query: listOptions,
+        }),
+      get: (salesOrderId: string, context?: EldraRequestContext) =>
+        request<EldraSalesOrder>({
+          ...context,
+          path: `/sales-order/v1/${encodeURIComponent(salesOrderId)}`,
+        }),
     },
     inventory: {
       availability: (items: EldraStockAvailabilityInput[], context?: EldraRequestContext) =>
