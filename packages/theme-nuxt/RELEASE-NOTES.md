@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.5](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.4...theme-nuxt-v0.4.5) (2026-11-17)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.1
+
 ## [0.4.4](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.3...theme-nuxt-v0.4.4) (2026-11-17)
 
 

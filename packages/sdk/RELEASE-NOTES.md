@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.0...sdk-v0.5.1) (2026-11-17)
+
+
+### Features
+
+* **sdk:** B2B business customers ([#142](https://github.com/eldra-is/headless-kit/issues/142)) ([833e5c7](https://github.com/eldra-is/headless-kit/commit/833e5c7468eadfefd937db8d3c886949ee1aeae1))
+
 ## [0.5.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.3...sdk-v0.5.0) (2026-11-17)
 
 
