@@ -726,7 +726,7 @@ export type EldraShopErrorId =
   | 'FEATURE_DISABLED';
 
 /**
- * Error ids of the sales-order routes (contract 6.11.0). `SALES_ORDER_CART_ALREADY_ORDERED`
+ * Error ids of the sales-order routes (contract 6.15.0). `SALES_ORDER_CART_ALREADY_ORDERED`
  * carries `errors.salesOrderId`, `SALES_ORDER_LINE_INVALID` `errors.variantId` and
  * `ORDER_PRODUCT_UNAVAILABLE` `errors.variantIds` on `EldraHttpError.errors`.
  */
@@ -774,7 +774,7 @@ export type EldraErrorId =
   | (string & {});
 
 /**
- * Orders on account for a signed-in business customer's active company (contract 6.11.0).
+ * Orders on account for a signed-in business customer's active company (contract 6.15.0).
  * Server-side only: pass `customerHeaders(accessToken, customerId)` as `context.headers` on every
  * call. Every answer is `Cache-Control: private, no-store`; never cache one. See
  * docs/sales-orders.md.

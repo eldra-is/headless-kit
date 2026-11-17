@@ -81,9 +81,9 @@ platform repository.
   `campaignAttribution` (`{ storage }`, or `false` to send none). Nothing clears it automatically.
 
 Business customers (B2B), for the next release after 0.4.3. Every entry below needs a gateway
-serving public contract 6.11.0 (core merged main's 6.10.0 first).
+serving public contract 6.15.0 (core merged main's 6.14.0 first).
 
-- Contract 6.11.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
+- Contract 6.15.0. Business login: `shopIssuer`, `ELDRA_SHOP_CLIENT_ID`, `createPkcePair`,
   `pkceChallenge`, `buildAuthorizeUrl`, `exchangeAuthorizationCode`, `refreshTokens` and
   `buildLogoutUrl` (OIDC authorization code with PKCE against the shop realm, `EldraOidcError` on
   failure), `bearer(accessToken)`, and `customer.me(context)` for the signed-in business customer
@@ -94,22 +94,22 @@ serving public contract 6.11.0 (core merged main's 6.10.0 first).
 - `buildAuthorizeUrl` takes an optional `uiLocales` (a BCP 47 tag or a list, most preferred
   first), sent as the OIDC `ui_locales` parameter so the shop login pages use the storefront's
   language. No contract change.
-- Customer prices (contract 6.11.0): catalog product, list and collection-product reads and cart
+- Customer prices (contract 6.15.0): catalog product, list and collection-product reads and cart
   writes accept a signed-in token and `X-Customer-Id` per call in `context.headers`. Priced
   variants carry `listPrice`, list items carry the customer's `minPrice` and `maxPrice`, and priced
   responses have no `compareAtPrice`. `customerHeaders(accessToken, customerId?)` builds the
   headers. Priced responses are `Cache-Control: private, no-store`. See `docs/customer-prices.md`.
-- Customer carts (contract 6.11.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
+- Customer carts (contract 6.15.0): cart and order error ids `CART_CUSTOMER_MISMATCH` (also on a
   signed-in read), `CART_SIGN_IN_REQUIRED` (a guest may still remove a line),
   `CART_CUSTOMER_PRICES_OFF`, `ORDER_CUSTOMER_PRICES_OFF`, `CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES`,
   `CART_PRICES_UNAVAILABLE`. Every cart answer is `private, no-store`; binding drops the discount
   code; list items carry `listPrice`. The docs explain tracking the binding and moving the cart.
-- Customer carts (contract 6.11.0): an archived or unknown company answers 409
+- Customer carts (contract 6.15.0): an archived or unknown company answers 409
   `CART_CUSTOMER_UNAVAILABLE` on cart writes and 409 `ORDER_CUSTOMER_UNAVAILABLE` on order create and
   preview; treat them like `*_CUSTOMER_PRICES_OFF`. A bound
   cart shows the prices stored when lines were added, and the order re-prices, so show the order
   preview total before payment. No change to the generated contract.
-- Sales orders and delivery locations (contract 6.11.0) for a signed-in business customer's active
+- Sales orders and delivery locations (contract 6.15.0) for a signed-in business customer's active
   company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
   envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
   context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
