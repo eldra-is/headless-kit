@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.10](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.9...ui-v0.3.10) (2026-11-17)
+
+
+### Features
+
+* **ui:** Autocomplete, a text field with a list of suggestions (WS-1039) ([#146](https://github.com/eldra-is/headless-kit/issues/146)) ([f29548d](https://github.com/eldra-is/headless-kit/commit/f29548de3e1f1df5a0eba82dd0647f4138d6f613))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.0
+
 ## [0.3.9](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.8...ui-v0.3.9) (2026-11-16)
 
 

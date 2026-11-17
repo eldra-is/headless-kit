@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.3...sdk-v0.5.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** the three types are no longer exported.
+
+### Features
+
+* **sdk:** remove the checkout summary types (WS-1018) ([#143](https://github.com/eldra-is/headless-kit/issues/143)) ([8e3ff85](https://github.com/eldra-is/headless-kit/commit/8e3ff858e1f2cf5a9ad0a7f377085899d27c863c))
+
 ## [0.4.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.4.2...sdk-v0.4.3) (2026-11-15)
 
 
