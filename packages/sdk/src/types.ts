@@ -472,19 +472,6 @@ export type EldraOrderLine = Item<Prop<EldraOrder, 'orderLines'>>;
 export type EldraOrderDiscountCode = Item<Prop<EldraOrder, 'discountCodes'>>;
 export type EldraRecoveredBasket = EldraContractResponse<'/order/v1/recover', 'post'>;
 export type EldraRecoveredBasketItem = Item<Prop<EldraRecoveredBasket, 'items'>>;
-/** The checkout summary `POST /order/v1/preview` answers (the hosted checkout reads it). */
-export type EldraOrderPreview = EldraContractResponse<'/order/v1/preview', 'post'>;
-/**
- * One gift card of the checkout summary (contract 6.8.0), from `giftCards`: each card that would
- * pay something, in the order applied, as `{last4, amount}`; they sum to `giftCardAmount`.
- */
-export type EldraOrderPreviewGiftCard = Item<Prop<EldraOrderPreview, 'giftCards'>>;
-/**
- * One discount code of the checkout summary (contract 6.9.0), from `discountCodes`: each code that
- * would reduce the order, in the order applied, as `{code, amount}`.
- */
-export type EldraOrderPreviewDiscountCode = Item<Prop<EldraOrderPreview, 'discountCodes'>>;
-
 export interface EldraOrderReadOptions {
   /** The one-time token returned when the order was created. Required unless the caller owns the order. */
   accessToken?: string;
