@@ -290,6 +290,28 @@ describe('Input — leading icon and suffix', () => {
     wrapper.unmount();
   });
 
+  it('follows a suffix slot given and taken away after mount', async () => {
+    const shown = ref(false);
+    const wrapper = mountWith(
+      defineComponent({
+        setup: () => () =>
+          h(Input, NAME, shown.value ? { suffix: () => h('span', 'kg') } : undefined),
+      })
+    );
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+
+    shown.value = true;
+    await nextTick();
+    expect(wrapper.find('[data-part="suffix"]').text()).toBe('kg');
+    expect(wrapper.find('input').classes()).toContain('eldra:pe-10');
+
+    shown.value = false;
+    await nextTick();
+    expect(wrapper.find('[data-part="suffix"]').exists()).toBe(false);
+    expect(wrapper.find('input').classes()).not.toContain('eldra:pe-10');
+    wrapper.unmount();
+  });
+
   it('makes room for a trailing action with the spec end padding', () => {
     const wrapper = mountWith(Input, {
       attrs: NAME,

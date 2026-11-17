@@ -37,6 +37,8 @@ table and Storybook for the full contract of each).
   fields that set the same value by another route.
 - `Select` / `MultiSelect` — a single- or multi-value select with a popover listbox.
 - `SearchBar` — a typeahead search field with a popover results panel.
+- `Autocomplete` — a free-text field with a list of suggestions under it that the caller
+  supplies (an address lookup); choosing one fills the field, and anything may be typed and kept.
 - `PhoneInput` — a phone number field with a searchable country picker, as-you-type spacing and
   an E.164 value, from the `@eldrajs/ui/phone` entry (it needs the optional `libphonenumber-js`
   peer; see `packages/ui/README.md`, "`./phone`"). `FieldPhoneInput` and `phoneRule` for

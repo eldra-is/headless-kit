@@ -195,11 +195,13 @@ module.exports = [
   // the field chrome on standalone controls): measured at 167.87 kB.
   // Raised 172 kB -> 173 kB for `PhoneInput`'s eight messages and its two utilities' merge groups,
   // the only parts of `@eldrajs/ui/phone` the root entry carries: measured at 172.27 kB.
+  // Raised 173 kB -> 175 kB for `Autocomplete`, which reuses `Input`, `useListbox`, `usePopover` and
+  // the select panel's classes, so adds only its own SFC and one message: measured at 173.71 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '173 kB',
+    limit: '175 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

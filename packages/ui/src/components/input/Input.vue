@@ -25,6 +25,7 @@ import { reassertValue } from './reassertValue';
 import type { InputProps } from './types';
 import { useAdornmentRoom } from './useAdornmentRoom';
 import { useEldraScope } from '../../composables/useEldraScope';
+import { useSlotPresence } from '../../composables/useSlotPresence';
 
 const eldra = useEldraScope();
 
@@ -63,6 +64,8 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+/** Read through `useSlotPresence`, so a slot given or taken away after mount is followed. */
+const present = useSlotPresence(slots, ['leadingIcon', 'prefix', 'suffix'] as const);
 const m = useMessages();
 
 /**
@@ -113,12 +116,12 @@ const clearable = computed(() => props.clearable ?? props.type === 'search');
 const showClear = computed(
   () => clearable.value && !props.disabled && !props.readonly && model.value.length > 0
 );
-const hasSuffixSlot = computed(() => slots.suffix !== undefined);
+const hasSuffixSlot = computed(() => present.value.suffix);
 const hasTrailing = computed(() => showClear.value || hasSuffixSlot.value);
 /** The interactive start row. It takes the start edge, so a `leadingIcon` is not drawn beside it. */
-const hasPrefix = computed(() => slots.prefix !== undefined);
+const hasPrefix = computed(() => present.value.prefix);
 const hasLeading = computed(
-  () => !hasPrefix.value && (props.leadingIcon !== undefined || slots.leadingIcon !== undefined)
+  () => !hasPrefix.value && (props.leadingIcon !== undefined || present.value.leadingIcon)
 );
 
 /**

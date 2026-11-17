@@ -226,6 +226,7 @@ export const isIS: UiMessages = {
   formPendingMessage: 'Við sendum þér tölvupóst. Smelltu á hlekkinn í honum til að staðfesta.',
   stepCompleted: 'lokið',
   stepNotStarted: 'ekki hafið',
+  suggestions: 'Tillögur',
   phoneCountry: (name: string, code: string) => `Land: ${name}, ${code}`,
   phoneCountryList: 'Land',
   phoneSearch: 'Leita að landi eða landsnúmeri',

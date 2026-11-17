@@ -7,6 +7,7 @@ import { MESSAGES_KEY } from '../../composables/useMessages';
 import { isIS } from '../../messages/is-IS';
 import { axe } from '../../test/axe';
 import { mountWith } from '../../test/mount';
+import FieldAutocomplete from '../FieldAutocomplete.vue';
 import FieldCheckbox from '../FieldCheckbox.vue';
 import FieldCheckboxGroup from '../FieldCheckboxGroup.vue';
 import FieldInput from '../FieldInput.vue';
@@ -1011,6 +1012,104 @@ describe('FieldCurrencyInput and FieldUnitInput inside a Form', () => {
     // The *message* is not this control's to draw — like `Input`, it has no error row of its own;
     // a `FieldWrapper` bound to the `Form`'s `errors` slot shows it. What is asserted here is the
     // gate: nothing is announced until the customer has left the field.
+    wrapper.unmount();
+  });
+});
+
+describe('FieldAutocomplete inside a Form', () => {
+  const STREETS = [
+    { value: 'a', label: 'Laugavegur 1', description: '101 Reykjavík' },
+    { value: 'b', label: 'Laugavegur 10', description: '101 Reykjavík' },
+  ];
+
+  it('binds the typed text, passes select through, and submits the chosen label', async () => {
+    const onSelect = vi.fn();
+    const wrapper = mountForm(() =>
+      h(
+        FieldWrapper,
+        { label: 'Street address' },
+        {
+          default: () =>
+            h(
+              FieldAutocomplete,
+              {
+                name: 'street',
+                suggestions: STREETS,
+                minLength: 2,
+                rules: filled('Enter a street address.'),
+                onSelect,
+              },
+              { footer: () => 'Addresses from the national register' }
+            ),
+        }
+      )
+    );
+    await settle();
+    const input = wrapper.find('input[name="street"]');
+    const element = input.element as HTMLInputElement;
+
+    // The control is the wrapper's: the label names it, and it is a combobox.
+    expect(wrapper.find('label').attributes('for')).toBe(element.id);
+    expect(element.getAttribute('role')).toBe('combobox');
+
+    // `minLength` reaches the control: one character is not enough to open.
+    element.focus();
+    await input.setValue('L');
+    await settle();
+    expect(document.getElementById(`${element.id}-panel`)).toBeNull();
+
+    await input.setValue('Lau');
+    await settle();
+    const panel = document.getElementById(`${element.id}-panel`)!;
+    // The `footer` slot is forwarded.
+    expect(panel.querySelector('[data-part="footer"]')?.textContent).toBe(
+      'Addresses from the national register'
+    );
+
+    panel.querySelectorAll<HTMLElement>('[role="option"]')[1]!.click();
+    await settle();
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(STREETS[1]);
+    expect(element.value).toBe('Laugavegur 10');
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ street: 'Laugavegur 10' });
+
+    wrapper.unmount();
+  });
+
+  it('keeps free text, and shows its message on blur rather than while typing', async () => {
+    const wrapper = mountForm(() =>
+      h(FieldAutocomplete, {
+        name: 'street',
+        'aria-label': 'Street address',
+        suggestions: STREETS,
+        rules: filled('Enter a street address.'),
+      })
+    );
+    await settle();
+    const input = wrapper.find('input[name="street"]');
+
+    await input.setValue('Somewhere else 5');
+    await input.setValue('');
+    await settle();
+    expect(input.attributes('aria-invalid')).toBeUndefined();
+
+    await input.trigger('blur');
+    await settle();
+    expect(input.attributes('aria-invalid')).toBe('true');
+
+    await input.setValue('Somewhere else 5');
+    await input.trigger('blur');
+    await settle();
+    expect(input.attributes('aria-invalid')).toBeUndefined();
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ street: 'Somewhere else 5' });
+
     wrapper.unmount();
   });
 });

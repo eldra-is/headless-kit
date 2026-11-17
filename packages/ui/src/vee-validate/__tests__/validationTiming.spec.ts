@@ -511,6 +511,7 @@ describe('the three defaults of every Field*', () => {
    */
   const VALIDATE_ON_VALUE_UPDATE: Record<string, boolean> = {
     // Typed: the value is built up one keystroke at a time.
+    FieldAutocomplete: false,
     FieldCurrencyInput: false,
     FieldInput: false,
     FieldSearchBar: false,
