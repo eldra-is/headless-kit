@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.12](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.11...ui-v0.3.12) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ui:** Autocomplete shows a single suggestion that equals the text (WS-1039) ([#148](https://github.com/eldra-is/headless-kit/issues/148)) ([d4b3d1b](https://github.com/eldra-is/headless-kit/commit/d4b3d1b0c85c1bf07d1497ed379260ab4de8dd88))
+
 ## [0.3.11](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.10...ui-v0.3.11) (2026-11-17)
 
 
