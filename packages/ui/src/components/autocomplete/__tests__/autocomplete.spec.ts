@@ -107,13 +107,18 @@ describe('Autocomplete: when the panel shows', () => {
     expect(isOpen(wrapper)).toBe(false);
   });
 
-  it('does not open for a single suggestion that equals the text', async () => {
+  it('opens for a single suggestion that equals the text, which confirms it', async () => {
     const wrapper = mount({ suggestions: [STREETS[0]] });
 
     await type(wrapper, 'Laugavegur 1');
+    expect(isOpen(wrapper)).toBe(true);
+
+    control(wrapper).blur();
+    await nextTick();
     expect(isOpen(wrapper)).toBe(false);
 
-    await type(wrapper, 'Laugavegur');
+    control(wrapper).focus();
+    await nextTick();
     expect(isOpen(wrapper)).toBe(true);
   });
 

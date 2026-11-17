@@ -116,18 +116,13 @@ const dismissed = ref(false);
 /** The rows on screen. `props.suggestions`, except while a wait holds the previous ones. */
 const rows = shallowRef<AutocompleteSuggestion[]>(props.suggestions);
 
-/** A single suggestion that says exactly what the field already says offers nothing. */
-const onlyRepeatsText = computed(
-  () => rows.value.length === 1 && rows.value[0]?.label === model.value
-);
-
 const canShow = computed(
   () =>
     !props.disabled &&
     !props.readonly &&
     model.value.length >= props.minLength &&
-    rows.value.length > 0 &&
-    !onlyRepeatsText.value
+    // A single row that says what the field already says still shows: it confirms the text.
+    rows.value.length > 0
 );
 const wantsOpen = computed(() => focused.value && !dismissed.value && canShow.value);
 
