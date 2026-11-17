@@ -18,6 +18,7 @@
 export const componentNames = [
   'Accordion',
   'AccordionItem',
+  'Autocomplete',
   'Avatar',
   'AvatarGroup',
   'Badge',

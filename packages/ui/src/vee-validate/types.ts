@@ -1,4 +1,5 @@
 import type { FormMeta, FormOptions, RuleExpression } from 'vee-validate';
+import type { AutocompleteProps } from '../components/autocomplete/types';
 import type { CheckboxGroupProps, CheckboxProps } from '../components/checkbox/types';
 import type { FormLayoutProps } from '../components/form-layout/types';
 import type { InputProps } from '../components/input/types';
@@ -57,7 +58,7 @@ export interface FieldBinding<TValue = unknown> {
    * field has been touched or the form submitted.
    *
    * The default depends on the control. **`false`** for a typed one (`FieldInput`, `FieldTextarea`,
-   * `FieldCurrencyInput`, `FieldUnitInput`, `FieldSearchBar`): while the customer types, no
+   * `FieldCurrencyInput`, `FieldUnitInput`, `FieldSearchBar`, `FieldAutocomplete`): while the customer types, no
    * message appears and a message already showing stays as it is until the next blur or submit.
    * **`true`** for a choice (`FieldCheckbox`, `FieldCheckboxGroup`, `FieldRadioGroup`,
    * `FieldSwitch`, `FieldSelect`, `FieldMultiSelect`, `FieldVariantPicker`,
@@ -75,6 +76,10 @@ export interface FieldBinding<TValue = unknown> {
  * silently does nothing.
  */
 export type FieldInputProps = Omit<InputProps, 'modelValue' | 'invalid'> & FieldBinding<string>;
+
+/** The field's value is the text in the field, typed or written by a chosen suggestion. */
+export type FieldAutocompleteProps = Omit<AutocompleteProps, 'modelValue' | 'invalid'> &
+  FieldBinding<string>;
 
 export type FieldTextareaProps = Omit<TextareaProps, 'modelValue' | 'invalid'> &
   FieldBinding<string>;

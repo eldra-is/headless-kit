@@ -8,6 +8,7 @@
 // own alphabetical position rather than beside the sibling component that shares their file.
 export { default as Accordion } from './components/accordion/Accordion.vue';
 export { default as AccordionItem } from './components/accordion/AccordionItem.vue';
+export { default as Autocomplete } from './components/autocomplete/Autocomplete.vue';
 export { default as Avatar } from './components/avatar/Avatar.vue';
 export { default as AvatarGroup } from './components/avatar/AvatarGroup.vue';
 export { default as Badge } from './components/badge/Badge.vue';
@@ -96,6 +97,12 @@ export type {
   FilterRemoval,
   FilterSelection,
 } from './components/filter-panel/types';
+export type {
+  AutocompleteOptionSlotProps,
+  AutocompletePart,
+  AutocompleteProps,
+  AutocompleteSuggestion,
+} from './components/autocomplete/types';
 export type {
   AvatarGroupPart,
   AvatarGroupPerson,

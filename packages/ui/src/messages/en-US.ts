@@ -569,6 +569,8 @@ export const enUS = {
   stepCompleted: 'completed',
   /** `StepIndicator`: the same, for a step after the current one. */
   stepNotStarted: 'not started',
+  /** `Autocomplete`: the accessible name of the list of suggestions under the field. */
+  suggestions: 'Suggestions',
   /**
    * `PhoneInput` (`@eldrajs/ui/phone`): the country button's accessible name, the chosen country
    * and its dialling code ("Country: Iceland, +354").
