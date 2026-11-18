@@ -106,9 +106,11 @@ const panelClass = computed(() => [
   props.flat
     ? // Spec "Search modal" → Sizes, Panel row: "Inline, fills the remaining height and
       // scrolls; padding 0.5rem; no border, shadow or open animation." The dialog frame around
-      // this component already clips to the radius, so nothing here draws one.
+      // this component already clips to the radius, so nothing here draws one. `flex-auto`, not
+      // `h-full`: the frame's `results` box is a flex column of indefinite height, which a
+      // percentage height cannot resolve against (see `SearchModal`'s `resultsClass`).
       [
-        'eldra:flex eldra:h-full eldra:min-h-0 eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-2',
+        'eldra:flex eldra:min-h-0 eldra:flex-auto eldra:flex-col eldra:overflow-y-auto eldra:overscroll-contain eldra:p-2',
         'eldra:text-[color:var(--eldra-select-panel-text)]',
       ]
     : [
