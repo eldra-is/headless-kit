@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeDialog,
   currentDialog,
@@ -187,5 +187,68 @@ describe('dialogStack — scroll lock', () => {
 
     closeDialog(first);
     expect(document.documentElement.style.overflow).toBe('scroll');
+  });
+});
+
+describe('dialogStack — scroll lock keeps the page from shifting', () => {
+  /** A 1024px window whose root has a classic scrollbar `width` wide (happy-dom lays nothing out). */
+  function stubScrollbar(width: number): void {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(1024 - width);
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.documentElement.style.paddingRight = '';
+  });
+
+  it('pads <html> by the scrollbar width it hides, removing the padding on close', () => {
+    stubScrollbar(15);
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('15px');
+    closeDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('');
+  });
+
+  it("adds to the page's own <html> padding and restores it exactly", () => {
+    stubScrollbar(15);
+    document.documentElement.style.paddingRight = '10px';
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('25px');
+    closeDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('10px');
+  });
+
+  it('pads once for a stack of dialogs, measured before the first one hid the scrollbar', () => {
+    stubScrollbar(15);
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    // With the root's scrollbar gone the window and root widths agree; a second lock that measured
+    // again would see no scrollbar — the padding must not change either way.
+    stubScrollbar(0);
+    openDialog(second);
+    expect(document.documentElement.style.paddingRight).toBe('15px');
+    closeDialog(second);
+    expect(document.documentElement.style.paddingRight).toBe('15px');
+    closeDialog(first);
+    expect(document.documentElement.style.paddingRight).toBe('');
+  });
+
+  it('adds no padding when there is no scrollbar to hide (short page, overlay scrollbars)', () => {
+    stubScrollbar(0);
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('');
+  });
+
+  it('adds no padding when nothing is laid out (clientWidth 0 is not a window-wide scrollbar)', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1024);
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(0);
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(document.documentElement.style.paddingRight).toBe('');
   });
 });
