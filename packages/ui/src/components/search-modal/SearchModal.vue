@@ -798,9 +798,16 @@ const cancelClass = computed(() => [
 
 /** The frame's own bounding box around the reused panel (spec → Sizes, Panel row: "fills the
  *  remaining height and scrolls") — distinct from that panel's own `panel` part, the scrollable box
- *  inside it. */
+ *  inside it.
+ *
+ * `flex-auto`, not `flex-1`: the dialog has a `max-height` but no height on desktop, and Safari sizes
+ * a `flex-basis: 0%` item in a column of indefinite height to nothing — the dialog drew the field
+ * and the footer with no results between them. A content basis grows to the content and shrinks
+ * under the max (`min-h-0`). It is a flex column itself so the panel inside shrinks to it and
+ * scrolls, which a `height: 100%` against this box's indefinite height never did in any browser:
+ * long results were clipped at the max with no way to reach them. */
 const resultsClass = computed(() => [
-  'eldra:min-h-0 eldra:flex-1 eldra:overflow-hidden',
+  'eldra:flex eldra:min-h-0 eldra:flex-auto eldra:flex-col eldra:overflow-hidden',
   props.classes?.results,
 ]);
 
