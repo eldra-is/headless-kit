@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.13](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.12...ui-v0.3.13) (2026-11-18)
+
+
+### Bug Fixes
+
+* **ui:** modal scroll lock no longer shifts the page; SearchModal results in Safari ([#150](https://github.com/eldra-is/headless-kit/issues/150)) ([be131d2](https://github.com/eldra-is/headless-kit/commit/be131d236e69832af0f76bf550bc08bd0be2e822))
+
 ## [0.3.12](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.11...ui-v0.3.12) (2026-11-17)
 
 
