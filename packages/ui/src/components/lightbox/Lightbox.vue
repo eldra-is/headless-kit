@@ -20,13 +20,14 @@
  * not a `loading` attribute (see the template's own comment on the track for why the *wrapper*
  * stays mounted).
  */
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useDialog } from '../../composables/useDialog';
 import { useMessages } from '../../composables/useMessages';
 import { carouselPerViewStyle, useCarousel } from '../carousel/useCarousel';
 import Image from '../image/Image.vue';
 import type { LightboxProps } from './types';
+import { containedRect, MIN_ZOOM_SCALE, type ZoomRect, zoomScale, zoomTransform } from './zoom';
 import { useEldraScope } from '../../composables/useEldraScope';
 
 const eldra = useEldraScope();
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<LightboxProps>(), {
   modelValue: undefined,
   index: 0,
   thumbnails: false,
+  zoom: false,
   messages: undefined,
   classes: undefined,
 });
@@ -65,6 +67,15 @@ const nextButtonRef = ref<HTMLButtonElement | null>(null);
 const single = computed(() => props.images.length <= 1);
 const showThumbnails = computed(() => props.thumbnails && !single.value);
 
+/** `zoom` state — see the zoom section below. Declared here: `useCarousel`'s `draggable` reads it. */
+const zoomed = ref(false);
+/** A mouse or pen is over the picture itself (not its letterbox) while not zoomed. */
+const hoverImage = ref(false);
+/** A mouse or pen is anywhere over the stage — what keeps the zoom button shown on the way to it,
+ *  across the letterbox and off the track onto the button itself. */
+const hoverStage = ref(false);
+const focus = reactive({ x: 0.5, y: 0.5 });
+
 const {
   index: carouselIndex,
   count,
@@ -85,7 +96,8 @@ const {
   // decision: "Lightbox inherits it through `useCarousel`"). Dragging on the stage moves
   // between images; the prev/next arrows and the thumbnail strip sit outside `trackRef`, so a
   // drag never reaches (and never needs to suppress a click on) either.
-  draggable: true,
+  // …except while zoomed (`zoom`), when dragging over the image pans it instead of changing image.
+  draggable: () => !zoomed.value,
   onChange: (value) => emit('update:index', value),
 });
 
@@ -157,6 +169,9 @@ const { close, isTop } = useDialog({
   // no `dismissable` knob at all (the same shape `Drawer` uses for its own unconditional rule,
   // just the opposite direction).
   dismissable: false,
+  // `zoom`: `Esc` zooms out first. The press that does is a `keydown` followed by the dialog's own
+  // `cancel`, so the flag set in `onViewerKeydown` keeps that same press from also closing.
+  closeOnEscape: () => !zoomed.value && !escapeZoomedOut,
   // Spec "Behaviour & motion": "Initial focus: the close button" — the opposite of `useDialog`'s
   // own default (never the close button while a better candidate exists), so, like `Drawer`'s own
   // right side, this passes it explicitly rather than relying on DOM order.
@@ -192,7 +207,49 @@ function onCloseClick(): void {
  * `onTrackKeydown` on the track — binding both would fire `next()`/`prev()` twice whenever the
  * track itself has focus, once from each listener.
  */
+/** Set for the rest of an `Esc` press that zoomed out — cleared on the next task, after the
+ *  dialog's `cancel` for the same press has been dispatched. */
+let escapeZoomedOut = false;
+
+/** `zoom`, while zoomed: the arrow keys move the view a tenth of the way per press. */
+const PAN_STEP = 0.1;
+const PAN_KEYS: Record<string, [number, number]> = {
+  ArrowLeft: [-PAN_STEP, 0],
+  ArrowRight: [PAN_STEP, 0],
+  ArrowUp: [0, -PAN_STEP],
+  ArrowDown: [0, PAN_STEP],
+};
+
+/** `Esc` while zoomed: zooms out, and keeps the rest of the same press from closing the viewer. */
+function zoomOutOnEscape(event: Event): void {
+  event.preventDefault();
+  escapeZoomedOut = true;
+  setTimeout(() => {
+    escapeZoomedOut = false;
+  }, 0);
+  setZoomed(false);
+}
+
+/** The dialog's own `cancel` (an `Esc` press): it reaches the dialog even when the `keydown` did not
+ *  (focus on `<body>`), so zooming out never depends on where focus is. */
+function onViewerCancel(event: Event): void {
+  if (zoomed.value) zoomOutOnEscape(event);
+}
+
 function onViewerKeydown(event: KeyboardEvent): void {
+  if (zoomed.value) {
+    if (event.key === 'Escape') {
+      zoomOutOnEscape(event);
+      return;
+    }
+    const step = PAN_KEYS[event.key];
+    if (step) {
+      event.preventDefault();
+      focus.x = Math.min(1, Math.max(0, focus.x + step[0]));
+      focus.y = Math.min(1, Math.max(0, focus.y + step[1]));
+    }
+    return;
+  }
   if (event.key === 'ArrowRight') {
     event.preventDefault();
     next();
@@ -200,6 +257,190 @@ function onViewerKeydown(event: KeyboardEvent): void {
     event.preventDefault();
     prev();
   }
+}
+
+// --- zoom ------------------------------------------------------------------------------------------
+
+// `zoom` (an addition beyond the spec, see the README): the current image grows to its real size
+// and the mouse picks which part of it shows. `focus` (declared above `useCarousel`) is that pick,
+// per axis in `[0, 1]` — `0` the image's leading edge, `1` its trailing edge — and `zoom.ts` turns it
+// into a transform. The transform goes on the `<img>`, never on its frame: the frame is what
+// `measure()` reads, so it must keep its untransformed box.
+
+/** Whether the current image gains at least `MIN_ZOOM_SCALE` by zooming, as last measured. Layout
+ *  is not reactive, so this is refreshed on open, on a change of image and on a window resize. */
+const zoomable = ref(false);
+const canZoom = computed(() => props.zoom && model.value && zoomable.value);
+
+const toRect = (r: DOMRect): ZoomRect => ({
+  left: r.left,
+  top: r.top,
+  width: r.width,
+  height: r.height,
+});
+
+function currentSlide(): HTMLElement | null {
+  return (trackRef.value?.children[carouselIndex.value] as HTMLElement | undefined) ?? null;
+}
+
+/** The current image's geometry, measured now: its frame, the part of the frame the picture
+ *  paints (`contain` letterboxes it on a narrow stage), the slide the zoomed image may fill, and how
+ *  far it may grow. `null` while there is nothing laid out to measure. */
+function measure(): { painted: ZoomRect; stage: ZoomRect; scale: number } | null {
+  const slide = currentSlide();
+  const image = props.images[carouselIndex.value];
+  const frame = slide?.querySelector<HTMLElement>('[data-part="frame"]');
+  if (!slide || !frame || !image) return null;
+  const painted = containedRect(toRect(frame.getBoundingClientRect()), image.width, image.height);
+  if (painted.width <= 0) return null;
+  return {
+    painted,
+    stage: toRect(slide.getBoundingClientRect()),
+    scale: zoomScale(image.width, painted.width),
+  };
+}
+
+function refreshZoomable(): void {
+  const geometry = props.zoom && model.value ? measure() : null;
+  zoomable.value = geometry !== null && geometry.scale >= MIN_ZOOM_SCALE;
+  // A resize that leaves the image near its real size ends the close-up: the scale would otherwise
+  // drop toward (or under) 1 while the image still claims to be zoomed.
+  if (!zoomable.value && zoomed.value) setZoomed(false);
+}
+
+// The zoom button goes away with `canZoom` (a resize, or an image too small to zoom). If it had
+// focus, focus would fall to `<body>`, outside the dialog, and the viewer's keys with it; the stage
+// takes it instead, before the button is removed (`watch`'s default flush runs ahead of the render).
+watch(canZoom, (can) => {
+  const button = dialogEl.value?.querySelector('[data-part="zoomButton"]');
+  if (!can && button && typeof document !== 'undefined' && document.activeElement === button) {
+    trackRef.value?.focus();
+  }
+});
+
+function setZoomed(on: boolean): void {
+  if (on && !canZoom.value) return;
+  if (!on) {
+    focus.x = 0.5;
+    focus.y = 0.5;
+  }
+  zoomed.value = on;
+}
+
+/** Writes the transform onto the current slide's `<img>` and clears it from every other one. */
+function applyZoom(): void {
+  const track = trackRef.value;
+  if (!track) return;
+  const slide = currentSlide();
+  const geometry = zoomed.value ? measure() : null;
+  for (const media of track.querySelectorAll<HTMLElement>('img[data-part="image"]')) {
+    if (geometry === null || !slide?.contains(media)) {
+      media.style.transform = '';
+      continue;
+    }
+    const { x, y } = zoomTransform(geometry.painted, geometry.stage, geometry.scale, focus);
+    media.style.transform = `translate(${x}px, ${y}px) scale(${geometry.scale})`;
+  }
+}
+
+watch([zoomed, () => focus.x, () => focus.y], applyZoom, { flush: 'post' });
+// A different image, or the viewer closing, always starts again from the fitted view.
+watch(carouselIndex, () => setZoomed(false));
+watch(model, (isOpen) => {
+  if (isOpen) return;
+  setZoomed(false);
+  hoverImage.value = false;
+  hoverStage.value = false;
+});
+watch([model, carouselIndex, () => props.zoom], () => void nextTick(refreshZoomable), {
+  immediate: true,
+});
+
+function onWindowResize(): void {
+  refreshZoomable();
+  applyZoom();
+}
+onMounted(() => window.addEventListener('resize', onWindowResize));
+onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize));
+
+/** Inside the painted image, as fractions of it — or `null` for a point outside it. */
+function pointInPainted(clientX: number, clientY: number): { x: number; y: number } | null {
+  const geometry = measure();
+  if (geometry === null) return null;
+  const { painted } = geometry;
+  const x = (clientX - painted.left) / painted.width;
+  const y = (clientY - painted.top) / painted.height;
+  return x >= 0 && x <= 1 && y >= 0 && y <= 1 ? { x, y } : null;
+}
+
+/** Where the last press on the track went down: a click that ends more than `CLICK_SLOP` px from it
+ *  was a drag between images, not a click on the image. */
+const CLICK_SLOP = 4;
+let pressAt: { x: number; y: number } | null = null;
+
+function onTrackPointerdown(event: PointerEvent): void {
+  pressAt = { x: event.clientX, y: event.clientY };
+}
+
+function onStagePointerenter(event: PointerEvent): void {
+  if (props.zoom && event.pointerType !== 'touch') hoverStage.value = true;
+}
+
+function onStagePointerleave(): void {
+  hoverStage.value = false;
+}
+
+/**
+ * A mouse or pen over the stage. Not zoomed: whether it is over the picture (the zoom-in cursor).
+ * Zoomed: where it is over the stage picks the part of the image shown, measured
+ * afresh each time so a resized window never pans against a stale box. Touch has neither: it keeps
+ * the browser's own pinch-zoom and native swipe.
+ */
+function onTrackPointermove(event: PointerEvent): void {
+  if (!props.zoom || event.pointerType === 'touch') return;
+  if (!zoomed.value) {
+    hoverImage.value = canZoom.value && pointInPainted(event.clientX, event.clientY) !== null;
+    return;
+  }
+  const geometry = measure();
+  if (geometry === null) return;
+  const { stage } = geometry;
+  focus.x = Math.min(1, Math.max(0, (event.clientX - stage.left) / stage.width));
+  focus.y = Math.min(1, Math.max(0, (event.clientY - stage.top) / stage.height));
+  applyZoom();
+}
+
+function onTrackPointerleave(): void {
+  hoverImage.value = false;
+}
+
+/** Zoomed, `useCarousel` no longer cancels `dragstart` (its drag is off), so the browser's own image
+ *  drag would pick up a ghost copy of the photo and swallow the pan. */
+function onTrackDragstart(event: DragEvent): void {
+  if (zoomed.value) event.preventDefault();
+}
+
+/** A click on the stage: zooms in when it lands on the picture itself (centred on where it
+ *  landed), never on the letterbox, the caption or the empty stage; zoomed, any click zooms out. */
+function onTrackClick(event: MouseEvent): void {
+  if (!props.zoom) return;
+  const press = pressAt;
+  pressAt = null;
+  if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > CLICK_SLOP) return;
+  if (zoomed.value) {
+    setZoomed(false);
+    return;
+  }
+  refreshZoomable();
+  const point = pointInPainted(event.clientX, event.clientY);
+  if (point === null || !canZoom.value) return;
+  focus.x = point.x;
+  focus.y = point.y;
+  setZoomed(true);
+}
+
+function onZoomButtonClick(): void {
+  setZoomed(!zoomed.value);
 }
 
 /** So a consumer can close the viewer with its own action value from outside — the same mechanism
@@ -299,7 +540,15 @@ const TRACK_STYLE = carouselPerViewStyle({ base: 1 });
  * own (`useCarousel` call above).
  */
 const trackClass = computed(() => [
-  'eldra:flex eldra:h-full eldra:touch-pan-x eldra:touch-pan-y eldra:cursor-grab eldra:snap-x eldra:snap-mandatory eldra:overflow-x-auto eldra:overscroll-x-contain',
+  'eldra:flex eldra:h-full eldra:touch-pan-x eldra:touch-pan-y eldra:snap-x eldra:snap-mandatory eldra:overflow-x-auto eldra:overscroll-x-contain',
+  // `zoom`: a magnifier over the picture, zoom-out anywhere while zoomed, the grab hand otherwise.
+  zoomed.value
+    ? 'eldra:cursor-zoom-out'
+    : hoverImage.value
+      ? 'eldra:cursor-zoom-in'
+      : 'eldra:cursor-grab',
+  // Zoomed, a wheel or trackpad must not scroll to the next image either.
+  'eldra:data-[zoomed=true]:overflow-x-hidden',
   'eldra:scroll-smooth eldra:motion-reduce:scroll-auto eldra:eldra-scrollbar-hide eldra:eldra-focus',
   'eldra:[--eldra-focus-offset:4px] eldra:data-[dragging=true]:cursor-grabbing eldra:data-[dragging=true]:snap-none',
   'eldra:data-[dragging=true]:scroll-auto eldra:data-[dragging=true]:select-none',
@@ -334,13 +583,25 @@ const trackClass = computed(() => [
  * outer width is still exactly the track's own (border-box already includes the padding) — so the
  * peek disappears and the image alone loses the 4rem the arrows need.
  */
-const slideClass = computed(() => ['eldra:flex eldra:h-full eldra:px-16', props.classes?.slide]);
+const slideClass = computed(() => [
+  'eldra:flex eldra:h-full eldra:px-16',
+  // A zoomed image is larger than its slide; the slide is the window it is seen through.
+  'eldra:data-[zoomed=true]:overflow-hidden',
+  props.classes?.slide,
+]);
 
 /** The `<figure>` Image itself renders (given `caption`) — sized to fill the slide and centre its
  *  frame both ways, `flex-col` so the (`flex-1`) frame and the (`shrink-0`) caption stack. */
 const imageRootClass = 'eldra:flex eldra:h-full eldra:w-full eldra:flex-col eldra:items-center';
 
-const imageFrameClass = 'eldra:w-auto eldra:max-w-full eldra:flex-1 eldra:min-h-0 eldra:rounded-md';
+/** While its slide is zoomed, the frame stops clipping (`Image` merges this over its own
+ *  `overflow-hidden`): the enlarged `<img>` spills past the frame to the slide's edges. */
+const imageFrameClass =
+  'eldra:w-auto eldra:max-w-full eldra:flex-1 eldra:min-h-0 eldra:rounded-md eldra:[[data-zoomed=true]_&]:overflow-visible';
+
+/** The zoom transform eases rather than jumps; `zoom` off, nothing ever sets one. */
+const imageMediaClass =
+  'eldra:transition-transform eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none';
 
 /** Spec "Sizes": "Caption: 0.875rem, centred, padding 0.75rem 1rem 1rem" — overriding `Image`'s own
  *  default caption style (`text-caption text-muted mt-2`, sized/coloured for a light card ground)
@@ -363,8 +624,39 @@ const ARROW_BASE = [
   'eldra:disabled:cursor-not-allowed eldra:disabled:text-background/45',
   'eldra:disabled:hover:bg-transparent',
 ];
-const prevClass = computed(() => [ARROW_BASE, 'eldra:left-3', props.classes?.prev]);
-const nextClass = computed(() => [ARROW_BASE, 'eldra:right-3', props.classes?.next]);
+/** `zoom`: the arrows step aside while zoomed — the enlarged image fills the stage they sit on, and
+ *  changing image then would throw the shopper out of the close-up. */
+const arrowZoomedClass = computed(() => zoomed.value && 'eldra:invisible');
+const prevClass = computed(() => [
+  ARROW_BASE,
+  'eldra:left-3',
+  arrowZoomedClass.value,
+  props.classes?.prev,
+]);
+const nextClass = computed(() => [
+  ARROW_BASE,
+  'eldra:right-3',
+  arrowZoomedClass.value,
+  props.classes?.next,
+]);
+
+/**
+ * The zoom button sits in the stage's bottom-right corner, the arrows' circle with a dark fill so it
+ * reads over a light photo too. It shows while the pointer is over the image (`hoverImage`), while
+ * zoomed, while it has keyboard focus, and always on a device with no hover to reveal it.
+ */
+const zoomButtonClass = computed(() => [
+  'eldra:absolute eldra:right-3 eldra:bottom-3 eldra:inline-flex eldra:size-11 eldra:cursor-pointer eldra:items-center',
+  'eldra:justify-center eldra:rounded-full eldra:border eldra:text-background eldra:eldra-focus',
+  'eldra:border-[color-mix(in_oklab,var(--eldra-color-background)_70%,transparent)]',
+  'eldra:bg-[color-mix(in_oklab,var(--eldra-color-text)_60%,transparent)]',
+  'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text)_80%,transparent)]',
+  'eldra:transition-opacity eldra:duration-fast eldra:ease-out eldra:motion-reduce:transition-none',
+  hoverStage.value || zoomed.value
+    ? 'eldra:opacity-100'
+    : 'eldra:opacity-0 eldra:focus-visible:opacity-100 eldra:[@media(hover:none)]:opacity-100',
+  props.classes?.zoomButton,
+]);
 
 const thumbnailsClass = computed(() => [
   'eldra:flex eldra:shrink-0 eldra:items-center eldra:justify-center eldra:gap-2 eldra:overflow-x-auto eldra:px-4 eldra:pt-2 eldra:pb-4',
@@ -396,6 +688,7 @@ const thumbnailClass = computed(() => [
     :class="rootClass"
     :aria-label="ariaLabel"
     @keydown="onViewerKeydown"
+    @cancel="onViewerCancel"
   >
     <div ref="rootRef" data-part="panel" :class="panelClass">
       <div :class="barClass">
@@ -428,14 +721,18 @@ const thumbnailClass = computed(() => [
         </button>
       </div>
 
-      <div :class="stageClass">
+      <div
+        :class="stageClass"
+        @pointerenter="onStagePointerenter"
+        @pointerleave="onStagePointerleave"
+      >
         <button
           v-if="!single"
           ref="prevButtonRef"
           type="button"
           data-part="prev"
           :class="prevClass"
-          :disabled="!canPrev"
+          :disabled="!canPrev || zoomed"
           :aria-label="m.previousImage"
           @click="prev"
         >
@@ -462,6 +759,12 @@ const thumbnailClass = computed(() => [
           aria-live="off"
           :class="trackClass"
           :style="TRACK_STYLE"
+          :data-zoomed="zoomed ? 'true' : undefined"
+          @click="onTrackClick"
+          @pointerdown="onTrackPointerdown"
+          @pointermove="onTrackPointermove"
+          @pointerleave="onTrackPointerleave"
+          @dragstart="onTrackDragstart"
         >
           <!-- The wrapper is always rendered — `useCarousel`'s own index/count math reads
                `trackRef.value.children.length`, and keeping that count constant across open/close
@@ -476,12 +779,21 @@ const thumbnailClass = computed(() => [
                current slide was eager and the rest never left `loading="lazy"`'s own proximity
                heuristic) and no reason to delay any of them once the shopper can already see the
                current one. -->
-          <div v-for="(img, i) in images" :key="`${img.src}-${i}`" :class="slideClass">
+          <div
+            v-for="(img, i) in images"
+            :key="`${img.src}-${i}`"
+            :class="slideClass"
+            :data-zoomed="zoomed && i === carouselIndex ? 'true' : undefined"
+          >
             <Image
               v-if="model"
               data-part="image"
               :class="imageRootClass"
-              :classes="{ frame: imageFrameClass, caption: imageCaptionClass }"
+              :classes="{
+                frame: imageFrameClass,
+                media: imageMediaClass,
+                caption: imageCaptionClass,
+              }"
               :media="{ src: img.src, alt: img.alt, width: img.width, height: img.height }"
               :alt="img.alt"
               :caption="img.caption"
@@ -498,7 +810,7 @@ const thumbnailClass = computed(() => [
           type="button"
           data-part="next"
           :class="nextClass"
-          :disabled="!canNext"
+          :disabled="!canNext || zoomed"
           :aria-label="m.nextImage"
           @click="next"
         >
@@ -514,6 +826,34 @@ const thumbnailClass = computed(() => [
             focusable="false"
           >
             <path d="M9 6l6 6l-6 6" />
+          </svg>
+        </button>
+
+        <!-- After the track, so it paints above a zoomed image without a z-index of its own. -->
+        <button
+          v-if="canZoom"
+          type="button"
+          data-part="zoomButton"
+          :class="zoomButtonClass"
+          :aria-label="zoomed ? m.lightboxZoomOut : m.lightboxZoomIn"
+          @click="onZoomButtonClick"
+        >
+          <!-- Tabler's `zoom-in` / `zoom-out`. Decorative: the button is named by aria-label. -->
+          <svg
+            class="eldra:size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+            <path d="M7 10l6 0" />
+            <path v-if="!zoomed" d="M10 7l0 6" />
+            <path d="M21 21l-6 -6" />
           </svg>
         </button>
       </div>

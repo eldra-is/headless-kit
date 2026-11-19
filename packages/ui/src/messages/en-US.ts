@@ -196,6 +196,10 @@ export const enUS = {
    *  `goToImage` above), the spec gives the track a specific, real word here rather than leaving it
    *  to this package's own generic choice, so it gets its own key instead of reusing `slides`. */
   lightboxImages: 'Images',
+  /** A `Lightbox` (`zoom`) button's name while the image is fitted to the screen. */
+  lightboxZoomIn: 'Zoom in',
+  /** The same button's name while the image is zoomed. */
+  lightboxZoomOut: 'Zoom out',
   /** A `Textarea`'s remaining-characters hint, announced once at 80% of the limit. */
   charactersLeft: (n: number) => `${n} ${n === 1 ? 'character' : 'characters'} left`,
   /** A `Textarea`'s over-the-limit hint, announced once when the limit is passed. */

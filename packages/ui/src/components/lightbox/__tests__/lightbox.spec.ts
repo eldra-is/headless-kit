@@ -9,6 +9,7 @@ import { expectClosedModalRendersNothing } from '../../../test/modal';
 import Dialog from '../../dialog/Dialog.vue';
 import Lightbox from '../Lightbox.vue';
 import type { LightboxImage } from '../types';
+import { zoomTransform } from '../zoom';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -715,5 +716,515 @@ describe('Lightbox — compiled CSS', () => {
     // scale, not a value this package wrote.
     expect(mediaBlock).toContain('width: calc(0.25rem * 11);');
     expect(mediaBlock).toContain('height: calc(0.25rem * 11);');
+  });
+});
+
+describe('Lightbox — zoom', () => {
+  /** Two 800×600 images, so each is zoomable at 2× in the 400×300 frame `stubLayout` gives it. */
+  const ZOOM_IMAGES: LightboxImage[] = [
+    { src: 'z1.jpg', alt: 'Jacket, front', width: 800, height: 600 },
+    { src: 'z2.jpg', alt: 'Jacket, back', width: 800, height: 600 },
+  ];
+
+  interface Box {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }
+
+  const rect = (b: Box): DOMRect =>
+    ({ ...b, x: b.left, y: b.top, right: b.left + b.width, bottom: b.top + b.height }) as DOMRect;
+
+  /** happy-dom lays nothing out: give every slide and its image frame a real-looking box, then
+   *  let the viewer measure again (a window resize is when it would in a browser). */
+  async function stubLayout(
+    wrapper: { find: (s: string) => { element: Element } },
+    frame: Box = { left: 200, top: 100, width: 400, height: 300 },
+    slide: Box = { left: 0, top: 0, width: 800, height: 500 }
+  ): Promise<void> {
+    const track = wrapper.find('[data-part="track"]').element;
+    for (const s of Array.from(track.children)) {
+      (s as HTMLElement).getBoundingClientRect = () => rect(slide);
+      const f = s.querySelector('[data-part="frame"]') as HTMLElement | null;
+      if (f) f.getBoundingClientRect = () => rect(frame);
+    }
+    window.dispatchEvent(new Event('resize'));
+    await settle();
+  }
+
+  function mountZoom(props: Record<string, unknown> = {}) {
+    return mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: ZOOM_IMAGES, modelValue: true, zoom: true, ...props },
+    });
+  }
+
+  const slides = (wrapper: { element: Element }): HTMLElement[] =>
+    Array.from(wrapper.element.querySelectorAll<HTMLElement>('[data-part="slide"]'));
+  /** The `<img>` the zoom transforms: its frame is what the viewer measures, so it stays put. */
+  const frameOfSlide = (slide: Element): HTMLElement =>
+    slide.querySelector('[data-part="frame"]') as HTMLElement;
+  const mediaOf = (slide: Element): HTMLElement =>
+    slide.querySelector('img[data-part="image"]') as HTMLElement;
+  const zoomButton = (wrapper: { element: Element }): HTMLButtonElement | null =>
+    wrapper.element.querySelector('[data-part="zoomButton"]');
+
+  function clickAt(el: Element, clientX: number, clientY: number): void {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX, clientY }));
+  }
+
+  it('renders no zoom button and no data-zoomed without the zoom prop', async () => {
+    const wrapper = mountWith(Lightbox, {
+      props: { ariaLabel: 'Gallery', images: ZOOM_IMAGES, modelValue: true },
+    });
+    await settle();
+    await stubLayout(wrapper);
+    expect(zoomButton(wrapper)).toBeNull();
+    clickAt(wrapper.find('[data-part="track"]').element, 400, 250);
+    await settle();
+    expect(wrapper.element.querySelector('[data-zoomed]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('renders a zoom button named "Zoom in" with zoom on', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Zoom in');
+    expect(zoomButton(wrapper)?.type).toBe('button');
+    wrapper.unmount();
+  });
+
+  it('clicking the zoom button zooms in: data-zoomed on the current slide, a scale(2) transform on its image, the button renamed "Zoom out"', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    const [first, second] = slides(wrapper);
+    expect(first?.getAttribute('data-zoomed')).toBe('true');
+    expect(second?.hasAttribute('data-zoomed')).toBe(false);
+    expect(mediaOf(first as Element).style.transform).toContain('scale(2)');
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Zoom out');
+    wrapper.unmount();
+  });
+
+  it('clicking it again zooms out and clears the transform', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    zoomButton(wrapper)?.click();
+    await settle();
+    const [first] = slides(wrapper);
+    expect(first?.hasAttribute('data-zoomed')).toBe(false);
+    expect(mediaOf(first as Element).style.transform).toBe('');
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Zoom in');
+    wrapper.unmount();
+  });
+
+  it('clicking the painted image zooms in; clicking the letterbox beside it does nothing', async () => {
+    // A 300×600 portrait in a 400×300 frame paints 150 wide, from x = 325 to 475.
+    const wrapper = mountZoom({
+      images: [{ src: 'p.jpg', alt: 'Shirt, hanging', width: 300, height: 600 }],
+    });
+    await settle();
+    await stubLayout(wrapper);
+    const track = wrapper.find('[data-part="track"]').element;
+    clickAt(track, 210, 250);
+    await settle();
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    clickAt(track, 400, 250);
+    await settle();
+    expect(slides(wrapper)[0]?.getAttribute('data-zoomed')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('offers no zoom for an image under 1.25× its painted size', async () => {
+    const wrapper = mountZoom({
+      images: [{ src: 's.jpg', alt: 'Scarf', width: 450, height: 338 }],
+    });
+    await settle();
+    await stubLayout(wrapper);
+    expect(zoomButton(wrapper)).toBeNull();
+    clickAt(wrapper.find('[data-part="track"]').element, 400, 250);
+    await settle();
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('uses the Icelandic labels from messages', async () => {
+    const { isIS } = await import('../../../messages/is-IS');
+    const wrapper = mountZoom({ messages: isIS });
+    await settle();
+    await stubLayout(wrapper);
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Stækka mynd');
+    zoomButton(wrapper)?.click();
+    await settle();
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Minnka mynd');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with zoom on, zoomed and not', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    zoomButton(wrapper)?.click();
+    await settle();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  /** A 1600×1200 image paints 400×300 in the stubbed frame, so it zooms 4× — wider and taller
+   *  than the 800×500 stage, which is what makes panning move it. */
+  const BIG: LightboxImage[] = [
+    { src: 'big1.jpg', alt: 'Coat, weave', width: 1600, height: 1200 },
+    { src: 'big2.jpg', alt: 'Coat, lining', width: 1600, height: 1200 },
+  ];
+
+  function pointer(el: Element, type: string, init: PointerEventInit): void {
+    // `pointerenter` / `pointerleave` never bubble in a browser; the rest do.
+    const bubbles = type !== 'pointerenter' && type !== 'pointerleave';
+    el.dispatchEvent(
+      new PointerEvent(type, { bubbles, cancelable: true, pointerType: 'mouse', ...init })
+    );
+  }
+  const track = (wrapper: { find: (s: string) => { element: Element } }): HTMLElement =>
+    wrapper.find('[data-part="track"]').element as HTMLElement;
+
+  it('shows a zoom-in cursor only while the pointer is over the painted image', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    pointer(track(wrapper), 'pointermove', { clientX: 400, clientY: 250 });
+    await settle();
+    expect(track(wrapper).className).toContain('eldra:cursor-zoom-in');
+    expect(track(wrapper).className).not.toContain('eldra:cursor-grab ');
+    pointer(track(wrapper), 'pointermove', { clientX: 50, clientY: 250 });
+    await settle();
+    expect(track(wrapper).className).not.toContain('eldra:cursor-zoom-in');
+    expect(track(wrapper).className).toContain('eldra:cursor-grab');
+    wrapper.unmount();
+  });
+
+  it('shows a zoom-out cursor anywhere on the slide while zoomed', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    pointer(track(wrapper), 'pointermove', { clientX: 20, clientY: 20 });
+    await settle();
+    expect(track(wrapper).className).toContain('eldra:cursor-zoom-out');
+    wrapper.unmount();
+  });
+
+  it("pans with the pointer while zoomed: the left edge of the stage shows the image's left edge", async () => {
+    const wrapper = mountZoom({ images: BIG });
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    pointer(track(wrapper), 'pointermove', { clientX: 0, clientY: 0 });
+    await settle();
+    const painted = { left: 200, top: 100, width: 400, height: 300 };
+    const stage = { left: 0, top: 0, width: 800, height: 500 };
+    const { x, y } = zoomTransform(painted, stage, 4, { x: 0, y: 0 });
+    expect(mediaOf(slides(wrapper)[0] as Element).style.transform).toBe(
+      `translate(${x}px, ${y}px) scale(4)`
+    );
+    wrapper.unmount();
+  });
+
+  it('pans from a fresh measurement after the frame resizes', async () => {
+    const wrapper = mountZoom({ images: BIG });
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    // The window narrows: no resize event reaches the viewer before the next pointer move.
+    const frame = { left: 100, top: 50, width: 200, height: 150 };
+    const stage = { left: 0, top: 0, width: 400, height: 250 };
+    const [first] = slides(wrapper);
+    (first as HTMLElement).getBoundingClientRect = () => rect(stage);
+    frameOfSlide(first as Element).getBoundingClientRect = () => rect(frame);
+    pointer(track(wrapper), 'pointermove', { clientX: 400, clientY: 250 });
+    await settle();
+    const { x, y } = zoomTransform(frame, stage, 8, { x: 1, y: 1 });
+    expect(mediaOf(first as Element).style.transform).toBe(`translate(${x}px, ${y}px) scale(8)`);
+    wrapper.unmount();
+  });
+
+  it('a drag past the threshold does not toggle zoom', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    pointer(track(wrapper), 'pointerdown', { clientX: 300, clientY: 250, button: 0, pointerId: 1 });
+    pointer(track(wrapper), 'pointerup', { clientX: 340, clientY: 250, button: 0, pointerId: 1 });
+    clickAt(track(wrapper), 340, 250);
+    await settle();
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    // A press that stays put is still a click.
+    pointer(track(wrapper), 'pointerdown', { clientX: 300, clientY: 250, button: 0, pointerId: 2 });
+    pointer(track(wrapper), 'pointerup', { clientX: 302, clientY: 251, button: 0, pointerId: 2 });
+    clickAt(track(wrapper), 302, 251);
+    await settle();
+    expect(slides(wrapper)[0]?.getAttribute('data-zoomed')).toBe('true');
+    wrapper.unmount();
+  });
+
+  it('a touch pointermove does not set the hover cursor', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    pointer(track(wrapper), 'pointermove', { clientX: 400, clientY: 250, pointerType: 'touch' });
+    await settle();
+    expect(track(wrapper).className).not.toContain('eldra:cursor-zoom-in');
+    wrapper.unmount();
+  });
+
+  it('pauses dragging between images while zoomed', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    const trackEl = track(wrapper);
+    trackEl.scrollTo = vi.fn();
+    Object.defineProperty(trackEl, 'scrollLeft', { value: 0, configurable: true, writable: true });
+    Array.from(trackEl.children).forEach((slide, i) => {
+      Object.defineProperty(slide, 'offsetLeft', { value: i * 400, configurable: true });
+    });
+    zoomButton(wrapper)?.click();
+    await settle();
+    const at = (type: string, clientX: number, t: number): PointerEvent => {
+      const event = new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        pointerId: 1,
+        button: 0,
+        pointerType: 'mouse',
+      });
+      Object.defineProperty(event, 'timeStamp', { value: t, configurable: true });
+      return event;
+    };
+    trackEl.dispatchEvent(at('pointerdown', 300, 0));
+    trackEl.dispatchEvent(at('pointermove', -100, 10));
+    trackEl.dispatchEvent(at('pointermove', -100, 40));
+    trackEl.dispatchEvent(at('pointerup', -100, 50));
+    await settle();
+    expect(wrapper.emitted('update:index')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('stops the track scrolling while zoomed', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    expect(track(wrapper).className).toContain('eldra:data-[zoomed=true]:overflow-x-hidden');
+    expect(track(wrapper).hasAttribute('data-zoomed')).toBe(false);
+    zoomButton(wrapper)?.click();
+    await settle();
+    expect(track(wrapper).getAttribute('data-zoomed')).toBe('true');
+    wrapper.unmount();
+  });
+
+  function key(wrapper: { element: Element }, k: string): void {
+    wrapper.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })
+    );
+  }
+
+  it('Esc zooms out and leaves the viewer open; a second Esc closes it', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    // One press is a keydown followed by the dialog's own cancel event.
+    key(wrapper, 'Escape');
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await settle();
+    expect(root(wrapper).open).toBe(true);
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    key(wrapper, 'Escape');
+    root(wrapper).dispatchEvent(new Event('cancel', { cancelable: true }));
+    await settle();
+    expect(root(wrapper).open).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('arrow keys pan while zoomed and do not change image', async () => {
+    const wrapper = mountZoom({ images: BIG });
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    key(wrapper, 'ArrowRight');
+    await settle();
+    const painted = { left: 200, top: 100, width: 400, height: 300 };
+    const stage = { left: 0, top: 0, width: 800, height: 500 };
+    const { x, y } = zoomTransform(painted, stage, 4, { x: 0.5 + 0.1, y: 0.5 });
+    expect(mediaOf(slides(wrapper)[0] as Element).style.transform).toBe(
+      `translate(${x}px, ${y}px) scale(4)`
+    );
+    expect(wrapper.emitted('update:index')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('arrow keys change image again once zoomed out', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    zoomButton(wrapper)?.click();
+    await settle();
+    key(wrapper, 'ArrowRight');
+    await settle();
+    expect(wrapper.emitted('update:index')).toEqual([[1]]);
+    wrapper.unmount();
+  });
+
+  it('disables and hides both arrows while zoomed', async () => {
+    const wrapper = mountZoom({ index: 0 });
+    await settle();
+    await stubLayout(wrapper);
+    const next = wrapper.find('[data-part="next"]').element as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+    zoomButton(wrapper)?.click();
+    await settle();
+    for (const part of ['prev', 'next']) {
+      const arrow = wrapper.find(`[data-part="${part}"]`).element as HTMLButtonElement;
+      expect(arrow.disabled).toBe(true);
+      expect(arrow.className).toContain('eldra:invisible');
+    }
+    wrapper.unmount();
+  });
+
+  it('a thumbnail click zooms out first', async () => {
+    const wrapper = mountZoom({ thumbnails: true });
+    await settle();
+    await stubLayout(wrapper);
+    track(wrapper).scrollTo = vi.fn();
+    zoomButton(wrapper)?.click();
+    await settle();
+    await wrapper.findAll('[data-part="thumbnail"]')[1]?.trigger('click');
+    await settle();
+    expect(wrapper.element.querySelector('[data-part="slide"][data-zoomed]')).toBeNull();
+    for (const slide of slides(wrapper)) expect(mediaOf(slide).style.transform).toBe('');
+    wrapper.unmount();
+  });
+
+  it('closing while zoomed reopens zoomed out', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    await wrapper.setProps({ modelValue: false });
+    await settle();
+    await wrapper.setProps({ modelValue: true });
+    await settle();
+    await stubLayout(wrapper);
+    expect(wrapper.element.querySelector('[data-part="slide"][data-zoomed]')).toBeNull();
+    expect(zoomButton(wrapper)?.getAttribute('aria-label')).toBe('Zoom in');
+    wrapper.unmount();
+  });
+
+  // Final review fixes.
+
+  const stageOf = (wrapper: { element: Element }): HTMLElement =>
+    (wrapper.element.querySelector('[data-part="track"]') as HTMLElement)
+      .parentElement as HTMLElement;
+
+  it('keeps the zoom button shown while the pointer crosses the letterbox to reach it', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    pointer(stageOf(wrapper), 'pointerenter', { clientX: 400, clientY: 250 });
+    pointer(track(wrapper), 'pointermove', { clientX: 400, clientY: 250 });
+    // On to the letterbox, then off the track onto the button itself.
+    pointer(track(wrapper), 'pointermove', { clientX: 700, clientY: 450 });
+    pointer(track(wrapper), 'pointerleave', { clientX: 760, clientY: 470 });
+    await settle();
+    expect(zoomButton(wrapper)?.className).toContain('eldra:opacity-100');
+    pointer(stageOf(wrapper), 'pointerleave', { clientX: 900, clientY: 470 });
+    await settle();
+    expect(zoomButton(wrapper)?.className).not.toContain('eldra:opacity-100 ');
+    expect(zoomButton(wrapper)?.className).toContain('eldra:opacity-0');
+    wrapper.unmount();
+  });
+
+  it('zooms out when a resize leaves the image too small to zoom', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    // The window grows: the frame now paints the 800×600 image at 720×540 (under 1.25×).
+    await stubLayout(
+      wrapper,
+      { left: 40, top: 0, width: 720, height: 540 },
+      {
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 560,
+      }
+    );
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    expect(mediaOf(slides(wrapper)[0] as Element).style.transform).toBe('');
+    wrapper.unmount();
+  });
+
+  it('moves focus to the stage when the focused zoom button goes away', async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.focus();
+    expect(document.activeElement).toBe(zoomButton(wrapper));
+    await stubLayout(
+      wrapper,
+      { left: 40, top: 0, width: 720, height: 540 },
+      {
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 560,
+      }
+    );
+    expect(zoomButton(wrapper)).toBeNull();
+    expect(document.activeElement).toBe(track(wrapper));
+    wrapper.unmount();
+  });
+
+  it("Esc zooms out even when its keydown never reaches the viewer (the dialog's cancel alone)", async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    const cancel = new Event('cancel', { cancelable: true });
+    root(wrapper).dispatchEvent(cancel);
+    await settle();
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(root(wrapper).open).toBe(true);
+    expect(slides(wrapper)[0]?.hasAttribute('data-zoomed')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("stops the browser's own image drag while zoomed, so a drag pans", async () => {
+    const wrapper = mountZoom();
+    await settle();
+    await stubLayout(wrapper);
+    zoomButton(wrapper)?.click();
+    await settle();
+    const drag = new Event('dragstart', { bubbles: true, cancelable: true });
+    mediaOf(slides(wrapper)[0] as Element).dispatchEvent(drag);
+    expect(drag.defaultPrevented).toBe(true);
+    wrapper.unmount();
   });
 });
