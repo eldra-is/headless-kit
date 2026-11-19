@@ -200,6 +200,51 @@ describe('dialogStack — scroll lock keeps the page from shifting', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     document.documentElement.style.paddingRight = '';
+    document.documentElement.style.removeProperty('--eldra-scrollbar-width');
+  });
+
+  const scrollbarVar = (): string =>
+    document.documentElement.style.getPropertyValue('--eldra-scrollbar-width');
+
+  it('sets --eldra-scrollbar-width on <html> while locked, for fixed elements to pad by', () => {
+    stubScrollbar(15);
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(scrollbarVar()).toBe('15px');
+    closeDialog(dialog);
+    expect(scrollbarVar()).toBe('');
+  });
+
+  it('sets --eldra-scrollbar-width to 0px when there was no scrollbar to hide', () => {
+    stubScrollbar(0);
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(scrollbarVar()).toBe('0px');
+    closeDialog(dialog);
+    expect(scrollbarVar()).toBe('');
+  });
+
+  it("restores a page's own inline --eldra-scrollbar-width on release", () => {
+    stubScrollbar(15);
+    document.documentElement.style.setProperty('--eldra-scrollbar-width', '3px');
+    const dialog = makeDialog();
+    openDialog(dialog);
+    expect(scrollbarVar()).toBe('15px');
+    closeDialog(dialog);
+    expect(scrollbarVar()).toBe('3px');
+  });
+
+  it('keeps --eldra-scrollbar-width from the first lock while a second dialog opens and closes', () => {
+    stubScrollbar(15);
+    const first = makeDialog();
+    const second = makeDialog();
+    openDialog(first);
+    stubScrollbar(0);
+    openDialog(second);
+    closeDialog(second);
+    expect(scrollbarVar()).toBe('15px');
+    closeDialog(first);
+    expect(scrollbarVar()).toBe('');
   });
 
   it('pads <html> by the scrollbar width it hides, removing the padding on close', () => {

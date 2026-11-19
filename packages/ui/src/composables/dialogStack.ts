@@ -26,6 +26,17 @@ const stack: OpenDialog[] = [];
 let previousHtmlOverflow: string | null = null;
 /** The `<html>` inline `padding-right` this module overwrote, restored when the lock is released. */
 let previousHtmlPaddingRight: string | null = null;
+/** The `<html>` inline `--eldra-scrollbar-width` this module overwrote, restored on release. */
+let previousScrollbarWidthVar: string | null = null;
+
+/**
+ * Set on `<html>` while a modal holds the lock: the width of the scrollbar the lock hid (`0px` when
+ * it hid none). Padding `<html>` holds the page's own content still, but a `position: fixed` element
+ * is laid out against the viewport, not `<html>`'s content box, so a full-width fixed header still
+ * widens into the freed strip. Such an element opts in by padding itself with this variable,
+ * `padding-right: var(--eldra-scrollbar-width, 0px)` (`pr-[var(--eldra-scrollbar-width,0px)]`).
+ */
+const SCROLLBAR_WIDTH_VAR = '--eldra-scrollbar-width';
 
 /**
  * The width the root's classic scrollbar takes from the viewport, `0` when there is none to take:
@@ -47,7 +58,8 @@ function rootScrollbarWidth(html: HTMLElement): number {
  * Padding rather than `scrollbar-gutter: stable`: a gutter keeps the strip but leaves it empty, so
  * the dialog's `::backdrop` stops short of the right edge and a right-hand `Drawer` docks against
  * the gutter instead of the window's edge, an undimmed bar beside it. Padding sits inside `<html>`'s
- * box, which the top layer covers whole.
+ * box, which the top layer covers whole. The cost is that a `position: fixed` element does not
+ * move with that padding; `SCROLLBAR_WIDTH_VAR` is what lets one follow.
  */
 function lockScroll(): void {
   if (typeof document === 'undefined') return;
@@ -55,6 +67,8 @@ function lockScroll(): void {
   const scrollbarWidth = rootScrollbarWidth(html);
   previousHtmlOverflow = html.style.overflow;
   previousHtmlPaddingRight = html.style.paddingRight;
+  previousScrollbarWidthVar = html.style.getPropertyValue(SCROLLBAR_WIDTH_VAR);
+  html.style.setProperty(SCROLLBAR_WIDTH_VAR, `${scrollbarWidth}px`);
   if (scrollbarWidth > 0) {
     // Measured before `overflow` changes, while the scrollbar is still there to measure; added to
     // whatever padding the page already gives `<html>`, not written over it.
@@ -69,8 +83,12 @@ function unlockScroll(): void {
   const html = document.documentElement;
   html.style.overflow = previousHtmlOverflow ?? '';
   html.style.paddingRight = previousHtmlPaddingRight ?? '';
+  if (previousScrollbarWidthVar)
+    html.style.setProperty(SCROLLBAR_WIDTH_VAR, previousScrollbarWidthVar);
+  else html.style.removeProperty(SCROLLBAR_WIDTH_VAR);
   previousHtmlOverflow = null;
   previousHtmlPaddingRight = null;
+  previousScrollbarWidthVar = null;
 }
 
 /**
