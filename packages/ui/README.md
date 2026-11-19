@@ -652,7 +652,13 @@ spec's own non-negotiable 2):
   while another is already open is simply left open, underneath). `Esc` and a backdrop click,
   though, only ever act on the **topmost** entry (`isTop` below); a lower dialog ignores both, even
   one dispatched at it directly. The scroll lock is held while the stack is non-empty, released only
-  once every open modal has closed. `TOAST_HOST_KEY` (exported) is a plain
+  once every open modal has closed. While held, `<html>` is padded on the right by the width of
+  the scrollbar the lock hid, so the page does not shift sideways, and carries that width as
+  `--eldra-scrollbar-width` (`0px` when no scrollbar was hidden; unset while no modal is open). A
+  `position: fixed` element is laid out against the viewport, not `<html>`'s padded box, so a
+  full-width fixed header or bar still widens into the freed strip unless it pads itself by the
+  variable: `padding-right: var(--eldra-scrollbar-width, 0px)` (`pr-[var(--eldra-scrollbar-width,0px)]`).
+  `TOAST_HOST_KEY` (exported) is a plain
   `Ref<HTMLDialogElement | null>` tracking the **topmost** dialog, **not a Vue injection key**
   despite the name matching this package's `*_KEY` convention — see its own doc comment for why: a
   `Toaster` mounted near an app's root is a sibling of whatever opens a `Dialog` elsewhere in the
