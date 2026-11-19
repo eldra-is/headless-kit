@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.14](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.13...ui-v0.3.14) (2026-11-19)
+
+
+### Features
+
+* **ui:** Expose "padding-right" environment variable to conter-act the dialog hiding the scroll-bar ([#153](https://github.com/eldra-is/headless-kit/issues/153)) ([02ad3cd](https://github.com/eldra-is/headless-kit/commit/02ad3cdab56345db0fdd95af86779b81a5d0dffe))
+* **ui:** Lightbox zoom ([#154](https://github.com/eldra-is/headless-kit/issues/154)) ([bae53c2](https://github.com/eldra-is/headless-kit/commit/bae53c2e8030b1de174105c2612d7479dae86bab))
+
 ## [0.3.13](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.12...ui-v0.3.13) (2026-11-18)
 
 
