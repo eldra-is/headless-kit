@@ -14,7 +14,8 @@ export type LightboxPart =
   | 'next'
   | 'counter'
   | 'thumbnails'
-  | 'thumbnail';
+  | 'thumbnail'
+  | 'zoomButton';
 
 /**
  * One image in the gallery (spec "Lightbox" → Properties, `images` row). `width`/`height` are the
@@ -54,6 +55,14 @@ export interface LightboxProps {
   /** Shows the thumbnail strip under the caption (spec "Variants" → "With thumbnails"). Default
    *  `false`. Ignored for a single image, which has nothing to pick between. */
   thumbnails?: boolean;
+  /**
+   * Lets the shopper enlarge the current image to its real size: over the image the cursor is a
+   * zoom-in magnifier, and a click (or the zoom button, which `Tab` reaches) zooms in. While zoomed,
+   * moving the mouse or the arrow keys pan, and a click, the button or `Esc` zooms out. An image
+   * whose real size is under 1.25× what is shown offers no zoom. Phones keep the browser's own
+   * pinch-zoom. Default `false`.
+   */
+  zoom?: boolean;
   /** Message overrides. See `useMessages`. */
   messages?: Partial<UiMessages>;
   /**

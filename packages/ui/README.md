@@ -1518,6 +1518,17 @@ during development, outside this repository's own history.
 Things this package ships that design spec 1 does not name at all. Each is listed here so a reader
 comparing the package against the spec can tell an addition from a drift.
 
+- **`Lightbox`'s `zoom`** (default `false`): for clothing and other detail shots. Over the painted
+  image itself (not its letterbox, the caption or the empty stage) the cursor is `zoom-in` and a
+  zoom button (`zoomButton`, "Zoom in" / "Zoom out", `lightboxZoomIn` / `lightboxZoomOut`) shows in
+  the stage's corner; on a device with no hover the button always shows, and it shows whenever it
+  has keyboard focus. A click on the image or the button enlarges the current image to its real
+  size (`width` / `height`), never past it; an image under 1.25× its shown size offers no zoom.
+  While zoomed, the pointer's position over the stage picks the part shown, the arrow keys pan a
+  tenth of the way per press, the previous/next arrows step aside, swiping and wheel scrolling
+  between images pause, and a click, the button or `Esc` zooms out (`Esc` again closes). Changing
+  image or closing zooms out. Phones keep the browser's own pinch-zoom; there is no touch pan. The
+  zoom is a CSS transform on the same `<img>`, so no larger file is fetched.
 - **`PhoneInput`** (`@eldrajs/ui/phone`, WS-1006): a phone number field with a country picker, as-you-type
   spacing and per-country validation. The spec has no phone field; its anatomy, properties, states,
   keyboard and accessibility are written up under [`./phone`](#phone) above. Two utilities came

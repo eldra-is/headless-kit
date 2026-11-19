@@ -74,7 +74,7 @@ const meta = {
           '',
           '**Parts** (`data-part`): `root` (styled with `class`), and the keys of the `classes`',
           'prop: `panel`, `close`, `track`, `slide`, `image`, `caption`, `prev`, `next`, `counter`,',
-          '`thumbnails`, `thumbnail`.',
+          '`thumbnails`, `thumbnail`, `zoomButton`.',
           '',
           '**Built on `useDialog` and `useCarousel`**, unchanged — the same shared modal stack',
           '`Dialog`/`Drawer` share (nested modals allowed; Esc and a backdrop click act only on',
@@ -94,6 +94,11 @@ const meta = {
           'image stage with a mouse or pen changes pages the same way `Carousel`’s own track',
           'drags, snapping to the nearest image on release and biased one further by a fast flick.',
           'Thumbnails sit outside the stage and are unaffected.',
+          '',
+          '**`zoom`** (off by default): over the image the cursor is a magnifier and a zoom',
+          'button shows; a click or the button enlarges the image to its real size, the mouse',
+          'or the arrow keys pan, and a click, the button or `Esc` zooms back out. An image',
+          'under 1.25× its shown size offers no zoom.',
         ].join('\n'),
       },
     },
@@ -122,6 +127,22 @@ export const Default: Story = {
  *  image n", `aria-current` on the one showing. */
 export const WithThumbnails: Story = {
   args: { ariaLabel: 'Merino crew sweater, images', images: IMAGES, thumbnails: true, index: 1 },
+  render: (args) => ({
+    components: { Lightbox, Button },
+    setup: () => ({ args, open: ref(true) }),
+    template: `
+      <div>
+        <Button variant="outline" @click="open = true">Zoom image</Button>
+        <Lightbox v-bind="args" v-model="open" />
+      </div>
+    `,
+  }),
+};
+
+/** `zoom`: hover the image for the magnifier, click to see it at its real size, move the mouse
+ *  to look around it, click or press `Esc` to zoom out. */
+export const Zoom: Story = {
+  args: { ariaLabel: 'Merino crew sweater, images', images: IMAGES, thumbnails: true, zoom: true },
   render: (args) => ({
     components: { Lightbox, Button },
     setup: () => ({ args, open: ref(true) }),
