@@ -246,7 +246,13 @@ function listLabel(group: string | null, index: number): string | undefined {
             :class="panelLinkClass(link)"
             v-bind="navLinkAttrs(link, linkAs)"
           >
-            <slot name="panelItem" :link="link" :item="item" :placement="placement">
+            <slot
+              name="panelItem"
+              :link="link"
+              :item="item"
+              :placement="placement"
+              :is-see-all="link === group.seeAll"
+            >
               <span :data-part="part('panelLabel')" :class="panelLabelClass">
                 {{ link.label }}
                 <Badge v-if="link.badge" :label="link.badge" :class="badgeClass" />

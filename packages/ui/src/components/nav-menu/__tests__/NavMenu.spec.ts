@@ -1189,4 +1189,64 @@ describe('NavMenu — sections', () => {
     expect(columns[1]!.querySelector('[data-part="groupLink"]')).toBeNull();
     wrapper.unmount();
   });
+
+  it('draws a section with only a heading link under that link as its heading', async () => {
+    const items: NavMenuItem[] = [
+      {
+        label: 'Shop',
+        sections: [
+          { headingLink: { label: 'Mugs', href: '/mugs' }, links: [{ label: 'Tall', href: '/t' }] },
+        ],
+      },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    const link = panel(wrapper, 0).querySelector(
+      '[data-part="groupHeading"] [data-part="groupLink"]'
+    )!;
+    expect(link.textContent!.trim()).toBe('Mugs');
+    expect(link.getAttribute('href')).toBe('/mugs');
+    wrapper.unmount();
+  });
+
+  it('gives the panelItem slot isSeeAll for the see-all entry only', async () => {
+    const seen: Array<[string, boolean | undefined]> = [];
+    const wrapper = mount(
+      { items: sectioned, modelValue: 0 },
+      {
+        panelItem: ({ link, isSeeAll }: { link: { label: string | null }; isSeeAll?: boolean }) => {
+          seen.push([link.label ?? '', isSeeAll]);
+          return h('span', link.label ?? '');
+        },
+      }
+    );
+    await nextTick();
+    expect(seen).toContainEqual(['Sweaters', false]);
+    expect(seen).toContainEqual(['See all knitwear', true]);
+    wrapper.unmount();
+  });
+
+  it('draws sections in the drawer, in both layouts, with no axe violations', async () => {
+    for (const drawerLayout of ['accordion', 'sections']) {
+      const wrapper = mount({ items: sectioned, drawerOpen: true, drawerLayout });
+      await nextTick();
+      const dialog = wrapper.get('dialog').element as HTMLDialogElement;
+      if (drawerLayout === 'accordion') dialog.querySelector('details')!.open = true;
+      const headings = [...dialog.querySelectorAll('[data-part="drawerGroupHeading"]')];
+      expect(headings.map((h) => h.textContent!.trim())).toEqual(['Knitwear', 'Knitwear']);
+      expect(dialog.querySelector('[data-part="drawerGroupLink"]')!.getAttribute('href')).toBe(
+        '/knitwear'
+      );
+      expect(dialog.querySelector('[data-see-all]')!.textContent).toContain('See all knitwear');
+      expect(await axe(dialog)).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+
+  it('has no axe violations on an open sectioned panel', async () => {
+    const wrapper = mount({ items: sectioned, modelValue: 0 });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
 });

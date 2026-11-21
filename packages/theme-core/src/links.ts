@@ -95,7 +95,7 @@ export interface ResolvedLink {
 
 /** One resolved column of a link's `sections`. */
 export interface ResolvedSection {
-  /** Unstripped, like every label, so a preview can edit it inline. Null when blank. */
+  /** Unstripped, like every label, so a preview can edit it inline. Falls back to the heading link's label; null when both are blank. */
   heading: string | null;
   /** The heading as a link, when the author made it one. */
   headingLink: ResolvedLink | null;
@@ -297,9 +297,12 @@ function resolveSection(value: unknown, context: LinkRouteContext): ResolvedSect
   const section = asRecord(value);
   if (section === null) return null;
   const heading = typeof section.heading === 'string' ? section.heading : '';
+  const headingLink = resolveOne(section.headingLink, context, 1);
+  // A section with only a heading link is headed by that link's label, as Core's own
+  // flattening of sections into `children` does.
   const resolved: ResolvedSection = {
-    heading: plain(heading) === '' ? null : heading,
-    headingLink: resolveOne(section.headingLink, context, 1),
+    heading: plain(heading) !== '' ? heading : (headingLink?.label ?? null),
+    headingLink,
     links: (Array.isArray(section.links) ? section.links : [])
       .map((link) => resolveOne(link, context, 1))
       .filter((link): link is ResolvedLink => link !== null),

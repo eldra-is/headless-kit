@@ -53,10 +53,13 @@ export function panelRuns(item: NavMenuItem): NavMenuLinkRun[] {
     const seeAll =
       section.seeAll != null && isRenderableLink(section.seeAll) ? section.seeAll : null;
     if (links.length === 0 && seeAll === null) continue;
-    const heading = typeof section.heading === 'string' ? section.heading.trim() : '';
+    const own = typeof section.heading === 'string' && section.heading.trim() !== '';
     const headingLink =
       section.headingLink != null && hasHref(section.headingLink) ? section.headingLink : null;
-    runs.push({ group: heading !== '' ? section.heading! : null, links, headingLink, seeAll });
+    // A section with only a heading link is headed by that link's label.
+    const named = section.headingLink != null && isRenderableLink(section.headingLink);
+    const heading = own ? section.heading! : named ? section.headingLink!.label : null;
+    runs.push({ group: heading, links, headingLink, seeAll });
   }
   return runs;
 }

@@ -106,6 +106,8 @@ export interface NavMenuPanelItemSlotProps {
   link: NavMenuLink;
   item: NavMenuItem;
   placement: NavMenuPlacement;
+  /** True for a section's trailing "see all" entry. */
+  isSeeAll?: boolean;
 }
 
 /** What the `groupHeading` slot is handed: the heading, its entries, their item, and where it is drawn. */

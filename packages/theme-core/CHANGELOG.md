@@ -7,7 +7,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **`resolveLink` resolves `sections` (WS-1321).** A link a theme that declares `tree.sections` is
   served carries `sections: ResolvedSection[]` (`heading`, `headingLink`, `links`, `seeAll`, `display`),
-  each link resolved like a child; `children` is `[]` then. `linkTargetKeys` walks a link's sections,
+  each link resolved like a child (a section with only a heading link takes its label as the heading); `children` is `[]` then. `linkTargetKeys` walks a link's sections,
   their heading links and see-all links, so their targets are read with the rest. A card's `display`
   and `imageUrl` are carried through on `ResolvedLink`. New types `ResolvedSection` and
   `LinkSectionValue`.

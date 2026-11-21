@@ -532,6 +532,17 @@ describe('resolveLink — sections resolve', () => {
     expect(resolved?.sections?.[0]).toMatchObject({ heading: null, seeAll: null });
   });
 
+  it("heads a section that has only a heading link with that link's label", () => {
+    const headingLink = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
+    const section = (extra: object) =>
+      resolveLink({ kind: 'none', sections: [{ links: [], headingLink, ...extra }] }, context())
+        ?.sections?.[0];
+    expect(section({})?.heading).toBe('Knitwear');
+    expect(section({ heading: '   ' })?.heading).toBe('Knitwear');
+    expect(section({ heading: 'Own' })?.heading).toBe('Own');
+    expect(section({ headingLink: { kind: 'url', url: '/x' } })?.heading).toBeNull();
+  });
+
   it('keeps the heading as authored for inline editing', () => {
     const heading = encodeStega('Knitwear', META);
     expect(

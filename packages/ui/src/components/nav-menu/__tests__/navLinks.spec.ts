@@ -193,6 +193,15 @@ describe('sections', () => {
     expect(runs[0]?.seeAll?.label).toBe('See all');
   });
 
+  it('heads a section that has only a heading link with its label', () => {
+    const runs = panelRuns({
+      label: 'Shop',
+      sections: [{ headingLink: { label: 'Knitwear', href: '/k' }, links: [{ label: 'A' }] }],
+    });
+    expect(runs[0]?.group).toBe('Knitwear');
+    expect(runs[0]?.headingLink?.href).toBe('/k');
+  });
+
   it('keeps a section whose only content is a see-all link', () => {
     const only: NavMenuItem = {
       label: 'Shop',
