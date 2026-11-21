@@ -56,6 +56,8 @@ A header or footer whose links carry children grouped by a `group` text (a mega-
 
 Core applies it once on deploy, after the same deploy's `convertToLink` conversions (which write the `group` text it reads), to draft and published data alike. For each top-level link it partitions the children on the trimmed `group` of the organisation's default locale, in first-seen order: children with no group form one section with no heading, at the position they were first seen, and a typo in a group (`Women`, `Wmen`) makes two sections. Every locale gets the same partition, and each section's heading is that locale's own `group` text. The link keeps `sections` and loses `children`. A link that already has sections, or no children, is left alone, so a redeploy changes nothing, and `eldra-theme deploy` counts the rewrites in the same converted line as a `convertToLink` step.
 
+The step is checked against the incoming fields and stays in `migrations` for as long as the theme lists it, so keep that field, with its `tree.sections`, for as long as the step is there. A link that would break a save rule (more sections than `tree.sections.max`, a `none` child, a child with children of its own) is left unconverted and reported as skipped, never written. Only a top-level `link` field or a `list` of links can be named: a link inside a list inside a composite (a footer's `groups[].links`) is not migrated.
+
 Stored revisions are not rewritten. A header revision from before the step restores with its `children` while the field's declaration still admits them (`tree.depth` 2); once the theme narrows it to depth 1, Core refuses that value and the restore keeps the current menu and warns (`PAGE_REVISION_LINK_MENU_KEPT`).
 
 ## Route templates and declared renames
