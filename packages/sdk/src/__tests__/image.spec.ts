@@ -80,7 +80,9 @@ describe('imageVariantFor', () => {
     expect(imageVariantFor(400)).toBe('sm');
     expect(imageVariantFor(401)).toBe('md');
     expect(imageVariantFor(360, 3)).toBe('lg');
-    expect(imageVariantFor(1440, 2)).toBe('full');
+    expect(imageVariantFor(1440, 2)).toBe('uhd');
+    expect(imageVariantFor(1280, 2)).toBe('full');
+    expect(imageVariantFor(2560, 2)).toBe('uhd');
   });
 
   it('refuses a width that is not a positive number', () => {
@@ -92,7 +94,8 @@ describe('imageVariantFor', () => {
 describe('imageSrcset', () => {
   it('lists every resized variant by its maximum width', () => {
     expect(imageSrcset(ASSET)).toBe(
-      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1920w, ${ASSET}/full 2560w`
+      `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1920w, ${ASSET}/full 2560w, ` +
+        `${ASSET}/uhd 3840w`
     );
   });
 
@@ -106,13 +109,20 @@ describe('imageSrcset', () => {
     expect(imageSrcset(ASSET, { originalWidth: 300 })).toBe(`${ASSET}/sm 300w`);
   });
 
-  it('ends with the original at its true width when it is wider than full', () => {
+  it('ends with the original at its true width when it is wider than uhd', () => {
     expect(imageSrcset(ASSET, { originalWidth: 5504 })).toBe(
       `${ASSET}/sm 400w, ${ASSET}/md 800w, ${ASSET}/lg 1200w, ${ASSET}/xl 1920w, ` +
-        `${ASSET}/full 2560w, ${ASSET}/original 5504w`
+        `${ASSET}/full 2560w, ${ASSET}/uhd 3840w, ${ASSET}/original 5504w`
     );
-    expect(imageSrcset(ASSET, { originalWidth: 2560 })).toBe(imageSrcset(ASSET));
-    expect(imageSrcset(ASSET, { originalWidth: 2560.4 })).toBe(imageSrcset(ASSET));
+    expect(imageSrcset(ASSET, { originalWidth: 3840 })).toBe(imageSrcset(ASSET));
+    expect(imageSrcset(ASSET, { originalWidth: 3840.4 })).toBe(imageSrcset(ASSET));
+  });
+
+  it('stops at uhd, described at its true width, for an original between full and uhd', () => {
+    expect(imageSrcset(ASSET, { originalWidth: 3000 })?.split(', ').slice(-2)).toEqual([
+      `${ASSET}/full 2560w`,
+      `${ASSET}/uhd 3000w`,
+    ]);
   });
 
   it('never lists the original of a HEIC, which only Safari can show', () => {
@@ -206,10 +216,10 @@ describe('the size the API gives an image', () => {
     );
   });
 
-  it('ends the srcset with the original when the photo is wider than full', () => {
+  it('ends the srcset with the original when the photo is wider than uhd', () => {
     const large = { url: ASSET, contentType: 'image/jpeg', width: 5504, height: 3096 };
     expect(imageSrcset(large)?.split(', ').slice(-2)).toEqual([
-      `${ASSET}/full 2560w`,
+      `${ASSET}/uhd 3840w`,
       `${ASSET}/original 5504w`,
     ]);
     expect(responsiveImage(large, { sizes: '100vw' })).toMatchObject({

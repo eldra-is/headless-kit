@@ -9,6 +9,10 @@ platform repository.
 
 ## Unreleased
 
+- **A 3840 px image variant, `uhd`.** A full-width image on a high-density screen wants about 3840 px, and
+  `full` stops at 2560. `imageSrcset` now lists `…/uhd 3840w` after `full`, `imageVariantFor` falls back to
+  `uhd` instead of `full`, and the original is listed only when it is wider than 3840 px.
+  `ELDRA_IMAGE_VARIANT_WIDTHS` and `EldraImageVariant` carry it. It needs the media host that serves `uhd`.
 - **Removed: the checkout summary types.** `EldraOrderPreview`, `EldraOrderPreviewGiftCard` and
   `EldraOrderPreviewDiscountCode` are no longer exported. They typed `POST /order/v1/preview`, which the SDK
   never had a method for: delivery choice, the order summary, order creation and payment belong to the hosted

@@ -1,5 +1,5 @@
 /** A size the media host serves by path suffix; `original` is the uploaded file, untransformed. */
-export type EldraImageVariant = 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'original';
+export type EldraImageVariant = 'sm' | 'md' | 'lg' | 'xl' | 'full' | 'uhd' | 'original';
 
 /** The variants the media host resizes, narrowest first. */
 export type EldraSizedImageVariant = Exclude<EldraImageVariant, 'original'>;
@@ -14,9 +14,11 @@ export const ELDRA_IMAGE_VARIANT_WIDTHS: Readonly<Record<EldraSizedImageVariant,
   lg: 1200,
   xl: 1920,
   full: 2560,
+  uhd: 3840,
 };
 
 const SIZED_VARIANTS = Object.keys(ELDRA_IMAGE_VARIANT_WIDTHS) as EldraSizedImageVariant[];
+const WIDEST: EldraSizedImageVariant = 'uhd';
 
 /**
  * A media URL as the API returns it, or any object carrying one (`thumbnail`, `mediaLinks[]`, a
@@ -38,7 +40,7 @@ const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // No whitespace or comma anywhere: either would split a srcset candidate.
 const ELDRA_ASSET_URL = new RegExp(
   `^((?:(?:https?:)?//[^/\\s,?#]+)?(?:/[^\\s,?#]*)?/public/${UUID}/assets/${UUID})` +
-    `(?:/(?:sm|md|lg|xl|full|original))?/?$`,
+    `(?:/(?:sm|md|lg|xl|full|uhd|original))?/?$`,
   'i'
 );
 
@@ -92,7 +94,7 @@ export function imageUrl(source: EldraImageSource, variant: EldraImageVariant): 
 }
 
 /**
- * The narrowest variant at least `width` CSS pixels wide at the given pixel density, or `full`
+ * The narrowest variant at least `width` CSS pixels wide at the given pixel density, or `uhd`
  * when nothing is that wide.
  */
 export function imageVariantFor(width: number, density = 1): EldraSizedImageVariant {
@@ -100,13 +102,13 @@ export function imageVariantFor(width: number, density = 1): EldraSizedImageVari
   if (!Number.isFinite(needed) || needed <= 0) {
     throw new RangeError(`imageVariantFor needs a positive width, got ${width} at ${density}x`);
   }
-  return SIZED_VARIANTS.find((variant) => ELDRA_IMAGE_VARIANT_WIDTHS[variant] >= needed) ?? 'full';
+  return SIZED_VARIANTS.find((variant) => ELDRA_IMAGE_VARIANT_WIDTHS[variant] >= needed) ?? WIDEST;
 }
 
 export interface EldraImageSrcsetOptions {
   /**
    * The original's width in pixels, by default the source's `width`. Wider variants are dropped and
-   * the last is described at its true width; an original wider than `full` is listed itself, last.
+   * the last is described at its true width; an original wider than `uhd` is listed itself, last.
    */
   originalWidth?: number;
 }
@@ -139,7 +141,7 @@ export function imageSrcset(
   }
   if (
     isSide(originalWidth) &&
-    Math.round(originalWidth) > ELDRA_IMAGE_VARIANT_WIDTHS.full &&
+    Math.round(originalWidth) > ELDRA_IMAGE_VARIANT_WIDTHS[WIDEST] &&
     originalDisplays(source)
   ) {
     candidates.push(`${base}/original ${Math.round(originalWidth)}w`);
