@@ -1352,6 +1352,51 @@ describe('NavMenu — sections', () => {
     }
   });
 
+  it('starts the heading link, the cards and the plain links of a cards column at the same edge', async () => {
+    const items: NavMenuItem[] = [
+      {
+        label: 'Shop',
+        sections: [
+          {
+            heading: 'Featured',
+            headingLink: { label: 'Featured', href: '/featured' },
+            links: [
+              {
+                label: 'Tall mug',
+                href: '/tall',
+                display: 'card',
+                card: { image: '/tall.jpg', title: 'Tall mug' },
+              },
+              { label: 'Glaze guide', href: '/glaze' },
+            ],
+            seeAll: { label: 'See all featured', href: '/all' },
+          },
+          { heading: 'Care', links: [{ label: 'Care guides', href: '/care' }] },
+        ],
+      },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    const [cards, plain] = [...panel(wrapper, 0).querySelectorAll('[data-part="group"]')];
+    expect(cards!.hasAttribute('data-cards')).toBe(true);
+    expect(plain!.hasAttribute('data-cards')).toBe(false);
+    expect(
+      panel(wrapper, 0).querySelector('[data-part="columns"]')!.hasAttribute('data-cards')
+    ).toBe(true);
+    const edge = (element: Element | null) => element!.className.includes('eldra:px-3');
+    expect(edge(cards!.querySelector('[data-part="groupHeading"]'))).toBe(false);
+    for (const link of cards!.querySelectorAll('[data-part="panelLink"]')) {
+      expect(edge(link)).toBe(false);
+    }
+    expect(cards!.querySelector('[data-see-all]')).not.toBeNull();
+    expect(cards!.querySelector('[data-part="groupLink"]')!.getAttribute('href')).toBe('/featured');
+    // A column without cards keeps its indent, heading and links alike.
+    expect(edge(plain!.querySelector('[data-part="groupHeading"]'))).toBe(true);
+    expect(edge(plain!.querySelector('[data-part="panelLink"]'))).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
   it('draws the cards in the drawer under drawer part names', async () => {
     const wrapper = mount({ items: CARDS, drawerOpen: true, drawerLayout: 'sections' });
     await nextTick();

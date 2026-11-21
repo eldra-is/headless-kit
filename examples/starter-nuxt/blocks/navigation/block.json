@@ -4,7 +4,7 @@
   "description": "The store's top bar: brand, primary links with optional mega-menus, search, cart and one call to action.",
   "icon": "layout-navbar",
   "category": "structure",
-  "version": 4,
+  "version": 5,
   "groups": [
     {
       "groupId": "brand",
@@ -55,6 +55,10 @@
           "label": "ctaLabel"
         }
       ]
+    },
+    {
+      "version": 5,
+      "groupsToSections": [{ "field": "links" }]
     }
   ],
   "fields": [

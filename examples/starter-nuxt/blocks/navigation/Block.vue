@@ -695,8 +695,11 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
   panel: 'pt-0',
   content:
     'rounded-none rounded-b-lg border-t-0 bg-(--eldra-header-surface) shadow-(--eldra-shadow-float) @wide:p-8',
-  columns: 'grid-cols-12 gap-6',
-  group: 'col-span-3',
+  // Twelve columns, a link column three of them. A panel with a cards column is laid out in equal
+  // tracks instead: a link column is one, the cards column spans two (the design's ~1.7x).
+  columns:
+    'grid-cols-12 gap-6 data-cards:grid-flow-col data-cards:auto-cols-fr data-cards:grid-cols-none',
+  group: 'col-span-3 [[data-cards]>&]:col-span-1 [[data-cards]>&[data-cards]]:col-span-2',
   footer: 'justify-end',
   drawerLink: 'font-heading text-xl font-semibold',
   drawerTrigger: 'font-heading text-xl font-semibold',

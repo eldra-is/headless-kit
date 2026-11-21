@@ -174,7 +174,7 @@ function panelItemClass(run: NavMenuLinkRun, link: NavMenuLink) {
   return panelPartClass(hasCards(run) && !isCard(link) ? 'eldra:col-span-2' : '', 'panelItem');
 }
 
-function panelLinkClass(link: NavMenuLink) {
+function panelLinkClass(link: NavMenuLink, run: NavMenuLinkRun) {
   if (isCard(link)) {
     return panelPartClass(
       [
@@ -187,8 +187,9 @@ function panelLinkClass(link: NavMenuLink) {
   return panelPartClass(
     [
       'eldra:flex eldra:flex-col eldra:gap-0.5 eldra:rounded-md',
+      // In a column of cards the heading, the cards and the plain links all start at the column's edge.
       bar.value
-        ? ['eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant]]
+        ? [hasCards(run) ? 'eldra:py-2' : 'eldra:px-3 eldra:py-2', BAR_ENTRY[props.variant]]
         : 'eldra:py-2.5 eldra:text-text',
       hasHref(link) && 'eldra:eldra-focus',
       hasHref(link) && bar.value && BAR_LINK[props.variant],
@@ -256,12 +257,14 @@ function listLabel(group: string | null, index: number): string | undefined {
     :data-eldra-scope="eldra.scope"
     :data-part="part('columns')"
     :class="columnsClass"
+    :data-cards="groups.some(hasCards) ? '' : undefined"
   >
     <div
       v-for="(group, index) in groups"
       :key="index"
       :data-part="part('group')"
       :class="groupClass"
+      :data-cards="hasCards(group) ? '' : undefined"
     >
       <span
         v-if="group.group !== null"
@@ -308,7 +311,7 @@ function listLabel(group: string | null, index: number): string | undefined {
             :data-eldra-slot="eldra.slotHost('panelItem')"
             :data-part="part('panelLink')"
             :data-see-all="link === group.seeAll ? '' : undefined"
-            :class="panelLinkClass(link)"
+            :class="panelLinkClass(link, group)"
             v-bind="navLinkAttrs(link, linkAs)"
           >
             <slot

@@ -238,7 +238,7 @@ link with a resolved `card` as a card, and a card-aware theme can still replace 
   resolved `card.image` already is for a product or collection.
 
 The starter's header declares sections and `cards` on its `links` field (`blocks/navigation`) and
-passes `sections`, `display` and `card` through `toNavLink`.
+passes `sections`, `display` and `card` through `toNavLink`. Its version 5 runs `groupsToSections` on stored menus, which needs a cms-service that has that step: deploy the platform before the theme.
 
 ### Declaring a menu
 
