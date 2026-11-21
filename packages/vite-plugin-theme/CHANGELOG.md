@@ -5,6 +5,16 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A theme can declare its menu as an object: `metadata.tree` takes depth, sections and cards
+  (WS-1312).** `tree` on a `link` field is now `boolean | EldraLinkTree` (new types `EldraLinkTree`,
+  `EldraLinkTreeSections`, `EldraLinkTreeCards`, Core's own JSON keys). The scanner refuses exactly
+  what Core's manifest ingest refuses: a depth other than 1 or 2, `sections` or `cards` at depth 1,
+  a `max` below 1, a malformed `aspect`, `cards.kinds` outside the field's `kinds`, a cards
+  declaration that allows page, entry, url or category without `customImage`, and `cards` anywhere
+  but a top-level link or a top-level list's link item. It also stops refusing `tree` on a top-level
+  link or a composite child, which Core accepts and `groupsToSections` supports. See
+  `docs/themes.md`, "Declaring a menu".
+
 - **`migrations[].groupsToSections`: grouped menu children become sections (WS-1318).** A step may
   declare `groupsToSections: [{ "field": "links" }]` (at most 16, `field` the only key) to turn a link
   field's rows' children, grouped by their `group` text, into `sections` on deploy. The scanner

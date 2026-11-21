@@ -197,6 +197,50 @@ const link = useEldraLink();
 `children` is one level deep and never more, which is what a mega-menu column needs and all the
 grammar allows. A child's `group` is its column heading.
 
+### Declaring a menu
+
+A `link` field opts into the menu editor with `metadata.tree`, on a top-level link or on the link
+that is a top-level list's `item` (a header's list of links). `true` is a link with one level of
+children. An object declares more, with the same keys Core stores (`EldraLinkTree` in
+`@eldrajs/vite-plugin-theme`):
+
+```json
+{
+  "fieldId": "links",
+  "type": "list",
+  "metadata": {
+    "item": {
+      "fieldId": "link",
+      "type": "link",
+      "metadata": {
+        "kinds": ["product", "collection", "page", "url"],
+        "tree": {
+          "depth": 2,
+          "sections": { "max": 4, "headingLink": true, "seeAll": true },
+          "cards": { "kinds": ["product", "collection"], "max": 2, "aspect": "4:5" }
+        }
+      }
+    }
+  }
+}
+```
+
+- `depth` is 1 (links only) or 2 (a link and one level under it); it defaults to 2, and `{}` means
+  the same as `true`. `sections` and `cards` need depth 2.
+- `sections` groups a link's children into columns: `max` (at least 1) columns, a heading that may
+  itself be a link (`headingLink`) and a trailing "see all" link (`seeAll`).
+- `cards` lets a link carry promotional cards: `max` (at least 1), the `aspect` as `width:height`
+  (`4:5`, `16:9`), and `kinds`, which must be within the field's own `kinds`. A card of kind page,
+  entry, url or category has no picture of its own, so a declaration that allows one needs
+  `customImage: true`; `cards: { max: 2 }` alone allows every kind and is refused until you list
+  `kinds` or set `customImage`.
+- `cards` is allowed only on a top-level link field or the link item of a top-level list. A composite
+  child, a list inside a composite and a list inside a list are refused.
+
+`eldra-theme validate` and the build refuse exactly what Core's manifest ingest refuses, so a theme
+that builds deploys. A theme that declares no `sections` is served sections as `children`, and one
+that declares no `cards` is served its cards as plain links.
+
 `@eldrajs/theme-nuxt` fills the context inside the same `useAsyncData` call that resolves the route,
 so a `nuxi generate` build bakes every href into the page's payload and a prerendered page resolves
 them with no client request. The lookups are one batched read per target type, and a read that fails

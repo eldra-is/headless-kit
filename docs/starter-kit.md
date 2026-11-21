@@ -332,8 +332,8 @@ product, collection, category, entry or page by id, or an external URL — and t
 href with `useEldraLink()` (see `docs/themes.md`, "Links"), so a renamed collection can never leave
 a header pointing at a 404. It may narrow what an author can pick with `metadata.kinds`, restrict
 `kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a `link` that is a `list`'s
-`metadata.item` — ask for a one-level tree with `metadata.tree: true`, which is how the header and
-footer author their navigation. A `reference` field carries a `relation` naming what an editor may pick, as any
+`metadata.item` — ask for a one-level tree with `metadata.tree: true` (or a declaration object with `depth`, `sections` and
+`cards`; see `docs/themes.md`, "Declaring a menu"), which is how the header and footer author their navigation. A `reference` field carries a `relation` naming what an editor may pick, as any
 combination of `allowedTagIds` (semantic tag names — never schema ids, which are not portable
 across organizations), `allowProducts` and `allowCollections`, with **at least one of them**:
 `eldra-theme validate` fails a relation that names none with `relation requires one of

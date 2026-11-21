@@ -1017,20 +1017,15 @@ describe('scanTheme link field metadata', () => {
     expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([]);
   });
 
-  it('refuses metadata.tree on a top-level link — a list is what a tree is authored in', () => {
-    const dir = withHeroField({
+  it('accepts metadata.tree on a top-level link and on a composite child, as Core does', () => {
+    const top = withHeroField({
       fieldId: 'cta',
       name: 'Button link',
       type: 'link',
       metadata: { tree: true },
     });
-    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT} — metadata.tree is only allowed on a link that is a list's item`,
-    ]);
-  });
-
-  it("refuses metadata.tree on a link inside a composite's fields", () => {
-    const dir = withHeroField({
+    expect(scanTheme({ themeDir: top, framework: 'nuxt' }).errors).toEqual([]);
+    const nested = withHeroField({
       fieldId: 'card',
       name: 'Card',
       type: 'composite',
@@ -1038,12 +1033,10 @@ describe('scanTheme link field metadata', () => {
         fields: [{ fieldId: 'cta', name: 'Link', type: 'link', metadata: { tree: true } }],
       },
     });
-    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT}.metadata.fields[0] — metadata.tree is only allowed on a link that is a list's item`,
-    ]);
+    expect(scanTheme({ themeDir: nested, framework: 'nuxt' }).errors).toEqual([]);
   });
 
-  it('rejects a non-boolean tree', () => {
+  it('rejects a tree that is neither a boolean nor an object', () => {
     const dir = linkList({
       fieldId: 'link',
       name: 'Link',
@@ -1051,7 +1044,7 @@ describe('scanTheme link field metadata', () => {
       metadata: { tree: 'yes' },
     });
     expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT}.metadata.item.metadata.tree — must be a boolean`,
+      `${AT}.metadata.item.metadata.tree — must be a boolean or an object`,
     ]);
   });
 
