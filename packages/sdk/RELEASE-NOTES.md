@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.1...sdk-v0.5.2) (2026-11-21)
+
+
+### Features
+
+* **sdk:** a 3840 px uhd image variant (WS-1273) ([#156](https://github.com/eldra-is/headless-kit/issues/156)) ([287bf79](https://github.com/eldra-is/headless-kit/commit/287bf79cb5463a4308bf49921663f7b4b08113b0))
+
 ## [0.5.1](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.0...sdk-v0.5.1) (2026-11-17)
 
 

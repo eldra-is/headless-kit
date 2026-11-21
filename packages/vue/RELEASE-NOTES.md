@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.14](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.13...vue-v0.1.14) (2026-11-21)
+
+
+### Features
+
+* **sdk:** a 3840 px uhd image variant (WS-1273) ([#156](https://github.com/eldra-is/headless-kit/issues/156)) ([287bf79](https://github.com/eldra-is/headless-kit/commit/287bf79cb5463a4308bf49921663f7b4b08113b0))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.2
+
 ## [0.1.13](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.12...vue-v0.1.13) (2026-11-17)
 
 
