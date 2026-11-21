@@ -9,8 +9,8 @@ Release-please writes the generated notes from commit messages and does not repl
   own, else its section's) carries `card: { image, title, price? }`: the image is the link's own
   `imageUrl`, else the target's (`LinkTargetInfo.image`: a product's thumbnail, a collection's
   image), `price` a product's `LinkTargetInfo.price`. A card with no picture or title resolves as a
-  plain link (`display: 'link'`, no `card`); heading, see-all and top-level links are never cards.
-  `LinkRouteContext.cardKinds` optionally restricts the kinds. New type `ResolvedCard`.
+  plain link (`display: 'link'`, no `card`); heading, see-all and top-level links carry neither
+  `display` nor `card`. `card.price` is in major units, no currency. New type `ResolvedCard`.
 
 - **`resolveLink` resolves `sections` (WS-1321).** A link a theme that declares `tree.sections` is
   served carries `sections: ResolvedSection[]` (`heading`, `headingLink`, `links`, `seeAll`, `display`),

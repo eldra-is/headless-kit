@@ -79,8 +79,6 @@ export interface LinkRouteContext {
   templates: readonly RouteTemplateLike[];
   /** Keyed `${_type}:${id}` — see `linkTargetKeys`. */
   targets: ReadonlyMap<string, LinkTargetInfo>;
-  /** The kinds the theme's `cards.kinds` allows as a card; every kind when absent. */
-  cardKinds?: readonly LinkKind[];
 }
 
 export interface ResolvedLink {
@@ -106,6 +104,7 @@ export interface ResolvedLink {
 export interface ResolvedCard {
   image: string;
   title: string;
+  /** A product's lowest price in **major units** (the /web product list's `minPrice`, `28` for 28 kr.), with no currency: format it with the store's. */
   price?: number;
 }
 
@@ -310,11 +309,13 @@ function resolveOne(
     resolved.imageUrl = link.imageUrl;
   }
   // Only a child or a section link may be a card; a link's own display overrides the section's.
-  const display =
-    card === undefined ? cardDisplay(link.display) : (cardDisplay(link.display) ?? card.display);
-  if (display !== undefined) resolved.display = display;
-  if (card !== undefined && display === 'card') {
-    const resolvedCard = resolveCard(plain(link.kind), link, info, resolved.label, context);
+  // Any other link (top level, heading link, see-all) never carries a `display`.
+  if (card !== undefined) {
+    const display = cardDisplay(link.display) ?? card.display;
+    if (display !== undefined) resolved.display = display;
+  }
+  if (card !== undefined && resolved.display === 'card') {
+    const resolvedCard = resolveCard(plain(link.kind), link, info, resolved.label);
     if (resolvedCard === null) resolved.display = 'link';
     else resolved.card = resolvedCard;
   }
@@ -331,12 +332,8 @@ function resolveCard(
   kind: string,
   link: LinkValue,
   info: LinkTargetInfo | undefined,
-  title: string | null,
-  context: LinkRouteContext
+  title: string | null
 ): ResolvedCard | null {
-  if (context.cardKinds !== undefined && !(context.cardKinds as readonly string[]).includes(kind)) {
-    return null;
-  }
   const own = typeof link.imageUrl === 'string' && plain(link.imageUrl) !== '' ? link.imageUrl : '';
   const targetImage =
     (kind === 'product' || kind === 'collection') && typeof info?.image === 'string'

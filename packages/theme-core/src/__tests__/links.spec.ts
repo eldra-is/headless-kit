@@ -561,9 +561,8 @@ describe('resolveLink — sections resolve', () => {
 describe('resolveLink — cards', () => {
   const product = { kind: 'product', target: { _type: 'product', id: PRODUCT_ID } };
   const collection = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
-  const cardContext = (cardKinds?: LinkRouteContext['cardKinds']) =>
+  const cardContext = () =>
     context({
-      cardKinds,
       targets: new Map([
         [
           `product:${PRODUCT_ID}`,
@@ -628,10 +627,7 @@ describe('resolveLink — cards', () => {
     expect(lost?.display).toBe('link');
     expect(lost?.href).toBeNull();
     // A product whose target is unknown and has no override falls back the same way.
-    const unknown = child(
-      { ...product, display: 'card' },
-      context({ targets: new Map(), cardKinds: undefined })
-    );
+    const unknown = child({ ...product, display: 'card' }, context({ targets: new Map() }));
     expect(unknown).not.toHaveProperty('card');
     expect(unknown?.display).toBe('link');
   });
@@ -657,13 +653,6 @@ describe('resolveLink — cards', () => {
     expect(own).not.toHaveProperty('card');
   });
 
-  it('a kind outside cards.kinds stays a link', () => {
-    const ctx = cardContext(['collection']);
-    expect(child({ ...product, display: 'card' }, ctx)).not.toHaveProperty('card');
-    expect(child({ ...product, display: 'card' }, ctx)?.display).toBe('link');
-    expect(child({ ...collection, display: 'card' }, ctx)?.card?.title).toBe('Knitwear');
-  });
-
   it('a heading link, a see-all link and a top-level link are never cards', () => {
     const resolved = resolveLink(
       {
@@ -680,9 +669,14 @@ describe('resolveLink — cards', () => {
       },
       cardContext()
     );
-    expect(resolved).not.toHaveProperty('card');
-    expect(resolved?.sections?.[0]?.headingLink).not.toHaveProperty('card');
-    expect(resolved?.sections?.[0]?.seeAll).not.toHaveProperty('card');
+    for (const link of [
+      resolved,
+      resolved?.sections?.[0]?.headingLink,
+      resolved?.sections?.[0]?.seeAll,
+    ]) {
+      expect(link).not.toHaveProperty('card');
+      expect(link).not.toHaveProperty('display');
+    }
   });
 
   it('a legacy link has no display and no card', () => {
