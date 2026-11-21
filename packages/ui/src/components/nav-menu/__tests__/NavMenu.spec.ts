@@ -4,6 +4,8 @@ import { defineComponent, h, nextTick } from 'vue';
 import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
 import { mountWith } from '../../../test/mount';
+import { formatPrice } from '@eldrajs/sdk/format';
+import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
 import NavMenu from '../NavMenu.vue';
 import type { NavMenuItem } from '../types';
 
@@ -31,10 +33,43 @@ const ITEMS: NavMenuItem[] = [
 
 type Wrapper = VueWrapper<InstanceType<typeof NavMenu>>;
 
-function mount(props: Record<string, unknown> = {}, slots: Record<string, unknown> = {}): Wrapper {
+const CARDS: NavMenuItem[] = [
+  {
+    label: 'Shop',
+    sections: [
+      { heading: 'Knitwear', links: [{ label: 'Sweaters', href: '/sweaters' }] },
+      {
+        heading: 'Featured',
+        display: 'card',
+        links: [
+          {
+            label: 'Tall mug',
+            href: '/tall',
+            display: 'card',
+            card: { image: '/tall.jpg', title: 'Tall mug', price: 2800 },
+          },
+          {
+            label: 'Mugs',
+            href: '/mugs',
+            display: 'card',
+            card: { image: '/mugs.jpg', title: 'Mugs' },
+          },
+          { label: 'Glaze guide', href: '/glaze' },
+        ],
+      },
+    ],
+  },
+];
+
+function mount(
+  props: Record<string, unknown> = {},
+  slots: Record<string, unknown> = {},
+  provide: Record<symbol, unknown> = {}
+): Wrapper {
   return mountWith(NavMenu, {
     props: { items: ITEMS, ...props },
     slots: slots as never,
+    global: { provide },
   }) as Wrapper;
 }
 
@@ -1226,7 +1261,7 @@ describe('NavMenu — sections', () => {
     wrapper.unmount();
   });
 
-  it('hands a resolved card to the panelItem slot and draws it as a plain link otherwise', async () => {
+  it('hands a resolved card to the panelItem slot, which replaces the card the panel draws', async () => {
     const items = [
       {
         label: 'Shop',
@@ -1253,12 +1288,85 @@ describe('NavMenu — sections', () => {
     await nextTick();
     expect(seen).toContainEqual({ image: '/mug.jpg', title: 'Mug', price: 28 });
     wrapper.unmount();
+  });
+
+  it('draws a link whose card did not resolve as a plain link', async () => {
+    const items = [
+      {
+        label: 'Shop',
+        children: [{ label: 'Mug', href: '/mug', display: 'card' as const }],
+      },
+    ];
     const plain = mount({ items, modelValue: 0 });
     await nextTick();
     const link = plain.element.querySelector('[data-part="panelLink"]')!;
     expect(link.getAttribute('href')).toBe('/mug');
     expect(link.querySelector('img')).toBeNull();
     plain.unmount();
+  });
+
+  it('draws a card with its picture cropped to the aspect, its title and its price', async () => {
+    const wrapper = mount(
+      { items: CARDS, modelValue: 0, cardAspect: '4:5' },
+      {},
+      { [CURRENCY_KEY as symbol]: 'ISK', [LOCALE_KEY as symbol]: 'is-IS' }
+    );
+    await nextTick();
+    const cards = [...panel(wrapper, 0).querySelectorAll('[data-part="card"]')];
+    expect(cards).toHaveLength(2);
+    const img = cards[0]!.querySelector('img')!;
+    // The title beside it names the link; a copy as `alt` would be read twice (axe image-redundant-alt).
+    expect(img.getAttribute('alt')).toBe('');
+    expect(cards[0]!.closest('a')!.textContent).toContain('Tall mug');
+    expect(img.getAttribute('src')).toBe('/tall.jpg');
+    expect(img.style.aspectRatio).toBe('4 / 5');
+    expect(cards[0]!.querySelector('[data-part="cardTitle"]')!.textContent).toBe('Tall mug');
+    expect(cards[0]!.querySelector('[data-part="cardPrice"]')!.textContent).toBe(
+      formatPrice(2800, 'ISK', 'is-IS')
+    );
+    // A collection card has no price line.
+    expect(cards[1]!.querySelector('[data-part="cardPrice"]')).toBeNull();
+    expect(cards[0]!.closest('a')!.getAttribute('href')).toBe('/tall');
+    wrapper.unmount();
+  });
+
+  it('lays cards in two columns beside a text column, and a plain entry takes a whole row', async () => {
+    const wrapper = mount({ items: CARDS, modelValue: 0 });
+    await nextTick();
+    const lists = [...panel(wrapper, 0).querySelectorAll('[data-part="panelList"]')];
+    expect(lists[0]!.className).not.toContain('grid-cols-2');
+    expect(lists[1]!.className).toContain('eldra:grid-cols-2');
+    const items = [...lists[1]!.querySelectorAll('[data-part="panelItem"]')];
+    expect(items.map((i) => i.className.includes('col-span-2'))).toEqual([false, false, true]);
+    wrapper.unmount();
+  });
+
+  it('crops to 4:3 when the aspect is missing or malformed, and prints a bare number with no currency', async () => {
+    for (const cardAspect of [undefined, 'wide', '0:3']) {
+      const wrapper = mount({ items: CARDS, modelValue: 0, cardAspect });
+      await nextTick();
+      const img = panel(wrapper, 0).querySelector('img')!;
+      expect(img.style.aspectRatio).toBe('4 / 3');
+      expect(panel(wrapper, 0).querySelector('[data-part="cardPrice"]')!.textContent).toBe('2,800');
+      wrapper.unmount();
+    }
+  });
+
+  it('draws the cards in the drawer under drawer part names', async () => {
+    const wrapper = mount({ items: CARDS, drawerOpen: true, drawerLayout: 'sections' });
+    await nextTick();
+    const dialog = wrapper.get('dialog').element as HTMLDialogElement;
+    expect(dialog.querySelectorAll('[data-part="drawerCard"] img')).toHaveLength(2);
+    expect(dialog.querySelector('[data-part="drawerCardPrice"]')).not.toBeNull();
+    expect(await axe(dialog)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('has no axe violations on an open panel with cards', async () => {
+    const wrapper = mount({ items: CARDS, modelValue: 0 });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
   });
 
   it('draws sections in the drawer, in both layouts, with no axe violations', async () => {

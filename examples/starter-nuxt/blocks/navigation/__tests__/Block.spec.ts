@@ -277,6 +277,71 @@ describe('header block (navigation apiId)', () => {
     wrapper.unmount();
   });
 
+  it('draws a menu card with its picture at the declared aspect, its title and its price, axe-clean', async () => {
+    const targets = new Map(resolved.links.targets);
+    targets.set('product:p-1', {
+      slug: 'ash-mug',
+      title: 'Ash glaze mug',
+      image: 'https://media.test/mug-md.jpg',
+      price: 28,
+    });
+    const wrapper = mount(Block, {
+      ...mountOptions(
+        {
+          entry: {
+            id: 'e1',
+            data: {
+              ...resolved.data,
+              links: [
+                {
+                  kind: 'none',
+                  label: 'Shop',
+                  sections: [
+                    {
+                      heading: 'Featured',
+                      display: 'card',
+                      links: [
+                        { kind: 'product', target: { _type: 'product', id: 'p-1' } },
+                        {
+                          kind: 'url',
+                          url: '/winter',
+                          label: 'Winter knits',
+                          display: 'card',
+                          imageUrl: 'https://media.test/winter-md.jpg',
+                        },
+                      ],
+                    },
+                    {
+                      heading: 'Care',
+                      links: [{ kind: 'url', url: '/care', label: 'Care guides' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        { links: { ...resolved.links, targets } }
+      ),
+      attachTo: document.body,
+    });
+    const trigger = wrapper.findAll('button').find((b) => b.text().includes('Shop'))!;
+    await trigger.trigger('click');
+    const panel = wrapper.get(`#${trigger.attributes('aria-controls')}`);
+    const cards = panel.findAll('[data-part="card"]');
+    expect(cards).toHaveLength(2);
+    const image = cards[0]!.get('img');
+    expect(image.attributes('src')).toBe('https://media.test/mug-md.jpg');
+    expect((image.element as HTMLImageElement).style.aspectRatio).toBe('4 / 3');
+    expect(cards[0]!.get('[data-part="cardTitle"]').text()).toBe('Ash glaze mug');
+    expect(cards[0]!.get('[data-part="cardPrice"]').text()).toMatch(/28/);
+    expect(cards[1]!.find('[data-part="cardPrice"]').exists()).toBe(false);
+    // A plain link beside the cards is still a link.
+    expect(panel.findAll('a').some((a) => a.text() === 'Care guides')).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
   it('renders a heading-only mega-menu parent as a disclosure with no destination', async () => {
     // `kind: "none"`: the trigger has a label and children and goes nowhere,
     // which is what a mega-menu parent without its own page is.

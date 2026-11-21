@@ -127,3 +127,19 @@ export function navLinkAttrs(
   if (link.current === true) attrs['aria-current'] = 'page';
   return attrs;
 }
+
+/** The card aspect used when a theme gives none, or one that is not `width:height`. */
+export const DEFAULT_CARD_ASPECT = '4:3';
+
+/** Whether an entry is drawn as a card: it asks for one and its picture and title resolved. */
+export function isCard(link: NavMenuLink): boolean {
+  return link.display === 'card' && link.card !== undefined;
+}
+
+/** A `width:height` aspect as a CSS `aspect-ratio`; anything else is the default. */
+export function cardAspectRatio(aspect?: string): string {
+  const match = /^\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\s*$/.exec(aspect ?? '');
+  const ratio = match !== null && Number(match[1]) > 0 && Number(match[2]) > 0 ? match : null;
+  const [width, height] = ratio !== null ? [ratio[1], ratio[2]] : DEFAULT_CARD_ASPECT.split(':');
+  return `${width} / ${height}`;
+}

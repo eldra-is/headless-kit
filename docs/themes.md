@@ -219,9 +219,26 @@ resolves as a plain link (`display: 'link'`, no `card`). `price` is a product's 
 with `formatPrice(amount, currency, locale)` from `@eldrajs/sdk/format`, the currency being the
 store's, which `@eldrajs/theme-nuxt` puts on the runtime config as
 `useRuntimeConfig().public.eldra.commerce.currency` (type `StoreCommerce` from
-`@eldrajs/theme-nuxt/commerce`; render a plain number when it is null or empty). `NavMenu` draws
-every entry as a link and hands `link.card` to the `panelItem` slot, so a card-aware theme renders
-the card itself (crop the image to `cards.aspect` with CSS, `alt` from the title).
+`@eldrajs/theme-nuxt/commerce`; render a plain number when it is null or empty). `NavMenu` draws a
+link with a resolved `card` as a card, and a card-aware theme can still replace it through the
+`panelItem` slot, which is handed `link.card`:
+
+- the picture, cropped with CSS to the `aspect` the theme passes as `NavMenu`'s `card-aspect` prop
+  (`width:height`, default `4:3`; the starter reads it from its own `cards.aspect` declaration),
+  the title, and the price when the card has one;
+- the price is written with `formatPrice` in the ambient store currency and locale, the pair `Price`
+  reads (`CURRENCY_KEY`, `LOCALE_KEY`, which the starter's plugin provides from
+  `public.eldra.commerce.currency`), and as a plain number when the store has no currency;
+- a column that holds cards lays them out two to a row, in the bar and in the drawer; a plain link
+  in the same column takes a whole row, and legacy link menus keep their HTML unchanged;
+- the picture's `alt` is empty: the title printed beside it inside the same link already names it,
+  and an `alt` repeating it fails axe's `image-redundant-alt`. A custom card in the `panelItem` slot
+  that prints no title must give the image an `alt` from the title;
+- ask the media worker for the `md` variant (800px, scale-down) of a card's own image, as the
+  resolved `card.image` already is for a product or collection.
+
+The starter's header declares sections and `cards` on its `links` field (`blocks/navigation`) and
+passes `sections`, `display` and `card` through `toNavLink`.
 
 ### Declaring a menu
 

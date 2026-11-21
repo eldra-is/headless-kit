@@ -2,6 +2,7 @@
 /** Header (design spec 2); apiId stays `navigation`. Layout: docs/starter-kit.md, "The header". */
 import { computed, onMounted, ref, watchEffect } from 'vue';
 import { useEldraLink, useEldraLocale } from '@eldrajs/theme-vue';
+import type { ResolvedLink, ResolvedSection } from '@eldrajs/theme-vue';
 import {
   Badge,
   Button,
@@ -14,7 +15,9 @@ import {
 } from '@eldrajs/ui';
 import type {
   NavMenuItem,
+  NavMenuLink,
   NavMenuPart,
+  NavMenuSection,
   SearchResultItem,
   SearchResults,
   UiMessages,
@@ -30,6 +33,7 @@ import { isInternalHref, SEARCH_PATH } from '../../app/utils/links';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
 import MenuLink from './parts/MenuLink.vue';
+import blockJson from './block.json';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
 const { data } = useBlockData(props, 'navigation');
@@ -64,11 +68,50 @@ const links = computed(() =>
   })
 );
 
-/** A parent with children is a disclosure, so its own destination moves to the panel's "View all". */
+/**
+ * The picture crop of a menu card: the `aspect` this block's own `links` field declares in
+ * `cards`, so the declaration and the drawing cannot drift. `NavMenu` falls back to 4:3 on a
+ * value that is not `width:height`.
+ */
+const cardAspect = (
+  blockJson.fields.find((field) => field.fieldId === 'links') as
+    | { metadata?: { item?: { metadata?: { tree?: { cards?: { aspect?: string } } } } } }
+    | undefined
+)?.metadata?.item?.metadata?.tree?.cards?.aspect;
+
+/** A resolved link as the menu draws it, `display` and `card` (child and section links only) kept. */
+function toNavLink(link: ResolvedLink): NavMenuLink {
+  return {
+    label: link.label,
+    href: link.href,
+    newTab: link.newTab,
+    group: link.group,
+    current: isCurrent(link.href),
+    display: link.display,
+    card: link.card,
+  };
+}
+
+function toNavSection(section: ResolvedSection): NavMenuSection {
+  return {
+    heading: section.heading,
+    headingLink: section.headingLink === null ? null : toNavLink(section.headingLink),
+    display: section.display,
+    links: section.links.map(toNavLink),
+    seeAll: section.seeAll === null ? null : toNavLink(section.seeAll),
+  };
+}
+
+/**
+ * A parent with a panel is a disclosure, so its own destination moves to the panel's "View all". The
+ * panel is its `sections` when the site served them (this block declares them), else its `children`
+ * grouped by their `group`, which is what a menu stored before sections existed still is.
+ */
 const navItems = computed<NavMenuItem[]>(() =>
   links.value.map((link) => {
+    const sections = link.sections ?? [];
     const children = link.children.filter((child) => child.label !== null);
-    if (children.length === 0) {
+    if (sections.length === 0 && children.length === 0) {
       return {
         label: link.label,
         href: link.href,
@@ -79,13 +122,9 @@ const navItems = computed<NavMenuItem[]>(() =>
     return {
       label: link.label,
       layout: 'mega',
-      children: children.map((child) => ({
-        label: child.label,
-        href: child.href,
-        newTab: child.newTab,
-        group: child.group,
-        current: isCurrent(child.href),
-      })),
+      ...(sections.length > 0
+        ? { sections: sections.map(toNavSection) }
+        : { children: children.map(toNavLink) }),
     };
   })
 );
@@ -718,6 +757,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           :collapse-below="variant === 'minimal' ? 'always' : '@content'"
           open-on-hover
           :link-as="MenuLink"
+          :card-aspect="cardAspect"
           :messages="navMenuMessages"
           class="static contents"
           :classes="navMenuClasses"

@@ -51,6 +51,7 @@ const props = withDefaults(defineProps<NavMenuProps>(), {
   drawerItems: undefined,
   openOnHover: false,
   linkAs: undefined,
+  cardAspect: undefined,
   messages: undefined,
   classes: undefined,
 });
@@ -516,6 +517,7 @@ const accordionClasses = computed(() => ({
                     :variant="variant"
                     :messages="m"
                     :link-as="linkAs"
+                    :card-aspect="cardAspect"
                     :classes="classes"
                   >
                     <template v-if="slots.panelItem" #panelItem="scope">
@@ -633,6 +635,7 @@ const accordionClasses = computed(() => ({
                     :variant="variant"
                     :messages="m"
                     :link-as="linkAs"
+                    :card-aspect="cardAspect"
                     :classes="classes"
                     :labelled-by="`${panelId(index)}-drawer-heading`"
                     :omit-overview="hasHref(item)"
@@ -663,6 +666,7 @@ const accordionClasses = computed(() => ({
                     :variant="variant"
                     :messages="m"
                     :link-as="linkAs"
+                    :card-aspect="cardAspect"
                     :classes="classes"
                   >
                     <template v-if="slots.panelItem" #panelItem="scope">
