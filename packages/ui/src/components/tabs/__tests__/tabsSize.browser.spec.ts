@@ -106,4 +106,36 @@ describe('Tabs size="sm" and fill, measured', () => {
     expect(m.widths[0]).toBeCloseTo(m.widths[1]!, 0);
     expect(m.widths[1]).toBeCloseTo(m.widths[2]!, 0);
   });
+
+  it('the scoped variables recolour an sm tab bar, and default to the kit colours', async () => {
+    const colours = async (style: string) => {
+      const page = await browser.newPage({ viewport: { width: 800, height: 400 } });
+      try {
+        await page.setContent(
+          `<style>${css}</style><main style="padding:40px"><div style="width:300px;${style}">${await render({ size: 'sm' })}</div></main>`,
+          { waitUntil: 'domcontentloaded' }
+        );
+        return await page.evaluate(() => {
+          const [selected, rest] = [...document.querySelectorAll<HTMLElement>('[role="tab"]')];
+          const bar = selected!.querySelector<HTMLElement>('[data-part="indicator"]')!;
+          return {
+            selectedText: getComputedStyle(selected!).color,
+            indicator: getComputedStyle(bar).backgroundColor,
+            restText: getComputedStyle(rest!).color,
+          };
+        });
+      } finally {
+        await page.close();
+      }
+    };
+    const themed = await colours(
+      '--eldra-tabs-accent:rgb(9, 74, 196);--eldra-tabs-muted:rgb(75, 85, 99)'
+    );
+    expect(themed.selectedText).toBe('rgb(9, 74, 196)');
+    expect(themed.indicator).toBe('rgb(9, 74, 196)');
+    expect(themed.restText).toBe('rgb(75, 85, 99)');
+    const plain = await colours('');
+    expect(plain.selectedText).not.toBe('rgb(9, 74, 196)');
+    expect(plain.indicator).toBe(plain.selectedText);
+  });
 });

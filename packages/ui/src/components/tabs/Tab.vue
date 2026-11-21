@@ -93,6 +93,19 @@ const SIZE_MD = 'eldra:target-touch eldra:px-4 eldra:text-variant-pill';
  */
 const SIZE_SM = 'eldra:h-9 eldra:gap-1.5 eldra:px-3 eldra:text-tab-sm';
 
+/**
+ * The `sm` underline tab's own colours, each a per-component variable (the `--eldra-dialog-text`
+ * shape) so a panel can colour its tab bar without re-theming `--eldra-color-*` for every other
+ * component: `--eldra-tabs-accent` (selected text and the indicator; default the primary colour),
+ * `--eldra-tabs-muted` (unselected text; default `muted`) and `--eldra-tabs-hover-bg` (hover
+ * background; default the 6% text tint `md` uses). Written out in full, never interpolated: see
+ * `Tabs.vue`'s `PILLS_RING_RESERVE`.
+ */
+const SM_SELECTED_TEXT = 'eldra:text-[color:var(--eldra-tabs-accent,var(--eldra-color-primary))]';
+const SM_REST_TEXT = 'eldra:text-[color:var(--eldra-tabs-muted,var(--eldra-color-muted))]';
+const SM_HOVER =
+  'eldra:hover:text-text eldra:hover:bg-[var(--eldra-tabs-hover-bg,color-mix(in_oklab,var(--eldra-color-text),transparent_94%))]';
+
 /** `fill`: every tab takes an equal share of the list. `min-w-0` lets a long label shrink. */
 const FILL = 'eldra:min-w-0 eldra:flex-1';
 
@@ -106,11 +119,13 @@ const selectedWeight = computed(() =>
 const UNDERLINE = computed(() => [
   'eldra:rounded-t-sm eldra:eldra-focus-inset eldra:cursor-pointer',
   isSelected.value
-    ? [selectedWeight.value, isSmall.value ? 'eldra:text-primary' : 'eldra:text-text']
-    : [
-        'eldra:font-medium eldra:text-muted eldra:hover:text-text',
-        'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      ],
+    ? [selectedWeight.value, isSmall.value ? SM_SELECTED_TEXT : 'eldra:text-text']
+    : isSmall.value
+      ? ['eldra:font-medium', SM_REST_TEXT, SM_HOVER]
+      : [
+          'eldra:font-medium eldra:text-muted eldra:hover:text-text',
+          'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+        ],
 ]);
 
 /** States (spec "Tabs" → States, Pills column). The selected fill carries the state on its own —
@@ -177,7 +192,9 @@ const indicatorClass = computed(() => [
   isSelected.value
     ? props.disabled
       ? 'eldra:bg-muted'
-      : 'eldra:bg-primary'
+      : isSmall.value
+        ? 'eldra:bg-[var(--eldra-tabs-accent,var(--eldra-color-primary))]'
+        : 'eldra:bg-primary'
     : 'eldra:bg-transparent',
   props.classes?.indicator,
 ]);
