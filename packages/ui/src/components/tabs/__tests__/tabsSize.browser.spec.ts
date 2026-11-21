@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { inflateSync } from 'node:zlib';
 import { chromium, type Browser } from '@playwright/test';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSSRApp, h } from 'vue';
@@ -138,4 +139,125 @@ describe('Tabs size="sm" and fill, measured', () => {
     expect(plain.selectedText).not.toBe('rgb(9, 74, 196)');
     expect(plain.indicator).toBe(plain.selectedText);
   });
+
+  it('hovering an sm tab paints --eldra-tabs-hover-bg', async () => {
+    const page = await browser.newPage({
+      viewport: { width: 800, height: 400 },
+      reducedMotion: 'reduce',
+    });
+    try {
+      await page.setContent(
+        `<style>${css}</style><main style="padding:40px"><div style="width:300px;--eldra-tabs-hover-bg:rgb(243, 244, 246)">${await render({ size: 'sm' })}</div></main>`,
+        { waitUntil: 'domcontentloaded' }
+      );
+      const second = page.locator('[role="tab"]').nth(1);
+      const before = await second.evaluate((el) => getComputedStyle(el).backgroundColor);
+      await second.hover();
+      const after = await second.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(before).not.toBe('rgb(243, 244, 246)');
+      expect(after).toBe('rgb(243, 244, 246)');
+    } finally {
+      await page.close();
+    }
+  });
+
+  it('a keyboard-focused, selected sm tab shows the focus ring along its bottom edge', async () => {
+    const page = await browser.newPage({
+      viewport: { width: 800, height: 400 },
+      reducedMotion: 'reduce',
+    });
+    try {
+      await page.setContent(
+        `<style>${css}</style><main style="padding:40px"><div style="width:300px">${await render({ size: 'sm', fill: true })}</div></main>`,
+        { waitUntil: 'domcontentloaded' }
+      );
+      await page.keyboard.press('Tab');
+      const { box, focus, bar } = await page.evaluate(() => {
+        const tab = document.activeElement as HTMLElement;
+        const probe = document.createElement('i');
+        probe.style.background = 'var(--eldra-color-focus)';
+        document.body.append(probe);
+        const focus = getComputedStyle(probe).backgroundColor;
+        const rect = tab.getBoundingClientRect();
+        const bar = tab
+          .querySelector<HTMLElement>('[data-part="indicator"]')!
+          .getBoundingClientRect();
+        return {
+          box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+          focus,
+          bar: bar.bottom - rect.bottom,
+        };
+      });
+      // The indicator has lifted off the bottom edge ...
+      expect(bar).toBeLessThan(0);
+      // ... and the pixel on the tab's very bottom row is the ring's colour, not the bar's.
+      const png = await page.screenshot({
+        clip: { x: box.x + box.width / 2, y: box.y + box.height - 1, width: 1, height: 1 },
+      });
+      const want = focus.match(/\d+/g)!.map(Number);
+      const got = decodeRgb(png);
+      for (let i = 0; i < 3; i++) expect(Math.abs(got[i]! - want[i]!)).toBeLessThanOrEqual(2);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it('with fill, one long label truncates: equal widths, nothing runs into the next tab', async () => {
+    const page = await browser.newPage({ viewport: { width: 800, height: 400 } });
+    try {
+      const html = await renderToString(
+        createSSRApp(() =>
+          h(Tabs, {
+            ariaLabel: 'Rail',
+            modelValue: 'a',
+            size: 'sm',
+            fill: true,
+            items: [
+              { value: 'a', title: 'A very long label that cannot possibly fit in its share' },
+              { value: 'b', title: 'Layers' },
+              { value: 'c', title: 'Pages' },
+            ],
+          })
+        )
+      );
+      await page.setContent(
+        `<style>${css}</style><main style="padding:40px"><div style="width:300px">${html}</div></main>`,
+        { waitUntil: 'domcontentloaded' }
+      );
+      const m = await page.evaluate(() => {
+        const tabs = [...document.querySelectorAll<HTMLElement>('[role="tab"]')];
+        const rects = tabs.map((tab) => tab.getBoundingClientRect());
+        const label = tabs[0]!.querySelector<HTMLElement>('[data-part="label"]')!;
+        return {
+          widths: rects.map((rect) => rect.width),
+          overlaps: rects.slice(1).map((rect, i) => rects[i]!.right > rect.left + 0.5),
+          truncated: label.scrollWidth > label.clientWidth,
+          ellipsis: getComputedStyle(label).textOverflow,
+        };
+      });
+      expect(m.truncated).toBe(true);
+      expect(m.ellipsis).toBe('ellipsis');
+      expect(m.widths[0]).toBeCloseTo(m.widths[1]!, 0);
+      expect(m.widths[1]).toBeCloseTo(m.widths[2]!, 0);
+      expect(m.overlaps).toEqual([false, false]);
+    } finally {
+      await page.close();
+    }
+  });
 });
+
+/** A 1x1 PNG's pixel: at one pixel every PNG filter reduces to the raw bytes (see
+ *  `tabsRing.browser.spec.ts`), so find `IDAT`, inflate, skip the filter byte. */
+function decodeRgb(png: Buffer): number[] {
+  let pos = 8;
+  const idat: Buffer[] = [];
+  while (pos < png.length) {
+    const length = png.readUInt32BE(pos);
+    const type = png.toString('ascii', pos + 4, pos + 8);
+    if (type === 'IDAT') idat.push(Buffer.from(png.subarray(pos + 8, pos + 8 + length)));
+    else if (type === 'IEND') break;
+    pos += length + 12;
+  }
+  const raw = inflateSync(Buffer.concat(idat));
+  return [raw[1]!, raw[2]!, raw[3]!];
+}

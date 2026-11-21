@@ -82,7 +82,7 @@ function onKeydown(event: KeyboardEvent): void {
  * so the weight is a separate `font-medium`/`font-semibold` utility paired with it here instead.
  */
 const BASE =
-  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:whitespace-nowrap';
+  'eldra:group eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:whitespace-nowrap';
 const SIZE_MD = 'eldra:target-touch eldra:px-4 eldra:text-variant-pill';
 
 /**
@@ -186,7 +186,10 @@ const indicatorClass = computed(() => [
   'eldra:pointer-events-none eldra:absolute eldra:bottom-0',
   // `sm`: the rail's 2px bar across the whole tab, square. `md`: the spec's 3px inset bar.
   isSmall.value
-    ? 'eldra:inset-x-0 eldra:h-0.5'
+    ? // The tab's inset ring is its own box-shadow, which paints under this child: while the tab is
+      // keyboard-focused the bar lifts by the ring's reach (offset + width) so the ring's bottom
+      // edge shows instead of being covered by it.
+      'eldra:inset-x-0 eldra:h-0.5 eldra:group-focus-visible:bottom-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]'
     : 'eldra:inset-x-2 eldra:h-[0.1875rem] eldra:rounded-t-full',
   'eldra:eldra-transition-colors',
   isSelected.value
@@ -218,7 +221,12 @@ const indicatorClass = computed(() => [
     @click="select"
     @keydown="onKeydown"
   >
-    <slot>{{ title }}</slot>
+    <!-- With `fill` a long label shares the width: it truncates with an ellipsis instead of
+         running into the next tab. Without it the tab sizes to its content, so no wrapper. -->
+    <span v-if="context.fill.value" data-part="label" class="eldra:min-w-0 eldra:truncate">
+      <slot>{{ title }}</slot>
+    </span>
+    <slot v-else>{{ title }}</slot>
     <span
       v-if="isUnderline"
       :data-eldra-scope="eldra.scope"
