@@ -223,7 +223,13 @@ const indicatorClass = computed(() => [
   >
     <!-- With `fill` a long label shares the width: it truncates with an ellipsis instead of
          running into the next tab. Without it the tab sizes to its content, so no wrapper. -->
-    <span v-if="context.fill.value" data-part="label" class="eldra:min-w-0 eldra:truncate">
+    <span
+      v-if="context.fill.value"
+      :data-eldra-slot="eldra.slotHost('default')"
+      :data-eldra-scope="eldra.scope"
+      data-part="label"
+      class="eldra:min-w-0 eldra:truncate"
+    >
       <slot>{{ title }}</slot>
     </span>
     <slot v-else>{{ title }}</slot>
