@@ -97,6 +97,7 @@ const MERGE_CONFIG = {
             'search-kbd',
             'variant-legend',
             'variant-pill',
+            'tab-sm',
             'logo-wordmark',
             'badge',
             'stock-status',
