@@ -1155,3 +1155,38 @@ describe('NavMenu — accessibility', () => {
     drawer.unmount();
   });
 });
+
+describe('NavMenu — sections', () => {
+  const sectioned: NavMenuItem[] = [
+    {
+      label: 'Shop',
+      sections: [
+        {
+          heading: 'Knitwear',
+          headingLink: { label: 'Knitwear', href: '/knitwear' },
+          links: [{ label: 'Sweaters', href: '/sweaters' }],
+          seeAll: { label: 'See all knitwear', href: '/knitwear' },
+        },
+        { heading: 'Knitwear', links: [{ label: 'Hats', href: '/hats' }] },
+      ],
+    },
+  ];
+
+  it('draws one labelled column per section, a linked heading and a see-all entry last', async () => {
+    const wrapper = mount({ items: sectioned, modelValue: 0 });
+    await nextTick();
+    const columns = panel(wrapper, 0).querySelectorAll('[data-part="group"]');
+    expect(columns).toHaveLength(2);
+    expect(columns[0]!.querySelector('[data-part="groupLink"]')!.getAttribute('href')).toBe(
+      '/knitwear'
+    );
+    const entries = [...columns[0]!.querySelectorAll('[data-part="panelLink"]')];
+    expect(entries.map((entry) => entry.textContent!.trim())).toEqual([
+      'Sweaters',
+      'See all knitwear',
+    ]);
+    expect(entries[1]!.hasAttribute('data-see-all')).toBe(true);
+    expect(columns[1]!.querySelector('[data-part="groupLink"]')).toBeNull();
+    wrapper.unmount();
+  });
+});

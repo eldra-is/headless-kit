@@ -331,12 +331,13 @@ Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`,
 product, collection, category, entry or page by id, or an external URL — and the theme derives the
 href with `useEldraLink()` (see `docs/themes.md`, "Links"), so a renamed collection can never leave
 a header pointing at a 404. It may narrow what an author can pick with `metadata.kinds`, restrict
-`kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a `link` that is a `list`'s
-`metadata.item` — ask for a menu with `metadata.tree`: `true` is a one-level tree, or an object
-declares `depth`, `sections` and `cards` (see `docs/themes.md`, "Declaring a menu"), which is how
-the header and footer author their navigation. A `reference` field carries a `relation` naming
-what an editor may pick, as any combination of `allowedTagIds` (semantic tag names — never schema ids, which are not portable
-across organizations), `allowProducts` and `allowCollections`, with **at least one of them**:
+`kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a top-level `link` or a `link`
+that is a top-level `list`'s `metadata.item` — ask for a menu with `metadata.tree`: `true` is a
+one-level tree, or an object declares `depth`, `sections` and `cards` (see `docs/themes.md`,
+"Declaring a menu"), which is how the header and footer author their navigation. A `reference`
+field carries a `relation` naming what an editor may pick, as any combination of `allowedTagIds`
+(semantic tag names — never schema ids, which are not portable across organizations),
+`allowProducts` and `allowCollections`, with **at least one of them**:
 `eldra-theme validate` fails a relation that names none with `relation requires one of
 allowedTagIds, allowProducts or allowCollections`, and Core's manifest ingest refuses it the same
 way. Add `"multiple": true` for a list of picks.

@@ -186,7 +186,8 @@ const link = useEldraLink();
 ```
 
 `useEldraLink()` returns `(value) => ResolvedLink | null`, where `ResolvedLink` is
-`{ href, label, newTab, group, children }`. Two rules matter to a theme:
+`{ href, label, newTab, group, children }`, plus `sections` on a link the read served sections for,
+and `display` and `imageUrl` where a card set them. Two rules matter to a theme:
 
 - **`href` is null whenever nothing addressable was found** — the target is gone, carries no slug,
   or the site has no route template serving its kind. Render the label as plain text then (or
@@ -196,6 +197,20 @@ const link = useEldraLink();
 
 `children` is one level deep and never more, which is what a mega-menu column needs and all the
 grammar allows. A child's `group` is its column heading.
+
+A theme that declares `tree.sections` (see "Declaring a menu") is served `sections` instead, and
+`children` is then `[]`: a link never carries both. Each section resolves to
+`{ heading, headingLink, display?, links, seeAll }`: `heading` is the column heading (null when
+blank), `headingLink` the heading as a link when the author made it one, `links` the column's
+entries and `seeAll` the trailing "see all" link, whose label is its own when the author set one and
+its target's otherwise (null when it has neither). Every link in a section is resolved like a
+child, hrefs in the active locale included, and `linkTargetKeys` walks the heading links, links and
+see-all links too, so a site batches their targets with the rest. `NavMenu` takes the result as it
+is: each section is a column (the item opens a `mega` panel unless its `layout` says otherwise), a
+heading with an `href` is a link, the "see all" entry is last in its column, and a section with
+nothing to show is left out. Two sections with one heading stay two columns. `display` and
+`imageUrl` are carried through so a card-rendering theme has them; `NavMenu` draws every section as
+a list of links.
 
 ### Declaring a menu
 

@@ -5,12 +5,12 @@ import Badge from '../badge/Badge.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
 import {
   CURRENT_PAGE,
-  groupLinks,
   hasHref,
   navLinkAttrs,
   navLinkTag,
   panelLayout,
-  panelLinks,
+  panelRuns,
+  type NavMenuLinkRun,
 } from './navLinks';
 import type {
   NavMenuGroup,
@@ -46,8 +46,7 @@ defineSlots<{
   groupHeading?: (props: NavMenuGroupHeadingSlotProps) => unknown;
 }>();
 
-const links = computed(() => panelLinks(props.item));
-const groups = computed(() => groupLinks(links.value));
+const groups = computed(() => panelRuns(props.item));
 const grouped = computed(() => groups.value.some((group) => group.group !== null));
 const mega = computed(() => props.placement === 'bar' && panelLayout(props.item) === 'mega');
 const bar = computed(() => props.placement === 'bar');
@@ -100,8 +99,15 @@ const columnsClass = computed(() => {
   );
 });
 
-function groupMeta(name: string | null): NavMenuGroup | undefined {
-  return name === null ? undefined : props.item.groups?.find((group) => group.label === name);
+/** A column heading's own page: a section's `headingLink`, else the item's `groups` entry of that name. */
+function groupMeta(run: NavMenuLinkRun): NavMenuGroup | NavMenuLink | undefined {
+  if (run.group === null) return undefined;
+  return run.headingLink ?? props.item.groups?.find((group) => group.label === run.group);
+}
+
+/** A column's entries, its "see all" entry last. */
+function runEntries(run: NavMenuLinkRun): NavMenuLink[] {
+  return run.seeAll != null ? [...run.links, run.seeAll] : run.links;
 }
 
 const groupLinkClass = computed(() =>
@@ -207,14 +213,14 @@ function listLabel(group: string | null, index: number): string | undefined {
           :placement="placement"
         >
           <component
-            :is="navLinkTag(groupMeta(group.group)!, linkAs)"
-            v-if="groupMeta(group.group) && hasHref(groupMeta(group.group)!)"
+            :is="navLinkTag(groupMeta(group)!, linkAs)"
+            v-if="groupMeta(group) && hasHref(groupMeta(group)!)"
             :data-part="part('groupLink')"
             :class="groupLinkClass"
-            v-bind="navLinkAttrs(groupMeta(group.group)!, linkAs)"
+            v-bind="navLinkAttrs(groupMeta(group)!, linkAs)"
           >
             {{ group.group }}
-            <VisuallyHidden v-if="groupMeta(group.group)!.newTab">{{
+            <VisuallyHidden v-if="groupMeta(group)!.newTab">{{
               messages.opensInNewTab
             }}</VisuallyHidden>
           </component>
@@ -227,7 +233,7 @@ function listLabel(group: string | null, index: number): string | undefined {
         :aria-labelledby="listLabel(group.group, index)"
       >
         <li
-          v-for="(link, at) in group.links"
+          v-for="(link, at) in runEntries(group)"
           :key="at"
           :data-part="part('panelItem')"
           :class="panelItemClass"
@@ -236,6 +242,7 @@ function listLabel(group: string | null, index: number): string | undefined {
             :is="navLinkTag(link, linkAs)"
             :data-eldra-slot="eldra.slotHost('panelItem')"
             :data-part="part('panelLink')"
+            :data-see-all="link === group.seeAll ? '' : undefined"
             :class="panelLinkClass(link)"
             v-bind="navLinkAttrs(link, linkAs)"
           >

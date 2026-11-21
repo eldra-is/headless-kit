@@ -20,6 +20,20 @@ export interface NavMenuLink {
   current?: boolean;
 }
 
+/** One column of a panel, as a resolved Studio link's `sections`. */
+export interface NavMenuSection {
+  /** The column heading. Without one the column's links sit under no heading. */
+  heading?: string | null;
+  /** The heading's own page. Without one (or without a destination) the heading is plain text. */
+  headingLink?: NavMenuLink | null;
+  /** `card` columns are drawn by a card-aware theme; here every section is a list of links. */
+  display?: 'card' | 'link';
+  /** The column's entries. */
+  links: readonly NavMenuLink[];
+  /** The trailing "see all" entry under the column's links. */
+  seeAll?: NavMenuLink | null;
+}
+
 /** `dropdown` hangs a compact panel under its trigger; `mega` spans the menu's positioning box. */
 export type NavMenuPanelLayout = 'dropdown' | 'mega';
 
@@ -39,6 +53,8 @@ export interface NavMenuGroup {
 export interface NavMenuItem extends NavMenuLink {
   /** The panel's entries, one level deep. */
   children?: readonly NavMenuLink[];
+  /** The panel's columns, each with its own heading. When present they are the panel and `children` is not read. */
+  sections?: readonly NavMenuSection[];
   /** The panel's column headings, for those that link to a page of their own. */
   groups?: readonly NavMenuGroup[];
   /** Default `mega` when any child has a `group`, else `dropdown`. */

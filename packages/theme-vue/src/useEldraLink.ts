@@ -29,7 +29,7 @@ export function useEldraLink(): (value: unknown) => ResolvedLink | null {
 }
 
 /**
- * The resolved link with every same-site href under the active locale, children included.
+ * The resolved link with every same-site href under the active locale, children and sections included.
  *
  * Short-circuits on the two states that need no rewrite — no locale state at all, and a page in
  * the locale served at `/` — because that is nearly every page of nearly every site, and a
@@ -42,10 +42,21 @@ function localized(
   if (link === null || locales === undefined) return link;
   if (locales.active === null || locales.active === locales.defaultLocale) return link;
   const prefix = locales.path;
-  const walk = (one: ResolvedLink): ResolvedLink => ({
-    ...one,
-    href: one.href === null ? null : prefix(one.href),
-    children: one.children.map(walk),
-  });
+  const walk = (one: ResolvedLink): ResolvedLink => {
+    const spelled: ResolvedLink = {
+      ...one,
+      href: one.href === null ? null : prefix(one.href),
+      children: one.children.map(walk),
+    };
+    if (one.sections !== undefined) {
+      spelled.sections = one.sections.map((section) => ({
+        ...section,
+        headingLink: section.headingLink === null ? null : walk(section.headingLink),
+        links: section.links.map(walk),
+        seeAll: section.seeAll === null ? null : walk(section.seeAll),
+      }));
+    }
+    return spelled;
+  };
   return walk(link);
 }

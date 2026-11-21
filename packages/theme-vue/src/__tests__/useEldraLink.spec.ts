@@ -129,6 +129,35 @@ describe('useEldraLink', () => {
     expect(resolved?.children[0]?.href).toBe('/is-IS/journal');
   });
 
+  it("spells the hrefs of a link's sections in the active locale too", () => {
+    let link!: (value: unknown) => ResolvedLink | null;
+    mountWithContext(
+      (resolve) => {
+        link = resolve;
+      },
+      (context) => {
+        context.locales = icelandic();
+      }
+    );
+
+    const resolved = link({
+      kind: 'none',
+      sections: [
+        {
+          heading: 'Efni',
+          headingLink: { kind: 'url', url: '/efni', label: 'Efni' },
+          links: [{ kind: 'url', url: '/journal', label: 'Journal' }],
+          seeAll: { label: 'Allt', link: { kind: 'url', url: '/allt' } },
+        },
+      ],
+    });
+
+    const section = resolved?.sections?.[0];
+    expect(section?.headingLink?.href).toBe('/is-IS/efni');
+    expect(section?.links[0]?.href).toBe('/is-IS/journal');
+    expect(section?.seeAll?.href).toBe('/is-IS/allt');
+  });
+
   it('leaves an external destination, and a page in the default locale, exactly as they are', () => {
     let link!: (value: unknown) => ResolvedLink | null;
     let context!: EldraContext;

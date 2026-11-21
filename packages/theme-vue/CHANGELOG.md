@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `useEldraLink()` spells the hrefs of a link's `sections` (heading links, links, see-all links) in the
+  active content locale, as it does a link's children. `ResolvedSection` and `LinkSectionValue` are
+  re-exported (WS-1321).
+
+
 - `getBlockSchemaApiId(entry)` returns the **bare** block id for an entry whose `schemaApiId` (or
   `schema.apiId`) is Core's `<themeId>:<apiId>`, stripping the theme's own id (the manifest's
   `theme.id`, from `virtual:eldra/manifest`) and nothing else, so `blockImports`,

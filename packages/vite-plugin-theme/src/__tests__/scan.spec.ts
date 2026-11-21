@@ -1503,9 +1503,9 @@ describe('link field tree declaration (WS-1312)', () => {
     expect(errorsOf([composite([list(link({ kinds: ['blog'] }))])])).toContain(
       'fields[0].metadata.fields[0].metadata.item.metadata.kinds — unknown kind "blog"'
     );
-    expect(errorsOf([list(list(link({ tree: { cards: { max: 1 } } })), 'outer')])).toContain(
-      'fields[0].metadata.item.metadata.item.metadata.tree.cards'
-    );
+    expect(
+      errorsOf([list(list(link({ kinds: ['product'], tree: { cards: { max: 1 } } })), 'outer')])
+    ).toContain('fields[0].metadata.item.metadata.item.metadata.tree.cards');
   });
 
   describe('through the full scan, with a groupsToSections step', () => {
