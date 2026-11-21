@@ -1394,6 +1394,15 @@
   line-height: var(--eldra-control-line-height, 1.5rem);
 }
 
+/* The text of a `size="sm"` tab (`Tabs`): a panel tab bar's 13px label. The size is the caption
+   token's, the same reuse `text-price-unit` makes; the line is the control line so the 2.25rem tab
+   centres it. No weight in the shorthand: the component pairs it with `font-medium`. */
+@utility text-tab-sm {
+  font-family: var(--eldra-font-body);
+  font-size: var(--eldra-text-caption-size);
+  line-height: var(--eldra-control-line-height, 1.5rem);
+}
+
 /* A pill's own boundary (spec "Variant picker" → States): "1px" in every row but one. The width is
    a variable rather than Tailwind's `border`, the same shape as `eldra-field-border` and
    `eldra-checkbox-border` above: the "sold out + selected" row's own 2px line (below) is inset by

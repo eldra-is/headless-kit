@@ -36,6 +36,7 @@ onBeforeUnmount(() => unregister?.());
 
 const isSelected = computed(() => context.isSelected(props.value));
 const isUnderline = computed(() => context.variant.value === 'underline');
+const isSmall = computed(() => context.size.value === 'sm');
 
 function select(): void {
   if (props.disabled) return;
@@ -81,19 +82,50 @@ function onKeydown(event: KeyboardEvent): void {
  * so the weight is a separate `font-medium`/`font-semibold` utility paired with it here instead.
  */
 const BASE =
-  'eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:whitespace-nowrap ' +
-  'eldra:target-touch eldra:px-4 eldra:text-variant-pill';
+  'eldra:group eldra:relative eldra:inline-flex eldra:items-center eldra:justify-center eldra:whitespace-nowrap';
+const SIZE_MD = 'eldra:target-touch eldra:px-4 eldra:text-variant-pill';
+
+/**
+ * `size="sm"`: a tab bar inside a tool panel (the page builder's rail). 2.25rem tall, 13px text
+ * (`text-tab-sm`, the caption token's size), a 0.375rem gap between an icon and its label, and no
+ * weight change on selection — the colour and the indicator carry it, so the label never shifts.
+ * The weight is `font-medium` in every state, see `weightClass`.
+ */
+const SIZE_SM = 'eldra:h-9 eldra:gap-1.5 eldra:px-3 eldra:text-tab-sm';
+
+/**
+ * The `sm` underline tab's own colours, each a per-component variable (the `--eldra-dialog-text`
+ * shape) so a panel can colour its tab bar without re-theming `--eldra-color-*` for every other
+ * component: `--eldra-tabs-accent` (selected text and the indicator; default the primary colour),
+ * `--eldra-tabs-muted` (unselected text; default `muted`) and `--eldra-tabs-hover-bg` (hover
+ * background; default the 6% text tint `md` uses). Written out in full, never interpolated: see
+ * `Tabs.vue`'s `PILLS_RING_RESERVE`.
+ */
+const SM_SELECTED_TEXT = 'eldra:text-[color:var(--eldra-tabs-accent,var(--eldra-color-primary))]';
+const SM_REST_TEXT = 'eldra:text-[color:var(--eldra-tabs-muted,var(--eldra-color-muted))]';
+const SM_HOVER =
+  'eldra:hover:text-text eldra:hover:bg-[var(--eldra-tabs-hover-bg,color-mix(in_oklab,var(--eldra-color-text),transparent_94%))]';
+
+/** `fill`: every tab takes an equal share of the list. `min-w-0` lets a long label shrink. */
+const FILL = 'eldra:min-w-0 eldra:flex-1';
+
+/** The selected tab's weight: 600 at `md`, 500 at `sm`, where the label must not change width. */
+const selectedWeight = computed(() =>
+  isSmall.value ? 'eldra:font-medium' : 'eldra:font-semibold'
+);
 
 /** States (spec "Tabs" → States, Underline column). Hover text on the tint stays `text`, per the
  *  spec's own contrast row ("hover text on the 6% tint 15.0:1"). */
 const UNDERLINE = computed(() => [
   'eldra:rounded-t-sm eldra:eldra-focus-inset eldra:cursor-pointer',
   isSelected.value
-    ? 'eldra:font-semibold eldra:text-text'
-    : [
-        'eldra:font-medium eldra:text-muted eldra:hover:text-text',
-        'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
-      ],
+    ? [selectedWeight.value, isSmall.value ? SM_SELECTED_TEXT : 'eldra:text-text']
+    : isSmall.value
+      ? ['eldra:font-medium', SM_REST_TEXT, SM_HOVER]
+      : [
+          'eldra:font-medium eldra:text-muted eldra:hover:text-text',
+          'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+        ],
 ]);
 
 /** States (spec "Tabs" → States, Pills column). The selected fill carries the state on its own —
@@ -102,7 +134,7 @@ const UNDERLINE = computed(() => [
 const PILLS = computed(() => [
   'eldra:rounded-full eldra:border eldra:eldra-focus eldra:cursor-pointer',
   isSelected.value
-    ? 'eldra:border-primary eldra:bg-primary eldra:font-semibold eldra:text-primary-contrast'
+    ? ['eldra:border-primary eldra:bg-primary eldra:text-primary-contrast', selectedWeight.value]
     : [
         'eldra:border-border-strong eldra:font-medium eldra:text-muted eldra:hover:text-text',
         'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
@@ -119,13 +151,13 @@ const PILLS = computed(() => [
 const UNDERLINE_DISABLED = computed(() => [
   'eldra:rounded-t-sm eldra:eldra-focus-inset eldra:cursor-not-allowed',
   isSelected.value
-    ? 'eldra:font-semibold eldra:text-muted'
+    ? [selectedWeight.value, 'eldra:text-muted']
     : 'eldra:font-medium eldra:text-muted/60',
 ]);
 const PILLS_DISABLED = computed(() => [
   'eldra:rounded-full eldra:border eldra:eldra-focus eldra:cursor-not-allowed',
   isSelected.value
-    ? 'eldra:border-transparent eldra:bg-surface-strong eldra:font-semibold eldra:text-muted'
+    ? ['eldra:border-transparent eldra:bg-surface-strong eldra:text-muted', selectedWeight.value]
     : 'eldra:border-border eldra:font-medium eldra:text-muted/60',
 ]);
 
@@ -134,7 +166,12 @@ const stateClass = computed(() => {
   return isUnderline.value ? UNDERLINE.value : PILLS.value;
 });
 
-const tabClass = computed(() => [BASE, stateClass.value]);
+const tabClass = computed(() => [
+  BASE,
+  isSmall.value ? SIZE_SM : SIZE_MD,
+  context.fill.value && FILL,
+  stateClass.value,
+]);
 
 /**
  * Spec "Tabs" → Anatomy, point 3 and → Sizes: "an underline bar … 0.1875rem tall, inset 0.5rem
@@ -146,12 +183,21 @@ const tabClass = computed(() => [BASE, stateClass.value]);
  * anatomy names.
  */
 const indicatorClass = computed(() => [
-  'eldra:pointer-events-none eldra:absolute eldra:inset-x-2 eldra:bottom-0 eldra:h-[0.1875rem] eldra:rounded-t-full',
+  'eldra:pointer-events-none eldra:absolute eldra:bottom-0',
+  // `sm`: the rail's 2px bar across the whole tab, square. `md`: the spec's 3px inset bar.
+  isSmall.value
+    ? // The tab's inset ring is its own box-shadow, which paints under this child: while the tab is
+      // keyboard-focused the bar lifts by the ring's reach (offset + width) so the ring's bottom
+      // edge shows instead of being covered by it.
+      'eldra:inset-x-0 eldra:h-0.5 eldra:group-focus-visible:bottom-[calc(var(--eldra-focus-offset)_+_var(--eldra-focus-width))]'
+    : 'eldra:inset-x-2 eldra:h-[0.1875rem] eldra:rounded-t-full',
   'eldra:eldra-transition-colors',
   isSelected.value
     ? props.disabled
       ? 'eldra:bg-muted'
-      : 'eldra:bg-primary'
+      : isSmall.value
+        ? 'eldra:bg-[var(--eldra-tabs-accent,var(--eldra-color-primary))]'
+        : 'eldra:bg-primary'
     : 'eldra:bg-transparent',
   props.classes?.indicator,
 ]);
@@ -175,7 +221,18 @@ const indicatorClass = computed(() => [
     @click="select"
     @keydown="onKeydown"
   >
-    <slot>{{ title }}</slot>
+    <!-- With `fill` a long label shares the width: it truncates with an ellipsis instead of
+         running into the next tab. Without it the tab sizes to its content, so no wrapper. -->
+    <span
+      v-if="context.fill.value"
+      :data-eldra-slot="eldra.slotHost('default')"
+      :data-eldra-scope="eldra.scope"
+      data-part="label"
+      class="eldra:min-w-0 eldra:truncate"
+    >
+      <slot>{{ title }}</slot>
+    </span>
+    <slot v-else>{{ title }}</slot>
     <span
       v-if="isUnderline"
       :data-eldra-scope="eldra.scope"

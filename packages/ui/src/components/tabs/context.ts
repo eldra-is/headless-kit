@@ -1,5 +1,5 @@
 import type { ComputedRef, InjectionKey } from 'vue';
-import type { TabsActivation, TabsVariant } from './types';
+import type { TabsActivation, TabsSize, TabsVariant } from './types';
 
 /** What a mounted `Tab` gives the `Tabs` root that owns it, so the root can move focus to it and
  *  place it in the registration order without owning any of its DOM itself. */
@@ -34,6 +34,8 @@ export interface TabsContext {
   selectedValue: ComputedRef<string | undefined>;
   activation: ComputedRef<TabsActivation>;
   variant: ComputedRef<TabsVariant>;
+  size: ComputedRef<TabsSize>;
+  fill: ComputedRef<boolean>;
   isSelected: (value: string) => boolean;
   /** Selects `value` and emits `update:modelValue`/`change`. */
   select: (value: string) => void;

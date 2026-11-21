@@ -9,6 +9,11 @@ export type TabsPart = 'list' | 'tab' | 'indicator' | 'panel';
  *  filled, fully-rounded button — the fill itself is the "indicator". */
 export type TabsVariant = 'underline' | 'pills';
 
+/** `md` (default): the spec's 2.75rem touch-height tab. `sm`: a 2.25rem panel tab with 13px text at
+ *  weight 500, a 0.375rem icon gap and a full-width 2px indicator, for a tab bar inside a tool
+ *  panel (the page builder's side rail). */
+export type TabsSize = 'md' | 'sm';
+
 /** `auto`: arrow keys select immediately. `manual`: arrow keys move focus only, `Enter`/`Space`
  *  selects — use only when a panel loads slowly. */
 export type TabsActivation = 'auto' | 'manual';
@@ -37,6 +42,10 @@ export interface TabsProps {
    *  information"), put on `role="tablist"` as `aria-label`. Package convention: an
    *  accessible-name-only prop is named `ariaLabel`, never `label` (visible text is `title`). */
   ariaLabel: string;
+  /** `md` (default) or `sm`. Passed to every `Tab` through the context. */
+  size?: TabsSize;
+  /** The tabs share the list's width equally instead of taking their own. Defaults to `false`. */
+  fill?: boolean;
   /** `auto` (default) or `manual`. */
   activation?: TabsActivation;
   /** The tabs and their panels, 1–5 of them (spec's own guidance). Renders internally as the same

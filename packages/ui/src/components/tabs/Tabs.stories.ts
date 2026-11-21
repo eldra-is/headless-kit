@@ -105,6 +105,48 @@ export const Underline: Story = {
   }),
 };
 
+/** A small icon for the `sm` stories: a tab's slot holds an icon and its label. */
+const ICON =
+  '<svg class="size-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/></svg>';
+
+/**
+ * `size="sm"` with `fill`: a panel tab bar, the shape of the page builder's side rail. 2.25rem
+ * tabs, 13px text at weight 500, a 2px indicator across each tab, the tabs sharing the width.
+ * The first tab is selected and the last is disabled; hover the middle one and `Tab` into the bar
+ * to see the hover and focus states.
+ */
+export const SmallFill: Story = {
+  render: () => ({
+    components: { Tab, Tabs },
+    setup: () => ({ value: ref('blocks'), icon: ICON }),
+    template: `
+      <Tabs v-model="value" size="sm" fill aria-label="Page builder" class="w-72">
+        <template #tabs>
+          <Tab value="blocks"><span v-html="icon" /> Blocks</Tab>
+          <Tab value="layers"><span v-html="icon" /> Layers</Tab>
+          <Tab value="pages" disabled><span v-html="icon" /> Pages</Tab>
+        </template>
+      </Tabs>
+    `,
+  }),
+};
+
+/** `size="sm"` without `fill`: the tabs keep their own width. Rest, selected and disabled. */
+export const Small: Story = {
+  render: () => ({
+    components: { Tabs },
+    setup: () => ({
+      items: [
+        { value: 'blocks', title: 'Blocks' },
+        { value: 'layers', title: 'Layers' },
+        { value: 'pages', title: 'Pages', disabled: true },
+      ] as TabsItem[],
+      value: ref('blocks'),
+    }),
+    template: `<Tabs v-model="value" size="sm" aria-label="Page builder" :items="items" class="w-72" />`,
+  }),
+};
+
 /** The pills variant: a filled, fully-rounded tab, for a collection switcher above a grid. */
 export const Pills: Story = {
   render: () => ({
