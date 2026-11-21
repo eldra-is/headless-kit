@@ -23,11 +23,12 @@ Append a variant to the asset URL:
 | `lg`       | `…/assets/{id}/lg`       | 1200 px                       |
 | `xl`       | `…/assets/{id}/xl`       | 1920 px                       |
 | `full`     | `…/assets/{id}/full`     | 2560 px                       |
+| `uhd`      | `…/assets/{id}/uhd`      | 3840 px                       |
 | `original` | `…/assets/{id}/original` | the uploaded file, untouched  |
 
 - **Width only, never cropped or enlarged.** A variant is the original scaled down to that width,
   keeping its proportions. An original narrower than the variant comes back at its own width, so a
-  1000 px upload is 1000 px at `lg`, `xl` and `full` alike. Crop in CSS with `object-fit`.
+  1000 px upload is 1000 px at `lg`, `xl`, `full` and `uhd` alike. Crop in CSS with `object-fit`.
 - **The format is negotiated.** A browser that accepts AVIF or WebP gets one of them, any other
   client gets JPEG (PNG when the original can be transparent). You do not choose the format and
   you do not need `<picture>` for it.
@@ -84,7 +85,7 @@ const image = responsiveImage(product.thumbnail, {
   sizes: '(min-width: 1024px) 25vw, 50vw',
   aspectRatio: 4 / 5,
 });
-// { src: '…/md', srcset: '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w',
+// { src: '…/md', srcset: '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w, …/uhd 3840w',
 //   sizes: '(min-width: 1024px) 25vw, 50vw', width: 800, height: 1000 }
 ```
 
@@ -101,7 +102,7 @@ const image = responsiveImage(product.thumbnail, {
 
 It returns `undefined` when there is no URL, and only `src` (plus `width`/`height`) for an image it
 cannot resize. When the source carries the `width` and `height` the API gives (below), the
-`srcset` stops at the original's width (or ends with the original, when it is wider than `full`)
+`srcset` stops at the original's width (or ends with the original, when it is wider than `uhd`)
 and the attributes are the image's own proportions, with no option at all. A framework-free renderer is in
 [examples/node-script/images.ts](../examples/node-script/images.ts).
 
@@ -214,8 +215,8 @@ never produces `…/md/lg`.
 ## The original width
 
 A variant wider than the original is the same pixels at another URL, so the `srcset` stops at the
-original's width, with the last entry described at its true width. An original wider than `full`
-is the last entry itself, at its true width, so a screen that needs more than 2560 px (a zoomed
+original's width, with the last entry described at its true width. An original wider than `uhd`
+is the last entry itself, at its true width, so a screen that needs more than 3840 px (a zoomed
 crop, [below](#an-art-directed-crop)) gets every pixel there is. The original is the file as
 uploaded, not re-encoded to AVIF or WebP, so the browser fetches it only when no variant is wide
 enough. The original's width is the `width` the API gives the image; pass `originalWidth` to
@@ -227,11 +228,11 @@ imageSrcset(heroUrl, { originalWidth: 1856 });
 // both '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1856w'
 
 imageSrcset(photo); // photo.width is 5504
-// '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w, …/original 5504w'
+// '…/sm 400w, …/md 800w, …/lg 1200w, …/xl 1920w, …/full 2560w, …/uhd 3840w, …/original 5504w'
 ```
 
-Without either nothing breaks; the browser may fetch `full` where `xl` was the same picture, and
-never gets more than 2560 px. A HEIC original is never listed: the host converts HEIC when it
+Without either nothing breaks; the browser may fetch `uhd` where `xl` was the same picture, and
+never gets more than 3840 px. A HEIC original is never listed: the host converts HEIC when it
 resizes, but most browsers cannot show the file as uploaded.
 
 ## An art-directed crop
@@ -260,7 +261,7 @@ import { Image } from '@eldrajs/ui';
 
 `Image` multiplies every length in `sizes` by the zoom, here to
 `(min-width: 1024px) calc(400px * 3), calc(100vw * 3)`, so the browser fetches a variant wide
-enough for the magnified crop, and the original when it needs more than 2560 px. With
+enough for the magnified crop, and the original when it needs more than 3840 px. With
 `fit="contain"` or a zoom of 1 `sizes` is used as given. `sizes="auto"` cannot be scaled (it is the
 frame's laid-out width), so give lengths. A renderer of your own gets the same rule from
 `zoomSizes(sizes, zoom)`, exported by `@eldrajs/ui`.
@@ -314,7 +315,7 @@ at a breakpoint, `crops`:
   Describe the frame, not the picture, but remember that `cover` draws a picture wider than a
   frame of narrower ratio: a 16:9 picture in a 6:5 frame is drawn 1.49 frames wide before any
   zoom, so say `calc(48vw * 1.49)` (or `zoomSizes(sizes, 1.49)`).
-- **The ceiling.** Until the asset carries its width, the `srcset` stops at `full`, 2560 px. A
+- **The ceiling.** Until the asset carries its width, the `srcset` stops at `uhd`, 3840 px. A
   crop drawn wider than that on a 2x screen is upscaled; see [the original width](#the-original-width).
 
 ## Rich text

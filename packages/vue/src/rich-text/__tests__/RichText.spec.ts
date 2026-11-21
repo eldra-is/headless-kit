@@ -293,7 +293,8 @@ describe('RichText', () => {
       const image = wrapper.find('img');
       expect(image.attributes('src')).toBe(asset);
       expect(image.attributes('srcset')).toBe(
-        `${asset}/sm 400w, ${asset}/md 800w, ${asset}/lg 1200w, ${asset}/xl 1920w, ${asset}/full 2560w`
+        `${asset}/sm 400w, ${asset}/md 800w, ${asset}/lg 1200w, ${asset}/xl 1920w, ${asset}/full 2560w, ` +
+          `${asset}/uhd 3840w`
       );
       expect(image.attributes('sizes')).toBe('100vw');
 
