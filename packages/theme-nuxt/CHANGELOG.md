@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Link targets carry a card's picture and price (WS-1326).** `collectLinkTargets` fills
+  `LinkTargetInfo.image` from a product's `thumbnail` or a collection's `image` and
+  `LinkTargetInfo.price` from a product's `minPrice`, out of the reads it already makes.
+
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds
   carry the campaign a visitor came from (`utm_*` tags only, one `localStorage` key, 30 days). New

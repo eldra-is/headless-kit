@@ -1226,6 +1226,41 @@ describe('NavMenu — sections', () => {
     wrapper.unmount();
   });
 
+  it('hands a resolved card to the panelItem slot and draws it as a plain link otherwise', async () => {
+    const items = [
+      {
+        label: 'Shop',
+        children: [
+          {
+            label: 'Mug',
+            href: '/mug',
+            display: 'card' as const,
+            card: { image: '/mug.jpg', title: 'Mug', price: 28 },
+          },
+        ],
+      },
+    ];
+    const seen: unknown[] = [];
+    const wrapper = mount(
+      { items, modelValue: 0 },
+      {
+        panelItem: ({ link }: { link: { card?: unknown } }) => {
+          seen.push(link.card);
+          return h('span', 'x');
+        },
+      }
+    );
+    await nextTick();
+    expect(seen).toContainEqual({ image: '/mug.jpg', title: 'Mug', price: 28 });
+    wrapper.unmount();
+    const plain = mount({ items, modelValue: 0 });
+    await nextTick();
+    const link = plain.element.querySelector('[data-part="panelLink"]')!;
+    expect(link.getAttribute('href')).toBe('/mug');
+    expect(link.querySelector('img')).toBeNull();
+    plain.unmount();
+  });
+
   it('draws sections in the drawer, in both layouts, with no axe violations', async () => {
     for (const drawerLayout of ['accordion', 'sections']) {
       const wrapper = mount({ items: sectioned, drawerOpen: true, drawerLayout });

@@ -22,6 +22,7 @@ interface ResolvedLink {
   children: ResolvedLink[];
   display?: 'card' | 'link';
   imageUrl?: string;
+  card?: { image: string; title: string; price?: number };
   sections?: ResolvedSection[];
 }
 

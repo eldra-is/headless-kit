@@ -34,7 +34,7 @@ export interface LinkValue {
   children?: LinkValue[];
   /** The second level in columns, served to a theme that declares `sections`; never together with `children`. */
   sections?: LinkSectionValue[];
-  /** A promotional card or a plain link; the card is WS-1326's to render. */
+  /** A promotional card or a plain link; a link's own value overrides its section's. */
   display?: 'card' | 'link';
   /** The media URL of a card's own image. */
   imageUrl?: string;
@@ -68,6 +68,10 @@ export interface LinkTargetInfo {
    * path, which on a canonical-only route is a 404 dressed as a link.
    */
   path?: string;
+  /** The target's own picture URL: a product's `thumbnail`, a collection's `image`. A card's fallback when its own image is absent. */
+  image?: string;
+  /** A product's lowest price as the catalog read serves it (major units, no currency: the store's own). Shown on a product card. */
+  price?: number;
 }
 
 export interface LinkRouteContext {
@@ -75,6 +79,8 @@ export interface LinkRouteContext {
   templates: readonly RouteTemplateLike[];
   /** Keyed `${_type}:${id}` — see `linkTargetKeys`. */
   targets: ReadonlyMap<string, LinkTargetInfo>;
+  /** The kinds the theme's `cards.kinds` allows as a card; every kind when absent. */
+  cardKinds?: readonly LinkKind[];
 }
 
 export interface ResolvedLink {
@@ -88,9 +94,19 @@ export interface ResolvedLink {
   children: ResolvedLink[];
   /** Present only on a link the read served sections for; `children` is empty then. */
   sections?: ResolvedSection[];
-  /** A card's presentation and picture, carried through for a theme that renders cards. */
+  /** How the link is presented: its own `display`, else its section's. `link` when a card could not be resolved. */
   display?: 'card' | 'link';
+  /** The link's own card image, as served. */
   imageUrl?: string;
+  /** Present only when `display` is `card` and the card has a picture and a title; without it the link is a plain link. */
+  card?: ResolvedCard;
+}
+
+/** A resolved card: the picture (the override, else the target's own), the title and, for a product, its price. */
+export interface ResolvedCard {
+  image: string;
+  title: string;
+  price?: number;
 }
 
 /** One resolved column of a link's `sections`. */
@@ -253,7 +269,12 @@ export function resolveLink(value: unknown, context: LinkRouteContext): Resolved
   return resolveOne(value, context, 0);
 }
 
-function resolveOne(value: unknown, context: LinkRouteContext, depth: number): ResolvedLink | null {
+function resolveOne(
+  value: unknown,
+  context: LinkRouteContext,
+  depth: number,
+  card?: CardSlot
+): ResolvedLink | null {
   const link = asLinkValue(value);
   if (link === null) return null;
   const info = targetInfo(link.target, context);
@@ -277,7 +298,7 @@ function resolveOne(value: unknown, context: LinkRouteContext, depth: number): R
       depth > 0 || !Array.isArray(link.children)
         ? []
         : link.children
-            .map((child) => resolveOne(child, context, depth + 1))
+            .map((child) => resolveOne(child, context, depth + 1, {}))
             .filter((child): child is ResolvedLink => child !== null),
   };
   if (depth === 0 && Array.isArray(link.sections)) {
@@ -285,12 +306,49 @@ function resolveOne(value: unknown, context: LinkRouteContext, depth: number): R
       .map((section) => resolveSection(section, context))
       .filter((section): section is ResolvedSection => section !== null);
   }
-  const display = cardDisplay(link.display);
-  if (display !== undefined) resolved.display = display;
   if (typeof link.imageUrl === 'string' && plain(link.imageUrl) !== '') {
     resolved.imageUrl = link.imageUrl;
   }
+  // Only a child or a section link may be a card; a link's own display overrides the section's.
+  const display =
+    card === undefined ? cardDisplay(link.display) : (cardDisplay(link.display) ?? card.display);
+  if (display !== undefined) resolved.display = display;
+  if (card !== undefined && display === 'card') {
+    const resolvedCard = resolveCard(plain(link.kind), link, info, resolved.label, context);
+    if (resolvedCard === null) resolved.display = 'link';
+    else resolved.card = resolvedCard;
+  }
   return resolved;
+}
+
+/** What a link may inherit from the section it sits in; its presence marks a link that may be a card. */
+interface CardSlot {
+  display?: 'card' | 'link';
+}
+
+/** A card needs a picture and a title, else it is a plain link. A product or collection card falls back to the target's own picture. */
+function resolveCard(
+  kind: string,
+  link: LinkValue,
+  info: LinkTargetInfo | undefined,
+  title: string | null,
+  context: LinkRouteContext
+): ResolvedCard | null {
+  if (context.cardKinds !== undefined && !(context.cardKinds as readonly string[]).includes(kind)) {
+    return null;
+  }
+  const own = typeof link.imageUrl === 'string' && plain(link.imageUrl) !== '' ? link.imageUrl : '';
+  const targetImage =
+    (kind === 'product' || kind === 'collection') && typeof info?.image === 'string'
+      ? info.image
+      : '';
+  const image = own !== '' ? own : targetImage;
+  if (plain(image) === '' || title === null) return null;
+  const card: ResolvedCard = { image, title };
+  if (kind === 'product' && typeof info?.price === 'number' && Number.isFinite(info.price)) {
+    card.price = info.price;
+  }
+  return card;
 }
 
 function resolveSection(value: unknown, context: LinkRouteContext): ResolvedSection | null {
@@ -298,18 +356,18 @@ function resolveSection(value: unknown, context: LinkRouteContext): ResolvedSect
   if (section === null) return null;
   const heading = typeof section.heading === 'string' ? section.heading : '';
   const headingLink = resolveOne(section.headingLink, context, 1);
+  const sectionDisplay = cardDisplay(section.display);
   // A section with only a heading link is headed by that link's label, as Core's own
   // flattening of sections into `children` does.
   const resolved: ResolvedSection = {
     heading: plain(heading) !== '' ? heading : (headingLink?.label ?? null),
     headingLink,
     links: (Array.isArray(section.links) ? section.links : [])
-      .map((link) => resolveOne(link, context, 1))
+      .map((link) => resolveOne(link, context, 1, { display: sectionDisplay }))
       .filter((link): link is ResolvedLink => link !== null),
     seeAll: resolveSeeAll(section.seeAll, context),
   };
-  const display = cardDisplay(section.display);
-  if (display !== undefined) resolved.display = display;
+  if (sectionDisplay !== undefined) resolved.display = sectionDisplay;
   return resolved;
 }
 

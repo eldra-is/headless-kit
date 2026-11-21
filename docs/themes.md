@@ -209,8 +209,16 @@ see-all links too, so a site batches their targets with the rest. `NavMenu` take
 is: each section is a column (the item opens a `mega` panel unless its `layout` says otherwise), a
 heading with an `href` is a link, the "see all" entry is last in its column, and a section with
 nothing to show is left out. Two sections with one heading stay two columns. `display` and
-`imageUrl` are carried through so a card-rendering theme has them; `NavMenu` draws every section as
-a list of links.
+`imageUrl` are carried through, and a link that is a card (a child or a section link, never a
+heading link, a see-all link or the top-level link) also carries `card: { image, title, price? }`.
+The link's own `display` overrides its section's. `image` is the link's own `imageUrl`, else the
+target's picture (a product's `thumbnail`, a collection's `image`, from the reads the site already
+makes); `title` is the label; `price` is a product's lowest price as the catalog serves it, in the
+store's major units, with no currency, so format it with the store's own. A card with no picture or
+no title resolves as a plain link (`display: 'link'`, no `card`). `LinkRouteContext.cardKinds`, when
+set, limits which kinds can be cards (the theme's `cards.kinds`). `NavMenu` draws every entry as a
+link and hands `link.card` to the `panelItem` slot, so a card-aware theme renders the card itself
+(crop the image to `cards.aspect` with CSS, `alt` from the title).
 
 ### Declaring a menu
 

@@ -2,6 +2,15 @@ import type { Component } from 'vue';
 import type { UiMessages } from '../../composables/useMessages';
 import type { DrawerSide } from '../drawer/types';
 
+/** A promotional card's content, resolved by `@eldrajs/theme-core`: the picture, the title and, for a product, its price. */
+export interface NavMenuCard {
+  /** The picture's URL: the card's own image, else its target's. Render it with `alt` from `title`. */
+  image: string;
+  title: string;
+  /** A product's lowest price in the store's major units; format it with the store's currency. */
+  price?: number;
+}
+
 /** One entry; `@eldrajs/theme-core`'s `ResolvedLink` (a resolved Studio link tree) fits it as is. */
 export interface NavMenuLink {
   /** The visible text. An entry with no label (`null` or empty) is not rendered. */
@@ -18,6 +27,10 @@ export interface NavMenuLink {
   group?: string | null;
   /** Marks the page the visitor is on (`aria-current="page"`). */
   current?: boolean;
+  /** `card` when the author made the entry a promotional card. `NavMenu` draws every entry as a link; a card-aware `panelItem` slot reads `card`. */
+  display?: 'card' | 'link';
+  /** Set only on a resolved card; without it the entry is a plain link whatever `display` says. */
+  card?: NavMenuCard;
 }
 
 /** One column of a panel, as a resolved Studio link's `sections`. */

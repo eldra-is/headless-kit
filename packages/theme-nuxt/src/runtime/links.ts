@@ -157,7 +157,7 @@ export async function collectLinkTargets(
           // Never overwrite: the first schema that claims an entry id wins, and
           // a later empty read cannot blank a target already found.
           if (id === '' || !ids.has(id) || into.has(`${type}:${id}`)) continue;
-          into.set(`${type}:${id}`, toTargetInfo(doc));
+          into.set(`${type}:${id}`, toTargetInfo(doc, type));
         }
         // A page that claims a successor but serves nothing would loop forever.
         if (!result.hasNext || result.data.length === 0) return;
@@ -247,7 +247,7 @@ async function readCategoriesInto(
   }
 }
 
-function toTargetInfo(doc: CatalogDoc): LinkTargetInfo {
+function toTargetInfo(doc: CatalogDoc, type?: string): LinkTargetInfo {
   const info: LinkTargetInfo = {};
   const slug = text(doc.slug);
   if (slug !== '') info.slug = slug;
@@ -255,6 +255,15 @@ function toTargetInfo(doc: CatalogDoc): LinkTargetInfo {
   if (title !== '') info.title = title;
   const schemaApiId = text(doc.schemaApiId);
   if (schemaApiId !== '') info.schemaApiId = schemaApiId;
+  // A card's own picture and price come from the rows the reads already return.
+  if (type === 'product' || type === 'collection') {
+    const picture = type === 'product' ? doc.thumbnail : doc.image;
+    const image = text((picture as { url?: unknown } | null | undefined)?.url);
+    if (image !== '') info.image = image;
+  }
+  if (type === 'product' && typeof doc.minPrice === 'number' && Number.isFinite(doc.minPrice)) {
+    info.price = doc.minPrice;
+  }
   return info;
 }
 

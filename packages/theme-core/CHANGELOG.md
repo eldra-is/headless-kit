@@ -5,6 +5,13 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`resolveLink` resolves cards (WS-1326).** A child or section link whose `display` is `card` (its
+  own, else its section's) carries `card: { image, title, price? }`: the image is the link's own
+  `imageUrl`, else the target's (`LinkTargetInfo.image`: a product's thumbnail, a collection's
+  image), `price` a product's `LinkTargetInfo.price`. A card with no picture or title resolves as a
+  plain link (`display: 'link'`, no `card`); heading, see-all and top-level links are never cards.
+  `LinkRouteContext.cardKinds` optionally restricts the kinds. New type `ResolvedCard`.
+
 - **`resolveLink` resolves `sections` (WS-1321).** A link a theme that declares `tree.sections` is
   served carries `sections: ResolvedSection[]` (`heading`, `headingLink`, `links`, `seeAll`, `display`),
   each link resolved like a child (a section with only a heading link takes its label as the heading); `children` is `[]` then. `linkTargetKeys` walks a link's sections,
