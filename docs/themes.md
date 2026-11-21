@@ -234,6 +234,10 @@ children. An object declares more, with the same keys Core stores (`EldraLinkTre
   entry, url or category has no picture of its own, so a declaration that allows one needs
   `customImage: true`; `cards: { max: 2 }` alone allows every kind and is refused until you list
   `kinds` or set `customImage`.
+- `tree` and `sections` are accepted on a nested link too (a composite child, a list inside a
+  composite), but a public read projects only a top-level link field and a top-level list's link
+  item: a nested link is served as stored, with its sections and no key filtering, so declare a
+  menu at the top level.
 - `cards` is allowed only on a top-level link field or the link item of a top-level list. A composite
   child, a list inside a composite and a list inside a list are refused.
 

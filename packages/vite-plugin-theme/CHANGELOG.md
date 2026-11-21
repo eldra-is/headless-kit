@@ -12,7 +12,8 @@ Release-please writes the generated notes from commit messages and does not repl
   a `max` below 1, a malformed `aspect`, `cards.kinds` outside the field's `kinds`, a cards
   declaration that allows page, entry, url or category without `customImage`, and `cards` anywhere
   but a top-level link or a top-level list's link item. It also stops refusing `tree` on a top-level
-  link or a composite child, which Core accepts and `groupsToSections` supports. See
+  link or a composite child, which Core accepts (`groupsToSections` supports a top-level link or a
+  list of links, never a composite child). See
   `docs/themes.md`, "Declaring a menu".
 
 - **`migrations[].groupsToSections`: grouped menu children become sections (WS-1318).** A step may

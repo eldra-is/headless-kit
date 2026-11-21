@@ -648,12 +648,13 @@ function checkLinkFieldSet(
   path: string,
   placement: LinkPlacement,
   errors: string[],
-  depth = 1
+  depth = 1,
+  isListItem = false
 ): void {
   if (depth > MAX_COMPOSITE_DEPTH + 1) return;
   fields.forEach((field, index) => {
     if (!isRecord(field)) return;
-    const at = fields.length === 1 && placement === 'topListItem' ? path : `${path}[${index}]`;
+    const at = isListItem ? path : `${path}[${index}]`;
     checkLinkField(file, field, at, placement, errors);
     const metadata = isRecord(field.metadata) ? field.metadata : null;
     if (metadata === null) return;
@@ -676,7 +677,8 @@ function checkLinkFieldSet(
         `${at}.metadata.item`,
         placement === 'top' ? 'topListItem' : 'nested',
         errors,
-        depth + 1
+        depth + 1,
+        true
       );
     }
   });
@@ -755,7 +757,7 @@ function checkLinkTree(
     errors.push(`${where} — must be a boolean or an object`);
     return;
   }
-  if ('enabled' in tree && typeof tree.enabled !== 'boolean') {
+  if (isPresent(tree.enabled) && typeof tree.enabled !== 'boolean') {
     errors.push(`${where}.enabled — must be a boolean`);
   }
   let depth = LINK_TREE_DEFAULT_DEPTH;
@@ -794,7 +796,7 @@ function checkLinkTreeSections(where: string, sections: unknown, errors: string[
   }
   checkTreeMax(`${where}.sections.max`, sections.max, errors);
   for (const key of ['headingLink', 'seeAll']) {
-    if (sections[key] !== undefined && typeof sections[key] !== 'boolean') {
+    if (isPresent(sections[key]) && typeof sections[key] !== 'boolean') {
       errors.push(`${where}.sections.${key} — must be a boolean`);
     }
   }
@@ -835,7 +837,7 @@ function checkLinkTreeCards(
       errors.push(`${where}.cards.aspect — must look like 4:5 (got "${cards.aspect}")`);
     }
   }
-  if (cards.customImage !== undefined && typeof cards.customImage !== 'boolean') {
+  if (isPresent(cards.customImage) && typeof cards.customImage !== 'boolean') {
     errors.push(`${where}.cards.customImage — must be a boolean`);
   } else if (
     cards.customImage !== true &&
@@ -845,6 +847,12 @@ function checkLinkTreeCards(
       `${where}.cards.customImage — required when cards may be a page, entry, url or category (declare cards.kinds, or customImage: true)`
     );
   }
+}
+
+/** Core decodes an explicit `null` into a Go bool as a no-op, so it means the
+ *  same as an absent key. */
+function isPresent(value: unknown): boolean {
+  return value !== undefined && value !== null;
 }
 
 function checkTreeMax(at: string, value: unknown, errors: string[]): void {

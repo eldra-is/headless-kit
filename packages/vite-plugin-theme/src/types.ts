@@ -229,7 +229,11 @@ export interface BlockFieldLinkMetadata {
   /** Author this link as a tree. `true` is a link with one level of children
    * (depth 2, no sections, no cards); an object declares the menu's depth,
    * sections and cards. Declared on the link itself, a top-level link or a
-   * `list`'s item (a `list` may declare only `allowedSchemas` and `item`). */
+   * `list`'s item (a `list` may declare only `allowedSchemas` and `item`).
+   * The scanner accepts `tree` and `sections` on a nested link too, but Core
+   * projects only a top-level link and a top-level list's link item for a
+   * public read; a nested link is served as stored. Only `cards` is refused
+   * below the top level. */
   tree?: boolean | EldraLinkTree;
 }
 
