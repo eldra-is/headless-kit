@@ -68,6 +68,20 @@ export const blockJsonSchema = {
         // lost. `shape` says what the old field was: a `string` holding an
         // href, or a `list` of composites whose named children carry the
         // label, href, group and nested links.
+        // Turns a link field's rows' children, grouped by their `group` text,
+        // into sections on deploy. Runs after the step's `convertToLink`.
+        groupsToSections: {
+          type: 'array',
+          maxItems: 16,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['field'],
+            properties: {
+              field: { type: 'string', pattern: FIELD_ID_PATTERN },
+            },
+          },
+        },
         convertToLink: {
           type: 'array',
           maxItems: 16,

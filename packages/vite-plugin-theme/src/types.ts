@@ -299,12 +299,24 @@ export interface BlockMigrationLinkConversion {
   };
 }
 
+/** One link field whose rows' children are grouped into sections on deploy:
+ * each row's children are partitioned on their `group` text, in first-seen
+ * order, into `sections` (children with no group form one section with no
+ * heading), and the row keeps `sections` instead of `children`. `field` names
+ * a top-level `link` field, or a `list` of links, and the block must declare
+ * `tree.sections` on that link. It runs after the same deploy's `convertToLink`
+ * conversions, which are what write the `group` it reads. */
+export interface BlockMigrationGroupsToSections {
+  field: string;
+}
+
 export interface BlockMigration {
   version: number;
   /** Optional: a step may carry only conversions. A step must declare at least
-   * one of `renames` and `convertToLink`. */
+   * one of `renames`, `convertToLink` and `groupsToSections`. */
   renames?: Array<{ from: string; to: string }>;
   convertToLink?: BlockMigrationLinkConversion[];
+  groupsToSections?: BlockMigrationGroupsToSections[];
 }
 
 export interface BlockDefinition {

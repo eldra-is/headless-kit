@@ -41,6 +41,23 @@ A field that is the source of a declared rename (`migrations[].renames[].from`) 
 
 The scanner cannot see installed entries, so it cannot tell whether a field actually holds content — it requires the bump unconditionally, the same way the rest of this advisory check works. Core performs the authoritative, content-aware retirement at deploy time and reports what it retired; `eldra-theme deploy` prints one line per retired field, for example `retired hero.subtitle → subtitle__v1 (type-changed, 12 entries) — previous content is read-only in Studio`.
 
+## Grouped menu children become sections
+
+A header or footer whose links carry children grouped by a `group` text (a mega-menu column heading) can move to sections, where each column is a section with its own heading, with one step:
+
+```json
+{
+  "version": 4,
+  "groupsToSections": [{ "field": "links" }]
+}
+```
+
+`field` is a top-level `link` field, or a `list` of links, and that link must declare `tree.sections`. The step accepts only `field` and at most 16 entries; the scanner refuses a field that is missing, is neither a link nor a list of links, does not declare `tree.sections`, or is converted by two steps. A step must declare at least one of `renames`, `convertToLink` and `groupsToSections`.
+
+Core applies it once on deploy, after the same deploy's `convertToLink` conversions (which write the `group` text it reads), to draft and published data alike. For each top-level link it partitions the children on the trimmed `group` of the organisation's default locale, in first-seen order: children with no group form one section with no heading, at the position they were first seen, and a typo in a group (`Women`, `Wmen`) makes two sections. Every locale gets the same partition, and each section's heading is that locale's own `group` text. The link keeps `sections` and loses `children`. A link that already has sections, or no children, is left alone, so a redeploy changes nothing, and `eldra-theme deploy` counts the rewrites in the same converted line as a `convertToLink` step.
+
+Stored revisions are not rewritten. A header revision from before the step restores with its `children` while the field's declaration still admits them (`tree.depth` 2); once the theme narrows it to depth 1, Core refuses that value and the restore keeps the current menu and warns (`PAGE_REVISION_LINK_MENU_KEPT`).
+
 ## Route templates and declared renames
 
 A route template's own `template-block` bindings and text templates are stored separately from a

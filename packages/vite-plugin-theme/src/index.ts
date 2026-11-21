@@ -11,6 +11,7 @@ export type {
   BlockDefinition,
   BlockField,
   BlockMigration,
+  BlockMigrationGroupsToSections,
   DeclaredFormSeed,
   DeclaredPageSeed,
   DeclaredPageSeedBlock,

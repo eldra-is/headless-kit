@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { migrationChecks } from '../migrations';
 import { scanTheme } from '../scan';
 import type { BlockField, ThemeManifest } from '../types';
 
@@ -684,7 +685,7 @@ describe('block field migrations — link', () => {
       const f = fixture();
       f.write([field('title')], 2, [{ version: 2 }]);
       expect(f.scan().errors.join('\n')).toContain(
-        'a migration step must declare renames or convertToLink'
+        'a migration step must declare renames, convertToLink or groupsToSections'
       );
     });
 
@@ -1106,6 +1107,83 @@ describe('block field migrations — link', () => {
       f.write([field('cta', 'link')], 3, migrations);
       expect(() => f.scan()).not.toThrow();
       expect(f.scan().manifest).toBeNull();
+    });
+  });
+
+  describe('groupsToSections', () => {
+    const sectioned = (fieldId: string, tree: unknown): BlockField => ({
+      fieldId,
+      name: fieldId,
+      type: 'list',
+      metadata: { item: { fieldId: 'link', name: 'Link', type: 'link', metadata: { tree } } },
+    });
+    const withSections = { depth: 2, sections: { max: 4 } };
+    const checks = (fields: BlockField[], migrations: unknown): string[] => {
+      const errors: string[] = [];
+      migrationChecks(
+        'blocks/hero/block.json',
+        { apiId: 'hero', name: 'Hero', version: 4, fields, migrations } as never,
+        undefined,
+        errors
+      );
+      return errors;
+    };
+
+    it('accepts a step on a list of links that declares sections, with or without renames', () => {
+      expect(
+        checks(
+          [sectioned('links', withSections)],
+          [{ version: 4, groupsToSections: [{ field: 'links' }] }]
+        )
+      ).toEqual([]);
+      expect(
+        checks(
+          [{ ...field('cta', 'link'), metadata: { tree: withSections } }],
+          [{ version: 4, renames: [], groupsToSections: [{ field: 'cta' }] }]
+        )
+      ).toEqual([]);
+    });
+
+    it('refuses a target that does not declare tree.sections', () => {
+      expect(
+        checks(
+          [sectioned('links', true)],
+          [{ version: 4, groupsToSections: [{ field: 'links' }] }]
+        ).join('\n')
+      ).toContain('groupsToSections field "links" must declare tree.sections');
+    });
+
+    it.each([
+      ['a missing field', [field('title')], 'does not exist in incoming fields'],
+      ['a string field', [field('links')], 'must be a link field or a list of links'],
+    ])('refuses %s', (_name, fields, message) => {
+      expect(
+        checks(fields, [{ version: 4, groupsToSections: [{ field: 'links' }] }]).join('\n')
+      ).toContain(message);
+    });
+
+    it('refuses one field converted twice', () => {
+      expect(
+        checks(
+          [sectioned('links', withSections)],
+          [
+            { version: 3, groupsToSections: [{ field: 'links' }] },
+            { version: 4, groupsToSections: [{ field: 'links' }] },
+          ]
+        ).join('\n')
+      ).toContain('one field cannot be converted twice');
+    });
+
+    it('closes the step grammar: only `field`, at most 16 entries', () => {
+      const f = fixture();
+      f.write([field('title')], 2, [
+        { version: 2, groupsToSections: [{ field: 'title', extra: 1 }] },
+      ]);
+      expect(f.scan().errors.length).toBeGreaterThan(0);
+      f.write([field('title')], 2, [
+        { version: 2, groupsToSections: Array.from({ length: 17 }, () => ({ field: 'title' })) },
+      ]);
+      expect(f.scan().errors.length).toBeGreaterThan(0);
     });
   });
 });

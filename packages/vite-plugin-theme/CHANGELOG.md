@@ -5,6 +5,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`migrations[].groupsToSections`: grouped menu children become sections (WS-1318).** A step may
+  declare `groupsToSections: [{ "field": "links" }]` (at most 16, `field` the only key) to turn a link
+  field's rows' children, grouped by their `group` text, into `sections` on deploy. The scanner
+  refuses a field that is missing, is not a `link` or a `list` of links, does not declare
+  `tree.sections`, or is converted twice, and a step now has to declare `renames`, `convertToLink`
+  or `groupsToSections`. New type `BlockMigrationGroupsToSections`. Needs a Core that accepts the
+  step; `convertToLink` in the same deploy runs first. See `docs/theme-field-migrations.md`.
+
 - **`formSeeds[].actions.subscribe.consentText` (WS-386).** A subscribe action may carry its consent
   sentence per locale (`{ 'en-US': '… {shop} …' }`), validated like Core: locale tags, at most 500
   characters each, plain text (no `<`, `>` or control characters), at least one locale when the key is
