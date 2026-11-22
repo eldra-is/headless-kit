@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.16](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.15...ui-v0.3.16) (2026-11-22)
+
+
+### Features
+
+* **ui:** sm and fill Tabs for compact panels (WS-1328) ([#158](https://github.com/eldra-is/headless-kit/issues/158)) ([1e9fd35](https://github.com/eldra-is/headless-kit/commit/1e9fd35229fb05f0a4c3691443a7c2425c847548))
+
 ## [0.3.15](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.14...ui-v0.3.15) (2026-11-21)
 
 
