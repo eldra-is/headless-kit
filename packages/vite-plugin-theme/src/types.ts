@@ -363,11 +363,31 @@ export interface ThemeManifest {
    *  no `i18n/` directory, so a theme that declares no texts keeps emitting
    *  the manifest shape an older Core already accepts. */
   messages?: ThemeMessages;
+  /** What the theme's runtime can do that Studio has to know before it offers it — see
+   *  `ThemeManifestCapabilities`. Absent rather than empty when the runtime declares none, so the
+   *  manifest stays the shape an older Core accepts. */
+  capabilities?: ThemeManifestCapabilities;
   // No `breakpoints` field here: this type is exactly what is persisted to
   // disk and uploaded (`.eldra/manifest.json`), and Core's ingest validates
   // that file strictly — an unrecognized top-level key is rejected outright.
   // The resolved breakpoints reach the runtime through `ScanResult.breakpoints`
   // and the separate `virtual:eldra/breakpoints` module instead; see plugin.ts.
+}
+
+/**
+ * Features of the theme's **runtime** (the framework wrapper the theme is built with, not the
+ * theme's own code) that Studio offers only to a deployment that has them. Each is a version
+ * number, so a later, incompatible form can be told apart.
+ *
+ *  * `draftPreview: 1` — the theme renders a draft preview session (WS-1293): on the preview
+ *    router's session host it reads drafts through the router's same-origin proxy, covers the
+ *    published prerender until the draft is on screen, and shows a notice, never the published
+ *    page, when the session is refused. Studio disables Preview for a deployment without it.
+ *
+ * Declared by the framework wrapper through `EldraThemeOptions.capabilities`, never by a theme.
+ */
+export interface ThemeManifestCapabilities {
+  draftPreview?: 1;
 }
 
 export interface LegacyThemeTokens {
@@ -473,6 +493,8 @@ export interface ScanOptions {
   templateRoles?: ManifestTemplateRoles;
   /** The forms a site is created with; see `ManifestFormSeed`. */
   formSeeds?: DeclaredFormSeed[];
+  /** The runtime's capabilities; see `ThemeManifestCapabilities`. */
+  capabilities?: ThemeManifestCapabilities;
   /** The theme's raw, as-configured breakpoints — validated and defaulted
    * into the manifest's `breakpoints` by resolveLayoutBreakpoints (Core),
    * not here. */
@@ -481,6 +503,8 @@ export interface ScanOptions {
 
 export interface EldraThemeOptions {
   framework?: string;
+  /** The runtime's capabilities, set by a framework wrapper; see `ThemeManifestCapabilities`. */
+  capabilities?: ThemeManifestCapabilities;
   routes?: ManifestRoute[];
   customPages?: DeclaredThemeCodePage[];
   /** The seeds a site is created with on its first deploy: the route templates
