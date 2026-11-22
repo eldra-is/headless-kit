@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": [
+    "src/module.ts",
+    "src/livePatterns.ts",
+    "src/runtime/paths.ts",
+    "src/runtime/server/built.ts",
+    "test/**/*.ts",
+    "vitest.config.ts"
+  ]
+}

@@ -265,6 +265,16 @@ const consumers = {
       export const run: Promise<ValidateResult> = validateTheme({ themeDir: '.', remote: false });
     `,
   },
+  '@eldrajs/nuxt': {
+    runtime: `
+      import eldraNuxt from '@eldrajs/nuxt';
+      assert(typeof eldraNuxt === 'function', 'nuxt module');
+    `,
+    types: `
+      import type { ModuleOptions } from '@eldrajs/nuxt';
+      export const options: ModuleOptions = { builtPagesOnly: true, live: ['/coming-soon'] };
+    `,
+  },
   '@eldrajs/theme-nuxt': {
     runtime: `
       import eldra from '@eldrajs/theme-nuxt';
