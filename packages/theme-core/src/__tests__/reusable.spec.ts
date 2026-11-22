@@ -4,6 +4,7 @@ import {
   ReusableComponentSnapshotCache,
   createLayoutRenderModel,
   createReusableLayoutRenderModel,
+  expandReusableLayout,
   layoutRenderNodeId,
   type ReusableComponentProjection,
   type ReusableLayoutRenderNode,
@@ -293,5 +294,71 @@ describe('reusable component revision cache', () => {
     expect(
       cache.resolve('published')({ componentId: COMPONENT, siteId: SITE, revision: 7 })
     ).toEqual(valid);
+  });
+});
+
+describe('expandReusableLayout (the public read shape, for a draft preview session)', () => {
+  it("replaces each placement by its component, ids namespaced as Core's public read", () => {
+    const expanded = expandReusableLayout(page('FooterA'), projection('FooterA'));
+    expect(expanded).toEqual({
+      version: 2,
+      root: {
+        id: 'PageRoot',
+        type: 'flex',
+        layout: { direction: { normal: 'column' } },
+        children: [
+          {
+            id: 'FooterA',
+            type: 'flex',
+            layout: { direction: { normal: 'column' } },
+            children: [
+              {
+                id: layoutRenderNodeId('FooterA\u0000FooterBlock'),
+                type: 'block',
+                entryId: BLOCK,
+              },
+              {
+                id: layoutRenderNodeId('FooterA\u0000FooterBlockRepeat'),
+                type: 'block',
+                entryId: BLOCK,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(JSON.stringify(expanded)).not.toContain(COMPONENT);
+    expect(JSON.stringify(expanded)).not.toContain('FooterBlock"');
+  });
+
+  it('renders exactly the model an already-expanded public read renders', () => {
+    const fromProjection = createLayoutRenderModel(
+      expandReusableLayout(page('FooterA', 'FooterB'), projection('FooterA', 'FooterB')),
+      new Set([BLOCK])
+    );
+    const viaProjection = createReusableLayoutRenderModel(page('FooterA', 'FooterB'), {
+      projection: projection('FooterA', 'FooterB'),
+      allowedEntryIds: new Set([BLOCK]),
+    });
+    expect(fromProjection.css.length).toBeGreaterThan(0);
+    expect(fromProjection.css).toBe(viaProjection.css);
+  });
+
+  it('refuses what the render refuses', () => {
+    expect(issue(() => expandReusableLayout(page('FooterA'), projection('FooterB')))).toMatchObject(
+      {
+        code: 'COMPONENT_NOT_FOUND',
+      }
+    );
+    expect(
+      issue(() => expandReusableLayout({ ...page('FooterA'), version: 1 }, projection('FooterA')))
+    ).toMatchObject({
+      code: 'INVALID_VALUE',
+    });
+    expect(
+      expandReusableLayout({ ...page('FooterA'), version: 1 }, projection('FooterA'), {
+        routeTemplate: true,
+      }).version
+    ).toBe(1);
   });
 });

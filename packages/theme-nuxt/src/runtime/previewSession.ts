@@ -183,6 +183,45 @@ function trackAppRoot(doc: Document): void {
   );
 }
 
+/**
+ * Focus the page asks for while it is covered, given to it once the draft is shown (WS-1358).
+ *
+ * The app is inert under the veil, and an inert element cannot take focus: a component that
+ * focuses on mount (the starter's search results page focuses its search field) is hydrated in a
+ * session while the app is inert, so its `focus()` does nothing — where on the published page the
+ * field is focused, its suggestions open and the page scrolls to it. So while the session is
+ * pending, the last `focus()` asked of an element inside the app is remembered, and once the draft
+ * is on screen it is asked again, if the element is still in the document and nothing else has
+ * taken focus since. Nothing changes outside a pending session: the original `focus` is restored
+ * the moment the session leaves `pending`, whichever way it leaves it.
+ */
+function replayCoveredFocus(doc: Document): void {
+  const proto = doc.defaultView?.HTMLElement?.prototype;
+  if (proto === undefined) return;
+  const original = proto.focus;
+  let requested: { element: HTMLElement; options: FocusOptions | undefined } | null = null;
+  proto.focus = function focus(this: HTMLElement, options?: FocusOptions): void {
+    if (state.status === 'pending' && doc.getElementById('__nuxt')?.contains(this)) {
+      requested = { element: this, options };
+    }
+    original.call(this, options);
+  };
+  const stop = watch(
+    () => state.status,
+    (status) => {
+      if (status === 'pending') return;
+      stop();
+      proto.focus = original;
+      const target = requested;
+      requested = null;
+      if (status !== 'ready' || target === null || !target.element.isConnected) return;
+      if (doc.activeElement !== null && doc.activeElement !== doc.body) return;
+      original.call(target.element, target.options);
+    },
+    { flush: 'sync' }
+  );
+}
+
 /** Loads and mounts the veil, banner and notices. The module is only ever fetched in a session. */
 function loadUi(doc: Document): Promise<PreviewSessionUi | undefined> {
   return import('./previewSessionUi').then(
@@ -313,6 +352,7 @@ export function startPreviewSession(
   }
   client.enableSessionPreview({ proxyBase: `${win.location.origin}${PREVIEW_SESSION_PROXY_PATH}` });
   state.status = 'pending';
+  replayCoveredFocus(win.document);
   client.onRequestError?.((error) => {
     const refusal = previewSessionRefusal(error);
     if (refusal !== null) refuse(refusal);

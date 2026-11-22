@@ -14,6 +14,14 @@ Release-please writes the generated notes from commit messages and does not repl
   screen, an exit banner links to `/__eldra/preview/exit`, and a refused session shows an
   expired or unavailable notice in Icelandic or English, never the published page. Commerce reads
   stay published. Outside a session nothing changes. See `docs/themes.md`, "Draft preview sessions".
+- **A draft preview session renders exactly what Publish puts live (WS-1358).** A page or route
+  template placing shared components is rendered in the public read's shape (no authored node ids,
+  no `data-eldra-reusable-placement`, the component not rebuilt); `useEldraPage().pending` stays
+  `false` while the session re-reads the route it has just hydrated, so the page is patched in place
+  rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
+  Outside a session nothing changes. The starter's parity spec is the release gate; see
+  `docs/themes.md`, "Parity with the published page".
+
 - **Draft preview sessions (WS-1303).** On the preview router's session host
   (`p-<session>.previews-{env}.eldra.dev`; its `<meta name="eldra-preview" content="session">` in the
   head counts only there or on a local development host) the theme renders drafts read through the

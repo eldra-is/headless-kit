@@ -7,6 +7,7 @@
     "typecheck": "pnpm -r --filter './packages/*' --filter './examples/*' typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:parity": "pnpm --filter starter-nuxt exec vitest run test/previewParity.browser.spec.ts",
     "dev": "vitest",
     "lint": "oxlint --fix && node scripts/check-framework-free.mjs",
     "lint:check": "oxlint && node scripts/check-framework-free.mjs && pnpm --filter @eldrajs/ui check:tokens && pnpm --filter @eldrajs/ui check:tabler-icons && pnpm --filter @eldrajs/ui check:phone-flags && pnpm --filter @eldrajs/sdk check:format-data",

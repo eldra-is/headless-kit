@@ -25,6 +25,7 @@ import { isStudioPreviewFrame } from '../origins';
 import { isPreviewSessionRefused, usePreviewSession } from '../previewSession';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 import { canonicalRoutePath } from '../routePath';
+import { asPublishedRoute } from '../sessionShape';
 import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
 
 /**
@@ -266,7 +267,9 @@ export function useEldraPage(): {
         runtimeLocale(path)
       );
       heldPreviewAuthFailure = null;
-      return { route, holdPrevious: false };
+      // A session's drafts arrive in the preview read's shape; what it renders is the published
+      // page's (`../sessionShape.ts`).
+      return { route: session.active ? asPublishedRoute(route) : route, holdPrevious: false };
     } catch (cause) {
       if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
       // A site with no credentials: the shell, not an error — see `hasCredentials`.
@@ -405,6 +408,19 @@ export function useEldraPage(): {
     () => page.value?.reusableComponentProjection ?? template.value?.reusableComponentProjection
   );
 
+  /**
+   * Whether the route is being read. Never while a session re-reads the route it has just hydrated:
+   * that read replaces content already on screen (under the veil), and a theme that draws a loading
+   * state for `pending` — the starter does, in place of the page — would otherwise tear the whole
+   * block tree down and build it again for the draft. Rebuilt in the browser, it is not the tree the
+   * published page hydrates: every `useId()` takes a new number and every bound style is
+   * re-serialised (WS-1358). Patched in place, it is the same tree with the draft's content.
+   * A navigation in a session is read as on any site, with `pending` as it is.
+   */
+  const reading = computed(() =>
+    session.active && session.status === 'pending' ? false : pending.value
+  );
+
   return {
     page: page as Ref<EntryDoc | null>,
     template: template as Ref<EntryDoc | null>,
@@ -414,7 +430,7 @@ export function useEldraPage(): {
     blocks,
     reusableComponentProjection,
     links: linkState,
-    pending,
+    pending: reading as Ref<boolean>,
     error,
   };
 }

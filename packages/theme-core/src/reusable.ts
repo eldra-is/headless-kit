@@ -206,3 +206,34 @@ function snapshotKey(
 ): string {
   return `${componentPerspectiveKey(perspective, siteId, componentId)}\0${revision}`;
 }
+
+/**
+ * A layout document with reusable placements, in the shape Core's **public** read serves it: each
+ * placement replaced in place by its component's content, the component's root taking the
+ * placement id and every node inside it the `r` + SHA-256 render id
+ * (`docs/theme-reusable-components.md`), and no projection left anywhere.
+ *
+ * A preview read keeps the placements and the projection, because Studio's overlay addresses a
+ * node inside a component by its authored id and its placement. A draft preview session has no
+ * overlay, and must render exactly what the published page renders, so it renders this shape
+ * instead (`@eldrajs/theme-nuxt`, WS-1358). Throws a `LayoutValidationError` for what the render
+ * would refuse; the caller keeps the document as it was, and the render then fails closed on it.
+ *
+ * `routeTemplate` admits placements in a version-1 document, as a route template does.
+ */
+export function expandReusableLayout(
+  value: unknown,
+  projection: unknown,
+  options: { routeTemplate?: boolean } = {}
+): { version: 1 | 2 | 3; root: unknown } {
+  const envelope = asObject(value, '');
+  if (envelope.version !== 1 && envelope.version !== 2 && envelope.version !== 3)
+    failLayout('/version', 'INVALID_VALUE');
+  const expansion = expandReusablePlacements({
+    root: envelope.root,
+    path: '/root',
+    projection: projection as ReusableComponentProjection,
+    allowReusable: options.routeTemplate === true || envelope.version !== 1,
+  });
+  return { version: envelope.version, root: expansion.root };
+}
