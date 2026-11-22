@@ -14,6 +14,17 @@ Release-please writes the generated notes from commit messages and does not repl
   screen, an exit banner links to `/__eldra/preview/exit`, and a refused session shows an
   expired or unavailable notice in Icelandic or English, never the published page. Commerce reads
   stay published. Outside a session nothing changes. See `docs/themes.md`, "Draft preview sessions".
+- **Draft preview sessions (WS-1303).** On the preview router's session host
+  (`p-<session>.previews-{env}.eldra.dev`; its `<meta name="eldra-preview" content="session">` in the
+  head counts only there or on a local development host) the theme renders drafts read through the
+  router's same-origin proxy: no route is answered from the build, every async data entry is read
+  again through the session after hydration (the theme's own `useAsyncData` CMS reads included), a
+  draft-only page renders, the published prerender is veiled (once the kit's JavaScript has loaded)
+  until the drafts are on screen, an exit banner links to `/__eldra/preview/exit`, and a refused
+  session clears what it read and shows an expired or unavailable notice in Icelandic or English,
+  never the published page. Commerce reads stay published. Outside a session nothing changes, and
+  the session UI is a chunk a storefront never loads. See `docs/themes.md`, "Draft preview
+  sessions", for which reads are covered.
 
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds

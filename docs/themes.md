@@ -103,33 +103,65 @@ receive it; a non-Vue binding would call the same bridge and overlay functions d
 
 Studio's **Preview** and its share links open the theme's own deployment on a host of the preview
 router's (`p-<session>.previews-{env}.eldra.dev`), not in the builder's iframe. `@eldrajs/theme-nuxt`
-renders the organisation's drafts there, client-side, with nothing for the theme to write:
+renders the organisation's drafts there, client-side.
 
-- **Detection** (`src/runtime/previewSession.ts`): the page is a session when the router's
-  `<meta name="eldra-preview" content="session">` is in the document, or when the host has the
-  session shape. A server render and a prerender never are; every other page, Studio's iframe
-  included, runs exactly as before.
+- **Detection** (`src/runtime/previewSession.ts`): the page is a session when its host has the
+  session shape. The router's `<meta name="eldra-preview" content="session">` is honoured only in
+  `document.head`, and only on a session host or a local development host (`localhost`,
+  `127.0.0.1`, `[::1]`, `*.localhost`, `*.test`), so a marker that reaches a storefront's page
+  never turns it into a session. A server render and a prerender never are one; every other page,
+  Studio's iframe included, runs exactly as before.
 - **Reads.** `@eldrajs/theme-core`'s `enableSessionPreview({ proxyBase })` sends the five CMS reads
   same-origin to the router's `/__eldra/gateway/*`, `no-store` and `credentials: 'same-origin'`, with
   no credential header (the router holds the session in an HttpOnly cookie and adds `X-Org-Id` and
   `X-Preview-Session` itself). A CMS answer without `Eldra-Preview: draft` is refused rather than
   shown. Catalog reads stay on the gateway, published. No request ever carries `X-Preview-Token`.
 - **Routes.** `useEldraPage()` answers no route from the build: the published payload only hydrates
-  the prerendered page, a navigation reads the draft, and a page that exists only as a draft renders
-  (opened directly, the host serves the build's not-found document and the app resolves it).
-- **What a visitor sees.** The published prerender paints first, under a veil (`aria-busy` on the
-  app, a "loading" line that appears only after half a second, no focus trap) that comes down when
-  the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A refused
-  session (401: invalid, revoked, expired; 403, 502, 503: unavailable) removes the page and shows a
-  notice instead; published content is never the fallback. The copy is Icelandic or English, after
-  the page's language. The UI is plain DOM in a shadow root, outside the Vue app.
-- **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
-- **Design tokens** are the build's until site-service serves draft tokens (WS-1299).
+  the prerendered page, every navigation (back to the first route included) reads the draft, and a
+  page that exists only as a draft renders (opened directly, the host serves the build's not-found
+  document and the app resolves it).
+- **Which reads show drafts.** Right after hydration the module refreshes **every** async data
+  entry (`refreshNuxtData()`), and the veil stays up until they have settled. So these are drafts:
+  - `useEldraPage()`, and every `useEldraPage()` mounted later (they share the route's async data);
+  - every `useAsyncData` / `useFetch` whose handler reads through the kit's client
+    (`useEldra().client.getEntries(...)`, `getEntry`, `getEntryByUniqueField`,
+    `resolveEntryListField`, `resolveEntryList`);
+  - any client read through that client made after the session started.
 
-A theme adopts it by rebuilding on the `@eldrajs/theme-nuxt` release that has it and redeploying.
-The manifest will say so with `capabilities: { draftPreview: 1 }` once Core accepts the key
-(`@eldrajs/vite-plugin-theme`'s `EldraThemeOptions.capabilities`; off in `theme-nuxt` until then,
-because Core decodes the manifest strictly).
+  These stay **published** (or the build's), and a theme that needs them as drafts must move them
+  into one of the above:
+  - data the server render put anywhere but async data (`useState`, a plugin's own state, a
+    module-level value) — it is hydrated and never read again;
+  - a read that does not go through the kit's client (`$fetch` to the gateway, `@eldrajs/sdk`) —
+    it carries no session;
+  - a `useAsyncData` with a custom `getCachedData` that answers a `refresh:hook` from a cache
+    (only possible with Nuxt's `experimental.granularCachedData`);
+  - the build-time platform reads baked into the runtime config: design tokens (until site-service
+    serves draft tokens, WS-1299), theme texts, forms, site icons, SEO, the site profile.
+
+- **What a visitor sees.** The published prerender is **visible until the kit's JavaScript has
+  loaded**; only then does the veil cover it (covering it from the first paint needs the router to
+  inject an early veil, a ticketed follow-up). Under the veil the app is `aria-busy` and inert; a
+  "loading" line appears, and becomes a live region, only after half a second; the veil comes down
+  when the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A
+  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable) clears every async
+  data entry, so neither the draft nor the published page stays in the document, makes the app
+  inert and shows a notice, which takes focus once. The copy is Icelandic or English, after the
+  page's language. The veil, banner and notices are plain DOM in a shadow root outside the Vue app,
+  in a chunk an ordinary storefront never loads.
+- **Permanent DOM differences in a session** (what a parity check such as WS-1358 masks): a
+  `<div data-eldra-preview-session>` appended to `<body>`, after the app, whose open shadow root
+  holds the veil, the notice and the exit banner (the banner stays visible, fixed at the bottom); the
+  router's `<meta name="robots" content="noindex, nofollow">` and `<meta name="eldra-preview">` in
+  the head. While the veil is up, `aria-busy="true"` and `inert` on `#__nuxt`; after a refusal,
+  `inert`. Nothing inside `#__nuxt` differs.
+- **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
+
+A theme adopts it by rebuilding on the `@eldrajs/theme-nuxt` release that has it and redeploying, and
+by keeping its own CMS reads in the covered forms above. The manifest will say so with
+`capabilities: { draftPreview: 1 }` once Core accepts the key (`@eldrajs/vite-plugin-theme`'s
+`EldraThemeOptions.capabilities`; off in `theme-nuxt` until then, because Core decodes the manifest
+strictly).
 
 ## Running the starter
 

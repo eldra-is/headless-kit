@@ -88,7 +88,14 @@ describe('draft preview session in a real browser', () => {
     context = await browser.newContext();
     const storefront = await context.newPage();
     const storefrontConsole = collectConsole(storefront);
+    const scripts: Array<Promise<string>> = [];
+    storefront.on('response', (response) => {
+      if (response.url().endsWith('.js')) scripts.push(response.text().catch(() => ''));
+    });
     await storefront.goto(plain.origin, { waitUntil: 'networkidle' });
+    // The session UI is its own chunk, loaded only in a session: the storefront never fetches it.
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const body of await Promise.all(scripts)) expect(body).not.toContain('Hætta í forskoðun');
     await expect.poll(() => appText(storefront)).toContain(PUBLISHED_HEADING);
     expect(await storefront.locator('[data-eldra-preview-session]').count()).toBe(0);
     expect(plain.requests.some((request) => request.path.startsWith('/__eldra/'))).toBe(false);
@@ -118,6 +125,67 @@ describe('draft preview session in a real browser', () => {
     // own, outside a session too, so the comparison is with that rather than with none.)
     const hydration = (lines: string[]) => lines.filter((line) => /hydration/i.test(line));
     expect(hydration(console)).toEqual(hydration(storefrontConsole));
+    // The theme's own CMS read was read again through the session, not left published.
+    await expect
+      .poll(() => page.locator('[data-own]').textContent())
+      .toContain(`${DRAFT_MARKER} page`);
+    // A useEldraPage() mounted after the swap renders the draft from its first render.
+    await page.getByRole('button', { name: 'Show late' }).click();
+    await page.locator('[data-late]').waitFor();
+    const lateFirst = await page.evaluate(
+      () => (window as unknown as { __lateFirst?: string }).__lateFirst ?? ''
+    );
+    expect(lateFirst).toContain(DRAFT_MARKER);
+    expect(lateFirst).not.toContain(PUBLISHED_HEADING);
+  });
+
+  it('back to the first route shows the draft, never the published page', async () => {
+    const router = await startRouter({ session: true });
+    context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(router.origin);
+    await expect.poll(() => appText(page), { timeout: 30_000 }).toContain(DRAFT_MARKER);
+    await page.getByRole('link', { name: 'Draft only' }).click();
+    await expect
+      .poll(() => page.locator('h1').first().textContent(), { timeout: 30_000 })
+      .toBe(`${DRAFT_MARKER} page`);
+    await watchForText(page, PUBLISHED_HEADING);
+    await page.goBack();
+    await expect.poll(() => page.locator('h1').first().textContent()).toBe('Home');
+    await expect.poll(() => appText(page)).toContain(DRAFT_MARKER);
+    await page.waitForLoadState('networkidle');
+    expect(await sawText(page)).toBe(false);
+  });
+
+  it('a refusal after the draft is on screen ends the session', async () => {
+    const router = await startRouter({ session: true });
+    context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(router.origin);
+    await expect.poll(() => appText(page), { timeout: 30_000 }).toContain(DRAFT_MARKER);
+    await expect
+      .poll(() => page.locator('[data-eldra-preview-session] .veil').getAttribute('hidden'))
+      .toBe('');
+    router.refuse = { status: 401, errorId: 'SITE_PREVIEW_SESSION_REVOKED' };
+    await page.getByRole('link', { name: 'Draft only' }).click();
+
+    const notice = page.locator('[data-eldra-preview-session] .notice');
+    await expect.poll(() => notice.getAttribute('hidden'), { timeout: 30_000 }).toBeNull();
+    expect(await notice.textContent()).toContain(
+      'Þessi forskoðunartengill hefur verið afturkallaður.'
+    );
+    await expect.poll(() => appText(page)).not.toContain(DRAFT_MARKER);
+    expect(await appText(page)).not.toContain(PUBLISHED_HEADING);
+    expect(await page.locator('#__nuxt').getAttribute('inert')).toBe('');
+    // Focus is on the notice, so the change is not missed.
+    expect(
+      await page.evaluate(
+        () =>
+          document
+            .querySelector('[data-eldra-preview-session]')
+            ?.shadowRoot?.activeElement?.classList.contains('notice') ?? false
+      )
+    ).toBe(true);
   });
 
   it('never sends X-Preview-Token in session mode', async () => {
@@ -201,6 +269,22 @@ describe('draft preview session in a real browser', () => {
 /** The app's own text, outside the session UI (which lives in its own shadow root). */
 function appText(page: Page): Promise<string> {
   return page.locator('#__nuxt').evaluate((node) => node.textContent ?? '');
+}
+
+/** Records, from now on, whether `text` ever appears in the app (read back with `sawText`). */
+async function watchForText(page: Page, text: string): Promise<void> {
+  await page.evaluate((needle) => {
+    const flags = window as unknown as { __sawText?: boolean };
+    flags.__sawText = false;
+    const app = document.getElementById('__nuxt')!;
+    new MutationObserver(() => {
+      if (app.textContent?.includes(needle)) flags.__sawText = true;
+    }).observe(app, { childList: true, subtree: true, characterData: true });
+  }, text);
+}
+
+function sawText(page: Page): Promise<boolean> {
+  return page.evaluate(() => (window as unknown as { __sawText?: boolean }).__sawText === true);
 }
 
 function collectConsole(page: Page): string[] {
@@ -343,16 +427,36 @@ function createFixture(): string {
   writeFileSync(
     join(dir, 'app', 'pages', '[...slug].vue'),
     `<script setup lang="ts">
-import { EldraLayout } from '@eldrajs/theme-vue';
+import { EldraLayout, useEldra } from '@eldrajs/theme-vue';
 const { page, layout, blocks } = useEldraPage();
+// The theme's own CMS read, outside useEldraPage: prerendered published, hydrated from the payload.
+const { client } = useEldra();
+const { data: own } = await useAsyncData('own-pages', () => client.getEntries('page'));
+const late = ref(false);
 </script>
 <template>
   <main>
     <h1>{{ page ? page.data.title : 'Not found' }}</h1>
     <EldraLayout v-if="page && layout" :layout="layout" :blocks="blocks" />
+    <ul data-own><li v-for="entry in own?.data ?? []" :key="entry.id">{{ entry.data.title }}</li></ul>
     <NuxtLink to="/draft-only">Draft only</NuxtLink>
+    <button type="button" @click="late = true">Show late</button>
+    <LatePage v-if="late" />
   </main>
 </template>
+`
+  );
+  mkdirSync(join(dir, 'app', 'components'), { recursive: true });
+  // A useEldraPage() mounted only after the draft has replaced the published page: what it renders
+  // on its very first render is recorded, so the test can tell whether it ever showed published.
+  writeFileSync(
+    join(dir, 'app', 'components', 'LatePage.vue'),
+    `<script setup lang="ts">
+const { blocks } = useEldraPage();
+const first = JSON.stringify(blocks.value.map((block) => block.data));
+(window as unknown as { __lateFirst?: string }).__lateFirst = first;
+</script>
+<template><p data-late>{{ first }}</p></template>
 `
   );
   writeFileSync(

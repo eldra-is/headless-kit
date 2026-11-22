@@ -5,18 +5,22 @@
  * browser, is `previewSession.browser.spec.ts`.
  */
 import { EldraClientError } from '@eldrajs/theme-core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, reactive } from 'vue';
 import {
-  PREVIEW_SESSION_MESSAGES,
   detectPreviewSession,
   hasPreviewSessionMarker,
+  isLocalDevelopmentHost,
   isPreviewSessionHost,
-  mountPreviewSessionUi,
-  previewSessionLocale,
   previewSessionRefusal,
   type PreviewSessionState,
 } from '../src/runtime/previewSession';
+import {
+  PREVIEW_SESSION_LOADING_DELAY_MS,
+  PREVIEW_SESSION_MESSAGES,
+  mountPreviewSessionUi,
+  previewSessionLocale,
+} from '../src/runtime/previewSessionUi';
 
 const SESSION = 'p-0f8c2a6e-1b2c-4d3e-8f90-123456789abc';
 
@@ -36,16 +40,35 @@ describe('recognising a session', () => {
     expect(isPreviewSessionHost('p-1234.previews.eldra.dev')).toBe(false);
   });
 
-  it('accepts the router’s marker on the document', () => {
+  it('reads the router’s marker in the head only', () => {
     const doc = document.implementation.createHTMLDocument('x');
+    expect(hasPreviewSessionMarker(doc)).toBe(false);
+    doc.body.insertAdjacentHTML('beforeend', '<meta name="eldra-preview" content="session">');
     expect(hasPreviewSessionMarker(doc)).toBe(false);
     doc.head.insertAdjacentHTML('beforeend', '<meta name="eldra-preview" content="other">');
     expect(hasPreviewSessionMarker(doc)).toBe(false);
     doc.head.insertAdjacentHTML('beforeend', '<meta name="eldra-preview" content="session">');
     expect(hasPreviewSessionMarker(doc)).toBe(true);
-    expect(
-      detectPreviewSession({ location: { hostname: 'shop.example.com' }, document: doc })
-    ).toBe(true);
+  });
+
+  it('honours the marker only on a session host or a local development host', () => {
+    const marked = document.implementation.createHTMLDocument('x');
+    marked.head.insertAdjacentHTML('beforeend', '<meta name="eldra-preview" content="session">');
+    const plain = document.implementation.createHTMLDocument('x');
+    const at = (hostname: string, doc: Document) =>
+      detectPreviewSession({ location: { hostname }, document: doc });
+    // A storefront's own page carrying the marker is still a storefront.
+    expect(at('shop.example.com', marked)).toBe(false);
+    expect(at('0f8c2a6e-1b2c-4d3e-8f90-123456789abc.previews.eldra.dev', marked)).toBe(false);
+    for (const host of ['127.0.0.1', 'localhost', 'theme.localhost', 'shop.test', '[::1]']) {
+      expect(isLocalDevelopmentHost(host), host).toBe(true);
+      expect(at(host, marked), host).toBe(true);
+      expect(at(host, plain), host).toBe(false);
+    }
+    expect(isLocalDevelopmentHost('localhost.example.com')).toBe(false);
+    expect(isLocalDevelopmentHost('shop.testing.example')).toBe(false);
+    // The session host's shape decides on its own: the router does not inject the marker yet.
+    expect(at(`${SESSION}.previews.eldra.dev`, plain)).toBe(true);
     expect(detectPreviewSession(undefined)).toBe(false);
   });
 });
@@ -94,39 +117,65 @@ describe('the copy', () => {
 });
 
 describe('the veil, the notice and the banner', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const mount = (status: PreviewSessionState['status'], errorId: string | null = null) => {
-    document.body.innerHTML = '<div id="__nuxt"><p>Published</p></div>';
+    document.body.innerHTML = '<div id="__nuxt"><a href="/x">Published</a></div>';
     const state = reactive<PreviewSessionState>({ active: true, status, errorId, hydrated: true });
     const ui = mountPreviewSessionUi(document, state, 'en');
     const part = (selector: string) => ui.host.shadowRoot!.querySelector<HTMLElement>(selector)!;
-    return { state, ui, part, app: document.getElementById('__nuxt')! };
+    return { state, ui, part };
   };
 
-  it('veils the app as busy until the draft is shown, trapping nothing', async () => {
-    const { state, part, app } = mount('pending');
+  it('says it is loading only after a moment, and only then as a live region', async () => {
+    vi.useFakeTimers();
+    const { state, part } = mount('pending');
     expect(part('.veil').hidden).toBe(false);
+    expect(part('.loading').hidden).toBe(true);
+    expect(part('.loading').hasAttribute('role')).toBe(false);
+    expect(part('.loading').textContent).toBe('');
+    vi.advanceTimersByTime(PREVIEW_SESSION_LOADING_DELAY_MS);
     expect(part('.loading').getAttribute('role')).toBe('status');
-    expect(app.getAttribute('aria-busy')).toBe('true');
-    expect(app.hasAttribute('inert')).toBe(false);
-    expect(document.activeElement).toBe(document.body);
+    expect(part('.loading').hidden).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(part('.loading').textContent).toBe(PREVIEW_SESSION_MESSAGES.en.loading);
     state.status = 'ready';
     await nextTick();
     expect(part('.veil').hidden).toBe(true);
-    expect(app.hasAttribute('aria-busy')).toBe(false);
+    expect(part('.loading').hasAttribute('role')).toBe(false);
     expect(part('.notice').hidden).toBe(true);
   });
 
-  it('shows the expired notice for the errorId, and makes the app inert', async () => {
-    const { state, part, app } = mount('pending');
+  it('a draft that arrives fast never shows or announces the loading line', async () => {
+    vi.useFakeTimers();
+    const { state, part } = mount('pending');
+    state.status = 'ready';
+    await nextTick();
+    vi.advanceTimersByTime(PREVIEW_SESSION_LOADING_DELAY_MS * 2);
+    expect(part('.loading').hidden).toBe(true);
+    expect(part('.loading').hasAttribute('role')).toBe(false);
+  });
+
+  it('shows the expired notice for the errorId and moves focus to it once', async () => {
+    const { state, part, ui } = mount('pending');
     state.status = 'expired';
     state.errorId = 'SITE_PREVIEW_SESSION_REVOKED';
     await nextTick();
-    expect(part('.notice').hidden).toBe(false);
-    expect(part('.notice').getAttribute('role')).toBe('alert');
+    const notice = part('.notice');
+    expect(notice.hidden).toBe(false);
+    expect(notice.getAttribute('role')).toBe('alert');
+    expect(notice.getAttribute('tabindex')).toBe('-1');
+    expect(ui.host.shadowRoot!.activeElement).toBe(notice);
     expect(part('.notice h2').textContent).toBe(PREVIEW_SESSION_MESSAGES.en.expiredTitle);
-    expect(part('.notice').textContent).toContain(PREVIEW_SESSION_MESSAGES.en.expiredRevoked);
+    expect(notice.textContent).toContain(PREVIEW_SESSION_MESSAGES.en.expiredRevoked);
     expect(part('.veil').hidden).toBe(true);
-    expect(app.hasAttribute('inert')).toBe(true);
+    // Focus is not held there: the exit can be reached, and a later render does not take it back.
+    part('.banner a').focus();
+    state.errorId = 'SITE_PREVIEW_SESSION_EXPIRED';
+    await nextTick();
+    expect(ui.host.shadowRoot!.activeElement).toBe(part('.banner a'));
   });
 
   it('offers a retry when the preview is unavailable', () => {

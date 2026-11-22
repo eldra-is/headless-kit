@@ -11,8 +11,15 @@ import {
   startEldraPreview,
   type EldraContext,
 } from '@eldrajs/theme-vue';
-import { defineNuxtPlugin, useHead, useRuntimeConfig, useState } from 'nuxt/app';
-import { reactive } from 'vue';
+import {
+  clearNuxtData,
+  defineNuxtPlugin,
+  refreshNuxtData,
+  useHead,
+  useRuntimeConfig,
+  useState,
+} from 'nuxt/app';
+import { nextTick, reactive, watch } from 'vue';
 import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
@@ -22,7 +29,12 @@ import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
 import { resolveBridgeOrigins } from './origins';
-import { startPreviewSession } from './previewSession';
+import {
+  isPreviewSessionRefused,
+  markPreviewSessionDraftShown,
+  startPreviewSession,
+  usePreviewSession,
+} from './previewSession';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
 
@@ -71,12 +83,42 @@ export default defineNuxtPlugin({
      * A draft preview session (`./previewSession.ts`), decided before anything renders: from here
      * on the client's CMS reads go to the preview router's same-origin proxy, and `useEldraPage`
      * answers no route from the build. Browser only; outside a session nothing changes.
+     *
+     * Once the published prerender is hydrated, **every** async data entry is read again — the
+     * route's own (`useEldraPage`) and every `useAsyncData`/`useFetch` the theme made — because
+     * each was hydrated from the published payload and would otherwise stay published beside the
+     * drafts. A refresh is never answered from the payload after hydration, so each handler runs
+     * again, and the CMS reads in it go through the session. The veil stays up until all of them
+     * have settled and rendered.
      */
     const previewSession =
       import.meta.client &&
       startPreviewSession(client, {
-        onHydrated: (done) => nuxtApp.hooks.hookOnce('app:suspense:resolve', done),
+        onHydrated: (hydrated) =>
+          nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
+            hydrated();
+            try {
+              await refreshNuxtData();
+            } finally {
+              await nextTick();
+              markPreviewSessionDraftShown();
+            }
+          }),
       });
+    if (previewSession) {
+      // A refused session keeps nothing it read: every async data entry — the theme's own as well
+      // as the route's — is cleared once the page is hydrated, so neither drafts nor anything
+      // published stays rendered under the notice.
+      const session = usePreviewSession();
+      const stop = watch(
+        () => session.hydrated && isPreviewSessionRefused(session.status),
+        (refused) => {
+          if (!refused) return;
+          stop();
+          clearNuxtData();
+        }
+      );
+    }
     // Lazily, every time: `$router` is installed by Nuxt's own router plugin and this one may be
     // ordered before it. Nothing reads the locale state during plugin setup, so a getter is enough
     // — and it keeps the state honest after a client navigation, which is the whole point of it.
