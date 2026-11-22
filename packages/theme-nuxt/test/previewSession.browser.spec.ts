@@ -94,8 +94,11 @@ describe('draft preview session in a real browser', () => {
     });
     await storefront.goto(plain.origin, { waitUntil: 'networkidle' });
     // The session UI is its own chunk, loaded only in a session: the storefront never fetches it.
+    // (The needle is copy only that chunk carries; the built-in fallback's few words are static.)
     expect(scripts.length).toBeGreaterThan(0);
-    for (const body of await Promise.all(scripts)) expect(body).not.toContain('Hætta í forskoðun');
+    for (const body of await Promise.all(scripts)) {
+      expect(body).not.toContain('Þessi forskoðunartengill hefur verið afturkallaður.');
+    }
     await expect.poll(() => appText(storefront)).toContain(PUBLISHED_HEADING);
     expect(await storefront.locator('[data-eldra-preview-session]').count()).toBe(0);
     expect(plain.requests.some((request) => request.path.startsWith('/__eldra/'))).toBe(false);
@@ -129,6 +132,10 @@ describe('draft preview session in a real browser', () => {
     await expect
       .poll(() => page.locator('[data-own]').textContent())
       .toContain(`${DRAFT_MARKER} page`);
+    // An async data entry that never ran on load is never run by the session.
+    expect(
+      await page.evaluate(() => (window as unknown as { __neverRan?: number }).__neverRan ?? 0)
+    ).toBe(0);
     // A useEldraPage() mounted after the swap renders the draft from its first render.
     await page.getByRole('button', { name: 'Show late' }).click();
     await page.locator('[data-late]').waitFor();
@@ -433,6 +440,17 @@ const { page, layout, blocks } = useEldraPage();
 const { client } = useEldra();
 const { data: own } = await useAsyncData('own-pages', () => client.getEntries('page'));
 const late = ref(false);
+// An entry that must only ever run when the theme asks (a form submit, a cart create): a session
+// re-reads what was hydrated, never this.
+useAsyncData(
+  'never-run',
+  () => {
+    const flags = window as unknown as { __neverRan?: number };
+    flags.__neverRan = (flags.__neverRan ?? 0) + 1;
+    return Promise.resolve(null);
+  },
+  { immediate: false, server: false }
+);
 </script>
 <template>
   <main>

@@ -17,8 +17,10 @@ Release-please writes the generated notes from commit messages and does not repl
 - **Draft preview sessions (WS-1303).** On the preview router's session host
   (`p-<session>.previews-{env}.eldra.dev`; its `<meta name="eldra-preview" content="session">` in the
   head counts only there or on a local development host) the theme renders drafts read through the
-  router's same-origin proxy: no route is answered from the build, every async data entry is read
-  again through the session after hydration (the theme's own `useAsyncData` CMS reads included), a
+  router's same-origin proxy: no route is answered from the build, every async data entry the
+  server filled is re-run once through the session after hydration (the theme's own `useAsyncData`
+  CMS reads included; never an entry that did not run on load, such as an `immediate: false` submit),
+  bounded at 15 s before the unavailable notice, a
   draft-only page renders, the published prerender is veiled (once the kit's JavaScript has loaded)
   until the drafts are on screen, an exit banner links to `/__eldra/preview/exit`, and a refused
   session clears what it read and shows an expired or unavailable notice in Icelandic or English,

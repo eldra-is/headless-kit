@@ -120,8 +120,12 @@ renders the organisation's drafts there, client-side.
   the prerendered page, every navigation (back to the first route included) reads the draft, and a
   page that exists only as a draft renders (opened directly, the host serves the build's not-found
   document and the app resolves it).
-- **Which reads show drafts.** Right after hydration the module refreshes **every** async data
-  entry (`refreshNuxtData()`), and the veil stays up until they have settled. So these are drafts:
+- **Which reads show drafts.** Right after hydration a session re-runs, **once**, every async data
+  entry the server filled (the keys the payload carries a value for); entries the browser started on
+  load are waited for, not run again. An entry that did not run on load (`immediate: false`: a form
+  submit, a cart create) is never run by the session. The veil stays up until they have settled,
+  for at most 15 s; after that the session ends in the unavailable notice, never the published
+  page. So these are drafts:
   - `useEldraPage()`, and every `useEldraPage()` mounted later (they share the route's async data);
   - every `useAsyncData` / `useFetch` whose handler reads through the kit's client
     (`useEldra().client.getEntries(...)`, `getEntry`, `getEntryByUniqueField`,
@@ -148,7 +152,8 @@ renders the organisation's drafts there, client-side.
   data entry, so neither the draft nor the published page stays in the document, makes the app
   inert and shows a notice, which takes focus once. The copy is Icelandic or English, after the
   page's language. The veil, banner and notices are plain DOM in a shadow root outside the Vue app,
-  in a chunk an ordinary storefront never loads.
+  in a chunk an ordinary storefront never loads; if that chunk cannot be loaded, a plain built-in
+  line of text (Icelandic or English, with the exit link) says what the session is doing instead.
 - **Permanent DOM differences in a session** (what a parity check such as WS-1358 masks): a
   `<div data-eldra-preview-session>` appended to `<body>`, after the app, whose open shadow root
   holds the veil, the notice and the exit banner (the banner stays visible, fixed at the bottom); the

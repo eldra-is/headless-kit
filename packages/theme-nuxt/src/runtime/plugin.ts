@@ -31,7 +31,7 @@ import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './
 import { resolveBridgeOrigins } from './origins';
 import {
   isPreviewSessionRefused,
-  markPreviewSessionDraftShown,
+  settlePreviewSessionDrafts,
   startPreviewSession,
   usePreviewSession,
 } from './previewSession';
@@ -84,25 +84,42 @@ export default defineNuxtPlugin({
      * on the client's CMS reads go to the preview router's same-origin proxy, and `useEldraPage`
      * answers no route from the build. Browser only; outside a session nothing changes.
      *
-     * Once the published prerender is hydrated, **every** async data entry is read again — the
-     * route's own (`useEldraPage`) and every `useAsyncData`/`useFetch` the theme made — because
-     * each was hydrated from the published payload and would otherwise stay published beside the
-     * drafts. A refresh is never answered from the payload after hydration, so each handler runs
-     * again, and the CMS reads in it go through the session. The veil stays up until all of them
-     * have settled and rendered.
+     * Once the published prerender is hydrated, every async data entry the **server** filled is
+     * read again, once — the route's own (`useEldraPage`) and every `useAsyncData`/`useFetch` the
+     * theme made on the page — because each was hydrated from the published payload and would
+     * otherwise stay published beside the drafts. Only those: the keys the payload carried a value
+     * for, captured here, before anything ran in the browser. An entry that did not run on load (an
+     * `immediate: false` form submit, a cart create) is never run by the session. Entries the browser
+     * itself started on load (a page with no server render) already read through the session and are
+     * waited for, not run again. A refresh is never answered from the payload after hydration, so
+     * each handler runs again and its CMS reads go through the session. The veil stays up until they
+     * have settled and rendered, for at most `PREVIEW_SESSION_DRAFT_TIMEOUT_MS`; after that the
+     * session is unavailable.
      */
+    const hydratedKeys = import.meta.client
+      ? Object.keys(nuxtApp.payload.data ?? {}).filter(
+          (key) => nuxtApp.payload.data[key] !== undefined
+        )
+      : [];
+    const sessionReads = async (): Promise<void> => {
+      const inFlight = Object.entries(
+        (nuxtApp as { _asyncDataPromises?: Record<string, Promise<unknown> | undefined> })
+          ._asyncDataPromises ?? {}
+      )
+        .filter(([key, promise]) => promise !== undefined && !hydratedKeys.includes(key))
+        .map(([, promise]) => promise);
+      await Promise.allSettled([
+        hydratedKeys.length > 0 ? refreshNuxtData(hydratedKeys) : undefined,
+        ...inFlight,
+      ]);
+    };
     const previewSession =
       import.meta.client &&
       startPreviewSession(client, {
         onHydrated: (hydrated) =>
           nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
             hydrated();
-            try {
-              await refreshNuxtData();
-            } finally {
-              await nextTick();
-              markPreviewSessionDraftShown();
-            }
+            await settlePreviewSessionDrafts(sessionReads, () => nextTick());
           }),
       });
     if (previewSession) {

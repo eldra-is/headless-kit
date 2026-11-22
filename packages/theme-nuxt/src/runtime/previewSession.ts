@@ -189,9 +189,99 @@ function loadUi(doc: Document): Promise<PreviewSessionUi | undefined> {
     ({ mountPreviewSessionUi }) => mountPreviewSessionUi(doc, state),
     (cause: unknown) => {
       console.warn('[eldra] the draft preview UI could not be loaded', cause);
+      mountFallbackNotice(doc);
       return undefined;
     }
   );
+}
+
+/** The fallback's words: what the session is doing, in Icelandic or English. */
+const FALLBACK_TEXT = {
+  is: {
+    pending: 'Sæki drög…',
+    expired: 'Forskoðuninni er lokið. Opnaðu nýja forskoðun úr Studio.',
+    unavailable: 'Forskoðun er ekki tiltæk. Reyndu aftur eftir smástund.',
+    exit: 'Hætta í forskoðun',
+  },
+  en: {
+    pending: 'Loading draft…',
+    expired: 'This preview has ended. Open a new preview from Studio.',
+    unavailable: 'The preview is unavailable. Try again in a moment.',
+    exit: 'Exit preview',
+  },
+} as const;
+
+/**
+ * When the UI chunk cannot be loaded (a deployment pruned under an open page, a network that
+ * dropped it): a plain line of text over the page, so a veiled or refused session is never an empty,
+ * inert page with nothing said. Deliberately bare — no styling beyond what keeps it readable.
+ */
+export function mountFallbackNotice(doc: Document): HTMLElement {
+  const lang = doc.documentElement.lang?.trim().toLowerCase().startsWith('is') ? 'is' : 'en';
+  const text = FALLBACK_TEXT[lang];
+  const host = doc.createElement('div');
+  host.setAttribute('data-eldra-preview-session', '');
+  const root = host.attachShadow({ mode: 'open' });
+  const box = doc.createElement('div');
+  box.setAttribute('role', 'alert');
+  box.setAttribute('lang', lang);
+  box.setAttribute('tabindex', '-1');
+  box.setAttribute(
+    'style',
+    'position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;gap:12px;' +
+      'align-items:center;justify-content:center;padding:16px;background:#fff;color:#1f2328;' +
+      'font:16px/1.5 system-ui,sans-serif;text-align:center'
+  );
+  const line = doc.createElement('p');
+  const exit = doc.createElement('a');
+  exit.href = PREVIEW_SESSION_EXIT_PATH;
+  exit.textContent = text.exit;
+  box.append(line, exit);
+  root.append(box);
+  doc.body.append(host);
+  watch(
+    () => state.status,
+    (status) => {
+      const shown = status === 'pending' || isPreviewSessionRefused(status);
+      box.hidden = !shown;
+      if (status === 'pending' || status === 'expired' || status === 'unavailable') {
+        line.textContent = text[status];
+      }
+      if (isPreviewSessionRefused(status)) box.focus();
+    },
+    { immediate: true, flush: 'sync' }
+  );
+  return host;
+}
+
+/** How long the drafts may take to arrive before the session says it is unavailable. */
+export const PREVIEW_SESSION_DRAFT_TIMEOUT_MS = 15_000;
+
+/**
+ * Wait for the session's re-reads to settle, then bring the veil down — or, when they have not
+ * settled within `timeoutMs`, end in the unavailable notice. Never the published page either way.
+ */
+export async function settlePreviewSessionDrafts(
+  reads: () => Promise<unknown>,
+  afterRender: () => Promise<unknown>,
+  timeoutMs: number = PREVIEW_SESSION_DRAFT_TIMEOUT_MS
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs);
+  });
+  const settled = reads().then(
+    () => 'settled' as const,
+    () => 'settled' as const
+  );
+  const outcome = await Promise.race([settled, timedOut]);
+  clearTimeout(timer);
+  if (outcome === 'timeout') {
+    refuse({ status: 'unavailable', errorId: null });
+    return;
+  }
+  await afterRender();
+  markPreviewSessionDraftShown();
 }
 
 /**
