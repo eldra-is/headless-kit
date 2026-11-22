@@ -312,6 +312,7 @@ export type {
   TabsItem,
   TabsPart,
   TabsProps,
+  TabsSize,
   TabsVariant,
 } from './components/tabs/types';
 export type { TablerIconProps } from './components/tabler-icon/types';
