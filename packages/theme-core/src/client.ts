@@ -9,6 +9,7 @@ import type {
   EntryDoc,
   EntryList,
   EntryQuery,
+  EldraSessionPreviewOptions,
   PageMeta,
   ResolveEntryListBody,
 } from './clientTypes';
@@ -36,10 +37,17 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   const stegaEnabled = opts.stega === true;
   const defaultLocale = opts.defaultLocale ?? null;
   let previewToken: string | null = null;
+  /** The draft preview session's proxy (`enableSessionPreview`), or `null` outside one. */
+  let sessionProxyBase: string | null = null;
   const requestErrorListeners = new Set<(error: EldraClientError) => void>();
 
-  function buildUrl(path: string, query?: EntryQuery, extra?: Record<string, string>): URL {
-    const url = new URL(gatewayUrl + path);
+  function buildUrl(
+    path: string,
+    query?: EntryQuery,
+    extra?: Record<string, string>,
+    base: string = gatewayUrl
+  ): URL {
+    const url = new URL(base + path);
     if (query?.locale !== undefined) url.searchParams.set('locale', query.locale);
     if (query?.depth !== undefined) url.searchParams.set('depth', String(query.depth));
     if (query?.page !== undefined) url.searchParams.set('page', String(query.page));
@@ -54,7 +62,11 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
   async function request(url: URL, init?: RequestInit): Promise<Response> {
     const headers = new Headers(init?.headers);
     headers.set('X-Org-Id', opts.orgId);
-    if (previewToken !== null) headers.set('X-Preview-Token', previewToken);
+    // A session preview never carries a preview token, on any read: the router holds the
+    // session's credential, and a token here would be a second one the page should not have.
+    if (previewToken !== null && sessionProxyBase === null) {
+      headers.set('X-Preview-Token', previewToken);
+    }
     if (opts.buildToken) headers.set('X-Eldra-Build-Token', opts.buildToken);
     const merged: RequestInit = { ...init, headers };
     if (previewToken !== null) merged.cache = 'no-store'; // draft responses must never be cached
@@ -72,6 +84,57 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     if (!res.ok) {
       const error = new EldraClientError(res.status, res.statusText, url.pathname);
       if (previewToken === tokenAtRequest) notifyRequestError(error);
+      throw error;
+    }
+    return res;
+  }
+
+  /**
+   * One CMS read: through the session's same-origin proxy when a draft preview session is on,
+   * otherwise exactly the read it has always been.
+   */
+  async function cmsRequest(
+    path: string,
+    query?: EntryQuery,
+    init?: RequestInit
+  ): Promise<Response> {
+    if (sessionProxyBase === null) return request(buildUrl(path, query), init);
+    return sessionRequest(buildUrl(path, query, undefined, sessionProxyBase), init);
+  }
+
+  /**
+   * A draft read through the preview router's proxy. A fresh header set — the caller's own
+   * (`content-type` on the one POST) and `accept`, never `X-Org-Id`, `X-Preview-Token` or the build
+   * token: the router adds the organisation and the session itself, from the HttpOnly cookie
+   * `credentials: 'same-origin'` sends. `no-store`, because a draft must never be cached.
+   */
+  async function sessionRequest(url: URL, init?: RequestInit): Promise<Response> {
+    const headers = new Headers(init?.headers);
+    headers.set('accept', 'application/json');
+    const merged: RequestInit = {
+      ...init,
+      headers,
+      cache: 'no-store',
+      credentials: 'same-origin',
+    };
+    const res = await fetchWithRetry(doFetch, url.toString(), merged, retryPolicy);
+    if (!res.ok) {
+      const error = new EldraClientError(res.status, res.statusText, url.pathname, {
+        errorId: await readErrorId(res),
+        sessionPreview: true,
+      });
+      notifyRequestError(error);
+      throw error;
+    }
+    // The router refuses a CMS answer that is not a draft already; asking again here keeps a
+    // published answer from ever passing for a draft, whatever served this page.
+    if (res.headers.get('eldra-preview') !== 'draft') {
+      void res.body?.cancel().catch(() => undefined);
+      const error = new EldraClientError(502, 'Bad Gateway', url.pathname, {
+        errorId: 'PREVIEW_UPSTREAM_NOT_PREVIEW',
+        sessionPreview: true,
+      });
+      notifyRequestError(error);
       throw error;
     }
     return res;
@@ -129,8 +192,9 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
       },
     },
     async getEntries(schemaIdentifier, query) {
-      const res = await request(
-        buildUrl(`/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry`, query)
+      const res = await cmsRequest(
+        `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry`,
+        query
       );
       const list = (await res.json()) as Omit<EntryList, 'data'> & { data?: EntryDoc[] | null };
       if (list.data !== undefined && list.data !== null && !Array.isArray(list.data)) {
@@ -142,34 +206,28 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
       };
     },
     async getEntry(schemaIdentifier, entryId, query) {
-      const res = await request(
-        buildUrl(
-          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/${encodeURIComponent(entryId)}`,
-          query
-        )
+      const res = await cmsRequest(
+        `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/${encodeURIComponent(entryId)}`,
+        query
       );
       return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
     },
     async getEntryByUniqueField(schemaIdentifier, fieldId, value, query) {
-      const res = await request(
-        buildUrl(
-          `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/unique/${encodeURIComponent(fieldId)}/${encodeURIComponent(value)}`,
-          query
-        )
+      const res = await cmsRequest(
+        `/cms/v1/schema/${encodeURIComponent(schemaIdentifier)}/entry/unique/${encodeURIComponent(fieldId)}/${encodeURIComponent(value)}`,
+        query
       );
       return maybeStega((await res.json()) as EntryDoc, query?.locale ?? null);
     },
     async resolveEntryListField(entryId, fieldId, query) {
-      const res = await request(
-        buildUrl(
-          `/cms/v1/entry/${encodeURIComponent(entryId)}/list/${encodeURIComponent(fieldId)}`,
-          query
-        )
+      const res = await cmsRequest(
+        `/cms/v1/entry/${encodeURIComponent(entryId)}/list/${encodeURIComponent(fieldId)}`,
+        query
       );
       return (await res.json()) as Record<string, unknown>;
     },
     async resolveEntryList(body, query) {
-      const res = await request(buildUrl('/cms/v1/entry-list/resolve', query), {
+      const res = await cmsRequest('/cms/v1/entry-list/resolve', query, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body satisfies ResolveEntryListBody),
@@ -194,6 +252,12 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     get previewEnabled() {
       return previewToken !== null;
     },
+    enableSessionPreview(options) {
+      sessionProxyBase = sameOriginProxyBase(options);
+    },
+    get sessionPreviewEnabled() {
+      return sessionProxyBase !== null;
+    },
     onRequestError(listener) {
       requestErrorListeners.add(listener);
       return () => {
@@ -202,6 +266,40 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     },
     encodeEntryDataStega,
   };
+}
+
+/**
+ * The session proxy's base, checked: absolute, on the page's own origin (when there is a page), with
+ * no query or fragment, trailing slashes stripped. The reads it serves carry the session cookie, so
+ * a base anywhere else is a mistake that must fail loudly rather than send them there.
+ */
+function sameOriginProxyBase(options: EldraSessionPreviewOptions): string {
+  let url: URL;
+  try {
+    url = new URL(options.proxyBase);
+  } catch {
+    throw new TypeError('[eldra] enableSessionPreview: proxyBase must be an absolute URL');
+  }
+  const pageOrigin = (globalThis as { location?: { origin?: unknown } }).location?.origin;
+  if (typeof pageOrigin === 'string' && pageOrigin !== 'null' && url.origin !== pageOrigin) {
+    throw new TypeError("[eldra] enableSessionPreview: proxyBase must be on the page's own origin");
+  }
+  if (url.search !== '' || url.hash !== '') {
+    throw new TypeError('[eldra] enableSessionPreview: proxyBase takes no query or fragment');
+  }
+  return stripTrailingSlashes(`${url.origin}${url.pathname}`);
+}
+
+/** A refusal's `errorId` from its `application/problem+json` body, or `null`. Never throws. */
+async function readErrorId(res: Response): Promise<string | null> {
+  try {
+    const body = (await res.json()) as unknown;
+    const errorId =
+      typeof body === 'object' && body !== null ? (body as { errorId?: unknown }).errorId : null;
+    return typeof errorId === 'string' && errorId !== '' ? errorId : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

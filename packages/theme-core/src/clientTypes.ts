@@ -47,13 +47,43 @@ export interface EldraClientOptions {
 export class EldraClientError extends Error {
   readonly status: number;
   readonly path: string;
+  /**
+   * The refusal's `errorId`, when the answer named one. Read only from a draft preview session's
+   * reads (`enableSessionPreview`), where the preview router answers `application/problem+json` and
+   * the id says which notice to show (`SITE_PREVIEW_SESSION_EXPIRED`, `_REVOKED`, …). `null`
+   * everywhere else: an ordinary read's failure body is never read.
+   */
+  readonly errorId: string | null;
+  /** Whether the failed request was a draft preview session read through the same-origin proxy. */
+  readonly sessionPreview: boolean;
 
-  constructor(status: number, statusText: string, path: string) {
+  constructor(
+    status: number,
+    statusText: string,
+    path: string,
+    details?: { errorId?: string | null; sessionPreview?: boolean }
+  ) {
     super(`[eldra] gateway request failed: ${status} ${statusText} for ${path}`);
     this.name = 'EldraClientError';
     this.status = status;
     this.path = path;
+    this.errorId = details?.errorId ?? null;
+    this.sessionPreview = details?.sessionPreview === true;
   }
+}
+
+/**
+ * A draft preview session (`enableSessionPreview`): the page is served by Eldra's preview router on
+ * a host of its own, and the router holds the session's credential in an HttpOnly cookie.
+ */
+export interface EldraSessionPreviewOptions {
+  /**
+   * Where the router's draft read proxy lives: an absolute URL **on the page's own origin** (the
+   * router serves it at `/__eldra/gateway`), with no trailing path beyond it. A gateway path is
+   * appended without its `/api` prefix, exactly as `gatewayUrl` takes it. Anything that is not the
+   * page's own origin is refused, because the reads carry the session cookie.
+   */
+  proxyBase: string;
 }
 
 export interface PageMeta {
@@ -166,6 +196,22 @@ export interface EldraClient {
   enablePreview(token: string): void; // switches to draft perspective (X-Preview-Token + no-store)
   disablePreview(): void;
   readonly previewEnabled: boolean;
+  /**
+   * Switch the CMS reads to a draft preview session's same-origin proxy, for good: every
+   * `getEntries`/`getEntry`/`getEntryByUniqueField`/`resolveEntryListField`/`resolveEntryList` goes
+   * to `proxyBase` + the gateway path, with `cache: 'no-store'`, `credentials: 'same-origin'` and
+   * **no credential header** (no `X-Org-Id`, `X-Preview-Token` or build token; the router adds what
+   * Core needs). A CMS answer without `Eldra-Preview: draft` is refused (`502`,
+   * `PREVIEW_UPSTREAM_NOT_PREVIEW`) rather than shown, so a published answer never passes for a
+   * draft. Catalog reads stay on `gatewayUrl`, published and unchanged. From then on no request
+   * carries `X-Preview-Token`, whatever `enablePreview` is given.
+   *
+   * **Optional**, like `onRequestError`: a hand-written client predates it, and a caller that cannot
+   * find it has no session preview to offer.
+   */
+  enableSessionPreview?(options: EldraSessionPreviewOptions): void;
+  /** Whether `enableSessionPreview` has been called. Optional for the same reason. */
+  readonly sessionPreviewEnabled?: boolean;
   /**
    * Subscribe to failed gateway requests; returns an unsubscribe.
    *

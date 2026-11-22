@@ -7,6 +7,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **`defaultCurrencyOf(commerce)` (WS-1399).** The currency pages are built in: `defaultCurrency` (contract 6.22.0), else the first of a `currencies` list without the store's own currency, else `currency`. `resolveVisitorCurrency` and `offeredCurrencies` take that default as `base`.
 - **Currencies (WS-1391).** `SELLING_CURRENCIES`, `currencyForCountry(country)` (one table, country code to selling currency), `countryFromHeader(value)`, `VISITOR_COUNTRY_PATH`, `resolveVisitorCurrency({ base, offered, remembered, country })` (the remembered choice, then the visitor's country, then the store's own currency, each only when offered) and `offeredCurrencies(base, listed)`.
+- **`enableSessionPreview({ proxyBase })` (WS-1303).** For a draft preview session on the preview
+  router's host: the CMS reads go same-origin to `proxyBase` (the router's `/__eldra/gateway`) with
+  `cache: 'no-store'`, `credentials: 'same-origin'` and no credential header, and a CMS answer without
+  `Eldra-Preview: draft` is refused (502, `PREVIEW_UPSTREAM_NOT_PREVIEW`). Catalog reads are
+  unchanged, and no request carries `X-Preview-Token` once it is on. `EldraClientError` gains
+  `errorId` (read from a session read's refusal) and `sessionPreview`. A client that never calls it
+  behaves exactly as before.
+
 - **`getTypeScriptDefinitions({ sdkAugmentation })` (WS-434, contract 6.1.0).** `true` sends
   `sdkAugmentation=true`, asking the gateway to append the `declare module '@eldrajs/sdk'` block that
   fills `EldraProductExtensions`, so product extensions are typed. Off by default: without it the
