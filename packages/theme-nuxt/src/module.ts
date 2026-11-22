@@ -36,6 +36,7 @@ import eldraTheme, {
   type EldraThemeOptions,
   type ManifestRoute,
   type ManifestTemplateRoles,
+  type ThemeManifestCapabilities,
 } from '@eldrajs/vite-plugin-theme';
 import type { LayoutBreakpoints } from '@eldrajs/theme-core/layout';
 import { catalogDocRouteRefs, listCatalogDocs, type CatalogRouteKind } from './runtime/catalog';
@@ -174,6 +175,20 @@ interface NitroInitContext {
   options: { output: { publicDir: string } };
 }
 
+/**
+ * What this runtime can do that Studio offers only to a deployment that has it: a draft preview
+ * session (`./runtime/previewSession.ts`).
+ */
+const THEME_NUXT_CAPABILITIES: ThemeManifestCapabilities = { draftPreview: 1 };
+
+/**
+ * Whether the theme manifest declares `THEME_NUXT_CAPABILITIES`. **Off until Core's manifest ingest
+ * accepts a `capabilities` key**: site-service decodes the manifest with unknown fields disallowed,
+ * so a manifest carrying it fails every deploy on today's Core. Turned on in the release after
+ * Core's; until then Studio cannot tell this runtime has the capability from the manifest.
+ */
+const DECLARE_MANIFEST_CAPABILITIES: boolean = false;
+
 const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@eldrajs/theme-nuxt',
@@ -204,6 +219,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // whatever is on it by the time they run, not a snapshot taken here.
     const themeOptions: EldraThemeOptions = {
       framework: 'nuxt',
+      capabilities: DECLARE_MANIFEST_CAPABILITIES ? THEME_NUXT_CAPABILITIES : undefined,
       routes: options.routes,
       customPages: options.customPages,
       templates: options.templates,

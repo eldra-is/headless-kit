@@ -99,6 +99,38 @@ handling inside the preview iframe. `@eldrajs/theme-vue`'s `useEldraPreview`/`st
 `@eldrajs/theme-nuxt`'s generated CSP `frame-ancestors` header are what actually wire a theme up to
 receive it; a non-Vue binding would call the same bridge and overlay functions directly.
 
+## Draft preview sessions
+
+Studio's **Preview** and its share links open the theme's own deployment on a host of the preview
+router's (`p-<session>.previews-{env}.eldra.dev`), not in the builder's iframe. `@eldrajs/theme-nuxt`
+renders the organisation's drafts there, client-side, with nothing for the theme to write:
+
+- **Detection** (`src/runtime/previewSession.ts`): the page is a session when the router's
+  `<meta name="eldra-preview" content="session">` is in the document, or when the host has the
+  session shape. A server render and a prerender never are; every other page, Studio's iframe
+  included, runs exactly as before.
+- **Reads.** `@eldrajs/theme-core`'s `enableSessionPreview({ proxyBase })` sends the five CMS reads
+  same-origin to the router's `/__eldra/gateway/*`, `no-store` and `credentials: 'same-origin'`, with
+  no credential header (the router holds the session in an HttpOnly cookie and adds `X-Org-Id` and
+  `X-Preview-Session` itself). A CMS answer without `Eldra-Preview: draft` is refused rather than
+  shown. Catalog reads stay on the gateway, published. No request ever carries `X-Preview-Token`.
+- **Routes.** `useEldraPage()` answers no route from the build: the published payload only hydrates
+  the prerendered page, a navigation reads the draft, and a page that exists only as a draft renders
+  (opened directly, the host serves the build's not-found document and the app resolves it).
+- **What a visitor sees.** The published prerender paints first, under a veil (`aria-busy` on the
+  app, a "loading" line that appears only after half a second, no focus trap) that comes down when
+  the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A refused
+  session (401: invalid, revoked, expired; 403, 502, 503: unavailable) removes the page and shows a
+  notice instead; published content is never the fallback. The copy is Icelandic or English, after
+  the page's language. The UI is plain DOM in a shadow root, outside the Vue app.
+- **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
+- **Design tokens** are the build's until site-service serves draft tokens (WS-1299).
+
+A theme adopts it by rebuilding on the `@eldrajs/theme-nuxt` release that has it and redeploying.
+The manifest will say so with `capabilities: { draftPreview: 1 }` once Core accepts the key
+(`@eldrajs/vite-plugin-theme`'s `EldraThemeOptions.capabilities`; off in `theme-nuxt` until then,
+because Core decodes the manifest strictly).
+
 ## Running the starter
 
 ```bash

@@ -22,6 +22,7 @@ import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
 import { resolveBridgeOrigins } from './origins';
+import { startPreviewSession } from './previewSession';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
 
@@ -66,6 +67,16 @@ export default defineNuxtPlugin({
       defaultLocale: storeLocales?.default ?? routing.default ?? null,
     });
     const preview = createEldraPreviewState();
+    /**
+     * A draft preview session (`./previewSession.ts`), decided before anything renders: from here
+     * on the client's CMS reads go to the preview router's same-origin proxy, and `useEldraPage`
+     * answers no route from the build. Browser only; outside a session nothing changes.
+     */
+    const previewSession =
+      import.meta.client &&
+      startPreviewSession(client, {
+        onHydrated: (done) => nuxtApp.hooks.hookOnce('app:suspense:resolve', done),
+      });
     // Lazily, every time: `$router` is installed by Nuxt's own router plugin and this one may be
     // ordered before it. Nothing reads the locale state during plugin setup, so a getter is enough
     // — and it keeps the state honest after a client navigation, which is the whole point of it.
@@ -126,9 +137,12 @@ export default defineNuxtPlugin({
     // synchronously (`./staticRoutes.ts`, and `useEldraPage`'s `getCachedData`). It is one cached
     // fetch of a file Nuxt's own payload plugin asks for anyway, and having it early is the
     // difference between answering an unknown route in the same tick and answering it a tick late.
-    if (import.meta.client) primePrerenderedRoutes();
+    // A session answers no route from the build, so it has no use for the list.
+    if (import.meta.client && !previewSession) primePrerenderedRoutes();
 
-    if (import.meta.client && window.parent !== window) {
+    // A session is not Studio's canvas: its credential is the router's, and the bridge's preview
+    // token is never taken.
+    if (import.meta.client && !previewSession && window.parent !== window) {
       const allowedOrigins = resolveBridgeOrigins(cfg.studioOrigins, document.referrer);
       if (allowedOrigins.length === 0) {
         console.warn('[eldra] preview disabled: parent origin is not an allowed Studio origin');

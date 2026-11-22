@@ -7,6 +7,14 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **A store's own currency can be off (WS-1399).** `commerce` on `runtimeConfig.public.eldra` carries `defaultCurrency` when it is not the store's own `currency`, and `currencies` is cleaned with the default first. A store selling in its own currency gets the same config as before.
 - **Selling in more than one currency (WS-1391).** `commerce` on `runtimeConfig.public.eldra` carries `currencies`, the currencies the store offers with its own first, when it offers more than one (a one-currency store's config is unchanged). New server route `GET /_eldra/visitor` answers `{ country }` from Cloudflare's `CF-IPCountry` header, `private, no-store`, so a prerendered page can start a first-time visitor in their country's currency; it answers `null` off Cloudflare.
+- **Draft preview sessions (WS-1303).** On the preview router's session host (its
+  `<meta name="eldra-preview" content="session">`, or a `p-<session>.previews-{env}.eldra.dev` host)
+  the theme renders drafts read through the router's same-origin proxy: no route is answered from
+  the build, a draft-only page renders, the published prerender is veiled until the draft is on
+  screen, an exit banner links to `/__eldra/preview/exit`, and a refused session shows an
+  expired or unavailable notice in Icelandic or English, never the published page. Commerce reads
+  stay published. Outside a session nothing changes. See `docs/themes.md`, "Draft preview sessions".
+
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds
   carry the campaign a visitor came from (`utm_*` tags only, one `localStorage` key, 30 days). New
