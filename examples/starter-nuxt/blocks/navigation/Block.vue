@@ -270,6 +270,8 @@ const cartHref = computed(() => (cartDrawerAvailable.value ? undefined : '/cart'
 const cartPopupType = computed(() => (cartDrawerAvailable.value ? 'dialog' : undefined));
 const cartAccessibleName = computed(() => {
   const count = cartCount.value;
+  // A cart that could not be read has no count to say.
+  if (mounted.value && storefront.cart.loadFailed.value) return t('header.cart');
   if (count === 0) return t('header.cartEmpty');
   if (count === 1) return t('header.cartOne');
   return t('header.cartMany', { count });

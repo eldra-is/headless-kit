@@ -124,7 +124,8 @@
     "wishlistOne": "Wishlist, 1 item",
     "wishlistMany": "Wishlist, {count} items",
     "viewAll": "View all",
-    "viewAllOf": "View all {label}"
+    "viewAllOf": "View all {label}",
+    "cart": "Cart"
   },
   "editor": {
     "addLink": "Add a link"

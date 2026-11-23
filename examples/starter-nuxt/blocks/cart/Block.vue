@@ -253,6 +253,7 @@ const DRAWER_CLASSES = {
         <div ref="emptyRoot" class="my-6 px-4">
           <LoadFailed />
           <EmptyState
+            v-if="!cart.loadFailed.value"
             plain
             :icon="ShoppingBagIcon"
             :title="emptyTitle || t('cart.emptyFallbackTitle')"
@@ -320,7 +321,10 @@ const DRAWER_CLASSES = {
           class="font-heading text-text @tablet:text-h2 flex flex-wrap items-baseline gap-3 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
         >
           {{ t('cart.title') }}
-          <span class="font-body text-muted text-base font-normal tracking-normal">
+          <span
+            v-if="!cart.loadFailed.value"
+            class="font-body text-muted text-base font-normal tracking-normal"
+          >
             {{ countLabel }}
           </span>
         </h1>
@@ -339,6 +343,7 @@ const DRAWER_CLASSES = {
       <div v-if="isEmpty" ref="emptyRoot">
         <LoadFailed />
         <EmptyState
+          v-if="!cart.loadFailed.value"
           :icon="ShoppingBagIcon"
           :heading-level="2"
           :title="emptyTitle || t('cart.emptyFallbackTitle')"

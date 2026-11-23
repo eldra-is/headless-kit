@@ -124,7 +124,8 @@
     "wishlistOne": "Óskalisti, 1 vara",
     "wishlistMany": "Óskalisti, {count} vörur",
     "viewAll": "Sjá allt",
-    "viewAllOf": "Sjá allt: {label}"
+    "viewAllOf": "Sjá allt: {label}",
+    "cart": "Karfa"
   },
   "editor": {
     "addLink": "Bæta við tengli"
