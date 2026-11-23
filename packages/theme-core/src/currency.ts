@@ -71,7 +71,7 @@ export function currencyForCountry(country: string | null | undefined): SellingC
 }
 
 export interface VisitorCurrencyInput {
-  /** The shop's own currency, what every page is built in. */
+  /** The shop's default currency (`defaultCurrencyOf`): what every page is built in. */
   base: string;
   /** The currencies the shop shows, `base` first. */
   offered: readonly string[];
@@ -81,7 +81,7 @@ export interface VisitorCurrencyInput {
   country?: string | null;
 }
 
-/** Remembered choice, then the visitor's country, then the shop's own currency: each only if offered. */
+/** Remembered choice, then the visitor's country, then the shop's default: each only if offered. */
 export function resolveVisitorCurrency(input: VisitorCurrencyInput): string {
   const offered = new Set(input.offered);
   if (input.remembered && offered.has(input.remembered)) return input.remembered;
@@ -90,7 +90,25 @@ export function resolveVisitorCurrency(input: VisitorCurrencyInput): string {
   return input.base;
 }
 
-/** Selling currencies only, no repeats, `base` first; a list without `base` is not trusted and answers `[base]`. */
+/** What pages are built in: `defaultCurrency`, else (before contract 6.22.0) the first of a `currencies` without `currency`, else `currency`. */
+export function defaultCurrencyOf(commerce: {
+  currency: string;
+  currencies?: readonly unknown[] | null;
+  defaultCurrency?: unknown;
+}): string {
+  const listed = Array.isArray(commerce.currencies) ? commerce.currencies : [];
+  const candidate = listed.includes(commerce.currency) ? undefined : listed[0];
+  for (const code of [commerce.defaultCurrency, candidate]) {
+    if (isSellingCurrency(code)) return code;
+  }
+  return commerce.currency;
+}
+
+function isSellingCurrency(code: unknown): code is SellingCurrency {
+  return (SELLING_CURRENCIES as readonly unknown[]).includes(code);
+}
+
+/** Selling currencies only, no repeats, `base` (the default) first; a list without `base` is not trusted and answers `[base]`. */
 export function offeredCurrencies(
   base: string,
   listed: readonly unknown[] | null | undefined

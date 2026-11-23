@@ -194,14 +194,16 @@ export interface EldraOrganizationFeature {
  * generated `contract.ts` augmentation.
  */
 export interface EldraOrganizationCommerce {
-  /** ISO 4217 code every catalog price is quoted in, e.g. `ISK`. */
+  /** The shop's own currency, ISO 4217, e.g. `ISK`: offered or not, every product has a price in it. */
   currency: string;
   /** Prices already contain VAT; a storefront shows them as they are. */
   taxInclusivePricing: boolean;
   /** Fraction, e.g. `0.24` — applies to shipping and to products without their own rate. */
   defaultTaxRate: number;
-  /** Contract 6.21.0: the currencies the storefront may offer, `currency` first. */
+  /** Contract 6.21.0: the currencies the storefront may offer; `currency` first while it is offered. */
   currencies?: string[];
+  /** Contract 6.22.0: what pages are built in and a visitor starts in, the first of `currencies`. */
+  defaultCurrency?: string;
 }
 
 /** One of the organisation's payment providers (contract 6.20.0). */

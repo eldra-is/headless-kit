@@ -228,7 +228,9 @@ preview bridge. See [examples/starter-nuxt](../../examples/starter-nuxt) for a f
 
 The module reads the organisation's commerce settings once, during the build, and puts them on the
 runtime config beside the gateway URL and the org id. `StoreCommerce` is exported for exactly this,
-so the key's shape is not re-declared per theme:
+so the key's shape is not re-declared per theme. Beside `currency` (the store's own) it may carry
+`currencies` (what the storefront offers, the default first, when more than one) and
+`defaultCurrency` (what pages are built in, when it is not `currency`: the store turned its own off):
 
 ```ts
 import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';

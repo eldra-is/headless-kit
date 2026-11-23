@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countryFromHeader,
   currencyForCountry,
+  defaultCurrencyOf,
   offeredCurrencies,
   resolveVisitorCurrency,
 } from '../currency';
@@ -75,5 +76,25 @@ describe('countryFromHeader', () => {
     expect(countryFromHeader('XX')).toBeNull();
     expect(countryFromHeader('T1')).toBeNull();
     expect(countryFromHeader(undefined)).toBeNull();
+  });
+});
+
+describe('defaultCurrencyOf', () => {
+  it('takes defaultCurrency when the answer carries it', () => {
+    expect(defaultCurrencyOf({ currency: 'ISK', defaultCurrency: 'EUR' })).toBe('EUR');
+  });
+
+  it('takes the first offered currency when the store currency is not offered', () => {
+    expect(defaultCurrencyOf({ currency: 'ISK', currencies: ['USD', 'EUR'] })).toBe('USD');
+  });
+
+  it('keeps the store currency while it is offered or nothing is listed', () => {
+    expect(defaultCurrencyOf({ currency: 'ISK', currencies: ['EUR', 'ISK'] })).toBe('ISK');
+    expect(defaultCurrencyOf({ currency: 'ISK' })).toBe('ISK');
+  });
+
+  it('ignores a default that is not a selling currency', () => {
+    expect(defaultCurrencyOf({ currency: 'ISK', defaultCurrency: 'CHF' })).toBe('ISK');
+    expect(defaultCurrencyOf({ currency: 'ISK', currencies: [42] })).toBe('ISK');
   });
 });

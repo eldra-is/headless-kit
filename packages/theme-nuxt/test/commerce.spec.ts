@@ -143,3 +143,41 @@ describe('readStoreCommerce', () => {
     ).resolves.toEqual(ISK);
   });
 });
+
+describe('readStoreCommerce with the store currency turned off (WS-1399)', () => {
+  it('passes on the default and the offered currencies, the default first', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['EUR', 'USD'], defaultCurrency: 'EUR' })),
+        vi.fn()
+      )
+    ).resolves.toEqual({ ...ISK, currencies: ['EUR', 'USD'], defaultCurrency: 'EUR' });
+  });
+
+  it('carries the default for a store offering one other currency', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['EUR'], defaultCurrency: 'EUR' })),
+        vi.fn()
+      )
+    ).resolves.toEqual({ ...ISK, defaultCurrency: 'EUR' });
+  });
+
+  it('takes the first currency as the default from an answer without defaultCurrency', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['USD', 'EUR'] })),
+        vi.fn()
+      )
+    ).resolves.toEqual({ ...ISK, currencies: ['USD', 'EUR'], defaultCurrency: 'USD' });
+  });
+
+  it('leaves the default out when it is the store currency', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['ISK', 'EUR'], defaultCurrency: 'ISK' })),
+        vi.fn()
+      )
+    ).resolves.toEqual({ ...ISK, currencies: ['ISK', 'EUR'] });
+  });
+});

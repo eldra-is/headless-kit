@@ -1567,3 +1567,57 @@ describe('product-detail block', () => {
     });
   });
 });
+
+describe('with the store currency turned off (WS-1399)', () => {
+  function storefrontOffering(patch: Partial<StorefrontProduct>) {
+    const source = createDemoStorefront({
+      commerce: {
+        currency: 'USD',
+        taxInclusivePricing: false,
+        defaultTaxRate: 0,
+        currencies: ['EUR', 'GBP'],
+        defaultCurrency: 'EUR',
+      },
+    });
+    return {
+      ...source,
+      catalog: {
+        ...source.catalog,
+        product: (handle: Parameters<typeof source.catalog.product>[0]) => {
+          const result = source.catalog.product(handle);
+          return {
+            ...result,
+            data: computed(() => (result.data.value ? { ...result.data.value, ...patch } : null)),
+          };
+        },
+      },
+    } as ReturnType<typeof storefrontWith>;
+  }
+  const notSoldPrice = { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false };
+
+  it('offers the default currency, not the store currency, as the way out', async () => {
+    const storefront = storefrontOffering({ price: notSoldPrice });
+    storefront.currency.started.value = true;
+    storefront.currency.choose('GBP');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('GBP'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(addToCart(wrapper).text()).toBe('Shop in EUR');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.currency.active.value).toBe('EUR');
+  });
+
+  it('shows no way out in the default currency, and holds the button', async () => {
+    const storefront = storefrontOffering({ price: notSoldPrice });
+    storefront.currency.started.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(storefront.currency.active.value).toBe('EUR');
+    expect(wrapper.get('[data-eldra-not-sold]').text()).toBe('Not available in EUR.');
+    expect(addToCart(wrapper).text()).toBe('Not available in EUR');
+    expect(addToCart(wrapper).attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).not.toContain('Shop in');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});

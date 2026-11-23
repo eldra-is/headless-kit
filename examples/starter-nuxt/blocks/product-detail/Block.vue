@@ -263,11 +263,18 @@ const formattedPrice = computed(() =>
     : money.format(product.value.price.amount, product.value.price.currency)
 );
 
-/** No price in the visitor's currency: shown, but not for sale until they shop in the store's own. */
+/** No price in the visitor's currency: shown, but not for sale until they shop in the default. */
 const notSold = computed(() => product.value?.price.soldInCurrency === false);
 const shopperCurrency = computed(() => storefront.currency.active.value ?? '');
-const baseCurrency = computed(() => storefront.currency.base ?? '');
-const cartWillSwitch = computed(() => notSold.value && storefront.cart.lines.value.length > 0);
+const defaultCurrency = computed(() => storefront.currency.defaultCurrency ?? '');
+const inDefault = computed(() => shopperCurrency.value === defaultCurrency.value);
+// Every product has a price in the store's own currency, so only a default that is not it can lack one for real.
+const notSoldAnywhere = computed(
+  () => notSold.value && inDefault.value && defaultCurrency.value !== storefront.currency.base
+);
+const cartWillSwitch = computed(
+  () => notSold.value && !notSoldAnywhere.value && storefront.cart.lines.value.length > 0
+);
 
 /** Spec States, Sale row: 'The saving badge ("Save $32") is calculated from the two prices, never
  *  typed in.' Only a real sale counts — a `compareAt` at or below the current price is ignored, the
@@ -427,7 +434,8 @@ const cartBusy = computed(
 );
 
 const addToCartLabel = computed(() => {
-  if (notSold.value) return t('currency.shopIn', { currency: baseCurrency.value });
+  if (notSoldAnywhere.value) return t('currency.notSoldIn', { currency: defaultCurrency.value });
+  if (notSold.value) return t('currency.shopIn', { currency: defaultCurrency.value });
   if (soldOut.value) return t('product.notifyMe');
   if (isBackorder.value) return t('product.backorder');
   return t('product.addToCart', { price: formattedPrice.value });
@@ -514,8 +522,9 @@ watch(
  */
 async function primaryAction(): Promise<void> {
   if (notSold.value) {
-    // Already in the store currency (its product read failed): read the product again.
-    if (storefront.currency.active.value === storefront.currency.base) void productResult.refresh();
+    if (notSoldAnywhere.value) return;
+    // Already in the default (its product read failed): read the product again.
+    if (inDefault.value) void productResult.refresh();
     else storefront.currency.chooseBase();
     return;
   }
@@ -780,6 +789,7 @@ function tabValue(index: number): string {
                   size="lg"
                   block
                   :loading="cartBusy"
+                  :disabled="notSoldAnywhere"
                   :label="addToCartLabel"
                 >
                   <template v-if="soldOut" #leadingIcon>
@@ -804,7 +814,7 @@ function tabValue(index: number): string {
               </Button>
             </div>
             <p v-if="cartWillSwitch" class="text-muted text-body-sm -mt-2">
-              {{ t('currency.cartWillSwitch', { currency: baseCurrency }) }}
+              {{ t('currency.cartWillSwitch', { currency: defaultCurrency }) }}
             </p>
           </form>
 
