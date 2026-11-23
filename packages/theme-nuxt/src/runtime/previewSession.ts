@@ -152,7 +152,9 @@ export function markPreviewSessionHydrated(): void {
  * What a failed read says about the session, or `null` when it says nothing about it (a page the
  * drafts do not have is a `404` from Core, which is the theme's own not-found, not a refusal).
  * Only a session read through the proxy counts: a commerce read failing is the storefront's own
- * business.
+ * business. A `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED` is a not-found too: the router refuses a path
+ * it will not forward, which a typed address can make (a route value with `%` or `/` is sent
+ * encoded), and the published site would show its not-found page for it, not end anything.
  */
 export function previewSessionRefusal(
   error: unknown
@@ -160,9 +162,6 @@ export function previewSessionRefusal(
   if (!(error instanceof EldraClientError) || !error.sessionPreview) return null;
   if (error.status === 401) return { status: 'expired', errorId: error.errorId };
   if (error.status === 403 || error.status === 502 || error.status === 503) {
-    return { status: 'unavailable', errorId: error.errorId };
-  }
-  if (error.errorId === 'PREVIEW_GATEWAY_PATH_NOT_ALLOWED') {
     return { status: 'unavailable', errorId: error.errorId };
   }
   return null;
@@ -379,7 +378,11 @@ export function mountFallbackNotice(doc: Document): HTMLElement {
   return host;
 }
 
-/** How long the drafts may take to arrive before the session says it is unavailable. */
+/**
+ * How long the drafts may take to arrive before the session says it is unavailable, counted from
+ * the session's start (`startPreviewSession`), so it runs even when the app never finishes
+ * hydrating (a theme awaiting a read that hangs, so suspense never resolves).
+ */
 export const PREVIEW_SESSION_DRAFT_TIMEOUT_MS = 15_000;
 
 /**
@@ -460,6 +463,26 @@ export async function settlePreviewSessionSiteSettings(
 }
 
 /**
+ * The session's own deadline: still covered `PREVIEW_SESSION_DRAFT_TIMEOUT_MS` after it started,
+ * whatever the app is doing, and it ends in the unavailable notice — never a veil left up. Cleared
+ * as soon as the session leaves the veil.
+ */
+function startDraftDeadline(): void {
+  const timer = setTimeout(() => {
+    if (state.status === 'pending') refuse({ status: 'unavailable', errorId: null });
+  }, PREVIEW_SESSION_DRAFT_TIMEOUT_MS);
+  const stop = watch(
+    () => state.status,
+    (status) => {
+      if (status === 'pending') return;
+      clearTimeout(timer);
+      stop();
+    },
+    { flush: 'sync' }
+  );
+}
+
+/**
  * Turn the page into a draft preview session when it is one: the client's CMS reads go to the
  * router's proxy, a refusal on any of them ends the session on screen, and the veil, the exit
  * banner and the notices are mounted. Returns whether it did. Browser only.
@@ -489,6 +512,7 @@ export function startPreviewSession(
   }
   client.enableSessionPreview({ proxyBase: `${win.location.origin}${PREVIEW_SESSION_PROXY_PATH}` });
   state.status = 'pending';
+  startDraftDeadline();
   replayCoveredFocus(win.document);
   client.onRequestError?.((error) => {
     const refusal = previewSessionRefusal(error);

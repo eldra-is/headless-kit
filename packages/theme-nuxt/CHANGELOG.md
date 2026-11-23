@@ -33,7 +33,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **A session lifts the preview router's early hide (WS-1376).** The router hides a session
   document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the
-  published prerender is never painted before the veil. The kit sets it as soon as its veil (or the built-in fallback
+  published prerender shows only blurred, under the veil, never as the page itself. The kit sets it as soon as its veil (or the built-in fallback
   notice) is mounted and covering the page, and on every way the session leaves the veil in case
   it never mounted: the draft shown, a refusal, the 15 s bound, a render that failed (now the
   unavailable notice rather than a veil left up), or a client that cannot read drafts. A UI that
@@ -71,13 +71,20 @@ Release-please writes the generated notes from commit messages and does not repl
   router's same-origin proxy: no route is answered from the build, every async data entry the
   server filled is re-run once through the session after hydration (the theme's own `useAsyncData`
   CMS reads included; never an entry that did not run on load, such as an `immediate: false` submit),
-  bounded at 15 s before the unavailable notice, a
+  bounded at 15 s from the session's start (whether or not the app finishes hydrating) before the
+  unavailable notice, a
   draft-only page renders, the published prerender is veiled (once the kit's JavaScript has loaded)
   until the drafts are on screen, an exit banner links to `/__eldra/preview/exit`, and a refused
   session clears what it read and shows an expired or unavailable notice in Icelandic or English,
   never the published page. Commerce reads stay published. Outside a session nothing changes, and
-  the session UI is a chunk a storefront never loads. See `docs/themes.md`, "Draft preview
-  sessions", for which reads are covered.
+  the session UI is a chunk a storefront never loads. A CMS read the router refuses as
+  `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED` (a typed address with `%` or `/` in a route value) is a
+  not-found read, not the end of the session. See `docs/themes.md`, "Draft preview sessions", for
+  which reads are covered. **Not usable yet from this release:** Core refuses a session for a theme
+  whose manifest does not declare `draftPreview`, and this release does not declare it
+  (`DECLARE_MANIFEST_CAPABILITIES` is off). Preview works from the kit release that turns it on
+  (WS-1375), once site-service accepts the key everywhere; themes must then rebuild and deploy
+  again.
 
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds

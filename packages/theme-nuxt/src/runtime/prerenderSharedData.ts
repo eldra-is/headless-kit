@@ -25,6 +25,8 @@ import { defineNuxtPlugin } from 'nuxt/app';
  * `test/prerenderSharedData.spec.ts` runs the wrapper against Nuxt's own cache module, so such a
  * release fails the kit's tests first.
  */
+// A workaround for a Nuxt bug (a failed shared prerender read hands later routes `null`). The
+// upstream issue link is to come; remove this guard once the bug is fixed upstream.
 export default defineNuxtPlugin({
   name: 'eldra-prerender-shared-data',
   enforce: 'pre',

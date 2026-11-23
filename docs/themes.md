@@ -124,8 +124,9 @@ renders the organisation's drafts there, client-side.
   entry the server filled (the keys the payload carries a value for); entries the browser started on
   load are waited for, not run again. An entry that did not run on load (`immediate: false`: a form
   submit, a cart create) is never run by the session. The veil stays up until they have settled,
-  for at most 15 s; after that the session ends in the unavailable notice, never the published
-  page. So these are drafts:
+  for at most 15 s counted from the session's start (so it runs even when the app never finishes
+  hydrating: a theme awaiting a read that hangs, so suspense never resolves); after that the
+  session ends in the unavailable notice, never the published page. So these are drafts:
   - `useEldraPage()`, and every `useEldraPage()` mounted later (they share the route's async data);
   - every `useAsyncData` / `useFetch` whose handler reads through the kit's client
     (`useEldra().client.getEntries(...)`, `getEntry`, `getEntryByUniqueField`,
@@ -161,7 +162,7 @@ renders the organisation's drafts there, client-side.
   starter's `app/plugins/eldra-i18n.ts` watches `context.messages`). A failure, an unusable answer
   or one past the bound keeps the build's values and is never a refusal by itself: a site read's
   failure is not reported to the client's refusal listener (a router that does not forward a read
-  answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, which on a CMS read ends the session). The one
+  answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`). The one
   exception is a 401: the router refused the session itself, and clears its cookies as it does, so
   that refusal (expired, revoked) is the session's (`reportPreviewSessionSiteSettingError`), heard
   the moment that read fails, before any CMS read the router then refuses as invalid. Values are
@@ -174,7 +175,8 @@ renders the organisation's drafts there, client-side.
   `virtual:eldra/tokens.css` stays the build's; the layout's own style, later in the document, wins.
   In a session only, in a chunk an ordinary storefront never loads.
 
-- **What a visitor sees.** The published prerender is never painted: the router puts an early hide
+- **What a visitor sees.** The published prerender shows only blurred, under the kit's translucent
+  veil, never as the page itself: the router puts an early hide
   at the top of every session document (WS-1376): while `<html>` has no
   `data-eldra-preview-ready`, a 12 s animation keeps the body `visibility: hidden` (nothing else
   hides it: a theme that turns animations off shows the page at once, with the router's notice,
@@ -192,7 +194,10 @@ renders the organisation's drafts there, client-side.
   the body is still hidden (and whatever a theme's own rule does to the body later). Under the veil the app is `aria-busy` and inert; a
   "loading" line appears, and becomes a live region, only after half a second; the veil comes down
   when the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A
-  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable; the first refusal is
+  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable; a CMS read the
+  router answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED` — a typed address whose route value has a
+  `%` or `/` is sent encoded — is a not-found read, the theme's not-found page as on the published
+  site, never a refusal; the first refusal is
   the one shown: the router clears the session's cookies when it refuses one as expired or revoked,
   so the reads after it come back invalid, and never replace it) clears every async
   data entry, so neither the draft nor the published page stays in the document, makes the app
@@ -345,11 +350,13 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
 
 - **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
 
-A theme adopts it by rebuilding on the `@eldrajs/theme-nuxt` release that has it and redeploying, and
-by keeping its own CMS reads in the covered forms above. The manifest will say so with
-`capabilities: { draftPreview: 1 }` once Core accepts the key (`@eldrajs/vite-plugin-theme`'s
-`EldraThemeOptions.capabilities`; off in `theme-nuxt` until then, because Core decodes the manifest
-strictly).
+**Draft preview does not work from this release yet.** Core refuses a session for a theme whose
+manifest does not declare `capabilities: { draftPreview: 1 }`, and `theme-nuxt` does not declare it
+yet (`DECLARE_MANIFEST_CAPABILITIES` is off in `src/module.ts`: today's site-service decodes the
+manifest strictly, so the key would fail every deploy). Preview works only from the kit release
+that turns it on (WS-1375), which ships once a site-service that accepts the key is live in every
+environment; a theme then rebuilds on that release and deploys again, and keeps its own CMS reads
+in the covered forms above (`@eldrajs/vite-plugin-theme`'s `EldraThemeOptions.capabilities`).
 
 ## Running the starter
 

@@ -92,6 +92,9 @@ describe('which failures end a session', () => {
 
   it('a page the drafts do not have, and a commerce read, are not refusals', () => {
     expect(previewSessionRefusal(session(404))).toBeNull();
+    // A path the router will not forward (a typed address with `%` or `/` in a route value) is a
+    // not-found read: the theme shows its not-found page, as the published site would.
+    expect(previewSessionRefusal(session(404, 'PREVIEW_GATEWAY_PATH_NOT_ALLOWED'))).toBeNull();
     expect(
       previewSessionRefusal(new EldraClientError(503, 'x', '/catalog/v1/products'))
     ).toBeNull();

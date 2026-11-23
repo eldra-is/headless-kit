@@ -147,4 +147,44 @@ describe('the router’s early hide, without the veil', () => {
     );
     expect(session.usePreviewSession().status).toBe('ready');
   });
+
+  it('ends unavailable at the limit even when the app never finishes hydrating', async () => {
+    vi.useFakeTimers();
+    const session = await startSession();
+    // `onHydrated` is never called back: suspense never resolves, so nothing settles the drafts.
+    await vi.advanceTimersByTimeAsync(session.PREVIEW_SESSION_DRAFT_TIMEOUT_MS - 1);
+    expect(session.usePreviewSession().status).toBe('pending');
+    expect(ready()).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(session.usePreviewSession().status).toBe('unavailable');
+    expect(ready()).toBe(true);
+  });
+
+  it('a path the router will not forward does not end the session', async () => {
+    let listener: ((error: EldraClientError) => void) | undefined;
+    const session = await startSession({
+      onRequestError: (fn) => {
+        listener = fn;
+        return () => undefined;
+      },
+    });
+    const { EldraClientError: ClientError } = await import('@eldrajs/theme-core');
+    listener?.(
+      new ClientError(
+        404,
+        'Not Found',
+        '/__eldra/gateway/cms/v1/schema/page/entry/unique/path/a%25b',
+        {
+          errorId: 'PREVIEW_GATEWAY_PATH_NOT_ALLOWED',
+          sessionPreview: true,
+        }
+      )
+    );
+    expect(session.usePreviewSession().status).toBe('pending');
+    await session.settlePreviewSessionDrafts(
+      async () => undefined,
+      async () => undefined
+    );
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
 });
