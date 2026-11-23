@@ -93,7 +93,7 @@ async function readOrNull(
  * untrusted network response must never reach the generated CSS or the runtime context as if it
  * were real theme content.
  */
-function toResolvedDesignTokens(value: unknown): ThemeDesignTokens | null {
+export function toResolvedDesignTokens(value: unknown): ThemeDesignTokens | null {
   if (typeof value !== 'object' || value === null) return null;
   const record = value as { revision?: unknown; resolved?: unknown };
   if (typeof record.revision !== 'number' || !Number.isFinite(record.revision)) return null;

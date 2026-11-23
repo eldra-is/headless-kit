@@ -104,7 +104,7 @@ async function readOrNull(
  * as no answer at all, exactly like `toStoreCommerce`/`toStoreLocales` — half of an untrusted
  * network response must never reach the merge as if it were real theme content.
  */
-function toThemeMessages(value: unknown): ThemeMessages | null {
+export function toThemeMessages(value: unknown): ThemeMessages | null {
   if (typeof value !== 'object' || value === null) return null;
   const record = value as { defaultLocale?: unknown; locales?: unknown };
   if (typeof record.defaultLocale !== 'string' || record.defaultLocale === '') return null;

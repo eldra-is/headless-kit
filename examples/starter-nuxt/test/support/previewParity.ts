@@ -1,7 +1,16 @@
+import { normalizeThemeDesignTokens } from '@eldrajs/theme-core';
+import {
+  flattenMessages,
+  resolveMessageCatalogue,
+  type ThemeMessages,
+} from '@eldrajs/theme-core/i18n';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, join } from 'node:path';
-import { ORG_ID } from './mockGateway';
+import starterTokens from '../../tokens.json';
+import starterEnUs from '../../i18n/en-US.json';
+import starterIsIs from '../../i18n/is-IS.json';
+import { DEFAULT_LOCALE, ORG_ID, PREFIXED_LOCALE } from './mockGateway';
 import { coreRead, isCoreRead, type ContentVersion } from './previewParityContent';
 import { startStaticServer, type StaticServer } from './staticServer';
 
@@ -19,12 +28,44 @@ export interface ContentGateway {
   url: string;
   /** What a public read answers: `pinned` while the session's deployment is built, `next` after. */
   published: ContentVersion;
-  /** The resolved design-token catalog `/site/v1/design-tokens` answers, or `null` for a 404. */
-  designTokens: Record<string, unknown> | null;
+  /**
+   * The resolved design-token catalog `/site/v1/design-tokens` answers: what the site has saved.
+   * Core answers for every organisation with a site, so this is never a 404: before anything is
+   * saved it is the theme's own catalog (`SITE_DESIGN_TOKENS`).
+   */
+  designTokens: Record<string, unknown>;
+  /** What `/site/v1/theme-messages` answers, the same way (`SITE_THEME_MESSAGES`). */
+  themeMessages: ThemeMessages;
   /** `pathname + search` of every request answered from the draft perspective. */
   draftReads: string[];
   close(): Promise<void>;
 }
+
+/** The site settings the content gateway answers itself, as Core's web-gateway does. */
+const SITE_SETTINGS = new Set(['/site/v1/design-tokens', '/site/v1/theme-messages']);
+
+/** What Core answers for the site's design tokens before any is saved: the theme's own catalog. */
+export const SITE_DESIGN_TOKENS = normalizeThemeDesignTokens(starterTokens) as unknown as Record<
+  string,
+  unknown
+>;
+
+/**
+ * What Core answers for the site's theme texts before any is saved (`GetPublicThemeMessages`): the
+ * theme's own catalogue resolved over the organisation's locales, with no overrides.
+ */
+export const SITE_THEME_MESSAGES: ThemeMessages = resolveMessageCatalogue(
+  {
+    defaultLocale: DEFAULT_LOCALE,
+    locales: {
+      [DEFAULT_LOCALE]: flattenMessages(starterEnUs),
+      [PREFIXED_LOCALE]: flattenMessages(starterIsIs),
+    },
+  },
+  null,
+  [DEFAULT_LOCALE, PREFIXED_LOCALE],
+  DEFAULT_LOCALE
+);
 
 /**
  * The CMS half of a gateway, in both of Core's perspectives: a request carrying
@@ -36,7 +77,8 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
   const state: ContentGateway = {
     url: '',
     published: 'pinned',
-    designTokens: null,
+    designTokens: SITE_DESIGN_TOKENS,
+    themeMessages: SITE_THEME_MESSAGES,
     draftReads: [],
     close: () => Promise.resolve(),
   };
@@ -50,7 +92,7 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const draft = req.headers['x-preview-session'] !== undefined;
-    if (!isCoreRead(url.pathname) && url.pathname !== '/site/v1/design-tokens') {
+    if (!isCoreRead(url.pathname) && !SITE_SETTINGS.has(url.pathname)) {
       await forward(req, res, `${upstream}${url.pathname}${url.search}`);
       return;
     }
@@ -68,13 +110,14 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
       res.end(JSON.stringify({ error: 'missing org id' }));
       return;
     }
+    // Site settings are not drafts: Core reads the Site row, the same answer in both perspectives,
+    // never marked `Eldra-Preview: draft`.
     if (url.pathname === '/site/v1/design-tokens') {
-      res.statusCode = state.designTokens === null ? 404 : 200;
-      res.end(
-        JSON.stringify(
-          state.designTokens === null ? {} : { revision: 9, resolved: state.designTokens }
-        )
-      );
+      res.end(JSON.stringify({ revision: 9, resolved: state.designTokens }));
+      return;
+    }
+    if (url.pathname === '/site/v1/theme-messages') {
+      res.end(JSON.stringify(state.themeMessages));
       return;
     }
     if (draft) {

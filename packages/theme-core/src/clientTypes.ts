@@ -76,6 +76,9 @@ export class EldraClientError extends Error {
  * A draft preview session (`enableSessionPreview`): the page is served by Eldra's preview router on
  * a host of its own, and the router holds the session's credential in an HttpOnly cookie.
  */
+/** The site settings `getSiteSetting` reads. */
+export type EldraSiteReadPath = '/site/v1/design-tokens' | '/site/v1/theme-messages';
+
 export interface EldraSessionPreviewOptions {
   /**
    * Where the router's draft read proxy lives: an absolute URL **on the page's own origin** (the
@@ -212,6 +215,22 @@ export interface EldraClient {
   enableSessionPreview?(options: EldraSessionPreviewOptions): void;
   /** Whether `enableSessionPreview` has been called. Optional for the same reason. */
   readonly sessionPreviewEnabled?: boolean;
+  /**
+   * One of the site's own settings, as the gateway serves it (`EldraSiteReadPath`): the saved design
+   * tokens (`{ revision, resolved }`) or the resolved theme texts (`{ defaultLocale, locales }`),
+   * parsed JSON, unchecked. A build reads these once and bakes them in; a draft preview session reads
+   * them again at runtime, so a saved change shows at once (WS-1394).
+   *
+   * Outside a session, an ordinary gateway read (`X-Org-Id`, the build token). In a session, through
+   * the router's proxy like the CMS reads (`no-store`, `credentials: 'same-origin'`, no credential
+   * header), but a site setting is not a draft: no `Eldra-Preview: draft` is asked for, the answer is
+   * not reshaped, and a failure is thrown to the caller only, never reported to `onRequestError`'s
+   * listeners — the CMS reads are what say whether the session holds, and a router that does not
+   * forward a site read yet must not end the session.
+   *
+   * **Optional**, like `enableSessionPreview`: a hand-written client predates it.
+   */
+  getSiteSetting?(path: EldraSiteReadPath): Promise<unknown>;
   /**
    * Subscribe to failed gateway requests; returns an unsubscribe.
    *

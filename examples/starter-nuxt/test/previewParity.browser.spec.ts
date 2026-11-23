@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import starterTokens from '../tokens.json';
 import { ORG_ID, startMockGateway, type MockGateway } from './support/mockGateway';
 import {
+  SITE_DESIGN_TOKENS,
+  SITE_THEME_MESSAGES,
   startContentGateway,
   startSessionRouter,
   type ContentGateway,
@@ -60,7 +62,8 @@ import { startStaticServer, type StaticServer } from './support/staticServer';
  * Known differences are pinned, each in its own test, so a change in either direction is seen:
  * `EDIT_EXPECTATIONS` (structural edits renumber `useId()` ids), `FOCUS_MID_PATH` (focus given late
  * scrolls late), the entry metadata (`DRAFT_METADATA`), and the catalog re-reads
- * (`CATALOG_REREADS`). Saved design tokens and theme texts are skipped until a session can read them.
+ * (`CATALOG_REREADS`). Design tokens and theme texts saved after the pinned build show in a session
+ * (WS-1394), in their own case at the end.
  */
 
 const templateDir = fileURLToPath(new URL('..', import.meta.url));
@@ -967,52 +970,76 @@ describe('a draft preview renders exactly what Publish puts live', () => {
 
   /**
    * **Design tokens and theme texts saved after the pinned deploy (the owner's decision, 2026-11-23):
-   * a preview shows them as soon as they are saved.** Skipped: the kit cannot do that yet. A build
-   * reads the site's tokens and theme texts once (`@eldrajs/theme-nuxt`'s module, `readDesignTokens`
-   * and `readThemeMessages`) and bakes them in — the tokens into the runtime config the plugin hands
-   * `EldraLayout` (its `<style data-eldra-design-token-styles>`), the texts into
-   * `virtual:eldra/messages` — and a session reads neither at runtime, so it shows the pinned
-   * build's. Unskip it with the runtime change (a session reading the saved tokens and texts through
-   * the router, once Core serves them to a session).
+   * a preview shows them as soon as they are saved** (WS-1394). A build reads the site's tokens and
+   * theme texts once and bakes them in (`@eldrajs/theme-nuxt`'s module, `readDesignTokens` and
+   * `readThemeMessages`); a session reads both again through the router once it has hydrated, before
+   * its veil comes down, and puts them where the build put its own (`previewSessionSite.ts`). So a
+   * session on the pinned build shows what a build made after the save shows.
    */
-  describe.skip('design tokens saved after the pinned deploy show in a session', () => {
+  describe('design tokens and theme texts saved after the pinned deploy show in a session', () => {
     let republished: StaticServer;
-    let saved: Record<string, unknown>;
+    /** The header's primary navigation label, as the theme ships it and as saved. */
+    const SHIPPED_LABEL = 'Primary navigation';
+    const SAVED_LABEL = 'Site navigation, saved after the pinned build';
 
     beforeAll(async () => {
       const tokens = normalizeThemeDesignTokens(starterTokens);
-      saved = {
+      // Saved: the platform answers them from now on. What Publish would then put live is a build
+      // made with them.
+      gateway.designTokens = {
         ...tokens,
         colors: { ...tokens.colors, primary: { ...tokens.colors.primary!, value: '#0b57d0' } },
       } as unknown as Record<string, unknown>;
-      // Saved: the platform answers them from now on. What Publish would then put live is a build
-      // made with them.
-      gateway.designTokens = saved;
-      republished = await startStaticServer(await build('retokened'));
+      gateway.themeMessages = {
+        ...SITE_THEME_MESSAGES,
+        locales: {
+          ...SITE_THEME_MESSAGES.locales,
+          'en-US': { ...SITE_THEME_MESSAGES.locales['en-US'], 'header.primary': SAVED_LABEL },
+        },
+      };
+      republished = await startStaticServer(await build('resaved'));
     }, 900_000);
 
     afterAll(async () => {
-      gateway.designTokens = null;
+      gateway.designTokens = SITE_DESIGN_TOKENS;
+      gateway.themeMessages = SITE_THEME_MESSAGES;
       await republished?.close();
     });
 
-    it('a session shows the saved tokens, not the pinned build\u2019s', async () => {
-      const primary = (origin: string, session: boolean): Promise<string> =>
-        open(origin, '/', 1280, session, (page) =>
-          page.evaluate(() =>
-            getComputedStyle(document.documentElement)
+    /** The primary colour token, and which of the two navigation labels the page carries. */
+    const look = (origin: string, session: boolean) =>
+      open(origin, '/', 1280, session, (page) =>
+        page.evaluate(
+          ([shipped, saved]) => ({
+            primary: getComputedStyle(document.documentElement)
               .getPropertyValue('--eldra-color-primary')
-              .trim()
-          )
-        );
-      const pinned = await primary(live.origin, false);
-      const publishLive = await primary(republished.origin, false);
-      const session = await primary(router.origin, true);
-      expect(publishLive).toBe('#0b57d0');
-      expect(pinned).not.toBe(publishLive);
-      expect(session).toBe(publishLive);
+              .trim(),
+            labels: [...document.querySelectorAll('#__nuxt [aria-label]')]
+              .map((node) => node.getAttribute('aria-label'))
+              .filter((label) => label === shipped || label === saved),
+          }),
+          [SHIPPED_LABEL, SAVED_LABEL] as const
+        )
+      );
+
+    it('a session shows the saved tokens, not the pinned build\u2019s', async () => {
+      const pinned = await look(live.origin, false);
+      const publishLive = await look(republished.origin, false);
+      const session = await look(router.origin, true);
+      expect(publishLive.primary).toBe('#0b57d0');
+      expect(pinned.primary).not.toBe(publishLive.primary);
+      expect(session.primary).toBe(publishLive.primary);
     });
 
-    it.todo('a session shows theme texts saved after the pinned deploy');
+    it('a session shows theme texts saved after the pinned deploy', async () => {
+      const pinned = await look(live.origin, false);
+      const publishLive = await look(republished.origin, false);
+      const session = await look(router.origin, true);
+      expect(pinned.labels).toContain(SHIPPED_LABEL);
+      expect(pinned.labels).not.toContain(SAVED_LABEL);
+      expect(publishLive.labels).toContain(SAVED_LABEL);
+      expect(publishLive.labels).not.toContain(SHIPPED_LABEL);
+      expect(session.labels).toEqual(publishLive.labels);
+    });
   });
 });

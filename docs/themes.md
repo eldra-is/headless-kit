@@ -140,8 +140,28 @@ renders the organisation's drafts there, client-side.
     it carries no session;
   - a `useAsyncData` with a custom `getCachedData` that answers a `refresh:hook` from a cache
     (only possible with Nuxt's `experimental.granularCachedData`);
-  - the build-time platform reads baked into the runtime config: design tokens (until site-service
-    serves draft tokens, WS-1299), theme texts, forms, site icons, SEO, the site profile.
+  - the build-time platform reads baked into the runtime config: forms, site icons, SEO, the site
+    profile, locales and currency.
+
+  Design tokens and theme texts are neither: a session shows what is **saved** (see below).
+
+- **Saved design tokens and theme texts (WS-1394).** The owner decided (2026-11-23) that a preview
+  shows them as soon as they are saved. A build reads both once and bakes them in; a session reads
+  both again, after hydration and before the veil comes down (inside the same 15 s bound, with its
+  own 10 s bound), through the router like its CMS reads: `@eldrajs/theme-core`'s
+  `getSiteSetting('/site/v1/design-tokens' | '/site/v1/theme-messages')` (Core reads the Site row
+  for both; they are settings, not drafts, so no `Eldra-Preview: draft` is asked for). The tokens
+  replace `context.designTokens` in place, so `EldraLayout`'s
+  `<style data-eldra-design-token-styles>` renders them; the texts are resolved exactly as the
+  build resolves them (`resolveSiteMessages` over the manifest's own catalogue and the build's
+  organisation locales) and replace `context.messages.locales[tag]` where they changed, which a
+  theme's i18n picks up the way it picks up Studio's live `editor:theme-messages` push (the
+  starter's `app/plugins/eldra-i18n.ts` watches `context.messages`). A failure, an unusable answer
+  or one past the bound keeps the build's values and is never a refusal: a site read's failure is
+  not reported to the session's refusal listener (a router that does not forward a read yet answers
+  `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, which on a CMS read ends the session). The global
+  `virtual:eldra/tokens.css` stays the build's; the layout's own style, later in the document, wins.
+  In a session only, in a chunk an ordinary storefront never loads.
 
 - **What a visitor sees.** The published prerender is never painted: the router puts an early hide
   at the top of every session document (WS-1376): while `<html>` has no
@@ -301,13 +321,11 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
     live page has it hidden). Accepted by the owner (2026-11-23) as a known difference: it needs a
     block that takes focus mid-page, and the one who sees it is the merchant looking at a preview.
     The spec allows exactly that one difference, the header's hidden state, on that page.
-  - **Design tokens and theme texts saved after the pinned build.** The owner decided
-    (2026-11-23) that a preview shows them as soon as they are saved. The kit does not do that yet: a
-    build reads them once (the module's `readDesignTokens` and `readThemeMessages`) and bakes them
-    in — the tokens into the runtime config the plugin hands `EldraLayout`'s
-    `<style data-eldra-design-token-styles>`, the texts into `virtual:eldra/messages` — and a session
-    reads neither at runtime, so it shows the pinned build's (locales and currency, baked the same
-    way, too). The spec's case asserting it is skipped until a session reads them.
+  - **Design tokens and theme texts saved after the pinned build** show in the session as in a
+    build made after the save (above); the spec's last case saves a primary colour and a header
+    text and asserts both. The stand-in gateway answers both settings the way Core does, for every
+    page (the theme's own before anything is saved). Locales and currency are still the pinned
+    build's.
 
 - **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
 

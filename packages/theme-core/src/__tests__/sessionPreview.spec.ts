@@ -213,3 +213,68 @@ describe('enableSessionPreview', () => {
     );
   });
 });
+
+describe('getSiteSetting', () => {
+  const TOKENS = { revision: 4, resolved: { colors: {}, containers: {} } };
+  const json = (body: unknown, init: ResponseInit = {}): Response =>
+    new Response(JSON.stringify(body), {
+      status: 200,
+      ...init,
+      headers: { 'content-type': 'application/json', ...init.headers },
+    });
+  const client = (fetchMock: ReturnType<typeof vi.fn>, session: boolean) => {
+    const created = createEldraClient({
+      gatewayUrl: GATEWAY,
+      orgId: ORG,
+      fetch: fetchMock as unknown as typeof fetch,
+      buildToken: 'eldra_bld_secret',
+      retry: { attempts: 1 },
+    });
+    if (session) created.enableSessionPreview?.({ proxyBase: PROXY });
+    return created;
+  };
+
+  it('reads a site setting through the proxy in a session: no credential, no draft marker asked', async () => {
+    const fetchMock = vi.fn(async () => json(TOKENS));
+    const session = client(fetchMock, true);
+    session.enablePreview('should-never-be-sent');
+    await expect(session.getSiteSetting?.('/site/v1/design-tokens')).resolves.toEqual(TOKENS);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${PROXY}/site/v1/design-tokens`);
+    expect(init.cache).toBe('no-store');
+    expect(init.credentials).toBe('same-origin');
+    const headers = new Headers(init.headers);
+    expect([...headers.keys()]).toEqual(['accept']);
+  });
+
+  it('throws a session failure to the caller only, never to the refusal listeners', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ status: 404, errorId: 'PREVIEW_GATEWAY_PATH_NOT_ALLOWED' }), {
+          status: 404,
+          headers: { 'content-type': 'application/problem+json' },
+        })
+    );
+    const session = client(fetchMock, true);
+    const listener = vi.fn();
+    session.onRequestError?.(listener);
+    const error = await session.getSiteSetting?.('/site/v1/theme-messages').catch((e) => e);
+    expect(error).toBeInstanceOf(EldraClientError);
+    expect(error).toMatchObject({
+      status: 404,
+      errorId: 'PREVIEW_GATEWAY_PATH_NOT_ALLOWED',
+      sessionPreview: true,
+    });
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('is an ordinary gateway read outside a session', async () => {
+    const fetchMock = vi.fn(async () => json(TOKENS));
+    await expect(
+      client(fetchMock, false).getSiteSetting?.('/site/v1/design-tokens')
+    ).resolves.toEqual(TOKENS);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${GATEWAY}/site/v1/design-tokens`);
+    expect(new Headers(init.headers).get('x-org-id')).toBe(ORG);
+  });
+});

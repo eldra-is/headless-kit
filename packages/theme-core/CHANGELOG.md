@@ -11,6 +11,13 @@ Release-please writes the generated notes from commit messages and does not repl
   reusable placements in the shape Core's public read serves it: each placement replaced by its
   component, the root taking the placement id and every node inside it the `r` + SHA-256 render id,
   no projection left. Throws what the render would refuse. A draft preview session renders this.
+- **`getSiteSetting(path)` reads one of the site's own settings (WS-1394)**:
+  `/site/v1/design-tokens` or `/site/v1/theme-messages`, parsed JSON. Outside a session an ordinary
+  gateway read; in a draft preview session (`enableSessionPreview`) through the router's proxy like
+  the CMS reads, but a setting is not a draft: no `Eldra-Preview: draft` is asked for, the answer is
+  not reshaped, and a failure is thrown to the caller only, never reported to `onRequestError`'s
+  listeners. Optional on `EldraClient`, so a hand-written client still satisfies it.
+
 - **A draft preview session's answers arrive in the public read's shape (WS-1358).** The
   session client (`enableSessionPreview`) reshapes every CMS answer with the new `asPublicRead`:
   wherever a `reusableComponentProjection` appears (the answer, a list item, a resolved reference

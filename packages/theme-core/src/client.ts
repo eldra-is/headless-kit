@@ -11,6 +11,7 @@ import type {
   EntryList,
   EntryQuery,
   EldraSessionPreviewOptions,
+  EldraSiteReadPath,
   PageMeta,
   ResolveEntryListBody,
 } from './clientTypes';
@@ -154,6 +155,29 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     });
   }
 
+  /** `getSiteSetting`: see its doc comment in `./clientTypes.ts`. */
+  async function siteSetting(path: EldraSiteReadPath): Promise<unknown> {
+    if (sessionProxyBase === null) return (await request(buildUrl(path))).json();
+    const url = buildUrl(path, undefined, undefined, sessionProxyBase);
+    const res = await fetchWithRetry(
+      doFetch,
+      url.toString(),
+      {
+        headers: { accept: 'application/json' },
+        cache: 'no-store',
+        credentials: 'same-origin',
+      },
+      retryPolicy
+    );
+    if (!res.ok) {
+      throw new EldraClientError(res.status, res.statusText, url.pathname, {
+        errorId: await readErrorId(res),
+        sessionPreview: true,
+      });
+    }
+    return res.json();
+  }
+
   function notifyRequestError(error: EldraClientError): void {
     for (const listener of [...requestErrorListeners]) {
       try {
@@ -272,6 +296,7 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
     get sessionPreviewEnabled() {
       return sessionProxyBase !== null;
     },
+    getSiteSetting: siteSetting,
     onRequestError(listener) {
       requestErrorListeners.add(listener);
       return () => {

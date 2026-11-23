@@ -122,6 +122,18 @@ export default defineNuxtPlugin({
         ...inFlight,
       ]);
     };
+    /**
+     * The site's saved design tokens and theme texts, read again through the session and put where
+     * the build put its own (`./previewSessionSite.ts`, WS-1394), so a saved change shows at once.
+     * Session only, in its own chunk; never fatal (a failure keeps the build's values).
+     */
+    const readSiteSettings = (): Promise<void> =>
+      import('./previewSessionSite').then(({ readSessionSiteSettings }) =>
+        readSessionSiteSettings(client, context, {
+          themeMessages: manifest.messages,
+          locales: storeLocales,
+        })
+      );
     let sessionHead: HeadRenderHooks | undefined;
     try {
       sessionHead = injectHead(nuxtApp) as unknown as HeadRenderHooks;
@@ -136,8 +148,10 @@ export default defineNuxtPlugin({
             hydrated();
             // The veil drops once Vue has rendered the drafts and the head manager has written
             // the head after them (`./previewSessionHead.ts`), never on the pinned title.
-            await settlePreviewSessionDrafts(readDrafts, () =>
-              afterHeadRendered(sessionHead, () => nextTick())
+            // The saved tokens and texts are read beside the drafts, inside the same bound.
+            await settlePreviewSessionDrafts(
+              () => Promise.allSettled([readDrafts(), readSiteSettings()]),
+              () => afterHeadRendered(sessionHead, () => nextTick())
             );
           }),
       });

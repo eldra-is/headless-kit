@@ -21,6 +21,15 @@ Release-please writes the generated notes from commit messages and does not repl
   rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
   Outside a session nothing changes. The starter's parity spec is the release gate; see
   `docs/themes.md`, "Parity with the published page".
+- **A draft preview session shows the saved design tokens and theme texts (WS-1394).** After
+  hydration, before the veil comes down and inside the same bound, a session reads
+  `/site/v1/design-tokens` and `/site/v1/theme-messages` through the router (`@eldrajs/theme-core`'s
+  new `getSiteSetting`) and puts them where the build put its own: `context.designTokens` (so
+  `EldraLayout`'s token style re-renders) and `context.messages`, resolved as the build resolves
+  them. A failure keeps the build's values and never ends the session. In its own chunk, loaded
+  only in a session; outside a session nothing changes. Theme texts need the preview router to
+  forward `GET /site/v1/theme-messages`; until it does, a session keeps the build's texts.
+
 - **A session lifts the preview router's early hide (WS-1376).** The router hides a session
   document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the
   published prerender is never painted before the veil. The kit sets it as soon as its veil (or the built-in fallback
