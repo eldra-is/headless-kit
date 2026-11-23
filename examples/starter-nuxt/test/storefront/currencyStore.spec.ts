@@ -685,3 +685,107 @@ describe('a move the server answers without moving', () => {
     expectAgreement(store, gateway.server);
   });
 });
+
+describe('a cart that is remembered but could not be read', () => {
+  it('(a) takes no currency move and saves no preference until Try again reads it', async () => {
+    const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+    const store = shop(gateway);
+    gateway.next('init').release(OFFLINE);
+    await settle();
+    await store.currency.start(async () => null);
+    expect(store.cart.loadState.value).toBe('unloaded');
+
+    store.currency.choose('EUR');
+    await settle();
+    gateway.next('init').release(OFFLINE);
+    await settle();
+    expect(gateway.requests).toEqual([]);
+    expect(store.preference.value).toBeNull();
+    expect(store.cart.loadFailed.value).toBe(true);
+    expect(store.currency.failure.value?.errorId).toBe('CART_NOT_LOADED');
+
+    const retrying = store.cart.reload();
+    gateway.next('init').release();
+    await retrying;
+    expect(store.cart.loadState.value).toBe('loaded');
+    expect(store.cart.loadFailed.value).toBe(false);
+    expectAgreement(store, gateway.server);
+
+    store.currency.choose('EUR');
+    await settle();
+    gateway.next('setCurrency').release();
+    await settle();
+    expect(gateway.server.currency).toBe('EUR');
+    expectAgreement(store, gateway.server);
+  });
+
+  it('(b) does not send an add when the read before it fails again', async () => {
+    const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+    const store = shop(gateway);
+    gateway.next('init').release(OFFLINE);
+    await settle();
+    await store.currency.start(async () => null);
+
+    const adding = store.cart.add(ADD);
+    await settle();
+    gateway.next('init').release(OFFLINE);
+    const failure = await adding;
+
+    expect(failure?.errorId).toBe('CART_NOT_LOADED');
+    expect(gateway.requests).toEqual([]);
+    expect(gateway.server.variants).toEqual(['v0']);
+  });
+
+  it('(c) only the newest read applies, and its success clears the failure', async () => {
+    const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+    const store = shop(gateway);
+    gateway.next('init').release();
+    await settle();
+    await store.currency.start(async () => null);
+
+    void store.cart.reload();
+    const first = gateway.next('init');
+    gateway.server.variants.push('v1');
+    void store.cart.reload();
+    gateway.next('init').release();
+    await settle();
+    first.release(OFFLINE);
+    await settle();
+    expect(store.cart.loadFailed.value).toBe(false);
+    expect(store.cart.lines.value).toHaveLength(2);
+
+    void store.cart.reload();
+    const late = gateway.next('init');
+    gateway.server.variants.push('v2');
+    void store.cart.reload();
+    gateway.next('init').release();
+    await settle();
+    late.release();
+    await settle();
+    expect(store.cart.lines.value).toHaveLength(3);
+  });
+
+  it('(d) a read that never answers fails after the timeout, and Add works again after Try again', async () => {
+    vi.useFakeTimers();
+    try {
+      const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+      const store = shop(gateway);
+      await store.currency.start(async () => null);
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(store.cart.loadFailed.value).toBe(true);
+      expect(store.cart.pending.value).toBe(false);
+
+      gateway.next('init');
+      const retrying = store.cart.reload();
+      gateway.next('init').release();
+      await retrying;
+      const adding = store.cart.add(ADD);
+      await vi.advanceTimersByTimeAsync(0);
+      gateway.next('add').release();
+      await expect(adding).resolves.toBeNull();
+      expectAgreement(store, gateway.server);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

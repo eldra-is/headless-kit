@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import Navigation from '../blocks/navigation/Block.vue';
 import navigationMock from '../blocks/navigation/mock.json';
 import Footer from '../blocks/footer/Block.vue';
@@ -54,6 +54,7 @@ describe('the currency picker in the starter', () => {
   it("drives the footer's currency selector too", async () => {
     const { wrapper, storefront } = mountWith(Footer, MULTI, footerMock);
     storefront.currency.choose('USD');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('USD'));
     await flushPromises();
     expect(
       wrapper.findAll('button[role="combobox"]').some((node) => node.text().includes('USD'))

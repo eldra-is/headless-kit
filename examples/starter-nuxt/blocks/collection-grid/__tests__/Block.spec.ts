@@ -1159,6 +1159,7 @@ describe('collection-grid block', () => {
       source.currency.offered.value = ['USD', 'EUR'];
       source.currency.started.value = true;
       source.currency.choose('EUR');
+      await vi.waitFor(() => expect(source.currency.active.value).toBe('EUR'));
       const wrapper = mountGrid(mock, { source });
       await flushPromises();
       expect(wrapper.findAll('[role="slider"]')).toHaveLength(0);

@@ -4,7 +4,7 @@ import { computed, defineComponent, h, nextTick, ref } from 'vue';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
 import { useToast, type ToastAction } from '@eldrajs/ui';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
@@ -1053,6 +1053,7 @@ describe('product-detail block', () => {
     storefront.currency.offered.value = ['USD', 'EUR'];
     storefront.currency.started.value = true;
     storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
     const wrapper = await mountReady(mock, { storefront });
 
     expect(wrapper.get('[data-eldra-not-sold]').text()).toBe('Not available in EUR.');
@@ -1074,6 +1075,7 @@ describe('product-detail block', () => {
     storefront.currency.offered.value = ['USD', 'EUR'];
     storefront.currency.started.value = true;
     storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
     await storefront.cart.add({ productId: 'p', variantId: 'v', quantity: 1 });
     const wrapper = await mountReady(mock, { storefront });
     expect(wrapper.text()).toContain('Your cart will switch to USD.');

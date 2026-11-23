@@ -80,7 +80,7 @@ export function createCurrencyStore(
     if (answer === undefined) return;
     if (answer === null) {
       // No cart came of the work this choice waited behind: it is the preference.
-      if (cart.currency.value === undefined) {
+      if (hasNoCart()) {
         preferred.value = code;
         preference.remember(code);
       } else if (cart.currency.value === code) {
@@ -93,6 +93,10 @@ export function createCurrencyStore(
       failure.value = answer;
     }
   }
+
+  // A cart that is remembered but not read is still a cart; one without a currency (a demo) is not.
+  const hasNoCart = (): boolean =>
+    cart.loadState.value !== 'unloaded' && cart.currency.value === undefined;
 
   const leavingDropped = (): boolean => {
     const own = cart.currency.value;
@@ -127,7 +131,7 @@ export function createCurrencyStore(
     choose(code) {
       if (!offered.value.includes(code)) return;
       // Only with no cart and nothing in flight is a choice just a preference; else it queues behind that work.
-      if (cart.currency.value === undefined && !cart.pending.value) {
+      if (hasNoCart() && !cart.pending.value) {
         preferred.value = code;
         preference.remember(code);
         return;

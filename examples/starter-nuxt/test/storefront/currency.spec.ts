@@ -413,6 +413,7 @@ describe('search in the chosen currency', () => {
     const storefront = createGatewayStorefront(client, { route: fakeRoute(), commerce: MULTI });
     await storefront.currency.start(async () => null);
     storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
     const result = storefront.search.run(ref('mug'));
     await vi.waitFor(() => expect(result.data.value?.products[0]?.price?.amount).toBe(19.9));
     expect(listed.every((options) => (options as { currency?: string }).currency === 'EUR')).toBe(

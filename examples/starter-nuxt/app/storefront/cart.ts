@@ -73,6 +73,8 @@ export interface CartStore {
   setCurrency(code: string): Promise<StorefrontFailure | null | undefined>;
   /** The last read of the cart failed (a timeout or 5xx); the basket id is kept. */
   loadFailed: Ref<boolean>;
+  /** `none`: no cart. `loaded`: the cart is shown. `unloaded`: a cart is remembered but not read yet, or its read failed. */
+  loadState: Ref<CartLoadState>;
   /** Reads the cart again, as another tab may have changed it. */
   reload(): Promise<StorefrontFailure | null>;
   /** Removes every line in `notSold`: "Remove and check out". */
@@ -93,6 +95,14 @@ export interface CartStore {
  * (`StorefrontProduct.productId`/`variantId`) or from a cart line (`StorefrontCartLine`); a product
  * card carries no variant at all, by design (`app/storefront/types.ts`).
  */
+export type CartLoadState = 'none' | 'loaded' | 'unloaded';
+
+/** A write refused locally: the cart could not be read, so nothing was sent. */
+export const CART_NOT_LOADED = 'CART_NOT_LOADED';
+
+/** A cart read that has not answered after this long counts as failed. */
+export const CART_READ_TIMEOUT_MS = 8000;
+
 export interface CartAddInput {
   productId: string;
   variantId: string;
@@ -172,7 +182,15 @@ export function createCartStore(ops: CartOps): CartStore {
   let reads = 0;
   let writeEpoch = 0;
   let reading: Promise<unknown> = Promise.resolve();
+  let latestRead = 0;
   const loadFailed = ref(false);
+  const loadState = ref<CartLoadState>('unloaded');
+  const notLoaded: StorefrontFailure = {
+    message: 'The cart could not be read.',
+    errorId: CART_NOT_LOADED,
+    code: null,
+    status: null,
+  };
   const settleBusy = (): void => {
     pending.value = queuedWrites > 0 || reads > 0;
   };
@@ -181,16 +199,26 @@ export function createCartStore(ops: CartOps): CartStore {
     lines.value = snapshot.lines;
     totals.value = snapshot.totals;
     currency.value = snapshot.currency;
+    loadFailed.value = false;
+    loadState.value =
+      snapshot.currency !== undefined || snapshot.lines.length > 0 ? 'loaded' : 'none';
   }
 
-  function serial<T>(task: () => Promise<T>): Promise<T> {
+  function serial<T>(task: () => Promise<T>, refused: () => T): Promise<T> {
     queuedWrites += 1;
     pending.value = true;
     const next = tail.then(async () => {
-      // A write waits for a read in flight, and a failed read is tried once more first, so a write
-      // never lands in a cart the page has not shown.
+      // A write waits for a read in flight, and a failed read is tried once more first; a cart that
+      // still cannot be read takes no write, so a write never lands in a cart the page has not shown.
       await reading;
       if (loadFailed.value) await read();
+      if (loadFailed.value) {
+        queuedWrites -= 1;
+        settleBusy();
+        lastFailure.value = notLoaded;
+        error.value = notLoaded.message;
+        return refused();
+      }
       writeEpoch += 1;
       try {
         return await task();
@@ -215,26 +243,37 @@ export function createCartStore(ops: CartOps): CartStore {
   }
 
   const run = (task: () => Promise<CartSnapshot>): Promise<StorefrontFailure | null> =>
-    serial(() => attempt(task));
+    serial(
+      () => attempt(task),
+      () => notLoaded
+    );
 
-  /** A read that lands after a write started or settled is older than what the cart shows. */
+  /** Only the newest read applies, and only when no write started or settled since it was sent. */
   function read(): Promise<StorefrontFailure | null> {
     const issuedAt = writeEpoch;
+    latestRead += 1;
+    const mine = latestRead;
     reads += 1;
     pending.value = true;
     clearFailure();
-    loadFailed.value = false;
-    const answer = ops.init().then(
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('The cart read timed out.')), CART_READ_TIMEOUT_MS);
+    });
+    const answer = Promise.race([ops.init(), timedOut]).then(
       (snapshot) => {
-        if (writeEpoch === issuedAt) apply(snapshot);
+        if (mine === latestRead && writeEpoch === issuedAt) apply(snapshot);
         return null;
       },
       (caught: unknown) => {
+        if (mine !== latestRead) return null;
         loadFailed.value = true;
+        if (loadState.value !== 'none') loadState.value = 'unloaded';
         return fail(caught);
       }
     );
     const settled = answer.finally(() => {
+      clearTimeout(timer);
       reads -= 1;
       settleBusy();
     });
@@ -252,7 +291,13 @@ export function createCartStore(ops: CartOps): CartStore {
 
   function moveCurrency(code: string): Promise<MoveAnswer> {
     const change = ops.setCurrency;
-    if (change === undefined) return Promise.resolve(null);
+    // A backend that cannot move a cart still answers in turn, after the read the choice waited for.
+    if (change === undefined) {
+      return serial(
+        async () => null,
+        () => notLoaded
+      );
+    }
     const joining = waitingMove;
     if (joining !== null) {
       joining.code = code;
@@ -264,24 +309,31 @@ export function createCartStore(ops: CartOps): CartStore {
     };
     waitingMove = move;
     const own = new Promise<MoveAnswer>((resolve) => move.callers.push({ code, resolve }));
-    void serial(async () => {
-      waitingMove = null;
-      const target = move.code;
-      const before = currency.value;
-      const failure =
-        before === undefined || before === target ? null : await attempt(() => change(target));
-      if (failure === null && before !== target && currency.value === target) {
-        lastRemoved.value = null;
+    void serial(
+      async () => {
+        waitingMove = null;
+        const target = move.code;
+        const before = currency.value;
+        const failure =
+          before === undefined || before === target ? null : await attempt(() => change(target));
+        if (failure === null && before !== target && currency.value === target) {
+          lastRemoved.value = null;
+        }
+        for (const caller of move.callers) {
+          if (caller.code !== target) caller.resolve(undefined);
+        }
+        [...move.callers]
+          .reverse()
+          .find((caller) => caller.code === target)
+          ?.resolve(failure);
+        for (const caller of move.callers) caller.resolve(undefined);
+      },
+      () => {
+        waitingMove = null;
+        [...move.callers].reverse()[0]?.resolve(notLoaded);
+        for (const caller of move.callers) caller.resolve(undefined);
       }
-      for (const caller of move.callers) {
-        if (caller.code !== target) caller.resolve(undefined);
-      }
-      [...move.callers]
-        .reverse()
-        .find((caller) => caller.code === target)
-        ?.resolve(failure);
-      for (const caller of move.callers) caller.resolve(undefined);
-    });
+    );
     return own;
   }
 
@@ -333,17 +385,20 @@ export function createCartStore(ops: CartOps): CartStore {
       });
     },
     applyDiscount: (code) =>
-      serial(async () => {
-        clearFailure();
-        try {
-          const { ack, snapshot } = await ops.applyDiscount(code);
-          if (snapshot) apply(snapshot);
-          return ack;
-        } catch (caught) {
-          fail(caught);
-          return { ok: false, reason: 'failed' } as StorefrontAck;
-        }
-      }),
+      serial(
+        async () => {
+          clearFailure();
+          try {
+            const { ack, snapshot } = await ops.applyDiscount(code);
+            if (snapshot) apply(snapshot);
+            return ack;
+          } catch (caught) {
+            fail(caught);
+            return { ok: false, reason: 'failed' } as StorefrontAck;
+          }
+        },
+        () => ({ ok: false, reason: 'failed' }) as StorefrontAck
+      ),
     // `code` identifies which applied-discount chip the caller removed; a cart only ever carries
     // one discount today, so `ops.removeDiscount()` itself needs no argument.
     removeDiscount: (_code) => run(() => ops.removeDiscount()),
@@ -351,14 +406,18 @@ export function createCartStore(ops: CartOps): CartStore {
     notSold,
     setCurrency: moveCurrency,
     loadFailed,
+    loadState,
     reload: read,
     removeNotSold: () =>
-      serial(async () => {
-        for (const line of [...notSold.value]) {
-          const failure = await attempt(() => ops.remove(line.id));
-          if (failure !== null) return failure;
-        }
-        return null;
-      }),
+      serial(
+        async () => {
+          for (const line of [...notSold.value]) {
+            const failure = await attempt(() => ops.remove(line.id));
+            if (failure !== null) return failure;
+          }
+          return null;
+        },
+        () => notLoaded
+      ),
   };
 }
