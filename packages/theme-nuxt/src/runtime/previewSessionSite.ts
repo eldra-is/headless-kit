@@ -33,6 +33,11 @@ export interface SessionSiteSettingsOptions {
    * passed (`settlePreviewSessionSiteSettings`), so a late answer changes nothing after the veil.
    */
   isOpen?: () => boolean;
+  /**
+   * Answers are applied only once this has settled: the reads start with the session, before the
+   * published prerender is hydrated, and the context must not change under Vue's hydration.
+   */
+  applyAfter?: Promise<unknown>;
   /** Told of each read that failed (`reportPreviewSessionSiteSettingError`). */
   onError?: (error: unknown) => void;
   warn?: (message: string, cause?: unknown) => void;
@@ -47,6 +52,7 @@ export async function readSessionSiteSettings(
   // Called on the client, never detached from it: a client may be a class that reads `this`.
   const read = (path: EldraSiteReadPath): Promise<unknown> => client.getSiteSetting!(path);
   const isOpen = options.isOpen ?? (() => true);
+  const applyAfter = options.applyAfter ?? Promise.resolve();
   const warn =
     options.warn ??
     ((message: string, cause?: unknown) => console.warn(`[eldra] ${message}`, cause ?? ''));
@@ -64,14 +70,16 @@ export async function readSessionSiteSettings(
   };
   await Promise.all([
     read('/site/v1/design-tokens')
-      .then((answer) => {
+      .then(async (answer) => {
+        await applyAfter;
         const resolved = toResolvedDesignTokens(answer);
         if (resolved === null) throw new Error('the platform published an unusable response');
         if (isOpen()) assignDesignTokens(context.designTokens, resolved);
       })
       .catch(failed('design tokens')),
     read('/site/v1/theme-messages')
-      .then((answer) => {
+      .then(async (answer) => {
+        await applyAfter;
         const platform = toThemeMessages(answer);
         if (platform === null) throw new Error('the platform published an unusable response');
         const resolved = resolveSiteMessages(

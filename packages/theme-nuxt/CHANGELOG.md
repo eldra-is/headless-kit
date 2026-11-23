@@ -30,6 +30,15 @@ Release-please writes the generated notes from commit messages and does not repl
   keeps the build's values and never ends the session, except a 401, which is the router refusing
   the session itself. In its own chunk, loaded only in a session; outside a session nothing
   changes.
+- **A draft preview session shows the saved design tokens and theme texts (WS-1394).** From its
+  start, a session reads `/site/v1/design-tokens` and `/site/v1/theme-messages` through the router
+  (`@eldrajs/theme-core`'s new `getSiteSetting`) and, once the page is hydrated and before the veil
+  comes down, puts them where the build put its own: `context.designTokens` (so `EldraLayout`'s
+  token style re-renders) and `context.messages`, resolved as the build resolves them. One 10 s
+  bound covers the chunk and the reads, counted from the session's start like its 15 s deadline,
+  so it always ends first; a failure keeps the build's values and never ends the session, except a
+  401, which is the router refusing the session itself. In its own chunk, loaded only in a
+  session; outside a session nothing changes.
 
 - **A session lifts the preview router's early hide (WS-1376).** The router hides a session
   document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the

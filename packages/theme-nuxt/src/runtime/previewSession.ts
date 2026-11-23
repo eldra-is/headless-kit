@@ -395,6 +395,8 @@ export async function settlePreviewSessionDrafts(
   timeoutMs: number = PREVIEW_SESSION_DRAFT_TIMEOUT_MS
 ): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // A backstop only: the session's own deadline (`startDraftDeadline`), counted from its start,
+  // ends a session that is still covered before this one can.
   const timedOut = new Promise<'timeout'>((resolve) => {
     timer = setTimeout(() => resolve('timeout'), timeoutMs);
   });

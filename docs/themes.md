@@ -116,6 +116,9 @@ renders the organisation's drafts there, client-side.
   no credential header (the router holds the session in an HttpOnly cookie and adds `X-Org-Id` and
   `X-Preview-Session` itself). A CMS answer without `Eldra-Preview: draft` is refused rather than
   shown. Catalog reads stay on the gateway, published. No request ever carries `X-Preview-Token`.
+  A new CMS read the kit adds must be on the router's gateway allowlist (its `READS`) before a kit
+  release uses it: an older router answers it `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, and the page
+  shows its not-found page.
 - **Routes.** `useEldraPage()` answers no route from the build: the published payload only hydrates
   the prerendered page, every navigation (back to the first route included) reads the draft, and a
   page that exists only as a draft renders (opened directly, the host serves the build's not-found
@@ -148,10 +151,10 @@ renders the organisation's drafts there, client-side.
 
 - **Saved design tokens and theme texts (WS-1394).** The owner decided (2026-11-23) that a preview
   shows them as soon as they are saved. A build reads both once and bakes them in; a session reads
-  both again, after hydration and before the veil comes down, inside the same 15 s bound and with
-  a 10 s bound of its own around the chunk that reads them and the reads together (the chunk starts
-  loading when the session starts, beside the veil's, so a stalled chunk cannot reach the drafts'
-  bound). Through the router like its CMS reads: `@eldrajs/theme-core`'s
+  both again, from the session's start, and applies them once the published prerender is hydrated
+  and before the veil comes down. A 10 s bound of its own covers the chunk that reads them and the
+  reads together, counted from the session's start like the session's 15 s deadline, so it always
+  ends first; past it nothing is applied. Through the router like its CMS reads: `@eldrajs/theme-core`'s
   `getSiteSetting('/site/v1/design-tokens' | '/site/v1/theme-messages')` (Core reads the Site row
   for both; they are settings, not drafts, so no `Eldra-Preview: draft` is asked for). The tokens
   replace `context.designTokens` in place, so `EldraLayout`'s

@@ -112,6 +112,26 @@ describe('readSessionSiteSettings', () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
+  it('applies nothing until the page is hydrated, read early as the answers are', async () => {
+    const ctx = context();
+    let hydrated = (): void => undefined;
+    const applyAfter = new Promise<void>((resolve) => {
+      hydrated = resolve;
+    });
+    const getSiteSetting = vi.fn(async (path: string) =>
+      path === '/site/v1/design-tokens' ? { revision: 3, resolved: SAVED } : SITE_MESSAGES_ANSWER
+    );
+    const reading = readSessionSiteSettings({ getSiteSetting }, ctx, { ...options(), applyAfter });
+    await vi.waitFor(() => expect(getSiteSetting).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ctx.designTokens.colors.primary?.value).toBe('#111111');
+    expect(ctx.messages.locales['en-US']).toEqual({ 'header.menu': 'Menu' });
+    hydrated();
+    await reading;
+    expect(ctx.designTokens.colors.primary?.value).toBe('#0b57d0');
+    expect(ctx.messages.locales['en-US']).toEqual({ 'header.menu': 'Browse' });
+  });
+
   it('drops an answer once its bound has closed', async () => {
     const ctx = context();
     let open = true;

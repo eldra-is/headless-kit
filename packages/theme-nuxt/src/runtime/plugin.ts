@@ -127,22 +127,17 @@ export default defineNuxtPlugin({
     /**
      * The site's saved design tokens and theme texts, read again through the session and put where
      * the build put its own (`./previewSessionSite.ts`, WS-1394), so a saved change shows at once.
-     * Session only, in its own chunk, which starts loading as soon as the session starts (beside
-     * the veil's); never fatal: one bound covers the chunk and the reads together
-     * (`settlePreviewSessionSiteSettings`), and a failure keeps the build's values.
+     * Session only, in its own chunk. Started with the session (below), so its 10 s bound
+     * (`settlePreviewSessionSiteSettings`, around the chunk and the reads together) runs from the
+     * same moment as the session's 15 s deadline and always ends first: a settings failure never
+     * ends the session. Answers are applied only once the published prerender is hydrated
+     * (`sessionHydrated`), never into the document Vue is hydrating; past the bound, never.
      */
-    let siteSettingsChunk: Promise<typeof import('./previewSessionSite')> | undefined;
-    const readSiteSettings = (): Promise<void> =>
-      settlePreviewSessionSiteSettings((isOpen) =>
-        (siteSettingsChunk ?? import('./previewSessionSite')).then(({ readSessionSiteSettings }) =>
-          readSessionSiteSettings(client, context, {
-            themeMessages: manifest.messages,
-            locales: storeLocales,
-            isOpen,
-            onError: reportPreviewSessionSiteSettingError,
-          })
-        )
-      );
+    let markSessionHydrated = (): void => undefined;
+    const sessionHydrated = new Promise<void>((resolve) => {
+      markSessionHydrated = resolve;
+    });
+    let siteSettings: Promise<void> = Promise.resolve();
     let sessionHead: HeadRenderHooks | undefined;
     try {
       sessionHead = injectHead(nuxtApp) as unknown as HeadRenderHooks;
@@ -155,19 +150,29 @@ export default defineNuxtPlugin({
         onHydrated: (hydrated) =>
           nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
             hydrated();
+            markSessionHydrated();
             // The veil drops once Vue has rendered the drafts and the head manager has written
             // the head after them (`./previewSessionHead.ts`), never on the pinned title.
-            // The saved tokens and texts are read beside the drafts, inside the same bound.
+            // The saved tokens and texts, read since the session started, are waited for beside
+            // the drafts (their own bound ends first).
             await settlePreviewSessionDrafts(
-              () => Promise.allSettled([readDrafts(), readSiteSettings()]),
+              () => Promise.allSettled([readDrafts(), siteSettings]),
               () => afterHeadRendered(sessionHead, () => nextTick())
             );
           }),
       });
     if (previewSession) {
-      siteSettingsChunk = import('./previewSessionSite');
-      // Its failure is the bound's to handle, when the settings are read; never an unhandled one.
-      siteSettingsChunk.catch(() => undefined);
+      siteSettings = settlePreviewSessionSiteSettings((isOpen) =>
+        import('./previewSessionSite').then(({ readSessionSiteSettings }) =>
+          readSessionSiteSettings(client, context, {
+            themeMessages: manifest.messages,
+            locales: storeLocales,
+            isOpen,
+            applyAfter: sessionHydrated,
+            onError: reportPreviewSessionSiteSettingError,
+          })
+        )
+      );
       // A session's page is never indexed, whatever the page asks for. The preview router puts
       // `noindex, nofollow` in every document it serves (and sends `X-Robots-Tag`), but the head
       // manager owns `meta[name="robots"]` once the app runs: a page that writes its own (the
