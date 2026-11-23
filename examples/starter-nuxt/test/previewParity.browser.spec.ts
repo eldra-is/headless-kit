@@ -107,6 +107,8 @@ async function build(name: string, env: Record<string, string> = {}): Promise<st
 interface Capture {
   /** The normalised document, one node per line. */
   dom: string[];
+  /** A session's document the moment its veil dropped, normalised the same way. */
+  veilDrop?: string[];
   /** Every async data entry and every `useState` the app holds once settled, keys sorted, without
    *  the entry metadata a draft reads differently (`DRAFT_METADATA`). */
   data: string;
@@ -153,18 +155,25 @@ async function open<T>(
     await page.goto(`${origin}${path}`, { waitUntil: 'networkidle' });
     if (session) {
       // The draft is on screen once the veil is down (`hidden`) and the app is no longer busy.
+      // Checked every frame, and the document copied in the frame it first holds: what the
+      // merchant sees the moment the veil drops, compared with the settled page below
+      // (`VEIL_DROP_DIFFERENCES`), so a change that lands after the veil is caught.
       await page.waitForFunction(
         () => {
           const veil = document
             .querySelector('[data-eldra-preview-session]')
             ?.shadowRoot?.querySelector('.veil');
-          return (
+          const shown =
             veil?.hasAttribute('hidden') === true &&
-            !document.getElementById('__nuxt')?.hasAttribute('aria-busy')
-          );
+            !document.getElementById('__nuxt')?.hasAttribute('aria-busy');
+          if (shown) {
+            (window as unknown as { __eldraVeilDrop?: Node }).__eldraVeilDrop =
+              document.documentElement.cloneNode(true);
+          }
+          return shown;
         },
         undefined,
-        { timeout: 30_000 }
+        { timeout: 30_000, polling: 'raf' }
       );
     }
     await settle(page);
@@ -272,24 +281,30 @@ const QUIET_MS = 750;
  * On the session's page, removes exactly the differences a session is allowed; on the live page,
  * asserts there are none of them to remove.
  */
-async function normalise(page: Page, session: boolean): Promise<void> {
-  const found = await page.evaluate((remove) => {
-    const selectors = [
-      '[data-eldra-preview-session]',
-      'meta[name="eldra-preview"]',
-      'meta[name="robots"][content="noindex, nofollow"]',
-    ];
-    const counts = selectors.map((selector) => document.querySelectorAll(selector).length);
-    if (remove) {
-      for (const selector of selectors) {
-        document.querySelectorAll(selector).forEach((node) => node.remove());
+async function normalise(page: Page, session: boolean, veilDrop = false): Promise<void> {
+  const found = await page.evaluate(
+    ([remove, atVeilDrop]) => {
+      const root: ParentNode = atVeilDrop
+        ? ((window as unknown as { __eldraVeilDrop: Element }).__eldraVeilDrop as Element)
+        : document;
+      const selectors = [
+        '[data-eldra-preview-session]',
+        'meta[name="eldra-preview"]',
+        'meta[name="robots"][content="noindex, nofollow"]',
+      ];
+      const counts = selectors.map((selector) => root.querySelectorAll(selector).length);
+      if (remove) {
+        for (const selector of selectors) {
+          root.querySelectorAll(selector).forEach((node) => node.remove());
+        }
       }
-    }
-    const noindex = [...document.querySelectorAll('meta[name="robots"]')].some((meta) =>
-      /noindex/i.test(meta.getAttribute('content') ?? '')
-    );
-    return { counts, noindex };
-  }, session);
+      const noindex = [...root.querySelectorAll('meta[name="robots"]')].some((meta) =>
+        /noindex/i.test(meta.getAttribute('content') ?? '')
+      );
+      return { counts, noindex };
+    },
+    [session, veilDrop] as const
+  );
   if (session) {
     // Exactly one robots tag, the router's `noindex, nofollow`, on every session page: the
     // session's own head entry keeps it once the theme's head manager runs, a page only the draft
@@ -301,8 +316,8 @@ async function normalise(page: Page, session: boolean): Promise<void> {
 }
 
 /** The document, one node per line: tag and sorted attributes, or text; hydration state left out. */
-function serialise(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
+function serialise(page: Page, veilDrop = false): Promise<string[]> {
+  return page.evaluate((atVeilDrop) => {
     const lines: string[] = [];
     const walk = (node: Node, depth: number): void => {
       const indent = '  '.repeat(depth);
@@ -335,9 +350,14 @@ function serialise(page: Page): Promise<string[]> {
         element instanceof HTMLTemplateElement ? element.content.childNodes : element.childNodes;
       for (const child of children) walk(child, depth + 1);
     };
-    walk(document.documentElement, 0);
+    walk(
+      atVeilDrop
+        ? (window as unknown as { __eldraVeilDrop: Element }).__eldraVeilDrop
+        : document.documentElement,
+      0
+    );
     return lines;
-  });
+  }, veilDrop);
 }
 
 /**
@@ -409,8 +429,36 @@ function asyncData(page: Page): Promise<{ withMetadata: string; withoutMetadata:
   }, DRAFT_METADATA);
 }
 
+/**
+ * Nothing changes after the veil drops: the session's document the moment the veil is hidden is
+ * its settled document. `headerMayHide` allows the one difference pinned on the page with a field
+ * focused mid-page: the starter header's `-translate-y-full` (its hide-on-scroll), only there.
+ */
+function expectNoChangeAfterTheVeil(session: Capture, headerMayHide = false): void {
+  expect(session.veilDrop, 'the session was captured when its veil dropped').toBeDefined();
+  const atDrop = session.veilDrop ?? [];
+  if (!headerMayHide) {
+    expect(atDrop.join('\n')).toBe(session.dom.join('\n'));
+    return;
+  }
+  expect(atDrop.length).toBe(session.dom.length);
+  const changed = atDrop
+    .map((line, index) => [line, session.dom[index]!] as const)
+    .filter(([before, after]) => before !== after);
+  for (const [before, after] of changed) {
+    expect(before).toMatch(/^\s*<header /);
+    expect(before.replace(' -translate-y-full', '')).toBe(after.replace(' -translate-y-full', ''));
+  }
+  expect(changed.length).toBeLessThanOrEqual(1);
+}
+
 function capture(origin: string, path: string, width: number, session: boolean): Promise<Capture> {
   return open(origin, path, width, session, async (page, warnings) => {
+    let veilDrop: string[] | undefined;
+    if (session) {
+      await normalise(page, session, true);
+      veilDrop = preloadsAsASet(await serialise(page, true));
+    }
     await normalise(page, session);
     const data = await asyncData(page);
     const where = await page.evaluate(() => {
@@ -425,6 +473,7 @@ function capture(origin: string, path: string, width: number, session: boolean):
     });
     return {
       dom: preloadsAsASet(await serialise(page)),
+      veilDrop,
       data: data.withoutMetadata,
       dataWithMetadata: data.withMetadata,
       warnings,
@@ -721,6 +770,7 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         );
         expect(published.dom.some((line) => line.includes('data-eldra-missing-block'))).toBe(false);
         expect(session.dom.join('\n')).toBe(published.dom.join('\n'));
+        expectNoChangeAfterTheVeil(session);
         expect(session.data).toBe(published.data);
         // The metadata does differ — the session read drafts — and reaches nothing above.
         expect(session.dataWithMetadata).not.toBe(published.dataWithMetadata);
@@ -749,6 +799,7 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         const session = await capture(router.origin, path, width, true);
         const liveHints = hintsOf(published.dom);
         const sessionHints = hintsOf(session.dom);
+        expectNoChangeAfterTheVeil(session);
         expectSameWarnings(path, session.warnings, published.warnings);
         expect(session.focused).toBe(published.focused);
         expect(session.scrollY).toBe(published.scrollY);
@@ -829,6 +880,7 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         );
       }
       expect(differing.length).toBeLessThanOrEqual(1);
+      expectNoChangeAfterTheVeil(session, true);
       expect(session.data).toBe(published.data);
       expectSameWarnings(FOCUS_MID_PATH, session.warnings, published.warnings);
     });

@@ -18,21 +18,66 @@ import { defineNuxtPlugin } from 'nuxt/app';
  *
  * This wraps the request's shared cache so a key whose read failed is read again by the next
  * route that asks (its own failure, the same every time), and an answer that succeeded is shared
- * as before. Prerender only; a server render and the browser have no shared cache.
+ * as before. Prerender only; a server render and the browser have no shared cache. The module
+ * installs it only when the build shares prerender data (`experimental.sharedPrerenderData`); if
+ * Nuxt then hands a page no cache of the shape wrapped here (a Nuxt release that moved it), the
+ * build says so once and goes on unguarded — a theme build must not break on a Nuxt minor.
+ * `test/prerenderSharedData.spec.ts` runs the wrapper against Nuxt's own cache module, so such a
+ * release fails the kit's tests first.
  */
 export default defineNuxtPlugin({
   name: 'eldra-prerender-shared-data',
   enforce: 'pre',
   setup(nuxtApp) {
     if (!import.meta.server || !import.meta.prerender) return;
-    const context = nuxtApp.ssrContext as Record<string, unknown> | undefined;
-    const cache = context?.[SHARED_CACHE];
-    if (context === undefined || !isSharedCache(cache)) return;
-    context[SHARED_CACHE] = withoutFailedReads(cache);
+    guardSharedPrerenderCache(
+      nuxtApp.ssrContext as Record<string, unknown> | undefined,
+      (nuxtApp as { versions?: { nuxt?: string } }).versions?.nuxt
+    );
   },
 });
 
 const SHARED_CACHE = '~sharedPrerenderCache';
+
+/** Whether this build has said its pages are unguarded; once per build (one process). */
+let warned = false;
+
+/** The one line a build logs when the cache it guards is not there. */
+export function unguardedWarning(nuxtVersion: string | undefined): string {
+  return (
+    `[eldra] eldra-prerender-shared-data: Nuxt ${nuxtVersion ?? '(version unknown)'} gave a ` +
+    `prerendered page no shared prerender cache of the shape this plugin wraps ` +
+    `(ssrContext['~sharedPrerenderCache'] with get and set), so failed shared reads are not ` +
+    `guarded: a useAsyncData read that fails may bake an error on some pages and an empty ` +
+    `answer on others, depending on the order they render in.`
+  );
+}
+
+/**
+ * Wraps one prerendered page's shared cache (`withoutFailedReads`). `false`, and one warning per
+ * build, when the page has none of the expected shape.
+ */
+export function guardSharedPrerenderCache(
+  context: Record<string, unknown> | undefined,
+  nuxtVersion: string | undefined,
+  warn: (message: string) => void = console.warn
+): boolean {
+  const cache = context?.[SHARED_CACHE];
+  if (context === undefined || !isSharedCache(cache)) {
+    if (!warned) {
+      warned = true;
+      warn(unguardedWarning(nuxtVersion));
+    }
+    return false;
+  }
+  context[SHARED_CACHE] = withoutFailedReads(cache);
+  return true;
+}
+
+/** For tests: lets the next unguarded page warn again. */
+export function resetUnguardedWarning(): void {
+  warned = false;
+}
 
 /** The keys whose last shared read failed, for the whole prerender (one process). */
 const failedKeys = new Set<string>();

@@ -26,7 +26,9 @@ Release-please writes the generated notes from commit messages and does not repl
   route rendered after it an empty answer (`null`) where the routes rendered before or alongside it
   baked the error, so the same content built different pages depending on the order the routes
   were rendered in. A server plugin now has each later route read a failed key again, and every
-  route bakes its own failure; a read that succeeded is shared as before. Prerender only.
+  route bakes its own failure; a read that succeeded is shared as before. Prerender only, and only
+  with `experimental.sharedPrerenderData` on; a page Nuxt gives no cache of the expected shape logs
+  one warning per build (naming the plugin and the Nuxt version) and is built unguarded.
 
 - **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
   render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);

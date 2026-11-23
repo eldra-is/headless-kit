@@ -201,7 +201,13 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   left later routes an empty answer where earlier ones baked the error, depending on the order the
   routes rendered in (on a busy machine, one build's footer form definition was an error and the
   other's an empty answer). `@eldrajs/theme-nuxt` reads a failed key again on every route that asks
-  (`src/runtime/prerenderSharedData.ts`), so every route bakes its own failure.
+  (`src/runtime/prerenderSharedData.ts`), so every route bakes its own failure. Where the build
+  shares prerender data and Nuxt hands a page no shared cache of the shape that plugin wraps (a
+  Nuxt release that moved it), the build logs one warning and goes on unguarded; the plugin's tests
+  run it against the installed Nuxt's own cache module, so such a release fails the kit's tests
+  first. The session's document is also copied in the frame its veil first drops, normalised the
+  same way, and must equal its settled document: nothing the merchant sees changes after the veil
+  (the one exception is the `/focus-mid` header below).
 
   What the session does to get there:
   - `@eldrajs/theme-core`'s client reshapes **every** session answer into the public read's shape
