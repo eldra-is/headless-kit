@@ -17,6 +17,7 @@ async function startSession(lang = 'en'): Promise<Session> {
   vi.resetModules();
   const session = await import('../src/runtime/previewSession');
   document.documentElement.lang = lang;
+  document.documentElement.removeAttribute('data-eldra-preview-ready');
   document.head.innerHTML = '<meta name="eldra-preview" content="session">';
   document.body.innerHTML = '<div id="__nuxt"><p>Published</p></div>';
   const client = { enableSessionPreview: vi.fn() } as unknown as EldraClient;
@@ -25,6 +26,9 @@ async function startSession(lang = 'en'): Promise<Session> {
   );
   return session;
 }
+
+/** Whether the router's early hide (`html:not([data-eldra-preview-ready]) body`) is lifted. */
+const ready = (): boolean => document.documentElement.hasAttribute('data-eldra-preview-ready');
 
 const fallback = () =>
   document
@@ -49,6 +53,53 @@ describe('settling the drafts', () => {
     );
     expect(order).toEqual(['reads', 'render']);
     expect(session.usePreviewSession().status).toBe('ready');
+  });
+
+  it('lifts the router’s early hide once the fallback notice covers the page', async () => {
+    const session = await startSession();
+    expect(session.PREVIEW_SESSION_READY_ATTRIBUTE).toBe('data-eldra-preview-ready');
+    await vi.waitFor(() => expect(fallback()).not.toBeNull());
+    expect(ready()).toBe(true);
+    expect(session.usePreviewSession().status).toBe('pending');
+    expect(fallback()!.hidden).toBe(false);
+    // Visible under the router's `body { visibility: hidden }`.
+    expect(fallback()!.style.visibility).toBe('visible');
+  });
+
+  it('ends in the unavailable notice when the render fails', async () => {
+    const session = await startSession();
+    await session.settlePreviewSessionDrafts(
+      async () => undefined,
+      async () => {
+        throw new Error('head manager gone');
+      }
+    );
+    expect(session.usePreviewSession().status).toBe('unavailable');
+  });
+
+  it('counts a read that throws at once as settled', async () => {
+    const session = await startSession();
+    await session.settlePreviewSessionDrafts(
+      () => {
+        throw new Error('sync');
+      },
+      async () => undefined
+    );
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
+
+  it('never sets it outside a session', async () => {
+    vi.resetModules();
+    const session = await import('../src/runtime/previewSession');
+    document.documentElement.removeAttribute('data-eldra-preview-ready');
+    document.head.innerHTML = '';
+    expect(
+      session.startPreviewSession({ enableSessionPreview: vi.fn() } as unknown as EldraClient, {
+        win: window,
+        onHydrated: () => undefined,
+      })
+    ).toBe(false);
+    expect(ready()).toBe(false);
   });
 
   it('ends in the unavailable notice when the re-reads do not settle in time', async () => {

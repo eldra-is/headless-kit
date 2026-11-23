@@ -35,6 +35,12 @@ const moduleUrl = pathToFileURL(join(packageDir, 'dist', 'module.mjs')).href;
 const orgId = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 /** The published hero heading the prerender carries. */
 const PUBLISHED_HEADING = 'Generated heading';
+/**
+ * The router's early hide (WS-1376), as far as this spec needs it: the body stays hidden until the
+ * kit sets `data-eldra-preview-ready` on `<html>` (the router's own rule also reveals it after 12 s;
+ * left out here so a page the kit never lifts stays hidden for the whole test).
+ */
+const EARLY_HIDE = 'html:not([data-eldra-preview-ready]) body{visibility:hidden}';
 /** What the stand-in router keeps in its "cookie": the session's secret, never the browser's. */
 const SESSION_SECRET = 'eldra_prv_test-session-secret';
 
@@ -53,6 +59,8 @@ interface SessionRouter {
   requests: RouterRequest[];
   /** When set, every draft read is refused the way the router refuses a dead session. */
   refuse: { status: number; errorId: string } | null;
+  /** While set, every draft read waits for it before it is answered. */
+  hold: Promise<void> | null;
 }
 
 let browser: Browser;
@@ -114,6 +122,9 @@ describe('draft preview session in a real browser', () => {
       .poll(() => page.locator('[data-eldra-preview-session] .veil').getAttribute('hidden'))
       .toBe('');
     expect(await page.locator('#__nuxt').getAttribute('aria-busy')).toBeNull();
+    // The router's early hide is lifted, so the draft is what shows.
+    expect(await page.locator('html').getAttribute('data-eldra-preview-ready')).toBe('');
+    expect(await page.locator('#__nuxt').isVisible()).toBe(true);
     // The exit banner, in the page's own language (the site's default locale is Icelandic).
     const exit = page.locator('[data-eldra-preview-session] .banner a');
     expect(await exit.getAttribute('href')).toBe('/__eldra/preview/exit');
@@ -248,6 +259,32 @@ describe('draft preview session in a real browser', () => {
       .toBe('');
   });
 
+  it('the veil shows over the router’s early hide while the drafts are still on their way', async () => {
+    const router = await startRouter({ session: true });
+    let release = (): void => undefined;
+    router.hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(router.origin);
+    const veil = page.locator('[data-eldra-preview-session] .veil');
+    await veil.waitFor({ state: 'attached', timeout: 30_000 });
+    // Pending: the veil is mounted and covers the page, so the router's hide is lifted — and the
+    // veil, the banner and the loading line show (not hidden with the body).
+    expect(await veil.getAttribute('hidden')).toBeNull();
+    expect(await page.locator('#__nuxt').getAttribute('aria-busy')).toBe('true');
+    expect(await page.locator('html').getAttribute('data-eldra-preview-ready')).toBe('');
+    expect(await veil.isVisible()).toBe(true);
+    expect(await page.locator('[data-eldra-preview-session] .banner').isVisible()).toBe(true);
+    await expect
+      .poll(() => page.locator('[data-eldra-preview-session] .loading').isVisible())
+      .toBe(true);
+    release();
+    await expect.poll(() => veil.getAttribute('hidden'), { timeout: 30_000 }).toBe('');
+    await expect.poll(() => appText(page)).toContain(DRAFT_MARKER);
+  });
+
   it('401 shows expired notice, never published content', async () => {
     const router = await startRouter({ session: true });
     router.refuse = { status: 401, errorId: 'SITE_PREVIEW_SESSION_EXPIRED' };
@@ -259,6 +296,9 @@ describe('draft preview session in a real browser', () => {
     await expect.poll(() => notice.getAttribute('hidden'), { timeout: 30_000 }).toBeNull();
     expect(await notice.getAttribute('role')).toBe('alert');
     expect(await notice.locator('h2').textContent()).toBe('Forskoðuninni er lokið');
+    // The router's early hide is lifted for the notice too: it shows, it is not merely there.
+    expect(await page.locator('html').getAttribute('data-eldra-preview-ready')).toBe('');
+    expect(await notice.isVisible()).toBe(true);
     expect(await notice.textContent()).toContain('Þessi forskoðunartengill er útrunninn.');
     // The published prerender is gone from the document, not merely covered.
     await expect.poll(() => appText(page)).not.toContain(PUBLISHED_HEADING);
@@ -310,6 +350,7 @@ async function startRouter(options: { session: boolean }): Promise<SessionRouter
     origin: '',
     requests: [],
     refuse: null,
+    hold: null,
   };
   const contentTypes: Record<string, string> = {
     '.css': 'text/css; charset=utf-8',
@@ -325,7 +366,7 @@ async function startRouter(options: { session: boolean }): Promise<SessionRouter
       headers: request.headers,
     });
     if (options.session && url.pathname.startsWith('/__eldra/gateway/')) {
-      void proxy(request, response, url, router);
+      void (router.hold ?? Promise.resolve()).then(() => proxy(request, response, url, router));
       return;
     }
     const pathname = decodeURIComponent(url.pathname);
@@ -348,7 +389,7 @@ async function startRouter(options: { session: boolean }): Promise<SessionRouter
         .toString('utf8')
         .replace(
           '<head>',
-          '<head><meta name="robots" content="noindex, nofollow"><meta name="eldra-preview" content="session">'
+          `<head><meta name="robots" content="noindex, nofollow"><meta name="eldra-preview" content="session"><style>${EARLY_HIDE}</style>`
         );
     }
     response.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' }).end(body);

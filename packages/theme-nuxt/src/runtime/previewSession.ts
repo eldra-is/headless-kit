@@ -25,6 +25,17 @@ export const PREVIEW_SESSION_META_CONTENT = 'session';
 export const PREVIEW_SESSION_PROXY_PATH = '/__eldra/gateway';
 /** The router's exit: clears the session's cookies and says so. */
 export const PREVIEW_SESSION_EXIT_PATH = '/__eldra/preview/exit';
+/**
+ * The attribute the page sets on `<html>` once the session no longer needs the router's early hide
+ * (WS-1376). The router puts `html:not([data-eldra-preview-ready]) body { visibility: hidden }` at
+ * the top of every document it serves for a session, so the published prerender is never painted
+ * before the kit's own veil covers it. The page sets this as soon as its veil (or the built-in
+ * fallback notice) is mounted and covering the page, and on every way the session leaves the veil
+ * (the draft shown, a refusal, the timeout, a failure) in case it never mounted. The router's rule
+ * reveals the body after 12 s on its own, which is shorter than the 15 s the drafts may take: that
+ * is why it is the mounted veil, not the dropped one, that lifts it.
+ */
+export const PREVIEW_SESSION_READY_ATTRIBUTE = 'data-eldra-preview-ready';
 
 /**
  * A session host, as the router serves one: the label `p-` and the session id (Core's
@@ -183,6 +194,29 @@ function trackAppRoot(doc: Document): void {
   );
 }
 
+/** Lifts the router's early hide (`PREVIEW_SESSION_READY_ATTRIBUTE`). Never removed again. */
+function liftEarlyHide(doc: Document): void {
+  doc.documentElement.setAttribute(PREVIEW_SESSION_READY_ATTRIBUTE, '');
+}
+
+/**
+ * The give-up paths: the moment the session leaves the veil — the draft is shown, or the session is
+ * refused or unavailable — the early hide is lifted, whether or not the veil ever mounted (the UI
+ * chunk still loading). Synchronous, so it is the same moment the state changes.
+ */
+function liftEarlyHideOnLeavingVeil(doc: Document): void {
+  const stop = watch(
+    () => state.status,
+    (status) => {
+      if (status !== 'ready' && !isPreviewSessionRefused(status)) return;
+      liftEarlyHide(doc);
+      // `stop` is not assigned yet when the first run (immediate) already lifts it.
+      queueMicrotask(() => stop());
+    },
+    { immediate: true, flush: 'sync' }
+  );
+}
+
 /**
  * Focus the page asks for while it is covered, given to it once the draft is shown (WS-1358).
  *
@@ -242,13 +276,22 @@ function replayCoveredFocus(doc: Document): void {
   );
 }
 
-/** Loads and mounts the veil, banner and notices. The module is only ever fetched in a session. */
+/**
+ * Loads and mounts the veil, banner and notices. The module is only ever fetched in a session. Once
+ * the veil (or, without the chunk, the fallback notice) is in the document and covering the page,
+ * the router's early hide is lifted: from then on the kit's own veil is what covers the page.
+ */
 function loadUi(doc: Document): Promise<PreviewSessionUi | undefined> {
   return import('./previewSessionUi').then(
-    ({ mountPreviewSessionUi }) => mountPreviewSessionUi(doc, state),
+    ({ mountPreviewSessionUi }) => {
+      const ui = mountPreviewSessionUi(doc, state);
+      liftEarlyHide(doc);
+      return ui;
+    },
     (cause: unknown) => {
       console.warn('[eldra] the draft preview UI could not be loaded', cause);
       mountFallbackNotice(doc);
+      liftEarlyHide(doc);
       return undefined;
     }
   );
@@ -287,7 +330,9 @@ export function mountFallbackNotice(doc: Document): HTMLElement {
   box.setAttribute('tabindex', '-1');
   box.setAttribute(
     'style',
+    // `visibility:visible`: the router's early hide keeps the body hidden while the veil is up.
     'position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;gap:12px;' +
+      'visibility:visible;' +
       'align-items:center;justify-content:center;padding:16px;background:#fff;color:#1f2328;' +
       'font:16px/1.5 system-ui,sans-serif;text-align:center'
   );
@@ -329,17 +374,27 @@ export async function settlePreviewSessionDrafts(
   const timedOut = new Promise<'timeout'>((resolve) => {
     timer = setTimeout(() => resolve('timeout'), timeoutMs);
   });
-  const settled = reads().then(
-    () => 'settled' as const,
-    () => 'settled' as const
-  );
+  // A read that throws before it returns a promise is settled too, as one that rejects is.
+  const settled = Promise.resolve()
+    .then(reads)
+    .then(
+      () => 'settled' as const,
+      () => 'settled' as const
+    );
   const outcome = await Promise.race([settled, timedOut]);
   clearTimeout(timer);
   if (outcome === 'timeout') {
     refuse({ status: 'unavailable', errorId: null });
     return;
   }
-  await afterRender();
+  try {
+    await afterRender();
+  } catch (cause) {
+    // Not knowing whether the draft is on screen is not showing it: the unavailable notice.
+    console.warn('[eldra] the draft preview could not be rendered', cause);
+    refuse({ status: 'unavailable', errorId: null });
+    return;
+  }
   markPreviewSessionDraftShown();
 }
 
@@ -363,6 +418,7 @@ export function startPreviewSession(
   if (win === undefined || !detectPreviewSession(win)) return false;
   state.active = true;
   trackAppRoot(win.document);
+  liftEarlyHideOnLeavingVeil(win.document);
   // A client without session support (a hand-written one) cannot read drafts this way, and the
   // published page is not an answer either.
   if (typeof client.enableSessionPreview !== 'function') {

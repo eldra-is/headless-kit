@@ -90,9 +90,12 @@ function expiredDetail(messages: PreviewSessionMessages, errorId: string | null)
  * region — after a moment, so a draft that arrives fast never flashes or announces it. Focus is
  * never held: the banner's exit stays reachable. A refusal replaces the veil with an opaque notice
  * and moves focus to it once, so a keyboard or screen-reader user lands on what happened.
+ *
+ * Visible on its own (`all:initial` resets `visibility` too, and it is said again): the router's
+ * early hide keeps the page's body `visibility:hidden` until the session leaves the veil (WS-1376).
  */
 const STYLE = `
-:host{all:initial}
+:host{all:initial;visibility:visible}
 *{box-sizing:border-box}
 .veil,.notice{position:fixed;inset:0;z-index:2147483646;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 .veil{background:rgba(255,255,255,.88);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);transition:opacity .15s ease,visibility 0s linear .15s}

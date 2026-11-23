@@ -21,6 +21,15 @@ Release-please writes the generated notes from commit messages and does not repl
   rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
   Outside a session nothing changes. The starter's parity spec is the release gate; see
   `docs/themes.md`, "Parity with the published page".
+- **A session lifts the preview router's early hide (WS-1376).** The router hides a session
+  document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the
+  published prerender is never painted before the veil. The kit sets it as soon as its veil (or the built-in fallback
+  notice) is mounted and covering the page, and on every way the session leaves the veil in case
+  it never mounted: the draft shown, a refusal, the 15 s bound, a render that failed (now the
+  unavailable notice rather than a veil left up), or a client that cannot read drafts. The veil,
+  the banner and the fallback notice set `visibility: visible`, so they show under the hide.
+  Outside a session nothing changes.
+
 - **A failed read is no longer shared between the pages of a prerender (WS-1358).** Nuxt shares
   `useAsyncData` answers between the routes of one `nuxi generate`; a read that failed left every
   route rendered after it an empty answer (`null`) where the routes rendered before or alongside it

@@ -124,9 +124,14 @@ async function forward(req: IncomingMessage, res: ServerResponse, target: string
 /** What the stand-in router keeps for the session: the secret, never the browser's. */
 export const SESSION_SECRET = 'eldra_prv_parity-session-secret';
 
-/** The two tags the router puts at the top of every page it serves for a session. */
-const SESSION_HEAD =
-  '<meta name="robots" content="noindex, nofollow"><meta name="eldra-preview" content="session">';
+/**
+ * Exactly what the router prepends right after `<head>` in every page it serves for a session
+ * (site-deploy-worker `withPreviewHead`, WS-1376): the robots tag, the session marker, and the early
+ * hide — a `<style>` whose 12 s animation keeps the body hidden until the kit sets
+ * `data-eldra-preview-ready` on `<html>` (after it, the page shows with a notice if the kit never
+ * did) and its `<noscript>` twin. Copied byte for byte (788 bytes), CSS escapes included.
+ */
+const SESSION_HEAD = String.raw`<meta name="robots" content="noindex, nofollow"><meta name="eldra-preview" content="session"><style>html:not([data-eldra-preview-ready]) body{animation:eldra-preview-veil 12s step-end}html:not([data-eldra-preview-ready])::before{content:"Forsko\f0 unin f\f3 r ekki \ed  gang. \de etta er \fa tgefna s\ed \f0 an.\a The preview could not start. This is the published page.";display:block;white-space:pre-line;padding:8px 16px;font:14px/1.4 system-ui,sans-serif;color:#1f2328;background:#fff8c5;border-bottom:1px solid #d4a72c;animation:eldra-preview-veil 12s step-end}@keyframes eldra-preview-veil{from,to{visibility:hidden}}</style><noscript><style>html:not([data-eldra-preview-ready]) body,html:not([data-eldra-preview-ready])::before{visibility:visible;animation:none}</style></noscript>`;
 
 export interface SessionRouter {
   origin: string;
@@ -136,9 +141,9 @@ export interface SessionRouter {
 /**
  * The preview router, as far as a page can tell (site-deploy-worker `src/preview-router.ts`): the
  * session's pinned deployment, served by the same static host a published site has (so the same
- * trailing-slash redirect), with the theme's own robots tag replaced by `noindex, nofollow` and the
- * session marker added to every HTML document, and the draft read proxy at `/__eldra/gateway/*`
- * adding the organisation and `X-Preview-Session` itself.
+ * trailing-slash redirect), with the theme's own robots tag replaced by `SESSION_HEAD` (the robots
+ * tag, the session marker and the early hide) in every HTML document, and the draft read proxy at
+ * `/__eldra/gateway/*` adding the organisation and `X-Preview-Session` itself.
  */
 export async function startSessionRouter(
   publicDir: string,
@@ -196,6 +201,8 @@ export async function startSessionRouter(
       body = body
         .toString('utf8')
         .replace(/<meta name="robots"[^>]*>/g, '')
+        // The router drops a ready attribute the page itself carries: only the kit lifts the hide.
+        .replace(/(<html\b[^>]*?)\s+data-eldra-preview-ready(?:="[^"]*")?/, '$1')
         .replace('<head>', `<head>${SESSION_HEAD}`);
     }
     res.writeHead(upstream.status, out).end(body);

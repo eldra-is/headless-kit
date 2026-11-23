@@ -17,6 +17,7 @@ describe('startPreviewSession', () => {
   it('turns the page into a session and keeps the app unreachable until the draft is shown', async () => {
     document.head.innerHTML = '<meta name="eldra-preview" content="session">';
     document.body.innerHTML = '<div id="__nuxt"><a href="/x">Published</a></div>';
+    expect(document.documentElement.hasAttribute('data-eldra-preview-ready')).toBe(false);
     let listener: ((error: EldraClientError) => void) | undefined;
     const client = {
       enableSessionPreview: vi.fn(),
@@ -40,6 +41,10 @@ describe('startPreviewSession', () => {
     await vi.waitFor(() =>
       expect(document.querySelector('[data-eldra-preview-session]')).not.toBeNull()
     );
+    // The veil is mounted and covering the page: the router's early hide is lifted while the
+    // session is still pending (WS-1376).
+    expect(document.documentElement.hasAttribute('data-eldra-preview-ready')).toBe(true);
+    expect(session.status).toBe('pending');
 
     markPreviewSessionDraftShown();
     expect(app.hasAttribute('aria-busy')).toBe(false);

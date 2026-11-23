@@ -44,10 +44,11 @@ import { startStaticServer, type StaticServer } from './support/staticServer';
  * console errors, and pixel for pixel.
  *
  * **What a session may differ in, and nothing else** (WS-1358): the router's `noindex, nofollow`
- * robots tag, the session marker it adds (`eldra-preview`), and the session's own UI — the veil, the
- * banner and the notices, which all live in the `[data-eldra-preview-session]` host on `<body>`.
- * `normalise()` removes exactly those, from the session's page only; the live page is asserted to
- * have none of them.
+ * robots tag, the session marker it adds (`eldra-preview`), its early hide (a `<style>` and a
+ * `<noscript>` after the marker, lifted by the kit's `data-eldra-preview-ready` on `<html>`,
+ * WS-1376), and the session's own UI — the veil, the banner and the notices, which all live in the
+ * `[data-eldra-preview-session]` host on `<body>`. `normalise()` removes exactly those, from the
+ * session's page only; the live page is asserted to have none of them.
  *
  * Besides them, the comparison does not read Nuxt's two hydration-state scripts (`#__NUXT_DATA__`
  * and the `window.__NUXT__` config): they are the build's own state — the pinned build's payload is,
@@ -285,36 +286,51 @@ const QUIET_MS = 750;
  * On the session's page, removes exactly the differences a session is allowed; on the live page,
  * asserts there are none of them to remove.
  */
-/** What a session adds to the page: its host, and the router's two meta tags. */
+/**
+ * What a session adds to the page: its host, the router's two meta tags, and the router's early
+ * hide (WS-1376) — a `<style>` and its `<noscript>` twin, put right after the session marker. The
+ * kit's `data-eldra-preview-ready` on `<html>` (which lifts that hide) is the one added attribute:
+ * `PREVIEW_READY` below.
+ */
 const SESSION_ADDITIONS = [
   '[data-eldra-preview-session]',
   'meta[name="eldra-preview"]',
   'meta[name="robots"][content="noindex, nofollow"]',
+  'meta[name="eldra-preview"] + style',
+  'meta[name="eldra-preview"] + style + noscript',
 ];
+/** The attribute the kit sets on `<html>` once the router's early hide may lift. */
+const PREVIEW_READY = 'data-eldra-preview-ready';
+const SESSION_COUNTS = SESSION_ADDITIONS.map(() => 1);
+const LIVE_COUNTS = SESSION_ADDITIONS.map(() => 0);
 
 async function normalise(page: Page, session: boolean): Promise<void> {
   const found = await page.evaluate(
-    ([remove, selectors]) => {
+    ([remove, selectors, readyAttribute]) => {
       const counts = selectors.map((selector) => document.querySelectorAll(selector).length);
+      const ready = document.documentElement.hasAttribute(readyAttribute);
       if (remove) {
-        for (const selector of selectors) {
-          document.querySelectorAll(selector).forEach((node) => node.remove());
-        }
+        // Found first, removed after: a selector may name its place after another addition
+        // (`meta[name="eldra-preview"] + style`).
+        const nodes = selectors.flatMap((selector) => [...document.querySelectorAll(selector)]);
+        for (const node of nodes) node.remove();
+        document.documentElement.removeAttribute(readyAttribute);
       }
       const noindex = [...document.querySelectorAll('meta[name="robots"]')].some((meta) =>
         /noindex/i.test(meta.getAttribute('content') ?? '')
       );
-      return { counts, noindex };
+      return { counts, noindex, ready };
     },
-    [session, SESSION_ADDITIONS] as const
+    [session, SESSION_ADDITIONS, PREVIEW_READY] as const
   );
   if (session) {
     // Exactly one robots tag, the router's `noindex, nofollow`, on every session page: the
     // session's own head entry keeps it once the theme's head manager runs, a page only the draft
-    // has (which hydrates the not-found document's `noindex`) included.
-    expect(found).toEqual({ counts: [1, 1, 1], noindex: false });
+    // has (which hydrates the not-found document's `noindex`) included. And the router's early
+    // hide is lifted: the kit set the ready attribute.
+    expect(found).toEqual({ counts: SESSION_COUNTS, noindex: false, ready: true });
   } else {
-    expect(found).toEqual({ counts: [0, 0, 0], noindex: false });
+    expect(found).toEqual({ counts: LIVE_COUNTS, noindex: false, ready: false });
   }
 }
 
@@ -332,9 +348,12 @@ function installSerialiser(): void {
         lines: string[];
         counts: number[];
         noindex: boolean;
+        ready: boolean;
       };
     }
   ).__eldraSerialise = (skip) => {
+    // With additions to skip, the kit's ready attribute on `<html>` is one of them.
+    const readyAttribute = 'data-eldra-preview-ready';
     const lines: string[] = [];
     const walk = (node: Node, depth: number): void => {
       const indent = '  '.repeat(depth);
@@ -361,6 +380,12 @@ function installSerialiser(): void {
       // the browser applies, which the stored data (a framing's focal point) decides on both.
       const attributes = [...element.attributes]
         .filter((attribute) => attribute.name !== 'style')
+        .filter(
+          (attribute) =>
+            skip.length === 0 ||
+            element !== document.documentElement ||
+            attribute.name !== readyAttribute
+        )
         .map((attribute) => `${attribute.name}="${attribute.value}"`);
       const style = (element as HTMLElement).style?.cssText ?? '';
       if (style !== '') attributes.push(`style="${style}"`);
@@ -381,7 +406,8 @@ function installSerialiser(): void {
     const noindex = [...document.querySelectorAll('meta[name="robots"]')]
       .filter((meta) => !skip.some((selector) => meta.matches(selector)))
       .some((meta) => /noindex/i.test(meta.getAttribute('content') ?? ''));
-    return { lines, counts, noindex };
+    const ready = document.documentElement.hasAttribute(readyAttribute);
+    return { lines, counts, noindex, ready };
   };
 }
 
@@ -494,14 +520,21 @@ function capture(origin: string, path: string, width: number, session: boolean):
         () =>
           (
             window as unknown as {
-              __eldraVeilDrop: { lines: string[]; counts: number[]; noindex: boolean };
+              __eldraVeilDrop: {
+                lines: string[];
+                counts: number[];
+                noindex: boolean;
+                ready: boolean;
+              };
             }
           ).__eldraVeilDrop
       );
-      // The same additions the settled page has, and nothing else that says noindex.
-      expect({ counts: atDrop.counts, noindex: atDrop.noindex }).toEqual({
-        counts: [1, 1, 1],
+      // The same additions the settled page has, and nothing else that says noindex; and the
+      // router's early hide was lifted in the very frame the veil dropped.
+      expect({ counts: atDrop.counts, noindex: atDrop.noindex, ready: atDrop.ready }).toEqual({
+        counts: SESSION_COUNTS,
         noindex: false,
+        ready: true,
       });
       veilDrop = preloadsAsASet(atDrop.lines);
     }

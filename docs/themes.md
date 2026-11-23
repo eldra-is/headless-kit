@@ -143,9 +143,20 @@ renders the organisation's drafts there, client-side.
   - the build-time platform reads baked into the runtime config: design tokens (until site-service
     serves draft tokens, WS-1299), theme texts, forms, site icons, SEO, the site profile.
 
-- **What a visitor sees.** The published prerender is **visible until the kit's JavaScript has
-  loaded**; only then does the veil cover it (covering it from the first paint needs the router to
-  inject an early veil, a ticketed follow-up). Under the veil the app is `aria-busy` and inert; a
+- **What a visitor sees.** The published prerender is never painted: the router puts an early hide
+  at the top of every session document (WS-1376): while `<html>` has no
+  `data-eldra-preview-ready`, a 12 s animation keeps the body `visibility: hidden` (nothing else
+  hides it: a theme that turns animations off shows the page at once, with the router's notice,
+  which fails open). The kit sets
+  `data-eldra-preview-ready` on `<html>` as soon as its own veil (or the built-in fallback line) is
+  mounted and covering the page, so from then on the kit's veil is what covers it. It sets it too
+  on every way the session leaves the veil (the draft shown, a refusal, the 15 s bound, a render
+  that failed, a client that cannot read drafts), in case the veil never mounted, so the router's
+  rule never keeps a page hidden. When the animation ends the page shows, with a notice of the
+  router's, if the kit never set it (its script failed); that 12 s is shorter than the 15 s
+  the drafts may take, which is why the mounted veil, not the dropped one, lifts it. The veil, the
+  banner and the built-in fallback line set `visibility: visible` on themselves, so they show while
+  the body is still hidden (and whatever a theme's own rule does to the body later). Under the veil the app is `aria-busy` and inert; a
   "loading" line appears, and becomes a live region, only after half a second; the veil comes down
   when the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A
   refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable) clears every async
@@ -157,7 +168,9 @@ renders the organisation's drafts there, client-side.
 - **Permanent DOM differences in a session**: a `<div data-eldra-preview-session>` appended to
   `<body>`, after the app, whose open shadow root holds the veil, the notice and the exit banner (the
   banner stays visible, fixed at the bottom); the router's `<meta name="robots" content="noindex,
-nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
+nofollow">` and `<meta name="eldra-preview">` in the head, and right after them its early hide (a
+  `<style>` and a `<noscript>` twin); `data-eldra-preview-ready` on `<html>` once the veil is
+  mounted. While the veil is up,
   `aria-busy="true"` and `inert` on `#__nuxt`; after a refusal, `inert`. Once the draft is on
   screen, nothing inside `#__nuxt` differs from the published page, with the exceptions listed
   under "Parity" below.
@@ -183,7 +196,9 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   pixel: 0 differ.
 
   Removed before the comparison, from the session's page only: exactly the differences above (the
-  session host, the two router meta tags); the live page is asserted to have none of them. Not
+  session host, the two router meta tags, the router's early hide and the kit's
+  `data-eldra-preview-ready`, which must already be set in the frame the veil drops); the live page
+  is asserted to have none of them. The stand-in router injects the same early hide the router does. Not
   compared: Nuxt's hydration-state scripts (the pinned build's payload is the older content by
   construction, and every build has its own build id) and comments (Vue's fragment anchors). A
   `style` attribute is compared as the browser holds it (`style.cssText`), and the head's
