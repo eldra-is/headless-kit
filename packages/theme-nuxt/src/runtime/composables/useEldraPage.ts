@@ -23,6 +23,7 @@ import {
 } from '../locales';
 import { isStudioPreviewFrame } from '../origins';
 import { isPreviewSessionRefused, usePreviewSession } from '../previewSession';
+import { PAGE_KEY_PREFIX } from '../previewSessionReads';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 import { canonicalRoutePath } from '../routePath';
 import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
@@ -33,8 +34,6 @@ import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
  * that answers `/products/x` with a 308 to `/products/x/` must not make the build's answer
  * unreachable under the spelling it served.
  */
-const PAGE_KEY_PREFIX = 'eldra-page:';
-
 const routeDataKey = (path: string): string => `${PAGE_KEY_PREFIX}${path}`;
 
 /** What a session the router refused renders: nothing of the page, and never the published one. */

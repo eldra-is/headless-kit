@@ -35,6 +35,7 @@ import {
   startPreviewSession,
   usePreviewSession,
 } from './previewSession';
+import { sessionReads, type SessionReadsInput } from './previewSessionReads';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
 
@@ -51,6 +52,9 @@ interface RuntimeEldraConfig {
   /** `null` when the theme configures none: the client's own defaults apply. */
   retry: EldraRetryOptions | null;
 }
+
+/** The robots tag a draft preview session's page carries: the preview router's own. */
+const PREVIEW_SESSION_ROBOTS = 'noindex, nofollow';
 
 export default defineNuxtPlugin({
   name: 'eldra-theme',
@@ -91,7 +95,9 @@ export default defineNuxtPlugin({
      * for, captured here, before anything ran in the browser. An entry that did not run on load (an
      * `immediate: false` form submit, a cart create) is never run by the session. Entries the browser
      * itself started on load (a page with no server render) already read through the session and are
-     * waited for, not run again. A refresh is never answered from the payload after hydration, so
+     * waited for, not run again. One more: on a page only the draft has, `useEldraPage`'s route
+     * read, which Nuxt counted as hydrated from its `default` and never ran
+     * (`./previewSessionReads.ts`). A refresh is never answered from the payload after hydration, so
      * each handler runs again and its CMS reads go through the session. The veil stays up until they
      * have settled and rendered, for at most `PREVIEW_SESSION_DRAFT_TIMEOUT_MS`; after that the
      * session is unavailable.
@@ -101,30 +107,14 @@ export default defineNuxtPlugin({
           (key) => nuxtApp.payload.data[key] !== undefined
         )
       : [];
-    const sessionReads = async (): Promise<void> => {
-      const promises =
-        (nuxtApp as { _asyncDataPromises?: Record<string, Promise<unknown> | undefined> })
-          ._asyncDataPromises ?? {};
-      const inFlight = Object.entries(promises)
-        .filter(([key, promise]) => promise !== undefined && !hydratedKeys.includes(key))
-        .map(([, promise]) => promise);
-      // An entry Nuxt marked as hydrated with nothing from the payload: during hydration an entry
-      // whose `default` gives a value counts as hydrated and is never fetched. That is a route the
-      // document was not rendered for — a page only the draft has, opened directly, hydrates the
-      // build's not-found document — so its own data was never read (WS-1358). Never an entry
-      // that did not run on load (`idle`).
-      const unread = Object.entries(
-        (nuxtApp as { _asyncData?: Record<string, { status?: { value?: string } } | undefined> })
-          ._asyncData ?? {}
-      )
-        .filter(
-          ([key, entry]) =>
-            !hydratedKeys.includes(key) &&
-            promises[key] === undefined &&
-            entry?.status?.value === 'success'
-        )
-        .map(([key]) => key);
-      const reread = [...hydratedKeys, ...unread];
+    const readDrafts = async (): Promise<void> => {
+      const { reread, inFlight } = sessionReads({
+        hydratedKeys,
+        asyncData: (nuxtApp as { _asyncData?: SessionReadsInput['asyncData'] })._asyncData ?? {},
+        promises:
+          (nuxtApp as { _asyncDataPromises?: SessionReadsInput['promises'] })._asyncDataPromises ??
+          {},
+      });
       await Promise.allSettled([
         reread.length > 0 ? refreshNuxtData(reread) : undefined,
         ...inFlight,
@@ -136,10 +126,18 @@ export default defineNuxtPlugin({
         onHydrated: (hydrated) =>
           nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
             hydrated();
-            await settlePreviewSessionDrafts(sessionReads, () => nextTick());
+            await settlePreviewSessionDrafts(readDrafts, () => nextTick());
           }),
       });
     if (previewSession) {
+      // A session's page is never indexed, whatever the page asks for. The preview router puts
+      // `noindex, nofollow` in every document it serves (and sends `X-Robots-Tag`), but the head
+      // manager owns `meta[name="robots"]` once the app runs: a page that writes its own (the
+      // not-found document a page only the draft has hydrates, a theme's `robots` setting) would
+      // remove or replace the router's. The session's own entry, ahead of any page's, keeps it.
+      useHead({
+        meta: [{ name: 'robots', content: PREVIEW_SESSION_ROBOTS, tagPriority: 'critical' }],
+      });
       // A refused session keeps nothing it read: every async data entry — the theme's own as well
       // as the route's — is cleared once the page is hydrated, so neither drafts nor anything
       // published stays rendered under the notice.

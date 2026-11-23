@@ -168,8 +168,13 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   older content was live, served by a stand-in router as a session whose draft reads answer the new
   content in Core's preview shape, and a _live_ build made after that content was published, served
   statically. Core's two read shapes come from one module (`test/support/previewParityContent.ts`);
-  `@eldrajs/theme-core`'s `previewParityVectors.spec.ts` checks the expansion against reads recorded
-  from Core's own read code. The pages: every starter block type, shared components (a header and
+  `@eldrajs/theme-core`'s `previewParityVectors.spec.ts` checks `asPublicRead` against the 31 pairs
+  of reads recorded from Core's own read code (`web-studio-core`'s
+  `internal/modules/cms/handler/web/testdata/preview_parity/`, copied as they are). One pair is not
+  two answers: a page placing a component that no longer resolves (archived) is served by the public
+  read without the placement and refused by a preview read (404 `REUSABLE_COMPONENT_NOT_FOUND`), so
+  a session shows the theme's not-found page where the live page shows the page without that
+  component; that is accepted, and pinned. The pages: every starter block type, shared components (a header and
   footer), a page under a page that places them, a shared component next to a block node that no
   longer resolves, a localized page in both locales, media framing, a route template (a dynamic
   route) placing a component, and one page per structural edit. At 1280 and 390 wide, after
@@ -184,9 +189,10 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   `style` attribute is compared as the browser holds it (`style.cssText`), and the head's
   `modulepreload` hints as a set: their order is the order the prerender's async render collected
   the chunks in, which differs between any two builds of the same content. In the async data, an
-  entry's `status`, `publishedAt` and `updatedAt` and a media item's `linkId` are not compared:
-  they are the draft's own (the public read drops `status`; Publish sets the times; each owner has
-  its own asset link row), and the identical DOM shows the starter renders none of them.
+  entry's `publishedAt` and `updatedAt` and a media item's `linkId` are not compared: they are the
+  draft's own (Publish sets the times; each owner has its own asset link row), and the identical DOM
+  shows the starter renders none of them. An entry's `status` is not among them: the public read
+  does not carry it, and the session's client drops it too.
 
   What the session does to get there:
   - `@eldrajs/theme-core`'s client reshapes **every** session answer into the public read's shape
@@ -207,9 +213,26 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   - a page that exists only as a draft resolves the address bar's path: the host answers it with the
     build's not-found document, and when that is a prerendered page (the starter copies its `/404`
     over `404.html`) Nuxt would otherwise start at the path the document was rendered for and show
-    "Page not found" (`src/runtime/previewSessionRoute.ts`); and the route's own data, which Nuxt
-    counts as hydrated from its `default` although the document carried none, is read with the
-    session's re-reads (any entry in that state is: never one that did not run on load).
+    "Page not found" (`src/runtime/previewSessionRoute.ts`). Only a document rendered for `/404` is
+    started elsewhere, and the paths are compared as Nuxt's router compares them (without the app's
+    `baseURL`); a document served under another address, an alias or a host's rewrite, starts where
+    Nuxt would start it. The route's own data, which Nuxt counts as hydrated from its `default`
+    although the document carried none, is read with the session's re-reads
+    (`src/runtime/previewSessionReads.ts`): only `useEldraPage`'s, and only while it still holds its
+    `default`. Nuxt marks an `immediate: false` entry with a `default` the same way and nothing on
+    the entry tells them apart, so a theme's own entry in that state is never run by the session (a
+    cart create runs when the page runs it); on such a page a theme's own `useAsyncData` with a
+    `default` keeps it until the theme refreshes it;
+  - a session's page always carries the router's `noindex, nofollow`: the session adds its own
+    robots entry to the head, ahead of any page's, because the head manager owns
+    `meta[name="robots"]` once the app runs and would otherwise remove the router's tag where a page
+    writes its own (the not-found document a page only the draft has hydrates) or replace it with a
+    theme's.
+
+  A theme that **renders** an entry's `publishedAt` or `updatedAt` (a "last updated" line, a date
+  under a post) shows the draft's in a preview, its own save time and the last publish time or none,
+  where the live page shows the times Publish set: that text differs between a preview and the page
+  Publish puts live.
 
   **Known differences** (each pinned by the spec, so a change in either direction is seen):
   - **Structural edits renumber `useId()` ids — accepted by the owner (2026-11-23)**, to be taken
@@ -232,17 +255,17 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
     absolute URL), and a removed one's stays behind from the pinned page.
 
   - A page that exists only as a draft, opened directly, hydrates the pinned build's not-found
-    document: its head's payload preload is that document's (`/404/_payload.json`), the session
-    also holds that document's route data, and the router's `noindex, nofollow` tag is gone (the
-    theme's head manager owns `meta[name="robots"]`, and removes the not-found page's once the draft
-    page, which has none, renders). The router's `X-Robots-Tag: noindex` header still applies.
+    document: its head's payload preload is that document's (`/404/_payload.json`), and the session
+    also holds that document's route data.
   - The session re-runs every async data entry the server filled, commerce reads included, so it
     asks the catalog again where the live page answers from its payload (same answer, one more
     request; the spec allows exactly those requests per page).
   - Focus asked for under the veil is given later than on the live page. The focus and the scroll
     position end the same; scroll-driven state can end differently (the starter header's
     hide-on-scroll, with a field focused mid-page, ends shown in about half the sessions where the
-    live page has it hidden). The spec allows exactly that one difference on that page.
+    live page has it hidden). Accepted by the owner (2026-11-23) as a known difference: it needs a
+    block that takes focus mid-page, and the one who sees it is the merchant looking at a preview.
+    The spec allows exactly that one difference, the header's hidden state, on that page.
   - **Design tokens and theme texts saved after the pinned build.** The owner decided
     (2026-11-23) that a preview shows them as soon as they are saved. The kit does not do that yet: a
     build reads them once (the module's `readDesignTokens` and `readThemeMessages`) and bakes them

@@ -5,7 +5,7 @@
     "publishedAt, updatedAt: the record's own metadata, which Publish sets",
     "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
     "linkId: asset-service's link row, one per owner (draft or published snapshot)",
-    "headers: Eldra-Preview: draft on a preview answer only"
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
   ],
   "preview": {
     "body": {
@@ -48,6 +48,10 @@
               },
               "config": {
                 "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000003",
+                  "linkId": "kept"
+                },
                 "tags": ["a", "b"]
               },
               "content": {
@@ -79,26 +83,26 @@
               "gallery": [
                 {
                   "altText": "Alt text 0",
-                  "assetId": "00000000-0000-4000-8000-000000000003",
-                  "contentType": "image/jpeg",
-                  "filename": "00000000-0000-4000-8000-000000000003.jpg",
-                  "height": 900,
-                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000003",
-                  "sortOrder": 0,
-                  "tag": "gallery",
-                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000003.jpg",
-                  "width": 1600
-                },
-                {
-                  "altText": "Alt text 1",
                   "assetId": "00000000-0000-4000-8000-000000000004",
                   "contentType": "image/jpeg",
                   "filename": "00000000-0000-4000-8000-000000000004.jpg",
                   "height": 900,
                   "linkId": "cms_entry-00000000-0000-4000-8000-000000000004",
-                  "sortOrder": 1,
+                  "sortOrder": 0,
                   "tag": "gallery",
                   "url": "https://media.example.test/00000000-0000-4000-8000-000000000004.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000005",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000005.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000005",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
                   "width": 1600
                 }
               ],
@@ -106,34 +110,60 @@
               "icon": "AlarmClock",
               "image": {
                 "altText": "Alt text 0",
-                "assetId": "00000000-0000-4000-8000-000000000005",
+                "assetId": "00000000-0000-4000-8000-000000000003",
                 "contentType": "image/jpeg",
-                "filename": "00000000-0000-4000-8000-000000000005.jpg",
+                "filename": "00000000-0000-4000-8000-000000000003.jpg",
                 "framing": {
                   "x": 0.5,
                   "y": 0.4,
                   "zoom": 2
                 },
                 "height": 900,
-                "linkId": "cms_entry-00000000-0000-4000-8000-000000000005",
+                "linkId": "cms_entry-00000000-0000-4000-8000-000000000003",
                 "sortOrder": 0,
                 "tag": "image",
-                "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000003.jpg",
                 "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000001"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000006",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000007/assets/00000000-0000-4000-8000-000000000006/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000008"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
               },
               "notes": "# Notes\n\n- one\n- two",
               "ratio": 0.25,
               "startsAt": "2026-01-01T00:00:00Z",
-              "token": "00000000-0000-4000-8000-000000000006",
+              "token": "00000000-0000-4000-8000-000000000009",
               "variant": {
                 "label": "Breitt",
                 "value": "wide"
               }
             },
-            "id": "00000000-0000-4000-8000-000000000007",
+            "id": "00000000-0000-4000-8000-000000000010",
             "publishedAt": "2026-01-01T00:00:00Z",
             "schemaApiId": "feature",
-            "schemaId": "00000000-0000-4000-8000-000000000008",
+            "schemaId": "00000000-0000-4000-8000-000000000011",
             "status": "CHANGED",
             "updatedAt": "2026-01-01T00:00:00Z"
           },
@@ -145,10 +175,10 @@
               "heading": "Nýr fótur",
               "image": null
             },
-            "id": "00000000-0000-4000-8000-000000000009",
+            "id": "00000000-0000-4000-8000-000000000012",
             "publishedAt": "2026-01-01T00:00:00Z",
             "schemaApiId": "feature",
-            "schemaId": "00000000-0000-4000-8000-000000000008",
+            "schemaId": "00000000-0000-4000-8000-000000000011",
             "status": "CHANGED",
             "updatedAt": "2026-01-01T00:00:00Z"
           }
@@ -157,14 +187,14 @@
           "root": {
             "children": [
               {
-                "entryId": "00000000-0000-4000-8000-000000000007",
+                "entryId": "00000000-0000-4000-8000-000000000010",
                 "id": "Full",
                 "type": "block"
               },
               {
                 "children": [
                   {
-                    "entryId": "00000000-0000-4000-8000-000000000009",
+                    "entryId": "00000000-0000-4000-8000-000000000012",
                     "id": "Plain",
                     "type": "block"
                   }
@@ -198,9 +228,9 @@
         "slug": "home",
         "title": "Forsíða"
       },
-      "id": "00000000-0000-4000-8000-000000000010",
+      "id": "00000000-0000-4000-8000-000000000013",
       "publishedAt": "2026-01-01T00:00:00Z",
-      "schemaId": "00000000-0000-4000-8000-000000000011",
+      "schemaId": "00000000-0000-4000-8000-000000000014",
       "status": "PUBLISHED",
       "updatedAt": "2026-01-01T00:00:00Z"
     },
@@ -248,6 +278,10 @@
               },
               "config": {
                 "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000003",
+                  "linkId": "kept"
+                },
                 "tags": ["a", "b"]
               },
               "content": {
@@ -279,26 +313,26 @@
               "gallery": [
                 {
                   "altText": "Alt text 0",
-                  "assetId": "00000000-0000-4000-8000-000000000003",
-                  "contentType": "image/jpeg",
-                  "filename": "00000000-0000-4000-8000-000000000003.jpg",
-                  "height": 900,
-                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000003",
-                  "sortOrder": 0,
-                  "tag": "gallery",
-                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000003.jpg",
-                  "width": 1600
-                },
-                {
-                  "altText": "Alt text 1",
                   "assetId": "00000000-0000-4000-8000-000000000004",
                   "contentType": "image/jpeg",
                   "filename": "00000000-0000-4000-8000-000000000004.jpg",
                   "height": 900,
                   "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000004",
-                  "sortOrder": 1,
+                  "sortOrder": 0,
                   "tag": "gallery",
                   "url": "https://media.example.test/00000000-0000-4000-8000-000000000004.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000005",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000005.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000005",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
                   "width": 1600
                 }
               ],
@@ -306,34 +340,60 @@
               "icon": "AlarmClock",
               "image": {
                 "altText": "Alt text 0",
-                "assetId": "00000000-0000-4000-8000-000000000005",
+                "assetId": "00000000-0000-4000-8000-000000000003",
                 "contentType": "image/jpeg",
-                "filename": "00000000-0000-4000-8000-000000000005.jpg",
+                "filename": "00000000-0000-4000-8000-000000000003.jpg",
                 "framing": {
                   "x": 0.5,
                   "y": 0.4,
                   "zoom": 2
                 },
                 "height": 900,
-                "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000005",
+                "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000003",
                 "sortOrder": 0,
                 "tag": "image",
-                "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000003.jpg",
                 "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000001"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000006",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000007/assets/00000000-0000-4000-8000-000000000006/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000008"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
               },
               "notes": "# Notes\n\n- one\n- two",
               "ratio": 0.25,
               "startsAt": "2026-01-01T00:00:00Z",
-              "token": "00000000-0000-4000-8000-000000000006",
+              "token": "00000000-0000-4000-8000-000000000009",
               "variant": {
                 "label": "Breitt",
                 "value": "wide"
               }
             },
-            "id": "00000000-0000-4000-8000-000000000007",
+            "id": "00000000-0000-4000-8000-000000000010",
             "publishedAt": "2026-01-01T00:00:00Z",
             "schemaApiId": "feature",
-            "schemaId": "00000000-0000-4000-8000-000000000008",
+            "schemaId": "00000000-0000-4000-8000-000000000011",
             "updatedAt": "2026-01-01T00:00:00Z"
           },
           {
@@ -344,10 +404,10 @@
               "heading": "Nýr fótur",
               "image": null
             },
-            "id": "00000000-0000-4000-8000-000000000009",
+            "id": "00000000-0000-4000-8000-000000000012",
             "publishedAt": "2026-01-01T00:00:00Z",
             "schemaApiId": "feature",
-            "schemaId": "00000000-0000-4000-8000-000000000008",
+            "schemaId": "00000000-0000-4000-8000-000000000011",
             "updatedAt": "2026-01-01T00:00:00Z"
           }
         ],
@@ -355,14 +415,14 @@
           "root": {
             "children": [
               {
-                "entryId": "00000000-0000-4000-8000-000000000007",
+                "entryId": "00000000-0000-4000-8000-000000000010",
                 "id": "Full",
                 "type": "block"
               },
               {
                 "children": [
                   {
-                    "entryId": "00000000-0000-4000-8000-000000000009",
+                    "entryId": "00000000-0000-4000-8000-000000000012",
                     "id": "Plain",
                     "type": "block"
                   }
@@ -396,9 +456,9 @@
         "slug": "home",
         "title": "Forsíða"
       },
-      "id": "00000000-0000-4000-8000-000000000010",
+      "id": "00000000-0000-4000-8000-000000000013",
       "publishedAt": "2026-01-01T00:00:00Z",
-      "schemaId": "00000000-0000-4000-8000-000000000011",
+      "schemaId": "00000000-0000-4000-8000-000000000014",
       "updatedAt": "2026-01-01T00:00:00Z"
     },
     "cacheControl": "",
@@ -407,6 +467,6 @@
   "read": {
     "method": "GET",
     "operation": "webGetEntry",
-    "path": "/v1/schema/00000000-0000-4000-8000-000000000011/entry/00000000-0000-4000-8000-000000000010?locale=is-IS"
+    "path": "/v1/schema/00000000-0000-4000-8000-000000000014/entry/00000000-0000-4000-8000-000000000013?locale=is-IS"
   }
 }

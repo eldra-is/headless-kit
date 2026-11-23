@@ -5,7 +5,7 @@
     "publishedAt, updatedAt: the record's own metadata, which Publish sets",
     "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
     "linkId: asset-service's link row, one per owner (draft or published snapshot)",
-    "headers: Eldra-Preview: draft on a preview answer only"
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
   ],
   "preview": {
     "body": {

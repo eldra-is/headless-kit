@@ -259,13 +259,15 @@ function isPlainRecord(value: unknown): value is JsonRecord {
  *    route template, whose version-1 layout may place a component), and the projection dropped;
  *  - `blocks` put in the expanded layout's depth-first order (slot children by sorted slot id);
  *  - every node naming a block that is not among `blocks` removed, slot children with it, and
- *    `blocks` rebuilt from what remains.
+ *    `blocks` rebuilt from what remains;
+ *  - every entry's `status` dropped (an object with `id`, `schemaId` and `data`, the envelope Core
+ *    writes around a record): the public read has none.
  *
  * Anything else is left as it is: a document with no projection is served the same by both reads
  * (Core prunes only a document that places a component), and a projection that does not expand is
  * left for the render to fail closed on, as it would have. What the two reads differ in beyond
- * this — the entry metadata (`status`, `publishedAt`, `updatedAt`) and a media item's `linkId` —
- * is the draft's own and stays.
+ * this — an entry's `publishedAt` and `updatedAt` (Publish sets them) and a media item's `linkId`
+ * (one link row per owner) — is the draft's own and stays.
  *
  * A draft preview session's client applies it to every CMS answer (`enableSessionPreview`): a
  * session has no overlay to address a component's nodes by their authored ids, and what it must
@@ -278,7 +280,16 @@ export function asPublicRead<T>(value: T): T {
   for (const [key, child] of Object.entries(value)) {
     walked[key] = key === 'reusableComponentProjection' ? child : asPublicRead(child);
   }
-  return publicDocument(walked) as T;
+  return publicDocument(withoutEntryStatus(walked)) as T;
+}
+
+/** An entry's envelope without `status`: the public read drops it, a preview read keeps it. */
+function withoutEntryStatus(record: JsonRecord): JsonRecord {
+  if (!('status' in record && 'id' in record && 'schemaId' in record && 'data' in record)) {
+    return record;
+  }
+  const { status: _status, ...rest } = record;
+  return rest;
 }
 
 function publicDocument(doc: JsonRecord): JsonRecord {

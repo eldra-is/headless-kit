@@ -1,0 +1,552 @@
+{
+  "case": "divergence-deleted-block-route-template",
+  "differences": [
+    "status: kept on every entry of a preview answer, dropped from the published answer",
+    "publishedAt, updatedAt: the record's own metadata, which Publish sets",
+    "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
+    "linkId: asset-service's link row, one per owner (draft or published snapshot)",
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
+  ],
+  "preview": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "blocks": [
+          {
+            "_type": "entry_button",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Kaupa"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "button",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "PUBLISHED",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Nýr fótur",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "status": "PUBLISHED",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "accent": {
+                "mode": "solid",
+                "solid": {
+                  "alpha": 0.9,
+                  "color": "#094ac4"
+                }
+              },
+              "author": {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Þórdís"
+                },
+                "id": "00000000-0000-4000-8000-000000000005",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000006",
+                "status": "PUBLISHED",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              "authors": {
+                "orderBy": "-createdAt",
+                "pageSize": 5,
+                "schemas": ["00000000-0000-4000-8000-000000000006"]
+              },
+              "body": "Texti \u003cb\u003emeð\u003c/b\u003e \u0026 tákn",
+              "card": {
+                "label": "Kort",
+                "weight": 2
+              },
+              "config": {
+                "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000007",
+                  "linkId": "kept"
+                },
+                "tags": ["a", "b"]
+              },
+              "content": {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Feitletrað",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "doc"
+              },
+              "count": 7,
+              "cta": {
+                "kind": "url",
+                "label": "Versla",
+                "url": "/is/shop"
+              },
+              "enabled": true,
+              "gallery": [
+                {
+                  "altText": "Alt text 0",
+                  "assetId": "00000000-0000-4000-8000-000000000008",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000008.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000008",
+                  "sortOrder": 0,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000008.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000009",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000009.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000009",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000009.jpg",
+                  "width": 1600
+                }
+              ],
+              "heading": "Allt í einu",
+              "icon": "AlarmClock",
+              "image": {
+                "altText": "Alt text 0",
+                "assetId": "00000000-0000-4000-8000-000000000007",
+                "contentType": "image/jpeg",
+                "filename": "00000000-0000-4000-8000-000000000007.jpg",
+                "framing": {
+                  "x": 0.5,
+                  "y": 0.4,
+                  "zoom": 2
+                },
+                "height": 900,
+                "linkId": "cms_entry-00000000-0000-4000-8000-000000000007",
+                "sortOrder": 0,
+                "tag": "image",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000007.jpg",
+                "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000005"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000010",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000011/assets/00000000-0000-4000-8000-000000000010/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000012"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
+              },
+              "notes": "# Notes\n\n- one\n- two",
+              "ratio": 0.25,
+              "startsAt": "2026-01-01T00:00:00Z",
+              "token": "00000000-0000-4000-8000-000000000013",
+              "variant": {
+                "label": "Breitt",
+                "value": "wide"
+              }
+            },
+            "id": "00000000-0000-4000-8000-000000000014",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "status": "PUBLISHED",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "layout": {
+          "root": {
+            "children": [
+              {
+                "apiId": "button",
+                "bindings": {
+                  "label": "title"
+                },
+                "entryId": "00000000-0000-4000-8000-000000000001",
+                "id": "template-hero",
+                "type": "template-block"
+              },
+              {
+                "componentId": "00000000-0000-4000-8000-000000000015",
+                "id": "footer-placement",
+                "type": "reusable"
+              }
+            ],
+            "id": "root",
+            "layout": {
+              "direction": {
+                "normal": "column"
+              }
+            },
+            "type": "flex"
+          },
+          "version": 1
+        },
+        "routePattern": "/pages/:slug",
+        "schemaApiId": "page",
+        "slugField": "slug",
+        "title": "Pages"
+      },
+      "id": "00000000-0000-4000-8000-000000000016",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "reusableComponentProjection": {
+        "bindings": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000015",
+            "placementId": "footer-placement",
+            "revision": 6,
+            "siteId": "00000000-0000-4000-8000-000000000017"
+          }
+        ],
+        "revisions": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000015",
+            "document": {
+              "root": {
+                "children": [
+                  {
+                    "entryId": "00000000-0000-4000-8000-000000000003",
+                    "id": "footer-block",
+                    "type": "block"
+                  },
+                  {
+                    "children": [
+                      {
+                        "entryId": "00000000-0000-4000-8000-000000000014",
+                        "id": "footer-feature",
+                        "type": "block"
+                      }
+                    ],
+                    "id": "footer-grid",
+                    "layout": {
+                      "columns": {
+                        "normal": 2
+                      }
+                    },
+                    "type": "grid"
+                  }
+                ],
+                "id": "footer-root",
+                "layout": {
+                  "direction": {
+                    "normal": "column"
+                  }
+                },
+                "type": "flex"
+              },
+              "version": 1
+            },
+            "revision": 6,
+            "siteId": "00000000-0000-4000-8000-000000000017"
+          }
+        ]
+      },
+      "schemaId": "00000000-0000-4000-8000-000000000018",
+      "status": "PUBLISHED",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "no-store",
+    "eldraPreview": "draft",
+    "status": 200
+  },
+  "public": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "blocks": [
+          {
+            "_type": "entry_button",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Kaupa"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "button",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Nýr fótur",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "accent": {
+                "mode": "solid",
+                "solid": {
+                  "alpha": 0.9,
+                  "color": "#094ac4"
+                }
+              },
+              "author": {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Þórdís"
+                },
+                "id": "00000000-0000-4000-8000-000000000005",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000006",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              "authors": {
+                "orderBy": "-createdAt",
+                "pageSize": 5,
+                "schemas": ["00000000-0000-4000-8000-000000000006"]
+              },
+              "body": "Texti \u003cb\u003emeð\u003c/b\u003e \u0026 tákn",
+              "card": {
+                "label": "Kort",
+                "weight": 2
+              },
+              "config": {
+                "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000007",
+                  "linkId": "kept"
+                },
+                "tags": ["a", "b"]
+              },
+              "content": {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Feitletrað",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "doc"
+              },
+              "count": 7,
+              "cta": {
+                "kind": "url",
+                "label": "Versla",
+                "url": "/is/shop"
+              },
+              "enabled": true,
+              "gallery": [
+                {
+                  "altText": "Alt text 0",
+                  "assetId": "00000000-0000-4000-8000-000000000008",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000008.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000008",
+                  "sortOrder": 0,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000008.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000009",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000009.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000009",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000009.jpg",
+                  "width": 1600
+                }
+              ],
+              "heading": "Allt í einu",
+              "icon": "AlarmClock",
+              "image": {
+                "altText": "Alt text 0",
+                "assetId": "00000000-0000-4000-8000-000000000007",
+                "contentType": "image/jpeg",
+                "filename": "00000000-0000-4000-8000-000000000007.jpg",
+                "framing": {
+                  "x": 0.5,
+                  "y": 0.4,
+                  "zoom": 2
+                },
+                "height": 900,
+                "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000007",
+                "sortOrder": 0,
+                "tag": "image",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000007.jpg",
+                "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000005"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000010",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000011/assets/00000000-0000-4000-8000-000000000010/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000012"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
+              },
+              "notes": "# Notes\n\n- one\n- two",
+              "ratio": 0.25,
+              "startsAt": "2026-01-01T00:00:00Z",
+              "token": "00000000-0000-4000-8000-000000000013",
+              "variant": {
+                "label": "Breitt",
+                "value": "wide"
+              }
+            },
+            "id": "00000000-0000-4000-8000-000000000014",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "layout": {
+          "root": {
+            "children": [
+              {
+                "apiId": "button",
+                "bindings": {
+                  "label": "title"
+                },
+                "entryId": "00000000-0000-4000-8000-000000000001",
+                "id": "template-hero",
+                "type": "template-block"
+              },
+              {
+                "children": [
+                  {
+                    "entryId": "00000000-0000-4000-8000-000000000003",
+                    "id": "r4507baab5979cacee7ebb6f76c4429dacf497df87ef00b56a4074220204b09c2",
+                    "type": "block"
+                  },
+                  {
+                    "children": [
+                      {
+                        "entryId": "00000000-0000-4000-8000-000000000014",
+                        "id": "r8884956441ccf0bc4434dc2a09d1ab4f5b9934ab406853ef0791bb2616494692",
+                        "type": "block"
+                      }
+                    ],
+                    "id": "r6b65c564c116ecbd508d542026adbc775f311cfb07f18cfd6d99c7946ee40f06",
+                    "layout": {
+                      "columns": {
+                        "normal": 2
+                      }
+                    },
+                    "type": "grid"
+                  }
+                ],
+                "id": "footer-placement",
+                "layout": {
+                  "direction": {
+                    "normal": "column"
+                  }
+                },
+                "type": "flex"
+              }
+            ],
+            "id": "root",
+            "layout": {
+              "direction": {
+                "normal": "column"
+              }
+            },
+            "type": "flex"
+          },
+          "version": 1
+        },
+        "routePattern": "/pages/:slug",
+        "schemaApiId": "page",
+        "slugField": "slug",
+        "title": "Pages"
+      },
+      "id": "00000000-0000-4000-8000-000000000016",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "00000000-0000-4000-8000-000000000018",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "",
+    "status": 200
+  },
+  "read": {
+    "method": "GET",
+    "operation": "webGetEntry",
+    "path": "/v1/schema/route-template/entry/00000000-0000-4000-8000-000000000016?locale=is-IS"
+  }
+}

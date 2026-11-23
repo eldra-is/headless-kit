@@ -15,7 +15,8 @@ Release-please writes the generated notes from commit messages and does not repl
   session client (`enableSessionPreview`) reshapes every CMS answer with the new `asPublicRead`:
   wherever a `reusableComponentProjection` appears (the answer, a list item, a resolved reference
   at any depth), the placements are expanded the way Core's public read expands them, `blocks` put
-  in layout order and a node naming a block that does not resolve dropped. New exports:
+  in layout order and a node naming a block that does not resolve dropped, and every entry's
+  `status` (which the public read does not carry) is dropped. New exports:
   `asPublicRead(value)` and `expandReusableLayout(layout, projection, { routeTemplate? })` (the
   expansion alone, throwing what the render would refuse). A client outside a session is unchanged.
 

@@ -216,24 +216,10 @@ async function settle(page: Page, images = false): Promise<void> {
 }
 
 /**
- * **Known difference: the router's robots tag on a page only the draft has.** Opened directly, such
- * a page hydrates the pinned build's not-found document, whose own robots tag the theme writes
- * (`noindex`); the router replaced that tag with its own `noindex, nofollow`, and the theme's head
- * manager — which owns `meta[name="robots"]` — removes it once the draft page, which has none, is
- * rendered. The session's page then carries no robots tag (the router's `X-Robots-Tag: noindex`
- * header still applies); the live page has none either.
- */
-const ROUTER_ROBOTS_DROPPED = ['/draft-only'];
-
-/**
  * On the session's page, removes exactly the differences a session is allowed; on the live page,
  * asserts there are none of them to remove.
  */
 async function normalise(page: Page, session: boolean): Promise<void> {
-  // The router's robots tag is gone from a page only the draft has (`ROUTER_ROBOTS_DROPPED`).
-  const routerRobots = !ROUTER_ROBOTS_DROPPED.includes(
-    new URL(page.url()).pathname.replace(/\/$/, '')
-  );
   const found = await page.evaluate((remove) => {
     const selectors = [
       '[data-eldra-preview-session]',
@@ -252,7 +238,10 @@ async function normalise(page: Page, session: boolean): Promise<void> {
     return { counts, noindex };
   }, session);
   if (session) {
-    expect(found).toEqual({ counts: [1, 1, routerRobots ? 1 : 0], noindex: false });
+    // Exactly one robots tag, the router's `noindex, nofollow`, on every session page: the
+    // session's own head entry keeps it once the theme's head manager runs, a page only the draft
+    // has (which hydrates the not-found document's `noindex`) included.
+    expect(found).toEqual({ counts: [1, 1, 1], noindex: false });
   } else {
     expect(found).toEqual({ counts: [0, 0, 0], noindex: false });
   }
@@ -318,13 +307,14 @@ function preloadsAsASet(lines: readonly string[]): string[] {
 
 /**
  * **Known difference: entry metadata.** The fields of an entry's envelope a session reads
- * differently: it reads the draft (`CHANGED` or `DRAFT`, its own save time, the last publish time or
- * none), the live build read the snapshot Publish made of it (`PUBLISHED`, the publish time). They
- * are removed from entry envelopes (an object with `id`, `schemaId` and `data`) before the async
- * data is compared; the spec asserts they did differ, and that the DOM is the same regardless, so
- * nothing the starter renders reads them.
+ * differently: it reads the draft (its own save time, the last publish time or none), the live build
+ * read the snapshot Publish made of it (the publish time). They are removed from entry envelopes (an
+ * object with `id`, `schemaId` and `data`) before the async data is compared; the spec asserts they
+ * did differ, and that the DOM is the same regardless, so nothing the starter renders reads them.
+ * An entry's `status` (`CHANGED` or `DRAFT` on a draft read) is not among them: the public read
+ * does not carry it and the session's client drops it, so the spec asserts neither page has one.
  */
-const DRAFT_METADATA = ['status', 'updatedAt', 'publishedAt'];
+const DRAFT_METADATA = ['updatedAt', 'publishedAt'];
 // Likewise every media item's `linkId` (asset-service's link row, one per owner), wherever it is.
 
 /** Every async data entry and `useState` the app holds, in key order. */
@@ -681,7 +671,9 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         expect(session.data).toBe(published.data);
         // The metadata does differ — the session read drafts — and reaches nothing above.
         expect(session.dataWithMetadata).not.toBe(published.dataWithMetadata);
-        expect(session.dataWithMetadata).toContain('"status": "CHANGED"');
+        expect(session.dataWithMetadata).toContain('"updatedAt": "2026-11-20T10:00:00Z"');
+        expect(session.dataWithMetadata).not.toMatch(/"status": "(CHANGED|DRAFT|PUBLISHED)"/);
+        expect(published.dataWithMetadata).not.toMatch(/"status": "(CHANGED|DRAFT|PUBLISHED)"/);
         expect(session.scrollY).toBe(published.scrollY);
         expect(session.focused).toBe(published.focused);
         expectSameWarnings(path, session.warnings, published.warnings);
