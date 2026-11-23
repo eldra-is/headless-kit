@@ -108,4 +108,43 @@ describe('the router’s early hide, without the veil', () => {
     expect(session.usePreviewSession().status).toBe('unavailable');
     expect(ready()).toBe(true);
   });
+
+  it('a site settings chunk that never loads still lets the drafts show, the build’s values kept', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const session = await startSession();
+    let isOpen: () => boolean = () => true;
+    const settling = session.settlePreviewSessionDrafts(
+      () =>
+        Promise.allSettled([
+          Promise.resolve('drafts'),
+          session.settlePreviewSessionSiteSettings((open) => {
+            isOpen = open;
+            return new Promise(() => undefined); // the chunk never arrives
+          }),
+        ]),
+      async () => undefined
+    );
+    await vi.advanceTimersByTimeAsync(session.PREVIEW_SESSION_SITE_SETTINGS_TIMEOUT_MS);
+    await settling;
+    expect(session.usePreviewSession().status).toBe('ready');
+    // Past the bound: an answer that still arrives is not applied.
+    expect(isOpen()).toBe(false);
+    expect(session.PREVIEW_SESSION_SITE_SETTINGS_TIMEOUT_MS).toBeLessThan(
+      session.PREVIEW_SESSION_DRAFT_TIMEOUT_MS
+    );
+  });
+
+  it('a site settings read that fails never ends the session', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const session = await startSession();
+    await session.settlePreviewSessionDrafts(
+      () =>
+        session.settlePreviewSessionSiteSettings(() => {
+          throw new Error('chunk gone');
+        }),
+      async () => undefined
+    );
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
 });

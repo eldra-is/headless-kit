@@ -10,7 +10,6 @@ import starterTokens from '../tokens.json';
 import { ORG_ID, startMockGateway, type MockGateway } from './support/mockGateway';
 import {
   SITE_DESIGN_TOKENS,
-  SITE_THEME_MESSAGES,
   startContentGateway,
   startSessionRouter,
   type ContentGateway,
@@ -990,19 +989,13 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         ...tokens,
         colors: { ...tokens.colors, primary: { ...tokens.colors.primary!, value: '#0b57d0' } },
       } as unknown as Record<string, unknown>;
-      gateway.themeMessages = {
-        ...SITE_THEME_MESSAGES,
-        locales: {
-          ...SITE_THEME_MESSAGES.locales,
-          'en-US': { ...SITE_THEME_MESSAGES.locales['en-US'], 'header.primary': SAVED_LABEL },
-        },
-      };
+      gateway.themeMessageOverrides = { 'en-US': { 'header.primary': SAVED_LABEL } };
       republished = await startStaticServer(await build('resaved'));
     }, 900_000);
 
     afterAll(async () => {
       gateway.designTokens = SITE_DESIGN_TOKENS;
-      gateway.themeMessages = SITE_THEME_MESSAGES;
+      gateway.themeMessageOverrides = {};
       await republished?.close();
     });
 
@@ -1017,6 +1010,11 @@ describe('a draft preview renders exactly what Publish puts live', () => {
             labels: [...document.querySelectorAll('#__nuxt [aria-label]')]
               .map((node) => node.getAttribute('aria-label'))
               .filter((label) => label === shipped || label === saved),
+            // A session's document in the frame its veil dropped (`open`): what the merchant saw
+            // first, which must already carry the saved values.
+            veilDrop:
+              (window as unknown as { __eldraVeilDrop?: { lines: string[] } }).__eldraVeilDrop
+                ?.lines ?? null,
           }),
           [SHIPPED_LABEL, SAVED_LABEL] as const
         )
@@ -1028,6 +1026,11 @@ describe('a draft preview renders exactly what Publish puts live', () => {
       const session = await look(router.origin, true);
       expect(publishLive.primary).toBe('#0b57d0');
       expect(pinned.primary).not.toBe(publishLive.primary);
+      // Already in the frame the veil dropped: the layout's token style carries the saved colour.
+      const tokenStyle = (lines: readonly string[]) =>
+        lines.filter((line) => line.includes('--eldra-color-primary:'));
+      expect(session.veilDrop).not.toBeNull();
+      expect(tokenStyle(session.veilDrop!).join('\n')).toContain('--eldra-color-primary:#0b57d0;');
       expect(session.primary).toBe(publishLive.primary);
     });
 
@@ -1040,6 +1043,11 @@ describe('a draft preview renders exactly what Publish puts live', () => {
       expect(publishLive.labels).toContain(SAVED_LABEL);
       expect(publishLive.labels).not.toContain(SHIPPED_LABEL);
       expect(session.labels).toEqual(publishLive.labels);
+      // Already in the frame the veil dropped.
+      expect(session.veilDrop).not.toBeNull();
+      const drop = session.veilDrop!.join('\n');
+      expect(drop).toContain(`aria-label="${SAVED_LABEL}"`);
+      expect(drop).not.toContain(`aria-label="${SHIPPED_LABEL}"`);
     });
   });
 });

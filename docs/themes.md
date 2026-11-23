@@ -147,8 +147,10 @@ renders the organisation's drafts there, client-side.
 
 - **Saved design tokens and theme texts (WS-1394).** The owner decided (2026-11-23) that a preview
   shows them as soon as they are saved. A build reads both once and bakes them in; a session reads
-  both again, after hydration and before the veil comes down (inside the same 15 s bound, with its
-  own 10 s bound), through the router like its CMS reads: `@eldrajs/theme-core`'s
+  both again, after hydration and before the veil comes down, inside the same 15 s bound and with
+  a 10 s bound of its own around the chunk that reads them and the reads together (the chunk starts
+  loading when the session starts, beside the veil's, so a stalled chunk cannot reach the drafts'
+  bound). Through the router like its CMS reads: `@eldrajs/theme-core`'s
   `getSiteSetting('/site/v1/design-tokens' | '/site/v1/theme-messages')` (Core reads the Site row
   for both; they are settings, not drafts, so no `Eldra-Preview: draft` is asked for). The tokens
   replace `context.designTokens` in place, so `EldraLayout`'s
@@ -157,9 +159,15 @@ renders the organisation's drafts there, client-side.
   organisation locales) and replace `context.messages.locales[tag]` where they changed, which a
   theme's i18n picks up the way it picks up Studio's live `editor:theme-messages` push (the
   starter's `app/plugins/eldra-i18n.ts` watches `context.messages`). A failure, an unusable answer
-  or one past the bound keeps the build's values and is never a refusal: a site read's failure is
-  not reported to the session's refusal listener (a router that does not forward a read yet answers
-  `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, which on a CMS read ends the session). The global
+  or one past the bound keeps the build's values and is never a refusal by itself: a site read's
+  failure is not reported to the client's refusal listener (a router that does not forward a read
+  answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, which on a CMS read ends the session). The one
+  exception is a 401: the router refused the session itself, and clears its cookies as it does, so
+  that refusal (expired, revoked) is the session's (`reportPreviewSessionSiteSettingError`).
+  Core's theme-messages answer is the fully resolved catalogue (every organisation locale, every
+  key of the theme's default locale, through the five tiers), not only the overrides; fed to
+  `resolveSiteMessages` as the platform tier it gives back exactly that catalogue, as it would give
+  back the same one from the overrides alone. The global
   `virtual:eldra/tokens.css` stays the build's; the layout's own style, later in the document, wins.
   In a session only, in a chunk an ordinary storefront never loads.
 
@@ -172,14 +180,18 @@ renders the organisation's drafts there, client-side.
   mounted and covering the page, so from then on the kit's veil is what covers it. It sets it too
   on every way the session leaves the veil (the draft shown, a refusal, the 15 s bound, a render
   that failed, a client that cannot read drafts), in case the veil never mounted, so the router's
-  rule never keeps a page hidden. When the animation ends the page shows, with a notice of the
+  rule never keeps a page hidden. On those give-up paths the hide can lift before the UI chunk has
+  mounted the notice (the chunk still loading), so the page may show a moment without it: accepted,
+  failing open. When the animation ends the page shows, with a notice of the
   router's, if the kit never set it (its script failed); that 12 s is shorter than the 15 s
   the drafts may take, which is why the mounted veil, not the dropped one, lifts it. The veil, the
   banner and the built-in fallback line set `visibility: visible` on themselves, so they show while
   the body is still hidden (and whatever a theme's own rule does to the body later). Under the veil the app is `aria-busy` and inert; a
   "loading" line appears, and becomes a live region, only after half a second; the veil comes down
   when the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A
-  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable) clears every async
+  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable; the first refusal is
+  the one shown: the router clears the session's cookies when it refuses one as expired or revoked,
+  so the reads after it come back invalid, and never replace it) clears every async
   data entry, so neither the draft nor the published page stays in the document, makes the app
   inert and shows a notice, which takes focus once. The copy is Icelandic or English, after the
   page's language. The veil, banner and notices are plain DOM in a shadow root outside the Vue app,
@@ -323,8 +335,9 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
     The spec allows exactly that one difference, the header's hidden state, on that page.
   - **Design tokens and theme texts saved after the pinned build** show in the session as in a
     build made after the save (above); the spec's last case saves a primary colour and a header
-    text and asserts both. The stand-in gateway answers both settings the way Core does, for every
-    page (the theme's own before anything is saved). Locales and currency are still the pinned
+    text and asserts both, in the settled page and already in the frame the veil drops. The
+    stand-in gateway answers both settings the way Core does, for every page (the theme's own
+    before anything is saved; the texts through a port of Core's `resolveThemeMessages`). Locales and currency are still the pinned
     build's.
 
 - **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.

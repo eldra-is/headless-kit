@@ -72,13 +72,13 @@ export class EldraClientError extends Error {
   }
 }
 
+/** The site settings `getSiteSetting` reads. */
+export type EldraSiteReadPath = '/site/v1/design-tokens' | '/site/v1/theme-messages';
+
 /**
  * A draft preview session (`enableSessionPreview`): the page is served by Eldra's preview router on
  * a host of its own, and the router holds the session's credential in an HttpOnly cookie.
  */
-/** The site settings `getSiteSetting` reads. */
-export type EldraSiteReadPath = '/site/v1/design-tokens' | '/site/v1/theme-messages';
-
 export interface EldraSessionPreviewOptions {
   /**
    * Where the router's draft read proxy lives: an absolute URL **on the page's own origin** (the

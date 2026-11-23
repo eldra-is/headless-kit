@@ -1,9 +1,5 @@
 import { normalizeThemeDesignTokens } from '@eldrajs/theme-core';
-import {
-  flattenMessages,
-  resolveMessageCatalogue,
-  type ThemeMessages,
-} from '@eldrajs/theme-core/i18n';
+import { flattenMessages, type ThemeMessages } from '@eldrajs/theme-core/i18n';
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, join } from 'node:path';
@@ -34,8 +30,12 @@ export interface ContentGateway {
    * saved it is the theme's own catalog (`SITE_DESIGN_TOKENS`).
    */
   designTokens: Record<string, unknown>;
-  /** What `/site/v1/theme-messages` answers, the same way (`SITE_THEME_MESSAGES`). */
-  themeMessages: ThemeMessages;
+  /**
+   * The theme-text overrides the site has saved, per locale. `/site/v1/theme-messages` answers the
+   * theme's catalogue resolved over them, exactly as Core does (`coreThemeMessages`); `{}` before
+   * anything is saved.
+   */
+  themeMessageOverrides: Record<string, Record<string, string>>;
   /** `pathname + search` of every request answered from the draft perspective. */
   draftReads: string[];
   close(): Promise<void>;
@@ -50,22 +50,52 @@ export const SITE_DESIGN_TOKENS = normalizeThemeDesignTokens(starterTokens) as u
   unknown
 >;
 
-/**
- * What Core answers for the site's theme texts before any is saved (`GetPublicThemeMessages`): the
- * theme's own catalogue resolved over the organisation's locales, with no overrides.
- */
-export const SITE_THEME_MESSAGES: ThemeMessages = resolveMessageCatalogue(
-  {
-    defaultLocale: DEFAULT_LOCALE,
-    locales: {
-      [DEFAULT_LOCALE]: flattenMessages(starterEnUs),
-      [PREFIXED_LOCALE]: flattenMessages(starterIsIs),
-    },
+/** The theme's catalogue as Core holds it on the Site row: the manifest's flattened `i18n/` files. */
+const SITE_THEME: ThemeMessages = {
+  defaultLocale: DEFAULT_LOCALE,
+  locales: {
+    [DEFAULT_LOCALE]: flattenMessages(starterEnUs),
+    [PREFIXED_LOCALE]: flattenMessages(starterIsIs),
   },
-  null,
-  [DEFAULT_LOCALE, PREFIXED_LOCALE],
-  DEFAULT_LOCALE
-);
+};
+/** The organisation's locales (`mockGateway`'s), default first. */
+const ORG_LOCALES = [DEFAULT_LOCALE, PREFIXED_LOCALE];
+
+/**
+ * What Core answers at `/site/v1/theme-messages` (site-service `GetPublicThemeMessages` and
+ * `resolveThemeMessages`, ported as they are): the **fully resolved** catalogue, not the overrides —
+ * for every organisation locale, every key of the theme's default locale, each through
+ * `override(locale) → theme(locale) → override(orgDefault) → theme(orgDefault) →
+ * theme(themeDefault)`, where a value is present only when it is not blank, and `""` when no tier
+ * has one; `defaultLocale` is the organisation's. Keys sorted, as Go writes a map.
+ */
+export function coreThemeMessages(
+  overrides: Record<string, Record<string, string>>,
+  theme: ThemeMessages = SITE_THEME,
+  orgLocales: readonly string[] = ORG_LOCALES,
+  orgDefault: string = DEFAULT_LOCALE
+): ThemeMessages {
+  const present = (messages: Record<string, string> | undefined, key: string) => {
+    const value = messages?.[key];
+    return value !== undefined && value.trim() !== '' ? value : undefined;
+  };
+  const keys = Object.keys(theme.locales[theme.defaultLocale] ?? {}).sort();
+  const locales: Record<string, Record<string, string>> = {};
+  for (const locale of [...orgLocales].sort()) {
+    const resolved: Record<string, string> = {};
+    for (const key of keys) {
+      resolved[key] =
+        present(overrides[locale], key) ??
+        present(theme.locales[locale], key) ??
+        present(overrides[orgDefault], key) ??
+        present(theme.locales[orgDefault], key) ??
+        present(theme.locales[theme.defaultLocale], key) ??
+        '';
+    }
+    locales[locale] = resolved;
+  }
+  return { defaultLocale: orgDefault, locales };
+}
 
 /**
  * The CMS half of a gateway, in both of Core's perspectives: a request carrying
@@ -78,7 +108,7 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
     url: '',
     published: 'pinned',
     designTokens: SITE_DESIGN_TOKENS,
-    themeMessages: SITE_THEME_MESSAGES,
+    themeMessageOverrides: {},
     draftReads: [],
     close: () => Promise.resolve(),
   };
@@ -117,7 +147,7 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
       return;
     }
     if (url.pathname === '/site/v1/theme-messages') {
-      res.end(JSON.stringify(state.themeMessages));
+      res.end(JSON.stringify(coreThemeMessages(state.themeMessageOverrides)));
       return;
     }
     if (draft) {

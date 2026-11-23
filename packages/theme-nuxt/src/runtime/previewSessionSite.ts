@@ -1,4 +1,4 @@
-import type { EldraClient } from '@eldrajs/theme-core';
+import type { EldraClient, EldraSiteReadPath } from '@eldrajs/theme-core';
 import { EMPTY_THEME_MESSAGES, type ThemeMessages } from '@eldrajs/theme-core/i18n';
 import type { EldraContext } from '@eldrajs/theme-vue';
 import { toResolvedDesignTokens, type ThemeDesignTokens } from './designTokens';
@@ -17,20 +17,24 @@ import { resolveSiteMessages, toThemeMessages } from './messages';
  * down, inside the same bounded settle.
  *
  * Its own module, loaded only by a session, so a storefront's JavaScript carries none of it. Never
- * fatal: a read that fails, answers something unusable, or takes longer than
- * `SESSION_SITE_SETTINGS_TIMEOUT_MS` leaves the build's values as they are, and an answer that
- * arrives after that is dropped, so nothing changes after the veil.
+ * fatal: a read that fails or answers something unusable leaves the build's values as they are.
+ * The bound is the caller's, around this chunk's load and these reads together
+ * (`settlePreviewSessionSiteSettings`): past it, `isOpen` answers `false` and a late answer is
+ * dropped, so nothing changes after the veil.
  */
-
-/** How long a session waits for the site settings before it keeps the build's. */
-export const SESSION_SITE_SETTINGS_TIMEOUT_MS = 10_000;
 
 export interface SessionSiteSettingsOptions {
   /** The theme's own catalogue (`virtual:eldra/manifest`'s `messages`), as the build merged over. */
   themeMessages: ThemeMessages | undefined;
   /** The organisation's locales the build resolved the texts over (`null`: unknown). */
   locales: StoreLocales | null;
-  timeoutMs?: number;
+  /**
+   * Whether an answer may still be applied: `false` once the session's bound around this read has
+   * passed (`settlePreviewSessionSiteSettings`), so a late answer changes nothing after the veil.
+   */
+  isOpen?: () => boolean;
+  /** Told of each read that failed (`reportPreviewSessionSiteSettingError`). */
+  onError?: (error: unknown) => void;
   warn?: (message: string, cause?: unknown) => void;
 }
 
@@ -39,17 +43,18 @@ export async function readSessionSiteSettings(
   context: Pick<EldraContext, 'designTokens' | 'messages'>,
   options: SessionSiteSettingsOptions
 ): Promise<void> {
-  const read = client.getSiteSetting;
-  if (typeof read !== 'function') return;
+  if (typeof client.getSiteSetting !== 'function') return;
+  // Called on the client, never detached from it: a client may be a class that reads `this`.
+  const read = (path: EldraSiteReadPath): Promise<unknown> => client.getSiteSetting!(path);
+  const isOpen = options.isOpen ?? (() => true);
   const warn =
     options.warn ??
     ((message: string, cause?: unknown) => console.warn(`[eldra] ${message}`, cause ?? ''));
-  let open = true;
-  const settings = Promise.allSettled([
+  const [tokens, messages] = await Promise.allSettled([
     read('/site/v1/design-tokens').then((answer) => {
-      const tokens = toResolvedDesignTokens(answer);
-      if (tokens === null) throw new Error('the platform published an unusable response');
-      if (open) assignDesignTokens(context.designTokens, tokens);
+      const resolved = toResolvedDesignTokens(answer);
+      if (resolved === null) throw new Error('the platform published an unusable response');
+      if (isOpen()) assignDesignTokens(context.designTokens, resolved);
     }),
     read('/site/v1/theme-messages').then((answer) => {
       const platform = toThemeMessages(answer);
@@ -59,28 +64,16 @@ export async function readSessionSiteSettings(
         platform,
         options.locales
       );
-      if (open) assignMessages(context.messages, resolved);
+      if (isOpen()) assignMessages(context.messages, resolved);
     }),
-  ]).then(([tokens, messages]) => {
-    if (tokens.status === 'rejected') {
-      warn('the saved design tokens could not be read; showing the build’s', tokens.reason);
-    }
-    if (messages.status === 'rejected') {
-      warn('the saved theme texts could not be read; showing the build’s', messages.reason);
-    }
-  });
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<void>((resolve) => {
-    timer = setTimeout(() => {
-      warn('the saved design tokens and theme texts took too long; showing the build’s');
-      resolve();
-    }, options.timeoutMs ?? SESSION_SITE_SETTINGS_TIMEOUT_MS);
-  });
-  try {
-    await Promise.race([settings, bound]);
-  } finally {
-    open = false;
-    clearTimeout(timer);
+  ]);
+  if (tokens.status === 'rejected') {
+    options.onError?.(tokens.reason);
+    warn('the saved design tokens could not be read; showing the build’s', tokens.reason);
+  }
+  if (messages.status === 'rejected') {
+    options.onError?.(messages.reason);
+    warn('the saved theme texts could not be read; showing the build’s', messages.reason);
   }
 }
 

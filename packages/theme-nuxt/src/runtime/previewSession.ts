@@ -168,10 +168,27 @@ export function previewSessionRefusal(
   return null;
 }
 
+/**
+ * The first refusal that ends the session is the one shown: `expired` is final, so a later refusal
+ * never replaces it. That matters because the router clears the session's cookies when it refuses
+ * one as expired or revoked, and every read still in flight then comes back
+ * `SITE_PREVIEW_SESSION_INVALID`: the notice must say "expired", not "not valid".
+ */
 function refuse(refusal: { status: 'expired' | 'unavailable'; errorId: string | null }): void {
   if (state.status === 'expired') return;
   state.status = refusal.status;
   state.errorId = refusal.errorId;
+}
+
+/**
+ * A site setting read (`getSiteSetting`) that failed. Its failure is never reported to the client's
+ * refusal listeners, and must not end the session by itself — except when the router refused the
+ * session (401): the router clears the session's cookies then, so the CMS reads after it can only
+ * say `SITE_PREVIEW_SESSION_INVALID`, and this refusal is the one that says why (expired, revoked).
+ */
+export function reportPreviewSessionSiteSettingError(error: unknown): void {
+  const refusal = previewSessionRefusal(error);
+  if (refusal?.status === 'expired') refuse(refusal);
 }
 
 /**
@@ -282,19 +299,23 @@ function replayCoveredFocus(doc: Document): void {
  * the router's early hide is lifted: from then on the kit's own veil is what covers the page.
  */
 function loadUi(doc: Document): Promise<PreviewSessionUi | undefined> {
-  return import('./previewSessionUi').then(
-    ({ mountPreviewSessionUi }) => {
-      const ui = mountPreviewSessionUi(doc, state);
-      liftEarlyHide(doc);
-      return ui;
-    },
-    (cause: unknown) => {
-      console.warn('[eldra] the draft preview UI could not be loaded', cause);
-      mountFallbackNotice(doc);
-      liftEarlyHide(doc);
-      return undefined;
+  const fallBack = (cause: unknown): undefined => {
+    console.warn('[eldra] the draft preview UI could not be loaded', cause);
+    mountFallbackNotice(doc);
+    liftEarlyHide(doc);
+    return undefined;
+  };
+  return import('./previewSessionUi').then(({ mountPreviewSessionUi }) => {
+    // A mount that throws is a UI that could not be loaded: the same fallback.
+    let ui: PreviewSessionUi;
+    try {
+      ui = mountPreviewSessionUi(doc, state);
+    } catch (cause) {
+      return fallBack(cause);
     }
-  );
+    liftEarlyHide(doc);
+    return ui;
+  }, fallBack);
 }
 
 /** The fallback's words: what the session is doing, in Icelandic or English. */
@@ -396,6 +417,46 @@ export async function settlePreviewSessionDrafts(
     return;
   }
   markPreviewSessionDraftShown();
+}
+
+/** How long a session waits for the site's saved settings before it keeps the build's. */
+export const PREVIEW_SESSION_SITE_SETTINGS_TIMEOUT_MS = 10_000;
+
+/**
+ * The bound around a session's site settings read (WS-1394): the chunk that reads them and the
+ * reads themselves together, so neither a stalled chunk nor a stalled read reaches the drafts'
+ * own 15 s bound — a settings failure never ends the session. `read` is handed `isOpen`; once the
+ * bound has passed (or the read settled) it answers `false`, and an answer that arrives later must
+ * not be applied, so nothing changes after the veil. Never rejects.
+ */
+export async function settlePreviewSessionSiteSettings(
+  read: (isOpen: () => boolean) => Promise<unknown>,
+  timeoutMs: number = PREVIEW_SESSION_SITE_SETTINGS_TIMEOUT_MS
+): Promise<void> {
+  let open = true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bound = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(
+        '[eldra] the saved design tokens and theme texts took too long; showing the build’s'
+      );
+      resolve();
+    }, timeoutMs);
+  });
+  const reading = Promise.resolve()
+    .then(() => read(() => open))
+    .then(
+      () => undefined,
+      (cause: unknown) => {
+        console.warn('[eldra] the saved design tokens and theme texts could not be read', cause);
+      }
+    );
+  try {
+    await Promise.race([reading, bound]);
+  } finally {
+    open = false;
+    clearTimeout(timer);
+  }
 }
 
 /**

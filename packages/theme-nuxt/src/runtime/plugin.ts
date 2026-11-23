@@ -32,7 +32,9 @@ import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './
 import { resolveBridgeOrigins } from './origins';
 import {
   isPreviewSessionRefused,
+  reportPreviewSessionSiteSettingError,
   settlePreviewSessionDrafts,
+  settlePreviewSessionSiteSettings,
   startPreviewSession,
   usePreviewSession,
 } from './previewSession';
@@ -125,14 +127,21 @@ export default defineNuxtPlugin({
     /**
      * The site's saved design tokens and theme texts, read again through the session and put where
      * the build put its own (`./previewSessionSite.ts`, WS-1394), so a saved change shows at once.
-     * Session only, in its own chunk; never fatal (a failure keeps the build's values).
+     * Session only, in its own chunk, which starts loading as soon as the session starts (beside
+     * the veil's); never fatal: one bound covers the chunk and the reads together
+     * (`settlePreviewSessionSiteSettings`), and a failure keeps the build's values.
      */
+    let siteSettingsChunk: Promise<typeof import('./previewSessionSite')> | undefined;
     const readSiteSettings = (): Promise<void> =>
-      import('./previewSessionSite').then(({ readSessionSiteSettings }) =>
-        readSessionSiteSettings(client, context, {
-          themeMessages: manifest.messages,
-          locales: storeLocales,
-        })
+      settlePreviewSessionSiteSettings((isOpen) =>
+        (siteSettingsChunk ?? import('./previewSessionSite')).then(({ readSessionSiteSettings }) =>
+          readSessionSiteSettings(client, context, {
+            themeMessages: manifest.messages,
+            locales: storeLocales,
+            isOpen,
+            onError: reportPreviewSessionSiteSettingError,
+          })
+        )
       );
     let sessionHead: HeadRenderHooks | undefined;
     try {
@@ -156,6 +165,9 @@ export default defineNuxtPlugin({
           }),
       });
     if (previewSession) {
+      siteSettingsChunk = import('./previewSessionSite');
+      // Its failure is the bound's to handle, when the settings are read; never an unhandled one.
+      siteSettingsChunk.catch(() => undefined);
       // A session's page is never indexed, whatever the page asks for. The preview router puts
       // `noindex, nofollow` in every document it serves (and sends `X-Robots-Tag`), but the head
       // manager owns `meta[name="robots"]` once the app runs: a page that writes its own (the

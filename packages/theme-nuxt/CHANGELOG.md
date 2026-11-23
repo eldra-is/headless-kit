@@ -26,16 +26,20 @@ Release-please writes the generated notes from commit messages and does not repl
   `/site/v1/design-tokens` and `/site/v1/theme-messages` through the router (`@eldrajs/theme-core`'s
   new `getSiteSetting`) and puts them where the build put its own: `context.designTokens` (so
   `EldraLayout`'s token style re-renders) and `context.messages`, resolved as the build resolves
-  them. A failure keeps the build's values and never ends the session. In its own chunk, loaded
-  only in a session; outside a session nothing changes. Theme texts need the preview router to
-  forward `GET /site/v1/theme-messages`; until it does, a session keeps the build's texts.
+  them. One 10 s bound covers the chunk (loaded from the session's start) and the reads; a failure
+  keeps the build's values and never ends the session, except a 401, which is the router refusing
+  the session itself. In its own chunk, loaded only in a session; outside a session nothing
+  changes.
 
 - **A session lifts the preview router's early hide (WS-1376).** The router hides a session
   document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the
   published prerender is never painted before the veil. The kit sets it as soon as its veil (or the built-in fallback
   notice) is mounted and covering the page, and on every way the session leaves the veil in case
   it never mounted: the draft shown, a refusal, the 15 s bound, a render that failed (now the
-  unavailable notice rather than a veil left up), or a client that cannot read drafts. The veil,
+  unavailable notice rather than a veil left up), or a client that cannot read drafts. A UI that
+  throws while mounting falls back to the built-in notice, as a chunk that cannot load does. The
+  first refusal is the one a session shows: an expired or revoked one is never replaced by the
+  invalid ones the reads after it get once the router has cleared the session's cookies. The veil,
   the banner and the fallback notice set `visibility: visible`, so they show under the hide.
   Outside a session nothing changes.
 

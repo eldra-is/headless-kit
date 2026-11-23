@@ -4,10 +4,9 @@
  */
 import { normalizeThemeDesignTokens, type EldraClient } from '@eldrajs/theme-core';
 import { resolveMessageCatalogue, type ThemeMessages } from '@eldrajs/theme-core/i18n';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import {
-  SESSION_SITE_SETTINGS_TIMEOUT_MS,
   assignDesignTokens,
   assignMessages,
   readSessionSiteSettings,
@@ -66,13 +65,14 @@ function client(
   return { getSiteSetting: vi.fn((path: string) => answers[path]!()) };
 }
 
+const SITE_MESSAGES_ANSWER = {
+  defaultLocale: 'en-US',
+  locales: { 'en-US': { 'header.menu': 'Browse' } },
+};
+
 const options = (warn = vi.fn()) => ({ themeMessages: THEME, locales: LOCALES, warn });
 
 describe('readSessionSiteSettings', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('puts the saved tokens and the resolved saved texts into the context', async () => {
     const ctx = context();
     const warn = vi.fn();
@@ -112,9 +112,9 @@ describe('readSessionSiteSettings', () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it('gives up at its bound and drops an answer that arrives after it', async () => {
-    vi.useFakeTimers();
+  it('drops an answer once its bound has closed', async () => {
     const ctx = context();
+    let open = true;
     let answer = (_: unknown): void => undefined;
     const reading = readSessionSiteSettings(
       client({
@@ -122,16 +122,48 @@ describe('readSessionSiteSettings', () => {
           new Promise((resolve) => {
             answer = resolve;
           }),
-        '/site/v1/theme-messages': () => new Promise(() => undefined),
+        '/site/v1/theme-messages': async () => SITE_MESSAGES_ANSWER,
       }),
       ctx,
-      options()
+      { ...options(), isOpen: () => open }
     );
-    await vi.advanceTimersByTimeAsync(SESSION_SITE_SETTINGS_TIMEOUT_MS);
-    await reading;
+    open = false;
     answer({ revision: 3, resolved: SAVED });
-    await vi.advanceTimersByTimeAsync(0);
+    await reading;
     expect(ctx.designTokens.colors.primary?.value).toBe('#111111');
+  });
+
+  it('tells `onError` of each read that failed', async () => {
+    const onError = vi.fn();
+    const failure = new Error('401');
+    await readSessionSiteSettings(
+      client({
+        '/site/v1/design-tokens': async () => {
+          throw failure;
+        },
+        '/site/v1/theme-messages': async () => SITE_MESSAGES_ANSWER,
+      }),
+      context(),
+      { ...options(), onError }
+    );
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
+  });
+
+  it('calls the client as a method, so a class-based client keeps its `this`', async () => {
+    class Client {
+      private readonly answers = {
+        '/site/v1/design-tokens': { revision: 3, resolved: SAVED },
+        '/site/v1/theme-messages': SITE_MESSAGES_ANSWER,
+      };
+      async getSiteSetting(path: '/site/v1/design-tokens' | '/site/v1/theme-messages') {
+        return this.answers[path];
+      }
+    }
+    const ctx = context();
+    const warn = vi.fn();
+    await readSessionSiteSettings(new Client(), ctx, options(warn));
+    expect(warn).not.toHaveBeenCalled();
+    expect(ctx.designTokens.colors.primary?.value).toBe('#0b57d0');
   });
 
   it('does nothing with a client that has no site reads', async () => {
@@ -173,5 +205,39 @@ describe('assigning in place', () => {
     ).toBe(true);
     expect(target.locales['en-US']).toEqual({ 'header.menu': 'Browse' });
     expect(target.locales['is-IS']).toBe(isIS);
+  });
+});
+
+describe('Core’s theme-messages answer', () => {
+  // The theme, an override saved for the organisation's default locale, and what Core answers for
+  // them: `GetPublicThemeMessages` resolves the whole catalogue over the organisation's locales.
+  const theme: ThemeMessages = {
+    defaultLocale: 'en-US',
+    locales: { 'en-US': { a: 'A', b: 'B' }, 'is-IS': { a: 'Á' } },
+  };
+  const overrides = { 'en-US': { b: 'B, saved' } };
+  const coreAnswer: ThemeMessages = {
+    defaultLocale: 'en-US',
+    locales: { 'en-US': { a: 'A', b: 'B, saved' }, 'is-IS': { a: 'Á', b: 'B, saved' } },
+  };
+
+  it('resolves to Core’s own catalogue, and to the same one were it only the overrides', async () => {
+    const resolve = async (answer: unknown) => {
+      const ctx = {
+        designTokens: reactive(structuredClone(BAKED)),
+        messages: reactive(resolveMessageCatalogue(theme, null, LOCALES.supported, 'en-US')),
+      };
+      await readSessionSiteSettings(
+        client({
+          '/site/v1/design-tokens': async () => ({ revision: 1, resolved: BAKED }),
+          '/site/v1/theme-messages': async () => answer,
+        }),
+        ctx,
+        { themeMessages: theme, locales: LOCALES, warn: vi.fn() }
+      );
+      return JSON.parse(JSON.stringify(ctx.messages)) as ThemeMessages;
+    };
+    expect(await resolve(coreAnswer)).toEqual(coreAnswer);
+    expect(await resolve({ defaultLocale: 'en-US', locales: overrides })).toEqual(coreAnswer);
   });
 });
