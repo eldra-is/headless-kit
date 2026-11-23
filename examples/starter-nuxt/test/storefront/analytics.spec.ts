@@ -169,6 +169,21 @@ describe('withAnalytics', () => {
     });
   });
 
+  it('4662896652: reports a removal in the currency its price was in, though the cart moved meanwhile', async () => {
+    const { source, cart } = makeSource();
+    const track = vi.fn();
+    const wrapped = withAnalytics(source, track);
+    await cart.add({ productId: 'p1', variantId: 'v1', quantity: 2 });
+    cart.currency.value = 'ISK';
+    const removing = wrapped.cart.remove('line-1');
+    cart.currency.value = 'EUR';
+    await removing;
+    expect(track).toHaveBeenLastCalledWith(
+      'remove_from_cart',
+      expect.objectContaining({ value: '25', currency: 'ISK' })
+    );
+  });
+
   it('tracks begin_checkout from the cart state when the shopper follows the link', async () => {
     const { source, cart } = makeSource();
     const track = vi.fn();

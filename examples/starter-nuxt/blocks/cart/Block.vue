@@ -274,6 +274,7 @@ const DRAWER_CLASSES = {
       <template v-else>
         <ShippingBar panel="edge" :threshold="threshold" :subtotal="subtotal" />
         <div class="px-4">
+          <LoadFailed class="mt-4" />
           <NotSoldNotice v-if="hasNotSold" class="mt-4" />
           <CartLines :lines="lines" @removing="onRemoving" />
         </div>
@@ -366,6 +367,7 @@ const DRAWER_CLASSES = {
       >
         <div class="grid min-w-0 gap-2">
           <ShippingBar panel="card" :threshold="threshold" :subtotal="subtotal" />
+          <LoadFailed />
           <NotSoldNotice v-if="hasNotSold" />
           <div
             aria-hidden="true"

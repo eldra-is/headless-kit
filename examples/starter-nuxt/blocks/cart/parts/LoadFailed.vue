@@ -2,9 +2,16 @@
 import { Button, Notice } from '@eldrajs/ui';
 import { useI18n } from 'vue-i18n';
 import { useStorefront } from '../../../app/composables/useStorefront';
+import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFeedback';
 
 const cart = useStorefront().cart;
+const feedback = useStorefrontFeedback();
 const { t } = useI18n();
+
+async function tryAgain(): Promise<void> {
+  const failure = await cart.reload();
+  if (failure !== null) feedback.report(failure, { id: 'cart-load' });
+}
 </script>
 
 <template>
@@ -21,7 +28,7 @@ const { t } = useI18n();
         size="sm"
         type="button"
         :loading="cart.pending.value"
-        @click="cart.reload()"
+        @click="tryAgain"
       >
         {{ t('cart.tryAgain') }}
       </Button>

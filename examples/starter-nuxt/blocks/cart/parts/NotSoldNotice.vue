@@ -12,7 +12,19 @@ const feedback = useStorefrontFeedback();
 const { t } = useI18n();
 const sentence = useNotSoldSentence(cart);
 
+let leaving = false;
+
 async function checkoutWithout(): Promise<void> {
+  if (leaving) return;
+  leaving = true;
+  try {
+    await removeThenCheckout();
+  } finally {
+    leaving = false;
+  }
+}
+
+async function removeThenCheckout(): Promise<void> {
   const failure = await cart.removeNotSold();
   if (failure !== null) {
     feedback.report(failure);

@@ -210,7 +210,12 @@ export function createCartStore(ops: CartOps): CartStore {
     const next = tail.then(async () => {
       // A write waits for a read in flight, and a failed read is tried once more first; a cart that
       // still cannot be read takes no write, so a write never lands in a cart the page has not shown.
-      await reading;
+      // The newest read, not only the one current when this write began waiting.
+      let awaited: Promise<unknown>;
+      do {
+        awaited = reading;
+        await awaited;
+      } while (awaited !== reading);
       if (loadFailed.value) await read();
       if (loadFailed.value) {
         queuedWrites -= 1;
@@ -266,7 +271,8 @@ export function createCartStore(ops: CartOps): CartStore {
         return null;
       },
       (caught: unknown) => {
-        if (mine !== latestRead) return null;
+        // A read overtaken by a newer read or by a write says nothing about the cart shown now.
+        if (mine !== latestRead || writeEpoch !== issuedAt) return null;
         loadFailed.value = true;
         if (loadState.value !== 'none') loadState.value = 'unloaded';
         return fail(caught);

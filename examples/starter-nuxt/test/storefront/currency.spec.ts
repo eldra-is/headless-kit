@@ -510,3 +510,40 @@ describe('a cart read that fails (K3)', () => {
     expect(storefront.currency.active.value).toBe('USD');
   });
 });
+
+describe('CodeRabbit review on #162: gateway', () => {
+  it('4662896726: a stale read that finds the old cart gone does not forget the newer cart', async () => {
+    const data = installStorage({ 'eldra.cartId': 'cart-c' });
+    const gets: Array<{ resolve: (value: unknown) => void; reject: (error: unknown) => void }> = [];
+    const gone = () =>
+      new EldraHttpError(new Response('{}', { status: 404, statusText: 'Not Found' }), {
+        errorId: 'CART_NOT_FOUND',
+      });
+    const client = {
+      cart: {
+        get: () =>
+          new Promise((resolve, reject) => {
+            gets.push({ resolve, reject });
+          }),
+        addItem: async () => ({ ...cartResponse('ISK'), id: 'cart-d' }),
+      },
+      checkout: { url: async () => 'https://checkout.example/x' },
+    } as unknown as EldraClient;
+    const storefront = createGatewayStorefront(client, { route: fakeRoute(), commerce: ISK_ONLY });
+    gets.shift()!.resolve({ ...cartResponse('ISK'), id: 'cart-c' });
+    await vi.waitFor(() => expect(storefront.cart.currency.value).toBe('ISK'));
+
+    void storefront.cart.reload();
+    void storefront.cart.reload();
+    const older = gets.shift()!;
+    gets.shift()!.reject(gone());
+    await vi.waitFor(() => expect(data.has('eldra.cartId')).toBe(false));
+    await storefront.cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    expect(data.get('eldra.cartId')).toBe('cart-d');
+
+    older.reject(gone());
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(data.get('eldra.cartId')).toBe('cart-d');
+  });
+});

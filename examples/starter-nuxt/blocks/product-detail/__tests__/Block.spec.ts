@@ -1068,6 +1068,29 @@ describe('product-detail block', () => {
     expect(storefront.currency.active.value).toBe('USD');
   });
 
+  it('4662896775: reads the product again when it is already in the store currency', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    const refreshes: number[] = [];
+    const product = storefront.catalog.product;
+    storefront.catalog.product = (handle) => {
+      const result = product(handle);
+      return {
+        ...result,
+        refresh: async () => {
+          refreshes.push(1);
+        },
+      };
+    };
+    storefront.currency.started.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+    expect(storefront.currency.active.value).toBe('USD');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(refreshes).toHaveLength(1);
+  });
+
   it('says the cart will switch when there is one', async () => {
     const storefront = storefrontWith({
       price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
