@@ -301,6 +301,8 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // a prerender only. See `./runtime/buildToken.ts`.
     const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
 
+    // A draft preview session's route: before Nuxt's router reads the payload's path.
+    addPlugin({ src: resolver.resolve('./runtime/previewSessionRoute'), mode: 'client' });
     addPlugin(resolver.resolve('./runtime/plugin'));
     addServerHandler({
       route: VISITOR_COUNTRY_PATH,

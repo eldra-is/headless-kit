@@ -166,43 +166,90 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   (`pnpm test:parity`; part of `pnpm check`, and run again by `publish.yml` before any package is
   published). It generates the starter twice as production builds: a _pinned_ build made while
   older content was live, served by a stand-in router as a session whose draft reads answer the new
-  content in the preview read's shape, and a _live_ build made after that content was published,
-  served statically. On a page with every starter block type, a page placing shared components, a
-  localized page (both locales) and a page with media framing, at 1280 and 390 wide, the documents
-  after hydration are compared node for node (the async data the apps hold too, and their console
-  errors) and the full-page screenshots pixel for pixel: 0 differ. Removed before the comparison:
-  exactly the differences above (the session host, the two router meta tags). Not compared: Nuxt's
-  hydration-state scripts (the pinned build's payload is the older content by construction, and
-  every build has its own build id) and comments (Vue's fragment anchors); a `style` attribute is
-  compared as the browser holds it (`style.cssText`). Three things the session does to get there:
-  - it renders a page or template that places shared components in the **public** read's shape:
-    the preview read keeps the placements and a projection for Studio's overlay, which would put
-    the authored node ids and a `data-eldra-reusable-placement` in the DOM and rebuild the
-    component's subtree; `src/runtime/sessionShape.ts` expands it with `@eldrajs/theme-core`'s
-    `expandReusableLayout` exactly as Core's public read does;
+  content in Core's preview shape, and a _live_ build made after that content was published, served
+  statically. Core's two read shapes come from one module (`test/support/previewParityContent.ts`);
+  `@eldrajs/theme-core`'s `previewParityVectors.spec.ts` checks the expansion against reads recorded
+  from Core's own read code. The pages: every starter block type, shared components (a header and
+  footer), a page under a page that places them, a shared component next to a block node that no
+  longer resolves, a localized page in both locales, media framing, a route template (a dynamic
+  route) placing a component, and one page per structural edit. At 1280 and 390 wide, after
+  hydration, the documents are compared node for node (the async data and `useState` the apps hold
+  too, their focus, scroll position and console errors) and the full-page screenshots pixel for
+  pixel: 0 differ.
+
+  Removed before the comparison, from the session's page only: exactly the differences above (the
+  session host, the two router meta tags); the live page is asserted to have none of them. Not
+  compared: Nuxt's hydration-state scripts (the pinned build's payload is the older content by
+  construction, and every build has its own build id) and comments (Vue's fragment anchors). A
+  `style` attribute is compared as the browser holds it (`style.cssText`), and the head's
+  `modulepreload` hints as a set: their order is the order the prerender's async render collected
+  the chunks in, which differs between any two builds of the same content. In the async data, an
+  entry's `status`, `publishedAt` and `updatedAt` and a media item's `linkId` are not compared:
+  they are the draft's own (the public read drops `status`; Publish sets the times; each owner has
+  its own asset link row), and the identical DOM shows the starter renders none of them.
+
+  What the session does to get there:
+  - `@eldrajs/theme-core`'s client reshapes **every** session answer into the public read's shape
+    (`asPublicRead`): wherever a `reusableComponentProjection` appears — the answer itself, a list
+    item, a resolved reference at any depth (a page's `parent`) — the placements are expanded as
+    Core's public read expands them, `blocks` are put in layout order, and a node naming a block that
+    does not resolve is dropped. Rendered in the preview shape, every node in a shared component
+    carried its authored id and a `data-eldra-reusable-placement`, its subtree was rebuilt, and a
+    dangling node rendered a hidden `data-eldra-missing-block` the live page has not;
   - `useEldraPage().pending` stays `false` while the session re-reads the route it has just
     hydrated, so a theme that draws a loading state for `pending` (the starter does) patches the
     page in place rather than tearing every block down and building it again, which would number
-    every `useId()` anew and re-serialise every bound style;
-  - a `focus()` asked of an element in the app while it is inert under the veil (a search field
-    that focuses on mount) is asked again once the draft is shown.
+    every `useId()` anew and re-serialise every bound style. A theme's own `useAsyncData` keeps its
+    own `pending`: a block that renders a loading state for it is still torn down and rebuilt in a
+    session, with the same consequences;
+  - a `focus()` (HTML or SVG) asked of an element in the app while it is inert under the veil is
+    asked again once the draft is shown, unless the page blurred it itself;
+  - a page that exists only as a draft resolves the address bar's path: the host answers it with the
+    build's not-found document, and when that is a prerendered page (the starter copies its `/404`
+    over `404.html`) Nuxt would otherwise start at the path the document was rendered for and show
+    "Page not found" (`src/runtime/previewSessionRoute.ts`); and the route's own data, which Nuxt
+    counts as hydrated from its `default` although the document carried none, is read with the
+    session's re-reads (any entry in that state is: never one that did not run on load).
 
-  **Known differences** (pinned by the spec, so a change in either direction is seen):
-  - a block the draft **adds** to the pinned build's page is created after hydration, so Vue's
-    `useId()` numbers it and every block after it by creation order (`quote-heading-v-0-34-0`
-    where the prerender writes `v-0-1-0`), and its chunk's `modulepreload` link is added at the end
-    of the head as an absolute URL. Every id still matches its `aria-labelledby` / `aria-controls`;
-    no pixel differs;
-  - the session re-runs every async data entry the server filled, commerce reads included, so it
+  **Known differences** (each pinned by the spec, so a change in either direction is seen):
+  - **Structural edits renumber `useId()` ids — accepted by the owner (2026-11-23)**, to be taken
+    up if it ever matters. The session patches the pinned build's hydrated page to the draft, and
+    Vue numbers a `useId()` by creation order: an instance keeps its hydration number, one created
+    later takes the next free number. Every id still matches its own `aria-labelledby` /
+    `aria-controls`; no pixel differs. The full scope, as the spec pins it (exactly which ids):
+
+    | Edit                                                        | Renumbers | Whose ids                                                        |
+    | ----------------------------------------------------------- | --------- | ---------------------------------------------------------------- |
+    | content of a block, its media or framing, a localized field | no        | none                                                             |
+    | an item added to a list block (an FAQ question, a tab)      | no        | none: their ids are the block's, by index                        |
+    | a block added                                               | yes       | the added block and every block after it                         |
+    | a block removed                                             | yes       | every block after it                                             |
+    | two blocks reordered                                        | yes       | the moved blocks                                                 |
+    | a block's type changed (a new block in its place)           | yes       | the new block                                                    |
+    | a page that exists only as a draft, opened directly         | no        | none: the whole page is built in the browser, in prerender order |
+
+    An added block's chunk also arrives late (its `modulepreload` added at the end of the head, as an
+    absolute URL), and a removed one's stays behind from the pinned page.
+
+  - A page that exists only as a draft, opened directly, hydrates the pinned build's not-found
+    document: its head's payload preload is that document's (`/404/_payload.json`), the session
+    also holds that document's route data, and the router's `noindex, nofollow` tag is gone (the
+    theme's head manager owns `meta[name="robots"]`, and removes the not-found page's once the draft
+    page, which has none, renders). The router's `X-Robots-Tag: noindex` header still applies.
+  - The session re-runs every async data entry the server filled, commerce reads included, so it
     asks the catalog again where the live page answers from its payload (same answer, one more
-    request);
-  - focus asked for under the veil is given when the draft is shown, later than on the live page;
-    a page that scrolls on that focus scrolls to where the element is then, and scroll-driven UI
-    (the starter header's hide-on-scroll) can end in a different state when the layout above the
-    element moved in between;
-  - design tokens edited after the pinned build (and theme texts, locales, currency, everything
-    baked in at build time) show the pinned build's until Publish rebuilds; whether a session must
-    show the edited ones is an open question, kept as a skipped case in the spec.
+    request; the spec allows exactly those requests per page).
+  - Focus asked for under the veil is given later than on the live page. The focus and the scroll
+    position end the same; scroll-driven state can end differently (the starter header's
+    hide-on-scroll, with a field focused mid-page, ends shown in about half the sessions where the
+    live page has it hidden). The spec allows exactly that one difference on that page.
+  - **Design tokens and theme texts saved after the pinned build.** The owner decided
+    (2026-11-23) that a preview shows them as soon as they are saved. The kit does not do that yet: a
+    build reads them once (the module's `readDesignTokens` and `readThemeMessages`) and bakes them
+    in — the tokens into the runtime config the plugin hands `EldraLayout`'s
+    `<style data-eldra-design-token-styles>`, the texts into `virtual:eldra/messages` — and a session
+    reads neither at runtime, so it shows the pinned build's (locales and currency, baked the same
+    way, too). The spec's case asserting it is skipped until a session reads them.
 
 - **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
 

@@ -25,7 +25,6 @@ import { isStudioPreviewFrame } from '../origins';
 import { isPreviewSessionRefused, usePreviewSession } from '../previewSession';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 import { canonicalRoutePath } from '../routePath';
-import { asPublishedRoute } from '../sessionShape';
 import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
 
 /**
@@ -267,9 +266,9 @@ export function useEldraPage(): {
         runtimeLocale(path)
       );
       heldPreviewAuthFailure = null;
-      // A session's drafts arrive in the preview read's shape; what it renders is the published
-      // page's (`../sessionShape.ts`).
-      return { route: session.active ? asPublishedRoute(route) : route, holdPrevious: false };
+      // A session's drafts already arrive in the public read's shape: `@eldrajs/theme-core`'s
+      // client reshapes every session answer (`asPublicRead`).
+      return { route, holdPrevious: false };
     } catch (cause) {
       if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
       // A site with no credentials: the shell, not an error — see `hasCredentials`.

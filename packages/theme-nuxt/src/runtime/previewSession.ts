@@ -192,31 +192,51 @@ function trackAppRoot(doc: Document): void {
  * field is focused, its suggestions open and the page scrolls to it. So while the session is
  * pending, the last `focus()` asked of an element inside the app is remembered, and once the draft
  * is on screen it is asked again, if the element is still in the document and nothing else has
- * taken focus since. Nothing changes outside a pending session: the original `focus` is restored
- * the moment the session leaves `pending`, whichever way it leaves it.
+ * taken focus since — and not if the page blurred that element itself while covered. HTML and SVG
+ * elements alike. Nothing changes outside a pending session: the original `focus` and `blur` are
+ * restored the moment the session leaves `pending`, whichever way it leaves it, unless something
+ * patched them again after us, which then keeps its own.
  */
 function replayCoveredFocus(doc: Document): void {
-  const proto = doc.defaultView?.HTMLElement?.prototype;
-  if (proto === undefined) return;
-  const original = proto.focus;
-  let requested: { element: HTMLElement; options: FocusOptions | undefined } | null = null;
-  proto.focus = function focus(this: HTMLElement, options?: FocusOptions): void {
-    if (state.status === 'pending' && doc.getElementById('__nuxt')?.contains(this)) {
-      requested = { element: this, options };
-    }
-    original.call(this, options);
-  };
+  const win = doc.defaultView;
+  if (win === null) return;
+  type Focusable = HTMLElement | SVGElement;
+  const protos = [win.HTMLElement?.prototype, win.SVGElement?.prototype].filter(
+    (proto): proto is HTMLElement | SVGElement => proto !== undefined
+  );
+  let requested: { element: Focusable; options: FocusOptions | undefined } | null = null;
+  const inApp = (element: Element): boolean =>
+    doc.getElementById('__nuxt')?.contains(element) ?? false;
+  const patches = protos.map((proto) => {
+    const original = { focus: proto.focus, blur: proto.blur };
+    const focus = function focus(this: Focusable, options?: FocusOptions): void {
+      if (state.status === 'pending' && inApp(this)) requested = { element: this, options };
+      original.focus.call(this, options);
+    };
+    // A focus the page itself took back while covered is not one to give later.
+    const blur = function blur(this: Focusable): void {
+      if (state.status === 'pending' && requested?.element === this) requested = null;
+      original.blur.call(this);
+    };
+    proto.focus = focus;
+    proto.blur = blur;
+    return { proto, original, focus, blur };
+  });
   const stop = watch(
     () => state.status,
     (status) => {
       if (status === 'pending') return;
       stop();
-      proto.focus = original;
+      // Put back only what is still ours: anything that patched `focus` after us keeps its own.
+      for (const { proto, original, focus, blur } of patches) {
+        if (proto.focus === focus) proto.focus = original.focus;
+        if (proto.blur === blur) proto.blur = original.blur;
+      }
       const target = requested;
       requested = null;
       if (status !== 'ready' || target === null || !target.element.isConnected) return;
       if (doc.activeElement !== null && doc.activeElement !== doc.body) return;
-      original.call(target.element, target.options);
+      target.element.focus(target.options);
     },
     { flush: 'sync' }
   );

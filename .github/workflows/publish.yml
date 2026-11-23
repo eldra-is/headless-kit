@@ -78,13 +78,29 @@ jobs:
           node-version: '24'
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      # A tag cut before the gate existed (a re-publish through workflow_dispatch) has no
+      # `test:parity` script: nothing to run, and it says so.
+      - name: Whether this ref has the parity gate
+        id: gate
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.['test:parity'] ? 0 : 1)"; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no test:parity script at this ref; the draft preview parity gate is skipped"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - run: pnpm exec playwright install --with-deps chromium
+      - if: steps.gate.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      - if: steps.gate.outputs.present == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - if: steps.gate.outputs.present == 'true'
+        run: pnpm build
 
       - name: Draft preview parity
+        if: steps.gate.outputs.present == 'true'
         run: pnpm test:parity
 
   npm:

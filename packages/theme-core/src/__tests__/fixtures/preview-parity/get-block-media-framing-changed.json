@@ -1,0 +1,348 @@
+{
+  "case": "get-block-media-framing-changed",
+  "differences": [
+    "status: kept on every entry of a preview answer, dropped from the published answer",
+    "publishedAt, updatedAt: the record's own metadata, which Publish sets",
+    "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
+    "linkId: asset-service's link row, one per owner (draft or published snapshot)",
+    "headers: Eldra-Preview: draft on a preview answer only"
+  ],
+  "preview": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "accent": {
+          "mode": "solid",
+          "solid": {
+            "alpha": 0.9,
+            "color": "#094ac4"
+          }
+        },
+        "author": {
+          "_type": "entry_author",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "data": {
+            "name": "Thordis"
+          },
+          "id": "00000000-0000-4000-8000-000000000001",
+          "publishedAt": "2026-01-01T00:00:00Z",
+          "schemaApiId": "author",
+          "schemaId": "00000000-0000-4000-8000-000000000002",
+          "status": "PUBLISHED",
+          "updatedAt": "2026-01-01T00:00:00Z"
+        },
+        "authors": {
+          "displayAs": "",
+          "entries": {
+            "data": [
+              {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "John"
+                },
+                "id": "00000000-0000-4000-8000-000000000003",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000002",
+                "status": "PUBLISHED",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Thordis"
+                },
+                "id": "00000000-0000-4000-8000-000000000001",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000002",
+                "status": "PUBLISHED",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              }
+            ],
+            "meta": {
+              "hasNext": false,
+              "hasPrev": false,
+              "page": 1,
+              "pageSize": 5,
+              "rows": 2,
+              "total": 2,
+              "totalPages": 1
+            }
+          },
+          "filters": null,
+          "orderBy": "-createdAt",
+          "pageSize": 5,
+          "schemas": ["00000000-0000-4000-8000-000000000002"]
+        },
+        "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
+        "card": {
+          "label": "Kort",
+          "weight": 2
+        },
+        "config": {
+          "columns": 3,
+          "tags": ["a", "b"]
+        },
+        "content": {
+          "content": [
+            {
+              "content": [
+                {
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "Bold",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "count": 7,
+        "cta": {
+          "kind": "url",
+          "label": "Shop",
+          "url": "/en/shop"
+        },
+        "enabled": true,
+        "gallery": [
+          {
+            "altText": "Alt text 0",
+            "assetId": "00000000-0000-4000-8000-000000000004",
+            "contentType": "image/jpeg",
+            "filename": "00000000-0000-4000-8000-000000000004.jpg",
+            "height": 900,
+            "linkId": "cms_entry-00000000-0000-4000-8000-000000000004",
+            "sortOrder": 0,
+            "tag": "gallery",
+            "url": "https://media.example.test/00000000-0000-4000-8000-000000000004.jpg",
+            "width": 1600
+          },
+          {
+            "altText": "Alt text 1",
+            "assetId": "00000000-0000-4000-8000-000000000005",
+            "contentType": "image/jpeg",
+            "filename": "00000000-0000-4000-8000-000000000005.jpg",
+            "height": 900,
+            "linkId": "cms_entry-00000000-0000-4000-8000-000000000005",
+            "sortOrder": 1,
+            "tag": "gallery",
+            "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
+            "width": 1600
+          }
+        ],
+        "heading": "Everything at once",
+        "icon": "AlarmClock",
+        "image": {
+          "altText": "Alt text 0",
+          "assetId": "00000000-0000-4000-8000-000000000006",
+          "contentType": "image/jpeg",
+          "filename": "00000000-0000-4000-8000-000000000006.jpg",
+          "framing": {
+            "x": 0.5,
+            "y": 0.4,
+            "zoom": 2
+          },
+          "height": 900,
+          "linkId": "cms_entry-00000000-0000-4000-8000-000000000006",
+          "sortOrder": 0,
+          "tag": "image",
+          "url": "https://media.example.test/00000000-0000-4000-8000-000000000006.jpg",
+          "width": 1600
+        },
+        "notes": "# Notes\n\n- one\n- two",
+        "ratio": 0.25,
+        "startsAt": "2026-01-01T00:00:00Z",
+        "token": "00000000-0000-4000-8000-000000000007",
+        "variant": {
+          "label": "Wide",
+          "value": "wide"
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000008",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "00000000-0000-4000-8000-000000000009",
+      "status": "CHANGED",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "no-store",
+    "eldraPreview": "draft",
+    "status": 200
+  },
+  "public": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "accent": {
+          "mode": "solid",
+          "solid": {
+            "alpha": 0.9,
+            "color": "#094ac4"
+          }
+        },
+        "author": {
+          "_type": "entry_author",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "data": {
+            "name": "Thordis"
+          },
+          "id": "00000000-0000-4000-8000-000000000001",
+          "publishedAt": "2026-01-01T00:00:00Z",
+          "schemaApiId": "author",
+          "schemaId": "00000000-0000-4000-8000-000000000002",
+          "updatedAt": "2026-01-01T00:00:00Z"
+        },
+        "authors": {
+          "displayAs": "",
+          "entries": {
+            "data": [
+              {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "John"
+                },
+                "id": "00000000-0000-4000-8000-000000000003",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000002",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Thordis"
+                },
+                "id": "00000000-0000-4000-8000-000000000001",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000002",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              }
+            ],
+            "meta": {
+              "hasNext": false,
+              "hasPrev": false,
+              "page": 1,
+              "pageSize": 5,
+              "rows": 2,
+              "total": 2,
+              "totalPages": 1
+            }
+          },
+          "filters": null,
+          "orderBy": "-createdAt",
+          "pageSize": 5,
+          "schemas": ["00000000-0000-4000-8000-000000000002"]
+        },
+        "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
+        "card": {
+          "label": "Kort",
+          "weight": 2
+        },
+        "config": {
+          "columns": 3,
+          "tags": ["a", "b"]
+        },
+        "content": {
+          "content": [
+            {
+              "content": [
+                {
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "Bold",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "doc"
+        },
+        "count": 7,
+        "cta": {
+          "kind": "url",
+          "label": "Shop",
+          "url": "/en/shop"
+        },
+        "enabled": true,
+        "gallery": [
+          {
+            "altText": "Alt text 0",
+            "assetId": "00000000-0000-4000-8000-000000000004",
+            "contentType": "image/jpeg",
+            "filename": "00000000-0000-4000-8000-000000000004.jpg",
+            "height": 900,
+            "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000004",
+            "sortOrder": 0,
+            "tag": "gallery",
+            "url": "https://media.example.test/00000000-0000-4000-8000-000000000004.jpg",
+            "width": 1600
+          },
+          {
+            "altText": "Alt text 1",
+            "assetId": "00000000-0000-4000-8000-000000000005",
+            "contentType": "image/jpeg",
+            "filename": "00000000-0000-4000-8000-000000000005.jpg",
+            "height": 900,
+            "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000005",
+            "sortOrder": 1,
+            "tag": "gallery",
+            "url": "https://media.example.test/00000000-0000-4000-8000-000000000005.jpg",
+            "width": 1600
+          }
+        ],
+        "heading": "Everything at once",
+        "icon": "AlarmClock",
+        "image": {
+          "altText": "Alt text 0",
+          "assetId": "00000000-0000-4000-8000-000000000006",
+          "contentType": "image/jpeg",
+          "filename": "00000000-0000-4000-8000-000000000006.jpg",
+          "framing": {
+            "x": 0.5,
+            "y": 0.4,
+            "zoom": 2
+          },
+          "height": 900,
+          "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000006",
+          "sortOrder": 0,
+          "tag": "image",
+          "url": "https://media.example.test/00000000-0000-4000-8000-000000000006.jpg",
+          "width": 1600
+        },
+        "notes": "# Notes\n\n- one\n- two",
+        "ratio": 0.25,
+        "startsAt": "2026-01-01T00:00:00Z",
+        "token": "00000000-0000-4000-8000-000000000007",
+        "variant": {
+          "label": "Wide",
+          "value": "wide"
+        }
+      },
+      "id": "00000000-0000-4000-8000-000000000008",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "00000000-0000-4000-8000-000000000009",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "",
+    "status": 200
+  },
+  "read": {
+    "method": "GET",
+    "operation": "webGetEntry",
+    "path": "/v1/schema/00000000-0000-4000-8000-000000000009/entry/00000000-0000-4000-8000-000000000008?locale=en-US"
+  }
+}

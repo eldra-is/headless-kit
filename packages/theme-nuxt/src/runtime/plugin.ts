@@ -102,14 +102,31 @@ export default defineNuxtPlugin({
         )
       : [];
     const sessionReads = async (): Promise<void> => {
-      const inFlight = Object.entries(
+      const promises =
         (nuxtApp as { _asyncDataPromises?: Record<string, Promise<unknown> | undefined> })
-          ._asyncDataPromises ?? {}
-      )
+          ._asyncDataPromises ?? {};
+      const inFlight = Object.entries(promises)
         .filter(([key, promise]) => promise !== undefined && !hydratedKeys.includes(key))
         .map(([, promise]) => promise);
+      // An entry Nuxt marked as hydrated with nothing from the payload: during hydration an entry
+      // whose `default` gives a value counts as hydrated and is never fetched. That is a route the
+      // document was not rendered for — a page only the draft has, opened directly, hydrates the
+      // build's not-found document — so its own data was never read (WS-1358). Never an entry
+      // that did not run on load (`idle`).
+      const unread = Object.entries(
+        (nuxtApp as { _asyncData?: Record<string, { status?: { value?: string } } | undefined> })
+          ._asyncData ?? {}
+      )
+        .filter(
+          ([key, entry]) =>
+            !hydratedKeys.includes(key) &&
+            promises[key] === undefined &&
+            entry?.status?.value === 'success'
+        )
+        .map(([key]) => key);
+      const reread = [...hydratedKeys, ...unread];
       await Promise.allSettled([
-        hydratedKeys.length > 0 ? refreshNuxtData(hydratedKeys) : undefined,
+        reread.length > 0 ? refreshNuxtData(reread) : undefined,
         ...inFlight,
       ]);
     };

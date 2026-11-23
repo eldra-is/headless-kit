@@ -21,6 +21,14 @@ Release-please writes the generated notes from commit messages and does not repl
   rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
   Outside a session nothing changes. The starter's parity spec is the release gate; see
   `docs/themes.md`, "Parity with the published page".
+- **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
+  render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);
+  `useEldraPage().pending` stays `false` while the session re-reads the route it has just hydrated,
+  so the page is patched in place rather than rebuilt; a `focus()` asked for under the veil is given
+  once the draft is shown; and a page that exists only as a draft, opened directly, resolves the
+  address bar's path rather than the not-found document's. Outside a session nothing changes. The
+  starter's parity spec is the release gate; see `docs/themes.md`, "Parity with the published
+  page", for what it proves and the known differences it pins.
 
 - **Draft preview sessions (WS-1303).** On the preview router's session host
   (`p-<session>.previews-{env}.eldra.dev`; its `<meta name="eldra-preview" content="session">` in the

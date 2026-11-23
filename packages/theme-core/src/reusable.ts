@@ -237,3 +237,109 @@ export function expandReusableLayout(
   });
   return { version: envelope.version, root: expansion.root };
 }
+
+type JsonRecord = Record<string, unknown>;
+
+function isPlainRecord(value: unknown): value is JsonRecord {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+/**
+ * A preview read's answer, in the shape Core's public read gives the same records (WS-1358): every
+ * entry in it — the answer itself, every list item, every resolved reference at any depth (a page's
+ * `parent`, a block, a list field's entries) — that carries a `reusableComponentProjection` is
+ * turned into its public read (`expandReusableComponentsForPublic` in Core's cms-service):
+ *
+ *  - every placement expanded in place (`expandReusableLayout`; a document with `routePattern` is a
+ *    route template, whose version-1 layout may place a component), and the projection dropped;
+ *  - `blocks` put in the expanded layout's depth-first order (slot children by sorted slot id);
+ *  - every node naming a block that is not among `blocks` removed, slot children with it, and
+ *    `blocks` rebuilt from what remains.
+ *
+ * Anything else is left as it is: a document with no projection is served the same by both reads
+ * (Core prunes only a document that places a component), and a projection that does not expand is
+ * left for the render to fail closed on, as it would have. What the two reads differ in beyond
+ * this — the entry metadata (`status`, `publishedAt`, `updatedAt`) and a media item's `linkId` —
+ * is the draft's own and stays.
+ *
+ * A draft preview session's client applies it to every CMS answer (`enableSessionPreview`): a
+ * session has no overlay to address a component's nodes by their authored ids, and what it must
+ * render is what Publish puts live.
+ */
+export function asPublicRead<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => asPublicRead(item)) as T;
+  if (!isPlainRecord(value)) return value;
+  const walked: JsonRecord = {};
+  for (const [key, child] of Object.entries(value)) {
+    walked[key] = key === 'reusableComponentProjection' ? child : asPublicRead(child);
+  }
+  return publicDocument(walked) as T;
+}
+
+function publicDocument(doc: JsonRecord): JsonRecord {
+  if (!('reusableComponentProjection' in doc) || !isPlainRecord(doc.data)) return doc;
+  const { reusableComponentProjection, ...rest } = doc;
+  const data = doc.data;
+  let layout: { version: 1 | 2 | 3; root: unknown };
+  try {
+    layout = expandReusableLayout(data.layout, reusableComponentProjection, {
+      routeTemplate: typeof data.routePattern === 'string',
+    });
+  } catch {
+    return doc;
+  }
+  if (!Array.isArray(data.blocks)) return { ...rest, data: { ...data, layout } };
+  const byId = new Map<string, unknown>();
+  for (const block of data.blocks) {
+    if (isPlainRecord(block) && typeof block.id === 'string' && !byId.has(block.id)) {
+      byId.set(block.id, block);
+    }
+  }
+  const missing = new Set(layoutBlockEntryIds(layout.root).filter((id) => !byId.has(id)));
+  const root = missing.size === 0 ? layout.root : pruneLayoutBlocks(layout.root, missing);
+  const blocks = layoutBlockEntryIds(root).map((id) => byId.get(id));
+  return { ...rest, data: { ...data, layout: { ...layout, root }, blocks } };
+}
+
+/** A layout's block entry ids, depth-first, slot children by sorted slot id (Core's order). */
+function layoutBlockEntryIds(node: unknown, into: string[] = []): string[] {
+  if (!isPlainRecord(node)) return into;
+  if (typeof node.entryId === 'string' && node.entryId !== '') into.push(node.entryId);
+  if (Array.isArray(node.children))
+    for (const child of node.children) layoutBlockEntryIds(child, into);
+  if (isPlainRecord(node.slots)) {
+    const slots = node.slots;
+    for (const slot of Object.keys(slots).sort()) {
+      const children = slots[slot];
+      if (Array.isArray(children)) for (const child of children) layoutBlockEntryIds(child, into);
+    }
+  }
+  return into;
+}
+
+function pruneLayoutBlocks(node: unknown, missing: ReadonlySet<string>): unknown {
+  if (!isPlainRecord(node)) return node;
+  const keep = (children: unknown[]): unknown[] =>
+    children
+      .filter(
+        (child) =>
+          !(isPlainRecord(child) && typeof child.entryId === 'string' && missing.has(child.entryId))
+      )
+      .map((child) => pruneLayoutBlocks(child, missing));
+  const out: JsonRecord = { ...node };
+  if (Array.isArray(node.children)) out.children = keep(node.children);
+  if (isPlainRecord(node.slots)) {
+    out.slots = Object.fromEntries(
+      Object.entries(node.slots).map(([slot, children]) => [
+        slot,
+        Array.isArray(children) ? keep(children) : children,
+      ])
+    );
+  }
+  return out;
+}

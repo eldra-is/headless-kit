@@ -71,6 +71,13 @@ const state = vi.hoisted(() => {
      * (`nuxt/dist/app/composables/asyncData.js` — a call whose key already has an `_init` entry
      * reuses it rather than rebuilding it around its own handler).
      */
+    /** The draft preview session, as `usePreviewSession()` reports it; off unless a test says. */
+    session: { active: false, status: 'off', hydrated: false, errorId: null } as {
+      active: boolean;
+      status: string;
+      hydrated: boolean;
+      errorId: string | null;
+    },
     asyncDataEntries: new Map<
       string,
       { handler: () => Promise<unknown>; data: Ref<unknown>; pending: Ref<boolean> }
@@ -194,6 +201,11 @@ vi.mock('../src/runtime/resolveRoute', async () => {
     },
   };
 });
+
+vi.mock('../src/runtime/previewSession', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/runtime/previewSession')>()),
+  usePreviewSession: () => state.session,
+}));
 
 // The manifest read itself is a browser fact (`src/runtime/staticRoutes.ts` answers `null` off a
 // browser, which is the whole of its dev/SSR guard); these specs are about what `useEldraPage`
@@ -690,5 +702,52 @@ describe('useEldraPage shared resolution', () => {
     expect(pageCall.error.value).toBeNull();
     expect(pageCall.page.value).toBeNull();
     expect(pageCall.template.value).toBeNull();
+  });
+});
+
+describe('useEldraPage pending in a draft preview session', () => {
+  beforeEach(() => {
+    state.path = '/about';
+    state.resolved = EMPTY;
+    state.previewActive = false;
+    state.prerendered = null;
+    state.failWith = null;
+    state.nuxtApp.payload.data = {};
+    state.nuxtApp.static.data = {};
+    state.signals = reactive({ refreshRevision: 0, tokenRevision: 1 });
+  });
+
+  const pendingWith = async (session: Partial<typeof state.session>): Promise<boolean[]> => {
+    state.session = reactive({
+      active: false,
+      status: 'off',
+      hydrated: false,
+      errorId: null,
+      ...session,
+    });
+    const { useEldraPage } = await import('../src/runtime/composables/useEldraPage');
+    const { pending } = useEldraPage();
+    // While the read is in flight, and once it has settled.
+    const during = pending.value;
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    return [during, pending.value];
+  };
+
+  it('is true while the route is read on an ordinary page', async () => {
+    expect(await pendingWith({})).toEqual([true, false]);
+  });
+
+  it('stays false while a session re-reads the route it has just hydrated', async () => {
+    expect(await pendingWith({ active: true, status: 'pending', hydrated: true })).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it('is true again for a read once the session shows its draft (a navigation)', async () => {
+    expect(await pendingWith({ active: true, status: 'ready', hydrated: true })).toEqual([
+      true,
+      false,
+    ]);
   });
 });

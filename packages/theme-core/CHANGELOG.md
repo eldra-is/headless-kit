@@ -11,6 +11,13 @@ Release-please writes the generated notes from commit messages and does not repl
   reusable placements in the shape Core's public read serves it: each placement replaced by its
   component, the root taking the placement id and every node inside it the `r` + SHA-256 render id,
   no projection left. Throws what the render would refuse. A draft preview session renders this.
+- **A draft preview session's answers arrive in the public read's shape (WS-1358).** The
+  session client (`enableSessionPreview`) reshapes every CMS answer with the new `asPublicRead`:
+  wherever a `reusableComponentProjection` appears (the answer, a list item, a resolved reference
+  at any depth), the placements are expanded the way Core's public read expands them, `blocks` put
+  in layout order and a node naming a block that does not resolve dropped. New exports:
+  `asPublicRead(value)` and `expandReusableLayout(layout, projection, { routeTemplate? })` (the
+  expansion alone, throwing what the render would refuse). A client outside a session is unchanged.
 
 - **`enableSessionPreview({ proxyBase })` (WS-1303).** For a draft preview session on the preview
   router's host: the CMS reads go same-origin to `proxyBase` (the router's `/__eldra/gateway`) with

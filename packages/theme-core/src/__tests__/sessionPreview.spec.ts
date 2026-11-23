@@ -173,4 +173,43 @@ describe('enableSessionPreview', () => {
     expect(init.cache).toBe('no-store');
     expect(init.credentials).toBeUndefined();
   });
+
+  it('hands every CMS answer over in the public read\u2019s shape (WS-1358)', async () => {
+    // Core's own preview read of a page whose parent places a shared component: the projection is
+    // on the nested parent, not on the answer itself.
+    const vector = (await import('./fixtures/preview-parity/get-page-nested-page-reference.json'))
+      .default as { preview: { body: unknown } };
+    fetchMock.mockImplementation(async () => draft(vector.preview.body));
+    const client = sessionClient();
+    const page = await client.getEntry('page', 'p1');
+    expect(JSON.stringify(page)).toContain('"type":"flex"');
+    expect(JSON.stringify(page)).not.toContain('reusableComponentProjection');
+    expect(JSON.stringify(page)).not.toContain('"type":"reusable"');
+    // And a list of such pages, the projection on every item's parent.
+    fetchMock.mockImplementation(async () => draft({ ...LIST, data: [vector.preview.body] }));
+    const list = await client.getEntries('page');
+    expect(list.data).toHaveLength(1);
+    expect(JSON.stringify(list)).not.toContain('reusableComponentProjection');
+  });
+
+  it('leaves a client outside a session reading the preview shape as it is', async () => {
+    const vector = (await import('./fixtures/preview-parity/get-page-shared-component.json'))
+      .default as { preview: { body: unknown } };
+    fetchMock.mockImplementation(
+      async () =>
+        new Response(JSON.stringify(vector.preview.body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
+    const client = createEldraClient({
+      gatewayUrl: GATEWAY,
+      orgId: ORG,
+      fetch: fetchMock as unknown as typeof fetch,
+      retry: { attempts: 1 },
+    });
+    expect(JSON.stringify(await client.getEntry('page', 'p1'))).toContain(
+      'reusableComponentProjection'
+    );
+  });
 });

@@ -1,5 +1,6 @@
 import { isBlockFieldSelect } from './blockFields';
 import { fetchWithRetry, resolveRetryPolicy } from './retry';
+import { asPublicRead } from './reusable';
 import { encodeEntryDataStega } from './stegaWalk';
 import type {
   CatalogDoc,
@@ -137,7 +138,20 @@ export function createEldraClient(opts: EldraClientOptions): EldraClient {
       notifyRequestError(error);
       throw error;
     }
-    return res;
+    // A draft in the shape Publish will serve it: shared components expanded the way the public
+    // read expands them, wherever in the answer they appear (`asPublicRead`).
+    const text = await res.text();
+    let body: string;
+    try {
+      body = JSON.stringify(asPublicRead(JSON.parse(text) as unknown));
+    } catch {
+      body = text;
+    }
+    return new Response(body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    });
   }
 
   function notifyRequestError(error: EldraClientError): void {

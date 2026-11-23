@@ -1,345 +1,19 @@
-import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { extname, join } from 'node:path';
 import { ORG_ID } from './mockGateway';
+import { coreRead, isCoreRead, type ContentVersion } from './previewParityContent';
 import { startStaticServer, type StaticServer } from './staticServer';
 
 /**
- * The content and the servers of the preview parity harness (`test/previewParity.browser.spec.ts`,
- * WS-1358): one set of pages, served by a stand-in gateway in the two shapes Core serves them —
- * the public read a build prerenders and the draft read a preview session makes — and a stand-in
- * for the preview router that serves a pinned build the way it serves a session.
+ * The servers of the preview parity harness (`test/previewParity.browser.spec.ts`, WS-1358): a
+ * stand-in gateway whose CMS reads are Core's two perspectives (`./previewParityContent.ts`), and a
+ * stand-in for the preview router that serves a pinned build the way it serves a session.
  *
  * Everything the content gateway does not own (the catalog, carts, the organisation, the site
  * profile) is forwarded to the starter's own mock gateway (`./mockGateway.ts`), so commerce reads
  * are exactly what every other generated-site test sees.
  */
-
-const blocksDir = fileURLToPath(new URL('../../blocks', import.meta.url));
-
-/** Every block type the starter ships, in name order. */
-export const STARTER_BLOCK_TYPES: string[] = readdirSync(blocksDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && existsSync(join(blocksDir, entry.name, 'block.json')))
-  .map((entry) => entry.name)
-  .sort();
-
-/** A block's content as Studio's stories render it: what an insert seeds, plus the demo media. */
-function sampleData(apiId: string): Record<string, unknown> {
-  const read = (file: string): Record<string, unknown> => {
-    const path = join(blocksDir, apiId, file);
-    return existsSync(path)
-      ? (JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>)
-      : {};
-  };
-  return { ...read('mock.json'), ...read('preview.json') };
-}
-
-/** A v4-shaped uuid, stable per name: a layout node's `entryId` must be one. */
-function uuidFor(name: string): string {
-  const hex = createHash('sha256').update(name).digest('hex');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
-
-/** The id Core gives a node inside an expanded placement (`docs/theme-reusable-components.md`). */
-function expandedNodeId(placementId: string, nodeId: string): string {
-  return `r${createHash('sha256').update(`${placementId}\0${nodeId}`).digest('hex')}`;
-}
-
-interface Block {
-  id: string;
-  schemaApiId: string;
-  data: Record<string, unknown>;
-}
-
-type LayoutNode = Record<string, unknown> & { id: string; type: string };
-
-interface Component {
-  componentId: string;
-  revision: number;
-  /** The component's own document: a container of block nodes. */
-  root: LayoutNode & { children: LayoutNode[] };
-  blocks: Block[];
-}
-
-/** One page, before it is put in either read shape. */
-interface PageSource {
-  id: string;
-  slug: string;
-  title: string;
-  /** The page's own nodes, in order; a `reusable` node places a component. */
-  children: Array<
-    { block: Block; style?: Record<string, unknown> } | { placement: string; component: Component }
-  >;
-}
-
-export const SITE_ID = 'a1b2c3d4-0000-4000-8000-00000000c0de';
-
-/** The two locales the starter's mock organisation serves (`./mockGateway.ts`). */
-const LOCALES = ['en-US', 'is-IS'] as const;
-
-/**
- * Which version of the content: `next` is what the merchant is about to publish (the draft, and
- * what a Publish rebuild bakes in); `pinned` is what was live when the deployment a session pins
- * was built. The two differ on every page — a heading, a block that is gone, a framing that moved,
- * a component revision — so a session that showed any of the pinned build's own content would fail
- * the comparison rather than pass it by accident.
- */
-export type ContentVersion = 'next' | 'pinned';
-
-function block(name: string, apiId: string, data: Record<string, unknown>): Block {
-  return { id: uuidFor(`${name}:${apiId}`), schemaApiId: apiId, data };
-}
-
-function pageSources(version: ContentVersion): PageSource[] {
-  const next = version === 'next';
-
-  // Every block type of the starter, on one page, each with its story content.
-  const everyBlock: PageSource = {
-    id: 'page-every-block',
-    slug: 'home',
-    title: next ? 'Every block' : 'Every block (pinned)',
-    // `search` first, where its results-page variant stands on a real site (`pages/search.page.json`):
-    // it focuses its field on mount, and the page scrolls to it — see the parity spec's notes.
-    children: ['search', ...STARTER_BLOCK_TYPES.filter((apiId) => apiId !== 'search')].map(
-      (apiId) => {
-        const data = sampleData(apiId);
-        if (apiId === 'hero')
-          data.heading = next ? 'Made slowly, used daily' : 'Pinned build heading';
-        if (apiId === 'cta' && !next) data.heading = 'Pinned call to action';
-        if (apiId === 'faq' && !next) data.heading = 'Pinned questions';
-        return { block: block('every', apiId, data) };
-      }
-    ),
-  };
-
-  // A shared header and footer: the site's reusable components, placed on the page.
-  const header: Component = {
-    componentId: 'c0ffee00-0000-4000-8000-0000000000a1',
-    revision: next ? 4 : 3,
-    root: {
-      id: 'header-root',
-      type: 'flex',
-      layout: { direction: { normal: 'column' } },
-      children: [{ id: 'header-nav', type: 'block', entryId: '' }],
-    },
-    blocks: [
-      block('shared-header', 'navigation', {
-        ...sampleData('navigation'),
-        ...(next ? {} : { announcement: 'Pinned announcement' }),
-      }),
-    ],
-  };
-  const footer: Component = {
-    componentId: 'c0ffee00-0000-4000-8000-0000000000b2',
-    revision: 2,
-    root: {
-      id: 'footer-root',
-      type: 'flex',
-      layout: { direction: { normal: 'column' }, gap: { normal: '8px' } },
-      children: [{ id: 'footer-main', type: 'block', entryId: '' }],
-    },
-    blocks: [block('shared-footer', 'footer', sampleData('footer'))],
-  };
-  for (const component of [header, footer]) {
-    component.root.children[0]!.entryId = component.blocks[0]!.id;
-  }
-  const shared: PageSource = {
-    id: 'page-shared',
-    slug: 'shared',
-    title: 'Shared component',
-    children: [
-      { placement: 'site-header', component: header },
-      {
-        block: block('shared-body', 'hero', {
-          ...sampleData('hero'),
-          heading: next ? 'Between the shared header and footer' : 'Pinned shared body',
-        }),
-      },
-      { placement: 'site-footer', component: footer },
-    ],
-  };
-
-  // A page whose fields are translated: read at `/localized` and at `/is-IS/localized`.
-  const localized: PageSource = {
-    id: 'page-localized',
-    slug: 'localized',
-    title: 'Localized',
-    children: [
-      {
-        block: block('localized', 'hero', {
-          ...sampleData('hero'),
-          eyebrow: { 'en-US': 'New season', 'is-IS': 'Ný árstíð' },
-          heading: next
-            ? { 'en-US': 'Made slowly', 'is-IS': 'Gert hægt' }
-            : { 'en-US': 'Pinned', 'is-IS': 'Fest' },
-        }),
-      },
-      {
-        block: block('localized', 'cta', {
-          ...sampleData('cta'),
-          eyebrow: { 'en-US': 'Visit the studio', 'is-IS': 'Heimsæktu verkstæðið' },
-          primaryCtaLabel: { 'en-US': 'Book a session', 'is-IS': 'Bóka tíma' },
-        }),
-      },
-    ],
-  };
-
-  // A page-builder framing on an image (focal point and zoom), and on the hero's image.
-  const image = sampleData('image').image as Record<string, unknown>;
-  const heroImage = sampleData('hero').image as Record<string, unknown>;
-  const framing: PageSource = {
-    id: 'page-framing',
-    slug: 'framing',
-    title: 'Framing',
-    children: [
-      {
-        block: block('framing', 'image', {
-          ...sampleData('image'),
-          image: {
-            ...image,
-            framing: next ? { x: 0.2, y: 0.6, zoom: 2 } : { x: 0.5, y: 0.5, zoom: 1 },
-          },
-        }),
-      },
-      {
-        block: block('framing', 'hero', {
-          ...sampleData('hero'),
-          image: { ...heroImage, framing: next ? { x: 0.05, y: 0.95, zoom: 3.5 } : null },
-        }),
-        style: { width: { normal: '100%', mobile: '100%' } },
-      },
-    ],
-  };
-
-  // The draft adds a block the pinned build's page does not have, between two it does.
-  const restructured: PageSource = {
-    id: 'page-restructured',
-    slug: 'restructured',
-    title: 'Restructured',
-    children: [
-      { block: block('restructured', 'hero', sampleData('hero')) },
-      ...(next ? [{ block: block('restructured', 'quote', sampleData('quote')) }] : []),
-      { block: block('restructured', 'tabs', sampleData('tabs')) },
-      { block: block('restructured', 'faq', sampleData('faq')) },
-    ],
-  };
-
-  return [everyBlock, shared, localized, framing, restructured];
-}
-
-/**
- * The paths whose pinned and draft versions have the same blocks, with different content: one per
- * page, and the localized page in its second locale.
- */
-export const PARITY_PATHS = ['/', '/shared', '/localized', '/is-IS/localized', '/framing'];
-
-/** The page whose draft adds a block the pinned build does not have. */
-export const RESTRUCTURED_PATH = '/restructured';
-
-/** A component's root, cloned under its placement: the shape Core's public read expands to. */
-function expandComponent(placement: string, component: Component): LayoutNode {
-  const clone = (node: LayoutNode, root: boolean): LayoutNode => {
-    const id = root ? placement : expandedNodeId(placement, node.id);
-    const children = node.children as LayoutNode[] | undefined;
-    return children === undefined
-      ? { ...node, id }
-      : { ...node, id, children: children.map((child) => clone(child, false)) };
-  };
-  return clone(component.root, true);
-}
-
-/**
- * One page in the shape Core answers it.
- *
- * `public` — a build's read: every placement already expanded in place (the component's root takes
- * the placement id, its descendants the `r` + SHA-256 namespace) and no projection anywhere.
- * `draft` — a preview read (`X-Preview-Token`, and a session's `X-Preview-Session`, which reads the
- * same perspective): the `reusable` placement nodes stay, and a `reusableComponentProjection` names
- * the exact component revisions for the runtime to expand — `projectReusableComponentsForWeb` in
- * Core's cms-service.
- */
-function pageEntry(source: PageSource, shape: 'public' | 'draft'): Record<string, unknown> {
-  const blocks: Block[] = [];
-  const children: LayoutNode[] = [];
-  const components: Array<{ placement: string; component: Component }> = [];
-  for (const child of source.children) {
-    if ('block' in child) {
-      blocks.push(child.block);
-      children.push({
-        id: `node-${child.block.id.slice(0, 8)}`,
-        type: 'block',
-        entryId: child.block.id,
-        ...(child.style === undefined ? {} : { style: child.style }),
-      });
-      continue;
-    }
-    blocks.push(...child.component.blocks);
-    components.push(child);
-    children.push(
-      shape === 'public'
-        ? expandComponent(child.placement, child.component)
-        : { id: child.placement, type: 'reusable', componentId: child.component.componentId }
-    );
-  }
-  const entry: Record<string, unknown> = {
-    id: source.id,
-    data: {
-      title: source.title,
-      slug: source.slug,
-      layout: {
-        version: 2,
-        root: { id: 'root', type: 'flex', layout: { direction: { normal: 'column' } }, children },
-      },
-      blocks,
-    },
-  };
-  if (shape === 'draft' && components.length > 0) {
-    entry.reusableComponentProjection = {
-      bindings: components.map(({ placement, component }) => ({
-        placementId: placement,
-        componentId: component.componentId,
-        siteId: SITE_ID,
-        revision: component.revision,
-      })),
-      revisions: components.map(({ component }) => ({
-        componentId: component.componentId,
-        siteId: SITE_ID,
-        revision: component.revision,
-        document: { version: 1, root: component.root },
-      })),
-    };
-  }
-  return entry;
-}
-
-/** Core answers a top-level localized field in the locale asked for, the default one otherwise. */
-function inLocale(value: unknown, locale: string): unknown {
-  if (Array.isArray(value)) return value.map((item) => inLocale(item, locale));
-  if (typeof value !== 'object' || value === null) return value;
-  const record = value as Record<string, unknown>;
-  const keys = Object.keys(record);
-  if (keys.length > 0 && keys.every((key) => (LOCALES as readonly string[]).includes(key))) {
-    return record[locale] ?? record['en-US'];
-  }
-  return Object.fromEntries(keys.map((key) => [key, inLocale(record[key], locale)]));
-}
-
-function listResponse(data: unknown[]): Record<string, unknown> {
-  return {
-    data,
-    meta: {
-      hasNext: false,
-      hasPrev: false,
-      page: 1,
-      pageSize: 100,
-      rows: data.length,
-      total: data.length,
-      totalPages: 1,
-    },
-  };
-}
 
 export interface ContentGateway {
   url: string;
@@ -376,11 +50,7 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const draft = req.headers['x-preview-session'] !== undefined;
-    const ownsPath =
-      url.pathname.startsWith('/cms/v1/schema/page/entry') ||
-      url.pathname.startsWith('/cms/v1/schema/route-template/entry') ||
-      url.pathname === '/site/v1/design-tokens';
-    if (!ownsPath) {
+    if (!isCoreRead(url.pathname) && url.pathname !== '/site/v1/design-tokens') {
       await forward(req, res, `${upstream}${url.pathname}${url.search}`);
       return;
     }
@@ -398,40 +68,22 @@ export function startContentGateway(upstream: string): Promise<ContentGateway> {
       res.end(JSON.stringify({ error: 'missing org id' }));
       return;
     }
-    if (draft && url.pathname.startsWith('/cms/')) {
+    if (url.pathname === '/site/v1/design-tokens') {
+      res.statusCode = state.designTokens === null ? 404 : 200;
+      res.end(
+        JSON.stringify(
+          state.designTokens === null ? {} : { revision: 9, resolved: state.designTokens }
+        )
+      );
+      return;
+    }
+    if (draft) {
       res.setHeader('eldra-preview', 'draft');
       state.draftReads.push(url.pathname + url.search);
     }
-    const answer = (body: unknown, status = 200): void => {
-      res.statusCode = status;
-      res.end(JSON.stringify(body));
-    };
-    if (url.pathname === '/site/v1/design-tokens') {
-      if (state.designTokens === null) answer({}, 404);
-      else answer({ revision: 9, resolved: state.designTokens });
-      return;
-    }
-    if (url.pathname === '/cms/v1/schema/route-template/entry') {
-      // No route templates: the harness is about pages, and a product page's template is the same
-      // `EldraLayout` render over the same blocks.
-      answer(listResponse([]));
-      return;
-    }
-    if (url.pathname.startsWith('/cms/v1/schema/route-template/entry/')) {
-      answer({}, 404);
-      return;
-    }
-    const locale = url.searchParams.get('locale') ?? 'en-US';
-    const entries = pageSources(draft ? 'next' : state.published).map((source) =>
-      inLocale(pageEntry(source, draft ? 'draft' : 'public'), locale)
-    );
-    if (url.pathname === '/cms/v1/schema/page/entry') {
-      answer(listResponse(entries));
-      return;
-    }
-    const id = url.pathname.split('/').pop();
-    const entry = entries.find((candidate) => (candidate as { id: string }).id === id);
-    answer(entry ?? {}, entry === undefined ? 404 : 200);
+    const { status, body } = coreRead(draft ? 'draft' : 'public', state.published, url);
+    res.statusCode = status;
+    res.end(JSON.stringify(body));
   };
 
   return new Promise((resolve) => {
@@ -534,7 +186,13 @@ export async function startSessionRouter(
       if (!['content-length', 'transfer-encoding', 'connection'].includes(name)) out[name] = value;
     });
     let body: Buffer | string = Buffer.from(await upstream.arrayBuffer());
-    if ((upstream.headers.get('content-type') ?? '').startsWith('text/html')) {
+    // A page the pinned build does not have (a draft-only page): the host answers the build's own
+    // not-found document, and the app resolves the route from the drafts.
+    if (upstream.status === 404 && extname(url.pathname) === '') {
+      body = readFileSync(join(publicDir, '404.html'));
+      out['content-type'] = 'text/html; charset=utf-8';
+    }
+    if ((out['content-type'] ?? '').startsWith('text/html')) {
       body = body
         .toString('utf8')
         .replace(/<meta name="robots"[^>]*>/g, '')
