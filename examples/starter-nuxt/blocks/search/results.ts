@@ -45,7 +45,7 @@ function rankProducts(products: StorefrontSearchProduct[]): StorefrontSearchProd
 export function toSearchBarResults(
   response: StorefrontSearchResponse | null,
   suggestionsPerGroup: number,
-  formatPrice: (amount: number) => string
+  formatPrice: (amount: number, currency?: string) => string
 ): SearchResults | undefined {
   if (response === null) return undefined;
 
@@ -58,7 +58,10 @@ export function toSearchBarResults(
       // `SearchResultItem.price` is optional, so a product this storefront could not price keeps its
       // row and loses only the price. Formatting a `null` as a number would print the store's own
       // "$0.00" — a real price, and the wrong one (`StorefrontSearchProduct`).
-      price: product.price === null ? undefined : formatPrice(product.price.amount),
+      price:
+        product.price === null || product.price.soldInCurrency === false
+          ? undefined
+          : formatPrice(product.price.amount, product.price.currency),
       image: product.featuredImage?.src,
       imageAlt: product.featuredImage?.alt,
     }));

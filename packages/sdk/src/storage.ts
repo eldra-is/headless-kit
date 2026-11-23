@@ -10,6 +10,12 @@ export interface EldraCartSession {
   forget(): void;
 }
 
+export interface EldraCurrencyPreference {
+  read(): string | null;
+  remember(currency: string): void;
+  forget(): void;
+}
+
 export interface EldraOrderAccessTokens {
   remember(orderId: string, token: string | undefined): void;
   read(orderId: string): string | null;
@@ -26,6 +32,7 @@ export interface EldraOrderAccessTokenOptions {
 }
 
 const DEFAULT_CART_KEY = 'eldra.cartId';
+const DEFAULT_CURRENCY_KEY = 'eldra.currency';
 const DEFAULT_ORDER_TOKEN_PREFIX = 'eldra.orderAccessToken.';
 
 export function browserStorage(
@@ -77,6 +84,19 @@ export function createCartSession(options: EldraCartSessionOptions = {}): EldraC
  * The one-time order access token, kept in sessionStorage rather than the return URL so it
  * survives the payment provider's redirect without landing in a URL, a log or a Referer.
  */
+/** The currency a visitor picked, kept for their next visit (`localStorage` `eldra.currency`). */
+export function createCurrencyPreference(
+  options: EldraCartSessionOptions = {}
+): EldraCurrencyPreference {
+  const storage = options.storage === undefined ? browserStorage('localStorage') : options.storage;
+  const key = options.key ?? DEFAULT_CURRENCY_KEY;
+  return {
+    read: () => safeRead(storage, key),
+    remember: (currency) => safeWrite(storage, key, currency),
+    forget: () => safeWrite(storage, key, null),
+  };
+}
+
 export function createOrderAccessTokens(
   options: EldraOrderAccessTokenOptions = {}
 ): EldraOrderAccessTokens {

@@ -1610,6 +1610,40 @@ the block renders itself — "Your cart", the item count, the column headings �
 mounts `app/app.vue` — and `test/pages/ssr.spec.ts` asserts the same two facts about the server-
 rendered shell: one closed `<dialog>`, and a bag that is still a link.
 
+## Currencies
+
+A store sells in its own currency (ISK) and may show others: the platform sells in eight (ISK, EUR,
+USD, GBP, CAD, DKK, NOK, SEK). Prices are typed per currency by the merchant; nothing is converted.
+
+- **Which currencies.** `@eldrajs/theme-nuxt` reads `commerce.currencies` once at build, cleans it
+  (selling currencies only, the store's own first) and puts it on `runtimeConfig.public.eldra.commerce`
+  only when there is more than one. `useStorefront().currency` (`app/storefront/currency.ts`) holds
+  `base`, `offered` and the visitor's `active` currency.
+- **The picker.** `@eldrajs/ui`'s `CurrencyPicker` ("Euro (EUR)" in the list, the code when closed),
+  in the header's actions from `@content` up and, with its label shown, in the menu below it; the
+  footer's currency selector is the same component. There is no language picker in the header (it is
+  in the footer). With one currency there is no picker.
+- **The first currency.** The remembered choice (`@eldrajs/sdk`'s `createCurrencyPreference`,
+  `localStorage` `eldra.currency`), else the visitor's country when the store shows its currency, else
+  the store's own. The country comes from `GET /_eldra/visitor`, a server route `@eldrajs/theme-nuxt`
+  adds that answers Cloudflare's `CF-IPCountry`; the table is `currencyForCountry` in
+  `@eldrajs/theme-core`. A remembered currency the store no longer shows is forgotten, with a one-time
+  "Prices are now in ISK".
+- **Prerendered pages stay in the store's currency.** The build reads no currency, so a URL has one
+  cached page and a one-currency store's pages do not change. After the app mounts, the chosen
+  currency is applied in the browser: every catalog result reloads with `currency`, and every price
+  is formatted with the currency its own data carries (`StorefrontPrice.currency`, the cart's, the
+  order's), never the store's over it. Until the visitor's currency is settled, prices show the
+  refresh treatment and Add to cart waits. Per-currency prerendered copies were not chosen: they
+  multiply the build by the number of currencies, and the visitor's choice is not in the URL.
+- **Not sold in a currency.** A product with no price in the chosen one keeps its price in the store's
+  currency with `soldInCurrency: false`. The product page says so and its button becomes "Shop in ISK";
+  a card shows `ProductCard`'s `notSoldIn` line.
+- **The model.** The currency the site shows is derived, never stored: the cart's currency once there is a cart, else the visitor's preference, else the store's own. A choice in the picker with no cart sets the preference; with a cart it joins the cart's one write queue (every cart write, in the shopper's order, one request at a time; consecutive currency choices collapse into the last) and the preference is written only after the cart moved, so a refused or failed move leaves the site on the cart's currency. A cart read that lands after a write started or settled is dropped, and only a cart the gateway says is gone (404, 410) is forgotten. Another tab's choice arrives as a `storage` event that updates the preference and, with a cart, reloads the cart, which the site then follows. A new cart is created in the chosen currency. Lines with no price stay, are named in a notice and under a held Check out, and are left out of the total until removed ("Remove and check out") or the visitor shops in ISK again. A currency the store refuses (`CART_CURRENCY_NOT_SOLD`) is withdrawn for the visit; an add refused that way withdraws the currency it was sent in and is retried once. A cart in a currency the store no longer offers is moved to ISK once, and "Prices are now in ISK" shows only after the move.
+- **Still in the store's currency.** Price filters and the price facet (hidden, and `?price=` dropped,
+  in another currency), the free-shipping threshold (hidden for a cart in another currency) and SEO
+  texts built from page data. Search results are priced in the chosen currency.
+
 ## The `/search` page
 
 `/search` is a seeded page too (`pages/search.page.json`), for the same reasons `/cart` is one.

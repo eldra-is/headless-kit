@@ -67,6 +67,7 @@ const storefront = useStorefront();
 /** Hydrated in `onMounted`, never before — see the module comment. */
 const wishlist = useWishlist();
 const money = useMoney();
+const shopperCurrency = useStorefront().currency.active;
 const resolveLink = useEldraLink();
 
 const headingId = `wishlist-heading-${useUiId()}`;
@@ -166,13 +167,15 @@ const products = computed<StorefrontProductListItem[]>(() =>
  *  own doc comment has the reasoning, and it is the same one the gate on the wishlist has. */
 const { any: cardsRevalidating, refreshing } = useRevalidating({
   keys: () => result.revalidating.value,
-  refreshing: () => result.loading.value && result.data.value !== null,
+  refreshing: () =>
+    (result.loading.value && result.data.value !== null) || storefront.currency.pending.value,
 });
 
 const cards = computed(() =>
   toProductCardEntries(products.value, {
     ratio: '4x5',
     minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
     revalidating: cardsRevalidating.value,
   })
 );
@@ -305,6 +308,7 @@ async function removeCard(handle: string): Promise<void> {
                the product page, and the one control this card owns is the heart. -->
           <ProductCard
             :product="entry.product"
+            :currency="entry.currency"
             ratio="4x5"
             :heading-level="2"
             :quick-add="false"

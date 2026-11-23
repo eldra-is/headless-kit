@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatCurrency } from '@eldrajs/ui';
-import {
-  currencyLabel,
-  DEFAULT_LOCALE,
-  formatMoney,
-  roundMoney,
-  toMinorUnits,
-} from '../../app/storefront/money';
+import { formatCurrency, toMinorUnits } from '@eldrajs/ui';
+import { currencyLabel, DEFAULT_LOCALE, formatMoney, roundMoney } from '../../app/storefront/money';
 
 describe('formatMoney', () => {
   it('formats a major-unit amount as itself', () => {

@@ -45,17 +45,7 @@
  * or a click (its own contract; arrow keys alone only move the active option), so nothing extra is
  * needed here to satisfy "prices reload only after Enter or a click" (3.2.2).
  *
- * The currency selector is different: the spec was written for a multi-currency store, but the
- * platform supports exactly one currency per store today. So its options are derived from the
- * store (`useMoney().currency`, `app/storefront/money.ts`), not from a constant list, and there is
- * at most one of them — `currencyLabel()` names it "ISK kr." style (code + the sign
- * `@eldrajs/ui` writes the store's prices with in the content locale, falling back to the code
- * alone when the locale has no sign distinct from it). With exactly one option
- * there is nothing to select, so it renders as plain text with the same leading icon and a visually
- * hidden "Currency" label, not a `Select` — a native-looking control a visitor could try to open
- * with nothing inside it would be worse than no control at all. With no currency published, the
- * slot renders nothing. The `Select` branch stays for the day the derived list carries two or more
- * entries; which branch renders is driven by that list's length, not by a separate flag.
+ * The currency selector drives the same choice as the header's picker; one currency is plain text.
  *
  * The newsletter zone posts through `useStorefront().forms.submit('newsletter', …)` — the platform's
  * seeded `newsletter` form, the same one the newsletter block defaults to. Email format is validated
@@ -81,6 +71,7 @@ import type { ResolvedLink } from '@eldrajs/theme-vue';
 import {
   Button,
   Container,
+  CurrencyPicker,
   EditorPlaceholder,
   FieldWrapper,
   FormLayout,
@@ -256,21 +247,14 @@ const showLocale = computed(
 );
 const showCurrency = computed(() => data.value.showCurrency ?? true);
 
-/**
- * The currency selector's option list, derived from the store rather than the spec's hard-coded
- * USD/CAD/EUR demo list: the platform supports exactly one currency per store today, so this is
- * either empty (the store publishes none) or a single entry — the store's currency, named "ISK
- * kr." style by `currencyLabel()` (code + the same sign every price on the page is written
- * with). Kept as a list, not a single value, so the day the platform supports more than one
- * currency, this grows to match and the template's `Select` branch (below) is already there.
- */
-const currencyOptions = computed<SelectOption[]>(() => {
-  const code = money.currency.value;
-  return code === undefined ? [] : [{ value: code, label: currencyLabel(code, uiLocale.value) }];
+const currencyStore = storefront.currency;
+/** The currencies the store offers, or the one `Price` formats in. */
+const currencyCodes = computed<readonly string[]>(() => {
+  const offered = currencyStore.offered.value;
+  const store = money.currency.value;
+  return offered.length > 0 ? offered : store === undefined ? [] : [store];
 });
-
-/** Whether the currency slot renders anything: `showCurrency` on *and* a currency to show it. */
-const showCurrencySelector = computed(() => showCurrency.value && currencyOptions.value.length > 0);
+const showCurrencySelector = computed(() => showCurrency.value && currencyCodes.value.length > 0);
 
 const hasSelectors = computed(() => showLocale.value || showCurrencySelector.value);
 
@@ -297,8 +281,6 @@ const locale = computed<string>({
     if (value !== '' && value !== activeLocale.active) activeLocale.select(value);
   },
 });
-/** Only reached once `currencyOptions` carries two or more entries — see the template. */
-const currency = ref<string>(currencyOptions.value[0]?.value ?? '');
 
 /* ---------------------------------------------------------------------- */
 /* Newsletter                                                              */
@@ -678,33 +660,26 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                  over three options is one more thing between a visitor and their language. -->
             <Select v-model="locale" :options="localeOptions" placement="above" />
           </FieldWrapper>
-          <!--
-            With exactly one currency there is nothing to select — see the file doc comment — so
-            this renders the currency as plain text (same leading icon, a visually hidden
-            "Currency" label) rather than a `Select` a visitor could open onto an empty list. The
-            `Select` branch stays for the day `currencyOptions` carries two or more entries.
-          -->
+          <!-- One currency is plain text: there is nothing to pick. -->
           <p
-            v-if="showCurrencySelector && currencyOptions.length === 1"
+            v-if="showCurrencySelector && currencyCodes.length === 1"
             class="text-text @tablet:w-auto flex w-full items-center gap-1.5 text-[0.8125rem] font-medium"
           >
             <EldraIcon name="credit-card" size="sm" class="text-muted shrink-0" />
             <VisuallyHidden>{{ t('footer.currencyLabel') }}</VisuallyHidden>
-            {{ currencyOptions[0]!.label }}
+            {{ currencyLabel(currencyCodes[0]!, uiLocale) }}
           </p>
-          <FieldWrapper
+          <CurrencyPicker
             v-else-if="showCurrencySelector"
+            :currencies="currencyCodes"
+            :model-value="currencyStore.active.value"
+            :busy="currencyStore.busy.value"
             :label="t('footer.currencyLabel')"
+            size="md"
+            placement="above"
             class="@tablet:w-auto w-full"
-            :classes="{ label: 'sr-only' }"
-          >
-            <Select
-              v-model="currency"
-              :options="currencyOptions"
-              placement="above"
-              :searchable="false"
-            />
-          </FieldWrapper>
+            @update:model-value="currencyStore.choose"
+          />
         </div>
       </div>
     </Container>

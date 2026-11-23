@@ -172,6 +172,8 @@ export type EldraCatalogListProductsOptions = EldraContractQuery<
 
 export interface EldraCatalogGetProductOptions {
   locale?: string;
+  /** Contract 6.19.0: price the variants in this selling currency. */
+  currency?: string;
 }
 
 export type EldraFeature = 'CMS' | 'ECOMMERCE';
@@ -198,6 +200,19 @@ export interface EldraOrganizationCommerce {
   taxInclusivePricing: boolean;
   /** Fraction, e.g. `0.24` — applies to shipping and to products without their own rate. */
   defaultTaxRate: number;
+  /** Contract 6.21.0: the currencies the storefront may offer, `currency` first. */
+  currencies?: string[];
+}
+
+/** One of the organisation's payment providers (contract 6.20.0). */
+export interface EldraOrganizationPaymentProvider {
+  type: string;
+  name: string;
+  status: string;
+  /** The selling currencies it takes. Missing: ISK only. */
+  currencies?: string[] | null;
+  paymentMethods?: string[] | null;
+  logos?: unknown;
 }
 
 /**
@@ -230,7 +245,7 @@ export interface EldraOrganizationDetails {
   commerce?: EldraOrganizationCommerce | null;
   /** See `EldraOrganizationLocales`: absent, or `null`, until the organisation configures any. */
   locales?: EldraOrganizationLocales | null;
-  paymentProviders?: unknown;
+  paymentProviders?: EldraOrganizationPaymentProvider[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -533,6 +548,8 @@ export interface EldraCartClient {
     context?: EldraRequestContext
   ): Promise<EldraCart>;
   removeItem(cartId: string, itemId: string, context?: EldraRequestContext): Promise<EldraCart>;
+  /** Moves the cart to `currency` and reprices it (6.21.0); errors 400 CART_CURRENCY_NOT_SOLD, 409 CART_CURRENCY_CUSTOMER_ISK_ONLY. */
+  setCurrency(cartId: string, currency: string, context?: EldraRequestContext): Promise<EldraCart>;
   /**
    * Applies a discount code and answers the cart with `applied` (see {@link EldraDiscountResult}).
    * Since contract 6.9.0 a discount code is **added** after the cart's codes instead of replacing

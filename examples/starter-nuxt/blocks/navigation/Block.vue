@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   Container,
+  CurrencyPicker,
   EditorPlaceholder,
   Link,
   NavMenu,
@@ -155,7 +156,10 @@ function toSearchResults(response: StorefrontSearchResponse | null): SearchResul
     // Optional on `SearchResultItem`, and `null` on a product the storefront could not price: the
     // row keeps the product and drops the price rather than printing the store's own "$0.00"
     // (`StorefrontSearchProduct`).
-    price: product.price === null ? undefined : money.format(product.price.amount),
+    price:
+      product.price === null || product.price.soldInCurrency === false
+        ? undefined
+        : money.format(product.price.amount, product.price.currency),
     image: product.featuredImage?.src,
     imageAlt: product.featuredImage?.alt,
   }));
@@ -266,6 +270,8 @@ const cartHref = computed(() => (cartDrawerAvailable.value ? undefined : '/cart'
 const cartPopupType = computed(() => (cartDrawerAvailable.value ? 'dialog' : undefined));
 const cartAccessibleName = computed(() => {
   const count = cartCount.value;
+  // A cart that could not be read has no count to say.
+  if (mounted.value && storefront.cart.loadFailed.value) return t('header.cart');
   if (count === 0) return t('header.cartEmpty');
   if (count === 1) return t('header.cartOne');
   return t('header.cartMany', { count });
@@ -613,6 +619,12 @@ const hairlineClass = computed(() =>
 
 /** The drawer holds the links and the call to action; with neither there is no Menu button either. */
 const drawerHasContent = computed(() => links.value.length > 0 || hasCta.value);
+/** More than one currency to shop in. On a phone the picker sits in the menu when there is one. */
+const currency = storefront.currency;
+const hasCurrencies = computed(() => currency.offered.value.length > 1);
+const barPickerClass = computed(() =>
+  drawerHasContent.value ? '@content:block ml-1 hidden' : 'ml-1'
+);
 const showLinksPlaceholder = computed(
   () => isEditing.value && variant.value !== 'minimal' && links.value.length === 0
 );
@@ -740,8 +752,25 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               {{ t('header.viewAll') }}
             </Link>
           </template>
-          <template v-if="hasCta" #drawerFooter="{ close }">
-            <Button variant="primary" block :href="ctaHref" :as="ctaLinkAs" @click="close">
+          <template v-if="hasCta || hasCurrencies" #drawerFooter="{ close }">
+            <CurrencyPicker
+              :currencies="currency.offered.value"
+              :model-value="currency.active.value"
+              :busy="currency.busy.value"
+              show-label
+              size="md"
+              placement="above"
+              class="w-full"
+              @update:model-value="currency.choose"
+            />
+            <Button
+              v-if="hasCta"
+              variant="primary"
+              block
+              :href="ctaHref"
+              :as="ctaLinkAs"
+              @click="close"
+            >
               {{ ctaLabel }}
             </Button>
           </template>
@@ -884,6 +913,13 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           <!-- Spec Header -> Layout, From 64rem: the call to action sits 0.75rem after the cart.
                0.25rem of that is already the actions row's own gap-1; @content:ml-2 (0.5rem) makes
                up the rest, so it reads as its own button rather than a fourth icon in the row. -->
+          <CurrencyPicker
+            :currencies="currency.offered.value"
+            :model-value="currency.active.value"
+            :busy="currency.busy.value"
+            :class="barPickerClass"
+            @update:model-value="currency.choose"
+          />
           <Button
             v-if="hasCta && variant !== 'minimal'"
             variant="primary"

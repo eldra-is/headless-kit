@@ -222,6 +222,40 @@ describe('ProductCard — quick add', () => {
   });
 });
 
+describe('ProductCard — not sold in the chosen currency', () => {
+  const notSold = { ...PRODUCT, notSoldIn: 'EUR' };
+
+  it('replaces the price with a line naming the currency', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: notSold } });
+    expect(wrapper.get('[data-part="notSold"]').text()).toBe('Not available in EUR');
+    expect(wrapper.find('[data-part="price"] [data-part="current"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('hides the stock line', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: { ...notSold, stock: 'in' } } });
+    expect(wrapper.find('[data-part="stockLine"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('turns quick add off, saying why', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: notSold } });
+    const button = wrapper.get('[data-part="quickAdd"]');
+    expect(button.text()).toBe('Not available in EUR');
+    expect((button.element as HTMLButtonElement).disabled).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('has no axe violations', async () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: notSold },
+      attachTo: document.body,
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
 describe('ProductCard — sold out', () => {
   const soldOut = { ...PRODUCT, available: false };
 

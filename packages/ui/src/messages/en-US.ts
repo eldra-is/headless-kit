@@ -231,6 +231,8 @@ export const enUS = {
    * draws for English is honoured without constraining every locale to the same shape.
    */
   quickAdd: (title: string) => `Quick add ${title}`,
+  /** `ProductCard`'s line in place of the price for a product with no price in the chosen currency. */
+  notSoldInCurrency: (currency: string) => `Not available in ${currency}`,
   /**
    * `ProductCard`'s loading skeleton's accessible name (spec "Product card" → Variants, Loading
    * row: `aria-label="Loading product"`).
@@ -245,6 +247,8 @@ export const enUS = {
   /** `Image`'s live placeholder text, shown next to the photo icon when there is no `media` (spec
    * "Image" → Variants, "Placeholder (live)" row). */
   noImage: 'No image',
+  /** `CurrencyPicker`'s label: visually hidden in a header, shown in a menu. */
+  currencyPickerLabel: 'Currency',
   /** `Image`'s live placeholder's accessible name (spec "Image" → Accessibility: 'otherwise it
    * gets `role="img"` and `aria-label="No image available"`'), omitted when `decorative` is on. */
   noImageAvailable: 'No image available',

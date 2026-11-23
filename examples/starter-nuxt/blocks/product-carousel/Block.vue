@@ -186,7 +186,8 @@ const hasData = computed(() => activeResult.value.data.value !== null);
 const showSkeletons = computed(() => pending.value && !hasData.value);
 const { any: cardsRevalidating, refreshing } = useRevalidating({
   keys: () => activeResult.value.revalidating.value,
-  refreshing: () => activeResult.value.loading.value && hasData.value,
+  refreshing: () =>
+    (activeResult.value.loading.value && hasData.value) || storefront.currency.pending.value,
 });
 
 /**
@@ -216,10 +217,12 @@ const cappedProducts = computed(() => products.value.slice(0, limit.value));
  * "fewer than 2 products" floor or leave the carousel controls claiming a slide that isn't there.
  */
 const money = useMoney();
+const shopperCurrency = useStorefront().currency.active;
 const cards = computed(() =>
   toProductCardEntries(cappedProducts.value, {
     ratio: cardRatio.value,
     minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
     revalidating: cardsRevalidating.value,
   })
 );
@@ -448,7 +451,7 @@ const showBlock = computed(() =>
               :revalidating="entry.revalidating"
               :announce="false"
               :link-as="entry.internal ? EldraRouterLink : undefined"
-              :currency="currency"
+              :currency="entry.currency ?? currency"
               :locale="locale"
             />
           </div>

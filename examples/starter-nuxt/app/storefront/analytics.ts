@@ -56,7 +56,8 @@ export function cartIdFromCheckoutUrl(url: string | null): string | undefined {
 }
 
 export function withAnalytics(source: StorefrontSource, track: Track): StorefrontSource {
-  const currency = (): string | undefined => source.commerce?.currency;
+  const currency = (): string | undefined =>
+    source.cart.currency.value ?? source.commerce?.currency;
 
   function lineProps(
     line: Pick<StorefrontCartLine, 'productId' | 'variantId' | 'unitPrice'>,
@@ -98,7 +99,7 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
             handle: product.handle,
             variant_id: product.variantId,
             value: formatValue(product.price.amount),
-            currency: currency(),
+            currency: product.price.currency ?? source.commerce?.currency,
           });
         },
         { immediate: true }

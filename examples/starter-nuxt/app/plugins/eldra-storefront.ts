@@ -8,6 +8,7 @@ import {
   type VolatileSnapshot,
 } from '../storefront/types';
 import { toStorefrontCommerce } from '../storefront/commerce';
+import { fetchVisitorCountry } from '../storefront/currency';
 import {
   createGatewayStorefront,
   type StorefrontPrerenderHandle,
@@ -299,6 +300,14 @@ export default defineNuxtPlugin({
       formLocale: () => activeLocale.active ?? activeLocale.defaultLocale ?? undefined,
       runtime,
     });
+
+    // After mount, so the hydrated page is the prerendered one; only then may the visitor's currency differ.
+    if (import.meta.client) {
+      const currency = source.currency;
+      const start = (): void => void currency.start(() => fetchVisitorCountry());
+      if (mounted) start();
+      else afterMount.push(start);
+    }
 
     // Commerce events (`app/storefront/analytics.ts`) go through the tracker `@eldrajs/theme-nuxt`
     // loads on a deployed site; everywhere else (dev, preview, no organisation, opted out)

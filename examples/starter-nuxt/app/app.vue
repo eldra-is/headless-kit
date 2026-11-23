@@ -31,6 +31,7 @@ import { Link, Toaster, useToast } from '@eldrajs/ui';
 import CartBlock from '../blocks/cart/Block.vue';
 import EldraRouterLink from './components/EldraRouterLink.vue';
 import { useStorefront } from './composables/useStorefront';
+import { useStorefrontFeedback } from './composables/useStorefrontFeedback';
 import { useI18n } from 'vue-i18n';
 import { CART_ADD_TOAST_ID } from './storefront/feedback';
 
@@ -80,6 +81,20 @@ watch(
     if (open) toast.dismiss(CART_ADD_TOAST_ID);
   }
 );
+
+// A currency the visitor had was taken away (the shop stopped selling in it): said once, here, on any page.
+const currency = useStorefront().currency;
+watch(currency.movedTo, (code) => {
+  if (code === null) return;
+  toast.show({ id: 'currency-moved', title: t('currency.movedTo', { currency: code }) });
+  currency.movedTo.value = null;
+});
+const feedback = useStorefrontFeedback();
+watch(currency.failure, (failure) => {
+  if (failure === null) return;
+  feedback.report(failure, { id: 'currency-move' });
+  currency.failure.value = null;
+});
 
 /**
  * An `EldraBlockEntry` needs an id. This one is the theme's own, not a CMS entry id, and never
