@@ -50,31 +50,39 @@ export async function readSessionSiteSettings(
   const warn =
     options.warn ??
     ((message: string, cause?: unknown) => console.warn(`[eldra] ${message}`, cause ?? ''));
-  const [tokens, messages] = await Promise.allSettled([
-    read('/site/v1/design-tokens').then((answer) => {
-      const resolved = toResolvedDesignTokens(answer);
-      if (resolved === null) throw new Error('the platform published an unusable response');
-      if (isOpen()) assignDesignTokens(context.designTokens, resolved);
-    }),
-    read('/site/v1/theme-messages').then((answer) => {
-      const platform = toThemeMessages(answer);
-      if (platform === null) throw new Error('the platform published an unusable response');
-      const resolved = resolveSiteMessages(
-        options.themeMessages ?? EMPTY_THEME_MESSAGES,
-        platform,
-        options.locales
-      );
-      if (isOpen()) assignMessages(context.messages, resolved);
-    }),
+  // Each read's failure is told the moment it fails, not once both have settled: a 401 here is
+  // the router refusing the session and clearing its cookies, and the CMS reads after it can only
+  // come back invalid, so it must be the first refusal the session hears. Never gated by `isOpen`:
+  // a refusal after the bound still ends the session, as a CMS 401 while browsing does.
+  const failed = (what: string) => (cause: unknown) => {
+    try {
+      options.onError?.(cause);
+    } catch {
+      // Observational: its failure must not hide the read's own.
+    }
+    warn(`the saved ${what} could not be read; showing the build’s`, cause);
+  };
+  await Promise.all([
+    read('/site/v1/design-tokens')
+      .then((answer) => {
+        const resolved = toResolvedDesignTokens(answer);
+        if (resolved === null) throw new Error('the platform published an unusable response');
+        if (isOpen()) assignDesignTokens(context.designTokens, resolved);
+      })
+      .catch(failed('design tokens')),
+    read('/site/v1/theme-messages')
+      .then((answer) => {
+        const platform = toThemeMessages(answer);
+        if (platform === null) throw new Error('the platform published an unusable response');
+        const resolved = resolveSiteMessages(
+          options.themeMessages ?? EMPTY_THEME_MESSAGES,
+          platform,
+          options.locales
+        );
+        if (isOpen()) assignMessages(context.messages, resolved);
+      })
+      .catch(failed('theme texts')),
   ]);
-  if (tokens.status === 'rejected') {
-    options.onError?.(tokens.reason);
-    warn('the saved design tokens could not be read; showing the build’s', tokens.reason);
-  }
-  if (messages.status === 'rejected') {
-    options.onError?.(messages.reason);
-    warn('the saved theme texts could not be read; showing the build’s', messages.reason);
-  }
 }
 
 /**

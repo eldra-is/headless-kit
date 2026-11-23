@@ -53,4 +53,64 @@ describe('which refusal is shown', () => {
     expect(notice()?.textContent).toContain('This preview link has expired.');
     expect(notice()?.textContent).not.toContain('not valid');
   });
+
+  it('a token read refused as expired while the texts read is pending wins over a later invalid CMS read', async () => {
+    vi.resetModules();
+    const session = await import('../src/runtime/previewSession');
+    const { readSessionSiteSettings } = await import('../src/runtime/previewSessionSite');
+    const { EldraClientError: ClientError } = await import('@eldrajs/theme-core');
+    const refused = (errorId: string) =>
+      new ClientError(401, 'Unauthorized', '/__eldra/gateway/site/v1/design-tokens', {
+        errorId,
+        sessionPreview: true,
+      });
+    document.documentElement.lang = 'en';
+    document.head.innerHTML = '<meta name="eldra-preview" content="session">';
+    document.body.innerHTML = '<div id="__nuxt"><p>Published</p></div>';
+    let listener: ((error: EldraClientError) => void) | undefined;
+    const client = {
+      enableSessionPreview: vi.fn(),
+      onRequestError: (fn: (error: EldraClientError) => void) => {
+        listener = fn;
+        return () => undefined;
+      },
+      getSiteSetting: (path: string) =>
+        path === '/site/v1/design-tokens'
+          ? Promise.reject(refused('SITE_PREVIEW_SESSION_EXPIRED'))
+          : new Promise(() => undefined), // the texts read is still pending
+    } as unknown as EldraClient;
+    expect(session.startPreviewSession(client, { win: window, onHydrated: () => undefined })).toBe(
+      true
+    );
+    const reading = readSessionSiteSettings(
+      client,
+      {
+        designTokens: { colors: {}, containers: {} },
+        messages: { defaultLocale: 'en-US', locales: {} },
+      },
+      {
+        themeMessages: undefined,
+        locales: null,
+        onError: session.reportPreviewSessionSiteSettingError,
+        warn: () => undefined,
+      }
+    );
+    void reading;
+    // The token refusal is heard as soon as it fails, before the texts read has settled …
+    await vi.waitFor(() => expect(session.usePreviewSession().status).toBe('expired'));
+    // … so the CMS read that the router then refuses as invalid does not replace it.
+    listener?.(
+      new ClientError(401, 'Unauthorized', '/__eldra/gateway/cms/v1/schema/page/entry', {
+        errorId: 'SITE_PREVIEW_SESSION_INVALID',
+        sessionPreview: true,
+      })
+    );
+    expect(session.usePreviewSession().errorId).toBe('SITE_PREVIEW_SESSION_EXPIRED');
+    const notice = () =>
+      [...document.querySelectorAll('[data-eldra-preview-session]')]
+        .map((host) => host.shadowRoot?.querySelector<HTMLElement>('.notice'))
+        .find((node) => node?.hidden === false);
+    await vi.waitFor(() => expect(notice()).toBeTruthy());
+    expect(notice()?.textContent).toContain('This preview link has expired.');
+  });
 });

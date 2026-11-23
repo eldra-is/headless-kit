@@ -163,7 +163,10 @@ renders the organisation's drafts there, client-side.
   failure is not reported to the client's refusal listener (a router that does not forward a read
   answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, which on a CMS read ends the session). The one
   exception is a 401: the router refused the session itself, and clears its cookies as it does, so
-  that refusal (expired, revoked) is the session's (`reportPreviewSessionSiteSettingError`).
+  that refusal (expired, revoked) is the session's (`reportPreviewSessionSiteSettingError`), heard
+  the moment that read fails, before any CMS read the router then refuses as invalid. Values are
+  never applied after the veil drops, but a refusal that arrives later still ends the session, the
+  same as a CMS 401 while browsing.
   Core's theme-messages answer is the fully resolved catalogue (every organisation locale, every
   key of the theme's default locale, through the five tiers), not only the overrides; fed to
   `resolveSiteMessages` as the platform tier it gives back exactly that catalogue, as it would give
