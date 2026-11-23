@@ -789,3 +789,57 @@ describe('a cart that is remembered but could not be read', () => {
     }
   });
 });
+
+describe('CodeRabbit review on #162', () => {
+  it('4662896671: a read that fails after a write it overlapped leaves no failure behind', async () => {
+    const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+    const store = shop(gateway);
+    await opened(gateway, store);
+
+    const adding = store.cart.add(ADD);
+    await settle();
+    void store.cart.reload();
+    gateway.next('add').release();
+    await adding;
+    gateway.next('init').release(OFFLINE);
+    await settle();
+
+    expect(store.cart.loadFailed.value).toBe(false);
+    expect(store.cart.lastFailure.value).toBeNull();
+    expect(store.cart.lines.value).toHaveLength(2);
+  });
+
+  it('4665434095: a write waits for the newest read, not only the one it found', async () => {
+    const gateway = fakeServer({ currency: 'ISK', variants: ['v0'] });
+    const store = shop(gateway);
+    await opened(gateway, store);
+
+    void store.cart.reload();
+    const older = gateway.next('init');
+    const adding = store.cart.add(ADD);
+    await settle();
+    void store.cart.reload();
+    older.release();
+    await settle();
+    expect(gateway.requests.map((request) => request.kind)).toEqual(['init']);
+    gateway.next('init').release();
+    await settle();
+    gateway.next('add').release();
+    await expect(adding).resolves.toBeNull();
+    expectAgreement(store, gateway.server);
+  });
+
+  it('4662896717: a disposed store no longer follows other tabs', async () => {
+    const fakeWindow = new EventTarget();
+    vi.stubGlobal('window', fakeWindow);
+    const gateway = fakeServer();
+    const { currency } = shop(gateway);
+    gateway.next('init').release();
+    await currency.start(async () => null);
+    currency.dispose();
+    fakeWindow.dispatchEvent(
+      Object.assign(new Event('storage'), { key: 'eldra.currency', newValue: 'USD' })
+    );
+    expect(currency.active.value).toBe('ISK');
+  });
+});

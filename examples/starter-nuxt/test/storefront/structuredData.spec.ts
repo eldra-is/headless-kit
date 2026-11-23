@@ -180,6 +180,18 @@ describe('pageStructuredData', () => {
     expect(offers).toMatchObject({ '@type': 'Offer', price: 19.9, priceCurrency: 'EUR', sku: 'S' });
   });
 
+  it('4662896736: writes no offer for a product not sold in the shown currency', () => {
+    const node = pageStructuredData(
+      parts({
+        kind: 'product',
+        product: product({
+          price: { amount: 2800, compareAt: null, currency: 'ISK', soldInCurrency: false },
+        }),
+      })
+    )[1]!.node as Record<string, unknown>;
+    expect(node.offers).toBeUndefined();
+  });
+
   it('keeps the store currency for a price that carries none', () => {
     const offers = pageStructuredData(
       parts({ kind: 'product', currency: 'ISK', product: product() })

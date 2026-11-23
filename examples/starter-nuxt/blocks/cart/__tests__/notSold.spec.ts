@@ -70,6 +70,22 @@ describe('a cart with a line not sold in its currency', () => {
     expect(assign).toHaveBeenCalledWith('/checkout/demo-cart');
   });
 
+  it('4662896758: a second press while the first is working checks out once', async () => {
+    const { wrapper, storefront } = await mountCart();
+    const assign = vi.fn();
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign } as Location);
+    const removeNotSold = vi.spyOn(storefront.cart, 'removeNotSold');
+    const remove = wrapper
+      .get('[data-eldra-not-sold-notice]')
+      .findAll('button')
+      .find((node) => node.text() === 'Remove and check out')!;
+    await remove.trigger('click');
+    await remove.trigger('click');
+    await flushPromises();
+    expect(removeNotSold).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledTimes(1);
+  });
+
   it('stays on the cart when removing the lines leaves it empty', async () => {
     const { wrapper, storefront } = await mountCart([NOT_SOLD], true);
     const assign = vi.fn();

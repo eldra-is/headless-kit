@@ -169,7 +169,11 @@ export function pageStructuredData(parts: PageLdParts): StructuredDataEntry[] {
         // Products carry no brand of their own: they are sold under the shop's name.
         brand: parts.profile.name,
         variants: variantsOf(product, parts.currentUrl, parts.currency),
-        currency: product.price.currency ?? parts.currency,
+        // An offer needs a price the page shows; a product not sold in this currency shows none.
+        currency:
+          product.price.soldInCurrency === false
+            ? undefined
+            : (product.price.currency ?? parts.currency),
         ratings: product.rating,
       }),
     });

@@ -1167,13 +1167,16 @@ function createGatewayCartOps(
           lines: [],
           totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
         };
+      const asked = cartId;
       try {
-        const raw = (await client.cart.get(cartId)) as unknown as RawCart | null;
+        const raw = (await client.cart.get(asked)) as unknown as RawCart | null;
         if (raw !== null && typeof raw === 'object' && 'id' in raw) return mapCart(raw);
       } catch (caught) {
         // Only a cart the gateway says is gone is forgotten; a timeout or a 5xx keeps the basket.
         if (!cartGone(caught)) throw caught;
       }
+      // A newer cart may have taken this one's place meanwhile; only the cart asked about is forgotten.
+      if (cartId !== asked) throw new Error('The cart changed while it was being read.');
       session.forget();
       cartId = null;
       askedFor = null;
