@@ -1,4 +1,4 @@
-import { inject } from 'vue';
+import { inject, onScopeDispose } from 'vue';
 import { STOREFRONT_KEY, type StorefrontSource } from '../storefront/types';
 import { createDemoStorefront } from '../storefront/demo';
 
@@ -14,5 +14,10 @@ import { createDemoStorefront } from '../storefront/demo';
  * nothing was provided.
  */
 export function useStorefront(): StorefrontSource {
-  return inject(STOREFRONT_KEY, () => createDemoStorefront(), true);
+  const provided = inject(STOREFRONT_KEY, null);
+  if (provided !== null) return provided;
+  // A storefront made for this component alone (Storybook, a demo) goes with it.
+  const own = createDemoStorefront();
+  onScopeDispose(() => own.currency.dispose());
+  return own;
 }

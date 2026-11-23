@@ -27,6 +27,8 @@ export interface CurrencyStore {
   /** The visitor's explicit choice. With a cart it moves the cart, last choice wins. */
   choose(code: string): void;
   chooseBase(): void;
+  /** Stops following other tabs; for a store made for one component (a demo, a story), not the app's. */
+  dispose(): void;
   /** Reads the stored preference, else the visitor's country. Call once, after mount. */
   start(country: () => Promise<string | null>): Promise<void>;
 }
@@ -110,13 +112,13 @@ export function createCurrencyStore(
     void move(base, true);
   });
 
-  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    window.addEventListener('storage', (event) => {
-      if (event.key !== CURRENCY_PREFERENCE_KEY) return;
-      preferred.value = event.newValue;
-      if (cart.currency.value !== undefined) void cart.reload();
-    });
-  }
+  const onStorage = (event: StorageEvent): void => {
+    if (event.key !== CURRENCY_PREFERENCE_KEY) return;
+    preferred.value = event.newValue;
+    if (cart.currency.value !== undefined) void cart.reload();
+  };
+  const listens = typeof window !== 'undefined' && typeof window.addEventListener === 'function';
+  if (listens) window.addEventListener('storage', onStorage);
 
   const currency: CurrencyStore = {
     base,
@@ -137,6 +139,9 @@ export function createCurrencyStore(
         return;
       }
       void move(code);
+    },
+    dispose() {
+      if (listens) window.removeEventListener('storage', onStorage);
     },
     chooseBase() {
       if (base !== undefined) currency.choose(base);

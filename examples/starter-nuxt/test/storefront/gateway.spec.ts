@@ -1597,6 +1597,28 @@ describe('createGatewayStorefront', () => {
       expect(product?.stock).toBe('in');
     });
 
+    it('reads a variant the store does not track as in stock with no count, not sold out', async () => {
+      // The public contract (web-gateway 6.18.0, `POST /inventory/v1/stock/availability`) answers an
+      // untracked variant with `tracked: false`, `available: true` and `availableQuantity: 0`.
+      const untracked = productClient(
+        {
+          items: [
+            {
+              variantId: 'var-only',
+              available: true,
+              allowBackorder: false,
+              availableQuantity: 0,
+              tracked: false,
+            },
+          ],
+        },
+        { variants: [{ id: 'var-only', status: 'ACTIVE', price: 96 }] }
+      );
+      const product = await read(untracked.client);
+      expect(product?.inventory).toBeNull();
+      expect(product?.stock).toBe('in');
+    });
+
     it('reads sold out for a published variant with nothing on the shelf', async () => {
       const { client } = productClient({
         items: [

@@ -6,6 +6,7 @@ import navigationMock from '../blocks/navigation/mock.json';
 import Footer from '../blocks/footer/Block.vue';
 import footerMock from '../blocks/footer/mock.json';
 import { STOREFRONT_KEY, type StorefrontSource } from '../app/storefront/types';
+import { axe } from './support/axe';
 import { mountOptions } from './support/mountBlock';
 
 const MULTI = {
@@ -44,6 +45,7 @@ describe('the currency picker in the starter', () => {
     await flushPromises();
     expect(storefront.currency.active.value).toBe('EUR');
     expect(localStorage.getItem('eldra.currency')).toBe('EUR');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   it('is not in the header of a one-currency store', () => {
@@ -59,5 +61,6 @@ describe('the currency picker in the starter', () => {
     expect(
       wrapper.findAll('button[role="combobox"]').some((node) => node.text().includes('USD'))
     ).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 });

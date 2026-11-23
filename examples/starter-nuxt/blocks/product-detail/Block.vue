@@ -514,7 +514,9 @@ watch(
  */
 async function primaryAction(): Promise<void> {
   if (notSold.value) {
-    storefront.currency.chooseBase();
+    // Already in the store currency (its product read failed): read the product again.
+    if (storefront.currency.active.value === storefront.currency.base) void productResult.refresh();
+    else storefront.currency.chooseBase();
     return;
   }
   if (storefront.currency.pending.value) return;
