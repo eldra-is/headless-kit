@@ -101,9 +101,11 @@ export const isIS: UiMessages = {
   // `quickAdd` for why the whole sentence is one catalogue entry rather than a label plus a
   // glued-on suffix.
   quickAdd: (title: string) => `Setja ${title} í körfu`,
+  notSoldInCurrency: (currency: string) => `Ekki til sölu í ${currency}`,
   loadingProduct: 'Hleður…',
   swatchesAvailable: (n: number) => `Til í ${n} ${singular(n) ? 'lit' : 'litum'}`,
   noImage: 'Engin mynd',
+  currencyPickerLabel: 'Gjaldmiðill',
   noImageAvailable: 'Engin mynd í boði',
   stockistSite: ' (síða söluaðila)',
   stockIn: 'Til á lager, sent út á 1–2 dögum',

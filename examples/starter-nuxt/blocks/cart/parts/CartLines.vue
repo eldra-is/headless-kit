@@ -203,7 +203,14 @@ const STEPPER_CLASSES = {
           </Link>
           <p v-else class="text-text text-base font-semibold">{{ line.title }}</p>
           <p v-if="line.variantLabel" class="text-muted text-body-sm">{{ line.variantLabel }}</p>
-          <div v-if="line.quantity > 1" class="text-body-sm flex flex-wrap gap-x-1">
+          <p
+            v-if="line.soldInCurrency === false"
+            class="text-body-sm text-warning"
+            data-eldra-line-not-sold
+          >
+            {{ t('currency.notSoldIn', { currency: money.currency.value ?? '' }) }}
+          </p>
+          <div v-else-if="line.quantity > 1" class="text-body-sm flex flex-wrap gap-x-1">
             <Price
               :amount="money.minor(line.unitPrice)"
               size="sm"
@@ -219,7 +226,11 @@ const STEPPER_CLASSES = {
           :aria-busy="busy"
         >
           <VisuallyHidden>{{ t('cart.lineTotal') }}</VisuallyHidden>
-          <Price :amount="money.minor(line.lineTotal)" class="inline" />
+          <Price
+            v-if="line.soldInCurrency !== false"
+            :amount="money.minor(line.lineTotal)"
+            class="inline"
+          />
         </div>
 
         <div
@@ -234,6 +245,7 @@ const STEPPER_CLASSES = {
               size="sm"
               :model-value="line.quantity"
               :max="line.max ?? undefined"
+              :disabled="line.soldInCurrency === false"
               :item-name="line.title"
               :classes="STEPPER_CLASSES"
               @change="(value: number) => void onQuantity(line, value)"

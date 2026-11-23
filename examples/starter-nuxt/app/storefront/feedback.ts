@@ -75,6 +75,8 @@ const MESSAGE_BY_ERROR_ID: Record<string, MessageKey> = {
   // store has moved on from, and reloading is the one thing that fixes it.
   CART_NOT_FOUND: 'storefront.cartOutOfDate',
   CART_ITEM_NOT_FOUND: 'storefront.cartOutOfDate',
+  // Refused in the browser: the cart could not be read, so nothing was sent.
+  CART_NOT_LOADED: 'cart.loadFailed',
 };
 
 /**

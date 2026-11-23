@@ -2,6 +2,7 @@ import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 import { starterFormSeeds } from '../formSeeds';
 import { localizeFormDefinition } from './forms';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
+import { createCurrencyStore } from './currency';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
 import { optionDisplayType } from './options';
@@ -1342,12 +1343,19 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
     },
   };
 
+  const commerce = options.commerce === undefined ? DEMO_COMMERCE : options.commerce;
+  const { currency, cart } = createCurrencyStore(
+    commerce,
+    createCartStore(createDemoCartOps(options.cartLines ?? []))
+  );
+
   return {
     ready: ref(true),
-    commerce: options.commerce === undefined ? DEMO_COMMERCE : options.commerce,
+    commerce,
     route,
     catalog,
-    cart: createCartStore(createDemoCartOps(options.cartLines ?? [])),
+    cart,
+    currency,
     search,
     orders,
     forms,

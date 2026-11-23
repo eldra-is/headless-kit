@@ -516,6 +516,13 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           method: 'DELETE',
           path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
         }),
+      setCurrency: (cartId: string, currency: string, context?: EldraRequestContext) =>
+        request<EldraCart>({
+          ...context,
+          method: 'PUT',
+          path: `/shopping-cart/v1/cart/${encodeURIComponent(cartId)}/currency`,
+          body: { currency },
+        }),
       /**
        * Applies a discount code. On a cart bound to a customer this is 409
        * CART_DISCOUNT_NOT_FOR_CUSTOMER_PRICES: codes do not combine with customer prices.

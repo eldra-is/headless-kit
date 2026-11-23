@@ -57,6 +57,7 @@ export const SHAPES: { readonly [K in FunctionMessageKey]: MessageShape } = {
   charactersLeft: counted(),
   overLimit: counted(),
   quickAdd: text('title'),
+  notSoldInCurrency: text('currency'),
   swatchesAvailable: counted(),
   stockLow: {
     params: ['n'],

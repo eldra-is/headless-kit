@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Selling in more than one currency (WS-1391).** `commerce` on `runtimeConfig.public.eldra` carries `currencies`, the currencies the store offers with its own first, when it offers more than one (a one-currency store's config is unchanged). New server route `GET /_eldra/visitor` answers `{ country }` from Cloudflare's `CF-IPCountry` header, `private, no-store`, so a prerendered page can start a first-time visitor in their country's currency; it answers `null` off Cloudflare.
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds
   carry the campaign a visitor came from (`utm_*` tags only, one `localStorage` key, 30 days). New

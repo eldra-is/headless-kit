@@ -33,6 +33,7 @@ export const componentNames = [
   'Container',
   'ContentCard',
   'CurrencyInput',
+  'CurrencyPicker',
   'Dialog',
   'Drawer',
   'EditorPlaceholder',

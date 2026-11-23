@@ -205,6 +205,10 @@ function applyPrice(current: StorefrontPrice | null, next: StorefrontPrice): Sto
   // catalogue the page has never had, not a value being refreshed over one it is already showing, so
   // the rule above does not apply to it.
   if (current === null) return next;
+  // A price in another currency is a different price, `from` and all.
+  if (current.currency !== next.currency || current.soldInCurrency !== next.soldInCurrency) {
+    return next;
+  }
   const compareAt = next.compareAt ?? null;
   if (current.amount === next.amount && (current.compareAt ?? null) === compareAt) return current;
   return { ...current, amount: next.amount, compareAt };

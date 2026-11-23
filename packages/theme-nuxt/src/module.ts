@@ -1,6 +1,13 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { addImports, addPlugin, addVitePlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
+import {
+  addImports,
+  addPlugin,
+  addServerHandler,
+  addVitePlugin,
+  createResolver,
+  defineNuxtModule,
+} from '@nuxt/kit';
 import type { NuxtModule } from '@nuxt/schema';
 import {
   buildDynamicRoutePath,
@@ -11,6 +18,7 @@ import {
   parseDynamicRoutePattern,
   resolvePagePath,
   stripStega,
+  VISITOR_COUNTRY_PATH,
   type CatalogDoc,
   type EldraClient,
   type EldraRetryOptions,
@@ -278,6 +286,11 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
 
     addPlugin(resolver.resolve('./runtime/plugin'));
+    addServerHandler({
+      route: VISITOR_COUNTRY_PATH,
+      method: 'get',
+      handler: resolver.resolve('./runtime/server/visitor'),
+    });
     addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
     if (options.campaignAttribution !== false) {
       addPlugin({ src: resolver.resolve('./runtime/attributionPlugin'), mode: 'client' });

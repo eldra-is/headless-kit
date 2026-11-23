@@ -82,9 +82,10 @@
  *    truth this block renders, so a delivered order's last step shows the done check, not the
  *    ring.
  */
-import { computed, defineComponent, h, ref, type Component } from 'vue';
+import { computed, defineComponent, h, provide, ref, type Component } from 'vue';
 import {
   Badge,
+  CURRENCY_KEY,
   Button,
   Container,
   EmptyState,
@@ -155,6 +156,10 @@ const order = computed<StorefrontOrder | null>(() => {
   if (orderResult.data.value) return orderResult.data.value;
   return editing.value ? buildOrder('shipped') : null;
 });
+
+const orderCurrency = computed(() => order.value?.currency ?? money.currency.value);
+// The order's amounts are in its own currency, which can differ from the store's.
+provide(CURRENCY_KEY, () => orderCurrency.value);
 
 /** See the module doc comment's "Loading / error" section — a real token in the URL, but the
  *  fetch it drives is still in flight or failed (never true while `order` already has a value,
@@ -647,7 +652,11 @@ const helpLinks = computed<HelpLinkView[]>(() =>
                   </Link>
                   <p class="text-muted text-body-sm">{{ lineMeta(line) }}</p>
                 </div>
-                <Price :amount="money.minor(line.lineTotal)" size="sm" class="justify-self-end" />
+                <Price
+                  :amount="money.minor(line.lineTotal, orderCurrency)"
+                  size="sm"
+                  class="justify-self-end"
+                />
               </li>
             </ul>
             <Button
@@ -667,7 +676,7 @@ const helpLinks = computed<HelpLinkView[]>(() =>
               <div class="flex items-baseline justify-between gap-4">
                 <dt class="text-muted text-body-sm">{{ t('order.subtotal') }}</dt>
                 <dd class="text-text text-base tabular-nums">
-                  <Price :amount="money.minor(totals.subtotal)" size="sm" />
+                  <Price :amount="money.minor(totals.subtotal, orderCurrency)" size="sm" />
                 </dd>
               </div>
               <div class="flex items-baseline justify-between gap-4">
@@ -676,7 +685,7 @@ const helpLinks = computed<HelpLinkView[]>(() =>
                   <span v-if="isShippingFree">{{ t('order.shippingFree') }}</span>
                   <Price
                     v-else-if="totals.shipping != null"
-                    :amount="money.minor(totals.shipping)"
+                    :amount="money.minor(totals.shipping, orderCurrency)"
                     size="sm"
                   />
                 </dd>
@@ -684,13 +693,13 @@ const helpLinks = computed<HelpLinkView[]>(() =>
               <div v-if="hasTax" class="flex items-baseline justify-between gap-4">
                 <dt class="text-muted text-body-sm">{{ t('order.tax') }}</dt>
                 <dd class="text-text text-base tabular-nums">
-                  <Price :amount="money.minor(totals.tax!)" size="sm" />
+                  <Price :amount="money.minor(totals.tax!, orderCurrency)" size="sm" />
                 </dd>
               </div>
               <div class="border-border flex items-baseline justify-between gap-4 border-t pt-3">
                 <dt class="text-h4 font-bold">{{ t('order.total') }}</dt>
                 <dd class="text-h4 font-bold tabular-nums">
-                  <Price :amount="money.minor(totals.total)" size="md" />
+                  <Price :amount="money.minor(totals.total, orderCurrency)" size="md" />
                 </dd>
               </div>
             </dl>
