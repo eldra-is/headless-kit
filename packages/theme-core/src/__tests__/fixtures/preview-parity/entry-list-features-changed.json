@@ -84,7 +84,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000006"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
               },
               "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
               "card": {
@@ -97,7 +99,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000007",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [
@@ -226,7 +231,9 @@
       "filters": [],
       "orderBy": "-createdAt",
       "pageSize": 25,
-      "schemas": ["00000000-0000-4000-8000-000000000002"]
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
     },
     "cacheControl": "no-store",
     "eldraPreview": "draft",
@@ -305,7 +312,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000006"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
               },
               "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
               "card": {
@@ -318,7 +327,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000007",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [
@@ -446,7 +458,9 @@
       "filters": [],
       "orderBy": "-createdAt",
       "pageSize": 25,
-      "schemas": ["00000000-0000-4000-8000-000000000002"]
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
     },
     "cacheControl": "",
     "status": 200
@@ -454,7 +468,9 @@
   "read": {
     "body": {
       "orderBy": "-createdAt",
-      "schemas": ["00000000-0000-4000-8000-000000000002"]
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
     },
     "method": "POST",
     "operation": "webResolveEntryList",

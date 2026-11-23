@@ -67,7 +67,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000006"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
               },
               "body": "Texti \u003cb\u003emeð\u003c/b\u003e \u0026 tákn",
               "card": {
@@ -80,7 +82,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000007",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [
@@ -348,7 +353,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000006"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
               },
               "body": "Texti \u003cb\u003emeð\u003c/b\u003e \u0026 tákn",
               "card": {
@@ -361,7 +368,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000007",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [

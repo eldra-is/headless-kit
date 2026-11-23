@@ -52,7 +52,9 @@
       "filters": null,
       "orderBy": "-createdAt",
       "pageSize": 5,
-      "schemas": ["00000000-0000-4000-8000-000000000002"]
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
     },
     "cacheControl": "no-store",
     "eldraPreview": "draft",
@@ -101,7 +103,9 @@
       "filters": null,
       "orderBy": "-createdAt",
       "pageSize": 5,
-      "schemas": ["00000000-0000-4000-8000-000000000002"]
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
     },
     "cacheControl": "",
     "status": 200

@@ -21,5 +21,8 @@ export default oxfmtConfig({
     '**/.eldra/previews.json',
     '**/.eldra/block-types.d.ts',
     'examples/starter-nuxt/stories/generated/**',
+    // Core's recorded preview-parity reads (web-studio-core
+    // `internal/modules/cms/handler/web/testdata/preview_parity/`), copied byte for byte.
+    'packages/theme-core/src/__tests__/fixtures/preview-parity/**',
   ],
 }) as OxfmtConfig;

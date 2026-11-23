@@ -69,7 +69,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000005"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000005"
+                ]
               },
               "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
               "card": {
@@ -82,7 +84,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000006",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [
@@ -386,7 +391,9 @@
               "authors": {
                 "orderBy": "-createdAt",
                 "pageSize": 5,
-                "schemas": ["00000000-0000-4000-8000-000000000005"]
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000005"
+                ]
               },
               "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
               "card": {
@@ -399,7 +406,10 @@
                   "assetId": "00000000-0000-4000-8000-000000000006",
                   "linkId": "kept"
                 },
-                "tags": ["a", "b"]
+                "tags": [
+                  "a",
+                  "b"
+                ]
               },
               "content": {
                 "content": [
