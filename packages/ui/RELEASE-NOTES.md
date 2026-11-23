@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.18](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.17...ui-v0.3.18) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.4
+
 ## [0.3.17](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.16...ui-v0.3.17) (2026-11-23)
 
 
