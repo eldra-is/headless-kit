@@ -268,9 +268,21 @@ const notSold = computed(() => product.value?.price.soldInCurrency === false);
 const shopperCurrency = computed(() => storefront.currency.active.value ?? '');
 const defaultCurrency = computed(() => storefront.currency.defaultCurrency ?? '');
 const inDefault = computed(() => shopperCurrency.value === defaultCurrency.value);
+// A read that failed keeps the last currency's answer on screen; only one made in this currency can say it is sold nowhere.
+const readIn = ref(shopperCurrency.value);
+watch(
+  () => productResult.data.value,
+  () => {
+    readIn.value = shopperCurrency.value;
+  }
+);
 // Every product has a price in the store's own currency, so only a default that is not it can lack one for real.
 const notSoldAnywhere = computed(
-  () => notSold.value && inDefault.value && defaultCurrency.value !== storefront.currency.base
+  () =>
+    notSold.value &&
+    inDefault.value &&
+    readIn.value === shopperCurrency.value &&
+    defaultCurrency.value !== storefront.currency.base
 );
 const cartWillSwitch = computed(
   () => notSold.value && !notSoldAnywhere.value && storefront.cart.lines.value.length > 0

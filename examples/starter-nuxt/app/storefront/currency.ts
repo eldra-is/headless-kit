@@ -64,6 +64,7 @@ export function createCurrencyStore(
   const movedTo = ref<string | null>(null);
   const failure = ref<StorefrontFailure | null>(null);
   const ownCurrencyOnly = ref(false);
+  let signInChanges = 0;
   const fallback = (): string | undefined => (ownCurrencyOnly.value ? base : defaultCurrency);
 
   const active = computed(() => {
@@ -100,7 +101,10 @@ export function createCurrencyStore(
   const busy = computed(() => cart.pending.value);
 
   async function move(code: string, notice = false): Promise<void> {
+    const sentAs = signInChanges;
     const answer = await cart.setCurrency(code);
+    // An answer about who the visitor was before they signed in or out says nothing about who they are now.
+    const sameVisitor = sentAs === signInChanges;
     // A later choice replaced this one before it was sent.
     if (answer === undefined) return;
     if (answer === null) {
@@ -117,7 +121,7 @@ export function createCurrencyStore(
     } else if (answer.errorId === CUSTOMER_ISK_ONLY) {
       // The store's own move off a dropped currency is no choice of the visitor's, so nothing to report.
       if (!notice) failure.value = answer;
-      await keepInBase();
+      if (sameVisitor) await keepInBase();
     } else if (ownCurrencyOnly.value && code === base && refusedForCurrency(answer)) {
       // The store sees no business customer after all (signed out, or no token on the cart): back to what it offers.
       leaveBase();
@@ -166,6 +170,7 @@ export function createCurrencyStore(
     failure,
     ownCurrencyOnly,
     keepOwnCurrency(on = true) {
+      signInChanges += 1;
       if (on) {
         void keepInBase();
         return;
@@ -231,8 +236,9 @@ export function createCurrencyStore(
       if (leavingDropped() && to !== undefined) await move(to, true);
       const hadCart = cart.currency.value !== undefined;
       const sentIn = active.value;
+      const sentAs = signInChanges;
       const answer = await cart.add(input);
-      if (answer?.errorId === CUSTOMER_ISK_ONLY && sentIn !== base) {
+      if (answer?.errorId === CUSTOMER_ISK_ONLY && sentIn !== base && sentAs === signInChanges) {
         await keepInBase();
         return cart.add(input);
       }

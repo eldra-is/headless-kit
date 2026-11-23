@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent, h, nextTick, ref } from 'vue';
+import { computed, defineComponent, h, nextTick, ref, watch } from 'vue';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
 import { useToast, type ToastAction } from '@eldrajs/ui';
@@ -1619,5 +1619,62 @@ describe('with the store currency turned off (WS-1399)', () => {
     expect(addToCart(wrapper).attributes('disabled')).toBeDefined();
     expect(wrapper.text()).not.toContain('Shop in');
     expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});
+
+describe('a product read that failed after a currency change (WS-1399)', () => {
+  it("does not take the last currency's availability for the new one", async () => {
+    const source = createDemoStorefront({
+      commerce: {
+        currency: 'USD',
+        taxInclusivePricing: false,
+        defaultTaxRate: 0,
+        currencies: ['EUR', 'GBP'],
+        defaultCurrency: 'EUR',
+      },
+    });
+    const refreshes: number[] = [];
+    const storefront = {
+      ...source,
+      catalog: {
+        ...source.catalog,
+        product: (handle: Parameters<typeof source.catalog.product>[0]) => {
+          const result = source.catalog.product(handle);
+          const kept = ref<StorefrontProduct | null>(null);
+          // The read in GBP answered; the one in EUR failed and left it on screen.
+          watch(
+            result.data,
+            (loaded) => {
+              if (loaded !== null && kept.value === null) {
+                kept.value = {
+                  ...loaded,
+                  price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+                };
+              }
+            },
+            { immediate: true }
+          );
+          return {
+            ...result,
+            data: kept,
+            refresh: async () => {
+              refreshes.push(1);
+            },
+          };
+        },
+      },
+    } as ReturnType<typeof storefrontWith>;
+    storefront.currency.started.value = true;
+    storefront.currency.choose('GBP');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('GBP'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    storefront.currency.choose('EUR');
+    await flushPromises();
+    expect(storefront.currency.active.value).toBe('EUR');
+    expect(addToCart(wrapper).attributes('disabled')).toBeUndefined();
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(refreshes).toHaveLength(1);
   });
 });

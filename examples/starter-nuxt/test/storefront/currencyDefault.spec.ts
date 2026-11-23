@@ -431,4 +431,45 @@ describe('a business customer, whose cart the store keeps in ISK', () => {
     await vi.waitFor(() => expect(storefront.cart.currency.value).toBe('EUR'));
     expect(storefront.currency.offered.value).toEqual(['EUR', 'USD']);
   });
+
+  it('ignores a refusal that answers for a visitor who has signed out since', async () => {
+    installStorage({ [CART_KEY]: 'cart-1' });
+    const { client } = businessClient(cartAnswer('EUR'));
+    let refuse: (() => void) | null = null;
+    client.cart.setCurrency = (() =>
+      new Promise((_, reject) => {
+        refuse = () => reject(iskOnly());
+      })) as typeof client.cart.setCurrency;
+    const storefront = createGatewayStorefront(client, { route: route(), commerce: ISK_OFF });
+    await vi.waitFor(() => expect(storefront.cart.currency.value).toBe('EUR'));
+    await storefront.currency.start(async () => null);
+    storefront.currency.choose('USD');
+    await vi.waitFor(() => expect(refuse).not.toBeNull());
+    storefront.currency.keepOwnCurrency(false);
+    refuse!();
+    await vi.waitFor(() => expect(storefront.currency.busy.value).toBe(false));
+    expect(storefront.currency.ownCurrencyOnly.value).toBe(false);
+    expect(storefront.currency.offered.value).toEqual(['EUR', 'USD']);
+  });
+
+  it('neither keeps nor retries in ISK when an add answers after the visitor signed out', async () => {
+    installStorage();
+    const { client, calls } = businessClient(null);
+    let refuse: (() => void) | null = null;
+    client.cart.addItem = ((input: Record<string, unknown>) => {
+      calls.push({ method: 'addItem', args: [input] });
+      return new Promise((_, reject) => {
+        refuse = () => reject(iskOnly());
+      });
+    }) as typeof client.cart.addItem;
+    const storefront = createGatewayStorefront(client, { route: route(), commerce: ISK_OFF });
+    await storefront.currency.start(async () => null);
+    const adding = storefront.cart.add({ productId: 'p1', variantId: 'v1', quantity: 1 });
+    await vi.waitFor(() => expect(refuse).not.toBeNull());
+    storefront.currency.keepOwnCurrency(false);
+    refuse!();
+    await adding;
+    expect(storefront.currency.ownCurrencyOnly.value).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
 });
