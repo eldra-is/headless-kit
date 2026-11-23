@@ -194,6 +194,15 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   shows the starter renders none of them. An entry's `status` is not among them: the public read
   does not carry it, and the session's client drops it too.
 
+  Both pages are captured on the same condition, so a slow machine cannot capture one early: the
+  app has hydrated, no async data read is in flight, the network is idle, and the whole document has
+  not changed for 750 ms. And the comparison holds only if a build is a function of its content:
+  Nuxt shares `useAsyncData` answers between the routes of one prerender, and a read that failed
+  left later routes an empty answer where earlier ones baked the error, depending on the order the
+  routes rendered in (on a busy machine, one build's footer form definition was an error and the
+  other's an empty answer). `@eldrajs/theme-nuxt` reads a failed key again on every route that asks
+  (`src/runtime/prerenderSharedData.ts`), so every route bakes its own failure.
+
   What the session does to get there:
   - `@eldrajs/theme-core`'s client reshapes **every** session answer into the public read's shape
     (`asPublicRead`): wherever a `reusableComponentProjection` appears — the answer itself, a list

@@ -303,6 +303,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     // A draft preview session's route: before Nuxt's router reads the payload's path.
     addPlugin({ src: resolver.resolve('./runtime/previewSessionRoute'), mode: 'client' });
+    addPlugin({ src: resolver.resolve('./runtime/prerenderSharedData'), mode: 'server' });
     addPlugin(resolver.resolve('./runtime/plugin'));
     addServerHandler({
       route: VISITOR_COUNTRY_PATH,

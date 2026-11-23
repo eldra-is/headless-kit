@@ -204,16 +204,69 @@ async function settle(page: Page, images = false): Promise<void> {
     undefined,
     { timeout: 15_000 }
   );
+  // The same condition on both pages, whatever the machine's speed: the app has hydrated, no async
+  // data entry has a read in flight, and the whole document (head, body, every attribute) has not
+  // changed for `QUIET_MS` — measured from the last change, not from a fixed point. A head-only
+  // check let a busy machine capture a page whose head manager or header had not yet written
+  // (an `og:url` and a header height a beat behind the other page).
+  await page.waitForFunction(
+    () => {
+      const nuxt = (
+        document.getElementById('__nuxt') as unknown as {
+          __vue_app__?: {
+            config: {
+              globalProperties: {
+                $nuxt?: {
+                  isHydrating?: boolean;
+                  _asyncDataPromises?: Record<string, Promise<unknown> | undefined>;
+                };
+              };
+            };
+          };
+        }
+      ).__vue_app__?.config.globalProperties.$nuxt;
+      return (
+        nuxt !== undefined &&
+        nuxt.isHydrating !== true &&
+        Object.values(nuxt._asyncDataPromises ?? {}).every((promise) => promise === undefined)
+      );
+    },
+    undefined,
+    { timeout: 30_000 }
+  );
   await page.waitForLoadState('networkidle');
-  // The head manager writes after the page: wait until the head has not changed for 300 ms.
-  let head = '';
-  for (let tries = 0; tries < 20; tries += 1) {
-    const now = await page.evaluate(() => document.head.innerHTML);
-    if (now === head) break;
-    head = now;
-    await page.waitForTimeout(300);
-  }
+  await page.evaluate(
+    (quiet) =>
+      new Promise<void>((resolve, reject) => {
+        let timer: ReturnType<typeof setTimeout>;
+        const done = (): void => {
+          observer.disconnect();
+          clearTimeout(giveUp);
+          resolve();
+        };
+        const observer = new MutationObserver(() => {
+          clearTimeout(timer);
+          timer = setTimeout(done, quiet);
+        });
+        observer.observe(document.documentElement, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          characterData: true,
+        });
+        timer = setTimeout(done, quiet);
+        const giveUp = setTimeout(() => {
+          observer.disconnect();
+          reject(new Error(`the document did not stay unchanged for ${quiet} ms within 30 s`));
+        }, 30_000);
+      }),
+    QUIET_MS
+  );
+  await page.waitForLoadState('networkidle');
 }
+
+/** How long the document must stay unchanged before a page counts as settled. */
+const QUIET_MS = 750;
 
 /**
  * On the session's page, removes exactly the differences a session is allowed; on the live page,

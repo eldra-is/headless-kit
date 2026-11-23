@@ -21,6 +21,13 @@ Release-please writes the generated notes from commit messages and does not repl
   rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
   Outside a session nothing changes. The starter's parity spec is the release gate; see
   `docs/themes.md`, "Parity with the published page".
+- **A failed read is no longer shared between the pages of a prerender (WS-1358).** Nuxt shares
+  `useAsyncData` answers between the routes of one `nuxi generate`; a read that failed left every
+  route rendered after it an empty answer (`null`) where the routes rendered before or alongside it
+  baked the error, so the same content built different pages depending on the order the routes
+  were rendered in. A server plugin now has each later route read a failed key again, and every
+  route bakes its own failure; a read that succeeded is shared as before. Prerender only.
+
 - **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
   render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);
   `useEldraPage().pending` stays `false` while the session re-reads the route it has just hydrated,
