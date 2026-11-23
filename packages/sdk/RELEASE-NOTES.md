@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.2...sdk-v0.5.3) (2026-11-23)
+
+
+### Features
+
+* **commerce:** currency picker and prices in the chosen currency (WS-1391) ([#162](https://github.com/eldra-is/headless-kit/issues/162)) ([a6111b1](https://github.com/eldra-is/headless-kit/commit/a6111b10940e5929d03043aeabffb3daadcaa3f6))
+
 ## [0.5.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.1...sdk-v0.5.2) (2026-11-21)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.7](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.6...theme-nuxt-v0.4.7) (2026-11-23)
+
+
+### Features
+
+* **commerce:** currency picker and prices in the chosen currency (WS-1391) ([#162](https://github.com/eldra-is/headless-kit/issues/162)) ([a6111b1](https://github.com/eldra-is/headless-kit/commit/a6111b10940e5929d03043aeabffb3daadcaa3f6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.3
+    * @eldrajs/theme-core bumped to 0.3.5
+    * @eldrajs/theme-vue bumped to 0.2.6
+    * @eldrajs/vite-plugin-theme bumped to 0.3.5
+
 ## [0.4.6](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.5...theme-nuxt-v0.4.6) (2026-11-21)
 
 
