@@ -138,6 +138,7 @@ async function open<T>(
     timezoneId: 'Atlantic/Reykjavik',
   });
   const page = await context.newPage();
+  await page.addInitScript(installSerialiser);
   const warnings: string[] = [];
   page.on('console', (message) => {
     const text = message.text();
@@ -159,7 +160,7 @@ async function open<T>(
       // merchant sees the moment the veil drops, compared with the settled page below
       // (`VEIL_DROP_DIFFERENCES`), so a change that lands after the veil is caught.
       await page.waitForFunction(
-        () => {
+        (additions) => {
           const veil = document
             .querySelector('[data-eldra-preview-session]')
             ?.shadowRoot?.querySelector('.veil');
@@ -167,12 +168,15 @@ async function open<T>(
             veil?.hasAttribute('hidden') === true &&
             !document.getElementById('__nuxt')?.hasAttribute('aria-busy');
           if (shown) {
-            (window as unknown as { __eldraVeilDrop?: Node }).__eldraVeilDrop =
-              document.documentElement.cloneNode(true);
+            const win = window as unknown as {
+              __eldraSerialise: (skip: readonly string[]) => unknown;
+              __eldraVeilDrop?: unknown;
+            };
+            win.__eldraVeilDrop = win.__eldraSerialise(additions);
           }
           return shown;
         },
-        undefined,
+        SESSION_ADDITIONS,
         { timeout: 30_000, polling: 'raf' }
       );
     }
@@ -281,29 +285,28 @@ const QUIET_MS = 750;
  * On the session's page, removes exactly the differences a session is allowed; on the live page,
  * asserts there are none of them to remove.
  */
-async function normalise(page: Page, session: boolean, veilDrop = false): Promise<void> {
+/** What a session adds to the page: its host, and the router's two meta tags. */
+const SESSION_ADDITIONS = [
+  '[data-eldra-preview-session]',
+  'meta[name="eldra-preview"]',
+  'meta[name="robots"][content="noindex, nofollow"]',
+];
+
+async function normalise(page: Page, session: boolean): Promise<void> {
   const found = await page.evaluate(
-    ([remove, atVeilDrop]) => {
-      const root: ParentNode = atVeilDrop
-        ? ((window as unknown as { __eldraVeilDrop: Element }).__eldraVeilDrop as Element)
-        : document;
-      const selectors = [
-        '[data-eldra-preview-session]',
-        'meta[name="eldra-preview"]',
-        'meta[name="robots"][content="noindex, nofollow"]',
-      ];
-      const counts = selectors.map((selector) => root.querySelectorAll(selector).length);
+    ([remove, selectors]) => {
+      const counts = selectors.map((selector) => document.querySelectorAll(selector).length);
       if (remove) {
         for (const selector of selectors) {
-          root.querySelectorAll(selector).forEach((node) => node.remove());
+          document.querySelectorAll(selector).forEach((node) => node.remove());
         }
       }
-      const noindex = [...root.querySelectorAll('meta[name="robots"]')].some((meta) =>
+      const noindex = [...document.querySelectorAll('meta[name="robots"]')].some((meta) =>
         /noindex/i.test(meta.getAttribute('content') ?? '')
       );
       return { counts, noindex };
     },
-    [session, veilDrop] as const
+    [session, SESSION_ADDITIONS] as const
   );
   if (session) {
     // Exactly one robots tag, the router's `noindex, nofollow`, on every session page: the
@@ -315,9 +318,23 @@ async function normalise(page: Page, session: boolean, veilDrop = false): Promis
   }
 }
 
-/** The document, one node per line: tag and sorted attributes, or text; hydration state left out. */
-function serialise(page: Page, veilDrop = false): Promise<string[]> {
-  return page.evaluate((atVeilDrop) => {
+/**
+ * The document, one node per line: tag and sorted attributes, or text, shadow roots walked;
+ * hydration state left out. One function for every capture, installed in the page before it loads
+ * (`installSerialiser`), so the settled page and the frame the veil drops are written the same way.
+ * `skip` leaves out the elements a session is allowed to add (`SESSION_ADDITIONS`) without removing
+ * them, which the veil-drop frame cannot do; the settled capture removes them first (`normalise`).
+ */
+function installSerialiser(): void {
+  (
+    window as unknown as {
+      __eldraSerialise: (skip: readonly string[]) => {
+        lines: string[];
+        counts: number[];
+        noindex: boolean;
+      };
+    }
+  ).__eldraSerialise = (skip) => {
     const lines: string[] = [];
     const walk = (node: Node, depth: number): void => {
       const indent = '  '.repeat(depth);
@@ -325,8 +342,14 @@ function serialise(page: Page, veilDrop = false): Promise<string[]> {
         if ((node.textContent ?? '') !== '') lines.push(`${indent}"${node.textContent}"`);
         return;
       }
+      // A shadow root is a fragment, not an element: its children are walked under its host.
+      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        for (const child of node.childNodes) walk(child, depth);
+        return;
+      }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       const element = node as Element;
+      if (skip.some((selector) => element.matches(selector))) return;
       if (element.id === '__NUXT_DATA__' || element.hasAttribute('data-nuxt-data')) return;
       if (element.tagName === 'SCRIPT' && /window\.__NUXT__/.test(element.textContent ?? ''))
         return;
@@ -345,19 +368,30 @@ function serialise(page: Page, veilDrop = false): Promise<string[]> {
       lines.push(
         `${indent}<${element.tagName.toLowerCase()}${attributes.map((a) => ` ${a}`).join('')}>`
       );
-      if (element.shadowRoot) walk(element.shadowRoot, depth + 1);
+      if (element.shadowRoot) {
+        lines.push(`${indent}  #shadow-root`);
+        walk(element.shadowRoot, depth + 2);
+      }
       const children =
         element instanceof HTMLTemplateElement ? element.content.childNodes : element.childNodes;
       for (const child of children) walk(child, depth + 1);
     };
-    walk(
-      atVeilDrop
-        ? (window as unknown as { __eldraVeilDrop: Element }).__eldraVeilDrop
-        : document.documentElement,
-      0
-    );
-    return lines;
-  }, veilDrop);
+    walk(document.documentElement, 0);
+    const counts = skip.map((selector) => document.querySelectorAll(selector).length);
+    const noindex = [...document.querySelectorAll('meta[name="robots"]')]
+      .filter((meta) => !skip.some((selector) => meta.matches(selector)))
+      .some((meta) => /noindex/i.test(meta.getAttribute('content') ?? ''));
+    return { lines, counts, noindex };
+  };
+}
+
+function serialise(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () =>
+      (
+        window as unknown as { __eldraSerialise: (skip: readonly string[]) => { lines: string[] } }
+      ).__eldraSerialise([]).lines
+  );
 }
 
 /**
@@ -456,8 +490,20 @@ function capture(origin: string, path: string, width: number, session: boolean):
   return open(origin, path, width, session, async (page, warnings) => {
     let veilDrop: string[] | undefined;
     if (session) {
-      await normalise(page, session, true);
-      veilDrop = preloadsAsASet(await serialise(page, true));
+      const atDrop = await page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              __eldraVeilDrop: { lines: string[]; counts: number[]; noindex: boolean };
+            }
+          ).__eldraVeilDrop
+      );
+      // The same additions the settled page has, and nothing else that says noindex.
+      expect({ counts: atDrop.counts, noindex: atDrop.noindex }).toEqual({
+        counts: [1, 1, 1],
+        noindex: false,
+      });
+      veilDrop = preloadsAsASet(atDrop.lines);
     }
     await normalise(page, session);
     const data = await asyncData(page);

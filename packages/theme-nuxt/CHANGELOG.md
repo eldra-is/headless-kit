@@ -33,7 +33,8 @@ Release-please writes the generated notes from commit messages and does not repl
 - **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
   render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);
   `useEldraPage().pending` stays `false` while the session re-reads the route it has just hydrated,
-  so the page is patched in place rather than rebuilt; a `focus()` asked for under the veil is given
+  so the page is patched in place rather than rebuilt; the veil drops only once the head manager
+  has written the draft's head (never on the pinned title); a `focus()` asked for under the veil is given
   once the draft is shown; and a page that exists only as a draft, opened directly, resolves the
   address bar's path rather than the not-found document's (only a document rendered for `/404`,
   compared without the app's `baseURL`; its route read, still at its `default`, is read through the

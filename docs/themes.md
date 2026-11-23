@@ -205,8 +205,9 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
   shares prerender data and Nuxt hands a page no shared cache of the shape that plugin wraps (a
   Nuxt release that moved it), the build logs one warning and goes on unguarded; the plugin's tests
   run it against the installed Nuxt's own cache module, so such a release fails the kit's tests
-  first. The session's document is also copied in the frame its veil first drops, normalised the
-  same way, and must equal its settled document: nothing the merchant sees changes after the veil
+  first. The session's document is also written out in the frame its veil first drops, by the
+  same serialiser as every capture (shadow roots walked, the session's additions left out), and
+  must equal its settled document: nothing the merchant sees changes after the veil
   (the one exception is the `/focus-mid` header below).
 
   What the session does to get there:
@@ -223,6 +224,10 @@ nofollow">` and `<meta name="eldra-preview">` in the head. While the veil is up,
     every `useId()` anew and re-serialise every bound style. A theme's own `useAsyncData` keeps its
     own `pending`: a block that renders a loading state for it is still torn down and rebuilt in a
     session, with the same consequences;
+  - the veil drops only once the head shows the draft too: the head manager writes the head in a
+    timer after the render (`@unhead/vue`'s client), so the session waits for Vue's render and
+    then for that write (`src/runtime/previewSessionHead.ts`), never uncovering the pinned build's
+    title and Open Graph tags;
   - a `focus()` (HTML or SVG) asked of an element in the app while it is inert under the veil is
     asked again once the draft is shown, unless the page blurred it itself;
   - a page that exists only as a draft resolves the address bar's path: the host answers it with the

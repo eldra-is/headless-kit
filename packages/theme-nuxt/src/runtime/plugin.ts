@@ -14,6 +14,7 @@ import {
 import {
   clearNuxtData,
   defineNuxtPlugin,
+  injectHead,
   refreshNuxtData,
   useHead,
   useRuntimeConfig,
@@ -35,6 +36,7 @@ import {
   startPreviewSession,
   usePreviewSession,
 } from './previewSession';
+import { afterHeadRendered, type HeadRenderHooks } from './previewSessionHead';
 import { sessionReads, type SessionReadsInput } from './previewSessionReads';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
@@ -120,13 +122,23 @@ export default defineNuxtPlugin({
         ...inFlight,
       ]);
     };
+    let sessionHead: HeadRenderHooks | undefined;
+    try {
+      sessionHead = injectHead(nuxtApp) as unknown as HeadRenderHooks;
+    } catch {
+      // No head manager: the timer alone waits out a head render.
+    }
     const previewSession =
       import.meta.client &&
       startPreviewSession(client, {
         onHydrated: (hydrated) =>
           nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
             hydrated();
-            await settlePreviewSessionDrafts(readDrafts, () => nextTick());
+            // The veil drops once Vue has rendered the drafts and the head manager has written
+            // the head after them (`./previewSessionHead.ts`), never on the pinned title.
+            await settlePreviewSessionDrafts(readDrafts, () =>
+              afterHeadRendered(sessionHead, () => nextTick())
+            );
           }),
       });
     if (previewSession) {
