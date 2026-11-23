@@ -258,6 +258,8 @@ interface RawStockAvailability {
   available: boolean;
   allowBackorder: boolean;
   availableQuantity: number;
+  /** `false`: the store does not count this variant's units; `availableQuantity` is then 0 and means nothing. */
+  tracked?: boolean;
 }
 
 interface RawCollectionItem {
@@ -503,6 +505,12 @@ function variantBuyable(variant: RawProductVariant, stock: StockByVariant | null
   return known === undefined || known.available || known.allowBackorder;
 }
 
+/** The units on hand the page may show, or `null` when the store does not count them. */
+function unitsOf(answer: RawStockAvailability | undefined): number | null {
+  if (answer === undefined || answer.tracked === false) return null;
+  return answer.availableQuantity;
+}
+
 /** The product-level stock signal `deriveStockLine` reads, for the variant the page shows. */
 function variantStock(
   variant: RawProductVariant | undefined,
@@ -619,9 +627,7 @@ function mapProductDetails(
     // stock). Reporting per-variant counts means carrying every variant's availability on the product
     // and resolving the shopper's selection against it, which is also what the buy box would need to
     // add the variant it is showing rather than the first buyable one.
-    inventory: countableVariant
-      ? (stock?.get(countableVariant.id)?.availableQuantity ?? null)
-      : null,
+    inventory: countableVariant ? unitsOf(stock?.get(countableVariant.id)) : null,
     stock: variantStock(firstAvailable, stock),
     // Each variant's own price and stock state, for the page's structured data: the same
     // `variantStock` rule the buy box's line uses, so the markup and the page cannot disagree.
