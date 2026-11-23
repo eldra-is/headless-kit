@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.7](https://github.com/eldra-is/headless-kit/compare/theme-vue-v0.2.6...theme-vue-v0.2.7) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.6
+
 ## [0.2.6](https://github.com/eldra-is/headless-kit/compare/theme-vue-v0.2.5...theme-vue-v0.2.6) (2026-11-23)
 
 
