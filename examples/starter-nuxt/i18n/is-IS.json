@@ -95,6 +95,7 @@
     "outOfStock": "Þessi vara er ekki til á lager.",
     "unavailable": "Þessi vara er ekki lengur í boði.",
     "cartOutOfDate": "Karfan þín er ekki uppfærð. Endurnýjaðu síðuna og prófaðu aftur.",
+    "businessOwnCurrency": "Fyrirtæki versla í krónum.",
     "unresolvedCollectionLabel": "Birtu síðuna til að hlaða vörum",
     "unresolvedCollectionHelp": "Vörulistinn er valinn. Vörurnar úr honum birtast hér þegar síðan hefur verið birt.",
     "orderStatus": {

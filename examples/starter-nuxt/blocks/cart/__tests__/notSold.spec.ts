@@ -107,3 +107,44 @@ describe('a cart with a line not sold in its currency', () => {
     expect(checkout?.attributes('href')).toBe('/checkout/demo-cart');
   });
 });
+
+describe('the way out with the store currency turned off (WS-1399)', () => {
+  async function mountIn(cartCurrency: string) {
+    const storefront = createDemoStorefront({
+      cartLines: [NOT_SOLD, SOLD],
+      commerce: {
+        currency: 'USD',
+        taxInclusivePricing: false,
+        defaultTaxRate: 0,
+        currencies: ['EUR', 'GBP'],
+        defaultCurrency: 'EUR',
+      },
+    });
+    await flushPromises();
+    storefront.cart.currency.value = cartCurrency;
+    const options = mountOptions({ entry: { id: 'cart', data: { ...mock, variant: 'page' } } });
+    const wrapper = mount(Block, {
+      ...options,
+      attachTo: document.body,
+      global: {
+        ...options.global,
+        provide: { ...options.global.provide, [STOREFRONT_KEY]: storefront },
+        stubs: { ...options.global.stubs, transition: false, 'transition-group': false },
+      },
+    });
+    await flushPromises();
+    return wrapper
+      .get('[data-eldra-not-sold-notice]')
+      .findAll('button')
+      .map((node) => node.text());
+  }
+
+  it('offers the default currency from another one', async () => {
+    expect(await mountIn('GBP')).toContain('Shop in EUR');
+  });
+
+  it('offers no way out from the default itself', async () => {
+    const buttons = await mountIn('EUR');
+    expect(buttons).toEqual(['Remove and check out']);
+  });
+});

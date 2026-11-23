@@ -9,6 +9,7 @@ platform repository.
 
 ## Unreleased
 
+- **A store's default currency (WS-1399; contract 6.22.0).** `EldraOrganizationCommerce` carries `defaultCurrency`, what pages are built in and a visitor starts in. A store may turn its own currency off: `currency` stays ISK, and `currencies` then leaves it out.
 - **Selling in more than one currency (WS-1391; contracts 6.19.0, 6.20.0, 6.21.0).** `createCurrencyPreference()` keeps the currency a visitor picked (`read`, `remember`, `forget`; `localStorage` `eldra.currency`); `cart.setCurrency(cartId, currency)` changes a cart's currency (`PUT /shopping-cart/v1/cart/{cartID}/currency`); `catalog.getProduct` takes `currency`; `EldraOrganizationCommerce` carries `currencies` (what the storefront may offer, the store currency first); `paymentProviders` on the organisation is typed as `EldraOrganizationPaymentProvider[]`, each with the `currencies` it takes (missing means ISK only).
 - **A 3840 px image variant, `uhd`.** A full-width image on a high-density screen wants about 3840 px, and
   `full` stops at 2560. `imageSrcset` now lists `…/uhd 3840w` after `full`, `imageVariantFor` falls back to

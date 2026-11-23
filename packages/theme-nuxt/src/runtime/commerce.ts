@@ -1,9 +1,9 @@
 import type { EldraFeatureClient, EldraOrganizationCommerce } from '@eldrajs/sdk';
-import { offeredCurrencies } from '@eldrajs/theme-core';
+import { defaultCurrencyOf, offeredCurrencies } from '@eldrajs/theme-core';
 
 /**
  * What the store sells in, as it reaches a theme on `runtimeConfig.public.eldra.commerce`:
- * `{ currency, taxInclusivePricing, defaultTaxRate }`, or `null`.
+ * `{ currency, taxInclusivePricing, defaultTaxRate, currencies?, defaultCurrency? }`, or `null`.
  *
  * Published as `@eldrajs/theme-nuxt/commerce`, so a theme reading that key types it from here
  * instead of hand-writing the record — it is the public contract of a public runtime-config key,
@@ -126,11 +126,16 @@ function toStoreCommerce(
   const { currency, taxInclusivePricing, defaultTaxRate } = value;
   if (typeof currency !== 'string' || currency === '') return null;
   if (typeof taxInclusivePricing !== 'boolean' || typeof defaultTaxRate !== 'number') return null;
-  const currencies = offeredCurrencies(currency, value.currencies);
-  // Left out for a one-currency store, so its runtime config, and every page it is written into, stays as before.
-  return currencies.length > 1
-    ? { currency, taxInclusivePricing, defaultTaxRate, currencies }
-    : { currency, taxInclusivePricing, defaultTaxRate };
+  const defaultCurrency = defaultCurrencyOf({ ...value, currency });
+  const currencies = offeredCurrencies(defaultCurrency, value.currencies);
+  // Each is left out when it says nothing new, so an ISK store's runtime config, and every page it is written into, stays as before.
+  return {
+    currency,
+    taxInclusivePricing,
+    defaultTaxRate,
+    ...(currencies.length > 1 ? { currencies } : {}),
+    ...(defaultCurrency === currency ? {} : { defaultCurrency }),
+  };
 }
 
 function describe(error: unknown): string {
