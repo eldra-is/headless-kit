@@ -10,6 +10,7 @@ import {
   formatUnit,
   localeSeparators,
   parseLocaleNumber,
+  toMinorUnits,
   type UnitFormatOptions,
 } from '../number-format';
 
@@ -805,5 +806,14 @@ describe('number formatting on a runtime without is-IS ICU data', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('toMinorUnits', () => {
+  it("scales by the currency's own decimals", () => {
+    expect(toMinorUnits(2800, 'ISK')).toBe(2800);
+    expect(toMinorUnits(27.9, 'EUR')).toBe(2790);
+    expect(toMinorUnits(1.005, 'KWD')).toBe(1005);
+    expect(toMinorUnits(28.5, undefined)).toBe(2850);
   });
 });

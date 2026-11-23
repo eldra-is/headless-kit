@@ -49,6 +49,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   watch,
   type Component,
@@ -58,6 +59,7 @@ import {
   Container,
   Drawer,
   EditorPlaceholder,
+  CURRENCY_KEY,
   EmptyState,
   Link,
   Price,
@@ -76,6 +78,9 @@ import { useMoney } from '../../app/storefront/money';
 import CartLines from './parts/CartLines.vue';
 import ShippingBar from './parts/ShippingBar.vue';
 import Summary from './parts/Summary.vue';
+import NotSoldNotice from './parts/NotSoldNotice.vue';
+import CheckoutButton from './parts/CheckoutButton.vue';
+import LoadFailed from './parts/LoadFailed.vue';
 
 const props = defineProps<{
   entry: EldraBlockEntry<'cart'>;
@@ -91,7 +96,14 @@ const editing = useEditing();
 const { t } = useI18n();
 /** The cart subtotal is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
-const cart = useStorefront().cart;
+const storefront = useStorefront();
+const cart = storefront.cart;
+// Every price under the cart is in the cart's own currency, which can differ from the store's.
+provide(CURRENCY_KEY, () => cart.currency.value ?? money.currency.value);
+const cartInStoreCurrency = computed(
+  () => cart.currency.value === undefined || cart.currency.value === storefront.currency.base
+);
+const hasNotSold = computed(() => cart.notSold.value.length > 0);
 
 const uid = useUiId();
 const headingId = `cart-title-${uid}`;
@@ -160,11 +172,9 @@ const hasContinueLink = computed(() => emptyLinkHref.value !== null);
 
 const showDiscountField = computed(() => data.value.showDiscountField ?? true);
 const showPaymentIcons = computed(() => data.value.showPaymentIcons ?? true);
-const threshold = computed(() => (data.value.freeShippingThreshold ?? '').trim());
-
-const checkoutHref = computed(() => safeHref(cart.checkoutUrl.value));
-const checkoutAs = computed(() =>
-  checkoutHref.value !== null && isInternalHref(checkoutHref.value) ? EldraRouterLink : undefined
+/** Typed in the store's own currency, so it says nothing about a cart in another. */
+const threshold = computed(() =>
+  cartInStoreCurrency.value ? (data.value.freeShippingThreshold ?? '').trim() : ''
 );
 
 /** The theme's own cart page path — the same one `blocks/navigation/Block.vue` sends the bag to
@@ -241,6 +251,7 @@ const DRAWER_CLASSES = {
     >
       <template v-if="isEmpty">
         <div ref="emptyRoot" class="my-6 px-4">
+          <LoadFailed />
           <EmptyState
             plain
             :icon="ShoppingBagIcon"
@@ -262,6 +273,7 @@ const DRAWER_CLASSES = {
       <template v-else>
         <ShippingBar panel="edge" :threshold="threshold" :subtotal="subtotal" />
         <div class="px-4">
+          <NotSoldNotice v-if="hasNotSold" class="mt-4" />
           <CartLines :lines="lines" @removing="onRemoving" />
         </div>
       </template>
@@ -270,25 +282,23 @@ const DRAWER_CLASSES = {
         <div class="flex items-baseline justify-between gap-4">
           <span class="text-text text-base font-semibold">{{ t('cart.subtotal') }}</span>
           <Price
-            :amount="money.minor(subtotal)"
+            :amount="money.minor(subtotal, cart.currency.value)"
             class="text-text text-base font-semibold tabular-nums"
           />
         </div>
-        <p v-if="note" class="text-muted text-body-sm text-center">{{ note }}</p>
-        <Button
-          v-if="checkoutHref"
-          variant="primary"
-          size="lg"
-          block
-          :href="checkoutHref"
-          :as="checkoutAs"
-          @click="cart.beginCheckout()"
+        <p
+          v-if="cart.notSold.value.length > 0"
+          class="text-muted text-body-sm"
+          data-eldra-not-included
         >
-          <template #leadingIcon>
-            <EldraIcon name="lock" size="sm" />
-          </template>
-          {{ t('cart.checkout') }}
-        </Button>
+          {{
+            cart.notSold.value.length === 1
+              ? t('currency.notIncludedOne')
+              : t('currency.notIncludedMany', { count: cart.notSold.value.length })
+          }}
+        </p>
+        <p v-if="note" class="text-muted text-body-sm text-center">{{ note }}</p>
+        <CheckoutButton />
         <!-- No `@click` close: this is a router link like the line titles beside it, and the app
              shell closes the drawer on the route change (`app/storefront/cart.ts`, `drawerOpen`). -->
         <Button
@@ -327,6 +337,7 @@ const DRAWER_CLASSES = {
       </div>
 
       <div v-if="isEmpty" ref="emptyRoot">
+        <LoadFailed />
         <EmptyState
           :icon="ShoppingBagIcon"
           :heading-level="2"
@@ -350,6 +361,7 @@ const DRAWER_CLASSES = {
       >
         <div class="grid min-w-0 gap-2">
           <ShippingBar panel="card" :threshold="threshold" :subtotal="subtotal" />
+          <NotSoldNotice v-if="hasNotSold" />
           <div
             aria-hidden="true"
             class="border-border text-body-sm text-muted @tablet:grid hidden grid-cols-[6rem_1fr_11rem_6rem] gap-x-4 border-b pt-4 pb-3"

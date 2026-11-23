@@ -181,6 +181,16 @@ export function currencyFractionDigits(currency: string, locale = 'en-US'): numb
   }
 }
 
+/** A major-unit amount (`28.5`) as the minor units `Price` reads, by the currency's own decimals; no currency counts two. */
+export function toMinorUnits(
+  amount: number,
+  currency: string | undefined,
+  locale = 'en-US'
+): number {
+  const digits = currency ? currencyFractionDigits(currency, locale) : 2;
+  return Math.round(amount * 10 ** digits);
+}
+
 /**
  * The options the private library's `formatUnit` takes, mirrored name for name (its own
  * `UnitFormatProps`) so that library can alias this module's function in place of its copy.

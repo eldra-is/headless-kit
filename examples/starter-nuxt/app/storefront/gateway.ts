@@ -7,6 +7,7 @@ import {
 } from '@eldrajs/sdk';
 import { safeHref } from '../utils/links';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
+import { createCurrencyStore, type CurrencyStore } from './currency';
 import { createHistoryStore, createWishlistStore } from './history';
 import {
   localizeFormDefinition,
@@ -14,7 +15,8 @@ import {
   submitFailure,
   toSubmitResult,
 } from './forms';
-import { fromMinorUnits, roundMoney, toMinorUnits } from './money';
+import { toMinorUnits } from '@eldrajs/ui';
+import { fromMinorUnits, roundMoney } from './money';
 import { chunkIds, collectVolatileTargets } from './volatile';
 import { canonicalAvailabilityValues, OPTION_SOURCE_PREFIX } from './facets';
 
@@ -42,6 +44,7 @@ import type {
   StorefrontMedia,
   StorefrontOrder,
   StorefrontOrders,
+  StorefrontPrice,
   StorefrontProduct,
   StorefrontProductListItem,
   StorefrontResult,
@@ -90,6 +93,8 @@ interface RawProductListItem {
   compareAtPrice?: number;
   thumbnail?: RawThumbnail;
   totalVariants: number;
+  currency?: string;
+  soldInCurrency?: boolean;
   /**
    * **Declared, and read when it is there.** The catalogue's product *list* answers no options
    * today — a row carries `totalVariants` and nothing about what the variants differ by — so the
@@ -207,6 +212,8 @@ interface RawProductVariant {
   barcode?: string | null;
   price: number;
   compareAtPrice?: number;
+  currency?: string;
+  soldInCurrency?: boolean;
   status: string;
   media?: RawMediaItem[] | null;
   optionValues?: Array<{
@@ -313,6 +320,7 @@ interface RawCartItem {
   price: number;
   quantity: number;
   thumbnail?: { assetId: string; url: string };
+  soldInCurrency?: boolean;
   optionSnapshots?: Array<{ optionName?: string; optionValueName?: string }> | null;
 }
 
@@ -348,6 +356,7 @@ interface RawOrderLine {
 
 interface RawOrder {
   id: string;
+  currency?: string;
   orderNumber: number;
   status: string;
   createdAt: string;
@@ -404,6 +413,16 @@ function listItemColours(raw: RawProductListItem): StorefrontProductListItem['co
     .map((value) => ({ name: value.name, swatch: value.swatch! }));
 }
 
+function currencyFields(raw: {
+  currency?: string;
+  soldInCurrency?: boolean;
+}): Pick<StorefrontPrice, 'currency' | 'soldInCurrency'> {
+  return {
+    ...(raw.currency ? { currency: raw.currency } : {}),
+    ...(raw.soldInCurrency === false ? { soldInCurrency: false } : {}),
+  };
+}
+
 function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem {
   const colours = listItemColours(raw);
   return {
@@ -415,6 +434,7 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
       amount: raw.minPrice,
       compareAt: raw.compareAtPrice ?? null,
       from: raw.minPrice !== raw.maxPrice,
+      ...currencyFields(raw),
     },
     ...(colours === undefined ? {} : { colours }),
     // A card stays on the product's published status, not on inventory: the availability read is
@@ -506,17 +526,19 @@ function mapProductDetails(
   categories: CategoryIndex | null
 ): StorefrontProduct {
   const variants = raw.variants ?? [];
+  const soldVariants = variants.filter((variant) => variant.soldInCurrency !== false);
+  const priced = soldVariants.length > 0 ? soldVariants : variants;
   // Spec Do/Don't, "Don't pre-select a sold-out variant": the variant the page opens on is the
   // first one a shopper could actually buy, and only when none can does it fall back to the first
   // published one — which is the variant whose sold-out line the shopper then reads.
   const firstAvailable =
-    variants.find((variant) => variantBuyable(variant, stock)) ??
-    variants.find((variant) => variant.status === 'ACTIVE') ??
-    variants[0];
+    priced.find((variant) => variantBuyable(variant, stock)) ??
+    priced.find((variant) => variant.status === 'ACTIVE') ??
+    priced[0];
   /** The variant whose unit count is unambiguously *the* count: there is only one thing to buy. */
   const countableVariant =
     variants.length === 1 || (raw.options ?? []).length === 0 ? firstAvailable : undefined;
-  const prices = variants.map((variant) => variant.price);
+  const prices = priced.map((variant) => variant.price);
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
   const images = (raw.mediaLinks ?? [])
     .slice()
@@ -533,6 +555,7 @@ function mapProductDetails(
     price: {
       amount: firstAvailable?.price ?? minPrice,
       compareAt: firstAvailable?.compareAtPrice ?? null,
+      ...currencyFields(firstAvailable ?? {}),
     },
     // **The merchant's "Display as" choice is what decides the control**, never the option's name.
     // Every option used to map to `pills`, and the only way a theme could have drawn the colour
@@ -550,7 +573,7 @@ function mapProductDetails(
         // would mean a gateway that populates the swatch before it populates the kind silently loses
         // the store's colours.
         ...(value.swatch ? { swatch: value.swatch } : {}),
-        available: variants.some(
+        available: priced.some(
           (variant) =>
             variantBuyable(variant, stock) &&
             (variant.optionValues ?? []).some((ov) => ov.optionValueId === value.id)
@@ -607,6 +630,7 @@ function mapProductDetails(
       barcode: variant.barcode ?? null,
       price: variant.price,
       compareAt: variant.compareAtPrice ?? null,
+      ...currencyFields(variant),
       stock: variantStock(variant, stock),
     })),
     available: raw.status === 'ACTIVE',
@@ -649,6 +673,7 @@ function mapCartLine(raw: RawCartItem): StorefrontCartLine {
     lineTotal: roundMoney(raw.price * raw.quantity),
     image: raw.thumbnail ? { src: raw.thumbnail.url, alt: raw.title } : null,
     max: null,
+    ...(raw.soldInCurrency === false ? { soldInCurrency: false } : {}),
   };
 }
 
@@ -667,6 +692,7 @@ function mapCart(raw: RawCart): CartSnapshot {
   return {
     lines: (raw.items ?? []).map(mapCartLine),
     totals: mapCartTotals(raw.totals, raw.discountCode),
+    ...(raw.currency ? { currency: raw.currency } : {}),
   };
 }
 
@@ -742,6 +768,7 @@ function mapOrder(raw: RawOrder): StorefrontOrder {
       ? [raw.shipping.customer.name, raw.shipping.customer.address, raw.shipping.customer.town]
       : [],
     payment: { brand: '', last4: '' },
+    ...(raw.currency ? { currency: raw.currency } : {}),
   };
 }
 
@@ -897,6 +924,8 @@ interface GatewayResultOptions {
    * for the tick both pages are mounted, the two would fight over one entry.
    */
   locale?: () => string | undefined;
+  /** The currency catalog reads ask for; part of the key and a reason to reload. `undefined`: the store's own. */
+  currency?: Readonly<Ref<string | undefined>>;
   /** Arguments that are not reactive sources but still name a different read (`related`'s limit). */
   keyArgs?: readonly unknown[];
   /** Omitted for a result that is not about products (a collection's own info, an order). */
@@ -982,6 +1011,7 @@ function createGatewayResult<T>(
               ...sources.map((source) => source.value),
               ...(options.keyArgs ?? []),
               ...(options.locale?.() === undefined ? [] : [options.locale()]),
+              ...(options.currency?.value === undefined ? [] : [options.currency.value]),
             ]),
             // The framework owns this read — it is keyed, deduplicated and awaited by the render
             // itself — so it is deliberately given a controller nothing aborts. A watcher-scoped
@@ -1031,7 +1061,10 @@ function createGatewayResult<T>(
     }
   }
 
-  watch(sources, load, { immediate: true, deep: true });
+  watch(options.currency === undefined ? sources : [...sources, options.currency], load, {
+    immediate: true,
+    deep: true,
+  });
 
   const volatile = options.volatile;
   // Only a result whose first load went through the prerender takes part in the volatile refresh.
@@ -1075,7 +1108,17 @@ function createGatewayResult<T>(
  * cart id is browser state (`createCartSession` reads `localStorage`, which the server has none
  * of), so there is no cart to resolve a URL for until the page is in a browser.
  */
-function createGatewayCartOps(client: EldraClient): CartOps {
+function cartGone(caught: unknown): boolean {
+  return (
+    caught instanceof EldraHttpError &&
+    (caught.status === 404 || caught.status === 410 || caught.errorId === 'CART_NOT_FOUND')
+  );
+}
+
+function createGatewayCartOps(
+  client: EldraClient,
+  requestedCurrency: () => string | undefined
+): CartOps {
   const session = createCartSession();
   let cartId = session.read();
   const checkoutUrl = ref<string | null>(null);
@@ -1125,30 +1168,33 @@ function createGatewayCartOps(client: EldraClient): CartOps {
           totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
         };
       try {
-        const raw = (await client.cart.get(cartId)) as unknown as RawCart;
-        return mapCart(raw);
-      } catch {
-        // A remembered cart id the gateway no longer recognises (expired, cleared server-side).
-        session.forget();
-        cartId = null;
-        askedFor = null;
-        checkoutUrl.value = null;
-        return {
-          lines: [],
-          totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
-        };
+        const raw = (await client.cart.get(cartId)) as unknown as RawCart | null;
+        if (raw !== null && typeof raw === 'object' && 'id' in raw) return mapCart(raw);
+      } catch (caught) {
+        // Only a cart the gateway says is gone is forgotten; a timeout or a 5xx keeps the basket.
+        if (!cartGone(caught)) throw caught;
       }
+      session.forget();
+      cartId = null;
+      askedFor = null;
+      checkoutUrl.value = null;
+      return {
+        lines: [],
+        totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+      };
     },
     // `productId` and `variantId` are two different ids and the gateway needs both: its cart
     // service reads the pair together (one lookup of "this variant, of this product") and answers
     // 500 for a pair that does not exist. Sending the variant id as both — which is what this did
     // while a list row's `variantId` was really a product id — made every add fail that way.
     async add({ productId, variantId, quantity }) {
+      const currency = cartId ? undefined : requestedCurrency();
       const raw = (await client.cart.addItem({
         cartId: cartId ?? undefined,
         productId,
         variantId,
         quantity,
+        ...(currency === undefined ? {} : { currency }),
       })) as unknown as RawCart;
       remember(raw.id);
       return mapCart(raw);
@@ -1159,6 +1205,10 @@ function createGatewayCartOps(client: EldraClient): CartOps {
         quantity,
       })) as unknown as RawCart;
       return mapCart(raw);
+    },
+    async setCurrency(code) {
+      if (!cartId) throw new Error('No cart to update yet.');
+      return mapCart((await client.cart.setCurrency(cartId, code)) as unknown as RawCart);
     },
     async remove(lineId) {
       if (!cartId) throw new Error('No cart to update yet.');
@@ -1363,6 +1413,15 @@ function scopeCategoryIds(
 }
 
 /** `"<min>-<max>"` in whole major units → one bound in minor units, or nothing to send. */
+/** The catalog filters prices in the store's own currency only, so another currency sends no price filter. */
+function withoutPrice(
+  filters: Record<string, string[]> | undefined
+): Record<string, string[]> | undefined {
+  if (filters?.price === undefined) return filters;
+  const { price: _price, ...rest } = filters;
+  return rest;
+}
+
 function priceParam(raw: string | undefined, currency: string | undefined): number | undefined {
   if (raw === undefined || raw === '') return undefined;
   const amount = Number(raw);
@@ -1948,6 +2007,33 @@ export interface GatewayStorefrontOptions {
   locale?: () => string | undefined;
 }
 
+/** `options` with `name` set to `value`, unless the caller set it or there is no value. */
+function withReadParam<T extends object | undefined>(
+  options: T,
+  name: string,
+  value: string | undefined
+): T {
+  return (value === undefined ? options : { [name]: value, ...(options ?? {}) }) as T;
+}
+
+/** Every catalog read that answers prices asks for them in the visitor's currency (`currency`). */
+function withCurrency(client: EldraClient, currency: () => string | undefined): EldraClient {
+  const q = <T extends object | undefined>(options: T): T =>
+    withReadParam(options, 'currency', currency());
+  const catalog = client.catalog;
+  return {
+    ...client,
+    catalog: {
+      ...catalog,
+      listProducts: (options, context) => catalog.listProducts(q(options), context),
+      getProduct: (productId, options, context) =>
+        catalog.getProduct(productId, q(options), context),
+      listCollectionProducts: (slug, options, context) =>
+        catalog.listCollectionProducts(slug, q(options), context),
+    },
+  };
+}
+
 /**
  * The same client, with the active content locale on every read whose answer is **text a merchant
  * wrote**: products, collections, categories, search, an order's line titles.
@@ -1961,10 +2047,8 @@ export interface GatewayStorefrontOptions {
  * `inventory` is deliberately untouched: stock counts carry no language.
  */
 function withContentLocale(client: EldraClient, locale: () => string | undefined): EldraClient {
-  const q = <T extends object | undefined>(options: T): T => {
-    const value = locale();
-    return (value === undefined ? options : { locale: value, ...(options ?? {}) }) as T;
-  };
+  const q = <T extends object | undefined>(options: T): T =>
+    withReadParam(options, 'locale', locale());
   const catalog = client.catalog;
   const orders = client.orders;
   return {
@@ -1996,7 +2080,19 @@ export function createGatewayStorefront(
   const locale = options.locale;
   // Every read below — and every module-level helper it hands this client to — carries the page's
   // content locale. See `withContentLocale`.
-  const client = locale === undefined ? rawClient : withContentLocale(rawClient, locale);
+  // The cart and the catalog ask for the currency the store they help build will show.
+  const built: { currency?: CurrencyStore } = {};
+  const requestedNow = (): string | undefined => built.currency?.requested.value;
+  const client = withCurrency(
+    locale === undefined ? rawClient : withContentLocale(rawClient, locale),
+    requestedNow
+  );
+  const following = createCurrencyStore(
+    options.commerce ?? null,
+    createCartStore(createGatewayCartOps(client, requestedNow))
+  );
+  built.currency = following.currency;
+  const requested = following.currency.requested;
   // What the store sells in, which is the scale every price parameter and the facets' own span are
   // expressed in (`CatalogFilterQuery`, `mapFacets`). `undefined` for a store that published none —
   // the same answer `<Price>` renders a plain number for, and the same two-decimal fallback.
@@ -2096,7 +2192,7 @@ export function createGatewayStorefront(
         // and — with `facets=true` — the counts the panel draws its groups from, over the whole
         // scope rather than the rows this read could reach.
         const filterQuery = await catalogFilterQuery(
-          filters,
+          requested.value === undefined ? filters : withoutPrice(filters),
           currency,
           categoriesOnce,
           scope.collectionIdsFor
@@ -2132,7 +2228,11 @@ export function createGatewayStorefront(
         // filter such a gateway cannot honour, and the panel keeps that family flat instead (see
         // `parts/groups.ts`'s `rawValuesFor`). The only thing the category read is spent on is a
         // `category` *filter*'s slug→id lookup and a product's breadcrumb trail.
-        const facets = mapFacets(raw.facets, currency);
+        const mapped = mapFacets(raw.facets, currency);
+        const facets =
+          mapped === undefined || requested.value === undefined
+            ? mapped
+            : { ...mapped, price: undefined };
         return {
           items: (raw.data ?? []).map(mapProductListItem),
           total: raw.meta.total,
@@ -2141,7 +2241,7 @@ export function createGatewayStorefront(
           ...(facets === undefined ? {} : { facets }),
         };
       },
-      { method: scope.method, runtime, locale, volatile: 'batch' }
+      { method: scope.method, runtime, locale, currency: requested, volatile: 'batch' }
     );
 
   const catalog: StorefrontCatalog = {
@@ -2170,6 +2270,7 @@ export function createGatewayStorefront(
           method: 'catalog.product',
           runtime,
           locale,
+          currency: requested,
           volatile: (current) => detailSnapshots(client, handle.value, current),
         }
       ),
@@ -2237,7 +2338,14 @@ export function createGatewayStorefront(
       createGatewayResult(
         [handle],
         (signal) => relatedProducts(client, handle.value, limit, signal),
-        { method: 'catalog.related', runtime, locale, keyArgs: [limit], volatile: 'batch' }
+        {
+          method: 'catalog.related',
+          runtime,
+          locale,
+          currency: requested,
+          keyArgs: [limit],
+          volatile: 'batch',
+        }
       ),
     byHandles: (handles) =>
       createGatewayResult(
@@ -2251,7 +2359,7 @@ export function createGatewayStorefront(
           )) as unknown as RawProductList;
           return (raw.data ?? []).map(mapProductListItem);
         },
-        { method: 'catalog.byHandles', runtime, locale, volatile: 'batch' }
+        { method: 'catalog.byHandles', runtime, locale, currency: requested, volatile: 'batch' }
       ),
     volatileByIds: (ids) => volatileSnapshots(client, ids),
     notifyBackInStock: (input) =>
@@ -2281,7 +2389,7 @@ export function createGatewayStorefront(
           // both from the catalogue before this result is published. See its own comment.
           return await enrichedSearchResponse(client, mapSearchResponse(raw, query.value), signal);
         },
-        { method: 'search.run', runtime, locale }
+        { method: 'search.run', runtime, locale, currency: requested }
       ),
   };
 
@@ -2372,7 +2480,8 @@ export function createGatewayStorefront(
     commerce: options.commerce ?? null,
     route: options.route,
     catalog,
-    cart: createCartStore(createGatewayCartOps(client)),
+    cart: following.cart,
+    currency: following.currency,
     search,
     orders,
     forms,

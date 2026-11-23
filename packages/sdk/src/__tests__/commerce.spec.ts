@@ -69,6 +69,18 @@ describe('eldra sdk cart', () => {
     expect(requests[1].url).toBe(requests[0].url);
   });
 
+  it("changes the cart's currency on the currency path", async () => {
+    const { client, requests } = recording({ id: 'cart-1', currency: 'EUR' });
+
+    await client.cart.setCurrency('cart-1', 'EUR');
+
+    expect(requests[0].method).toBe('PUT');
+    expect(requests[0].url).toBe(
+      'https://api.example.test/api/shopping-cart/v1/cart/cart-1/currency'
+    );
+    expect(await bodyOf(requests[0])).toEqual({ currency: 'EUR' });
+  });
+
   it('treats the returned cart as the verdict on a discount code', async () => {
     const accepted = recording({ id: 'cart-1', discountCode: 'SUMMER10' });
     const rejected = recording({ id: 'cart-1' });

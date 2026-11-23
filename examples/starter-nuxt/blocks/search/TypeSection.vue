@@ -13,6 +13,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
+import { useStorefront } from '../../app/composables/useStorefront';
 import type { StorefrontSearchProduct, StorefrontSearchResponse } from '../../app/storefront/types';
 
 type ResultTypeId = 'products' | 'journal' | 'pages';
@@ -52,8 +53,13 @@ const props = defineProps<{
 
 /** See the `products` prop: sanitised, unusable rows dropped, `internal` per card. */
 const money = useMoney();
+const shopperCurrency = useStorefront().currency.active;
 const productCards = computed(() =>
-  toProductCardEntries(props.products, { ratio: '4x5', minorUnits: money.minor })
+  toProductCardEntries(props.products, {
+    ratio: '4x5',
+    minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
+  })
 );
 
 /** The journal rows that have a usable link, with the sanitised href and whether it routes. */
@@ -97,7 +103,7 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
         ratio="4x5"
         :heading-level="3"
         :link-as="entry.internal ? EldraRouterLink : undefined"
-        :currency="currency"
+        :currency="entry.currency ?? currency"
         :locale="locale"
       />
     </div>

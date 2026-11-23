@@ -124,4 +124,22 @@ describe('readStoreCommerce', () => {
       expect(warn.mock.calls[0]?.[0]).toContain('incomplete commerce record');
     }
   });
+
+  it('passes on the currencies a store offers, the store currency first', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['EUR', 'ISK', 'CHF'] })),
+        vi.fn()
+      )
+    ).resolves.toEqual({ ...ISK, currencies: ['ISK', 'EUR'] });
+  });
+
+  it('leaves currencies out for a one-currency store, so its config is unchanged', async () => {
+    await expect(
+      readStoreCommerce(
+        reader(async () => ({ ...ISK, currencies: ['ISK'] })),
+        vi.fn()
+      )
+    ).resolves.toEqual(ISK);
+  });
 });

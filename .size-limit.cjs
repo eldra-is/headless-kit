@@ -42,8 +42,8 @@ module.exports = [
     // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
     // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget: 5.5 kB. With the
     // B2B work on top (business login: OIDC with PKCE, `customerHeaders`; the sales-order calls and
-    // `isEldraError`) it measures 6.49 kB.
-    limit: '6.55 kB',
+    // `isEldraError`) it measures 6.49 kB. `cart.setCurrency` (WS-1391) takes it to 6.56 kB.
+    limit: '6.6 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',

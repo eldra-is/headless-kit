@@ -163,7 +163,8 @@ const {
   refreshing,
 } = useRevalidating({
   keys: () => productResult.revalidating.value,
-  refreshing: () => productResult.loading.value && product.value !== null,
+  refreshing: () =>
+    (productResult.loading.value && product.value !== null) || storefront.currency.pending.value,
 });
 
 /**
@@ -257,8 +258,16 @@ const showRating = computed(
 const money = useMoney();
 
 const formattedPrice = computed(() =>
-  product.value === null ? '' : money.format(product.value.price.amount)
+  product.value === null
+    ? ''
+    : money.format(product.value.price.amount, product.value.price.currency)
 );
+
+/** No price in the visitor's currency: shown, but not for sale until they shop in the store's own. */
+const notSold = computed(() => product.value?.price.soldInCurrency === false);
+const shopperCurrency = computed(() => storefront.currency.active.value ?? '');
+const baseCurrency = computed(() => storefront.currency.base ?? '');
+const cartWillSwitch = computed(() => notSold.value && storefront.cart.lines.value.length > 0);
 
 /** Spec States, Sale row: 'The saving badge ("Save $32") is calculated from the two prices, never
  *  typed in.' Only a real sale counts — a `compareAt` at or below the current price is ignored, the
@@ -268,7 +277,7 @@ const saving = computed<string | null>(() => {
   if (price === undefined) return null;
   const compareAt = price.compareAt ?? null;
   if (compareAt === null || compareAt <= price.amount) return null;
-  return money.format(roundMoney(compareAt - price.amount));
+  return money.format(roundMoney(compareAt - price.amount), price.currency);
 });
 const onSale = computed(() => saving.value !== null);
 
@@ -413,9 +422,12 @@ watch(
  * It costs nothing: before mount there is no cart request a visitor could have started, so the
  * gated value and the real one only ever differ on the render that must not use the real one.
  */
-const cartBusy = computed(() => mounted.value && storefront.cart.pending.value);
+const cartBusy = computed(
+  () => mounted.value && (storefront.cart.pending.value || storefront.currency.pending.value)
+);
 
 const addToCartLabel = computed(() => {
+  if (notSold.value) return t('currency.shopIn', { currency: baseCurrency.value });
   if (soldOut.value) return t('product.notifyMe');
   if (isBackorder.value) return t('product.backorder');
   return t('product.addToCart', { price: formattedPrice.value });
@@ -501,6 +513,11 @@ watch(
  * refusal for stock flips its own stock line to sold out.
  */
 async function primaryAction(): Promise<void> {
+  if (notSold.value) {
+    storefront.currency.chooseBase();
+    return;
+  }
+  if (storefront.currency.pending.value) return;
   if (soldOut.value) {
     notifyOpen.value = true;
     return;
@@ -651,15 +668,22 @@ function tabValue(index: number): string {
             <h1 :id="titleId" :class="TITLE_CLASS">{{ product.title }}</h1>
 
             <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p v-if="notSold" class="text-text" data-eldra-not-sold>
+                {{ t('currency.notSoldInLong', { currency: shopperCurrency }) }}
+              </p>
               <Price
-                :amount="money.minor(product.price.amount)"
+                v-else
+                :amount="money.minor(product.price.amount, product.price.currency)"
                 :compare-at="
-                  product.price.compareAt == null ? null : money.minor(product.price.compareAt)
+                  product.price.compareAt == null
+                    ? null
+                    : money.minor(product.price.compareAt, product.price.currency)
                 "
+                :currency="product.price.currency"
                 :revalidating="priceRevalidating"
               />
               <Badge
-                v-if="saving"
+                v-if="saving && !notSold"
                 variant="sale"
                 :label="t('product.saving', { amount: saving })"
               />
@@ -734,7 +758,7 @@ function tabValue(index: number): string {
             </p>
 
             <FieldWrapper
-              v-if="showQuantity && !soldOut"
+              v-if="showQuantity && !soldOut && !notSold"
               :label="t('product.quantity')"
               class="gap-2"
             >
@@ -777,6 +801,9 @@ function tabValue(index: number): string {
                 </template>
               </Button>
             </div>
+            <p v-if="cartWillSwitch" class="text-muted text-body-sm -mt-2">
+              {{ t('currency.cartWillSwitch', { currency: baseCurrency }) }}
+            </p>
           </form>
 
           <ul
@@ -822,7 +849,7 @@ function tabValue(index: number): string {
       </div>
 
       <StickyBuyBar
-        v-if="stickyBarEnabled"
+        v-if="stickyBarEnabled && !notSold"
         :target="addToCartTarget"
         :title="product.title"
         :meta="

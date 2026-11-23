@@ -1154,6 +1154,19 @@ describe('collection-grid block', () => {
       expect(thumbs[0]!.attributes('aria-label')).toBe(`Minimum ${PRICE_LEGEND}`);
     });
 
+    it('offers no price filter while the visitor shops in another currency', async () => {
+      const { source } = createStub();
+      source.currency.offered.value = ['USD', 'EUR'];
+      source.currency.started.value = true;
+      source.currency.choose('EUR');
+      const wrapper = mountGrid(mock, { source });
+      await flushPromises();
+      expect(wrapper.findAll('[role="slider"]')).toHaveLength(0);
+      source.currency.choose('USD');
+      await flushPromises();
+      expect(wrapper.findAll('[role="slider"]').length).toBeGreaterThan(0);
+    });
+
     /** `priceSlider` off: the two typed fields alone, which is what a store whose prices sit in a
      *  few tight clusters sets (spec Fields). */
     it('falls back to the two fields when the author turns the slider off', async () => {

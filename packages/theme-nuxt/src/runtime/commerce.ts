@@ -1,4 +1,5 @@
 import type { EldraFeatureClient, EldraOrganizationCommerce } from '@eldrajs/sdk';
+import { offeredCurrencies } from '@eldrajs/theme-core';
 
 /**
  * What the store sells in, as it reaches a theme on `runtimeConfig.public.eldra.commerce`:
@@ -125,7 +126,11 @@ function toStoreCommerce(
   const { currency, taxInclusivePricing, defaultTaxRate } = value;
   if (typeof currency !== 'string' || currency === '') return null;
   if (typeof taxInclusivePricing !== 'boolean' || typeof defaultTaxRate !== 'number') return null;
-  return { currency, taxInclusivePricing, defaultTaxRate };
+  const currencies = offeredCurrencies(currency, value.currencies);
+  // Left out for a one-currency store, so its runtime config, and every page it is written into, stays as before.
+  return currencies.length > 1
+    ? { currency, taxInclusivePricing, defaultTaxRate, currencies }
+    : { currency, taxInclusivePricing, defaultTaxRate };
 }
 
 function describe(error: unknown): string {

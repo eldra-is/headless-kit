@@ -1046,6 +1046,58 @@ describe('product-detail block', () => {
     expect(storefront.cart.lines.value[0]!.quantity).toBe(2);
   });
 
+  it('offers the store currency in place of adding a product with no price in the chosen one', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    storefront.currency.started.value = true;
+    storefront.currency.choose('EUR');
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(wrapper.get('[data-eldra-not-sold]').text()).toBe('Not available in EUR.');
+    expect(addToCart(wrapper).attributes('disabled')).toBeUndefined();
+    expect(addToCart(wrapper).text()).toBe('Shop in USD');
+    expect(wrapper.find('[data-part="quantity"]').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.cart.lines.value).toHaveLength(0);
+    expect(storefront.currency.active.value).toBe('USD');
+  });
+
+  it('says the cart will switch when there is one', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    storefront.currency.started.value = true;
+    storefront.currency.choose('EUR');
+    await storefront.cart.add({ productId: 'p', variantId: 'v', quantity: 1 });
+    const wrapper = await mountReady(mock, { storefront });
+    expect(wrapper.text()).toContain('Your cart will switch to USD.');
+  });
+
+  it("holds Add to cart while the visitor's currency is still being applied", async () => {
+    const storefront = storefrontWith();
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    const wrapper = await mountReady(mock, { storefront });
+    expect(storefront.currency.pending.value).toBe(true);
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.cart.lines.value).toHaveLength(0);
+    expect(addToCart(wrapper).attributes('aria-busy')).toBe('true');
+  });
+
+  it('formats the price in the currency it carries', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 19.9, compareAt: null, currency: 'EUR' },
+    });
+    const wrapper = await mountReady(mock, { storefront });
+    expect(addToCart(wrapper).text()).toContain('€19.90');
+  });
+
   it('toggles the wishlist button aria-pressed', async () => {
     const wrapper = await mountReady(mock);
     const button = wrapper.get('button[aria-pressed]');

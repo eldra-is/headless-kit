@@ -282,3 +282,14 @@ describe('chunkIds', () => {
     expect(VOLATILE_CHUNK_SIZE).toBe(50);
   });
 });
+
+describe('applyVolatileSnapshots across currencies', () => {
+  it('takes a price in another currency whole, so an amount never keeps the old currency', () => {
+    const card = listItem({ price: { amount: 2900, compareAt: null, from: true } });
+    const [next] = applyVolatileSnapshots(
+      [card],
+      [snapshot({ price: { amount: 19.9, compareAt: null, currency: 'EUR' } })]
+    );
+    expect(next!.price).toEqual({ amount: 19.9, compareAt: null, currency: 'EUR' });
+  });
+});

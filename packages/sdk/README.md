@@ -276,5 +276,5 @@ Every failed request throws `EldraHttpError` with `status`, the problem's catego
 that says more carries it in `errors`, the problem's `errors` object: a discount code refused with
 `CART_DISCOUNT_NOT_COMBINABLE` names the code on the cart that blocks it in `errors.blockingCode`,
 and `CART_DISCOUNT_CODES_LIMIT_REACHED` the limit (6) in `errors.limit`.
-`createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without
-throwing where storage is unavailable.
+`createCartSession`, `createCurrencyPreference` and `createOrderAccessTokens` persist the cart id,
+the visitor's chosen currency and order tokens without throwing where storage is unavailable.

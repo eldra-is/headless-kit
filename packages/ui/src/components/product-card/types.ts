@@ -52,6 +52,8 @@ export interface ProductCardProduct {
    * media at 60% opacity, an outline "Sold out" badge, and quick add replaced by a disabled
    * "Sold out" button. Omitted/`true` is the ordinary available state. */
   available?: boolean;
+  /** A currency code: the product has no price in it. Replaces the price with a line saying so and turns quick add off. */
+  notSoldIn?: string | null;
 }
 
 /** The parts a consumer can restyle through `classes`, named as the spec's anatomy names them,
@@ -64,6 +66,7 @@ export type ProductCardPart =
   | 'title'
   | 'link'
   | 'price'
+  | 'notSold'
   | 'rating'
   | 'stockLine'
   | 'swatches'
