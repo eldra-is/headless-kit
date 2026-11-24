@@ -244,9 +244,10 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
   is asserted to have none of them. The stand-in router injects the same early hide the router does. Not
   compared: Nuxt's hydration-state scripts (the pinned build's payload is the older content by
   construction, and every build has its own build id) and comments (Vue's fragment anchors). A
-  `style` attribute is compared as the browser holds it (`style.cssText`), and the head's
-  `modulepreload` hints as a set: their order is the order the prerender's async render collected
-  the chunks in, which differs between any two builds of the same content. In the async data, an
+  `style` attribute is compared as the browser holds it (`style.cssText`), and the head's chunk
+  hints (a `modulepreload` for each chunk the page renders, a `prefetch` for each block chunk it does
+  not) as a set: their order is the order the prerender's async render collected the chunks in,
+  which differs between any two builds of the same content. In the async data, an
   entry's `publishedAt` and `updatedAt` and a media item's `linkId` are not compared: they are the
   draft's own (Publish sets the times; each owner has its own asset link row), and the identical DOM
   shows the starter renders none of them. An entry's `status` is not among them: the public read
@@ -255,16 +256,14 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
   Both pages are captured on the same condition, so a slow machine cannot capture one early: the
   app has hydrated, no async data read is in flight, the network is idle, and the whole document has
   not changed for 750 ms. And the comparison holds only if a build is a function of its content:
-  Nuxt shares `useAsyncData` answers between the routes of one prerender, and a read that failed
-  left later routes an empty answer where earlier ones baked the error, depending on the order the
-  routes rendered in (on a busy machine, one build's footer form definition was an error and the
-  other's an empty answer). `@eldrajs/theme-nuxt` reads a failed key again on every route that asks
-  (`src/runtime/prerenderSharedData.ts`), so every route bakes its own failure. Where the build
-  shares prerender data and Nuxt hands a page no shared cache of the shape that plugin wraps (a
-  Nuxt release that moved it), the build logs one warning and goes on unguarded; the plugin's tests
-  run it against the installed Nuxt's own cache module, so such a release fails the kit's tests
-  first. The session's document is also written out in the frame its veil first drops, by the
-  same serialiser as every capture (shadow roots walked, the session's additions left out), and
+  Nuxt shares `useAsyncData` answers between the routes of one prerender, and before Nuxt 4.7.0 a
+  read that failed left later routes an empty answer where earlier ones baked the error, depending
+  on the order the routes rendered in (on a busy machine, one build's footer form definition was an
+  error and the other's an empty answer; nuxt/nuxt#37241). `@eldrajs/theme-nuxt` therefore needs
+  Nuxt 4.7.0 or later, where every route after a failed read reads it again and bakes its own
+  failure; its tests run the installed Nuxt's own shared cache, so a Nuxt that brings the bug back
+  fails the kit's tests first. The session's document is also written out in the frame its veil
+  first drops, by the same serialiser as every capture (shadow roots walked, the session's additions left out), and
   must equal its settled document: nothing the merchant sees changes after the veil
   (the one exception is the `/focus-mid` header below).
 
@@ -329,12 +328,17 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
     | a block's type changed (a new block in its place)           | yes       | the new block                                                    |
     | a page that exists only as a draft, opened directly         | no        | none: the whole page is built in the browser, in prerender order |
 
-    An added block's chunk also arrives late (its `modulepreload` added at the end of the head, as an
-    absolute URL), and a removed one's stays behind from the pinned page.
+    The chunk hints name the same chunks, but an edited block's can differ in kind. A block type the
+    pinned page did not render is preloaded on the live page and stays prefetched in the session (the
+    pinned page already names every block chunk, so Vite adds no hint of its own). A removed block's chunk stays
+    preloaded from the pinned page, where the live page prefetches it. Either way the chunk is
+    loaded and nothing rendered differs.
 
   - A page that exists only as a draft, opened directly, hydrates the pinned build's not-found
-    document: its head's payload preload is that document's (`/404/_payload.json`), and the session
-    also holds that document's route data.
+    document: its head's payload preload is that document's (`/404/_payload.json`), the session
+    also holds that document's route data, and a head tag that document did not have (the
+    breadcrumb list) is added after Nuxt's `<template data-nuxt-prefetch>`, which the live page's
+    server render puts last.
   - The session re-runs every async data entry the server filled, commerce reads included, so it
     asks the catalog again where the live page answers from its payload (same answer, one more
     request; the spec allows exactly those requests per page).

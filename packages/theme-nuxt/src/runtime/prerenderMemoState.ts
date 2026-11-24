@@ -1,3 +1,7 @@
+// `import.meta.server` and `import.meta.prerender` are typed by Nuxt's app augments; nitropack 2.14
+// (Nuxt 4.7.0) stopped declaring them globally. Type-only: nothing is imported at run time.
+import type {} from 'nuxt/app';
+
 /**
  * The memo's state and its test seam. Internal: **not** in the package `exports`, so a theme cannot
  * switch the memo on in an SSR deployment (which would serve stale lists across requests). Specs

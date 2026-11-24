@@ -9,6 +9,18 @@ allowBuilds:
 # Supply-chain guards: resolve no version younger than a day, and refuse a version
 # published with weaker provenance than an earlier one of the same package.
 minimumReleaseAge: 1440
+# Nuxt 4.7.0 and the packages it was released with, published 2026-11-23, let in early for its
+# shared-prerender fix (nuxt/nuxt#37241). Exact versions only; remove this list once they are a
+# day old (from 2026-11-25), as it then changes nothing.
+minimumReleaseAgeExclude:
+  - 'nuxt@4.7.0'
+  - '@nuxt/kit@4.7.0'
+  - '@nuxt/schema@4.7.0'
+  - '@nuxt/nitro-server@4.7.0'
+  - '@nuxt/nitro-v3-server@4.7.0'
+  - '@nuxt/vite-builder@4.7.0'
+  - '@nuxt/vite-server@4.7.0'
+  - 'nitropack@2.14.0' # the Nitro release Nuxt 4.7.0 requires
 trustPolicy: no-downgrade
 # Backports to an older major, published by hand after the newer major had provenance;
 # exact versions only, so any other release of these packages is still checked.

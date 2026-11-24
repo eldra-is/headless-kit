@@ -193,7 +193,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@eldrajs/theme-nuxt',
     configKey: 'eldra',
-    compatibility: { nuxt: '>=3.13.0' },
+    compatibility: { nuxt: '>=4.7.0' },
   },
   defaults: {
     gatewayUrl: process.env.ELDRA_GATEWAY_URL ?? '',
@@ -303,10 +303,6 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     // A draft preview session's route: before Nuxt's router reads the payload's path.
     addPlugin({ src: resolver.resolve('./runtime/previewSessionRoute'), mode: 'client' });
-    // A failed read shared between prerendered pages (WS-1358): only where Nuxt shares them.
-    if (nuxt.options.experimental.sharedPrerenderData !== false) {
-      addPlugin({ src: resolver.resolve('./runtime/prerenderSharedData'), mode: 'server' });
-    }
     addPlugin(resolver.resolve('./runtime/plugin'));
     addServerHandler({
       route: VISITOR_COUNTRY_PATH,

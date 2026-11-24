@@ -52,14 +52,15 @@ Release-please writes the generated notes from commit messages and does not repl
   the banner and the fallback notice set `visibility: visible`, so they show under the hide.
   Outside a session nothing changes.
 
-- **A failed read is no longer shared between the pages of a prerender (WS-1358).** Nuxt shares
-  `useAsyncData` answers between the routes of one `nuxi generate`; a read that failed left every
-  route rendered after it an empty answer (`null`) where the routes rendered before or alongside it
-  baked the error, so the same content built different pages depending on the order the routes
-  were rendered in. A server plugin now has each later route read a failed key again, and every
-  route bakes its own failure; a read that succeeded is shared as before. Prerender only, and only
-  with `experimental.sharedPrerenderData` on; a page Nuxt gives no cache of the expected shape logs
-  one warning per build (naming the plugin and the Nuxt version) and is built unguarded.
+- **Needs Nuxt 4.7.0 or later (WS-1358).** Nuxt shares `useAsyncData` answers between the
+  routes of one `nuxi generate`; before 4.7.0 a read that failed left every route rendered after it
+  an empty answer (`null`) where the routes rendered before or alongside it baked the error, so the
+  same content built different pages depending on route order (nuxt/nuxt#37241). Nuxt 4.7.0 reads
+  a failed key again on each later route. **Breaking:** the module declares `nuxt: '>=4.7.0'` and
+  Nuxt does not run it on an older Nuxt (the build logs "Module `@eldrajs/theme-nuxt` is disabled
+  due to incompatibility issues", and fails with `experimental.enforceModuleCompatibility`), so
+  upgrade Nuxt with the kit; `nuxt >=4.7.0` is also a peer dependency, so the package manager warns
+  at install.
 
 - **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
   render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);

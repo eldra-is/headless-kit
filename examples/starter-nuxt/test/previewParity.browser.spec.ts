@@ -423,18 +423,22 @@ function serialise(page: Page): Promise<string[]> {
 }
 
 /**
- * The head's `modulepreload` hints, compared as a set: their order is the order the prerender's
- * async render happened to collect each chunk in, which differs between any two builds of the same
- * content (two Publish builds included), not something a session does. Moved to the end, sorted.
+ * The head's chunk hints, compared as a set: a `modulepreload` for each chunk the page renders and
+ * (Nuxt 4.7) a `prefetch` for each block chunk it does not. Their order is the order the
+ * prerender's async render happened to collect each chunk in, which differs between any two builds
+ * of the same content (two Publish builds included), not something a session does. Moved to the
+ * end, sorted.
  */
-const PRELOADS = '(modulepreload hints, as a set)';
+const PRELOADS = '(chunk hints, as a set)';
+const chunkHint = (line: string): boolean =>
+  line.includes('rel="modulepreload"') ||
+  (line.includes('rel="prefetch"') && /href="[^"]*\/_nuxt\/[^"]+\.js"/.test(line));
 function preloadsAsASet(lines: readonly string[]): string[] {
-  const preload = (line: string): boolean => line.includes('rel="modulepreload"');
   return [
-    ...lines.filter((line) => !preload(line)),
+    ...lines.filter((line) => !chunkHint(line)),
     PRELOADS,
     ...lines
-      .filter(preload)
+      .filter(chunkHint)
       .map((line) => line.trim())
       .sort(),
   ];
@@ -713,20 +717,33 @@ function bodyOf(dom: readonly string[]): string[] {
 }
 
 /**
- * The chunk hints, by path: the session's runtime adds one for a chunk the pinned page never loaded
- * as an absolute URL on its own origin (`late`).
+ * The chunk hints, by path and kind. A chunk the page renders is preloaded; one it does not is
+ * prefetched. A session's runtime that loads a chunk no link names yet adds a `modulepreload` as an
+ * absolute URL on its own origin (`late`); one the pinned page already prefetched keeps that link.
  */
-function hintsOf(dom: readonly string[]): { paths: string[]; late: string[] } {
+function hintsOf(dom: readonly string[]): {
+  paths: string[];
+  preloaded: string[];
+  prefetched: string[];
+  late: string[];
+} {
   const late: string[] = [];
-  const paths = dom.slice(dom.indexOf(PRELOADS) + 1).map((line) => {
-    const href = line.match(/href="([^"]+)"/)?.[1] ?? line;
+  const preloaded = new Set<string>();
+  const prefetched = new Set<string>();
+  for (const line of dom.slice(dom.indexOf(PRELOADS) + 1)) {
+    let href = line.match(/href="([^"]+)"/)?.[1] ?? line;
     if (router !== undefined && href.startsWith(router.origin)) {
-      late.push(href.slice(router.origin.length));
-      return href.slice(router.origin.length);
+      href = href.slice(router.origin.length);
+      late.push(href);
     }
-    return href;
-  });
-  return { paths: [...new Set(paths)].sort(), late };
+    (line.includes('rel="modulepreload"') ? preloaded : prefetched).add(href);
+  }
+  return {
+    paths: [...new Set([...preloaded, ...prefetched])].sort(),
+    preloaded: [...preloaded].sort(),
+    prefetched: [...prefetched].filter((path) => !preloaded.has(path)).sort(),
+    late,
+  };
 }
 
 /**
@@ -745,8 +762,10 @@ const EDIT_EXPECTATIONS: Record<
     renumbers: boolean;
     blocks: string[];
     ids: Record<string, string>;
-    lateChunk: boolean;
-    staleChunk: boolean;
+    /** How many chunks the live page preloads and the session only prefetches (needed late). */
+    lateChunks: number;
+    /** How many chunks the session still preloads and the live page only prefetches (stale). */
+    staleChunks: number;
     /** The session hydrated the pinned build's not-found document (a page only the draft has). */
     notFoundDocument?: true;
   }
@@ -756,44 +775,44 @@ const EDIT_EXPECTATIONS: Record<
     renumbers: true,
     blocks: ['quote', 'tabs', 'faq'],
     ids: { 'v-0-1-0': 'v-0-3-0', 'v-0-2-0': 'v-0-1-0', 'v-0-2-1': 'v-0-1-1', 'v-0-3-0': 'v-0-2-0' },
-    lateChunk: true,
-    staleChunk: false,
+    lateChunks: 1,
+    staleChunks: 0,
   },
   // A block removed: every block after it.
   'edit-remove': {
     renumbers: true,
     blocks: ['tabs', 'faq'],
     ids: { 'v-0-1-0': 'v-0-2-0', 'v-0-1-1': 'v-0-2-1', 'v-0-2-0': 'v-0-3-0' },
-    lateChunk: false,
-    staleChunk: true,
+    lateChunks: 0,
+    staleChunks: 1,
   },
   // Two blocks swapped: both.
   'edit-reorder': {
     renumbers: true,
     blocks: ['faq', 'tabs'],
     ids: { 'v-0-1-0': 'v-0-2-0', 'v-0-2-0': 'v-0-1-0', 'v-0-2-1': 'v-0-1-1' },
-    lateChunk: false,
-    staleChunk: false,
+    lateChunks: 0,
+    staleChunks: 0,
   },
   // A block replaced by one of another type: the new block only.
   'edit-type': {
     renumbers: true,
     blocks: ['cta'],
     ids: { 'v-0-1-0': 'v-0-3-0' },
-    lateChunk: true,
-    staleChunk: true,
+    lateChunks: 1,
+    staleChunks: 1,
   },
   // An item added inside a list block: its ids are the block's own, numbered by index.
-  'edit-faq-item': { renumbers: false, blocks: [], ids: {}, lateChunk: false, staleChunk: false },
-  'edit-tab-item': { renumbers: false, blocks: [], ids: {}, lateChunk: false, staleChunk: false },
+  'edit-faq-item': { renumbers: false, blocks: [], ids: {}, lateChunks: 0, staleChunks: 0 },
+  'edit-tab-item': { renumbers: false, blocks: [], ids: {}, lateChunks: 0, staleChunks: 0 },
   // A page only the draft has: the session hydrates the not-found document, then builds the whole
   // page in the browser — in the order a prerender would, so nothing is renumbered.
   'draft-only': {
     renumbers: false,
     blocks: [],
     ids: {},
-    lateChunk: true,
-    staleChunk: false,
+    lateChunks: 4,
+    staleChunks: 0,
     notFoundDocument: true,
   },
 };
@@ -884,13 +903,18 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         expectSameWarnings(path, session.warnings, published.warnings);
         expect(session.focused).toBe(published.focused);
         expect(session.scrollY).toBe(published.scrollY);
-        // Chunk hints: every one the live page has, the session has too. A block type the pinned
-        // page never had arrives late (the session preloads its chunk when the draft needs it, as an
-        // absolute URL); one the draft no longer has stays behind (stale), from the pinned page.
-        expect(liveHints.paths.filter((hint) => !sessionHints.paths.includes(hint))).toEqual([]);
-        expect(sessionHints.late.length > 0).toBe(expected.lateChunk);
-        const stale = sessionHints.paths.filter((hint) => !liveHints.paths.includes(hint));
-        expect(stale.length > 0).toBe(expected.staleChunk);
+        // Chunk hints: the same chunks are named, and only the edited blocks' change kind. A block
+        // type the pinned page did not render is needed late: the live page preloads its chunk and
+        // the session keeps the pinned page's prefetch (Vite adds no `modulepreload` for a chunk a
+        // link already names, so no late absolute-URL hint appears on Nuxt 4.7). One the draft no
+        // longer renders stays preloaded from the pinned page where the live page prefetches it
+        // (stale). Pinned per edit by count, so a flip on an unrelated chunk fails.
+        expect(sessionHints.paths).toEqual(liveHints.paths);
+        expect(sessionHints.late).toEqual([]);
+        const needed = liveHints.preloaded.filter((hint) => !sessionHints.preloaded.includes(hint));
+        expect(needed).toHaveLength(expected.lateChunks);
+        const stale = sessionHints.preloaded.filter((hint) => !liveHints.preloaded.includes(hint));
+        expect(stale).toHaveLength(expected.staleChunks);
         let liveBody = bodyOf(published.dom);
         let sessionBody = bodyOf(session.dom);
         let sessionData = session.data;
@@ -904,6 +928,25 @@ describe('a draft preview renders exactly what Publish puts live', () => {
           expect(sessionBody.filter(payloadHint).join('')).toContain('href="/404/_payload.json');
           liveBody = liveBody.filter((line) => !payloadHint(line));
           sessionBody = sessionBody.filter((line) => !payloadHint(line));
+          // Nuxt ends the head it renders with its prefetch template. The not-found document has no
+          // breadcrumb list, so the session's head manager adds that script after the template,
+          // where the live page's server render put it before. Only that: the template is the live
+          // head's last element, and only the breadcrumb script follows it in the session's.
+          const prefetchTemplate = (line: string): boolean =>
+            line.trim() === '<template data-nuxt-prefetch="">';
+          const afterTemplate = (body: readonly string[]): string[] => {
+            const at = body.findIndex(prefetchTemplate);
+            const end = body.findIndex((line) => line.trim() === '<body>');
+            expect(body.filter(prefetchTemplate)).toHaveLength(1);
+            expect(at).toBeLessThan(end);
+            return body.slice(at + 1, end);
+          };
+          expect(afterTemplate(liveBody)).toEqual([]);
+          const trailing = afterTemplate(sessionBody);
+          expect(trailing[0]).toContain('data-hid="eldra-ld"');
+          expect(trailing.slice(1).every((line) => !line.trim().startsWith('<'))).toBe(true);
+          liveBody = liveBody.filter((line) => !prefetchTemplate(line));
+          sessionBody = sessionBody.filter((line) => !prefetchTemplate(line));
           const parsed = JSON.parse(sessionData) as { data: Record<string, unknown> };
           expect(Object.keys(parsed.data)).toContain('eldra-page:/404');
           delete parsed.data['eldra-page:/404'];
