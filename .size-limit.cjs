@@ -121,7 +121,9 @@ module.exports = [
     name: '@eldrajs/theme-core — everything',
     path: 'packages/theme-core/dist/index.js',
     // SEO, sitemap, structured data, forms and analytics (WS-382–WS-387); storefronts tree-shake what they skip.
-    limit: '32 kB',
+    // 32 kB until selling currencies (WS-1391, WS-1399) and draft preview sessions (WS-1303,
+    // `enableSessionPreview`, the public-read reshaping) met: 32.34 kB used.
+    limit: '33 kB',
   },
   {
     name: '@eldrajs/theme-core — overlay runtime',
