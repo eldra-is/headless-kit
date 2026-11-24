@@ -99,6 +99,274 @@ handling inside the preview iframe. `@eldrajs/theme-vue`'s `useEldraPreview`/`st
 `@eldrajs/theme-nuxt`'s generated CSP `frame-ancestors` header are what actually wire a theme up to
 receive it; a non-Vue binding would call the same bridge and overlay functions directly.
 
+## Draft preview sessions
+
+Studio's **Preview** and its share links open the theme's own deployment on a host of the preview
+router's (`p-<session>.previews-{env}.eldra.dev`), not in the builder's iframe. `@eldrajs/theme-nuxt`
+renders the organisation's drafts there, client-side.
+
+- **Detection** (`src/runtime/previewSession.ts`): the page is a session when its host has the
+  session shape. The router's `<meta name="eldra-preview" content="session">` is honoured only in
+  `document.head`, and only on a session host or a local development host (`localhost`,
+  `127.0.0.1`, `[::1]`, `*.localhost`, `*.test`), so a marker that reaches a storefront's page
+  never turns it into a session. A server render and a prerender never are one; every other page,
+  Studio's iframe included, runs exactly as before.
+- **Reads.** `@eldrajs/theme-core`'s `enableSessionPreview({ proxyBase })` sends the five CMS reads
+  same-origin to the router's `/__eldra/gateway/*`, `no-store` and `credentials: 'same-origin'`, with
+  no credential header (the router holds the session in an HttpOnly cookie and adds `X-Org-Id` and
+  `X-Preview-Session` itself). A CMS answer without `Eldra-Preview: draft` is refused rather than
+  shown. Catalog reads stay on the gateway, published. No request ever carries `X-Preview-Token`.
+  A new CMS read the kit adds must be on the router's gateway allowlist (its `READS`) before a kit
+  release uses it: an older router answers it `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`, and the page
+  shows its not-found page.
+- **Routes.** `useEldraPage()` answers no route from the build: the published payload only hydrates
+  the prerendered page, every navigation (back to the first route included) reads the draft, and a
+  page that exists only as a draft renders (opened directly, the host serves the build's not-found
+  document and the app resolves it).
+- **Which reads show drafts.** Right after hydration a session re-runs, **once**, every async data
+  entry the server filled (the keys the payload carries a value for); entries the browser started on
+  load are waited for, not run again. An entry that did not run on load (`immediate: false`: a form
+  submit, a cart create) is never run by the session. The veil stays up until they have settled,
+  for at most 15 s counted from the session's start (so it runs even when the app never finishes
+  hydrating: a theme awaiting a read that hangs, so suspense never resolves); after that the
+  session ends in the unavailable notice, never the published page. So these are drafts:
+  - `useEldraPage()`, and every `useEldraPage()` mounted later (they share the route's async data);
+  - every `useAsyncData` / `useFetch` whose handler reads through the kit's client
+    (`useEldra().client.getEntries(...)`, `getEntry`, `getEntryByUniqueField`,
+    `resolveEntryListField`, `resolveEntryList`);
+  - any client read through that client made after the session started.
+
+  These stay **published** (or the build's), and a theme that needs them as drafts must move them
+  into one of the above:
+  - data the server render put anywhere but async data (`useState`, a plugin's own state, a
+    module-level value) — it is hydrated and never read again;
+  - a read that does not go through the kit's client (`$fetch` to the gateway, `@eldrajs/sdk`) —
+    it carries no session;
+  - a `useAsyncData` with a custom `getCachedData` that answers a `refresh:hook` from a cache
+    (only possible with Nuxt's `experimental.granularCachedData`);
+  - the build-time platform reads baked into the runtime config: forms, site icons, SEO, the site
+    profile, locales and currency.
+
+  Design tokens and theme texts are neither: a session shows what is **saved** (see below).
+
+- **Saved design tokens and theme texts (WS-1394).** The owner decided (2026-11-23) that a preview
+  shows them as soon as they are saved. A build reads both once and bakes them in; a session reads
+  both again, from the session's start, and applies them once the published prerender is hydrated
+  and before the veil comes down. A 10 s bound of its own covers the chunk that reads them and the
+  reads together, counted from the session's start like the session's 15 s deadline, so it always
+  ends first; past it nothing is applied. Through the router like its CMS reads: `@eldrajs/theme-core`'s
+  `getSiteSetting('/site/v1/design-tokens' | '/site/v1/theme-messages')` (Core reads the Site row
+  for both; they are settings, not drafts, so no `Eldra-Preview: draft` is asked for). The tokens
+  replace `context.designTokens` in place, so `EldraLayout`'s
+  `<style data-eldra-design-token-styles>` renders them; the texts are resolved exactly as the
+  build resolves them (`resolveSiteMessages` over the manifest's own catalogue and the build's
+  organisation locales) and replace `context.messages.locales[tag]` where they changed, which a
+  theme's i18n picks up the way it picks up Studio's live `editor:theme-messages` push (the
+  starter's `app/plugins/eldra-i18n.ts` watches `context.messages`). A failure, an unusable answer
+  or one past the bound keeps the build's values and is never a refusal by itself: a site read's
+  failure is not reported to the client's refusal listener (a router that does not forward a read
+  answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED`). The one
+  exception is a 401: the router refused the session itself, and clears its cookies as it does, so
+  that refusal (expired, revoked) is the session's (`reportPreviewSessionSiteSettingError`), heard
+  the moment that read fails, before any CMS read the router then refuses as invalid. Values are
+  never applied after the veil drops, but a refusal that arrives later still ends the session, the
+  same as a CMS 401 while browsing.
+  Core's theme-messages answer is the fully resolved catalogue (every organisation locale, every
+  key of the theme's default locale, through the five tiers), not only the overrides; fed to
+  `resolveSiteMessages` as the platform tier it gives back exactly that catalogue, as it would give
+  back the same one from the overrides alone. The global
+  `virtual:eldra/tokens.css` stays the build's; the layout's own style, later in the document, wins.
+  In a session only, in a chunk an ordinary storefront never loads.
+
+- **What a visitor sees.** The published prerender shows only blurred, under the kit's translucent
+  veil, never as the page itself: the router puts an early hide
+  at the top of every session document (WS-1376): while `<html>` has no
+  `data-eldra-preview-ready`, a 12 s animation keeps the body `visibility: hidden` (nothing else
+  hides it: a theme that turns animations off shows the page at once, with the router's notice,
+  which fails open). The kit sets
+  `data-eldra-preview-ready` on `<html>` as soon as its own veil (or the built-in fallback line) is
+  mounted and covering the page, so from then on the kit's veil is what covers it. It sets it too
+  on every way the session leaves the veil (the draft shown, a refusal, the 15 s bound, a render
+  that failed, a client that cannot read drafts), in case the veil never mounted, so the router's
+  rule never keeps a page hidden. On those give-up paths the hide can lift before the UI chunk has
+  mounted the notice (the chunk still loading), so the page may show a moment without it: accepted,
+  failing open. When the animation ends the page shows, with a notice of the
+  router's, if the kit never set it (its script failed); that 12 s is shorter than the 15 s
+  the drafts may take, which is why the mounted veil, not the dropped one, lifts it. The veil, the
+  banner and the built-in fallback line set `visibility: visible` on themselves, so they show while
+  the body is still hidden (and whatever a theme's own rule does to the body later). Under the veil the app is `aria-busy` and inert; a
+  "loading" line appears, and becomes a live region, only after half a second; the veil comes down
+  when the draft is on screen. An exit banner links to the router's `/__eldra/preview/exit`. A
+  refused session (401: invalid, revoked, expired; 403, 502, 503: unavailable; a CMS read the
+  router answers `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED` — a typed address whose route value has a
+  `%` or `/` is sent encoded — is a not-found read, the theme's not-found page as on the published
+  site, never a refusal; the first refusal is
+  the one shown: the router clears the session's cookies when it refuses one as expired or revoked,
+  so the reads after it come back invalid, and never replace it) clears every async
+  data entry, so neither the draft nor the published page stays in the document, makes the app
+  inert and shows a notice, which takes focus once. The copy is Icelandic or English, after the
+  page's language. The veil, banner and notices are plain DOM in a shadow root outside the Vue app,
+  in a chunk an ordinary storefront never loads; if that chunk cannot be loaded, a plain built-in
+  line of text (Icelandic or English, with the exit link) says what the session is doing instead.
+- **Permanent DOM differences in a session**: a `<div data-eldra-preview-session>` appended to
+  `<body>`, after the app, whose open shadow root holds the veil, the notice and the exit banner (the
+  banner stays visible, fixed at the bottom); the router's `<meta name="robots" content="noindex,
+nofollow">` and `<meta name="eldra-preview">` in the head, and right after them its early hide (a
+  `<style>` and a `<noscript>` twin); `data-eldra-preview-ready` on `<html>` once the veil is
+  mounted. While the veil is up,
+  `aria-busy="true"` and `inert` on `#__nuxt`; after a refusal, `inert`. Once the draft is on
+  screen, nothing inside `#__nuxt` differs from the published page, with the exceptions listed
+  under "Parity" below.
+- **Parity with the published page (WS-1358).** A session must render exactly what Publish puts
+  live; the starter's `test/previewParity.browser.spec.ts` is the proof and the release gate
+  (`pnpm test:parity`; part of `pnpm check`, and run again by `publish.yml` before any package is
+  published). It generates the starter twice as production builds: a _pinned_ build made while
+  older content was live, served by a stand-in router as a session whose draft reads answer the new
+  content in Core's preview shape, and a _live_ build made after that content was published, served
+  statically. Core's two read shapes come from one module (`test/support/previewParityContent.ts`);
+  `@eldrajs/theme-core`'s `previewParityVectors.spec.ts` checks `asPublicRead` against the 31 pairs
+  of reads recorded from Core's own read code (`web-studio-core`'s
+  `internal/modules/cms/handler/web/testdata/preview_parity/`, copied as they are). One pair is not
+  two answers: a page placing a component that no longer resolves (archived) is served by the public
+  read without the placement and refused by a preview read (404 `REUSABLE_COMPONENT_NOT_FOUND`), so
+  a session shows the theme's not-found page where the live page shows the page without that
+  component; that is accepted, and pinned. The pages: every starter block type, shared components (a header and
+  footer), a page under a page that places them, a shared component next to a block node that no
+  longer resolves, a localized page in both locales, media framing, a route template (a dynamic
+  route) placing a component, and one page per structural edit. At 1280 and 390 wide, after
+  hydration, the documents are compared node for node (the async data and `useState` the apps hold
+  too, their focus, scroll position and console errors) and the full-page screenshots pixel for
+  pixel: 0 differ.
+
+  Removed before the comparison, from the session's page only: exactly the differences above (the
+  session host, the two router meta tags, the router's early hide and the kit's
+  `data-eldra-preview-ready`, which must already be set in the frame the veil drops); the live page
+  is asserted to have none of them. The stand-in router injects the same early hide the router does. Not
+  compared: Nuxt's hydration-state scripts (the pinned build's payload is the older content by
+  construction, and every build has its own build id) and comments (Vue's fragment anchors). A
+  `style` attribute is compared as the browser holds it (`style.cssText`), and the head's chunk
+  hints (a `modulepreload` for each chunk the page renders, a `prefetch` for each block chunk it does
+  not) as a set: their order is the order the prerender's async render collected the chunks in,
+  which differs between any two builds of the same content. In the async data, an
+  entry's `publishedAt` and `updatedAt` and a media item's `linkId` are not compared: they are the
+  draft's own (Publish sets the times; each owner has its own asset link row), and the identical DOM
+  shows the starter renders none of them. An entry's `status` is not among them: the public read
+  does not carry it, and the session's client drops it too.
+
+  Both pages are captured on the same condition, so a slow machine cannot capture one early: the
+  app has hydrated, no async data read is in flight, the network is idle, and the whole document has
+  not changed for 750 ms. And the comparison holds only if a build is a function of its content:
+  Nuxt shares `useAsyncData` answers between the routes of one prerender, and before Nuxt 4.7.0 a
+  read that failed left later routes an empty answer where earlier ones baked the error, depending
+  on the order the routes rendered in (on a busy machine, one build's footer form definition was an
+  error and the other's an empty answer; nuxt/nuxt#37241). `@eldrajs/theme-nuxt` therefore needs
+  Nuxt 4.7.0 or later, where every route after a failed read reads it again and bakes its own
+  failure; its tests run the installed Nuxt's own shared cache, so a Nuxt that brings the bug back
+  fails the kit's tests first. The session's document is also written out in the frame its veil
+  first drops, by the same serialiser as every capture (shadow roots walked, the session's additions left out), and
+  must equal its settled document: nothing the merchant sees changes after the veil
+  (the one exception is the `/focus-mid` header below).
+
+  What the session does to get there:
+  - `@eldrajs/theme-core`'s client reshapes **every** session answer into the public read's shape
+    (`asPublicRead`): wherever a `reusableComponentProjection` appears — the answer itself, a list
+    item, a resolved reference at any depth (a page's `parent`) — the placements are expanded as
+    Core's public read expands them, `blocks` are put in layout order, and a node naming a block that
+    does not resolve is dropped. Rendered in the preview shape, every node in a shared component
+    carried its authored id and a `data-eldra-reusable-placement`, its subtree was rebuilt, and a
+    dangling node rendered a hidden `data-eldra-missing-block` the live page has not;
+  - `useEldraPage().pending` stays `false` while the session re-reads the route it has just
+    hydrated, so a theme that draws a loading state for `pending` (the starter does) patches the
+    page in place rather than tearing every block down and building it again, which would number
+    every `useId()` anew and re-serialise every bound style. A theme's own `useAsyncData` keeps its
+    own `pending`: a block that renders a loading state for it is still torn down and rebuilt in a
+    session, with the same consequences;
+  - the veil drops only once the head shows the draft too: the head manager writes the head in a
+    timer after the render (`@unhead/vue`'s client), so the session waits for Vue's render and
+    then for that write (`src/runtime/previewSessionHead.ts`), never uncovering the pinned build's
+    title and Open Graph tags;
+  - a `focus()` (HTML or SVG) asked of an element in the app while it is inert under the veil is
+    asked again once the draft is shown, unless the page blurred it itself;
+  - a page that exists only as a draft resolves the address bar's path: the host answers it with the
+    build's not-found document, and when that is a prerendered page (the starter copies its `/404`
+    over `404.html`) Nuxt would otherwise start at the path the document was rendered for and show
+    "Page not found" (`src/runtime/previewSessionRoute.ts`). Only a document rendered for `/404` is
+    started elsewhere, and the paths are compared as Nuxt's router compares them (without the app's
+    `baseURL`); a document served under another address, an alias or a host's rewrite, starts where
+    Nuxt would start it. The route's own data, which Nuxt counts as hydrated from its `default`
+    although the document carried none, is read with the session's re-reads
+    (`src/runtime/previewSessionReads.ts`): only `useEldraPage`'s, and only while it still holds its
+    `default`. Nuxt marks an `immediate: false` entry with a `default` the same way and nothing on
+    the entry tells them apart, so a theme's own entry in that state is never run by the session (a
+    cart create runs when the page runs it); on such a page a theme's own `useAsyncData` with a
+    `default` keeps it until the theme refreshes it;
+  - a session's page always carries the router's `noindex, nofollow`: the session adds its own
+    robots entry to the head, ahead of any page's, because the head manager owns
+    `meta[name="robots"]` once the app runs and would otherwise remove the router's tag where a page
+    writes its own (the not-found document a page only the draft has hydrates) or replace it with a
+    theme's.
+
+  A theme that **renders** an entry's `publishedAt` or `updatedAt` (a "last updated" line, a date
+  under a post) shows the draft's in a preview, its own save time and the last publish time or none,
+  where the live page shows the times Publish set: that text differs between a preview and the page
+  Publish puts live.
+
+  **Known differences** (each pinned by the spec, so a change in either direction is seen):
+  - **Structural edits renumber `useId()` ids — accepted by the owner (2026-11-23)**, to be taken
+    up if it ever matters. The session patches the pinned build's hydrated page to the draft, and
+    Vue numbers a `useId()` by creation order: an instance keeps its hydration number, one created
+    later takes the next free number. Every id still matches its own `aria-labelledby` /
+    `aria-controls`; no pixel differs. The full scope, as the spec pins it (exactly which ids):
+
+    | Edit                                                        | Renumbers | Whose ids                                                        |
+    | ----------------------------------------------------------- | --------- | ---------------------------------------------------------------- |
+    | content of a block, its media or framing, a localized field | no        | none                                                             |
+    | an item added to a list block (an FAQ question, a tab)      | no        | none: their ids are the block's, by index                        |
+    | a block added                                               | yes       | the added block and every block after it                         |
+    | a block removed                                             | yes       | every block after it                                             |
+    | two blocks reordered                                        | yes       | the moved blocks                                                 |
+    | a block's type changed (a new block in its place)           | yes       | the new block                                                    |
+    | a page that exists only as a draft, opened directly         | no        | none: the whole page is built in the browser, in prerender order |
+
+    The chunk hints name the same chunks, but an edited block's can differ in kind. A block type the
+    pinned page did not render is preloaded on the live page; in the session it stays prefetched
+    where the pinned page named it (Vite adds no hint for a chunk a link already names), and gets a
+    `modulepreload` at the end of the head, as an absolute URL, where nothing named it (a page only
+    the draft has, which starts from the not-found document). A removed block's chunk stays
+    preloaded from the pinned page, where the live page prefetches it. Either way the chunk is
+    loaded and nothing rendered differs.
+
+  - A page that exists only as a draft, opened directly, hydrates the pinned build's not-found
+    document: its head's payload preload is that document's (`/404/_payload.json`), the session
+    also holds that document's route data, and a head tag that document did not have (the
+    breadcrumb list) is added after Nuxt's `<template data-nuxt-prefetch>`, which the live page's
+    server render puts last.
+  - The session re-runs every async data entry the server filled, commerce reads included, so it
+    asks the catalog again where the live page answers from its payload (same answer, one more
+    request; the spec allows exactly those requests per page).
+  - Focus asked for under the veil is given later than on the live page. The focus and the scroll
+    position end the same; scroll-driven state can end differently (the starter header's
+    hide-on-scroll, with a field focused mid-page, ends shown in about half the sessions where the
+    live page has it hidden). Accepted by the owner (2026-11-23) as a known difference: it needs a
+    block that takes focus mid-page, and the one who sees it is the merchant looking at a preview.
+    The spec allows exactly that one difference, the header's hidden state, on that page.
+  - **Design tokens and theme texts saved after the pinned build** show in the session as in a
+    build made after the save (above); the spec's last case saves a primary colour and a header
+    text and asserts both, in the settled page and already in the frame the veil drops. The
+    stand-in gateway answers both settings the way Core does, for every page (the theme's own
+    before anything is saved; the texts through a port of Core's `resolveThemeMessages`). Locales and currency are still the pinned
+    build's.
+
+- **Noindex** is the router's: it sends `X-Robots-Tag` and injects the robots meta.
+
+**Draft preview does not work from this release yet.** Core refuses a session for a theme whose
+manifest does not declare `capabilities: { draftPreview: 1 }`, and `theme-nuxt` does not declare it
+yet (`DECLARE_MANIFEST_CAPABILITIES` is off in `src/module.ts`: today's site-service decodes the
+manifest strictly, so the key would fail every deploy). Preview works only from the kit release
+that turns it on (WS-1375), which ships once a site-service that accepts the key is live in every
+environment; a theme then rebuilds on that release and deploys again, and keeps its own CMS reads
+in the covered forms above (`@eldrajs/vite-plugin-theme`'s `EldraThemeOptions.capabilities`).
+
 ## Running the starter
 
 ```bash

@@ -11,8 +11,16 @@ import {
   startEldraPreview,
   type EldraContext,
 } from '@eldrajs/theme-vue';
-import { defineNuxtPlugin, useHead, useRuntimeConfig, useState } from 'nuxt/app';
-import { reactive } from 'vue';
+import {
+  clearNuxtData,
+  defineNuxtPlugin,
+  injectHead,
+  refreshNuxtData,
+  useHead,
+  useRuntimeConfig,
+  useState,
+} from 'nuxt/app';
+import { nextTick, reactive, watch } from 'vue';
 import blockFields from 'virtual:eldra/block-fields';
 import manifest from 'virtual:eldra/manifest';
 import messages from 'virtual:eldra/messages';
@@ -22,6 +30,16 @@ import { resolveSiteDesignTokens } from './designTokens';
 import { createNuxtEldraLocaleState, localeAlternates, type LocaleRouter } from './localeState';
 import { localeDisplayName, resolveLocaleRouting, resolveStoreLocales } from './locales';
 import { resolveBridgeOrigins } from './origins';
+import {
+  isPreviewSessionRefused,
+  reportPreviewSessionSiteSettingError,
+  settlePreviewSessionDrafts,
+  settlePreviewSessionSiteSettings,
+  startPreviewSession,
+  usePreviewSession,
+} from './previewSession';
+import { afterHeadRendered, type HeadRenderHooks } from './previewSessionHead';
+import { sessionReads, type SessionReadsInput } from './previewSessionReads';
 import { canonicalRoutePath } from './routePath';
 import { primePrerenderedRoutes } from './staticRoutes';
 
@@ -38,6 +56,9 @@ interface RuntimeEldraConfig {
   /** `null` when the theme configures none: the client's own defaults apply. */
   retry: EldraRetryOptions | null;
 }
+
+/** The robots tag a draft preview session's page carries: the preview router's own. */
+const PREVIEW_SESSION_ROBOTS = 'noindex, nofollow';
 
 export default defineNuxtPlugin({
   name: 'eldra-theme',
@@ -66,6 +87,113 @@ export default defineNuxtPlugin({
       defaultLocale: storeLocales?.default ?? routing.default ?? null,
     });
     const preview = createEldraPreviewState();
+    /**
+     * A draft preview session (`./previewSession.ts`), decided before anything renders: from here
+     * on the client's CMS reads go to the preview router's same-origin proxy, and `useEldraPage`
+     * answers no route from the build. Browser only; outside a session nothing changes.
+     *
+     * Once the published prerender is hydrated, every async data entry the **server** filled is
+     * read again, once — the route's own (`useEldraPage`) and every `useAsyncData`/`useFetch` the
+     * theme made on the page — because each was hydrated from the published payload and would
+     * otherwise stay published beside the drafts. Only those: the keys the payload carried a value
+     * for, captured here, before anything ran in the browser. An entry that did not run on load (an
+     * `immediate: false` form submit, a cart create) is never run by the session. Entries the browser
+     * itself started on load (a page with no server render) already read through the session and are
+     * waited for, not run again. One more: on a page only the draft has, `useEldraPage`'s route
+     * read, which Nuxt counted as hydrated from its `default` and never ran
+     * (`./previewSessionReads.ts`). A refresh is never answered from the payload after hydration, so
+     * each handler runs again and its CMS reads go through the session. The veil stays up until they
+     * have settled and rendered, for at most `PREVIEW_SESSION_DRAFT_TIMEOUT_MS`; after that the
+     * session is unavailable.
+     */
+    const hydratedKeys = import.meta.client
+      ? Object.keys(nuxtApp.payload.data ?? {}).filter(
+          (key) => nuxtApp.payload.data[key] !== undefined
+        )
+      : [];
+    const readDrafts = async (): Promise<void> => {
+      const { reread, inFlight } = sessionReads({
+        hydratedKeys,
+        asyncData: (nuxtApp as { _asyncData?: SessionReadsInput['asyncData'] })._asyncData ?? {},
+        promises:
+          (nuxtApp as { _asyncDataPromises?: SessionReadsInput['promises'] })._asyncDataPromises ??
+          {},
+      });
+      await Promise.allSettled([
+        reread.length > 0 ? refreshNuxtData(reread) : undefined,
+        ...inFlight,
+      ]);
+    };
+    /**
+     * The site's saved design tokens and theme texts, read again through the session and put where
+     * the build put its own (`./previewSessionSite.ts`, WS-1394), so a saved change shows at once.
+     * Session only, in its own chunk. Started with the session (below), so its 10 s bound
+     * (`settlePreviewSessionSiteSettings`, around the chunk and the reads together) runs from the
+     * same moment as the session's 15 s deadline and always ends first: a settings failure never
+     * ends the session. Answers are applied only once the published prerender is hydrated
+     * (`sessionHydrated`), never into the document Vue is hydrating; past the bound, never.
+     */
+    let markSessionHydrated = (): void => undefined;
+    const sessionHydrated = new Promise<void>((resolve) => {
+      markSessionHydrated = resolve;
+    });
+    let siteSettings: Promise<void> = Promise.resolve();
+    let sessionHead: HeadRenderHooks | undefined;
+    try {
+      sessionHead = injectHead(nuxtApp) as unknown as HeadRenderHooks;
+    } catch {
+      // No head manager: the timer alone waits out a head render.
+    }
+    const previewSession =
+      import.meta.client &&
+      startPreviewSession(client, {
+        onHydrated: (hydrated) =>
+          nuxtApp.hooks.hookOnce('app:suspense:resolve', async () => {
+            hydrated();
+            markSessionHydrated();
+            // The veil drops once Vue has rendered the drafts and the head manager has written
+            // the head after them (`./previewSessionHead.ts`), never on the pinned title.
+            // The saved tokens and texts, read since the session started, are waited for beside
+            // the drafts (their own bound ends first).
+            await settlePreviewSessionDrafts(
+              () => Promise.allSettled([readDrafts(), siteSettings]),
+              () => afterHeadRendered(sessionHead, () => nextTick())
+            );
+          }),
+      });
+    if (previewSession) {
+      siteSettings = settlePreviewSessionSiteSettings((isOpen) =>
+        import('./previewSessionSite').then(({ readSessionSiteSettings }) =>
+          readSessionSiteSettings(client, context, {
+            themeMessages: manifest.messages,
+            locales: storeLocales,
+            isOpen,
+            applyAfter: sessionHydrated,
+            onError: reportPreviewSessionSiteSettingError,
+          })
+        )
+      );
+      // A session's page is never indexed, whatever the page asks for. The preview router puts
+      // `noindex, nofollow` in every document it serves (and sends `X-Robots-Tag`), but the head
+      // manager owns `meta[name="robots"]` once the app runs: a page that writes its own (the
+      // not-found document a page only the draft has hydrates, a theme's `robots` setting) would
+      // remove or replace the router's. The session's own entry, ahead of any page's, keeps it.
+      useHead({
+        meta: [{ name: 'robots', content: PREVIEW_SESSION_ROBOTS, tagPriority: 'critical' }],
+      });
+      // A refused session keeps nothing it read: every async data entry — the theme's own as well
+      // as the route's — is cleared once the page is hydrated, so neither drafts nor anything
+      // published stays rendered under the notice.
+      const session = usePreviewSession();
+      const stop = watch(
+        () => session.hydrated && isPreviewSessionRefused(session.status),
+        (refused) => {
+          if (!refused) return;
+          stop();
+          clearNuxtData();
+        }
+      );
+    }
     // Lazily, every time: `$router` is installed by Nuxt's own router plugin and this one may be
     // ordered before it. Nothing reads the locale state during plugin setup, so a getter is enough
     // — and it keeps the state honest after a client navigation, which is the whole point of it.
@@ -126,9 +254,12 @@ export default defineNuxtPlugin({
     // synchronously (`./staticRoutes.ts`, and `useEldraPage`'s `getCachedData`). It is one cached
     // fetch of a file Nuxt's own payload plugin asks for anyway, and having it early is the
     // difference between answering an unknown route in the same tick and answering it a tick late.
-    if (import.meta.client) primePrerenderedRoutes();
+    // A session answers no route from the build, so it has no use for the list.
+    if (import.meta.client && !previewSession) primePrerenderedRoutes();
 
-    if (import.meta.client && window.parent !== window) {
+    // A session is not Studio's canvas: its credential is the router's, and the bridge's preview
+    // token is never taken.
+    if (import.meta.client && !previewSession && window.parent !== window) {
       const allowedOrigins = resolveBridgeOrigins(cfg.studioOrigins, document.referrer);
       if (allowedOrigins.length === 0) {
         console.warn('[eldra] preview disabled: parent origin is not an allowed Studio origin');

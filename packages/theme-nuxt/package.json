@@ -57,17 +57,20 @@
     "@eldrajs/theme-core": "workspace:^",
     "@eldrajs/theme-vue": "workspace:^",
     "@eldrajs/vite-plugin-theme": "workspace:^",
-    "@nuxt/kit": "^4.0.0",
+    "@nuxt/kit": "^4.7.0",
     "defu": "^6.1.4",
     "h3": "^1.15.0"
   },
   "devDependencies": {
     "@nuxt/module-builder": "^0.8.4",
-    "@nuxt/schema": "^4.0.0",
+    "@nuxt/schema": "^4.7.0",
     "@playwright/test": "1.62.1",
     "execa": "^9.5.2",
     "jsdom": "30.1.0",
-    "nuxt": "^4.0.0"
+    "nuxt": "^4.7.0"
+  },
+  "peerDependencies": {
+    "nuxt": ">=4.7.0"
   },
   "engines": {
     "node": ">=20"

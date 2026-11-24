@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`capabilities` (WS-1303).** `EldraThemeOptions.capabilities` (set by a framework wrapper) puts
+  `capabilities: { draftPreview: 1 }` in the manifest; an unknown capability or version is an error.
+  Absent when none is declared, so today's manifests are unchanged.
+
 - **`formSeeds[].actions.subscribe.consentText` (WS-386).** A subscribe action may carry its consent
   sentence per locale (`{ 'en-US': '… {shop} …' }`), validated like Core: locale tags, at most 500
   characters each, plain text (no `<`, `>` or control characters), at least one locale when the key is

@@ -1,0 +1,479 @@
+{
+  "case": "entry-list-features",
+  "differences": [
+    "status: kept on every entry of a preview answer, dropped from the published answer",
+    "publishedAt, updatedAt: the record's own metadata, which Publish sets",
+    "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
+    "linkId: asset-service's link row, one per owner (draft or published snapshot)",
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
+  ],
+  "preview": {
+    "body": {
+      "displayAs": "",
+      "entries": {
+        "data": [
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Inner",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": null,
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Doomed",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": null,
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Footer",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000004",
+            "publishedAt": null,
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "accent": {
+                "mode": "solid",
+                "solid": {
+                  "alpha": 0.9,
+                  "color": "#094ac4"
+                }
+              },
+              "author": {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Thordis"
+                },
+                "id": "00000000-0000-4000-8000-000000000005",
+                "publishedAt": null,
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000006",
+                "status": "DRAFT",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              "authors": {
+                "orderBy": "-createdAt",
+                "pageSize": 5,
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
+              },
+              "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
+              "card": {
+                "label": "Kort",
+                "weight": 2
+              },
+              "config": {
+                "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000007",
+                  "linkId": "kept"
+                },
+                "tags": [
+                  "a",
+                  "b"
+                ]
+              },
+              "content": {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Bold",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "doc"
+              },
+              "count": 7,
+              "cta": {
+                "kind": "url",
+                "label": "Shop",
+                "url": "/en/shop"
+              },
+              "enabled": true,
+              "gallery": [
+                {
+                  "altText": "Alt text 0",
+                  "assetId": "00000000-0000-4000-8000-000000000008",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000008.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000008",
+                  "sortOrder": 0,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000008.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000009",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000009.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry-00000000-0000-4000-8000-000000000009",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000009.jpg",
+                  "width": 1600
+                }
+              ],
+              "heading": "Everything at once",
+              "icon": "AlarmClock",
+              "image": {
+                "altText": "Alt text 0",
+                "assetId": "00000000-0000-4000-8000-000000000007",
+                "contentType": "image/jpeg",
+                "filename": "00000000-0000-4000-8000-000000000007.jpg",
+                "framing": {
+                  "x": 0.3,
+                  "y": 0.65,
+                  "zoom": 1.5
+                },
+                "height": 900,
+                "linkId": "cms_entry-00000000-0000-4000-8000-000000000007",
+                "sortOrder": 0,
+                "tag": "image",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000007.jpg",
+                "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000005"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000010",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000011/assets/00000000-0000-4000-8000-000000000010/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000012"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
+              },
+              "notes": "# Notes\n\n- one\n- two",
+              "ratio": 0.25,
+              "startsAt": "2026-01-01T00:00:00Z",
+              "token": "00000000-0000-4000-8000-000000000013",
+              "variant": {
+                "label": "Wide",
+                "value": "wide"
+              }
+            },
+            "id": "00000000-0000-4000-8000-000000000014",
+            "publishedAt": null,
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "meta": {
+          "hasNext": false,
+          "hasPrev": false,
+          "page": 1,
+          "pageSize": 25,
+          "rows": 4,
+          "total": 4,
+          "totalPages": 1
+        }
+      },
+      "filters": [],
+      "orderBy": "-createdAt",
+      "pageSize": 25,
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    "cacheControl": "no-store",
+    "eldraPreview": "draft",
+    "status": 200
+  },
+  "public": {
+    "body": {
+      "displayAs": "",
+      "entries": {
+        "data": [
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Inner",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Doomed",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "gallery": [],
+              "heading": "Footer",
+              "image": null
+            },
+            "id": "00000000-0000-4000-8000-000000000004",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_feature",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "accent": {
+                "mode": "solid",
+                "solid": {
+                  "alpha": 0.9,
+                  "color": "#094ac4"
+                }
+              },
+              "author": {
+                "_type": "entry_author",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "data": {
+                  "name": "Thordis"
+                },
+                "id": "00000000-0000-4000-8000-000000000005",
+                "publishedAt": "2026-01-01T00:00:00Z",
+                "schemaApiId": "author",
+                "schemaId": "00000000-0000-4000-8000-000000000006",
+                "updatedAt": "2026-01-01T00:00:00Z"
+              },
+              "authors": {
+                "orderBy": "-createdAt",
+                "pageSize": 5,
+                "schemas": [
+                  "00000000-0000-4000-8000-000000000006"
+                ]
+              },
+              "body": "Text \u003cb\u003ewith\u003c/b\u003e \u0026 signs",
+              "card": {
+                "label": "Kort",
+                "weight": 2
+              },
+              "config": {
+                "columns": 3,
+                "decoy": {
+                  "assetId": "00000000-0000-4000-8000-000000000007",
+                  "linkId": "kept"
+                },
+                "tags": [
+                  "a",
+                  "b"
+                ]
+              },
+              "content": {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Bold",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "doc"
+              },
+              "count": 7,
+              "cta": {
+                "kind": "url",
+                "label": "Shop",
+                "url": "/en/shop"
+              },
+              "enabled": true,
+              "gallery": [
+                {
+                  "altText": "Alt text 0",
+                  "assetId": "00000000-0000-4000-8000-000000000008",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000008.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000008",
+                  "sortOrder": 0,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000008.jpg",
+                  "width": 1600
+                },
+                {
+                  "altText": "Alt text 1",
+                  "assetId": "00000000-0000-4000-8000-000000000009",
+                  "contentType": "image/jpeg",
+                  "filename": "00000000-0000-4000-8000-000000000009.jpg",
+                  "height": 900,
+                  "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000009",
+                  "sortOrder": 1,
+                  "tag": "gallery",
+                  "url": "https://media.example.test/00000000-0000-4000-8000-000000000009.jpg",
+                  "width": 1600
+                }
+              ],
+              "heading": "Everything at once",
+              "icon": "AlarmClock",
+              "image": {
+                "altText": "Alt text 0",
+                "assetId": "00000000-0000-4000-8000-000000000007",
+                "contentType": "image/jpeg",
+                "filename": "00000000-0000-4000-8000-000000000007.jpg",
+                "framing": {
+                  "x": 0.3,
+                  "y": 0.65,
+                  "zoom": 1.5
+                },
+                "height": 900,
+                "linkId": "cms_entry_published-00000000-0000-4000-8000-000000000007",
+                "sortOrder": 0,
+                "tag": "image",
+                "url": "https://media.example.test/00000000-0000-4000-8000-000000000007.jpg",
+                "width": 1600
+              },
+              "menu": {
+                "children": [
+                  {
+                    "kind": "entry",
+                    "label": "Writer",
+                    "target": {
+                      "_type": "entry",
+                      "id": "00000000-0000-4000-8000-000000000005"
+                    }
+                  },
+                  {
+                    "display": "card",
+                    "image": "00000000-0000-4000-8000-000000000010",
+                    "imageUrl": "https://media.example.test/public/00000000-0000-4000-8000-000000000011/assets/00000000-0000-4000-8000-000000000010/md",
+                    "kind": "product",
+                    "label": "Mug",
+                    "target": {
+                      "_type": "product",
+                      "id": "00000000-0000-4000-8000-000000000012"
+                    }
+                  }
+                ],
+                "kind": "url",
+                "label": "Shop",
+                "url": "/shop"
+              },
+              "notes": "# Notes\n\n- one\n- two",
+              "ratio": 0.25,
+              "startsAt": "2026-01-01T00:00:00Z",
+              "token": "00000000-0000-4000-8000-000000000013",
+              "variant": {
+                "label": "Wide",
+                "value": "wide"
+              }
+            },
+            "id": "00000000-0000-4000-8000-000000000014",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "feature",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "meta": {
+          "hasNext": false,
+          "hasPrev": false,
+          "page": 1,
+          "pageSize": 25,
+          "rows": 4,
+          "total": 4,
+          "totalPages": 1
+        }
+      },
+      "filters": [],
+      "orderBy": "-createdAt",
+      "pageSize": 25,
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    "cacheControl": "",
+    "status": 200
+  },
+  "read": {
+    "body": {
+      "orderBy": "-createdAt",
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    "method": "POST",
+    "operation": "webResolveEntryList",
+    "path": "/v1/entry-list/resolve?locale=en-US"
+  }
+}

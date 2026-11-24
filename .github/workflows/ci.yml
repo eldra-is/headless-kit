@@ -16,7 +16,8 @@ jobs:
   check:
     name: Lint, types, tests, build, package checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 40, not 25: the draft preview parity spec (WS-1358) adds two starter generates.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,7 +32,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # `pnpm test` runs theme-nuxt's two browser specs, which need a real
+      # `pnpm test` runs the browser specs (theme-nuxt's, and the starter's —
+      # the draft preview parity gate, WS-1358, among them), which need a real
       # browser; the screenshot harness (`pnpm --filter @eldrajs/ui
       # screenshots`) is deliberately *not* part of `check` and does not run
       # here — its baselines are macOS renderings, see packages/ui/README.md.

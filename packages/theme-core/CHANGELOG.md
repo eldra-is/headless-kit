@@ -7,6 +7,34 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **`defaultCurrencyOf(commerce)` (WS-1399).** The currency pages are built in: `defaultCurrency` (contract 6.22.0), else the first of a `currencies` list without the store's own currency, else `currency`. `resolveVisitorCurrency` and `offeredCurrencies` take that default as `base`.
 - **Currencies (WS-1391).** `SELLING_CURRENCIES`, `currencyForCountry(country)` (one table, country code to selling currency), `countryFromHeader(value)`, `VISITOR_COUNTRY_PATH`, `resolveVisitorCurrency({ base, offered, remembered, country })` (the remembered choice, then the visitor's country, then the store's own currency, each only when offered) and `offeredCurrencies(base, listed)`.
+- **`expandReusableLayout(layout, projection, { routeTemplate? })` (WS-1358).** A layout with
+  reusable placements in the shape Core's public read serves it: each placement replaced by its
+  component, the root taking the placement id and every node inside it the `r` + SHA-256 render id,
+  no projection left. Throws what the render would refuse. A draft preview session renders this.
+- **`getSiteSetting(path)` reads one of the site's own settings (WS-1394)**:
+  `/site/v1/design-tokens` or `/site/v1/theme-messages`, parsed JSON. Outside a session an ordinary
+  gateway read; in a draft preview session (`enableSessionPreview`) through the router's proxy like
+  the CMS reads, but a setting is not a draft: no `Eldra-Preview: draft` is asked for, the answer is
+  not reshaped, and a failure is thrown to the caller only, never reported to `onRequestError`'s
+  listeners. Optional on `EldraClient`, so a hand-written client still satisfies it.
+
+- **A draft preview session's answers arrive in the public read's shape (WS-1358).** The
+  session client (`enableSessionPreview`) reshapes every CMS answer with the new `asPublicRead`:
+  wherever a `reusableComponentProjection` appears (the answer, a list item, a resolved reference
+  at any depth), the placements are expanded the way Core's public read expands them, `blocks` put
+  in layout order and a node naming a block that does not resolve dropped, and every entry's
+  `status` (which the public read does not carry) is dropped. New exports:
+  `asPublicRead(value)` and `expandReusableLayout(layout, projection, { routeTemplate? })` (the
+  expansion alone, throwing what the render would refuse). A client outside a session is unchanged.
+
+- **`enableSessionPreview({ proxyBase })` (WS-1303).** For a draft preview session on the preview
+  router's host: the CMS reads go same-origin to `proxyBase` (the router's `/__eldra/gateway`) with
+  `cache: 'no-store'`, `credentials: 'same-origin'` and no credential header, and a CMS answer without
+  `Eldra-Preview: draft` is refused (502, `PREVIEW_UPSTREAM_NOT_PREVIEW`). Catalog reads are
+  unchanged, and no request carries `X-Preview-Token` once it is on. `EldraClientError` gains
+  `errorId` (read from a session read's refusal) and `sessionPreview`. A client that never calls it
+  behaves exactly as before.
+
 - **`getTypeScriptDefinitions({ sdkAugmentation })` (WS-434, contract 6.1.0).** `true` sends
   `sdkAugmentation=true`, asking the gateway to append the `declare module '@eldrajs/sdk'` block that
   fills `EldraProductExtensions`, so product extensions are typed. Off by default: without it the

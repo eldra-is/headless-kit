@@ -1,0 +1,118 @@
+{
+  "case": "list-field-authors",
+  "differences": [
+    "status: kept on every entry of a preview answer, dropped from the published answer",
+    "publishedAt, updatedAt: the record's own metadata, which Publish sets",
+    "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
+    "linkId: asset-service's link row, one per owner (draft or published snapshot)",
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
+  ],
+  "preview": {
+    "body": {
+      "displayAs": "",
+      "entries": {
+        "data": [
+          {
+            "_type": "entry_author",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "name": "Jón"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": null,
+            "schemaApiId": "author",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_author",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "name": "Þórdís"
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": null,
+            "schemaApiId": "author",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "DRAFT",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "meta": {
+          "hasNext": false,
+          "hasPrev": false,
+          "page": 1,
+          "pageSize": 5,
+          "rows": 2,
+          "total": 2,
+          "totalPages": 1
+        }
+      },
+      "filters": null,
+      "orderBy": "-createdAt",
+      "pageSize": 5,
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    "cacheControl": "no-store",
+    "eldraPreview": "draft",
+    "status": 200
+  },
+  "public": {
+    "body": {
+      "displayAs": "",
+      "entries": {
+        "data": [
+          {
+            "_type": "entry_author",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "name": "Jón"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "author",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_author",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "name": "Þórdís"
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "author",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "meta": {
+          "hasNext": false,
+          "hasPrev": false,
+          "page": 1,
+          "pageSize": 5,
+          "rows": 2,
+          "total": 2,
+          "totalPages": 1
+        }
+      },
+      "filters": null,
+      "orderBy": "-createdAt",
+      "pageSize": 5,
+      "schemas": [
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    "cacheControl": "",
+    "status": 200
+  },
+  "read": {
+    "method": "GET",
+    "operation": "webResolveEntryListField",
+    "path": "/v1/entry/00000000-0000-4000-8000-000000000004/list/authors?locale=is-IS"
+  }
+}

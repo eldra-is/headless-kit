@@ -7,6 +7,95 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **A store's own currency can be off (WS-1399).** `commerce` on `runtimeConfig.public.eldra` carries `defaultCurrency` when it is not the store's own `currency`, and `currencies` is cleaned with the default first. A store selling in its own currency gets the same config as before.
 - **Selling in more than one currency (WS-1391).** `commerce` on `runtimeConfig.public.eldra` carries `currencies`, the currencies the store offers with its own first, when it offers more than one (a one-currency store's config is unchanged). New server route `GET /_eldra/visitor` answers `{ country }` from Cloudflare's `CF-IPCountry` header, `private, no-store`, so a prerendered page can start a first-time visitor in their country's currency; it answers `null` off Cloudflare.
+- **Draft preview sessions (WS-1303).** On the preview router's session host (its
+  `<meta name="eldra-preview" content="session">`, or a `p-<session>.previews-{env}.eldra.dev` host)
+  the theme renders drafts read through the router's same-origin proxy: no route is answered from
+  the build, a draft-only page renders, the published prerender is veiled until the draft is on
+  screen, an exit banner links to `/__eldra/preview/exit`, and a refused session shows an
+  expired or unavailable notice in Icelandic or English, never the published page. Commerce reads
+  stay published. Outside a session nothing changes. See `docs/themes.md`, "Draft preview sessions".
+- **A draft preview session renders exactly what Publish puts live (WS-1358).** A page or route
+  template placing shared components is rendered in the public read's shape (no authored node ids,
+  no `data-eldra-reusable-placement`, the component not rebuilt); `useEldraPage().pending` stays
+  `false` while the session re-reads the route it has just hydrated, so the page is patched in place
+  rather than rebuilt; and a `focus()` asked for under the veil is given once the draft is shown.
+  Outside a session nothing changes. The starter's parity spec is the release gate; see
+  `docs/themes.md`, "Parity with the published page".
+- **A draft preview session shows the saved design tokens and theme texts (WS-1394).** After
+  hydration, before the veil comes down and inside the same bound, a session reads
+  `/site/v1/design-tokens` and `/site/v1/theme-messages` through the router (`@eldrajs/theme-core`'s
+  new `getSiteSetting`) and puts them where the build put its own: `context.designTokens` (so
+  `EldraLayout`'s token style re-renders) and `context.messages`, resolved as the build resolves
+  them. One 10 s bound covers the chunk (loaded from the session's start) and the reads; a failure
+  keeps the build's values and never ends the session, except a 401, which is the router refusing
+  the session itself. In its own chunk, loaded only in a session; outside a session nothing
+  changes.
+- **A draft preview session shows the saved design tokens and theme texts (WS-1394).** From its
+  start, a session reads `/site/v1/design-tokens` and `/site/v1/theme-messages` through the router
+  (`@eldrajs/theme-core`'s new `getSiteSetting`) and, once the page is hydrated and before the veil
+  comes down, puts them where the build put its own: `context.designTokens` (so `EldraLayout`'s
+  token style re-renders) and `context.messages`, resolved as the build resolves them. One 10 s
+  bound covers the chunk and the reads, counted from the session's start like its 15 s deadline,
+  so it always ends first; a failure keeps the build's values and never ends the session, except a
+  401, which is the router refusing the session itself. In its own chunk, loaded only in a
+  session; outside a session nothing changes.
+
+- **A session lifts the preview router's early hide (WS-1376).** The router hides a session
+  document's body (for at most 12 s) until `data-eldra-preview-ready` is on `<html>`, so the
+  published prerender shows only blurred, under the veil, never as the page itself. The kit sets it as soon as its veil (or the built-in fallback
+  notice) is mounted and covering the page, and on every way the session leaves the veil in case
+  it never mounted: the draft shown, a refusal, the 15 s bound, a render that failed (now the
+  unavailable notice rather than a veil left up), or a client that cannot read drafts. A UI that
+  throws while mounting falls back to the built-in notice, as a chunk that cannot load does. The
+  first refusal is the one a session shows: an expired or revoked one is never replaced by the
+  invalid ones the reads after it get once the router has cleared the session's cookies. The veil,
+  the banner and the fallback notice set `visibility: visible`, so they show under the hide.
+  Outside a session nothing changes.
+
+- **Needs Nuxt 4.7.0 or later (WS-1358).** Nuxt shares `useAsyncData` answers between the
+  routes of one `nuxi generate`; before 4.7.0 a read that failed left every route rendered after it
+  an empty answer (`null`) where the routes rendered before or alongside it baked the error, so the
+  same content built different pages depending on route order (nuxt/nuxt#37241). Nuxt 4.7.0 reads
+  a failed key again on each later route. **Breaking:** the module declares `nuxt: '>=4.7.0'` and
+  Nuxt does not run it on an older Nuxt (the build logs "Module `@eldrajs/theme-nuxt` is disabled
+  due to incompatibility issues", and fails with `experimental.enforceModuleCompatibility`), so
+  upgrade Nuxt with the kit; `nuxt >=4.7.0` is also a peer dependency, so the package manager warns
+  at install.
+
+- **A draft preview session renders exactly what Publish puts live (WS-1358).** Shared components
+  render in the public read's shape (`@eldrajs/theme-core`'s session client reshapes every answer);
+  `useEldraPage().pending` stays `false` while the session re-reads the route it has just hydrated,
+  so the page is patched in place rather than rebuilt; the veil drops only once the head manager
+  has written the draft's head (never on the pinned title); a `focus()` asked for under the veil is given
+  once the draft is shown; and a page that exists only as a draft, opened directly, resolves the
+  address bar's path rather than the not-found document's (only a document rendered for `/404`,
+  compared without the app's `baseURL`; its route read, still at its `default`, is read through the
+  session, and no other entry is run). A session's page always keeps the router's
+  `noindex, nofollow` robots tag, whatever a page writes. Outside a session nothing changes. The
+  starter's parity spec is the release gate; see `docs/themes.md`, "Parity with the published
+  page", for what it proves and the known differences it pins.
+
+- **Draft preview sessions (WS-1303).** On the preview router's session host
+  (`p-<session>.previews-{env}.eldra.dev`; its `<meta name="eldra-preview" content="session">` in the
+  head counts only there or on a local development host) the theme renders drafts read through the
+  router's same-origin proxy: no route is answered from the build, every async data entry the
+  server filled is re-run once through the session after hydration (the theme's own `useAsyncData`
+  CMS reads included; never an entry that did not run on load, such as an `immediate: false` submit),
+  bounded at 15 s from the session's start (whether or not the app finishes hydrating) before the
+  unavailable notice, a
+  draft-only page renders, the published prerender is veiled (once the kit's JavaScript has loaded)
+  until the drafts are on screen, an exit banner links to `/__eldra/preview/exit`, and a refused
+  session clears what it read and shows an expired or unavailable notice in Icelandic or English,
+  never the published page. Commerce reads stay published. Outside a session nothing changes, and
+  the session UI is a chunk a storefront never loads. A CMS read the router refuses as
+  `404 PREVIEW_GATEWAY_PATH_NOT_ALLOWED` (a typed address with `%` or `/` in a route value) is a
+  not-found read, not the end of the session. See `docs/themes.md`, "Draft preview sessions", for
+  which reads are covered. **Not usable yet from this release:** Core refuses a session for a theme
+  whose manifest does not declare `draftPreview`, and this release does not declare it
+  (`DECLARE_MANIFEST_CAPABILITIES` is off). Preview works from the kit release that turns it on
+  (WS-1375), once site-service accepts the key everywhere; themes must then rebuild and deploy
+  again.
+
 - **Campaign landings are captured (WS-546).** A client plugin calls `@eldrajs/sdk`'s
   `captureCampaignAttribution` on the first page and after every navigation, so a theme's cart adds
   carry the campaign a visitor came from (`utm_*` tags only, one `localStorage` key, 30 days). New
