@@ -329,8 +329,10 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
     | a page that exists only as a draft, opened directly         | no        | none: the whole page is built in the browser, in prerender order |
 
     The chunk hints name the same chunks, but an edited block's can differ in kind. A block type the
-    pinned page did not render is preloaded on the live page and stays prefetched in the session (the
-    pinned page already names every block chunk, so Vite adds no hint of its own). A removed block's chunk stays
+    pinned page did not render is preloaded on the live page; in the session it stays prefetched
+    where the pinned page named it (Vite adds no hint for a chunk a link already names), and gets a
+    `modulepreload` at the end of the head, as an absolute URL, where nothing named it (a page only
+    the draft has, which starts from the not-found document). A removed block's chunk stays
     preloaded from the pinned page, where the live page prefetches it. Either way the chunk is
     loaded and nothing rendered differs.
 

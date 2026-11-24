@@ -731,18 +731,18 @@ function hintsOf(dom: readonly string[]): {
   const preloaded = new Set<string>();
   const prefetched = new Set<string>();
   for (const line of dom.slice(dom.indexOf(PRELOADS) + 1)) {
-    let href = line.match(/href="([^"]+)"/)?.[1] ?? line;
+    const href = line.match(/href="([^"]+)"/)?.[1] ?? line;
     if (router !== undefined && href.startsWith(router.origin)) {
-      href = href.slice(router.origin.length);
-      late.push(href);
+      late.push(href.slice(router.origin.length));
+      continue;
     }
     (line.includes('rel="modulepreload"') ? preloaded : prefetched).add(href);
   }
   return {
-    paths: [...new Set([...preloaded, ...prefetched])].sort(),
+    paths: [...new Set([...preloaded, ...prefetched, ...late])].sort(),
     preloaded: [...preloaded].sort(),
     prefetched: [...prefetched].filter((path) => !preloaded.has(path)).sort(),
-    late,
+    late: [...new Set(late)].sort(),
   };
 }
 
@@ -905,12 +905,13 @@ describe('a draft preview renders exactly what Publish puts live', () => {
         expect(session.scrollY).toBe(published.scrollY);
         // Chunk hints: the same chunks are named, and only the edited blocks' change kind. A block
         // type the pinned page did not render is needed late: the live page preloads its chunk and
-        // the session keeps the pinned page's prefetch (Vite adds no `modulepreload` for a chunk a
-        // link already names, so no late absolute-URL hint appears on Nuxt 4.7). One the draft no
-        // longer renders stays preloaded from the pinned page where the live page prefetches it
-        // (stale). Pinned per edit by count, so a flip on an unrelated chunk fails.
+        // the session either keeps the pinned page's prefetch (Vite adds no hint for a chunk a
+        // link already names) or, where nothing named it, gets a late `modulepreload` from the
+        // runtime as an absolute URL. One the draft no longer renders stays preloaded from the
+        // pinned page where the live page prefetches it (stale). Pinned per edit by count, so a
+        // flip on an unrelated chunk fails.
         expect(sessionHints.paths).toEqual(liveHints.paths);
-        expect(sessionHints.late).toEqual([]);
+        expect(sessionHints.late.filter((hint) => !liveHints.preloaded.includes(hint))).toEqual([]);
         const needed = liveHints.preloaded.filter((hint) => !sessionHints.preloaded.includes(hint));
         expect(needed).toHaveLength(expected.lateChunks);
         const stale = sessionHints.preloaded.filter((hint) => !liveHints.preloaded.includes(hint));
