@@ -115,18 +115,22 @@
   "header": {
     "primary": "Primary navigation",
     "menu": "Menu",
-    "openMenu": "Open menu",
     "search": "Search",
     "searchField": "Search the shop",
     "cartEmpty": "Cart, empty",
     "cartOne": "Cart, 1 item",
     "cartMany": "Cart, {count} items",
-    "wishlistEmpty": "Wishlist",
-    "wishlistOne": "Wishlist, 1 item",
-    "wishlistMany": "Wishlist, {count} items",
+    "wishlistEmpty": "Saved",
+    "wishlistOne": "Saved, 1 item",
+    "wishlistMany": "Saved, {count} items",
     "viewAll": "View all",
     "viewAllOf": "View all {label}",
-    "cart": "Cart"
+    "cart": "Cart",
+    "saved": "Saved",
+    "savedItems": "Saved items",
+    "account": "Account",
+    "home": "{brand}, home",
+    "info": "Store information"
   },
   "editor": {
     "addLink": "Add a link"
@@ -354,7 +358,10 @@
     "carouselLabel": "{heading} products",
     "clearHistory": "Clear history",
     "headingHintLabel": "Add a heading",
-    "headingHintHelp": "e.g. \"You may also like\""
+    "headingHintHelp": "e.g. \"You may also like\"",
+    "allFilter": "All",
+    "filterLabel": "Filter {heading}",
+    "filterEmpty": "Nothing in this category yet. Try another one."
   },
   "grid": {
     "sectionLabel": "{collection} products",
@@ -387,6 +394,8 @@
     "sortPriceDesc": "Price high to low",
     "sortNewest": "Newest",
     "columns": "Columns",
+    "sort": "Sort",
+    "filterAndSort": "Filter and sort",
     "noCollectionLabel": "Choose a collection",
     "noCollectionHelp": "Products, filters and counts come from the store. Pick a collection and the filters to show.",
     "noCategoryLabel": "This grid lists a category",
@@ -396,10 +405,8 @@
     "images": "Product images",
     "information": "Product information",
     "tabsLabel": "Product details",
-    "zoom": "Zoom image {index} of {count}",
     "viewer": "{title}, images",
-    "showImage": "Show image {index} of {count}: {alt}",
-    "imageIndex": "{index} / {count}",
+    "openImage": "Open image {index} of {count}: {alt}",
     "saleBadge": "Sale",
     "saving": "Save {amount}",
     "taxNote": "Taxes included. Shipping calculated at checkout.",

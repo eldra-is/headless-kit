@@ -24,6 +24,15 @@
  * the link to the bottom of a stretched card so links line up across a row (spec → Sizes,
  * "pushed to the bottom of the item").
  *
+ * **`arched`** is the design's "shop by category" row: each item an arch-topped 3:4 photo (full
+ * radius on top, `radius-lg` below) with a centred serif title and a muted line, and the whole
+ * tile one link — the title and line are the link's text, the photo is decorative. One row of
+ * equal tiles from 1101px of block width; below that the same row keeps a 9rem minimum per tile
+ * and scrolls sideways, bleeding to the block edge so the next tile peeks in. Every tile is a
+ * link, so `Tab` walks the row and the browser scrolls each into view — no tab stop of its own is
+ * needed for the scroll area (axe's `scrollable-region-focusable` is satisfied by its links).
+ * `columns` and `mediaType` do not apply to it.
+ *
  * Spec States → Empty (freshly inserted): "two 'Add a feature' items ('Pick an icon or image,
  * then a title and a sentence')" — the same per-item editor hint shape `team`'s/`stats`' own
  * repeaters use. `isItemEmpty` treats an item with neither icon nor image nor title as empty;
@@ -49,6 +58,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import UiImage from '../../app/components/ui/UiImage.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
+import { focusRing } from '../../app/utils/classes';
 
 const props = defineProps<{ entry: EldraBlockEntry<'feature-grid'> }>();
 const { data } = useBlockData(props, 'feature-grid');
@@ -77,7 +87,8 @@ const hasHead = computed(
   () => hasHeading.value || hasIntro.value || hasHeadLink.value || showHeadingHint.value
 );
 
-const isCards = computed(() => (data.value.variant ?? 'cards') !== 'plain');
+const isArched = computed(() => data.value.variant === 'arched');
+const isCards = computed(() => !isArched.value && (data.value.variant ?? 'cards') !== 'plain');
 const featureCardVariant = computed<FeatureCardVariant>(() =>
   isCards.value ? 'surface' : 'plain'
 );
@@ -136,6 +147,22 @@ const renderedItems = computed(() =>
 );
 const hasItems = computed(() => renderedItems.value.length > 0);
 
+/** The arched row: equal tiles in one row from 1101px, a sideways-scrolling row below with the
+ *  track bleeding to the block edge (the same negative-gutter recipe `trust-strip`'s scroll layout
+ *  uses, matched to `Container`'s own gutter at each step). */
+const ARCHED_LIST_CLASS =
+  'grid grid-flow-col auto-cols-[minmax(9rem,1fr)] gap-6 overflow-x-auto eldra-scrollbar-hide ' +
+  'snap-x pt-1 pb-2 scroll-px-[var(--eldra-gutter-mobile)] ' +
+  '-mx-[var(--eldra-gutter-mobile)] px-[var(--eldra-gutter-mobile)] ' +
+  '@tablet:-mx-[var(--eldra-gutter-tablet)] @tablet:px-[var(--eldra-gutter-tablet)] @tablet:scroll-px-[var(--eldra-gutter-tablet)] ' +
+  '@content:-mx-[var(--eldra-gutter-desktop)] @content:px-[var(--eldra-gutter-desktop)] @content:scroll-px-[var(--eldra-gutter-desktop)] ' +
+  '@min-[68.8125rem]:auto-cols-fr @min-[68.8125rem]:overflow-visible @min-[68.8125rem]:mx-0 ' +
+  '@min-[68.8125rem]:px-0 @min-[68.8125rem]:snap-none';
+const ARCH_TILE_CLASS =
+  'group grid justify-items-center gap-3.5 text-center text-text no-underline rounded-lg';
+const ARCH_FRAME_CLASS =
+  'relative block w-full overflow-hidden bg-surface rounded-t-full rounded-b-lg aspect-[3/4]';
+
 const items = computed(() =>
   renderedItems.value.map((item) => {
     const href = safeHref(item.href);
@@ -146,7 +173,7 @@ const items = computed(() =>
       showIconTile: hasIcon,
       hasImage: Boolean(item.image),
       image: item.image,
-      title: item.title,
+      title: item.title ?? '',
       text: item.text ?? '',
       cue: item.linkLabel || undefined,
       href,
@@ -169,7 +196,7 @@ const items = computed(() =>
           <h2
             v-if="hasHeading"
             :id="headingId"
-            class="font-heading text-text @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
+            class="font-heading text-text text-[1.75rem] leading-[1.1] font-medium tracking-[-0.01em] text-balance @min-[47.5625rem]:text-[2.25rem]"
           >
             {{ data.heading }}
           </h2>
@@ -192,7 +219,49 @@ const items = computed(() =>
         </Link>
       </div>
 
-      <ul role="list" :class="gridClass">
+      <ul v-if="isArched" role="list" :class="ARCHED_LIST_CLASS">
+        <li v-for="(item, index) in items" :key="index" class="snap-start">
+          <EditorPlaceholder
+            v-if="item.isEmpty"
+            inline
+            class="aspect-[3/4] h-auto rounded-t-full rounded-b-lg"
+            :label="t('featureGrid.itemHintLabel')"
+            :help="t('featureGrid.itemHintHelp')"
+          />
+          <component
+            :is="item.href ? (item.linkAs ?? 'a') : 'div'"
+            v-else
+            v-bind="item.href ? (item.linkAs ? { to: item.href } : { href: item.href }) : {}"
+            :class="[ARCH_TILE_CLASS, item.href ? focusRing : '']"
+          >
+            <span :class="ARCH_FRAME_CLASS">
+              <UiImage
+                v-if="item.hasImage"
+                :src="item.image!.url"
+                alt=""
+                :framing="item.image!.framing ?? null"
+                fill
+                class="motion-safe:transition-transform motion-safe:duration-[250ms] motion-safe:group-hover:scale-[1.04]"
+              />
+              <EditorPlaceholder
+                v-else-if="isEditing"
+                inline
+                class="h-full"
+                :label="t('featureGrid.imageHintLabel')"
+              />
+            </span>
+            <span class="grid gap-0.5">
+              <span
+                class="font-heading text-[1.25rem] leading-[1.3] font-medium group-hover:underline group-hover:underline-offset-[0.2em]"
+                >{{ item.title }}</span
+              >
+              <span v-if="item.text" class="text-muted text-sm">{{ item.text }}</span>
+            </span>
+          </component>
+        </li>
+      </ul>
+
+      <ul v-else role="list" :class="gridClass">
         <li v-for="(item, index) in items" :key="index" class="h-full">
           <EditorPlaceholder
             v-if="item.isEmpty"

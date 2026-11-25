@@ -5,6 +5,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import page from '../../pages/search.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
+import { withDemoChrome } from '../support/demoChrome';
 
 const fixture = page as unknown as PageFixture;
 
@@ -37,7 +38,7 @@ const SearchPage = defineComponent({
         },
         () => t('nav.skipToContent')
       ),
-      ...renderPageFixtureRegions(fixture, 'Pages/Search story'),
+      ...renderPageFixtureRegions(withDemoChrome(fixture), 'Pages/Search story'),
     ];
   },
 });

@@ -5,6 +5,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import fixture from '../../pages/collection.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
+import { withDemoChrome } from '../support/demoChrome';
 
 const page = fixture as unknown as PageFixture;
 
@@ -34,7 +35,7 @@ const CollectionPage = defineComponent({
           },
           { default: () => t('nav.skipToContent') }
         ),
-        ...renderPageFixtureRegions(page, 'Pages/Collection story'),
+        ...renderPageFixtureRegions(withDemoChrome(page), 'Pages/Collection story'),
       ]);
   },
 });

@@ -18,7 +18,7 @@ import { createDemoStorefront } from '../app/storefront/demo';
  * `blocks/navigation/__tests__/Block.spec.ts` proves the pill carries the operator's corner-badge
  * classes (`COUNT_PILL_CLASSES` in `Block.vue`) — `min-h-3.5`/`min-w-3.5`/`h-3.5`, `-top-0.5
  * -right-0.5`, no ring. That is a class-name assertion, in jsdom, which computes no layout at all —
- * it cannot see whether those classes actually resolve to a 14px-tall box sitting on the icon's own
+ * it cannot see whether those classes actually resolve to an 18px-tall box sitting on the icon's own
  * corner once the theme's real Tailwind build and a real browser's box model are both in the loop,
  * which is exactly the gap two reported defects in a row lived in: first a pill that read as too
  * large next to the icon (fixed by shrinking it to spec), then — worse — a pill that, once moved onto
@@ -112,11 +112,10 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
   });
 
   /**
-   * A corner badge is at most 14px tall — that is the
-   * whole point of shrinking it off the spec's 1.25rem minimum. The width floor comes along for
-   * free from `min-w-3.5`.
+   * The Northwind design's corner badge is 1.125rem (18px) tall — never `Badge`'s own 1.5rem
+   * minimum. The width floor comes along for free from `min-w-[1.125rem]`.
    */
-  it('comes out at most 14px tall with one item', async () => {
+  it('comes out at most 18px tall with one item', async () => {
     const html = await renderHeaderWithCartCount(1);
     const page = await pageFor(html);
     try {
@@ -124,18 +123,17 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
       expect((await pill.textContent())?.trim()).toBe('1');
       const box = await pill.boundingBox();
       if (box === null) throw new Error('the pill never laid out');
-      expect(box.height).toBeLessThanOrEqual(14);
+      expect(box.height).toBeLessThanOrEqual(18);
     } finally {
       await page.close();
     }
   });
 
   /**
-   * The defect this change actually fixes: a pill moved onto the icon's own corner that then
-   * covered almost the whole glyph. Measured against the real `<svg>` the bag icon renders (not an
-   * assumed box), the pill's footprint must land mostly on the button's own padding — at most a
-   * quarter of the icon's area — so the icon stays recognisable with a badge sitting on its
-   * corner, not a badge sitting on top of it.
+   * A pill moved onto the icon's own corner must not cover the glyph. Measured against the real
+   * `<svg>` the bag tool renders (not an assumed box), the pill's footprint must land mostly beside
+   * the icon — at most a quarter of its area — so the icon stays recognisable with a badge sitting
+   * on its corner, not a badge sitting on top of it.
    */
   it('overlaps the bag icon by at most a quarter of its area, with no ring left behind', async () => {
     const html = await renderHeaderWithCartCount(1);
@@ -146,7 +144,7 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
       if (pillBox === null) throw new Error('the pill never laid out');
 
       // The bag's own icon: the leading-icon slot's `<svg>` inside the same wrapper the pill is a
-      // sibling of (`<span class="relative inline-flex"><Button>…<svg/></Button><Badge/></span>`).
+      // sibling of (`<span class="relative inline-flex"><Button>…<svg/>Cart</Button><Badge/></span>`).
       const iconBox = await pill.evaluate((el): Rect | null => {
         const svg = el.parentElement?.querySelector('[data-part="leadingIcon"] svg');
         if (svg === null || svg === undefined) return null;
@@ -158,6 +156,16 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
       const overlap = intersectionArea(pillBox, iconBox);
       const iconArea = iconBox.width * iconBox.height;
       expect(overlap / iconArea).toBeLessThanOrEqual(0.25);
+
+      // And the tool's printed label ("Cart") under the icon stays clear of it.
+      const labelBox = await pill.evaluate((el): Rect | null => {
+        const label = el.parentElement?.querySelector('[data-part="label"]');
+        if (label === null || label === undefined) return null;
+        const rect = label.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      });
+      if (labelBox === null) throw new Error('the bag tool has no visible label');
+      expect(intersectionArea(pillBox, labelBox)).toBe(0);
 
       // The ring the earlier version carried (`ring-2 ring-background`) painted as a box-shadow;
       // a corner badge sitting on the icon must carry none, since a ring's job is separating a
@@ -188,7 +196,7 @@ describe('the header cart count pill, in a real browser at 1440px', () => {
       expect(overflow.scrollHeight).toBeLessThanOrEqual(overflow.clientHeight);
       const box = await pill.boundingBox();
       if (box === null) throw new Error('the pill never laid out');
-      expect(box.height).toBeLessThanOrEqual(14);
+      expect(box.height).toBeLessThanOrEqual(18);
     } finally {
       await page.close();
     }

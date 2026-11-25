@@ -1,7 +1,7 @@
 {
   "apiId": "product-detail",
   "name": "Product detail",
-  "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery notes and description tabs, plus a quick-add bar on narrow widths.",
+  "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery promises and a details accordion beside an image mosaic, plus a quick-add bar on narrow widths.",
   "icon": "shirt",
   "category": "commerce",
   "version": 1,
@@ -52,7 +52,7 @@
       "fieldId": "perks",
       "name": "Perks",
       "type": "list",
-      "helpText": "Delivery and returns notes under the buy button. 2 work best.",
+      "helpText": "Delivery, collection and returns promises under the buy button, one ruled row each. 2 or 3 work best.",
       "metadata": {
         "item": {
           "fieldId": "perk",
@@ -65,7 +65,14 @@
                 "name": "Icon",
                 "type": "select",
                 "metadata": {
-                  "options": ["truck", "arrow-back-up", "leaf", "shield-check", "gift"]
+                  "options": [
+                    "truck",
+                    "arrow-back-up",
+                    "leaf",
+                    "shield-check",
+                    "gift",
+                    "building-store"
+                  ]
                 },
                 "validators": { "required": true }
               },
@@ -93,7 +100,7 @@
       "fieldId": "tabs",
       "name": "Tabs",
       "type": "list",
-      "helpText": "Details, Shipping and Returns by default.",
+      "helpText": "Shown as an accordion under the buy panel, the first one open. Details, Shipping and Returns by default.",
       "metadata": {
         "item": {
           "fieldId": "tab",

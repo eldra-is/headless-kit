@@ -6,7 +6,8 @@ import { Badge } from '@eldrajs/ui';
 import { enUS as uiEnUS } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
-import mock from '../mock.json';
+import seed from '../mock.json';
+import menuFixture from './fixtures/menu.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { computed, nextTick, ref, type Ref } from 'vue';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
@@ -21,6 +22,15 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 // slug and a title before rendering. `resolveTargets` does both here, so a spec can assert the
 // hrefs a real page produces; `mock` itself stays the unresolved seed, which is what a header
 // looks like the moment it is inserted and nothing has resolved yet.
+// The menu and keyboard specs below were written against a five-item bar — Knitwear and Ceramics
+// as mega-menus, then Kitchen, Journal and Visit the studio as plain links — and they count
+// triggers and walk panels by position. That menu is kept as a fixture (`fixtures/menu.json`, the
+// seed's links before the Northwind redesign) so those specs keep measuring `NavMenu`'s behaviour
+// rather than whichever demo menu the seed happens to ship; everything else is the real seed, info
+// strip included. The redesigned seed's own menu (sections with cards, a badge, a dropdown) has its
+// own specs under "the Northwind menu".
+const mock = { ...seed, links: menuFixture.links, searchStyle: 'icon' as const };
+
 const COLLECTION_TEMPLATE = {
   id: 'rt-collection',
   data: {
@@ -105,6 +115,16 @@ function stubFocusVisible(matches: boolean): () => void {
   return () => {
     Element.prototype.matches = original;
   };
+}
+
+/** The labelled Search tool: named by its visible label, so it carries no `aria-label` to find it by. */
+function findSearchTool(wrapper: { findAll: (selector: string) => DOMWrapper<Element>[] }) {
+  return wrapper.findAll('button').find((button) => button.text().trim() === 'Search');
+}
+function searchTool(wrapper: { findAll: (selector: string) => DOMWrapper<Element>[] }) {
+  const button = findSearchTool(wrapper);
+  if (button === undefined) throw new Error('no Search tool in the bar');
+  return button;
 }
 
 function mountBlock(data: Record<string, unknown>, opts?: { attachTo?: Element }) {
@@ -344,7 +364,7 @@ describe('header block (navigation apiId)', () => {
     expect(cards).toHaveLength(2);
     const image = cards[0]!.get('img');
     expect(image.attributes('src')).toBe('https://media.test/mug-md.jpg');
-    expect((image.element as HTMLImageElement).style.aspectRatio).toBe('4 / 3');
+    expect((image.element as HTMLImageElement).style.aspectRatio).toBe('4 / 5');
     expect(cards[0]!.get('[data-part="cardTitle"]').text()).toBe('Ash glaze mug');
     expect(cards[0]!.get('[data-part="cardPrice"]').text()).toMatch(/28/);
     expect(cards[1]!.get('img').attributes('src')).toBe('https://media.test/winter-md.jpg');
@@ -543,11 +563,20 @@ describe('header block (navigation apiId)', () => {
       expect(spacer.classes()).toContain('@container');
       expect(spacer.classes()).toContain('border-b');
       expect(spacer.classes()).toContain('border-transparent');
-      const reserved = spacer.get('div');
+      // The info strip's box first (the seed has one), then the bar's. The strip mirrors its own
+      // two boxes too: the hairline on the outer, the height on the inner, so the border adds to
+      // the height (36px + 1px) rather than eating into it (`border-box`).
+      const [strip, reserved] = spacer.findAll(':scope > div');
+      const info = wrapper.get('[data-eldra-header-info]');
+      expect(info.classes()).toContain('border-b');
+      expect(strip!.classes()).toContain('border-b');
+      expect(strip!.classes()).not.toContain('min-h-9');
+      expect(info.get(':scope > div').classes()).toContain('min-h-9');
+      expect(strip!.get(':scope > div').classes()).toContain('min-h-9');
       const bar = wrapper.get('[data-eldra-header-bar]');
-      for (const height of ['h-16', '@content:h-[4.5rem]']) {
+      for (const height of ['min-h-[4.5rem]', '@max-[47.5625rem]:min-h-[3.75rem]']) {
         expect(bar.classes()).toContain(height);
-        expect(reserved.classes()).toContain(height);
+        expect(reserved!.classes()).toContain(height);
       }
 
       wrapper.unmount();
@@ -645,7 +674,7 @@ describe('header block (navigation apiId)', () => {
           window.dispatchEvent(new Event('scroll'));
           await nextTick();
         };
-        const searchButton = wrapper.get('button[aria-label="Search"]');
+        const searchButton = searchTool(wrapper);
 
         await searchButton.trigger('focusin');
         await scrollTo(300);
@@ -1215,38 +1244,37 @@ describe('header block (navigation apiId)', () => {
     });
 
     /**
-     * A corner badge, not the spec's own "1.25rem, flush right,
-     * ring" pill — that reading put the pill beside the bag's icon rather than on it. 0.875rem
-     * (`-3.5`) square, nudged just outside the button's own top-right corner (`-top-0.5
-     * -right-0.5`: `top-0.5 right-0.5` was tried first and, measured in a real browser, still
-     * buried roughly a third of the icon under it), no ring (a ring separates a pill from what
-     * sits *beside* it; this one sits deliberately *on* the icon's corner). `Badge`'s own
-     * `min-h-6`/`text-badge` must not survive the merge — that overshoot (1.5rem tall, the wrong
-     * type scale) was the original defect.
+     * The Northwind design's corner badge on a labelled tool: 1.125rem tall, `0.6875rem` bold
+     * figures, at the tool's top-right (`top-0.5 right-1.5`, `right-0.5` on a phone), no ring (a ring
+     * separates a pill from what sits *beside* it; this one sits deliberately *on* the icon's
+     * corner). `Badge`'s own `min-h-6`/`text-badge` must not survive the merge — that overshoot
+     * (1.5rem tall, the wrong type scale) was the original defect. The real-browser measurement is
+     * `test/countPill.browser.spec.ts`.
      */
     it('sizes and positions the pill as a corner badge, with none of Badge’s own oversized defaults left behind', async () => {
       const wrapper = mountWithCartCount(mock, 2);
       await nextTick();
       const badge = countPill(findCartButton(wrapper))!;
       for (const token of [
-        'min-h-3.5',
-        'min-w-3.5',
-        'h-3.5',
+        'min-h-[1.125rem]',
+        'min-w-[1.125rem]',
+        'h-[1.125rem]',
         'px-1',
-        'text-[0.625rem]',
+        'text-[0.6875rem]',
         'font-bold',
         'tabular-nums',
         'leading-none',
-        '-top-0.5',
-        '-right-0.5',
+        'top-0.5',
+        'right-1.5',
+        '@max-[47.5625rem]:right-0.5',
       ]) {
         expect([...badge.classList]).toContain(token);
       }
       for (const stale of [
         'min-h-6',
         'text-badge',
-        'top-0.5',
-        'right-0.5',
+        '-top-0.5',
+        '-right-0.5',
         'ring-2',
         'ring-background',
         'min-h-5',
@@ -1318,7 +1346,7 @@ describe('header block (navigation apiId)', () => {
     function findHeart(wrapper: ReturnType<typeof mountBlock>) {
       return wrapper
         .findAll('a, button')
-        .find((control) => control.attributes('aria-label')?.startsWith('Wishlist'));
+        .find((control) => control.attributes('aria-label')?.startsWith('Saved'));
     }
 
     function saveInBrowser(...handles: string[]): void {
@@ -1330,7 +1358,7 @@ describe('header block (navigation apiId)', () => {
       const heart = findHeart(wrapper)!;
       // No number in the name, so the prerendered header reads the same for every visitor — and
       // the destination is there from the first paint, not grown later.
-      expect(heart.attributes('aria-label')).toBe('Wishlist');
+      expect(heart.attributes('aria-label')).toBe('Saved');
       expect(heart.attributes('href')).toBe('/wishlist');
       expect(countPill(heart)).toBeNull();
       // The bag's own pill is absent too (an empty cart), so this is the whole actions row: two
@@ -1361,7 +1389,7 @@ describe('header block (navigation apiId)', () => {
       await nextTick();
 
       const heart = findHeart(wrapper)!;
-      expect(heart.attributes('aria-label')).toBe('Wishlist, 1 item');
+      expect(heart.attributes('aria-label')).toBe('Saved, 1 item');
       expect(heart.element.tagName).toBe('A');
       expect(heart.attributes('href')).toBe('/wishlist');
       // It is a link to a page, so it claims no popup — the same rule the bag's link form follows.
@@ -1374,7 +1402,7 @@ describe('header block (navigation apiId)', () => {
       await nextTick();
 
       const heart = findHeart(wrapper)!;
-      expect(heart.attributes('aria-label')).toBe('Wishlist, 2 items');
+      expect(heart.attributes('aria-label')).toBe('Saved, 2 items');
       const badge = countPill(heart)!;
       expect(badge.getAttribute('aria-hidden')).toBe('true');
       expect(badge.textContent?.trim()).toBe('2');
@@ -1387,7 +1415,7 @@ describe('header block (navigation apiId)', () => {
       await nextTick();
 
       const heart = findHeart(wrapper)!;
-      expect(heart.attributes('aria-label')).toBe('Wishlist, 120 items');
+      expect(heart.attributes('aria-label')).toBe('Saved, 120 items');
       expect(countPill(heart)?.textContent?.trim()).toBe('99+');
     });
 
@@ -1413,7 +1441,13 @@ describe('header block (navigation apiId)', () => {
       expect(heartPill.className).toBe(cartPill.className);
       // And the corner-badge classes are actually on it, not just shared with an equally-wrong
       // sibling.
-      for (const token of ['min-h-3.5', 'min-w-3.5', 'h-3.5', '-top-0.5', '-right-0.5']) {
+      for (const token of [
+        'min-h-[1.125rem]',
+        'min-w-[1.125rem]',
+        'h-[1.125rem]',
+        'top-0.5',
+        'right-1.5',
+      ]) {
         expect([...heartPill.classList]).toContain(token);
       }
     });
@@ -1431,7 +1465,7 @@ describe('header block (navigation apiId)', () => {
      *  control's own, which is the state every prerendered page is served in. */
     it('is axe-clean with nothing saved, where the heart carries no pill', async () => {
       const wrapper = mountBlock(resolved.data);
-      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Wishlist');
+      expect(findHeart(wrapper)!.attributes('aria-label')).toBe('Saved');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
@@ -1561,15 +1595,15 @@ describe('header block (navigation apiId)', () => {
   });
 
   describe('mega-menu panel geometry', () => {
-    // jsdom computes no layout, so the proof that the panel really lands on the brand's left edge
-    // and the actions' right edge is the browser case in `test/prerenderRefresh.browser.spec.ts`.
-    // What is checkable here is the arrangement that produces it: the panel is pinned to the
-    // header's own content box — the bar's grid — rather than to the item that opened it, and its
-    // columns are the container's 12-column grid.
+    // jsdom computes no layout; what is checkable here is the arrangement. The Northwind panel is a
+    // full-bleed sheet: pinned to the whole `<header>` (fixed when sticky, `relative` when not) rather
+    // than to the item that opened it or to the bar's grid, with its columns held inside the same
+    // wide container the bar uses.
     it('pins the panel to the header container, not to the trigger that opened it', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-      // The bar's grid is the panel's positioning box; the menu's own root takes no box at all.
-      expect(wrapper.get('[data-eldra-header-bar]').classes()).toContain('relative');
+      // The header is the panel's positioning box; the bar's grid and the menu's own root take none.
+      expect(wrapper.get('header').classes()).toContain('fixed');
+      expect(wrapper.get('[data-eldra-header-bar]').classes()).not.toContain('relative');
       const root = [...menuRoot(wrapper).classList];
       expect(root).toContain('static');
       expect(root).toContain('contents');
@@ -1589,30 +1623,34 @@ describe('header block (navigation apiId)', () => {
       const panelTokens = panel.classes().map((token) => token.replace(/^eldra:/, ''));
       expect(panelTokens).not.toContain('w-screen');
       expect(panelTokens.some((token) => token.startsWith('max-w-'))).toBe(false);
-      // The bar's own bottom border is the sheet's top edge, so only the other three sides and corners are drawn.
+      // The bar's own bottom border is the sheet's top edge; the sheet draws only a bottom rule and
+      // the float shadow, square-cornered, 2rem above and below, the page's own gutters at the sides.
       const sheet = panel.get('[data-part="content"]').classes();
       for (const token of [
-        'eldra:border',
-        'border-t-0',
-        'eldra:border-border',
         'rounded-none',
-        'rounded-b-lg',
+        'border-0',
+        'border-b',
+        'border-border',
         'shadow-(--eldra-shadow-float)',
-        'eldra:p-6',
-        '@wide:p-8',
+        'py-8',
+        'px-(--eldra-gutter-mobile)',
+        '@tablet:px-(--eldra-gutter-tablet)',
+        '@content:px-(--eldra-gutter-desktop)',
       ]) {
         expect(sheet).toContain(token);
       }
 
-      // The container's grid: 12 columns, 24px gutters, and an inset that keeps every column off
-      // the panel's own edges — 24px, 32px once the container passes `wide`. The browser case
-      // measures what this produces; here it is only the arrangement.
+      // The columns: inside the wide container, 12 tracks with 2rem gutters.
       const columns = panel.get('[data-part="columns"]').classes();
-      for (const token of ['eldra:grid', 'grid-cols-12', 'gap-6']) {
+      for (const token of [
+        'eldra:grid',
+        'grid-cols-12',
+        'gap-8',
+        'mx-auto',
+        'max-w-[calc(var(--eldra-container-wide)-2*var(--eldra-gutter-desktop))]',
+      ]) {
         expect(columns).toContain(token);
       }
-      expect(sheet).not.toContain('eldra:py-8');
-      expect(sheet).not.toContain('py-8');
       wrapper.unmount();
     });
 
@@ -1738,7 +1776,7 @@ describe('header block (navigation apiId)', () => {
 
   it('the search control has aria-haspopup="dialog" and opens SearchModal', async () => {
     const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-    const searchButton = wrapper.get('button[aria-label="Search"]');
+    const searchButton = searchTool(wrapper);
     expect(searchButton.attributes('aria-haspopup')).toBe('dialog');
     await searchButton.trigger('click');
     const dialogs = wrapper.findAll('dialog');
@@ -1823,7 +1861,7 @@ describe('header block (navigation apiId)', () => {
     }
 
     async function openOverlay(wrapper: ReturnType<typeof mountWithSearch>) {
-      await wrapper.get('button[aria-label="Search"]').trigger('click');
+      await searchTool(wrapper).trigger('click');
       return wrapper.get('dialog[open] input[type="search"]');
     }
 
@@ -1956,32 +1994,43 @@ describe('header block (navigation apiId)', () => {
   });
 
   describe('actions row spacing', () => {
-    // Regression for an uneven header: a `@tablet:gap-4` on the bar's own grid put 1rem between
-    // the search column and this row, against the 0.25rem `gap-1` puts between its own buttons —
-    // so search read as detached from the wishlist/cart cluster, which themselves looked glued
-    // together.
-    it('puts one 0.25rem gap everywhere in the bar’s grid — never a larger one between columns', () => {
+    // Below 68.8125rem the brand is centred by symmetry alone: Menu and Search on one side, Saved
+    // and Cart on the other, all one fixed width, with the grid's gap equal to the actions row's own
+    // — so the two sides measure the same. A larger gap on either breaks the centring.
+    it('puts the same 0.125rem gap in the bar’s grid and in the actions row, so the brand stays centred', () => {
       const wrapper = mountBlock(resolved.data);
       const bar = wrapper.get('[data-eldra-header-bar]');
-      expect(bar.classes()).toContain('gap-1');
-      expect(bar.classes().some((cls) => cls.includes('gap-4'))).toBe(false);
-
+      expect(bar.classes()).toContain('gap-x-0.5');
+      expect(bar.classes()).toContain(
+        'grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)_auto]'
+      );
       const actions = wrapper.get('[data-eldra-header-actions]');
-      expect(actions.classes()).toContain('gap-1');
+      expect(actions.classes()).toContain('gap-0.5');
+      // Every tool on either side is the same fixed width.
+      const menu = wrapper.get('button[aria-label="Menu"]');
+      const saved = wrapper.get('[aria-label^="Saved"]');
+      const tools = [menu, searchTool(wrapper), saved, findCartButtonIn(wrapper)!];
+      for (const tool of tools) {
+        expect(tool.classes()).toEqual(
+          expect.arrayContaining(['w-14', '@max-[47.5625rem]:w-11', '@max-[22.5rem]:w-10'])
+        );
+      }
     });
 
     it('gives the call to action its own 0.75rem from the cart, not only the row’s 0.25rem gap', () => {
       const wrapper = mountBlock(resolved.data);
       const actions = wrapper.get('[data-eldra-header-actions]');
       const cta = actions.findAll('a, button').find((el) => el.text() === mock.ctaLabel)!;
-      // 0.5rem of margin on top of the row's own 0.25rem `gap-1` — spec "Header" -> Layout, "From
-      // 64rem": the call to action "sits 0.75rem after the cart".
-      expect(cta.classes()).toContain('@content:ml-2');
+      // 0.625rem of margin on top of the row's own 0.125rem gap: the call to action "sits 0.75rem
+      // after the cart".
+      expect(cta.classes()).toContain('ml-2.5');
       // And the row's only hidden/visible pair lands on the button's own root — the flex item the
       // row's `gap-1` actually counts — not on a wrapper around it. A wrapper carrying `hidden`
       // while the button inside it carries the visible class would still occupy a gap slot: the
       // parent check is what rules that out, not just the classes existing somewhere in the tree.
-      expect(cta.classes()).toEqual(expect.arrayContaining(['hidden', '@content:inline-flex']));
+      expect(cta.classes()).toEqual(
+        expect.arrayContaining(['hidden', '@min-[68.8125rem]:inline-flex'])
+      );
       expect(cta.element.parentElement).toBe(actions.element);
     });
   });
@@ -2009,7 +2058,7 @@ describe('header block (navigation apiId)', () => {
       // The bar's link list is not drawn at all with nothing in it, so no empty `<ul>` is left
       // sitting in the grid.
       expect(wrapper.find('ul.list-none.items-center').exists()).toBe(false);
-      expect(wrapper.find('button[aria-label="Search"]').exists()).toBe(true);
+      expect(findSearchTool(wrapper)).toBeDefined();
       expect(wrapper.find('[aria-label="Cart, empty"]').exists()).toBe(true);
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
@@ -2018,7 +2067,7 @@ describe('header block (navigation apiId)', () => {
       // The drawer holds the links and the call to action. With neither there is nothing to open,
       // and a Menu button that opens an empty sheet is a control that does nothing.
       const wrapper = mountBlock(SEEDED);
-      expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(false);
+      expect(wrapper.find('button[aria-label="Menu"]').exists()).toBe(false);
       // `dialog[aria-label="Menu"]` is the drawer itself; the search overlay's own `<dialog>`
       // renders either way, so the drawer has to be named rather than counted.
       expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
@@ -2031,7 +2080,7 @@ describe('header block (navigation apiId)', () => {
         { ...SEEDED, ctaLabel: 'Shop', cta: { kind: 'url', url: '/collections/all' } },
       ]) {
         const wrapper = mountBlock(data);
-        expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(true);
+        expect(wrapper.find('button[aria-label="Menu"]').exists()).toBe(true);
       }
     });
 
@@ -2049,7 +2098,7 @@ describe('header block (navigation apiId)', () => {
           wrapper.findAll('a, button').some((control) => control.attributes('href') === '/account')
         ).toBe(false);
         expect(wrapper.text()).not.toContain('Account');
-        expect(wrapper.find('button[aria-label="Open menu"]').exists()).toBe(false);
+        expect(wrapper.find('button[aria-label="Menu"]').exists()).toBe(false);
         expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
       }
     });
@@ -2210,5 +2259,294 @@ describe('header block (navigation apiId)', () => {
         stub.restore();
       }
     });
+  });
+});
+
+/**
+ * The redesigned seed: an info strip, labelled tools, a scalable brand, and a menu of sections with
+ * cards, a badge and a dropdown — the Northwind design's header boards.
+ */
+describe('the Northwind menu (the seed’s own)', () => {
+  const PRODUCT_TEMPLATE = {
+    id: 'rt-product',
+    data: { schemaApiId: 'catalog:product', routePattern: '/products/:slug', slugField: 'slug' },
+  };
+  const PRODUCT_TARGETS: Record<string, { image: string; price: number }> = {
+    'speckled-latte-mug': { image: '/images/mug.webp', price: 28 },
+    'merino-crew-sweater': { image: '/images/sweater.webp', price: 96 },
+    'hand-thrown-serving-bowl': { image: '/images/bowl.webp', price: 64 },
+  };
+  const northwind = resolveTargets(seed);
+  const links = {
+    templates: [COLLECTION_TEMPLATE, PRODUCT_TEMPLATE] as (typeof COLLECTION_TEMPLATE)[],
+    targets: new Map(
+      [...northwind.links.targets].map(([key, info]) => {
+        const slug = (info as { slug: string }).slug;
+        const extra = key.startsWith('product:') ? PRODUCT_TARGETS[slug] : undefined;
+        return [key, { ...(info as object), ...extra }];
+      })
+    ),
+  };
+  function mountSeed(data: Record<string, unknown> = {}) {
+    return mount(Block, {
+      ...mountOptions({ entry: { id: 'e1', data: { ...northwind.data, ...data } } }, { links }),
+      attachTo: document.body,
+    });
+  }
+  type Wrapper = ReturnType<typeof mountSeed>;
+  const trigger = (wrapper: Wrapper, label: string) =>
+    wrapper.findAll('button').find((button) => button.text().includes(label))!;
+  const panel = (wrapper: Wrapper, label: string) =>
+    wrapper.get(`#${trigger(wrapper, label).attributes('aria-controls')}`);
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('renders the seed axe-clean in every variant', async () => {
+    for (const variant of ['default', 'centered', 'minimal']) {
+      const wrapper = mountSeed({ variant });
+      expect(await axe(wrapper.element), variant).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+
+  describe('info strip', () => {
+    it('is a named region: the start items with icons, the end items as links', async () => {
+      const wrapper = mountSeed();
+      const strip = wrapper.get('[data-eldra-header-info]');
+      expect(strip.attributes('role')).toBe('region');
+      expect(strip.attributes('aria-label')).toBe('Store information');
+      const [start, end] = strip.findAll('ul');
+      expect(start!.findAll('li').map((li) => li.text())).toEqual([
+        'Free delivery over $80',
+        '30-day returns',
+        'Shop open today 10–18',
+      ]);
+      const phone = end!.findAll('a').find((a) => a.text() === '(555) 014-2290')!;
+      expect(phone.attributes('href')).toBe('tel:+15550142290');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('keeps only the first item on a phone, and moves the end of the strip into the drawer', () => {
+      const wrapper = mountSeed();
+      const [start, end] = wrapper.get('[data-eldra-header-info]').findAll('ul');
+      const items = start!.findAll('li');
+      expect(items[0]!.classes()).not.toContain('@max-[47.5625rem]:hidden');
+      for (const item of items.slice(1))
+        expect(item.classes()).toContain('@max-[47.5625rem]:hidden');
+      expect(end!.classes()).toContain('@max-[68.8125rem]:hidden');
+      // The drawer's footer repeats the end links the strip hides there.
+      const drawerLinks = wrapper.get('[data-eldra-header-drawer-links]');
+      expect(drawerLinks.text()).toContain('Order status');
+      expect(drawerLinks.text()).toContain('(555) 014-2290');
+      expect(drawerLinks.text()).toContain('Saved items');
+    });
+
+    it('is not drawn with no items, and drops a javascript: link to plain text', () => {
+      const empty = mountSeed({ infoItems: [] });
+      expect(empty.find('[data-eldra-header-info]').exists()).toBe(false);
+      empty.unmount();
+      const wrapper = mountSeed({
+        infoItems: [{ text: 'Call us', href: 'javascript:alert(1)' }],
+      });
+      const strip = wrapper.get('[data-eldra-header-info]');
+      expect(strip.find('a').exists()).toBe(false);
+      expect(strip.text()).toBe('Call us');
+    });
+  });
+
+  describe('labelled tools', () => {
+    it('names every tool with its visible label first (WCAG 2.5.3)', async () => {
+      const wrapper = mountSeed();
+      const menu = wrapper.get('button[aria-label="Menu"]');
+      expect(menu.text()).toBe('Menu');
+      const search = wrapper
+        .findAll('button')
+        .filter((button) => button.text().trim() === 'Search');
+      expect(search).toHaveLength(1);
+      expect(search[0]!.attributes('aria-label')).toBeUndefined();
+      // The design's pill field, from 80rem; the Search tool below it.
+      const pill = wrapper.findAll('button').find((b) => b.text().trim() === 'Search the shop')!;
+      expect(pill.classes()).toEqual(expect.arrayContaining(['hidden', '@wide:inline-flex']));
+      expect(search[0]!.classes()).toContain('@wide:hidden');
+      for (const tool of [
+        wrapper.get('[aria-label^="Saved"]'),
+        wrapper.get('[aria-label^="Cart"]'),
+      ]) {
+        const label = tool.get('[data-part="label"]').text().trim();
+        expect(tool.attributes('aria-label')!.startsWith(label)).toBe(true);
+      }
+    });
+
+    it('shows Account only when it is linked, as a tool and in the drawer', async () => {
+      const bare = mountSeed();
+      expect(bare.text()).not.toContain('Account');
+      bare.unmount();
+      const wrapper = mountSeed({ account: { kind: 'url', url: '/account' } });
+      const tools = wrapper
+        .get('[data-eldra-header-actions]')
+        .findAll('a')
+        .filter((a) => a.text().trim() === 'Account');
+      expect(tools).toHaveLength(1);
+      expect(tools[0]!.attributes('href')).toBe('/account');
+      expect(tools[0]!.classes()).toContain('@max-[68.8125rem]:hidden');
+      expect(wrapper.get('[data-eldra-header-drawer-links]').text()).toContain('Account');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  describe('brand', () => {
+    const logo = (width: number, height: number) => ({
+      assetId: 'logo',
+      url: '/logo.svg',
+      altText: 'Northwind Goods',
+      width,
+      height,
+    });
+    const mark = { assetId: 'mark', url: '/mark.svg', altText: '', width: 64, height: 64 };
+    const brand = (wrapper: Wrapper) => wrapper.get('[data-eldra-header-brand]');
+
+    it('names the link once, so whichever picture a width shows, it reads the same', async () => {
+      const wrapper = mountSeed({ brandMark: mark, brandLogo: logo(300, 100) });
+      expect(brand(wrapper).attributes('aria-label')).toBe('Northwind Goods, home');
+      for (const img of brand(wrapper).findAll('img')) expect(img.attributes('alt')).toBe('');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('draws a mark beside the wordmark, and the mark alone below 400px', () => {
+      const wrapper = mountSeed({ brandMark: mark });
+      const [img] = brand(wrapper).findAll('img');
+      expect(img!.classes()).not.toContain('hidden');
+      expect(brand(wrapper).get('span span').classes()).toContain('@max-[25.0625rem]:hidden');
+    });
+
+    it('swaps a logo for its mark below 400px', () => {
+      const wrapper = mountSeed({ brandMark: mark, brandLogo: logo(300, 100) });
+      const [markImg, logoImg] = brand(wrapper).findAll('img');
+      expect(markImg!.classes()).toEqual(
+        expect.arrayContaining(['hidden', '@max-[25.0625rem]:block'])
+      );
+      expect(logoImg!.classes()).toContain('@max-[25.0625rem]:hidden');
+      expect(brand(wrapper).text()).toBe('');
+    });
+
+    it('prints the store name below 400px for a logo wider than 4:1 with no mark', () => {
+      const wrapper = mountSeed({ brandLogo: logo(1000, 100) });
+      const [logoImg] = brand(wrapper).findAll('img');
+      expect(logoImg!.classes()).toContain('@max-[25.0625rem]:hidden');
+      const name = brand(wrapper).get('span span');
+      expect(name.text()).toBe('Northwind Goods');
+      expect(name.classes()).toEqual(expect.arrayContaining(['hidden', '@max-[25.0625rem]:block']));
+    });
+
+    it('keeps a logo of 4:1 or narrower at every width, sized by height', () => {
+      const wrapper = mountSeed({ brandLogo: logo(400, 100) });
+      const [logoImg] = brand(wrapper).findAll('img');
+      expect(logoImg!.classes()).toEqual(
+        expect.arrayContaining(['h-9', 'w-auto', 'max-w-60', '@max-[47.5625rem]:max-h-8'])
+      );
+      expect(logoImg!.classes()).not.toContain('@max-[25.0625rem]:hidden');
+      expect(brand(wrapper).text()).toBe('');
+    });
+
+    it('wraps a text-only wordmark onto two centred lines below 360px', () => {
+      const wrapper = mountSeed();
+      const name = brand(wrapper).get('span span');
+      expect(name.classes()).toEqual(
+        expect.arrayContaining([
+          '@max-[22.5rem]:whitespace-normal',
+          '@max-[22.5rem]:text-center',
+          '@max-[22.5rem]:max-w-[5.75rem]',
+        ])
+      );
+    });
+  });
+
+  describe('panels', () => {
+    it('draws column headings, linked or plain, a badge and a see-all link', async () => {
+      const wrapper = mountSeed();
+      await trigger(wrapper, 'Ceramics').trigger('click');
+      const ceramics = panel(wrapper, 'Ceramics');
+      const headings = ceramics.findAll('[data-part="groupHeading"]');
+      expect(headings.map((heading) => heading.text())).toEqual([
+        'By type',
+        'By glaze',
+        'Makers',
+        'Best sellers',
+      ]);
+      expect(headings[0]!.find('a').exists()).toBe(true);
+      expect(headings[1]!.find('a').exists()).toBe(false);
+      const vases = ceramics.findAll('a').find((a) => a.text().startsWith('Vases'))!;
+      expect(vases.get('[data-part="label"]').text()).toBe('New');
+      const seeAll = ceramics.get('[data-see-all]');
+      expect(seeAll.text()).toBe('All ceramics');
+      expect(seeAll.attributes('href')).toBe('/categories/home/ceramics');
+      // A column's own see-all link stands in for the panel's "View all" row.
+      expect(ceramics.find('[data-eldra-mega-view-all]').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('draws product cards with their picture, title and price', async () => {
+      const wrapper = mountSeed();
+      await trigger(wrapper, 'Shop').trigger('click');
+      const cards = panel(wrapper, 'Shop').findAll('[data-part="card"]');
+      expect(cards).toHaveLength(2);
+      expect(cards[0]!.get('img').attributes('src')).toBe('/images/mug.webp');
+      expect(cards[0]!.get('[data-part="cardTitle"]').text()).toBe('Speckled latte mug');
+      expect(cards[0]!.find('[data-part="cardPrice"]').exists()).toBe(true);
+      expect(cards[0]!.element.closest('a')!.getAttribute('href')).toBe(
+        '/products/speckled-latte-mug'
+      );
+    });
+
+    it('hangs a one-column panel with no heading under its trigger, descriptions under the links', async () => {
+      const wrapper = mountSeed();
+      await trigger(wrapper, 'Journal').trigger('click');
+      const journal = panel(wrapper, 'Journal');
+      expect(journal.get('[data-part="content"]').classes()).toContain(
+        'eldra:eldra-nav-menu-dropdown'
+      );
+      expect(journal.findAll('[data-part="description"]').map((d) => d.text())).toEqual([
+        'Washing linen, seasoning boards, storing wool',
+        'Mornings with the people who make our goods',
+        'Small rituals and slow mornings',
+      ]);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('opens the dropdown from the keyboard and walks its links', async () => {
+      const wrapper = mountSeed();
+      const journal = trigger(wrapper, 'Journal');
+      (journal.element as HTMLElement).focus();
+      await journal.trigger('keydown', { key: 'ArrowDown' });
+      await nextTick();
+      expect(journal.attributes('aria-expanded')).toBe('true');
+      const rows = panel(wrapper, 'Journal').findAll('a');
+      expect(document.activeElement).toBe(rows[0]!.element);
+      await rows[0]!.trigger('keydown', { key: 'ArrowDown' });
+      expect(document.activeElement).toBe(rows[1]!.element);
+      await rows[1]!.trigger('keydown', { key: 'Escape' });
+      await nextTick();
+      expect(journal.attributes('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(journal.element);
+    });
+
+    it('lays the drawer out as an accordion by default, and as open sections on request', async () => {
+      const accordion = mountSeed();
+      expect(accordion.find('[data-part="drawerSectionHeading"]').exists()).toBe(false);
+      accordion.unmount();
+      const sections = mountSeed({ drawerLayout: 'sections' });
+      const headings = sections.findAll('[data-part="drawerSectionHeading"]');
+      expect(headings.map((heading) => heading.text())).toEqual(['Shop', 'Ceramics', 'Journal']);
+      expect(await axe(sections.element)).toHaveNoViolations();
+    });
+  });
+
+  it('pads the fixed bar by the scrollbar width an open overlay takes away', () => {
+    expect(mountSeed().get('header').classes()).toContain('pr-(--eldra-scrollbar-width,0px)');
+    expect(mountSeed({ sticky: false }).get('header').classes()).not.toContain(
+      'pr-(--eldra-scrollbar-width,0px)'
+    );
   });
 });

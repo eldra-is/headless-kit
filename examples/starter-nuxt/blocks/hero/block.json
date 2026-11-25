@@ -26,7 +26,14 @@
       "groupId": "content",
       "validators": { "required": true },
       "metadata": {
-        "options": ["image-right", "image-left", "image-background", "centered", "split-carousel"]
+        "options": [
+          "image-right",
+          "image-left",
+          "image-background",
+          "centered",
+          "split-carousel",
+          "card"
+        ]
       }
     },
     {
@@ -99,6 +106,34 @@
           }
         }
       }
+    },
+    {
+      "fieldId": "captionLabel",
+      "name": "Image caption",
+      "type": "string",
+      "groupId": "content",
+      "localized": true,
+      "helpText": "A small link on the photo naming what is in it, e.g. \"Glazed milk jug\". Card variant only.",
+      "showWhen": { "field": "variant", "in": ["card"] },
+      "validators": { "maxLength": 60 }
+    },
+    {
+      "fieldId": "captionDetail",
+      "name": "Image caption detail",
+      "type": "string",
+      "groupId": "content",
+      "localized": true,
+      "helpText": "Shown after the caption in a lighter weight, e.g. the price.",
+      "showWhen": { "field": "variant", "in": ["card"] },
+      "validators": { "maxLength": 30 }
+    },
+    {
+      "fieldId": "captionHref",
+      "name": "Image caption link",
+      "type": "string",
+      "groupId": "content",
+      "helpText": "Where the caption goes, usually the product in the photo. No link, no caption.",
+      "showWhen": { "field": "variant", "in": ["card"] }
     },
     {
       "fieldId": "spacing",

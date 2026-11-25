@@ -181,33 +181,46 @@ block is new. Each is a self-contained `blocks/<apiId>/` directory — see §3 f
 
 `blocks/navigation` keeps the brand, search, wishlist, cart, call to action, sticky bar and the
 Studio link tree, and hands the links, their mega-menus and the narrow-screen drawer to
-`@eldrajs/ui`'s `NavMenu`, so the kit has one mega-menu. What the block sets on it:
+`@eldrajs/ui`'s `NavMenu`, so the kit has one mega-menu.
 
+- **Width stages**, each measured against the header's own `@container` (the block's width, not the
+  window's; the full list is the comment at the top of `Block.vue`): from 80rem the brand, inline
+  links, a "Search the shop" pill and labelled tools (Account, Saved, Cart); from 68.8125rem (1101px)
+  the pill becomes a labelled Search button; at 1100px and below the links move into the Menu
+  drawer, with Menu and Search at the start, the brand in the middle of a symmetric grid and Saved
+  and Cart at the end; below 760px the info strip keeps its first item; below 400px a square
+  `brandMark` stands in for the logo (and a logo wider than 4:1 with no mark gives way to the store
+  name); below 360px a text-only wordmark wraps onto two centred lines.
+- **Labelled tools.** Every tool shows its label under its icon, and its accessible name starts with
+  that label (WCAG 2.5.3): Menu, Search, Account (only when `account` is set), Saved (the wishlist)
+  and Cart, with the count pills on the icon's corner.
+- **Info strip.** `infoItems` (text, an optional icon, an optional link, `start` or `end`) draws a
+  named region above the bar; below 1101px the `end` items move into the drawer's footer.
 - **Cells of the header's grid.** `class="static contents"` makes the menu's `<nav>` and its
-  Menu button cells of the bar's four-column grid (`auto minmax(0,1fr) auto auto`): the button
-  takes the first column below `@content`, the brand the second, and the links sit beside the brand
-  from `@content` up. The grid is `relative`, so it is the box a panel spans: the brand's left edge
-  to the actions' right edge. The DOM order is brand, links, Menu button, search, actions, so on a
-  narrow screen the button is drawn before the brand but reached after it.
-- **Measured on the header.** `collapseBelow: '@content'`, 64rem of the block's own width like every
-  other breakpoint in it; `minimal` uses `'always'`.
-- **One sheet per parent.** Every parent opens a `mega` panel flush under the bar (`classes.panel:
-'pt-0'`), painted with the bar's own `--eldra-header-surface`, its columns three each of a
-  12-column grid (a panel with a cards column is equal tracks instead: a link column one, the cards
-  column two). A parent is a disclosure, so its own destination moves from the trigger to a
-  "View all" row in `panelFooter`; a `kind: "none"` heading has none, and the empty footer takes no
-  room. The block declares **sections** (`tree.sections`, up to 4 columns, each with a heading, a
-  heading link and a See all) and **cards** (`tree.cards`: up to 2 product or collection cards, at
-  4:3, drawn by `NavMenu`). Version 5 migrates stored `children` + `group` into sections
-  (`groupsToSections`); the block still draws `children` when a restored revision brings them back.
-  **Deploy order:** v5's migration needs a cms-service that already has `groupsToSections`; deploy
-  the platform first, then this theme.
+  Menu button cells of the bar's grid, so the button and the brand place themselves per stage.
+  `collapseBelow` stays `'@content'`; the block's own classes move the cut-off to 1100px.
+  `minimal` uses `'always'`, and always the Search button, since a pill would push the brand off
+  centre.
+- **Panels.** A parent opens a `mega` panel the full width of the header, its columns lined up with
+  the bar's container, painted with the bar's own `--eldra-header-surface`. The block declares
+  **sections** (`tree.sections`: a heading, linked or plain, its links and a See all) and **cards**
+  (`tree.cards`, 4:5 product or collection cards with their price, drawn by `NavMenu`). A single
+  section with no heading and no cards opens as a narrow dropdown instead (the Journal menu), with a
+  line of description under each link. A link's `badge` ("New") and `description` are read from the
+  stored link when present; the platform's link editor does not offer them yet. Version 5 migrates
+  stored `children` + `group` into sections (`groupsToSections`); the block still draws `children`
+  when a restored revision brings them back. **Deploy order:** v5's migration needs a cms-service
+  that already has `groupsToSections`; deploy the platform first, then this theme.
+- **The phone menu.** `drawerLayout` picks how the drawer lists a parent's sections: `accordion`
+  (one parent open at a time) or `sections` (everything under its heading).
 - **Routing.** `linkAs` is `parts/MenuLink.vue`: `EldraRouterLink` for a same-site destination, a
   plain anchor for anything else. A link's `openInNewTab` is honoured.
+- **A fixed bar that does not widen** when a dialog opens: it pads itself with
+  `var(--eldra-scrollbar-width, 0px)`, which `@eldrajs/ui` sets while a modal hides the scrollbar.
 - **The rest is `NavMenu`'s**: the 150ms hover rest, the arrow keys, `Escape`, focus leaving,
   current-page marking (from `window.location`, the router being off limits), the drawer and its
-  accordion rows. The block's texts reach it through `ariaLabel` (`header.primary`) and `messages`
-  (`header.openMenu` for the button, `header.menu` for the drawer).
+  rows. The block's texts reach it through `ariaLabel` (`header.primary`) and `messages`
+  (`header.menu` for the button and the drawer).
 
 ### The one primitive left in `app/components/ui/`: `UiImage`
 

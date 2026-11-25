@@ -1,10 +1,10 @@
 {
   "coverImage": {
     "assetId": "demo-article-cover",
-    "url": "/demo/article-cover.svg",
-    "altText": "Unglazed stoneware bowls stacked on a wooden studio shelf",
-    "width": 1920,
-    "height": 1080
+    "url": "/images/reading.webp",
+    "altText": "Reading under a wool blanket",
+    "width": 1400,
+    "height": 933
   },
   "authorAvatar": {
     "assetId": "demo-avatar-6",

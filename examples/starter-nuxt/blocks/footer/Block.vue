@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
- * Site footer (spec `eldra-starter-spec/02-blocks.md` lines 440–597). `variant`:
- *  - `default`: brand (wordmark, description, social), link groups, an optional newsletter
- *    sign-up. Legal row below a hairline, with the locale/currency selectors.
- *  - `minimal`: brand, a flat row of links, social. Then the same legal row.
+ * Site footer (spec `eldra-starter-spec/02-blocks.md` lines 440–597, restyled to the Northwind
+ * design: a dark `primary` ground by default). `variant`:
+ *  - `default`: brand (wordmark, optional description, the store's address, phone · email and
+ *    opening hours, social), link groups as columns, an optional newsletter sign-up on a light card.
+ *    Bottom bar below a hairline: the legal line and links, and the locale/currency selectors.
+ *  - `minimal`: brand, a flat row of links, social. Then the same bottom bar.
  *
  * Editor hints (`EditorPlaceholder`, gated by `useEditing()`) cover the spec's three Footer
  * "States" rows — description, link groups, newsletter — on the `default` variant; see `editing`
@@ -20,17 +22,17 @@
  * client-side raw-SVG source to resolve one synchronously from). Wiring one in would mean either
  * forking `@eldrajs/ui`'s `Select` or hand-rolling a second, parallel icon-loading path outside
  * `useEldraIcon` for a purely decorative detail with no acceptance criterion or test coverage —
- * left out rather than doing either. The currency slot below renders its own "credit-card" icon
- * directly as an `EldraIcon` (not through `Select.leadingIcon`), so that constraint does not apply
- * to it.
+ * left out rather than doing either. The single-currency slot is the design's "Currency USD $"
+ * line: a visible label and the store's currency, no icon.
  *
  * Every group/flat/legal destination is a `link` value — a collection, product, page or entry the
  * platform knows, or an external URL — resolved once through `useEldraLink()`. A row whose target
  * has been deleted, or that the site has no route for, keeps its label and renders as plain text
  * rather than a dead anchor; a row with no label renders nothing. A same-site path routes through
- * `EldraRouterLink` (see `app/utils/links.ts`). `tone="muted"` + `:underline="false"` is the
- * spec's tertiary link, turning `text` with an underline only on hover; legal links keep the
- * package's own underline-at-rest default (spec: "always underlined").
+ * `EldraRouterLink` (see `app/utils/links.ts`). Column and flat links are `:underline="false"`
+ * (a list of links, not links in running text), underlined on hover; the phone and email links sit
+ * in a line of text and the legal links keep the package's own underline-at-rest default (spec:
+ * "always underlined").
  *
  * The locale selector is **not** CMS content, and it is not a theme constant either: its options are
  * the organisation's own content locales (`useEldraLocale().supported`, read once at build onto the
@@ -128,12 +130,75 @@ const uiLocale = useEldraUiLocale();
 const headingId = `footer-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'default');
-const background = computed(() => data.value.background ?? 'surface-strong');
+/**
+ * The Northwind design is a dark footer: the `primary` ground with light text. That is the look an
+ * unset field gets; `surface-strong` stays available for a theme that wants a light footer.
+ */
+const background = computed(() => data.value.background ?? 'primary');
 
-/** Section spacing (spec "Footer" → Container/spacing): the shared `sm`/`md`/`lg` scale doesn't
+/**
+ * The colours this block writes itself, per ground. `@eldrajs/ui`'s `Link` and `Button` invert on a
+ * primary `Section` on their own (`section-primary:`); plain text, rules and the select trigger do
+ * not, so each one is picked here. Every pair clears WCAG AA: on primary, 85% of
+ * `primary-contrast` is about 8:1 and 75% about 6:1 against the ground; on `surface-strong` the
+ * `muted` role is about 5.6:1.
+ */
+const TONES = {
+  primary: {
+    body: 'text-primary-contrast/85',
+    strong: 'text-primary-contrast',
+    heading: 'text-primary-contrast/75',
+    rule: 'border-primary-contrast/20',
+    ring: 'border-primary-contrast/40 hover:border-primary-contrast',
+    trigger:
+      'bg-transparent text-primary-contrast border-primary-contrast/60 hover:border-primary-contrast',
+    chevron: 'text-primary-contrast/75',
+    pickerLabel: '[&>[data-part=label]]:text-primary-contrast/85',
+  },
+  'surface-strong': {
+    body: 'text-muted',
+    strong: 'text-text',
+    heading: 'text-muted',
+    rule: 'border-border',
+    ring: 'border-border-strong hover:border-text',
+    trigger: undefined,
+    chevron: undefined,
+    pickerLabel: '[&>[data-part=label]]:text-muted',
+  },
+} as const;
+const tone = computed(() => TONES[background.value] ?? TONES.primary);
+/** The bottom bar's selectors: an outlined, transparent trigger on the dark ground (the design's),
+ *  the package's own light field on a light one. */
+const selectClasses = computed(() =>
+  tone.value.trigger ? { trigger: tone.value.trigger, chevron: tone.value.chevron } : undefined
+);
+
+/** Section spacing (the design's 4rem top, 2rem bottom): the shared `sm`/`md`/`lg` scale doesn't
  * carry these exact steps, so `spacing="none"` on `Section` and the padding is written here. */
-const paddingClass = computed(() =>
-  variant.value === 'minimal' ? 'py-8' : 'pt-12 pb-6 @tablet:pt-16 @tablet:pb-8'
+const paddingClass = computed(() => (variant.value === 'minimal' ? 'py-8' : 'pt-16 pb-8'));
+
+/* ---------------------------------------------------------------------- */
+/* Store details                                                           */
+/* ---------------------------------------------------------------------- */
+
+const address = computed(() => (data.value.address ?? '').trim());
+const hours = computed(() => (data.value.hours ?? '').trim());
+const phone = computed(() => (data.value.phone ?? '').trim());
+const storeEmail = computed(() => (data.value.email ?? '').trim());
+/**
+ * A `tel:` link only for a number with a digit in it — `safeHref` alone would let `tel:` with
+ * nothing after it through, an inert link. Same rule as the contact block's.
+ */
+const telHref = computed(() => {
+  const digits = phone.value.replace(/[^\d+]/g, '');
+  return /\d/.test(digits) ? safeHref(`tel:${digits}`) : null;
+});
+const mailtoHref = computed(() =>
+  storeEmail.value === '' ? null : safeHref(`mailto:${storeEmail.value}`)
+);
+const hasContactLine = computed(() => phone.value !== '' || storeEmail.value !== '');
+const hasStoreDetails = computed(
+  () => address.value !== '' || hasContactLine.value || hours.value !== ''
 );
 
 const resolveLink = useEldraLink();
@@ -211,7 +276,10 @@ const socialLinks = computed(() =>
 
 function socialLinkName(network: string): string {
   const key = SOCIAL_NAME_KEYS[network] ?? 'footer.social.instagram';
-  return t('footer.socialLinkName', { brand: data.value.brandText, network: t(key) });
+  return t('footer.socialLinkName', {
+    brand: data.value.brandText,
+    network: t(key),
+  });
 }
 
 /**
@@ -234,7 +302,10 @@ const activeLocale = useEldraLocale();
  * of the site. The adapter resolves them once, on the server, and carries them to the browser.
  */
 const localeOptions = computed<SelectOption[]>(() =>
-  activeLocale.supported.map((tag) => ({ value: tag, label: activeLocale.name(tag) }))
+  activeLocale.supported.map((tag) => ({
+    value: tag,
+    label: activeLocale.name(tag),
+  }))
 );
 
 /**
@@ -406,20 +477,22 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
         t('footer.title')
       }}</VisuallyHidden>
 
-      <!-- Default variant: brand · link groups · newsletter -->
+      <!-- Default variant: brand and store details · link columns · optional newsletter.
+           Four columns from 1100px (brand 1.4fr), three below that with the brand on its own row,
+           two below 760px. -->
       <div
         v-if="variant === 'default'"
-        class="@tablet:grid-cols-2 @content:grid-cols-[minmax(0,4fr)_minmax(0,5fr)_minmax(0,3.5fr)] @content:gap-12 grid gap-10"
+        class="grid grid-cols-2 gap-10 @min-[47.5rem]:grid-cols-3 @min-[68.75rem]:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]"
       >
-        <div class="max-w-[22rem]">
+        <div class="col-span-full min-w-0 @min-[68.75rem]:col-span-1">
           <Link
             href="/"
             :as="EldraRouterLink"
             variant="standalone"
             :underline="false"
-            class="inline-flex items-center hover:no-underline active:no-underline"
+            class="mb-4 inline-flex max-w-full items-center hover:no-underline active:no-underline"
             :classes="{
-              label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
+              label: ['font-heading text-[2.5rem] leading-none font-medium', tone.strong].join(' '),
             }"
           >
             <img
@@ -432,27 +505,47 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             />
             <template v-else>{{ data.brandText }}</template>
           </Link>
-          <p v-if="data.description" class="text-muted mt-4 text-base leading-relaxed">
+          <p v-if="data.description" :class="['mb-3 text-base leading-relaxed', tone.body]">
             {{ data.description }}
           </p>
           <EditorPlaceholder
             v-else-if="editing"
             inline
-            class="mt-4"
+            class="mb-3"
             :label="t('footer.descriptionHintLabel')"
           />
 
-          <ul v-if="socialLinks.length > 0" class="mt-6 -ml-3 flex flex-wrap gap-1" role="list">
+          <div v-if="hasStoreDetails" :class="['space-y-1 text-base leading-relaxed', tone.body]">
+            <address v-if="address || hasContactLine" class="space-y-1 not-italic">
+              <p v-if="address">{{ address }}</p>
+              <p v-if="hasContactLine" class="flex flex-wrap items-baseline gap-x-2">
+                <template v-if="phone">
+                  <Link v-if="telHref" :href="telHref">{{ phone }}</Link>
+                  <span v-else>{{ phone }}</span>
+                </template>
+                <span v-if="phone && storeEmail" aria-hidden="true">·</span>
+                <template v-if="storeEmail">
+                  <Link v-if="mailtoHref" :href="mailtoHref" class="break-all">{{
+                    storeEmail
+                  }}</Link>
+                  <span v-else class="break-all">{{ storeEmail }}</span>
+                </template>
+              </p>
+            </address>
+            <p v-if="hours">{{ hours }}</p>
+          </div>
+
+          <ul v-if="socialLinks.length > 0" class="mt-5 flex flex-wrap gap-2" role="list">
             <li v-for="social in socialLinks" :key="social.network">
               <Button
                 icon-only
-                variant="ghost"
+                variant="outline"
                 :href="social.href"
                 :as="social.as"
                 target="_blank"
                 rel="noopener"
                 :label="socialLinkName(social.network)"
-                class="size-11"
+                :class="['size-11 rounded-full', tone.ring]"
               >
                 <template #leadingIcon>
                   <EldraIcon :name="social.icon" size="md" />
@@ -464,44 +557,56 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
 
         <EditorPlaceholder
           v-if="groups.length === 0 && editing"
-          class="@tablet:col-span-2 @content:col-span-1"
+          class="col-span-full @min-[68.75rem]:col-span-3"
           :label="t('footer.groupsHintLabel')"
           :help="t('footer.groupsHintHelp')"
         />
+        <!-- One labelled `nav` over every column, laid on the parent grid's own tracks. -->
         <nav
           v-else-if="groups.length > 0"
           :aria-label="t('footer.nav')"
-          class="@tablet:col-span-2 @content:col-span-1"
+          class="col-span-full grid grid-cols-subgrid gap-y-10 @min-[68.75rem]:col-span-3"
         >
-          <div class="@content:grid-cols-3 grid grid-cols-2 gap-x-6 gap-y-8">
-            <div v-for="(group, index) in groups" :key="index">
-              <h3 class="text-text text-base font-semibold">{{ group.title }}</h3>
-              <ul class="mt-2 space-y-1">
-                <li v-for="(link, linkIndex) in group.links" :key="linkIndex">
-                  <Link
-                    v-if="link.href"
-                    :href="link.href"
-                    :as="link.as"
-                    tone="muted"
-                    :underline="false"
-                    class="inline-flex min-h-9 items-center text-base"
-                    >{{ link.label }}</Link
-                  >
-                  <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
-                    link.label
-                  }}</span>
-                </li>
-              </ul>
-            </div>
+          <div v-for="(group, index) in groups" :key="index" class="min-w-0">
+            <h3
+              :class="[
+                'font-body mb-3.5 text-xs leading-normal font-bold tracking-[0.14em] uppercase',
+                tone.heading,
+              ]"
+            >
+              {{ group.title }}
+            </h3>
+            <ul class="grid gap-2" role="list">
+              <li v-for="(link, linkIndex) in group.links" :key="linkIndex">
+                <Link
+                  v-if="link.href"
+                  :href="link.href"
+                  :as="link.as"
+                  :underline="false"
+                  class="text-base leading-relaxed"
+                  >{{ link.label }}</Link
+                >
+                <span v-else :class="['text-base leading-relaxed', tone.body]">{{
+                  link.label
+                }}</span>
+              </li>
+            </ul>
           </div>
         </nav>
 
         <EditorPlaceholder
           v-if="!showNewsletter && editing"
-          class="@tablet:col-span-2 @content:col-span-1"
+          class="col-span-full"
           :label="t('footer.newsletterHintLabel')"
         />
-        <div v-else-if="showNewsletter" class="@tablet:col-span-2 @content:col-span-1">
+        <!-- The sign-up sits on a light card of its own (`data-section="none"` stops the primary
+             ground's inversions inside it), so the form's own label, error and button colours are
+             the ones `@eldrajs/ui` draws on a light ground, whatever the footer's background. -->
+        <div
+          v-else-if="showNewsletter"
+          data-section="none"
+          class="bg-background text-text col-span-full rounded-xl p-6 @min-[47.5rem]:p-8"
+        >
           <template v-if="newsletterState !== 'success'">
             <FormLayout
               layout="inline"
@@ -572,9 +677,9 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           :as="EldraRouterLink"
           variant="standalone"
           :underline="false"
-          class="inline-flex items-center hover:no-underline active:no-underline"
+          class="inline-flex max-w-full items-center hover:no-underline active:no-underline"
           :classes="{
-            label: 'font-heading text-text text-xl leading-[1.2] font-bold tracking-[-0.015em]',
+            label: ['font-heading text-[1.75rem] leading-none font-medium', tone.strong].join(' '),
           }"
         >
           <img
@@ -595,29 +700,28 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 v-if="link.href"
                 :href="link.href"
                 :as="link.as"
-                tone="muted"
                 :underline="false"
                 class="inline-flex min-h-9 items-center text-base"
                 >{{ link.label }}</Link
               >
-              <span v-else class="text-muted inline-flex min-h-9 items-center text-base">{{
+              <span v-else :class="['inline-flex min-h-9 items-center text-base', tone.body]">{{
                 link.label
               }}</span>
             </li>
           </ul>
         </nav>
 
-        <ul v-if="socialLinks.length > 0" class="flex flex-wrap gap-1" role="list">
+        <ul v-if="socialLinks.length > 0" class="flex flex-wrap gap-2" role="list">
           <li v-for="social in socialLinks" :key="social.network">
             <Button
               icon-only
-              variant="ghost"
+              variant="outline"
               :href="social.href"
               :as="social.as"
               target="_blank"
               rel="noopener"
               :label="socialLinkName(social.network)"
-              class="size-11"
+              :class="['size-11 rounded-full', tone.ring]"
             >
               <template #leadingIcon>
                 <EldraIcon :name="social.icon" size="md" />
@@ -627,20 +731,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
         </ul>
       </div>
 
-      <!-- Legal row -->
+      <!-- Bottom bar: legal line and links · selectors. Stacks below 760px. -->
       <div
         v-if="hasLegalRow"
-        class="border-border text-muted @tablet:flex-row @tablet:items-center @tablet:justify-between mt-12 flex flex-col gap-4 border-t pt-6 text-[0.8125rem] leading-[1.4]"
+        :class="[
+          'mt-12 flex flex-col items-start gap-4 border-t pt-6 text-sm leading-normal @min-[47.5rem]:flex-row @min-[47.5rem]:flex-wrap @min-[47.5rem]:items-center @min-[47.5rem]:justify-between',
+          tone.rule,
+          tone.body,
+        ]"
       >
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
           <p v-if="data.legalText">{{ data.legalText }}</p>
-          <ul v-if="legalLinks.length > 0" class="flex flex-wrap gap-x-4 gap-y-2" role="list">
+          <ul v-if="legalLinks.length > 0" class="flex flex-wrap gap-x-6 gap-y-2" role="list">
             <li v-for="(link, index) in legalLinks" :key="index">
               <Link
                 v-if="link.href"
                 :href="link.href"
                 :as="link.as"
-                tone="muted"
                 class="inline-flex min-h-6 items-center"
                 >{{ link.label }}</Link
               >
@@ -649,25 +756,31 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
           </ul>
         </div>
 
-        <div v-if="hasSelectors" class="@tablet:flex-row @tablet:items-center flex flex-col gap-2">
+        <div v-if="hasSelectors" class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <FieldWrapper
             v-if="showLocale"
             :label="t('footer.localeLabel')"
-            class="@tablet:w-auto w-full"
+            class="w-auto"
             :classes="{ label: 'sr-only' }"
           >
             <!-- Not `searchable`: a store has a handful of content locales, and a search field
                  over three options is one more thing between a visitor and their language. -->
-            <Select v-model="locale" :options="localeOptions" placement="above" />
+            <Select
+              v-model="locale"
+              :options="localeOptions"
+              placement="above"
+              :classes="selectClasses"
+            />
           </FieldWrapper>
           <!-- One currency is plain text: there is nothing to pick. -->
           <p
             v-if="showCurrencySelector && currencyCodes.length === 1"
-            class="text-text @tablet:w-auto flex w-full items-center gap-1.5 text-[0.8125rem] font-medium"
+            class="flex items-center gap-2"
           >
-            <EldraIcon name="credit-card" size="sm" class="text-muted shrink-0" />
-            <VisuallyHidden>{{ t('footer.currencyLabel') }}</VisuallyHidden>
-            {{ currencyLabel(currencyCodes[0]!, uiLocale) }}
+            <span>{{ t('footer.currencyLabel') }}</span>
+            <span :class="['font-medium', tone.strong]">{{
+              currencyLabel(currencyCodes[0]!, uiLocale)
+            }}</span>
           </p>
           <CurrencyPicker
             v-else-if="showCurrencySelector"
@@ -675,9 +788,11 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             :model-value="currencyStore.active.value"
             :busy="currencyStore.busy.value"
             :label="t('footer.currencyLabel')"
-            size="md"
+            show-label
+            size="sm"
             placement="above"
-            class="@tablet:w-auto w-full"
+            :class="['flex items-center gap-2', tone.pickerLabel]"
+            :classes="selectClasses"
             @update:model-value="currencyStore.choose"
           />
         </div>

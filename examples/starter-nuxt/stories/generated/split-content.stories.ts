@@ -37,3 +37,15 @@ export const StartWithImageRight: Story = {
     entry: { id: "split-content", data: { ...base, "startWith": "image-right" } },
   },
 };
+
+export const BackgroundNone: Story = {
+  args: {
+    entry: { id: "split-content", data: { ...base, "background": "none" } },
+  },
+};
+
+export const BackgroundSurface: Story = {
+  args: {
+    entry: { id: "split-content", data: { ...base, "background": "surface" } },
+  },
+};

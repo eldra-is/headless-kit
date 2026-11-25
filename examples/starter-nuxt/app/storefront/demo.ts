@@ -58,12 +58,59 @@ import type {
 const FREE_SHIPPING_THRESHOLD = 80; // $80.00
 const FLAT_SHIPPING = 6; // $6.00, below the free-shipping threshold
 
-function demoImage(index: number, alt: string): StorefrontMedia {
-  // Only `product-1`..`product-6` exist in `public/demo/` today (scripts/demo-images.mjs) — a
-  // commerce block that needs more can extend that manifest. Money doesn't come into it, this
-  // just cycles through what already exists.
-  const name = `product-${((index - 1) % 6) + 1}`;
-  return { src: `/demo/${name}.svg`, alt };
+/**
+ * The CC0 photos in `public/images/` (sources and authors in `public/images/CREDITS.md`), with
+ * their pixel size so an image reserves its box before it loads.
+ */
+const DEMO_PHOTOS = {
+  bowl: [1120, 1400],
+  'clay-hands': [1400, 933],
+  'coffee-table': [1400, 933],
+  cup: [1400, 952],
+  'enamel-cups': [1400, 933],
+  hero: [1400, 933],
+  kitchen: [1400, 840],
+  mug: [1400, 934],
+  planters: [932, 1400],
+  plates: [1400, 933],
+  reading: [1400, 933],
+  sweater: [1400, 933],
+  terracotta: [1400, 933],
+  throws: [1400, 910],
+  vase: [835, 1400],
+  wheel: [1400, 933],
+  'yarn-tools': [1400, 933],
+  yarn: [1400, 933],
+} as const satisfies Record<string, readonly [number, number]>;
+
+type DemoPhoto = keyof typeof DEMO_PHOTOS;
+
+function demoImage(photo: DemoPhoto, alt: string): StorefrontMedia {
+  const [width, height] = DEMO_PHOTOS[photo];
+  return { src: `/images/${photo}.webp`, alt, width, height };
+}
+
+/**
+ * Each product's photo and two more for its gallery. The photos are stock pictures chosen to
+ * sit near each product, not pictures of it: a real store's own product images replace them.
+ */
+const PRODUCT_PHOTOS: Record<string, readonly [DemoPhoto, DemoPhoto, DemoPhoto]> = {
+  'merino-crew-sweater': ['sweater', 'yarn', 'throws'],
+  'fisherman-rib-cardigan': ['yarn-tools', 'sweater', 'reading'],
+  'lambswool-throw-blanket': ['throws', 'reading', 'sweater'],
+  'ribbed-lambswool-beanie': ['yarn', 'yarn-tools', 'sweater'],
+  'linen-tea-towels-pair': ['enamel-cups', 'kitchen', 'cup'],
+  'speckled-latte-mug': ['mug', 'coffee-table', 'cup'],
+  'stoneware-dinner-plates-set-of-4': ['plates', 'kitchen', 'bowl'],
+  'walnut-serving-board': ['kitchen', 'plates', 'coffee-table'],
+  'hand-thrown-serving-bowl': ['bowl', 'clay-hands', 'wheel'],
+  'glazed-milk-jug': ['hero', 'terracotta', 'vase'],
+  'linen-napkins-set-of-4': ['cup', 'enamel-cups', 'kitchen'],
+  'stonewashed-linen-throw': ['reading', 'throws', 'yarn'],
+};
+
+function productPhotos(handle: string): readonly [DemoPhoto, DemoPhoto, DemoPhoto] {
+  return PRODUCT_PHOTOS[handle] ?? ['mug', 'plates', 'kitchen'];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -296,13 +343,13 @@ function registerAttributes(handle: string, def: DemoProductDef): void {
   });
 }
 
-function buildListItem(def: DemoProductDef, index: number): StorefrontProductListItem {
+function buildListItem(def: DemoProductDef): StorefrontProductListItem {
   registerAttributes(def.handle, def);
   return {
     handle: def.handle,
     title: def.title,
     url: `/products/${def.handle}`,
-    featuredImage: demoImage(index + 1, def.title),
+    featuredImage: demoImage(productPhotos(def.handle)[0], def.title),
     price: { amount: def.amount, compareAt: def.compareAt ?? null },
     rating: def.rating ?? null,
     colours: def.colours,
@@ -360,13 +407,17 @@ const MERINO_OPTIONS: StorefrontProduct['options'] = [
   }),
 ];
 
-function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct {
-  const listItem = buildListItem(def, index);
+function buildFullProduct(def: DemoProductDef): StorefrontProduct {
+  const listItem = buildListItem(def);
   const isMerino = def.handle === 'merino-crew-sweater';
   return {
     ...listItem,
     variantId: def.variantId,
-    images: [demoImage(index + 1, def.title), demoImage(index + 7, `${def.title}, alternate view`)],
+    images: [
+      demoImage(productPhotos(def.handle)[0], def.title),
+      demoImage(productPhotos(def.handle)[1], `${def.title}, alternate view`),
+      demoImage(productPhotos(def.handle)[2], `${def.title}, in use`),
+    ],
     options: isMerino ? MERINO_OPTIONS : [],
     // Walked up the fixture's own tree from the product's category, exactly as
     // `createGatewayStorefront` walks the store's: `Home / Ceramics` for a mug, `Knitwear` for a
@@ -382,7 +433,7 @@ function buildFullProduct(def: DemoProductDef, index: number): StorefrontProduct
 }
 
 const PRODUCTS_FULL: Record<string, StorefrontProduct> = Object.fromEntries(
-  PRODUCT_DEFS.map((def, index) => [def.handle, buildFullProduct(def, index)])
+  PRODUCT_DEFS.map((def) => [def.handle, buildFullProduct(def)])
 );
 
 /** Every fixture product a volatile refresh could be asked about, by the id a card carries. */
@@ -459,7 +510,7 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
     title: 'Winter knitwear',
     description:
       'Heavy-gauge knits for the coldest months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
-    image: demoImage(1, 'Winter knitwear'),
+    image: demoImage('sweater', 'Winter knitwear'),
     productCount: 48,
   },
   'the-winter-edit': {
@@ -467,7 +518,7 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
     title: 'The winter edit',
     description:
       'Heavy-gauge knits, stoneware for slow breakfasts and kitchen goods for the cold months, from our Portland studio and two family mills in Biella and the Scottish Borders.',
-    image: demoImage(2, 'The winter edit'),
+    image: demoImage('throws', 'The winter edit'),
     productCount: 48,
   },
   /**
@@ -480,7 +531,7 @@ const COLLECTIONS: Record<string, StorefrontCollectionInfo> = {
     handle: 'best-sellers',
     title: 'Best sellers',
     description: 'The Northwind pieces shoppers reach for again and again.',
-    image: demoImage(6, 'Best sellers'),
+    image: demoImage('mug', 'Best sellers'),
     productCount: BEST_SELLER_HANDLES.length,
   },
 };
@@ -645,7 +696,7 @@ const ORDER_LINES: StorefrontCartLine[] = [
     quantity: 1,
     unitPrice: 148,
     lineTotal: 148,
-    image: demoImage(1, 'Fell crew sweater'),
+    image: demoImage('sweater', 'Fell crew sweater'),
     max: null,
   },
   {
@@ -658,7 +709,7 @@ const ORDER_LINES: StorefrontCartLine[] = [
     quantity: 2,
     unitPrice: 32,
     lineTotal: 64,
-    image: demoImage(2, 'Everyday mug'),
+    image: demoImage('cup', 'Everyday mug'),
     max: null,
   },
   {
@@ -671,7 +722,7 @@ const ORDER_LINES: StorefrontCartLine[] = [
     quantity: 1,
     unitPrice: 32,
     lineTotal: 32,
-    image: demoImage(3, 'Linen tea towels, set of 2'),
+    image: demoImage('enamel-cups', 'Linen tea towels, set of 2'),
     max: null,
   },
 ];
@@ -795,21 +846,21 @@ const JOURNAL_ARTICLES: StorefrontSearchResponse['articles'] = [
     href: '/journal/how-to-wash-and-store-linen',
     category: 'Care guide',
     readingTime: '4 min read',
-    image: demoImage(1, 'How to wash and store linen'),
+    image: demoImage('throws', 'How to wash and store linen'),
   },
   {
     title: 'Linen vs. cotton for the kitchen',
     href: '/journal/linen-vs-cotton-for-the-kitchen',
     category: 'Journal',
     readingTime: '6 min read',
-    image: demoImage(2, 'Linen vs. cotton for the kitchen'),
+    image: demoImage('kitchen', 'Linen vs. cotton for the kitchen'),
   },
   {
     title: 'A visit to the Kortrijk flax mill',
     href: '/journal/a-visit-to-the-kortrijk-flax-mill',
     category: 'Journal',
     readingTime: '8 min read',
-    image: demoImage(3, 'A visit to the Kortrijk flax mill'),
+    image: demoImage('yarn-tools', 'A visit to the Kortrijk flax mill'),
   },
 ];
 
@@ -938,7 +989,7 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     quantity: 1,
     unitPrice: 96,
     lineTotal: 96,
-    image: demoImage(1, 'Merino crew sweater'),
+    image: demoImage('sweater', 'Merino crew sweater'),
     max: null,
   },
   {
@@ -951,7 +1002,7 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     quantity: 2,
     unitPrice: 28,
     lineTotal: 56,
-    image: demoImage(6, 'Speckled latte mug'),
+    image: demoImage('mug', 'Speckled latte mug'),
     max: null,
   },
   {
@@ -964,7 +1015,7 @@ export const DEMO_CART_LINES: StorefrontCartLine[] = [
     quantity: 1,
     unitPrice: 58,
     lineTotal: 58,
-    image: demoImage(8, 'Walnut serving board'),
+    image: demoImage('kitchen', 'Walnut serving board'),
     max: null,
   },
 ];

@@ -5,6 +5,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import page from '../../pages/cart.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
+import { withDemoChrome } from '../support/demoChrome';
 
 const fixture = page as unknown as PageFixture;
 
@@ -39,7 +40,7 @@ const CartPage = defineComponent({
         },
         () => t('nav.skipToContent')
       ),
-      ...renderPageFixtureRegions(fixture, 'Pages/Cart story'),
+      ...renderPageFixtureRegions(withDemoChrome(fixture), 'Pages/Cart story'),
     ];
   },
 });

@@ -374,6 +374,8 @@ pnpm --filter starter-nuxt dev
 ```
 
 with `ELDRA_GATEWAY_URL` (the org's public CMS gateway) and `ELDRA_ORG_ID` set in the environment.
+[Where each page-builder feature lives](../examples/starter-nuxt/README.md#where-each-page-builder-feature-lives)
+maps every feature above to the starter file that shows it.
 See [examples/starter-nuxt](../examples/starter-nuxt) for the full README, including blocks, slots,
 build/deploy and CI wiring examples, and [Starter kit conventions](starter-kit.md) for the
 primitive layer, the block contract, Storybook, and the accessibility/testing harness a customer

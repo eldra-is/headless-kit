@@ -44,7 +44,11 @@ const TEMPLATES = [
   },
   {
     id: 'rt-product',
-    data: { schemaApiId: 'catalog:product', routePattern: '/products/:slug', slugField: 'slug' },
+    data: {
+      schemaApiId: 'catalog:product',
+      routePattern: '/products/:slug',
+      slugField: 'slug',
+    },
   },
 ];
 
@@ -75,6 +79,15 @@ const resolvedMock = {
   legalLinks: (mock.legalLinks as SeedLink[]).map(resolveSeedLink),
 };
 const linkContext = { templates: TEMPLATES, targets: linkTargets };
+
+/**
+ * The design's footer carries no sign-up (a page that wants one places the Newsletter block), so
+ * `mock.json` seeds `showNewsletter: false`. The sign-up's own specs turn it on.
+ */
+const withNewsletter = { ...mock, showNewsletter: true };
+
+/** `mock.json` has no description (the design has none); the specs that need one bring their own. */
+const DESCRIPTION = 'Goods from small workshops, made to be used every day.';
 
 function mountFooter(
   data: Record<string, unknown>,
@@ -123,7 +136,10 @@ function mountFooter(
       : options.subscribe
         ? (() => {
             const demo = createDemoStorefront();
-            return { ...demo, forms: { ...demo.forms, submit: options.subscribe! } };
+            return {
+              ...demo,
+              forms: { ...demo.forms, submit: options.subscribe! },
+            };
           })()
         : undefined);
   return mount(Block, {
@@ -188,7 +204,8 @@ describe('footer block', () => {
   it('renders the default variant (merged data — no preview.json exists for this block) with no axe violations', async () => {
     const wrapper = mountFooter(mock);
     expect(wrapper.text()).toContain(mock.brandText);
-    expect(wrapper.text()).toContain(mock.description);
+    expect(wrapper.text()).toContain(mock.address);
+    expect(wrapper.text()).toContain(mock.hours);
     for (const group of mock.groups) expect(wrapper.text()).toContain(group.label);
     expect(wrapper.text()).toContain(mock.legalText);
     expect(await axe(wrapper.element)).toHaveNoViolations();
@@ -226,7 +243,11 @@ describe('footer block', () => {
       ...resolvedMock,
       variant: 'minimal',
       links: [
-        { kind: 'collection', target: { _type: 'collection', id: 'id-gone' }, label: 'Gone' },
+        {
+          kind: 'collection',
+          target: { _type: 'collection', id: 'id-gone' },
+          label: 'Gone',
+        },
       ],
     });
     expect(wrapper.text()).toContain('Gone');
@@ -312,7 +333,7 @@ describe('footer block', () => {
   });
 
   it('the newsletter email input has type="email", autocomplete="email" and a programmatic label', () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     const input = wrapper.find('input[type="email"]');
     expect(input.exists()).toBe(true);
     expect(input.attributes('autocomplete')).toBe('email');
@@ -348,7 +369,7 @@ describe('footer block', () => {
         },
       },
     };
-    const wrapper = mountFooter(mock, { storefront });
+    const wrapper = mountFooter(withNewsletter, { storefront });
     await flushPromises();
     const input = wrapper.get('input[type="email"]');
     expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe(
@@ -357,13 +378,13 @@ describe('footer block', () => {
   });
 
   it("shows the placeholder the form's email field carries, not its label", async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     await flushPromises();
     expect(wrapper.get('input[type="email"]').attributes('placeholder')).toBe('name@example.com');
   });
 
   it('keeps the email error in the field cell, directly under the input', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     await flushPromises();
     // The field wrapper is `display: contents` by default, which turns its error into a flex item of
     // its own that lands after the button row; a real block keeps the two together.
@@ -372,7 +393,7 @@ describe('footer block', () => {
   });
 
   it('keeps the sign-up button and its consent sentence in one column as wide as the form', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     await flushPromises();
     // The library's actions row is `shrink-0` and the grid's auto column follows the sentence's
     // max-content, so both pushed the button past the footer column; happy-dom has no layout,
@@ -385,7 +406,7 @@ describe('footer block', () => {
   });
 
   it('shows the platform consent sentence under the sign-up button, tied to it with aria-describedby', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     await flushPromises();
     const sentence = wrapper.get('[data-part="consent-sentence"]');
     expect(sentence.text()).toBe(
@@ -397,7 +418,7 @@ describe('footer block', () => {
   });
 
   it('an invalid (malformed) email submit sets aria-invalid, shows the error linked by aria-describedby, and keeps focus in the field', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     const input = wrapper.find('input[type="email"]');
     await input.setValue('not-an-email');
     await wrapper.find('form').trigger('submit');
@@ -414,7 +435,7 @@ describe('footer block', () => {
   });
 
   it('an empty submit is invalid too', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
@@ -424,7 +445,7 @@ describe('footer block', () => {
   });
 
   it('a valid submit calls forms.submit and announces success through role="status"', async () => {
-    const wrapper = mountFooter(mock);
+    const wrapper = mountFooter(withNewsletter);
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
     await wrapper.find('form').trigger('submit');
@@ -440,8 +461,11 @@ describe('footer block', () => {
 
   it('with Turnstile on, renders the widget and honeypot, refuses to send before the check, then sends the token and honeypot', async () => {
     const turnstile = stubTurnstile();
-    const subscribe = vi.fn(async () => ({ ok: true as const, pending: false }));
-    const wrapper = mountFooter(mock, { subscribe, turnstile: true });
+    const subscribe = vi.fn(async () => ({
+      ok: true as const,
+      pending: false,
+    }));
+    const wrapper = mountFooter(withNewsletter, { subscribe, turnstile: true });
     await flushPromises();
     expect(turnstile.render).toHaveBeenCalledOnce();
 
@@ -463,7 +487,7 @@ describe('footer block', () => {
   });
 
   it('a subscribe failure (backend ok:false) shows an error and keeps focus in the field', async () => {
-    const wrapper = mountFooter(mock, { failForms: true });
+    const wrapper = mountFooter(withNewsletter, { failForms: true });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
     await wrapper.find('form').trigger('submit');
@@ -489,7 +513,7 @@ describe('footer block', () => {
       { ok: true, pending: true },
     ];
     const subscribe = vi.fn(async () => results.shift() ?? { ok: true as const, pending: true });
-    const wrapper = mountFooter(mock, { subscribe });
+    const wrapper = mountFooter(withNewsletter, { subscribe });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
     await wrapper.find('form').trigger('submit');
@@ -511,8 +535,13 @@ describe('footer block', () => {
   });
 
   it('a backend {ok:false, reason:"invalid"} shows the exact same invalid-email message (not the retryable one)', async () => {
-    const wrapper = mountFooter(mock, {
-      subscribe: async () => ({ ok: false, reason: 'invalid', errors: {}, form: [] }),
+    const wrapper = mountFooter(withNewsletter, {
+      subscribe: async () => ({
+        ok: false,
+        reason: 'invalid',
+        errors: {},
+        form: [],
+      }),
     });
     const input = wrapper.find('input[type="email"]');
     await input.setValue('reader@example.com');
@@ -565,7 +594,11 @@ describe('footer block', () => {
      */
     it('renders nothing at all on a single-locale store', async () => {
       const single = mountFooter(mock, {
-        locales: { active: 'en-US', defaultLocale: 'en-US', supported: ['en-US'] },
+        locales: {
+          active: 'en-US',
+          defaultLocale: 'en-US',
+          supported: ['en-US'],
+        },
       });
       expect(selectTriggers(single)).toHaveLength(0);
       expect(single.findAll('.sr-only').map((el) => el.text())).not.toContain(
@@ -637,10 +670,14 @@ describe('footer block', () => {
    * instead of a `Select`, with the same leading icon and a visually hidden "Currency" label.
    */
   describe('the currency slot', () => {
-    it('renders the single store currency as plain text, not a Select, with its leading icon and a visually hidden label', async () => {
+    it('renders the single store currency as plain text, not a Select, after a visible "Currency" label', async () => {
       const wrapper = mountFooter(mock, {
         locale: 'is-IS',
-        commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+        commerce: {
+          currency: 'ISK',
+          taxInclusivePricing: true,
+          defaultTaxRate: 0.24,
+        },
       });
 
       // No combobox at all: this store serves one locale (so no language switcher) and one
@@ -651,12 +688,13 @@ describe('footer block', () => {
       expect(label).toBe('ISK kr.');
       const currencyText = wrapper.findAll('p').find((p) => p.text().includes(label));
       expect(currencyText).toBeTruthy();
-      expect(currencyText!.find('svg').exists()).toBe(true);
 
-      // The content locale is Icelandic here (`locale: 'is-IS'`), so the visually hidden label
-      // is `isIS`'s, not `enUS`'s.
-      const hiddenLabels = wrapper.findAll('.eldra\\:sr-only').map((el) => el.text());
-      expect(hiddenLabels).toContain(isIS.footer.currencyLabel);
+      // The design's "Currency USD $" line, the label written out. The content locale is
+      // Icelandic here (`locale: 'is-IS'`), so the label is `isIS`'s, not `enUS`'s.
+      expect(currencyText!.findAll('span').map((span) => span.text())).toEqual([
+        isIS.footer.currencyLabel,
+        label,
+      ]);
 
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
@@ -675,7 +713,7 @@ describe('footer block', () => {
 
   it('keyboard order: a link precedes the email field, which precedes the subscribe button, which precedes the selectors', () => {
     // Two locales, so there is a switcher in the legal row to order the newsletter against.
-    const wrapper = mountFooter(mock, { locales: twoLocales() });
+    const wrapper = mountFooter(withNewsletter, { locales: twoLocales() });
     const focusable = Array.from(
       wrapper.element.querySelectorAll('a, input, button, select, [tabindex]')
     );
@@ -727,7 +765,7 @@ describe('footer block', () => {
       const wrapper = mountFooter(
         {
           ...empty,
-          description: mock.description,
+          description: DESCRIPTION,
           groups: mock.groups,
           showNewsletter: true,
         },
@@ -735,7 +773,7 @@ describe('footer block', () => {
       );
       await flushPromises();
       expect(wrapper.findAllComponents(EditorPlaceholder)).toHaveLength(0);
-      expect(wrapper.text()).toContain(mock.description);
+      expect(wrapper.text()).toContain(DESCRIPTION);
       expect(wrapper.find('input[type="email"]').exists()).toBe(true);
     });
 
@@ -758,7 +796,7 @@ describe('footer block', () => {
       variant: 'default',
       background: 'surface-strong',
       brandText: mock.brandText,
-      description: mock.description,
+      description: DESCRIPTION,
       groups: [],
       links: [],
       showNewsletter: false,
@@ -772,7 +810,7 @@ describe('footer block', () => {
     it('renders brand and description only, with no empty column or link markup, axe-clean', async () => {
       const wrapper = mountFooter(SEEDED);
       expect(wrapper.text()).toContain(mock.brandText);
-      expect(wrapper.text()).toContain(mock.description);
+      expect(wrapper.text()).toContain(DESCRIPTION);
       // No link-groups `nav`, no column headings, and no social row: each part is drawn only when
       // it has something in it, so nothing renders a heading or a list over nothing.
       expect(wrapper.find('nav').exists()).toBe(false);
@@ -805,6 +843,63 @@ describe('footer block', () => {
       });
       expect(wrapper.find('.border-t').exists()).toBe(false);
       expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+  });
+
+  describe('the store details', () => {
+    it('renders the address, a tel: and a mailto: link inside <address>, and the opening hours', () => {
+      const wrapper = mountFooter(mock);
+      const address = wrapper.find('address');
+      expect(address.text()).toContain(mock.address);
+      expect(address.find('a[href="tel:5550142290"]').text()).toBe(mock.phone);
+      expect(address.find(`a[href="mailto:${mock.email}"]`).text()).toBe(mock.email);
+      expect(wrapper.text()).toContain(mock.hours);
+    });
+
+    it('renders a phone with no digits as text, never an inert tel: link', () => {
+      const wrapper = mountFooter({ ...mock, phone: 'Ask in the shop' });
+      expect(wrapper.find('a[href^="tel:"]').exists()).toBe(false);
+      expect(wrapper.find('address').text()).toContain('Ask in the shop');
+    });
+
+    it('renders no <address> when none of the details is set', () => {
+      const wrapper = mountFooter({
+        ...mock,
+        address: '',
+        phone: '',
+        email: '',
+        hours: '',
+      });
+      expect(wrapper.find('address').exists()).toBe(false);
+    });
+  });
+
+  describe('the background', () => {
+    it('is the dark primary ground when unset', () => {
+      const { background: _unset, ...rest } = mock;
+      const footer = mountFooter(rest).find('footer');
+      expect(footer.attributes('data-section')).toBe('primary');
+    });
+
+    it.each(['primary', 'surface-strong'])(
+      '%s renders both variants, with the newsletter on, with no axe violations',
+      async (background) => {
+        for (const variant of ['default', 'minimal']) {
+          const wrapper = mountFooter(
+            { ...withNewsletter, background, variant },
+            { locales: twoLocales() }
+          );
+          expect(await axe(wrapper.element)).toHaveNoViolations();
+          wrapper.unmount();
+        }
+      }
+    );
+
+    it('puts the sign-up on a light card that stops the primary inversions', () => {
+      const wrapper = mountFooter({ ...withNewsletter, background: 'primary' });
+      const card = wrapper.find('form').element.closest('[data-section="none"]');
+      expect(card).not.toBeNull();
+      expect(card!.classList.contains('bg-background')).toBe(true);
     });
   });
 

@@ -9,8 +9,9 @@
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -34,7 +35,7 @@
       "id": "category-header",
       "data": {
         "scope": "category",
-        "variant": "text-only",
+        "variant": "image",
         "title": "Ceramics",
         "showCount": false,
         "showBreadcrumb": false,
@@ -53,6 +54,13 @@
               ]
             }
           ]
+        },
+        "image": {
+          "assetId": "demo-category-ceramics",
+          "url": "/images/terracotta.webp",
+          "altText": "Handmade terracotta pots and vases stacked together",
+          "width": 1400,
+          "height": 933
         }
       }
     },
@@ -61,8 +69,8 @@
       "id": "category-grid",
       "data": {
         "scope": "category",
-        "variant": "sidebar",
-        "columns": "3",
+        "variant": "filter-bar",
+        "columns": "4",
         "pageSize": "24",
         "paginationStyle": "load-more",
         "sortOptions": [
@@ -104,7 +112,7 @@
             "label": "Availability"
           }
         ],
-        "showColumnSelect": true,
+        "showColumnSelect": false,
         "emptyTitle": "No products match these filters",
         "emptyText": "Try removing a filter or widening the price range."
       }
@@ -114,12 +122,12 @@
       "id": "category-footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
-        "showNewsletter": true,
+        "showNewsletter": false,
         "newsletterTitle": "Letters from the workshop",
         "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
         "social": [],

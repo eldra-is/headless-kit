@@ -44,8 +44,14 @@ function categoryStorefront(categoryPath: string | undefined = CATEGORY_PATH) {
   return createDemoStorefront({ categoryPath });
 }
 
-async function mountCategoryPage(categoryPath?: string): Promise<VueWrapper> {
-  const wrapper = await mountPage(page, { storefront: categoryStorefront(categoryPath) });
+async function mountCategoryPage(
+  categoryPath?: string,
+  options: { attachTo?: Element } = {}
+): Promise<VueWrapper> {
+  const wrapper = await mountPage(page, {
+    storefront: categoryStorefront(categoryPath),
+    attachTo: options.attachTo,
+  });
   await flushPromises();
   wrappers.push(wrapper);
   return wrapper;
@@ -72,7 +78,7 @@ describe('category sample page', () => {
       null,
       'none',
       'none',
-      'surface-strong',
+      'primary',
     ]);
   });
 
@@ -127,7 +133,10 @@ describe('category sample page', () => {
    * already in the category.
    */
   it('lists the category’s own products and offers its children as the category filter', async () => {
-    const wrapper = await mountCategoryPage('home');
+    // Attached: the filter bar's group popover teleports its panel to `document.body`.
+    const wrapper = await mountCategoryPage('home', {
+      attachTo: document.body,
+    });
     const grid = pageBlockRoots(wrapper)[3]!;
     const cards = grid.querySelectorAll('[data-eldra-product-card], article');
     expect(cards.length).toBeGreaterThan(0);
@@ -137,7 +146,9 @@ describe('category sample page', () => {
     // count the grid quotes is the subtree's rather than the store's.
     const gridText = grid.textContent ?? '';
     expect(gridText).not.toContain('Merino crew sweater');
-    const wholeStore = await mountPage(page, { storefront: createDemoStorefront({}) });
+    const wholeStore = await mountPage(page, {
+      storefront: createDemoStorefront({}),
+    });
     await flushPromises();
     wrappers.push(wholeStore);
     const unscopedText = pageBlockRoots(wholeStore)[3]!.textContent ?? '';
@@ -147,11 +158,21 @@ describe('category sample page', () => {
     // the catalogue — the editor hint's own state. Either way it must not quote the subtree's count.
     expect(countOf(unscopedText)).not.toBe(countOf(gridText));
 
-    const legends = Array.from(grid.querySelectorAll('legend')).map((el) => el.textContent);
-    expect(legends).toContain('Category');
-    const categoryPanel = Array.from(grid.querySelectorAll('fieldset')).find(
-      (set) => set.querySelector('legend')?.textContent === 'Category'
-    )!;
+    // `filter-bar`: the group is a chip in the bar that opens its panel in a popover (teleported,
+    // rendered only while open), so it is found by its trigger rather than by a legend in the grid.
+    const bar = grid.querySelector('[role="group"][aria-label="Filter and sort"]')!;
+    expect(bar).not.toBeNull();
+    const triggers = Array.from(
+      bar.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="dialog"]')
+    );
+    expect(triggers.map((button) => button.textContent?.trim())).toContain('Category');
+    const categoryTrigger = triggers.find((button) => button.textContent?.trim() === 'Category')!;
+    categoryTrigger.click();
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const categoryPanel = document.getElementById(categoryTrigger.getAttribute('aria-controls')!)!;
+    expect(categoryPanel).not.toBeNull();
+    expect(categoryPanel.getAttribute('aria-label')).toBe('Category');
     const labels = Array.from(categoryPanel.querySelectorAll('label')).map((el) =>
       (el.textContent ?? '').trim()
     );
@@ -163,7 +184,9 @@ describe('category sample page', () => {
   });
 
   it('declares the three landmark regions and lands the skip link after the header', async () => {
-    const wrapper = await mountPageWithSkipLink(page, { storefront: categoryStorefront() });
+    const wrapper = await mountPageWithSkipLink(page, {
+      storefront: categoryStorefront(),
+    });
     await flushPromises();
     wrappers.push(wrapper);
     expectPageLandmarks(wrapper);

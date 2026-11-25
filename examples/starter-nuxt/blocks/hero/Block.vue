@@ -15,6 +15,13 @@
  *  - `centered`: centred copy above a wide image (4:3 → 21:9 → 3:1).
  *  - `split-carousel`: copy in a `5fr` column beside `@eldrajs/ui`'s `Carousel` in `7fr`, one 4:5
  *    slide per `slides[]` item.
+ *  - `card`: one wide photo (21:9) with the copy on a `background` card overlapping its
+ *    bottom-left corner, and an optional small caption link on the photo (`captionLabel`,
+ *    `captionDetail`, `captionHref` — "Glazed milk jug $34", a shoppable caption). Below 1101px
+ *    of block width the card leaves the photo and sits under it, pulled up over its bottom edge
+ *    (16:10 photo; 4:5 below 761px), and the caption moves to the photo's top-right corner. The
+ *    copy comes before the photo in the DOM, so the heading is still the first thing read; `order`
+ *    puts the photo above it, and from 1101px the card is positioned over the photo.
  *
  * The copy (eyebrow, heading, subheading, buttons) is the same shape in every variant, so it is
  * written once below; only the surrounding grid/flex wrapper and the media alongside it differ per
@@ -35,6 +42,7 @@ import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import UiImage from '../../app/components/ui/UiImage.vue';
+import EldraIcon from '../../app/components/EldraIcon.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'hero'> }>();
 const { data, entryId } = useBlockData(props, 'hero');
@@ -50,6 +58,7 @@ const isImageColumnVariant = computed(
 const isImageBackground = computed(() => variant.value === 'image-background');
 const isCentered = computed(() => variant.value === 'centered');
 const isSplitCarousel = computed(() => variant.value === 'split-carousel');
+const isCard = computed(() => variant.value === 'card');
 
 const hasImage = computed(() => Boolean(data.value.image));
 /** `image-background` only gets the scrim + inverted copy once there is an actual image to scrim
@@ -82,11 +91,16 @@ const sectionBackground = computed<SectionBackground>(() => {
 /** `image-background` sets its own padding (`outerClass` below) instead of the `spacing` field's
  *  section padding. */
 const sectionSpacing = computed<SectionSpacing>(() =>
-  isImageBackground.value ? 'none' : (data.value.spacing ?? 'md')
+  isImageBackground.value || isCard.value ? 'none' : (data.value.spacing ?? 'md')
 );
-const sectionRootClass = computed(() =>
-  isImageBackground.value ? 'relative overflow-hidden' : ''
-);
+/** `card` sits close under the header (1.5rem, 0.75rem below 761px) and keeps a `section-sm` step
+ *  below it, so a following block on the same ground — whose top padding the package drops for
+ *  adjacent same-ground sections — still starts a step clear of the photo. */
+const sectionRootClass = computed(() => {
+  if (isImageBackground.value) return 'relative overflow-hidden';
+  if (isCard.value) return 'pt-3 @min-[47.5625rem]:pt-6 pb-[var(--eldra-section-sm)]';
+  return '';
+});
 const containerWidth = computed(() => (isCentered.value ? 'content' : 'wide'));
 
 /**
@@ -123,13 +137,32 @@ const outerClass = computed(() => {
       'pt-[var(--eldra-section-md)] pb-12 @content:pt-[7rem] @content:pb-16'
     );
   }
+  if (isCard.value) {
+    // A column below 1101px (the photo, then the card pulled up over its bottom edge); from there
+    // a plain block, the photo in flow and the card positioned over it.
+    return hasImage.value ? 'relative flex flex-col @min-[68.8125rem]:block' : '';
+  }
   return ''; // centered
 });
 
 /** Copy column max-width: 36rem alongside media, 44rem when there is nothing beside it to share
  *  the row with (spec "Hero" → States, "No image" row); `centered` always uses its own 44rem,
  *  centred as a block. */
+const CARD_COPY_CLASS =
+  'bg-background rounded-lg shadow-float px-5 py-6 @min-[47.5625rem]:px-10 @min-[47.5625rem]:py-9';
+/** Over the photo from 1101px: bottom-left, 3rem in, at most 30rem wide. Below that the card is in
+ *  flow under the photo and pulled up over it (4rem, with 0.75rem sides, below 761px; 3rem with
+ *  1rem sides above). With no photo yet it is just the card. */
+const CARD_PLACEMENT_CLASS =
+  'relative z-[1] order-2 -mt-16 mx-3 @min-[47.5625rem]:-mt-12 @min-[47.5625rem]:mx-4 ' +
+  '@min-[68.8125rem]:absolute @min-[68.8125rem]:left-12 @min-[68.8125rem]:bottom-12 ' +
+  '@min-[68.8125rem]:m-0 @min-[68.8125rem]:max-w-[30rem]';
 const copyClass = computed(() => {
+  if (isCard.value) {
+    return hasImage.value
+      ? `${CARD_COPY_CLASS} ${CARD_PLACEMENT_CLASS}`
+      : `${CARD_COPY_CLASS} max-w-[36rem]`;
+  }
   if (isCentered.value) return 'mx-auto max-w-[44rem] text-center';
   if (isImageColumnVariant.value) return hasImage.value ? 'max-w-[36rem]' : 'max-w-[44rem]';
   return 'max-w-[36rem]';
@@ -143,11 +176,40 @@ const copyOrderClass = computed(() =>
 const imageOrderClass = computed(() =>
   isImageRight.value ? 'order-1 @content:order-2' : 'order-1'
 );
-const buttonsRowClass = computed(() =>
-  isCentered.value
-    ? 'flex flex-col items-center gap-3 @tablet:flex-row @tablet:justify-center'
-    : 'flex flex-col gap-3 @tablet:flex-row @tablet:items-center'
+const buttonsRowClass = computed(() => {
+  if (isCard.value) return 'mt-6 flex flex-wrap gap-3';
+  return isCentered.value
+    ? 'mt-3 flex flex-col items-center gap-3 @tablet:flex-row @tablet:justify-center'
+    : 'mt-3 flex flex-col gap-3 @tablet:flex-row @tablet:items-center';
+});
+/** `card` buttons keep their own width and wrap; full width only on the narrowest phones. */
+const buttonWidthClass = computed(() =>
+  isCard.value ? '@min-[22.5rem]:w-auto w-full' : '@tablet:w-auto w-full'
 );
+
+/** `card`'s heading is the design's lighter display serif: 2rem on the narrowest phones, 2.25rem
+ *  up to 760px, 3.25rem from there. */
+const headingClass = computed(() =>
+  isCard.value
+    ? 'font-heading text-[2rem] @min-[22.5rem]:text-[2.25rem] @min-[47.5625rem]:text-[3.25rem] leading-[1.02] font-medium tracking-[-0.01em] text-balance'
+    : 'font-heading @tablet:text-[3.5rem] text-[2.5rem] leading-[1.05] font-bold tracking-[-0.02em] text-balance'
+);
+const eyebrowSpacingClass = computed(() => (isCard.value ? 'mb-2' : 'mb-4'));
+const subheadingClass = computed(() =>
+  isCard.value
+    ? 'mt-3.5 text-[1.125rem] leading-[1.6] text-pretty'
+    : 'text-body-lg mt-5 max-w-[34rem] text-pretty'
+);
+
+const captionLabel = computed(() => (data.value.captionLabel ?? '').trim());
+const captionDetail = computed(() => (data.value.captionDetail ?? '').trim());
+const captionHref = computed(() => safeHref(data.value.captionHref));
+/** The caption is a link or nothing: a label with no destination would be a pill that looks
+ *  clickable and is not. */
+const hasCaption = computed(
+  () => isCard.value && hasImage.value && captionLabel.value !== '' && captionHref.value !== null
+);
+const captionLinkAs = computed(() => routerLinkAs(captionHref.value));
 const carouselAriaLabel = computed(() => data.value.heading || t('hero.carouselFallback'));
 /** Bound below as `:ariaLabel` (camelCase), not this file's usual `:aria-label`: Vue's template
  *  compiler passes a bound attribute's name through unchanged (the kebab→camel prop match is a
@@ -214,14 +276,14 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
     <Container :width="containerWidth">
       <div :class="outerClass">
         <div :class="[copyClass, copyOrderClass]">
-          <p v-if="data.eyebrow" class="text-overline mb-4" :class="eyebrowColorClass">
+          <p
+            v-if="data.eyebrow"
+            class="text-overline"
+            :class="[eyebrowColorClass, eyebrowSpacingClass]"
+          >
             {{ data.eyebrow }}
           </p>
-          <h1
-            v-if="data.heading"
-            :id="headingId"
-            class="font-heading @tablet:text-[3.5rem] text-[2.5rem] leading-[1.05] font-bold tracking-[-0.02em] text-balance"
-          >
+          <h1 v-if="data.heading" :id="headingId" :class="headingClass">
             {{ data.heading }}
           </h1>
           <EditorPlaceholder
@@ -233,8 +295,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
 
           <p
             v-if="data.subheading"
-            class="text-body-lg mt-5 max-w-[34rem] text-pretty"
-            :class="[subheadingColorClass, isCentered ? 'mx-auto' : '']"
+            :class="[subheadingClass, subheadingColorClass, isCentered ? 'mx-auto' : '']"
           >
             {{ data.subheading }}
           </p>
@@ -245,7 +306,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
             :label="t('hero.subheadingHintLabel')"
           />
 
-          <div class="mt-3" :class="buttonsRowClass">
+          <div :class="buttonsRowClass">
             <slot name="actions">
               <Button
                 v-if="hasPrimaryCta"
@@ -253,7 +314,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
                 :as="primaryLinkAs"
                 size="lg"
                 variant="primary"
-                class="@tablet:w-auto w-full"
+                :class="buttonWidthClass"
               >
                 {{ data.primaryCtaLabel }}
               </Button>
@@ -263,7 +324,7 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
                 :as="secondaryLinkAs"
                 size="lg"
                 variant="outline"
-                class="@tablet:w-auto w-full"
+                :class="buttonWidthClass"
               >
                 {{ data.secondaryCtaLabel }}
               </Button>
@@ -318,6 +379,43 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
             inline
             :label="t('hero.imageHintLabel')"
             class="@content:mt-12 @tablet:aspect-[21/9] @content:aspect-[3/1] bg-surface-strong mt-8 aspect-[4/3] w-full rounded-xl"
+          />
+        </template>
+
+        <!-- card: the photo (above the card below 1101px, behind it from there) and its caption -->
+        <template v-else-if="isCard">
+          <div v-if="hasImage" class="relative order-1">
+            <UiImage
+              :src="data.image!.url"
+              :alt="data.image!.altText ?? ''"
+              :framing="framing"
+              :entry-id="entryId"
+              field-path="image"
+              rounded="xl"
+              :classes="{
+                frame:
+                  'aspect-[4/5]! @min-[47.5625rem]:aspect-[16/10]! @min-[68.8125rem]:aspect-[21/9]!',
+              }"
+              class="w-full"
+            />
+            <Link
+              v-if="hasCaption"
+              :href="captionHref!"
+              :as="captionLinkAs"
+              :underline="false"
+              :classes="{ label: 'inline-flex min-w-0 items-center gap-2' }"
+              class="bg-background/90 text-text hover:bg-background absolute top-5 right-5 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold @min-[68.8125rem]:top-auto @min-[68.8125rem]:bottom-5"
+            >
+              <span class="truncate">{{ captionLabel }}</span>
+              <span v-if="captionDetail" class="text-muted font-normal">{{ captionDetail }}</span>
+              <EldraIcon name="arrow-right" size="md" class="shrink-0" />
+            </Link>
+          </div>
+          <EditorPlaceholder
+            v-else-if="editing"
+            inline
+            :label="t('hero.imageHintLabel')"
+            class="bg-surface-strong mt-6 aspect-[4/5] w-full rounded-xl @min-[47.5625rem]:aspect-[16/10] @min-[68.8125rem]:aspect-[21/9]"
           />
         </template>
 

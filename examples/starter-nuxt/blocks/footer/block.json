@@ -1,7 +1,7 @@
 {
   "apiId": "footer",
   "name": "Footer",
-  "description": "Site footer with brand, link groups, a newsletter sign-up, social links, a legal line and locale/currency selectors.",
+  "description": "Site footer with brand, store address and hours, link groups, social links, an optional newsletter sign-up, a legal line and locale/currency selectors.",
   "icon": "layout-bottombar",
   "category": "structure",
   "version": 3,
@@ -68,9 +68,9 @@
       "fieldId": "background",
       "name": "Background",
       "type": "select",
-      "helpText": "Defaults to \"surface-strong\" when unset.",
+      "helpText": "Defaults to \"primary\" when unset.",
       "metadata": {
-        "options": ["surface-strong", "primary"]
+        "options": ["primary", "surface-strong"]
       }
     },
     {
@@ -98,9 +98,47 @@
       "name": "Description",
       "type": "text",
       "localized": true,
-      "helpText": "1–3 sentences. Shown on the default variant only.",
+      "helpText": "One short sentence under the brand. Shown on the default variant only.",
       "validators": {
         "maxLength": 300
+      }
+    },
+    {
+      "fieldId": "address",
+      "name": "Address",
+      "type": "string",
+      "localized": true,
+      "helpText": "One line, e.g. \"14 Harbour Street, Northwind Bay\". Shown on the default variant only.",
+      "validators": {
+        "maxLength": 120
+      }
+    },
+    {
+      "fieldId": "phone",
+      "name": "Phone",
+      "type": "string",
+      "helpText": "Rendered as a tel: link. Shown on the default variant only.",
+      "validators": {
+        "maxLength": 40
+      }
+    },
+    {
+      "fieldId": "email",
+      "name": "Email",
+      "type": "string",
+      "helpText": "Rendered as a mailto: link. Shown on the default variant only.",
+      "validators": {
+        "maxLength": 120
+      }
+    },
+    {
+      "fieldId": "hours",
+      "name": "Opening hours",
+      "type": "string",
+      "localized": true,
+      "helpText": "One line, e.g. \"Shop open Mon–Fri 10–18, Sat 10–16\". Shown on the default variant only.",
+      "validators": {
+        "maxLength": 120
       }
     },
     {

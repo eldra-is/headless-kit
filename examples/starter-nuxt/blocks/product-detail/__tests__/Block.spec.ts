@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { computed, defineComponent, h, nextTick, ref, watch } from 'vue';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
-import { useToast, type ToastAction } from '@eldrajs/ui';
+import { Lightbox, useToast, type ToastAction } from '@eldrajs/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
@@ -106,13 +106,10 @@ async function mountReady(
 
 type Wrapper = Awaited<ReturnType<typeof mountReady>>;
 
-/** The gallery's own strip. Scoped by its name so the `Lightbox`'s own thumbnails ("Go to image n")
- *  are never counted once the viewer is open. */
-function thumbnails(wrapper: Wrapper) {
-  return wrapper.findAll('button[aria-label^="Show image"]');
-}
-function zoomButton(wrapper: Wrapper) {
-  return wrapper.get('button[aria-haspopup="dialog"]');
+/** The mosaic's own tiles. Scoped by their name so the `Lightbox`'s own thumbnails ("Go to image
+ *  n") are never counted once the viewer is open. */
+function tiles(wrapper: Wrapper) {
+  return wrapper.findAll('button[aria-label^="Open image"]');
 }
 function lightbox(wrapper: Wrapper) {
   return wrapper.get('dialog[aria-label="Merino crew sweater, images"]');
@@ -397,14 +394,14 @@ describe('product-detail block', () => {
     expect(wrapper.text()).toContain('Merino crew sweater');
     expect(wrapper.text()).toContain('$96.00');
     expect(wrapper.text()).toContain('Knitwear');
-    expect(wrapper.text()).toContain('Free delivery over $80.');
+    expect(wrapper.text()).toContain('Free delivery on orders over $80');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   it('renders the bare fixture — no perks, no tabs, no size guide — axe-clean', async () => {
     const wrapper = await mountReady(bare);
     expect(wrapper.text()).toContain('Merino crew sweater');
-    expect(wrapper.find('[role="tablist"]').exists()).toBe(false);
+    expect(wrapper.find('details').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Size guide');
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
@@ -424,11 +421,12 @@ describe('product-detail block', () => {
         gallery.element.compareDocumentPosition(info.element) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
       // … only which column each one is painted in.
+      // The two columns start at 60rem (the design's own edge), so that is where they mirror.
       expect(gallery.classes()).toContain(
-        variant === 'gallery-right' ? '@tablet:order-2' : '@tablet:order-1'
+        variant === 'gallery-right' ? '@min-[60rem]:order-2' : '@min-[60rem]:order-1'
       );
       expect(info.classes()).toContain(
-        variant === 'gallery-right' ? '@tablet:order-1' : '@tablet:order-2'
+        variant === 'gallery-right' ? '@min-[60rem]:order-1' : '@min-[60rem]:order-2'
       );
     }
   });
@@ -585,62 +583,78 @@ describe('product-detail block', () => {
     expect(wrapper.find('nav[aria-label="Breadcrumb"]').exists()).toBe(false);
   });
 
+  /**
+   * The gallery is a mosaic now: every image on the page at once, each one a button that opens the
+   * viewer at itself. The thumbnail strip, its "current" marker, the index pill and the single zoom
+   * button went with the single stage they served.
+   */
   describe('gallery', () => {
-    it('names every thumbnail by position and alt text, marking the current one', async () => {
+    it('draws every image as a tile named by position and alt text, the first one wide', async () => {
       const wrapper = await mountReady(mock);
-      const buttons = thumbnails(wrapper);
-      expect(buttons.length).toBeGreaterThan(1);
+      const buttons = tiles(wrapper);
+      expect(buttons).toHaveLength(3);
+      const alts = [
+        'Merino crew sweater',
+        'Merino crew sweater, alternate view',
+        'Merino crew sweater, in use',
+      ];
       buttons.forEach((button, index) => {
         expect(button.attributes('aria-label')).toBe(
-          `Show image ${index + 1} of ${buttons.length}: ${
-            index === 0 ? 'Merino crew sweater' : 'Merino crew sweater, alternate view'
-          }`
+          `Open image ${index + 1} of ${buttons.length}: ${alts[index]}`
         );
+        expect(button.attributes('aria-haspopup')).toBe('dialog');
+        // The photo inside is decorative: the button already says what it shows.
+        expect(button.get('img').attributes('alt')).toBe('');
       });
-      expect(buttons[0]!.attributes('aria-current')).toBe('true');
-      expect(buttons[1]!.attributes('aria-current')).toBeUndefined();
     });
 
-    it('moves the current thumbnail, the index pill and the zoom name together', async () => {
-      const wrapper = await mountReady(mock);
-      const buttons = thumbnails(wrapper);
-      expect(zoomButton(wrapper).attributes('aria-label')).toBe(
-        `Zoom image 1 of ${buttons.length}`
-      );
-      expect(wrapper.text()).toContain(`1 / ${buttons.length}`);
-
-      await buttons[1]!.trigger('click');
-      expect(thumbnails(wrapper)[1]!.attributes('aria-current')).toBe('true');
-      expect(thumbnails(wrapper)[0]!.attributes('aria-current')).toBeUndefined();
-      expect(zoomButton(wrapper).attributes('aria-label')).toBe(
-        `Zoom image 2 of ${buttons.length}`
-      );
-      expect(wrapper.text()).toContain(`2 / ${buttons.length}`);
+    it('lays two images side by side, and leads with a wide one from three', async () => {
+      const spans = async (count: number) => {
+        const images = Array.from({ length: count }, (_, index) => ({
+          src: `/images/tile-${index}.webp`,
+          alt: `Tile ${index + 1}`,
+          width: 1200,
+          height: 1500,
+        }));
+        const wrapper = mountBlock(mock, { storefront: storefrontWith({ images }) });
+        await flushPromises();
+        await nextTick();
+        return tiles(wrapper).map((tile) => tile.element.parentElement!.className);
+      };
+      expect(await spans(1)).toEqual([expect.stringContaining('col-span-2')]);
+      expect((await spans(2)).every((span) => span.includes('col-span-1'))).toBe(true);
+      const three = await spans(3);
+      expect(three.map((span) => span.includes('col-span-2'))).toEqual([true, false, false]);
+      // An odd one out at the end spans the row, so the mosaic closes square.
+      const four = await spans(4);
+      expect(four.map((span) => span.includes('col-span-2'))).toEqual([true, false, false, true]);
     });
 
-    it('opens the viewer from zoom, arrows between images, and Esc returns focus', async () => {
+    it('opens the viewer at the tile pressed, with zoom, arrows between images, and Esc returns focus', async () => {
       const wrapper = await mountReady(mock);
-      const zoom = zoomButton(wrapper);
-      zoom.element.focus();
-      await zoom.trigger('click');
+      const second = tiles(wrapper)[1]!;
+      second.element.focus();
+      await second.trigger('click');
       await nextTick();
 
       const dialog = lightbox(wrapper);
       expect(dialog.attributes('open')).toBe('');
       expect(await axe(wrapper.element)).toHaveNoViolations();
 
-      const count = thumbnails(wrapper).length;
+      const count = tiles(wrapper).length;
+      expect(dialog.text()).toContain(`2 / ${count}`);
+      // `zoom` is on, so a photo larger than it is shown can be enlarged and panned.
+      expect(wrapper.findComponent(Lightbox).props('zoom')).toBe(true);
+      await dialog.trigger('keydown', { key: 'ArrowLeft' });
       expect(dialog.text()).toContain(`1 / ${count}`);
       await dialog.trigger('keydown', { key: 'ArrowRight' });
       expect(dialog.text()).toContain(`2 / ${count}`);
-      await dialog.trigger('keydown', { key: 'ArrowLeft' });
-      expect(dialog.text()).toContain(`1 / ${count}`);
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       await new Promise((resolve) => setTimeout(resolve));
       await nextTick();
       expect(lightbox(wrapper).attributes('open')).toBeUndefined();
-      expect(document.activeElement).toBe(zoom.element);
+      expect(document.activeElement).toBe(second.element);
     });
   });
 
@@ -1286,48 +1300,58 @@ describe('product-detail block', () => {
     });
   });
 
-  describe('tabs', () => {
-    it('renders one tab per entry, only the selected one in the tab order', async () => {
+  /** The `tabs` entries render as an accordion now (the design's Details / Care / Delivery and
+   *  returns rows), the first one open — each row a native disclosure. */
+  describe('details accordion', () => {
+    const rows = (wrapper: Wrapper) => wrapper.findAll('details');
+    const summaries = (wrapper: Wrapper) => wrapper.findAll('details > summary');
+
+    it('renders one row per entry under an h2 each, only the first open', async () => {
       const wrapper = await mountReady(mock);
-      const tabs = wrapper.findAll('[role="tab"]');
-      expect(tabs.map((tab) => tab.text())).toEqual(['Details', 'Shipping', 'Returns']);
-      expect(tabs.map((tab) => tab.attributes('tabindex'))).toEqual(['0', '-1', '-1']);
-      expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Product details');
-      expect(wrapper.text()).toContain('extra-fine Merino in a family mill in Biella');
+      expect(summaries(wrapper).map((summary) => summary.text())).toEqual([
+        'Details',
+        'Care',
+        'Delivery and returns',
+      ]);
+      expect(rows(wrapper).map((row) => row.attributes('open') !== undefined)).toEqual([
+        true,
+        false,
+        false,
+      ]);
+      expect(summaries(wrapper).map((summary) => summary.find('h2').text())).toEqual([
+        'Details',
+        'Care',
+        'Delivery and returns',
+      ]);
+      expect(wrapper.text()).toContain('100% extra-fine Merino wool');
     });
 
-    it('moves between tabs with arrows (wrapping) and Home/End', async () => {
+    it('opens and closes a row from the keyboard, its summary being the one tab stop', async () => {
       const wrapper = await mountReady(mock);
-      const tabs = () => wrapper.findAll('[role="tab"]');
-      await tabs()[0]!.trigger('keydown', { key: 'ArrowRight' });
-      expect(tabs()[1]!.attributes('aria-selected')).toBe('true');
-      await tabs()[1]!.trigger('keydown', { key: 'ArrowLeft' });
-      expect(tabs()[0]!.attributes('aria-selected')).toBe('true');
-      // Wraps backwards from the first to the last.
-      await tabs()[0]!.trigger('keydown', { key: 'ArrowLeft' });
-      expect(tabs()[2]!.attributes('aria-selected')).toBe('true');
-      await tabs()[2]!.trigger('keydown', { key: 'Home' });
-      expect(tabs()[0]!.attributes('aria-selected')).toBe('true');
-      await tabs()[0]!.trigger('keydown', { key: 'End' });
-      expect(tabs()[2]!.attributes('aria-selected')).toBe('true');
+      const care = summaries(wrapper)[1]!;
+      (care.element as HTMLElement).focus();
+      expect(document.activeElement).toBe(care.element);
+      // A browser turns Enter/Space on a focused <summary> into a click that toggles its <details>.
+      await care.trigger('click');
+      await nextTick();
+      expect(rows(wrapper)[1]!.attributes('open')).toBeDefined();
+      await care.trigger('click');
+      await nextTick();
+      expect(rows(wrapper)[1]!.attributes('open')).toBeUndefined();
     });
 
-    it('keeps every panel reachable by keyboard', async () => {
+    it('stays axe-clean with every row open', async () => {
       const wrapper = await mountReady(mock);
-      const panels = wrapper.findAll('[role="tabpanel"]');
-      expect(panels).toHaveLength(3);
-      // Panels with no focusable content of their own carry `tabindex="0"` so the text is
-      // reachable (`TabPanel`'s own rule); these three are plain prose.
-      for (const panel of panels) expect(panel.attributes('tabindex')).toBe('0');
+      for (const summary of summaries(wrapper).slice(1)) await summary.trigger('click');
+      await nextTick();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
-    it('puts Add to cart before the tabs in reading order', async () => {
+    it('puts Add to cart before the details in reading order', async () => {
       const wrapper = await mountReady(mock);
       const button = addToCart(wrapper).element;
-      const tablist = wrapper.get('[role="tablist"]').element;
-      expect(
-        button.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy();
+      const first = summaries(wrapper)[0]!.element;
+      expect(button.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 

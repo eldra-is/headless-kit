@@ -20,13 +20,13 @@ import fixture from '../../pages/home.page.json';
 const homeFixture = fixture as PageFixture;
 
 const EXPECTED_APIID_ORDER = [
-  'announcement-bar',
   'navigation',
   'hero',
   'trust-strip',
+  'feature-grid',
   'product-carousel',
   'split-content',
-  'testimonials',
+  'article-list',
   'newsletter',
   'footer',
 ];
@@ -35,8 +35,10 @@ const EXPECTED_APIID_ORDER = [
 // `data-section-bg` regardless of colour (`@eldrajs/ui`'s `Section.vue`), and the CSS rule that
 // drops a repeated ground's top padding keys off two *adjacent* siblings sharing that same value
 // (`packages/ui/src/__tests__/sectionAdjacentBackground.spec.ts`) — so this exact sequence is both
-// "which ground each block sits on" and "where the padding collapses" (index 4→5 and 5→6, the only
-// repeated neighbours, are Product carousel→Split content and Split content→Testimonials).
+// "which ground each block sits on" and "where the padding collapses": the hero, the numbered
+// promises, the category arches and the new arrivals share the page's own ground, so each one after
+// the hero drops its top padding; the makers band on `surface` keeps its own, and the journal and the
+// help + newsletter band after it collapse into each other again.
 //
 // `navigation` (the header) is `null`, not `'none'`: it is fixed chrome, not a `Section` (spec
 // "Header": it must never take part in the adjacent-background collapse rule, so the Hero right
@@ -44,15 +46,15 @@ const EXPECTED_APIID_ORDER = [
 // comment on `barRootClasses`). Because it carries no `data-section-bg` at all, it can never match
 // the Hero's `'none'` even though both sit on the same visual ground.
 const EXPECTED_SECTION_BACKGROUNDS = [
-  'primary', // announcement-bar
   null, // navigation (header) — not a Section; never collapses the Hero's top padding
-  'none', // hero — keeps its own full top padding after the header
-  'surface', // trust-strip
-  'none', // product-carousel
-  'none', // split-content — same ground as product-carousel: top padding collapses
-  'none', // testimonials — same ground as split-content: top padding collapses
-  'surface', // newsletter
-  'surface-strong', // footer
+  'none', // hero (card) — keeps its own full top padding after the header
+  'none', // trust-strip (numbered)
+  'none', // feature-grid (arched categories)
+  'none', // product-carousel (new arrivals)
+  'surface', // split-content (the makers)
+  'none', // article-list (the journal)
+  'none', // newsletter (help + sign-up band; the band paints its own panels)
+  'primary', // footer
 ];
 
 describe('home page (pages/home.page.json)', () => {
@@ -68,20 +70,8 @@ describe('home page (pages/home.page.json)', () => {
     // Each root identified by a stable marker that block already emits itself: the section's own
     // `aria-labelledby`/`aria-label` target text (read off the rendered heading, not re-typed), or
     // the landmark tag for header/footer.
-    const [
-      announcement,
-      header,
-      hero,
-      trustStrip,
-      carousel,
-      split,
-      testimonials,
-      newsletter,
-      footer,
-    ] = roots;
-
-    expect(announcement.tagName).toBe('SECTION');
-    expect(announcement.textContent).toContain('Free shipping on orders over $80');
+    const [header, hero, trustStrip, categories, carousel, split, journal, newsletter, footer] =
+      roots;
 
     expect(header.tagName).toBe('HEADER');
     expect(header.querySelector('[data-eldra-header-focus]')).not.toBeNull();
@@ -90,13 +80,19 @@ describe('home page (pages/home.page.json)', () => {
 
     expect(trustStrip.textContent).toContain('Why shop with Northwind');
 
-    expect(carousel.querySelector('h2')?.textContent).toBe('New this season');
+    expect(categories.querySelector('h2')?.textContent).toBe('Shop by category');
+
+    expect(carousel.querySelector('h2')?.textContent).toBe('New arrivals');
 
     expect(split.getAttribute('aria-label')).toBe('Our story');
 
-    expect(testimonials.querySelector('h2')?.textContent).toBe('Used every day, reviewed honestly');
+    expect(journal.querySelector('h2')?.textContent).toBe('From the journal');
 
-    expect(newsletter.querySelector('h2')?.textContent).toBe('Letters from the workshop');
+    // The band's two panels: help on the left, the sign-up on the right.
+    expect([...newsletter.querySelectorAll('h2')].map((el) => el.textContent)).toEqual([
+      'Questions before you buy?',
+      'Letters from the workshop',
+    ]);
 
     expect(footer.tagName).toBe('FOOTER');
 
@@ -108,7 +104,7 @@ describe('home page (pages/home.page.json)', () => {
 
   it("keeps the hero's full top padding after the header (header takes no part in the adjacent-background collapse rule)", async () => {
     const wrapper = await mountPage(homeFixture);
-    const [, header, hero] = pageBlockRoots(wrapper);
+    const [header, hero] = pageBlockRoots(wrapper);
 
     expect(header!.hasAttribute('data-section-bg')).toBe(false);
     expect(header!.hasAttribute('data-section')).toBe(false);
@@ -120,8 +116,8 @@ describe('home page (pages/home.page.json)', () => {
     const main = wrapper.get('main#main');
     const roots = pageBlockRoots(wrapper);
 
-    // trust-strip `columns` (not `inline`): the per-item body line only renders in `columns`.
-    expect(main.text()).toContain('Delivered in 2–4 business days, carbon-neutral.');
+    // trust-strip `numbered`: each promise's body line renders under its number.
+    expect(main.text()).toContain('Every piece comes from one of nine workshops.');
 
     // product-carousel `collection`, sourced through the seed form of a reference:
     // `sourceCollection: { _type: "collection", slug: "the-winter-edit" }`, the only form a theme
@@ -149,16 +145,15 @@ describe('home page (pages/home.page.json)', () => {
     expect(carouselData.sourceCollection).toEqual({ _type: 'collection', slug: 'the-winter-edit' });
     expect(Object.hasOwn(carouselData, 'sourceHandle')).toBe(false);
 
-    // split-content `startWith: "image-left"`: row 1's image sits on the left (no reorder class),
-    // row 2 alternates to the right (`@tablet:order-2`) — the visual side only `startWith` decides.
-    const splitRows = roots[5].querySelectorAll('li');
-    expect(splitRows).toHaveLength(2);
+    // split-content: one makers row, its image on the left (`startWith: "image-left"`, no reorder
+    // class), and the block-level `list` of three makers under the row's text.
+    const splitRows = roots[5].querySelectorAll(':scope ol > li');
+    expect(splitRows).toHaveLength(1);
     expect(splitRows[0]!.children[0]?.className).not.toContain('order-2');
-    expect(splitRows[1]!.children[0]?.className).toContain('order-2');
+    expect(roots[5].textContent).toContain('Harbour Pottery');
 
-    // testimonials `grid`, first three items only.
-    const names = [...roots[6].querySelectorAll('cite')].map((el) => el.textContent);
-    expect(names).toEqual(['Hannah Reeve', 'Marcus Bell', 'Priya Nair']);
+    // article-list: the three journal stories the fixture names.
+    expect(roots[6].querySelectorAll('h3')).toHaveLength(3);
 
     // footer `showNewsletter: false`: its own newsletter copy never renders.
     expect(roots[8].textContent).not.toContain('New pieces, maker stories');

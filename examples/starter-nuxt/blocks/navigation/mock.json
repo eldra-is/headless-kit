@@ -3,144 +3,25 @@
   "brandText": "Northwind Goods",
   "links": [
     {
-      "kind": "collection",
-      "target": {
-        "_type": "collection",
-        "slug": "knitwear"
-      },
-      "label": "Knitwear",
+      "kind": "url",
+      "url": "/products",
+      "label": "Shop",
       "sections": [
         {
-          "heading": "Women",
+          "heading": "Ceramics",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/ceramics",
+            "label": "Ceramics"
+          },
           "links": [
             {
               "kind": "collection",
               "target": {
                 "_type": "collection",
-                "slug": "womens-sweaters"
+                "slug": "mugs-cups"
               },
-              "label": "Sweaters"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "womens-cardigans"
-              },
-              "label": "Cardigans"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "scarves-wraps"
-              },
-              "label": "Scarves & wraps"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "hats-gloves"
-              },
-              "label": "Hats & gloves"
-            }
-          ]
-        },
-        {
-          "heading": "Men",
-          "links": [
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "mens-sweaters"
-              },
-              "label": "Sweaters"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "mens-cardigans"
-              },
-              "label": "Cardigans"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "mens-scarves"
-              },
-              "label": "Scarves"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "socks"
-              },
-              "label": "Socks"
-            }
-          ]
-        },
-        {
-          "heading": "Collections",
-          "links": [
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "merino-essentials"
-              },
-              "label": "Merino essentials"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "heavy-winter-knits"
-              },
-              "label": "Heavy winter knits"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "undyed-wool"
-              },
-              "label": "Undyed wool"
-            },
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "knitwear"
-              },
-              "label": "Shop all knitwear"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "kind": "collection",
-      "target": {
-        "_type": "collection",
-        "slug": "ceramics"
-      },
-      "label": "Ceramics",
-      "sections": [
-        {
-          "heading": "Tableware",
-          "links": [
-            {
-              "kind": "collection",
-              "target": {
-                "_type": "collection",
-                "slug": "plates"
-              },
-              "label": "Plates"
+              "label": "Mugs and cups"
             },
             {
               "kind": "collection",
@@ -154,11 +35,334 @@
               "kind": "collection",
               "target": {
                 "_type": "collection",
-                "slug": "mugs-cups"
+                "slug": "plates-platters"
               },
-              "label": "Mugs & cups"
+              "label": "Plates and platters"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "vases"
+              },
+              "label": "Vases"
             }
           ]
+        },
+        {
+          "heading": "Knitwear",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/knitwear",
+            "label": "Knitwear"
+          },
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "sweaters"
+              },
+              "label": "Sweaters"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "cardigans"
+              },
+              "label": "Cardigans"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "hats-scarves"
+              },
+              "label": "Hats and scarves"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "yarn"
+              },
+              "label": "Yarn"
+            }
+          ]
+        },
+        {
+          "heading": "Kitchen",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/kitchen",
+            "label": "Kitchen"
+          },
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "jugs-pitchers"
+              },
+              "label": "Jugs and pitchers"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "boards"
+              },
+              "label": "Boards"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "utensils"
+              },
+              "label": "Utensils"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "table-linen"
+              },
+              "label": "Table linen"
+            }
+          ]
+        },
+        {
+          "heading": "Picked for you",
+          "display": "card",
+          "links": [
+            {
+              "kind": "product",
+              "target": {
+                "_type": "product",
+                "slug": "speckled-latte-mug"
+              },
+              "label": "Speckled latte mug",
+              "display": "card"
+            },
+            {
+              "kind": "product",
+              "target": {
+                "_type": "product",
+                "slug": "merino-crew-sweater"
+              },
+              "label": "Merino crew sweater",
+              "display": "card"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "url",
+      "url": "/categories/home/ceramics",
+      "label": "Ceramics",
+      "sections": [
+        {
+          "heading": "By type",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/ceramics",
+            "label": "By type"
+          },
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "mugs-cups"
+              },
+              "label": "Mugs and cups"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "bowls"
+              },
+              "label": "Bowls"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "plates-platters"
+              },
+              "label": "Plates and platters"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "vases"
+              },
+              "label": "Vases",
+              "badge": "New"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "planters"
+              },
+              "label": "Planters"
+            }
+          ],
+          "seeAll": {
+            "label": "All ceramics",
+            "link": {
+              "kind": "url",
+              "url": "/categories/home/ceramics",
+              "label": "Ceramics"
+            }
+          }
+        },
+        {
+          "heading": "By glaze",
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "speckled"
+              },
+              "label": "Speckled"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "celadon"
+              },
+              "label": "Celadon"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "cobalt-on-white"
+              },
+              "label": "Cobalt on white"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "raw-clay"
+              },
+              "label": "Raw clay"
+            }
+          ]
+        },
+        {
+          "heading": "Makers",
+          "headingLink": {
+            "kind": "url",
+            "url": "/pages/makers",
+            "label": "Makers"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/pages/makers/harbour-pottery",
+              "label": "Harbour Pottery"
+            },
+            {
+              "kind": "url",
+              "url": "/pages/makers/kiln-lane",
+              "label": "Kiln Lane"
+            },
+            {
+              "kind": "url",
+              "url": "/pages/makers/studio-ash",
+              "label": "Studio Ash"
+            }
+          ],
+          "seeAll": {
+            "label": "Meet the makers",
+            "link": {
+              "kind": "url",
+              "url": "/pages/makers",
+              "label": "Makers"
+            }
+          }
+        },
+        {
+          "heading": "Best sellers",
+          "display": "card",
+          "links": [
+            {
+              "kind": "product",
+              "target": {
+                "_type": "product",
+                "slug": "speckled-latte-mug"
+              },
+              "label": "Speckled latte mug",
+              "display": "card"
+            },
+            {
+              "kind": "product",
+              "target": {
+                "_type": "product",
+                "slug": "hand-thrown-serving-bowl"
+              },
+              "label": "Hand-thrown serving bowl",
+              "display": "card"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "url",
+      "url": "/categories/knitwear",
+      "label": "Knitwear"
+    },
+    {
+      "kind": "url",
+      "url": "/categories/home/kitchen",
+      "label": "Kitchen"
+    },
+    {
+      "kind": "url",
+      "url": "/journal",
+      "label": "Journal",
+      "sections": [
+        {
+          "links": [
+            {
+              "kind": "url",
+              "url": "/journal/care",
+              "label": "Care guides",
+              "description": "Washing linen, seasoning boards, storing wool"
+            },
+            {
+              "kind": "url",
+              "url": "/journal/workshops",
+              "label": "Workshop visits",
+              "description": "Mornings with the people who make our goods"
+            },
+            {
+              "kind": "url",
+              "url": "/journal/at-home",
+              "label": "At home",
+              "description": "Small rituals and slow mornings"
+            }
+          ],
+          "seeAll": {
+            "label": "All articles",
+            "link": {
+              "kind": "url",
+              "url": "/journal",
+              "label": "Journal"
+            }
+          }
         }
       ]
     },
@@ -166,23 +370,14 @@
       "kind": "collection",
       "target": {
         "_type": "collection",
-        "slug": "kitchen"
+        "slug": "sale"
       },
-      "label": "Kitchen"
-    },
-    {
-      "kind": "url",
-      "url": "/journal",
-      "label": "Journal"
-    },
-    {
-      "kind": "url",
-      "url": "/pages/visit",
-      "label": "Visit the studio"
+      "label": "Sale"
     }
   ],
+  "drawerLayout": "accordion",
   "showSearch": true,
-  "searchStyle": "icon",
+  "searchStyle": "field",
   "ctaLabel": "Shop gifts",
   "cta": {
     "kind": "collection",
@@ -192,5 +387,37 @@
     }
   },
   "sticky": true,
-  "transparentOverHero": false
+  "transparentOverHero": false,
+  "infoItems": [
+    {
+      "text": "Free delivery over $80",
+      "icon": "truck",
+      "placement": "start"
+    },
+    {
+      "text": "30-day returns",
+      "icon": "arrow-back-up",
+      "placement": "start"
+    },
+    {
+      "text": "Shop open today 10–18",
+      "icon": "clock",
+      "placement": "start"
+    },
+    {
+      "text": "Help",
+      "href": "/pages/help",
+      "placement": "end"
+    },
+    {
+      "text": "Order status",
+      "href": "/pages/order-status",
+      "placement": "end"
+    },
+    {
+      "text": "(555) 014-2290",
+      "href": "tel:+15550142290",
+      "placement": "end"
+    }
+  ]
 }

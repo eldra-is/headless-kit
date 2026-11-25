@@ -94,6 +94,21 @@ describe('article-list block', () => {
     });
   });
 
+  it('puts "category · reading time" on one line above each title, and the date under it', async () => {
+    const wrapper = mountBlock(withImages);
+    await flushPromises();
+    const articles = wrapper.findAll('article');
+    articles.forEach((article, index) => {
+      const item = withImages.items[index]!;
+      const kicker = article.get('[data-part="eyebrow"]');
+      expect(kicker.text()).toBe(`${item.categoryLabel} · ${item.readingTime}`);
+      const html = article.html();
+      expect(html.indexOf('data-part="eyebrow"')).toBeLessThan(html.indexOf('data-part="title"'));
+      expect(article.get('[data-part="meta"] time').attributes('datetime')).toBe(item.publishedAt);
+      expect(article.get('[data-part="meta"]').text()).not.toContain(item.readingTime);
+    });
+  });
+
   it('renders card images as decorative (alt="")', async () => {
     const wrapper = mountBlock(withImages);
     await flushPromises();

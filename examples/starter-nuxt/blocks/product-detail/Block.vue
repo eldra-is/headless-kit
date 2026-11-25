@@ -11,9 +11,14 @@
  * section. With neither, the editor sees the "Choose a product" placeholder and the live site
  * renders nothing (Global Constraints, "Editor vs live").
  *
+ * **The layout** is an image mosaic beside a sticky buy panel from 60rem of the block's width,
+ * stacked below it: the panel carries the option pills, a pill-shaped quantity stepper with Add to
+ * cart and the heart, the delivery promises (`perks`) as a ruled list, and the `tabs` entries as an
+ * accordion with the first row open.
+ *
  * **`gallery-right` mirrors visually only.** The gallery is first in the DOM in both variants and
- * only the `@tablet:order-*` utilities swap the columns, so reading and focus order never change
- * (spec Variants, `gallery-right` row).
+ * only the `@min-[60rem]:order-*` utilities swap the columns, so reading and focus order never
+ * change (spec Variants, `gallery-right` row).
  *
  * **The buy area is a real `<form>`**, the way a storefront's add-to-cart form always is: the
  * pickers are its radio groups, the stepper its quantity field and Add to cart its submit button,
@@ -36,6 +41,8 @@
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {
+  Accordion,
+  AccordionItem,
   Badge,
   Button,
   Container,
@@ -50,9 +57,6 @@ import {
   Rating,
   Section,
   StockBadge,
-  Tab,
-  TabPanel,
-  Tabs,
   VariantPicker,
   useToast,
   type FormLayoutSubmitPayload,
@@ -626,25 +630,54 @@ async function submitNotify(payload: FormLayoutSubmitPayload): Promise<void> {
 /* Presentation                                                              */
 /* ------------------------------------------------------------------------- */
 
-/** Spec Container/Section line: 1rem top below 48rem block width, 2rem from 48rem, `section-md`
- *  bottom — `Section`'s own `spacing` steps are symmetrical, so the block sets its own halves
- *  through the sanctioned `classes` prop. */
-const SECTION_SPACING = 'pt-4 @tablet:pt-8 pb-[var(--eldra-section-md)]';
+/** 1rem top below 48rem block width, 1.5rem from it, 4rem bottom — the design's own steps, which
+ *  `Section`'s symmetrical `spacing` presets do not carry, so the block sets its own halves. */
+const SECTION_SPACING = 'pt-4 @tablet:pt-6 pb-16';
 
-/** Spec Layout: the `h1` is "styled at the h2 scale" — 1.625rem, stepping up to the `text-h2`
- *  token's own 2rem from 64rem. */
+/** Two columns from 60rem of the block's width (the design's 960px edge, so a tablet gets the
+ *  stacked page): the mosaic a little wider than the buy panel. */
+const LAYOUT_CLASS =
+  'grid grid-cols-1 gap-8 @min-[60rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] ' +
+  '@min-[60rem]:items-start @min-[60rem]:gap-14';
+
+/** The title: the serif at 2.25rem, 2.5rem from 48rem. */
 const TITLE_CLASS =
-  'font-heading text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em] text-balance ' +
-  '@content:text-h2';
+  'font-heading text-[2.25rem] leading-[1.08] font-medium tracking-[-0.015em] text-balance ' +
+  '@tablet:text-[2.5rem]';
 
-const quantityStepperClasses = { decrease: 'size-12', increase: 'size-12', input: 'h-12' };
+/** A pill-shaped stepper at the Add to cart button's own 3.25rem height. */
+const quantityStepperClasses = {
+  decrease: 'h-13 w-11 aspect-auto',
+  increase: 'h-13 w-11 aspect-auto',
+  input: 'h-13 w-9',
+};
+const QUANTITY_STEPPER_CLASS = '[--eldra-stepper-radius:var(--eldra-radius-full)]';
 
-const tabsRoot = ref<HTMLElement | null>(null);
-useRichTextScrollRegions(tabsRoot, (caption) => caption ?? t('product.tabsLabel'));
+/**
+ * Option pills. The package's colour swatch is a bare disc with its name kept for assistive
+ * technology only; here each colour reads as a pill — disc and name — the way the size pills read,
+ * so a shopper never has to guess a colour from a 2.75rem dot. All of it through `classes`: the
+ * swatch's own name is un-hidden (`not-sr-only`), the drawn radio grows to fit it, and the resting
+ * ring is a 1px `border-strong` line that becomes the package's own 2px `text` ring when checked
+ * (the padding steps by the same 1px, so the pill never changes size).
+ */
+const SWATCH_PILL_CLASSES = {
+  radio:
+    'size-auto h-11 justify-start gap-2 ps-1.5 pe-4 ' +
+    'not-has-checked:[--eldra-variant-swatch-ring-width:1px] not-has-checked:border-border-strong ' +
+    'not-has-checked:ps-[calc(0.375rem+1px)] not-has-checked:pe-[calc(1rem+1px)]',
+  swatch: 'size-7 shrink-0',
+  // The sold-out stroke crosses the disc only, never the name beside it.
+  soldOutLine: 'inset-auto start-[calc(0.375rem+1px)] top-1/2 size-7 -translate-y-1/2',
+  label: 'not-sr-only text-[0.9375rem] font-medium whitespace-nowrap',
+};
+const PILL_CLASSES = { radio: 'rounded-full min-h-11 px-5' };
 
-function tabValue(index: number): string {
-  return String(index);
-}
+/** Which accordion rows are open: the first one, as the design opens Details. */
+const openSections = ref<boolean[]>([true]);
+
+const detailsRoot = ref<HTMLElement | null>(null);
+useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLabel'));
 </script>
 
 <template>
@@ -655,42 +688,40 @@ function tabValue(index: number): string {
     :aria-busy="refreshing ? 'true' : undefined"
     :class="SECTION_SPACING"
   >
-    <Container width="content">
-      <div
-        class="@tablet:grid-cols-[7fr_5fr] @tablet:items-start @tablet:gap-8 @content:gap-12 grid gap-6"
-      >
+    <Container width="wide">
+      <div :class="LAYOUT_CLASS">
         <!-- Gallery first in the DOM in both variants; only the order utilities mirror. -->
         <Gallery
-          class="@tablet:sticky @tablet:top-6"
-          :class="galleryRight ? '@tablet:order-2' : '@tablet:order-1'"
+          :class="galleryRight ? '@min-[60rem]:order-2' : '@min-[60rem]:order-1'"
           :images="product.images"
           :title="product.title"
           :on-sale="onSale"
         />
 
+        <!-- The buy panel stays in view beside a tall mosaic from 60rem. -->
         <div
           role="group"
           :aria-label="t('product.information')"
-          class="flex flex-col gap-6"
-          :class="galleryRight ? '@tablet:order-1' : '@tablet:order-2'"
+          class="flex flex-col gap-5 @min-[60rem]:sticky @min-[60rem]:top-[calc(1.5rem_+_var(--eldra-header-height,0px))]"
+          :class="galleryRight ? '@min-[60rem]:order-1' : '@min-[60rem]:order-2'"
         >
+          <!--
+            One label, not a trail, and deliberately not a `<nav>`: a second landmark named
+            "Breadcrumb" beside the `breadcrumbs` block's own is the duplication this used to
+            ship (see `categoryLeaf`). It stays a link because the destination is useful — the
+            catalogue filtered by that category — and `p` rather than a bare `Link` so the line
+            keeps its own type size whatever the link's tone does.
+          -->
+          <p v-if="showCategory && categoryLeaf !== null" class="-mb-3 text-[0.875rem]">
+            <Link :href="categoryLeaf.href" :as="EldraRouterLink" tone="muted">
+              {{ categoryLeaf.label }}
+            </Link>
+          </p>
+
+          <h1 :id="titleId" :class="TITLE_CLASS">{{ product.title }}</h1>
+
           <div class="flex flex-col gap-2">
-            <!--
-              One label, not a trail, and deliberately not a `<nav>`: a second landmark named
-              "Breadcrumb" beside the `breadcrumbs` block's own is the duplication this used to
-              ship (see `categoryLeaf`). It stays a link because the destination is useful — the
-              catalogue filtered by that category — and `p` rather than a bare `Link` so the line
-              keeps its own type size whatever the link's tone does.
-            -->
-            <p v-if="showCategory && categoryLeaf !== null" class="text-[0.875rem]">
-              <Link :href="categoryLeaf.href" :as="EldraRouterLink" tone="muted">
-                {{ categoryLeaf.label }}
-              </Link>
-            </p>
-
-            <h1 :id="titleId" :class="TITLE_CLASS">{{ product.title }}</h1>
-
-            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
               <p v-if="notSold" class="text-text" data-eldra-not-sold>
                 {{ t('currency.notSoldInLong', { currency: shopperCurrency }) }}
               </p>
@@ -704,25 +735,25 @@ function tabValue(index: number): string {
                 "
                 :currency="product.price.currency"
                 :revalidating="priceRevalidating"
+                :classes="{ current: 'text-[1.5rem] font-semibold' }"
               />
               <Badge
                 v-if="saving && !notSold"
                 variant="sale"
                 :label="t('product.saving', { amount: saving })"
               />
-              <Rating
-                v-if="showRating && rating"
-                :value="rating.value"
-                :count="rating.count"
-                href="#reviews"
-                :as="EldraRouterLink"
-              />
+              <span class="text-muted text-[0.875rem]">{{ t('product.taxNote') }}</span>
             </div>
-
-            <p class="text-muted text-[0.875rem]">{{ t('product.taxNote') }}</p>
+            <Rating
+              v-if="showRating && rating"
+              :value="rating.value"
+              :count="rating.count"
+              href="#reviews"
+              :as="EldraRouterLink"
+            />
           </div>
 
-          <hr class="border-border" />
+          <p v-if="product.description" class="text-muted">{{ product.description }}</p>
 
           <form class="flex flex-col gap-5" @submit.prevent="primaryAction">
             <!--
@@ -755,6 +786,7 @@ function tabValue(index: number): string {
                 :legend="option.label"
                 :type="option.type"
                 :options="option.values"
+                :classes="option.type === 'swatches' ? SWATCH_PILL_CLASSES : PILL_CLASSES"
               />
               <Link
                 v-if="optionIndex === sizeGuideOptionIndex && sizeGuideHref"
@@ -780,26 +812,34 @@ function tabValue(index: number): string {
               }}</span>
             </p>
 
-            <FieldWrapper
-              v-if="showQuantity && !soldOut && !notSold"
-              :label="t('product.quantity')"
-              class="gap-2"
-            >
-              <QuantityStepper
-                v-model="quantity"
-                name="quantity"
-                :max="stockLine.max"
-                :classes="quantityStepperClasses"
-              />
-            </FieldWrapper>
-
-            <div class="grid grid-cols-[1fr_auto] items-center gap-3">
-              <div ref="addToCartEl" class="contents">
+            <!-- Stepper, Add to cart and the heart on one row; below 48rem the button takes a row
+                 of its own under the other two (`order`, visual only: the DOM keeps quantity →
+                 add → save, the order a keyboard walks). -->
+            <div class="@tablet:flex-nowrap flex flex-wrap items-center gap-3">
+              <FieldWrapper
+                v-if="showQuantity && !soldOut && !notSold"
+                :label="t('product.quantity')"
+                class="shrink-0"
+                :classes="{ label: 'sr-only' }"
+              >
+                <QuantityStepper
+                  v-model="quantity"
+                  name="quantity"
+                  :max="stockLine.max"
+                  :class="QUANTITY_STEPPER_CLASS"
+                  :classes="quantityStepperClasses"
+                />
+              </FieldWrapper>
+              <div
+                ref="addToCartEl"
+                class="@tablet:order-none @tablet:basis-auto order-last min-w-0 flex-1 basis-full"
+              >
                 <Button
                   type="submit"
                   variant="primary"
                   size="lg"
                   block
+                  class="rounded-full"
                   :loading="cartBusy"
                   :disabled="notSoldAnywhere"
                   :label="addToCartLabel"
@@ -816,6 +856,7 @@ function tabValue(index: number): string {
                 icon-only
                 variant="outline"
                 size="lg"
+                class="shrink-0 rounded-full"
                 :pressed="wishlisted"
                 :label="wishlistLabel"
                 @click="toggleWishlist"
@@ -833,41 +874,52 @@ function tabValue(index: number): string {
           <ul
             v-if="perks.length > 0"
             role="list"
-            class="bg-surface flex flex-col gap-3 rounded-lg p-4"
+            class="border-border divide-border divide-y rounded-lg border"
           >
-            <li v-for="(perk, index) in perks" :key="index" class="flex gap-3 text-[0.875rem]">
-              <EldraIcon v-if="perk.icon" :name="perk.icon" size="md" class="text-text shrink-0" />
-              <div class="min-w-0">
-                <p class="font-semibold">{{ perk.title }}</p>
-                <p v-if="perk.text" class="text-muted">{{ perk.text }}</p>
-              </div>
+            <li
+              v-for="(perk, index) in perks"
+              :key="index"
+              class="flex items-start gap-3 px-4 py-3.5 text-[0.9375rem]"
+            >
+              <EldraIcon
+                v-if="perk.icon"
+                :name="perk.icon"
+                size="md"
+                class="text-primary mt-0.5 shrink-0"
+              />
+              <p class="min-w-0">
+                <b class="font-semibold">{{ perk.title }}</b
+                >{{ perk.text ? ` ${perk.text}` : '' }}
+              </p>
             </li>
           </ul>
 
-          <div v-if="tabs.length > 0" ref="tabsRoot">
-            <Tabs variant="underline" :ariaLabel="t('product.tabsLabel')">
-              <template #tabs>
-                <Tab
-                  v-for="(tab, index) in tabs"
-                  :key="index"
-                  :value="tabValue(index)"
-                  :title="tab.label"
-                />
-              </template>
-              <TabPanel v-for="(tab, index) in tabs" :key="index" :value="tabValue(index)">
-                <!-- A `Tab` label is a button, not a heading, so the nearest heading above a
-                     panel is this block's own `h1` (the product title) — the panel body's headings
-                     therefore start at `h2`. Floored at 2 rather than 3 on purpose: with no `h2`
-                     in between, an `h3` straight after the `h1` would be a level skip. -->
+          <!-- The details as an accordion, Details open: each row a native disclosure, so the
+               keyboard and assistive technology get the browser's own behaviour. -->
+          <div v-if="tabs.length > 0" ref="detailsRoot" class="border-border border-t">
+            <Accordion>
+              <AccordionItem
+                v-for="(tab, index) in tabs"
+                :key="index"
+                v-model="openSections[index]"
+                :title="tab.label!"
+                :heading-level="2"
+                :classes="{
+                  summary: 'min-h-13 px-0',
+                  title: 'text-body font-semibold font-body',
+                  panel: 'px-0 pb-5 text-muted',
+                }"
+              >
+                <!-- Under this row's own `h2`, so the body's headings start at `h3`. -->
                 <EldraRichText
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"
                   :doc="tab.body"
-                  :min-heading-level="2"
+                  :min-heading-level="3"
                 />
-              </TabPanel>
-            </Tabs>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
       </div>
@@ -920,7 +972,7 @@ function tabValue(index: number): string {
   </Section>
 
   <Section v-else-if="showStatus" spacing="none" :class="SECTION_SPACING">
-    <Container width="content">
+    <Container width="wide">
       <p role="status" class="text-muted">
         {{ productResult.error.value ? t('storefront.error') : t('storefront.loading') }}
       </p>
@@ -931,7 +983,7 @@ function tabValue(index: number): string {
        editor hint below, because on a live page this is what a visitor who followed an old link
        sees and the hint is not for them. -->
   <Section v-else-if="notFound" spacing="none" :class="SECTION_SPACING">
-    <Container width="content">
+    <Container width="wide">
       <p role="status" class="text-muted">{{ t('storefront.notFound') }}</p>
     </Container>
   </Section>

@@ -5,6 +5,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import page from '../../pages/wishlist.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
+import { withDemoChrome } from '../support/demoChrome';
 
 const fixture = page as unknown as PageFixture;
 
@@ -36,7 +37,7 @@ const WishlistPage = defineComponent({
         },
         () => t('nav.skipToContent')
       ),
-      ...renderPageFixtureRegions(fixture, 'Pages/Wishlist story'),
+      ...renderPageFixtureRegions(withDemoChrome(fixture), 'Pages/Wishlist story'),
     ];
   },
 });

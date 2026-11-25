@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { flushPromises, type VueWrapper } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { axe } from '../support/axe';
 import {
   expectPageLandmarks,
@@ -16,6 +17,8 @@ const page = fixture as unknown as PageFixture;
 
 const COLLECTION_TITLE = 'The winter edit';
 const ACTIVE_FILTERS_LABEL = 'Active filters';
+/** The filter bar's own group label (`grid.filterAndSort`, `i18n/en-US.json`). */
+const FILTER_BAR_LABEL = 'Filter and sort';
 
 /** jsdom reports `scrollHeight`/`clientHeight` as `0`/`0` for every element, so `collection-header`'s
  *  clamp never "overflows" on its own — the same limitation that block's own spec works around.
@@ -59,44 +62,72 @@ afterEach(() => {
 
 /**
  * `mountPage` does not attach its harness to `document.body` (most page specs never need real
- * focus tracking). The filter drawer's own dialog contract does — `document.activeElement` only
- * reflects reality for a node that is actually in the live document — so this appends the mounted
- * root the same way `collection-grid`'s own block spec passes `attachTo: document.body`.
+ * focus tracking). The filter bar's group popovers do — each teleports its panel to the body, and
+ * `document.activeElement` only reflects reality for a node that is actually in the live document —
+ * so this attaches the harness the same way `collection-grid`'s own block spec passes
+ * `attachTo: document.body`.
  */
 async function mountAttached(): Promise<VueWrapper> {
-  const wrapper = await mountPage(page);
-  document.body.appendChild(wrapper.element);
+  const wrapper = await mountPage(page, { attachTo: document.body });
   wrappers.push(wrapper);
   return wrapper;
 }
 
-/** The filter-group disclosure triggers — a `<button>` inside an `h3`, the same shape
- *  `collection-grid`'s own spec keys off (nothing else on the page nests a button in an `h3`). */
-function groupTriggers(root: Element): HTMLButtonElement[] {
-  return Array.from(root.querySelectorAll<HTMLButtonElement>('h3 > button[aria-expanded]'));
+/** The `filter-bar` variant's one row of controls: a chip per group, a pressed chip per on/off
+ *  value, then the sort — the same `role="group"` `collection-grid`'s own filter-bar spec keys off. */
+function filterBar(gridEl: Element): Element {
+  const bar = gridEl.querySelector(`[role="group"][aria-label="${FILTER_BAR_LABEL}"]`);
+  if (!bar) throw new Error('No filter bar found in the grid.');
+  return bar;
 }
-/** A group's panel, found by its own visually hidden `<legend>` text, scoped to `root` — pass the
- *  sidebar (excluding the drawer) or the open `<dialog>` to pick the right one of the two copies. */
-function panelFor(root: Element, legend: string): Element {
-  const trigger = groupTriggers(root).find(
-    (candidate) =>
-      root.querySelector(`#${candidate.getAttribute('aria-controls')}`)?.querySelector('legend')
-        ?.textContent === legend
-  );
-  if (!trigger) throw new Error(`No filter group panel named "${legend}" found.`);
-  return root.querySelector(`#${trigger.getAttribute('aria-controls')}`)!;
+/** A group's popover trigger in the bar, by its visible label (a count badge may follow it). */
+function barTrigger(gridEl: Element, label: string): HTMLButtonElement {
+  const trigger = Array.from(
+    filterBar(gridEl).querySelectorAll<HTMLButtonElement>('button[aria-haspopup="dialog"]')
+  ).find((button) => button.textContent?.trim().startsWith(label));
+  if (!trigger) throw new Error(`No filter bar chip named "${label}" found.`);
+  return trigger;
+}
+/** The open popover a trigger controls — teleported, so looked up in the document, and only
+ *  present while open. */
+function popoverOf(trigger: Element): HTMLElement | null {
+  return document.getElementById(trigger.getAttribute('aria-controls') ?? '');
+}
+/** The bar's on/off chip for a value (`aria-pressed`), by its visible label. */
+function pressedChip(gridEl: Element, label: string): HTMLButtonElement {
+  const chip = Array.from(
+    filterBar(gridEl).querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
+  ).find((button) => button.textContent?.trim() === label);
+  if (!chip) throw new Error(`No on/off chip named "${label}" found.`);
+  return chip;
 }
 
-/**
- * jsdom (30.x, this repo's pin) runs a checkbox's native click activation — `checked` flips — but
- * does not follow it with an `input`/`change` event the way a real browser does, so a plain
- * `.click()` never reaches the block's own `@change` handler (Vue Test Utils' own `setValue()`
- * works around exactly this by setting `checked` and dispatching `change` by hand, rather than
- * clicking). This does the same for a raw DOM reference.
- */
-function checkBox(input: HTMLInputElement): void {
-  input.checked = true;
-  input.dispatchEvent(new Event('change', { bubbles: true }));
+/** The popover's open sequence and the panel's live path both settle over a few ticks and a
+ *  macrotask (the same flush the block spec's filter-bar tests use). */
+async function flush(): Promise<void> {
+  for (let index = 0; index < 4; index += 1) {
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+/** What a browser does when `Enter` activates a focused `<button>`: keydown, then a `detail: 0`
+ *  click (jsdom turns neither into the other). */
+async function pressEnter(button: HTMLElement): Promise<void> {
+  button.focus();
+  button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+  await flush();
+}
+
+/** Opens a group's popover from its bar chip and ticks its `index`-th checkbox. */
+async function tickInPopover(gridEl: Element, group: string, index: number): Promise<void> {
+  const trigger = barTrigger(gridEl, group);
+  await pressEnter(trigger);
+  const panel = popoverOf(trigger);
+  if (!panel) throw new Error(`The "${group}" popover did not open.`);
+  panel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[index]!.click();
+  await flush();
 }
 
 describe('collection sample page', () => {
@@ -122,7 +153,7 @@ describe('collection sample page', () => {
     // breadcrumbs are not Sections, so they carry no ground at all and never take part in the
     // adjacent-section padding collapse.
     const grounds = children.map((el) => el.getAttribute('data-section-bg'));
-    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'surface-strong']);
+    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'primary']);
 
     // The grid starts directly under the collection header with its own short 1.5rem top padding
     // (`pt-6`, hand-rolled rather than read from `Section`'s `spacing` prop — see the block's own
@@ -168,7 +199,7 @@ describe('collection sample page', () => {
 
     // The grid's own count is the block's polite status line — a `<p>` with `tabindex="-1"`, which
     // is what tells it apart from a searchable list facet's own `role="status"` "No matches" line
-    // in the sidebar (also persistent, with no `aria-live` of its own — a native `role="status"`
+    // in a filter panel (also persistent, with no `aria-live` of its own — a native `role="status"`
     // needs none).
     const gridCount = gridEl!.querySelector('p[role="status"][tabindex="-1"]');
     expect(gridCount).not.toBeNull();
@@ -176,109 +207,97 @@ describe('collection sample page', () => {
     expect(gridCount!.textContent).toContain('48 products');
   });
 
-  it('opens the filter drawer as a dialog from the Filter button, returns focus on Esc, and applies nothing until "Show 48 products" is pressed', async () => {
+  /**
+   * The `filter-bar` variant replaces the sidebar *and* the drawer: there is no Filter button and no
+   * `<dialog>` drawer at any width — the bar's row wraps on a phone (`flex-wrap`), and the block
+   * renders its drawer only when `!isBar` — so the drawer's old dialog contract has no subject on
+   * this page. What it guarded still does: a filter control that opens a dialog-like surface names
+   * it (`aria-haspopup`/`aria-expanded`/`aria-controls`), applies on the shopper's action, and Esc
+   * returns focus to the control that opened it. Unlike the drawer, a bar popover applies **live**
+   * (the sidebar's own path), so there is no pending "Show N products" step to defer to.
+   */
+  it('offers its filters in a bar with no drawer; a group chip opens a dialog popover, applies live, and Esc returns focus to the chip', async () => {
     const wrapper = await mountAttached();
     const gridEl = pageBlockRoots(wrapper)[3]!;
 
-    const filterButton = gridEl.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]')!;
-    filterButton.focus();
-    filterButton.click();
-    // `useDialog` calls the native `showModal()` from a `watch(open, …)` callback, then applies
-    // initial focus a tick *after that* (`void nextTick(focusInitial)`) so slot content has time to
-    // render first — two ticks, not one, before focus actually lands on the close button.
-    await wrapper.vm.$nextTick();
-    await wrapper.vm.$nextTick();
+    // No sidebar, no Filter button, no drawer — the bar is the only filter path, at every width.
+    expect(gridEl.querySelector('aside')).toBeNull();
+    expect(gridEl.querySelector('dialog')).toBeNull();
+    expect(
+      Array.from(gridEl.querySelectorAll('button')).some(
+        (button) => button.textContent?.trim() === 'Filter'
+      )
+    ).toBe(false);
+    // A chip per group (on/off Availability is a pressed chip of its own, not a popover).
+    expect(
+      Array.from(filterBar(gridEl).querySelectorAll('button[aria-haspopup="dialog"]')).map(
+        (button) => button.textContent?.trim()
+      )
+    ).toEqual(['Category', 'Size', 'Colour', 'Price']);
 
-    const dialog = gridEl.querySelector('dialog')!;
-    expect(dialog.getAttribute('open')).toBe('');
-    expect(filterButton.getAttribute('aria-expanded')).toBe('true');
-    expect(filterButton.getAttribute('aria-controls')).toBe(dialog.id);
-    expect(document.activeElement).toBe(dialog.querySelector('[data-part="close"]'));
+    const colour = barTrigger(gridEl, 'Colour');
+    expect(colour.getAttribute('aria-expanded')).toBe('false');
+    await pressEnter(colour);
+    expect(colour.getAttribute('aria-expanded')).toBe('true');
+    const panel = popoverOf(colour)!;
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-label')).toBe('Colour');
+    expect(await axe(panel)).toHaveNoViolations();
 
-    // The drawer's own primary button always reads the demo collection's full count.
-    const applyButton = Array.from(dialog.querySelectorAll('button')).find((button) =>
-      button.textContent?.trim().startsWith('Show ')
-    )!;
-    expect(applyButton.textContent?.trim()).toBe('Show 48 products');
-
-    // Ticking a box in the drawer's own copy of the groups changes nothing live yet.
-    const drawerColour = panelFor(dialog, 'Colour');
-    const drawerOatCheckbox =
-      drawerColour.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
-    checkBox(drawerOatCheckbox);
-    await wrapper.vm.$nextTick();
-    // Nothing live has moved — the drawer's own chip row shows its still-pending tick (its own
-    // preview of what applying would do), but the sidebar's own applied panel has none.
-    const sidebarForChips = Array.from(gridEl.querySelectorAll('aside')).find(
-      (el) => el.closest('dialog') === null
-    )!;
-    expect(sidebarForChips.querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)).toBeNull();
-
-    applyButton.click();
-    await wrapper.vm.$nextTick();
-
-    // The visible chip text is just the value's own label; the facet name rides in its remove
-    // button's own aria-label instead. Both panels now agree (the drawer's own pending copy
-    // matches the just-applied selection), so the sidebar's own row is found by element rather
-    // than by the (now ambiguous) aria-label alone.
-    const chipsEl = sidebarForChips.querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)!;
-    expect(chipsEl.textContent).toContain('Oat');
-    expect(chipsEl.querySelector('[data-part="removeButton"]')!.getAttribute('aria-label')).toBe(
+    // Oat — the demo catalogue's first colour value — applies at once: its tag appears under the
+    // bar and the chip counts it, with nothing left to confirm.
+    const oat = panel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!;
+    oat.focus();
+    oat.click();
+    await flush();
+    const tags = gridEl.querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)!;
+    expect(tags).not.toBeNull();
+    expect(tags.textContent).toContain('Oat');
+    expect(tags.querySelector('[data-part="removeButton"]')!.getAttribute('aria-label')).toBe(
       'Remove filter Colour: Oat'
     );
-    expect(dialog.getAttribute('open')).toBeNull();
+    expect(barTrigger(gridEl, 'Colour').textContent).toContain('1');
 
-    // Reopen, then Esc closes it and returns focus to the Filter button. Waits out the same two
-    // ticks as the first open (see above) so the drawer's own initial-focus placement has already
-    // landed on the close button before Esc is pressed — otherwise that still-pending focus call
-    // fires *after* Esc's own focus-return and steals it back.
-    filterButton.click();
-    await wrapper.vm.$nextTick();
-    await wrapper.vm.$nextTick();
-    expect(dialog.getAttribute('open')).toBe('');
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    await new Promise((resolve) => setTimeout(resolve));
-    await wrapper.vm.$nextTick();
-
-    expect(dialog.getAttribute('open')).toBeNull();
-    expect(document.activeElement).toBe(filterButton);
+    oat.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+    await flush();
+    expect(popoverOf(colour)).toBeNull();
+    expect(colour.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(colour);
   });
 
-  it('live-applies exactly the three chips Size: M, Colour: Oat and Availability: In stock, in that order, from the sidebar', async () => {
-    const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
+  it('live-applies exactly the three tags Size: M, Colour: Oat and Availability: In stock, in that order, from the filter bar', async () => {
+    const wrapper = await mountAttached();
     const gridEl = pageBlockRoots(wrapper)[3]!;
-    // The sidebar's own copies of the groups — excluding the drawer's duplicate set, which sits
-    // inside a `<dialog>` the same page also renders.
-    const sidebar = Array.from(gridEl.querySelectorAll('aside')).find(
-      (el) => el.closest('dialog') === null
-    )!;
 
-    // Each tick is awaited before the next: the panel is a *controlled* component now (its own
-    // `modelValue` prop is the parent's `selection`, round-tripped through a render), so a second
-    // change read back through a prop that has not re-rendered yet would overwrite the first
-    // rather than add to it — unlike the old uncontrolled `FilterGroups.vue`, which read the
-    // parent's own ref directly.
-    const sizePanel = panelFor(sidebar, 'Size');
-    // XS, S, M, L, XL — M is the third pill.
-    checkBox(sizePanel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[2]!);
-    await wrapper.vm.$nextTick();
-    const colourPanel = panelFor(sidebar, 'Colour');
+    // Each change is flushed before the next: the popover's panel is a *controlled* component (its
+    // `modelValue` is the grid's selection, round-tripped through a render), so a second change
+    // read back through a prop that has not re-rendered yet would overwrite the first rather than
+    // add to it.
+    // XS, S, M, L, XL — M is the third box in the Size popover.
+    await tickInPopover(gridEl, 'Size', 2);
     // Oat is the demo catalogue's first colour value.
-    checkBox(colourPanel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0]!);
-    await wrapper.vm.$nextTick();
-    // Availability is a `toggle` facet now (a real `<button role="switch">`, not a checkbox).
-    const availabilityPanel = panelFor(sidebar, 'Availability');
-    const availabilitySwitch =
-      availabilityPanel.querySelector<HTMLButtonElement>('[role="switch"]')!;
-    availabilitySwitch.click();
-    await wrapper.vm.$nextTick();
+    await tickInPopover(gridEl, 'Colour', 0);
+    // Availability is an on/off facet: a pressed chip in the bar itself, not a popover.
+    const inStock = pressedChip(gridEl, 'In stock only');
+    expect(inStock.getAttribute('aria-pressed')).toBe('false');
+    inStock.click();
+    await flush();
+    expect(inStock.getAttribute('aria-pressed')).toBe('true');
 
-    const chips = main.get(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`).findAll('li');
+    const chips = wrapper
+      .get('main#main')
+      .get(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)
+      .findAll('li');
     expect(chips).toHaveLength(3);
-    // The visible chip text is just the value's own label; the facet rides in each remove
-    // button's own aria-label.
+    // The visible tag text is just the value's own label; the facet rides in each remove button's
+    // own aria-label.
     expect(chips[0]!.text()).toContain('M');
     expect(chips[0]!.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
       'Remove filter Size: M'
@@ -291,33 +310,38 @@ describe('collection sample page', () => {
     expect(chips[2]!.get('[data-part="removeButton"]').attributes('aria-label')).toBe(
       'Remove filter Availability: In stock only'
     );
+    // The group chips count what each applied.
+    expect(barTrigger(gridEl, 'Size').textContent).toContain('1');
+    expect(barTrigger(gridEl, 'Colour').textContent).toContain('1');
+    expect(
+      Array.from(gridEl.querySelectorAll('button')).some(
+        (button) => button.textContent?.trim() === 'Clear all'
+      )
+    ).toBe(true);
+
+    expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
   /**
-   * The panel's own head — **Clear all** and the applied chips — comes before its group triggers
-   * now (the panel owns applied state), so a chip for an already-ticked filter sits before
-   * every facet control in the sidebar, including the one that produced it.
+   * In `filter-bar` the controls come first — the group chips, the on/off chips, the sort — and the
+   * applied tags and Clear all sit *under* the bar beside the count, before the cards. So a tag for
+   * an already-applied filter follows every bar control, including the one that produced it (the
+   * sidebar put its applied chips at the head of the panel instead).
    */
-  it('follows the tab order header → breadcrumbs → Read more → sidebar chips → filters → cards → Load more → call to action → footer', async () => {
+  it('follows the tab order header → breadcrumbs → Read more → filter bar → applied tags → Clear all → cards → Load more → call to action → footer', async () => {
     stubOverflow(200, 100);
-    const wrapper = await mountPage(page);
-    const main = wrapper.get('main#main');
+    const wrapper = await mountAttached();
     const [navEl, breadcrumbsEl, headerEl, gridEl, ctaEl, footerEl] = pageBlockRoots(wrapper);
 
-    const sidebar = Array.from(gridEl!.querySelectorAll('aside')).find(
-      (el) => el.closest('dialog') === null
-    )!;
-    // Availability → In stock rather than Size → M: the demo source honours `filters` now
+    // Availability → In stock rather than Size → M: the demo source honours `filters`
     // (`app/storefront/demo.ts`), and 44 of this collection's 48 items are in stock, so the grid
     // still has more than one page and a real Load more button in the tab order — Size → M leaves
     // 12, i.e. everything already shown, and no Load more at all.
-    const availabilitySwitch = panelFor(sidebar, 'Availability').querySelector<HTMLButtonElement>(
-      '[role="switch"]'
-    )!;
-    availabilitySwitch.click();
-    // Ticking a sidebar filter starts a new (demo-async) `collectionProducts` request — the grid
-    // shows skeletons (an `aria-hidden` list) until it resolves, so this waits for the real card
-    // list to come back rather than a single `nextTick`.
+    const inStock = pressedChip(gridEl!, 'In stock only');
+    inStock.click();
+    // A filter change starts a new (demo-async) `collectionProducts` request — the grid shows
+    // skeletons (an `aria-hidden` list) until it resolves, so this waits for the real card list.
+    await flush();
     await flushPromises();
 
     const readMore = Array.from(headerEl!.querySelectorAll('button')).find(
@@ -325,9 +349,15 @@ describe('collection sample page', () => {
     )!;
     expect(readMore).toBeDefined();
 
-    const chipRemove = main
-      .get(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)
-      .element.querySelector('[data-part="removeButton"]')!;
+    const firstGroupChip = barTrigger(gridEl!, 'Category');
+    const lastGroupChip = barTrigger(gridEl!, 'Price');
+    const sort = filterBar(gridEl!).querySelector('[role="combobox"]')!;
+    const tagRemove = gridEl!
+      .querySelector(`ul[aria-label="${ACTIVE_FILTERS_LABEL}"]`)!
+      .querySelector('[data-part="removeButton"]')!;
+    const clearAll = Array.from(gridEl!.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Clear all'
+    )!;
     const firstCardLink = gridEl!.querySelector(
       'ul[aria-labelledby]:not([aria-hidden]) li a[href]'
     )!;
@@ -337,8 +367,8 @@ describe('collection sample page', () => {
     )!;
     const footerFirstLink = footerEl!.querySelector('a[href]')!;
 
-    // Whole page, not just `<main>`: the header block is a sibling of it now, and its own controls
-    // are the first stop in the page's tab order.
+    // Whole page, not just `<main>`: the header block is a sibling of it, and its own controls are
+    // the first stop in the page's tab order.
     const focusable = Array.from(
       wrapper.element.querySelectorAll<HTMLElement>('a[href], button, input, [tabindex]')
     ).filter((el) => el.getAttribute('tabindex') !== '-1' && el.closest('dialog') === null);
@@ -352,9 +382,13 @@ describe('collection sample page', () => {
     expect(indexOf(navFirst)).toBeGreaterThanOrEqual(0);
     expect(indexOf(navFirst)).toBeLessThan(indexOf(breadcrumbShopLink));
     expect(indexOf(breadcrumbShopLink)).toBeLessThan(indexOf(readMore));
-    expect(indexOf(readMore)).toBeLessThan(indexOf(chipRemove));
-    expect(indexOf(chipRemove)).toBeLessThan(indexOf(availabilitySwitch));
-    expect(indexOf(chipRemove)).toBeLessThan(indexOf(firstCardLink));
+    expect(indexOf(readMore)).toBeLessThan(indexOf(firstGroupChip));
+    expect(indexOf(firstGroupChip)).toBeLessThan(indexOf(lastGroupChip));
+    expect(indexOf(lastGroupChip)).toBeLessThan(indexOf(inStock));
+    expect(indexOf(inStock)).toBeLessThan(indexOf(sort));
+    expect(indexOf(sort)).toBeLessThan(indexOf(tagRemove));
+    expect(indexOf(tagRemove)).toBeLessThan(indexOf(clearAll));
+    expect(indexOf(clearAll)).toBeLessThan(indexOf(firstCardLink));
     expect(indexOf(firstCardLink)).toBeLessThan(indexOf(loadMoreButton));
     expect(indexOf(loadMoreButton)).toBeLessThan(indexOf(ctaButton));
     expect(indexOf(ctaButton)).toBeLessThan(indexOf(footerFirstLink));

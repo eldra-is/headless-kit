@@ -14,6 +14,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { useI18n } from 'vue-i18n';
 import productPage from '../../pages/product.page.json';
 import { renderPageFixtureRegions, type PageFixture } from '../support/pageBlocks';
+import { withDemoChrome } from '../support/demoChrome';
 
 const fixture = productPage as unknown as PageFixture;
 
@@ -30,7 +31,7 @@ const ProductPage = defineComponent({
         { href: '#main', as: EldraRouterLink, variant: 'standalone', class: SKIP_LINK_CLASS },
         { default: () => t('nav.skipToContent') }
       ),
-      ...renderPageFixtureRegions(fixture, 'Pages/Product story'),
+      ...renderPageFixtureRegions(withDemoChrome(fixture), 'Pages/Product story'),
     ];
   },
 });

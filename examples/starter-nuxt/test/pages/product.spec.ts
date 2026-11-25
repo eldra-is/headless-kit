@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The product sample page (`pages/product.page.json`): announcement bar, header, breadcrumbs,
-// the product-detail buy box for "Merino crew sweater", a related-products carousel, an FAQ and
-// the footer, rendered together through `mountPage` exactly as `app/pages/[...slug].vue` renders
-// a real page: the leading structure blocks (announcement bar + header) before `<main id="main">`,
+// The product sample page (`pages/product.page.json`): header, breadcrumbs, the product-detail
+// buy box for "Merino crew sweater", a related-products carousel, an FAQ and the footer, rendered
+// together through `mountPage` exactly as `app/pages/[...slug].vue` renders a real page: the
+// leading structure block (the header, which carries its own info strip) before `<main id="main">`,
 // everything else inside it, the footer after it — see `app/utils/pageStructure.ts`.
 //
 // Carousel counts are read off the real demo storefront (`app/storefront/demo.ts`), not assumed:
@@ -45,13 +45,14 @@ async function mountProductPage() {
  *  drawer — the seeded header has nothing to put in one, so it draws neither the Menu button nor the
  *  drawer (see `withAuthoredHeaderLink`). */
 async function mountProductPageWithHeaderLink() {
-  return mountPage(withAuthoredHeaderLink(fixture), { attachTo: document.body });
+  return mountPage(withAuthoredHeaderLink(fixture), {
+    attachTo: document.body,
+  });
 }
 
 describe('product sample page', () => {
   it('is composed of exactly the fixture blocks, in the documented order', () => {
     expect(fixture.blocks.map((b) => b.apiId)).toEqual([
-      'announcement-bar',
       'navigation',
       'breadcrumbs',
       'product-detail',
@@ -70,7 +71,6 @@ describe('product sample page', () => {
     // `test/support/mountPage.spec.ts`'s own html.indexOf pattern).
     const html = wrapper.html();
     const markers = [
-      'Free shipping on orders over $80', // announcement-bar
       'data-eldra-header-focus', // navigation
       'aria-label="Breadcrumb"', // breadcrumbs
       'aria-label="Product images"', // product-detail (gallery)
@@ -173,11 +173,11 @@ describe('product sample page', () => {
 
   it('shares the same ground across product-detail, the carousel and the FAQ, with only the footer changing it', async () => {
     const wrapper = await mountProductPage();
-    const [, , , productDetail, carousel, faq, footer] = pageBlockRoots(wrapper);
+    const [, , productDetail, carousel, faq, footer] = pageBlockRoots(wrapper);
     expect(productDetail!.getAttribute('data-section-bg')).toBe('none');
     expect(carousel!.getAttribute('data-section-bg')).toBe('none');
     expect(faq!.getAttribute('data-section-bg')).toBe('none');
-    expect(footer!.getAttribute('data-section-bg')).toBe('surface-strong');
+    expect(footer!.getAttribute('data-section-bg')).toBe('primary');
     // Adjacency (not just value) is what the package's CSS rule keys off:
     expect(productDetail!.nextElementSibling).toBe(carousel);
     expect(carousel!.nextElementSibling).toBe(faq);
@@ -217,7 +217,7 @@ describe('product sample page', () => {
   describe('modals', () => {
     it('menu drawer: opens as a dialog and Esc returns focus to the menu button', async () => {
       const wrapper = await mountProductPageWithHeaderLink();
-      const menuButton = wrapper.get('button[aria-label="Open menu"]');
+      const menuButton = wrapper.get('button[aria-label="Menu"]');
       menuButton.element.focus();
       await menuButton.trigger('click');
       const dialog = wrapper.get('dialog[open]');
@@ -234,7 +234,10 @@ describe('product sample page', () => {
 
     it('search: opens as a dialog and Esc returns focus to the search button', async () => {
       const wrapper = await mountProductPage();
-      const searchButton = wrapper.get('button[aria-label="Search"]');
+      // The labelled Search tool, named by its visible label.
+      const searchButton = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === 'Search')!;
       searchButton.element.focus();
       await searchButton.trigger('click');
       expect(wrapper.findAll('dialog[open]').length).toBeGreaterThan(0);
@@ -248,9 +251,9 @@ describe('product sample page', () => {
       wrapper.unmount();
     });
 
-    it('lightbox: opens from zoom and Esc returns focus to the zoom button', async () => {
+    it('lightbox: opens from a mosaic tile and Esc returns focus to that tile', async () => {
       const wrapper = await mountProductPage();
-      const zoomButton = wrapper.get('button[aria-haspopup="dialog"][aria-label^="Zoom image"]');
+      const zoomButton = wrapper.get('button[aria-haspopup="dialog"][aria-label^="Open image"]');
       zoomButton.element.focus();
       await zoomButton.trigger('click');
       const dialog = wrapper.get('dialog[aria-label="Merino crew sweater, images"]');
@@ -312,7 +315,7 @@ describe('product sample page', () => {
   });
 
   it('exposes exactly one banner, one main and one contentinfo landmark', async () => {
-    // The announcement bar and header render before `<main id="main">` and the footer after it
+    // The header renders before `<main id="main">` and the footer after it
     // (`app/utils/pageStructure.ts`), which is the only way `<header>`/`<footer>` map to the
     // `banner`/`contentinfo` roles at all.
     const wrapper = await mountProductPage();

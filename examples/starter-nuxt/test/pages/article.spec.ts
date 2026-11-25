@@ -44,7 +44,7 @@ describe('article sample page', () => {
     // adjacent-background collapse rule, so the block after each one keeps its own top padding),
     // so both carry no attribute at all.
     const grounds = children.map((el) => el.getAttribute('data-section-bg'));
-    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'surface-strong']);
+    expect(grounds).toEqual([null, null, 'none', 'none', 'surface', 'primary']);
   });
 
   it("keeps the article's full top padding after breadcrumbs (breadcrumbs takes no part in the adjacent-background collapse rule)", async () => {

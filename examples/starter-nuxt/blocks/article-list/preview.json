@@ -1,51 +1,51 @@
 {
   "items": [
     {
-      "title": "How we glaze our stoneware",
-      "dek": "Two firings, three pairs of hands and a kiln that always has the last word. A morning in the Portland studio.",
-      "href": "/journal/how-we-glaze-our-stoneware",
-      "categoryLabel": "Ceramics",
-      "categoryHref": "/journal/ceramics",
-      "publishedAt": "2026-09-18",
-      "readingTime": "6 min read",
-      "image": {
-        "assetId": "demo-gallery-1",
-        "url": "/demo/gallery-1.svg",
-        "altText": "",
-        "width": 1600,
-        "height": 1000
-      }
-    },
-    {
-      "title": "Caring for merino: a winter guide",
-      "dek": "Wash less, air more. How to keep a knit soft and shape-true for a decade, pills and all.",
-      "href": "/journal/caring-for-merino",
-      "categoryLabel": "Care",
-      "categoryHref": "/journal/care",
-      "publishedAt": "2026-09-09",
+      "title": "Five small rituals for a slower morning coffee",
+      "dek": "Warm the cup, grind by hand, sit down to drink it. Small habits that make the first ten minutes of the day your own.",
+      "href": "/journal/slower-morning-coffee",
+      "categoryLabel": "At home",
+      "categoryHref": "/journal/home",
+      "publishedAt": "2026-10-02",
       "readingTime": "4 min read",
       "image": {
-        "assetId": "demo-gallery-2",
-        "url": "/demo/gallery-2.svg",
-        "altText": "",
-        "width": 1600,
-        "height": 1000
+        "assetId": "demo-journal-1",
+        "url": "/images/coffee-table.webp",
+        "altText": "A polka-dot mug of coffee with biscuits and reading glasses",
+        "width": 1400,
+        "height": 933
       }
     },
     {
-      "title": "Five-minute brown butter oats",
-      "dek": "Our kitchen team's weekday breakfast, made in one Everyday saucepan with whatever fruit is in the bowl.",
-      "href": "/journal/brown-butter-oats",
-      "categoryLabel": "Recipes",
-      "categoryHref": "/journal/recipes",
-      "publishedAt": "2026-08-28",
+      "title": "A morning at the wheel with Harbour Pottery",
+      "dek": "Six pairs of hands, two firings and a kiln that always has the last word. We spent a morning in the studio.",
+      "href": "/journal/harbour-pottery",
+      "categoryLabel": "Workshop visit",
+      "categoryHref": "/journal/makers",
+      "publishedAt": "2026-09-24",
+      "readingTime": "6 min read",
+      "image": {
+        "assetId": "demo-journal-2",
+        "url": "/images/clay-hands.webp",
+        "altText": "A potter's hands working wet clay",
+        "width": 1400,
+        "height": 933
+      }
+    },
+    {
+      "title": "Layering throws for a colder season",
+      "dek": "Wool over linen, heavy over light: how to build a sofa corner that keeps you warm from October to April.",
+      "href": "/journal/layering-throws",
+      "categoryLabel": "Knitting",
+      "categoryHref": "/journal/care",
+      "publishedAt": "2026-09-12",
       "readingTime": "3 min read",
       "image": {
-        "assetId": "demo-gallery-3",
-        "url": "/demo/gallery-3.svg",
-        "altText": "",
-        "width": 1600,
-        "height": 1000
+        "assetId": "demo-journal-3",
+        "url": "/images/throws.webp",
+        "altText": "Folded knitted throws in green and grey",
+        "width": 1400,
+        "height": 910
       }
     },
     {
@@ -58,10 +58,10 @@
       "readingTime": "7 min read",
       "image": {
         "assetId": "demo-gallery-4",
-        "url": "/demo/gallery-4.svg",
-        "altText": "",
-        "width": 1600,
-        "height": 1000
+        "url": "/images/coffee-table.webp",
+        "altText": "A polka-dot mug of coffee with biscuits",
+        "width": 1400,
+        "height": 933
       }
     },
     {
@@ -74,10 +74,10 @@
       "readingTime": "5 min read",
       "image": {
         "assetId": "demo-gallery-5",
-        "url": "/demo/gallery-5.svg",
-        "altText": "",
-        "width": 1600,
-        "height": 1000
+        "url": "/images/terracotta.webp",
+        "altText": "Handmade terracotta bowls and jugs",
+        "width": 1400,
+        "height": 933
       }
     }
   ]

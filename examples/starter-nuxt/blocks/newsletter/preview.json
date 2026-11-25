@@ -1,0 +1,35 @@
+{
+  "variant": "split",
+  "heading": "Letters from the workshop",
+  "text": "New pieces and small-batch restocks, once a month.",
+  "placeholder": "you@example.com",
+  "consent": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "Unsubscribe at any time. Read our " },
+          {
+            "type": "text",
+            "marks": [{ "type": "link", "attrs": { "href": "/pages/privacy" } }],
+            "text": "privacy policy"
+          },
+          { "type": "text", "text": "." }
+        ]
+      }
+    ]
+  },
+  "helpHeading": "Questions before you buy?",
+  "helpText": "Sizes, glazes, gift ideas: we know every piece in the shop.",
+  "contacts": [
+    { "icon": "phone", "label": "(555) 014-2290", "href": "tel:+15550142290" },
+    {
+      "icon": "mail",
+      "label": "hello@northwind.example",
+      "href": "mailto:hello@northwind.example"
+    },
+    { "icon": "map-pin", "label": "14 Harbour Street", "note": "open today until 18:00" }
+  ],
+  "sectionBackground": "none"
+}

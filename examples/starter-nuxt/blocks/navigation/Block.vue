@@ -18,7 +18,6 @@ import type {
   NavMenuItem,
   NavMenuLink,
   NavMenuPart,
-  NavMenuSection,
   SearchResultItem,
   SearchResults,
   UiMessages,
@@ -30,10 +29,14 @@ import { useWishlist } from '../../app/composables/useWishlist';
 import { useI18n } from 'vue-i18n';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { isInternalHref, SEARCH_PATH } from '../../app/utils/links';
+import { isInternalHref, safeHref, SEARCH_PATH } from '../../app/utils/links';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
 import MenuLink from './parts/MenuLink.vue';
+
+/** One panel column. `@eldrajs/ui` does not export this type by name (only `NavMenuItem`, whose
+ *  `sections` it is), so it is read off the item. */
+type NavMenuSection = NonNullable<NavMenuItem['sections']>[number];
 import blockJson from './block.json';
 
 const props = defineProps<{ entry: EldraBlockEntry<'navigation'> }>();
@@ -45,10 +48,79 @@ const storefront = useStorefront();
 
 const variant = computed<'default' | 'centered' | 'minimal'>(() => data.value.variant ?? 'default');
 
+// --- container-query stages ----------------------------------------------------------------------
+//
+// The bar gives up width in stages, each measured against the header's own `@container` (so the
+// stages follow the block's width, not the window's):
+//
+//  - from 80rem (`@wide:`): brand, inline links, a "Search the shop" pill and the labelled tools;
+//  - 68.8125rem–80rem (1101–1279px): the pill becomes a labelled Search button;
+//  - below 68.8125rem (≤1100px): the links move into the Menu drawer; Menu and Search sit at the
+//    start, the brand in the middle of a symmetric grid, Saved and Cart at the end;
+//  - below 47.5625rem (≤760px): a shorter bar and narrower tools, and the info strip keeps only its
+//    first item;
+//  - below 25.0625rem (≤400px): a square mark stands in for the logo or the wordmark;
+//  - below 22.5rem (<360px): a text-only wordmark wraps onto two centred lines.
+//
+// Tailwind only generates a class it can read in the source, so every stage is spelled out in full
+// at each use (`@min-[68.8125rem]:…`, `@max-[47.5625rem]:…`) rather than assembled from a prefix.
+
 // --- brand -----------------------------------------------------------------------------------
 
-const brandLogoUrl = computed(() => data.value.brandLogo?.url);
+const brandLogo = computed(() => data.value.brandLogo);
+const brandLogoUrl = computed(() => brandLogo.value?.url);
+const brandMarkUrl = computed(() => data.value.brandMark?.url);
 const brandHref = '/';
+/** Named once on the link, so whichever of the mark, the logo and the wordmark a width shows, the
+ *  brand link reads the same; the pictures inside it are decorative (`alt=""`). It starts with the
+ *  visible wordmark (WCAG 2.5.3). */
+const brandName = computed(() => t('header.home', { brand: data.value.brandText ?? '' }));
+
+/**
+ * A logo wider than about 4:1 is unreadably small at a phone's 2rem height, so with no square mark
+ * to fall back on, phones below 400px print the store name instead. The shape is the image's own
+ * stored width and height (Studio stores both); a logo without them is never judged too wide.
+ */
+const LOGO_TOO_WIDE = 4;
+const logoTooWide = computed(() => {
+  const width = Number(brandLogo.value?.width);
+  const height = Number(brandLogo.value?.height);
+  return width > 0 && height > 0 && width / height > LOGO_TOO_WIDE;
+});
+
+/** The mark: always beside the wordmark when there is no logo; only on small phones with one. */
+const brandMarkClass = computed(() =>
+  [
+    'block size-8 shrink-0 @max-[47.5625rem]:size-7 @max-[25.0625rem]:size-9',
+    brandLogoUrl.value ? 'hidden @max-[25.0625rem]:block' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+);
+/** Sized by height and capped in width, so a wider logo gets smaller rather than pushing the links
+ *  and the tools around: 2.25rem tall at most 15rem wide, 12rem below 80rem, the brand column's
+ *  own width once it sits centred, and 2rem tall on a phone. */
+const brandLogoClass = computed(() =>
+  [
+    'block h-9 w-auto min-w-0 max-w-60 object-contain object-left',
+    '@max-[80rem]:max-w-48 @max-[68.8125rem]:max-w-full @max-[68.8125rem]:object-center',
+    '@max-[47.5625rem]:h-auto @max-[47.5625rem]:max-h-8',
+    brandMarkUrl.value || logoTooWide.value ? '@max-[25.0625rem]:hidden' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+);
+/** `null` when the wordmark is never drawn: a logo that is not too wide, with no mark. */
+const brandTextClass = computed(() => {
+  const base =
+    'font-heading overflow-hidden text-ellipsis whitespace-nowrap text-[1.375rem] leading-tight font-medium tracking-[-0.01em] @max-[47.5625rem]:text-[1.0625rem]';
+  if (brandLogoUrl.value) {
+    if (!logoTooWide.value || brandMarkUrl.value) return null;
+    return `${base} hidden @max-[25.0625rem]:block @max-[25.0625rem]:max-w-[8.5rem] @max-[25.0625rem]:whitespace-normal @max-[25.0625rem]:text-center @max-[25.0625rem]:text-base @max-[25.0625rem]:leading-[1.1]`;
+  }
+  if (brandMarkUrl.value) return `${base} @max-[25.0625rem]:hidden`;
+  return `${base} @max-[22.5rem]:max-w-[5.75rem] @max-[22.5rem]:whitespace-normal @max-[22.5rem]:text-center @max-[22.5rem]:leading-[1.05]`;
+});
 
 // --- links + mega-menus ------------------------------------------------------------------------
 
@@ -61,13 +133,51 @@ function toLinkAs(href: string | undefined): typeof EldraRouterLink | undefined 
   return href !== undefined && isInternalHref(href) ? EldraRouterLink : undefined;
 }
 
-/** A row with no label has nothing to show; one whose target is gone keeps its label as text. */
-const links = computed(() =>
+/** A row with no label has nothing to show; one whose target is gone keeps its label as text. The
+ *  stored value rides along for `linkExtras` below. */
+const linkEntries = computed(() =>
   rawLinks.value.flatMap((item) => {
     const resolved = resolveLink(item);
-    return resolved === null || resolved.label === null ? [] : [resolved];
+    return resolved === null || resolved.label === null ? [] : [{ resolved, raw: item as unknown }];
   })
 );
+const links = computed(() => linkEntries.value.map((entry) => entry.resolved));
+
+/**
+ * A section link's `badge` ("New") and `description` (a dropdown's second line), which `NavMenu`
+ * draws but the resolved link does not carry: `@eldrajs/theme-core`'s link value has no such keys,
+ * so Studio's link editor cannot set them yet and they only ever arrive as extra keys on the stored
+ * value (the demo content does this). They are read straight off that value, matched to the
+ * resolved links by position — and only when the resolver dropped nothing in that section, so a
+ * badge can never land on the wrong link.
+ */
+interface LinkExtras {
+  badge?: string;
+  description?: string;
+}
+function plainString(value: unknown, key: string): string | undefined {
+  if (value === null || typeof value !== 'object') return undefined;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === 'string' && field.trim() !== '' ? field : undefined;
+}
+function rawList(value: unknown, key: string): unknown[] {
+  if (value === null || typeof value !== 'object') return [];
+  const list = (value as Record<string, unknown>)[key];
+  return Array.isArray(list) ? list : [];
+}
+function sectionExtras(raw: unknown, sections: ResolvedSection[]): LinkExtras[][] {
+  const rawSections = rawList(raw, 'sections');
+  return sections.map((section, index) => {
+    const rawLinks = rawList(rawSections[index], 'links');
+    if (rawSections.length !== sections.length || rawLinks.length !== section.links.length) {
+      return [];
+    }
+    return rawLinks.map((link) => ({
+      badge: plainString(link, 'badge'),
+      description: plainString(link, 'description'),
+    }));
+  });
+}
 
 /**
  * The picture crop of a menu card: the `aspect` this block's own `links` field declares in
@@ -76,12 +186,16 @@ const links = computed(() =>
  */
 const cardAspect = (
   blockJson.fields.find((field) => field.fieldId === 'links') as
-    | { metadata?: { item?: { metadata?: { tree?: { cards?: { aspect?: string } } } } } }
+    | {
+        metadata?: {
+          item?: { metadata?: { tree?: { cards?: { aspect?: string } } } };
+        };
+      }
     | undefined
 )?.metadata?.item?.metadata?.tree?.cards?.aspect;
 
 /** A resolved link as the menu draws it, `display` and `card` (child and section links only) kept. */
-function toNavLink(link: ResolvedLink): NavMenuLink {
+function toNavLink(link: ResolvedLink, extras: LinkExtras = {}): NavMenuLink {
   return {
     label: link.label,
     href: link.href,
@@ -90,17 +204,34 @@ function toNavLink(link: ResolvedLink): NavMenuLink {
     current: isCurrent(link.href),
     display: link.display,
     card: link.card,
+    badge: extras.badge,
+    description: extras.description,
   };
 }
 
-function toNavSection(section: ResolvedSection): NavMenuSection {
+function toNavSection(section: ResolvedSection, extras: LinkExtras[] = []): NavMenuSection {
   return {
     heading: section.heading,
     headingLink: section.headingLink === null ? null : toNavLink(section.headingLink),
     display: section.display,
-    links: section.links.map(toNavLink),
+    links: section.links.map((link, index) => toNavLink(link, extras[index])),
     seeAll: section.seeAll === null ? null : toNavLink(section.seeAll),
   };
+}
+
+/**
+ * A panel that is one column with no heading and no cards — a short list of links, each perhaps
+ * with a line of description, like the Journal's — hangs under its own trigger as a compact
+ * dropdown. Anything with columns, headings or cards is a full-width mega panel.
+ */
+function isDropdown(sections: ResolvedSection[]): boolean {
+  const [only] = sections;
+  return (
+    sections.length === 1 &&
+    only !== undefined &&
+    only.heading === null &&
+    !only.links.some((link) => link.card !== undefined)
+  );
 }
 
 /**
@@ -109,7 +240,7 @@ function toNavSection(section: ResolvedSection): NavMenuSection {
  * grouped by their `group`, which is what a menu stored before sections existed still is.
  */
 const navItems = computed<NavMenuItem[]>(() =>
-  links.value.map((link) => {
+  linkEntries.value.map(({ resolved: link, raw }) => {
     const sections = link.sections ?? [];
     const children = link.children.filter((child) => child.label !== null);
     if (sections.length === 0 && children.length === 0) {
@@ -120,18 +251,28 @@ const navItems = computed<NavMenuItem[]>(() =>
         current: isCurrent(link.href),
       };
     }
+    if (sections.length === 0) {
+      return {
+        label: link.label,
+        layout: 'mega',
+        children: children.map((c) => toNavLink(c)),
+      };
+    }
+    const extras = sectionExtras(raw, sections);
     return {
       label: link.label,
-      layout: 'mega',
-      ...(sections.length > 0
-        ? { sections: sections.map(toNavSection) }
-        : { children: children.map(toNavLink) }),
+      layout: isDropdown(sections) ? 'dropdown' : 'mega',
+      sections: sections.map((section, index) => toNavSection(section, extras[index])),
     };
   })
 );
 
+/** The panel's own "View all" footer — left out when a column already ends in its own "see all"
+ *  link, which is the design's way of offering the same thing. */
 function viewAllHref(index: number): string | undefined {
-  return links.value[index]?.href ?? undefined;
+  const link = links.value[index];
+  if (link?.sections?.some((section) => section.seeAll !== null) === true) return undefined;
+  return link?.href ?? undefined;
 }
 
 const openMenuIndex = ref<number | null>(null);
@@ -147,6 +288,57 @@ const ctaLinkAs = computed(() => toLinkAs(ctaHref.value));
 const ctaLabel = computed(() => data.value.ctaLabel ?? ctaLink.value?.label ?? '');
 const hasCta = computed(() => Boolean(ctaLabel.value && ctaHref.value));
 
+// --- account -----------------------------------------------------------------------------------
+
+/** The Account button: only when the merchant links it somewhere. The theme has no account page of
+ *  its own, so there is nothing to point it at by default. */
+const accountLink = computed(() => resolveLink(data.value.account));
+const accountHref = computed(() => accountLink.value?.href ?? undefined);
+const accountLinkAs = computed(() => toLinkAs(accountHref.value));
+
+// --- info strip --------------------------------------------------------------------------------
+
+/**
+ * The thin strip above the bar: delivery, returns and hours at the start, help links and a phone
+ * number at the end. Absent or empty, there is no strip at all. Phones keep only the first item;
+ * the end of the strip moves into the drawer's footer with the links (it would not fit beside the
+ * start below 68.8125rem), unless the strip has nothing at its start.
+ */
+interface InfoEntry {
+  text: string;
+  icon?: string;
+  /** Through `safeHref`: a `javascript:` value is no link at all. */
+  href?: string;
+  linkAs?: typeof EldraRouterLink;
+}
+const infoItems = computed(() =>
+  (data.value.infoItems ?? []).flatMap((item) => {
+    if ((item.text ?? '').trim() === '') return [];
+    const href = safeHref(item.href) ?? undefined;
+    const entry: InfoEntry & { end: boolean } = {
+      text: item.text,
+      icon: item.icon || undefined,
+      href,
+      linkAs: toLinkAs(href),
+      end: item.placement === 'end',
+    };
+    return [entry];
+  })
+);
+const infoStart = computed(() => infoItems.value.filter((item) => !item.end));
+const infoEnd = computed(() => infoItems.value.filter((item) => item.end));
+const hasInfo = computed(() => infoItems.value.length > 0);
+/** With nothing at the start, the end of the strip takes its place on every width. */
+const infoEndClass = computed(() => (infoStart.value.length > 0 ? '@max-[68.8125rem]:hidden' : ''));
+/** The end items the drawer repeats while the strip hides them: the ones with somewhere to go. */
+const infoEndLinks = computed(() =>
+  infoStart.value.length > 0 ? infoEnd.value.filter((item) => item.href !== undefined) : []
+);
+/** Phones keep only the strip's very first item. */
+function infoItemClass(index: number): string {
+  return index === 0 ? '' : '@max-[47.5625rem]:hidden';
+}
+
 // --- search ------------------------------------------------------------------------------------
 
 const showSearch = computed(() => data.value.showSearch !== false);
@@ -154,7 +346,11 @@ const showSearch = computed(() => data.value.showSearch !== false);
  *  centered variant only"). */
 const searchStyle = computed<'icon' | 'field' | 'inline'>(() => {
   const style = data.value.searchStyle ?? 'icon';
-  return style === 'inline' && variant.value !== 'centered' ? 'icon' : style;
+  if (style === 'inline' && variant.value !== 'centered') return 'icon';
+  // `minimal` is a tool row at every width, and its brand is centred by the two sides matching:
+  // a pill field on one side would push it off the middle.
+  if (style === 'field' && variant.value === 'minimal') return 'icon';
+  return style;
 });
 
 const searchOpen = ref(false);
@@ -252,34 +448,37 @@ function openSearch(): void {
 // --- cart + wishlist count pills --------------------------------------------------------------
 
 /**
- * A count pill is a corner badge: small, and sitting on the icon's own corner, so it reads as an
- * annotation *on* the glyph rather than a second control beside it. The spec's "1.25rem pill,
- * flush right with a ring" line was written for 2.75rem buttons; on this theme's 2rem ghost icon
- * buttons it put the pill beside the icon as a detached blob, so the badge is sized and placed
- * for the icon instead.
- *
- * 0.875rem square (`h-3.5`/`min-w-3.5`, `min-w` so "99+" still widens it), `0.625rem` bold tabular
- * figures, `primary` fill, `primary-contrast` text (both from the `tone="primary"` prop, not this
- * constant). No ring: a ring's whole job is separating a pill from what sits *beside* it, and a
- * corner badge sits *on* the icon by design — a ring here would just push it back off the corner.
- * `-top-0.5 -right-0.5` sits it at the button's own top-right corner, nudged slightly outside it
- * (2px past the 2rem button's own edge on each side) rather than tucked inside — `top-0.5
- * right-0.5` was tried first and measured worse: with real padding and a real glyph the pill is
- * wider than its 0.875rem floor, so pulled inside the button it still buried roughly a third of
- * the icon's area under it. Pushed just outside instead, it lands mostly over the button's own
- * padding and clears the icon by a wide margin. `countPill.browser.spec.ts` measures the overlap
- * against the icon's real `<svg>` box (not an assumed one) and keeps it well under a quarter of
- * the icon's area. The same override styles both the cart and the wishlist pill (spec: "the cart
- * button and its count badge" — the wishlist one is drawn identically), so it is one constant
- * rather than two copies that could drift.
+ * A count pill is a corner badge on a labelled tool: 1.125rem tall (`min-w` so "99+" still widens
+ * it), `0.6875rem` bold tabular figures, `accent` fill and `accent-contrast` text (both from the
+ * `tone="accent"` prop, not this constant), sitting at the tool's top-right — `top-0.5 right-1.5`,
+ * `right-0.5` on a phone's narrower tool — so it rides the icon's corner and leaves the label under
+ * it clear. No ring: a ring's whole job is separating a pill from what sits *beside* it, and a
+ * corner badge sits *on* the icon by design. `countPill.browser.spec.ts` measures the pill's height
+ * and its overlap with the icon's real `<svg>` box in a real browser. The same override styles
+ * both the cart and the saved-items pill, so it is one constant rather than two copies that could
+ * drift.
  *
  * `Badge`'s own root carries `min-h-6` and `text-badge` (1.5rem min height, the package's own
  * type-style utility); passed as the Badge's `class`, these app utilities outrank its `eldra:`
  * classes by cascade layer, with no `!important` and no need for a `size` prop (`Badge` has none).
  */
 const COUNT_PILL_CLASSES =
-  'pointer-events-none absolute -top-0.5 -right-0.5 min-h-3.5 min-w-3.5 h-3.5 justify-center ' +
-  'px-1 text-[0.625rem] font-bold tabular-nums leading-none';
+  'pointer-events-none absolute top-0.5 right-1.5 @max-[47.5625rem]:right-0.5 h-[1.125rem] ' +
+  'min-h-[1.125rem] min-w-[1.125rem] justify-center px-1 text-[0.6875rem] font-bold tabular-nums leading-none';
+
+/**
+ * A tool: an icon with its name printed under it (the design's labelled header buttons), one fixed
+ * width per stage. The width is fixed, not a minimum, because below 68.8125rem the bar is a
+ * symmetric grid — Menu and Search on one side, Saved and Cart on the other — and the brand is only
+ * truly centred when the two sides are the same width. `@eldrajs/ui`'s `Button` draws it; these
+ * app classes outrank its own size classes by cascade layer.
+ */
+const TOOL_WIDTH_CLASSES = 'w-14 @max-[47.5625rem]:w-11 @max-[22.5rem]:w-10';
+const TOOL_CLASSES =
+  `${TOOL_WIDTH_CLASSES} h-auto min-h-12 flex-col justify-center gap-0.5 px-1 py-1 ` +
+  'text-xs leading-[1.1] font-medium @max-[47.5625rem]:px-0 @max-[47.5625rem]:text-[0.6875rem]';
+/** The tool's icon, 1.375rem. */
+const TOOL_ICON_CLASSES = 'size-[1.375rem]';
 
 // --- cart --------------------------------------------------------------------------------------
 
@@ -354,18 +553,18 @@ function onCartClick(): void {
  * would be the theme deciding the variant means something else. The drawer gets no wishlist row
  * either, so the variant stays consistent in both directions.
  *
- * **It does render at mobile widths**, unlike the call to action, which is `@content:` only.
+ * **It does render at mobile widths**, unlike the call to action, which only shows from 68.8125rem.
  * Deliberate, and the bag's own rule: a shopper who saved something on a phone has no other way
  * back to it, where the call to action has a drawer row.
  */
 const wishlist = useWishlist();
 const wishlistCount = wishlist.count;
 const wishlistHref = '/wishlist';
-/** The bag's three forms, with a plainer empty one: nothing saved reads as just "Wishlist" — the
- *  control's own name, no count to read out — where the bag says "Cart, empty", which is worth
+/** The bag's three forms, with a plainer empty one: nothing saved reads as just "Saved" — the
+ *  tool's own visible label, no count to read out — where the bag says "Cart, empty", which is worth
  *  saying about a bag a visitor may have just filled and says nothing about a list they have never
- *  used. A number appears only once there is one, so the name in a prerendered file is the same for
- *  every visitor. */
+ *  used. Every form starts with the visible label (WCAG 2.5.3). A number appears only once there is
+ *  one, so the name in a prerendered file is the same for every visitor. */
 const wishlistAccessibleName = computed(() => {
   const count = wishlistCount.value;
   if (count === 0) return t('header.wishlistEmpty');
@@ -442,11 +641,11 @@ const focusWithinBar = ref(false);
 /**
  * The bar's height, named once: the bar sets it on its own grid and the spacer reserves the very
  * same box. Two literals would drift the first time a breakpoint moved, and a spacer that drifts
- * from the bar is a page that jumps. `@content:` is a container query, so it is only ever as true
+ * from the bar is a page that jumps. The stage is a container query, so it is only ever as true
  * as the container it is measured in — which is why both boxes sit inside an `@container` of the
  * block's own width.
  */
-const BAR_HEIGHT_CLASS = 'h-16 @content:h-[4.5rem]';
+const BAR_HEIGHT_CLASS = 'min-h-[4.5rem] @max-[47.5625rem]:min-h-[3.75rem]';
 let lastScrollY = 0;
 const SCROLL_JITTER = 4;
 function onScroll(): void {
@@ -495,12 +694,17 @@ function onBarFocusOut(event: FocusEvent): void {
   const next = event.relatedTarget;
   focusWithinBar.value = next instanceof Node && (barRoot.value?.contains(next) ?? false);
 }
-/** Spec "Header" → Accessibility, "Sticky header and focus": scroll padding equal to the sticky
- *  bar's height (2.4.11), so a focused/anchored target is never hidden under it. */
+/** Spec "Header" → Accessibility, "Sticky header and focus": scroll padding at least the sticky
+ *  header's height (2.4.11), so a focused/anchored target is never hidden under it. A constant, not
+ *  the measured `--eldra-header-height`: where the browser scrolls a focused field must not depend
+ *  on when the bar was last measured, or a draft preview session (which focuses under its veil, before
+ *  the live page would have) lands a field at a different scroll position than the live page does
+ *  (`test/previewParity.browser.spec.ts`, "/focus-mid"). 7rem covers the tallest header: the 4.5rem
+ *  bar plus the info strip. */
 watchEffect((onCleanup) => {
   if (typeof document === 'undefined') return;
   if (!sticky.value) return;
-  document.documentElement.style.setProperty('scroll-padding-top', '5rem');
+  document.documentElement.style.setProperty('scroll-padding-top', '7rem');
   onCleanup(() => document.documentElement.style.removeProperty('scroll-padding-top'));
 });
 
@@ -611,9 +815,15 @@ const barSurfaceStyle = { [HEADER_SURFACE_VAR]: 'var(--color-background)' };
 const barRootClasses = computed(() =>
   [
     '@container',
+    // Fixed, the bar is as wide as the viewport, and `@eldrajs/ui` takes the page's scrollbar away
+    // while a Dialog, Drawer, Lightbox or SearchModal is open — so the viewport widens by the
+    // scrollbar and the bar with it, shifting every tool sideways under the overlay. The package
+    // publishes the width it took as `--eldra-scrollbar-width` on `<html>` for exactly this; padding
+    // the bar by it keeps its content box (and so every container-query stage) where it was.
+    // Not fixed, the header is still the positioning box a full-width mega panel spans.
     sticky.value
-      ? 'fixed inset-x-0 top-0 z-40 motion-safe:transition-transform motion-safe:duration-base'
-      : '',
+      ? 'fixed inset-x-0 top-0 z-40 pr-(--eldra-scrollbar-width,0px) motion-safe:transition-transform motion-safe:duration-base'
+      : 'relative',
     barHidden.value ? '-translate-y-full' : '',
     isTransparent.value
       ? 'bg-transparent text-primary-contrast'
@@ -630,7 +840,7 @@ const barRootClasses = computed(() =>
  *
  * The height classes are what the first paint of a prerendered page has, before the bar has been
  * measured at all — a spacer that started at zero would drop the page by the bar's height and lift
- * it again on hydration. They carry the `@content:` breakpoint, so they need a container of the
+ * it again on hydration. They carry the phone stage (`@max-[47.5625rem]:`), so they need a container of the
  * block's own width to be measured in: the bar has one (its own `@container` root), and the spacer
  * is one, which is why the box that holds the height is a child rather than the spacer itself.
  * `barHeight` takes over the moment the `ResizeObserver` above has a real number, and from then on
@@ -658,63 +868,157 @@ const hairlineClass = computed(() =>
 
 /** The drawer holds the links and the call to action; with neither there is no Menu button either. */
 const drawerHasContent = computed(() => links.value.length > 0 || hasCta.value);
+/** How the drawer shows a panel: folded rows (default) or every panel open under its heading. */
+const drawerLayout = computed<'accordion' | 'sections'>(() =>
+  data.value.drawerLayout === 'sections' ? 'sections' : 'accordion'
+);
 /** More than one currency to shop in. On a phone the picker sits in the menu when there is one. */
 const currency = storefront.currency;
 const hasCurrencies = computed(() => currency.offered.value.length > 1);
-const barPickerClass = computed(() =>
-  drawerHasContent.value ? '@content:block ml-1 hidden' : 'ml-1'
-);
+/** The bar's picker only where the links are inline; with a drawer it lives in the drawer's footer. */
+const barPickerClass = computed(() => {
+  if (!drawerHasContent.value) return 'ml-1';
+  return variant.value === 'minimal' ? 'hidden' : '@min-[68.8125rem]:block ml-1 hidden';
+});
 const showLinksPlaceholder = computed(
   () => isEditing.value && variant.value !== 'minimal' && links.value.length === 0
 );
 
+/** The Menu tool's accessible name is its visible label (WCAG 2.5.3). */
 const navMenuMessages = computed<Partial<UiMessages>>(() => ({
-  navMenuOpen: t('header.openMenu'),
+  navMenuOpen: t('header.menu'),
   navMenuDrawer: t('header.menu'),
 }));
 
-/** Below `@content` the Menu button holds the first column, so the brand takes the second. */
-const brandPositionClass = computed(() => {
-  const besideToggle = drawerHasContent.value ? 'col-start-2 row-start-1' : '';
-  if (variant.value === 'minimal') return besideToggle;
+/**
+ * The bar's grid. Below 68.8125rem (and at every width in `minimal`) it is six tracks —
+ * `Menu | Search | 1fr | brand | 1fr | Saved+Cart` — and because the tools are one fixed width and the
+ * actions row's gap equals the grid's, the two sides are the same width and the brand sits in the
+ * exact middle (spacers stand in for a missing Menu or Search tool, or `minimal`'s missing Saved).
+ * The brand's own track is `minmax(0,auto)` so a wide logo shrinks into it rather than pushing the
+ * tools off the bar. From 68.8125rem `default` is `brand | links | search | actions` and `centered`
+ * is `search | brand | actions` over a second row of links.
+ */
+const barGridClass = computed(() => {
+  const drawer =
+    'grid grid-cols-[auto_auto_minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-0.5';
+  if (variant.value === 'minimal') return drawer;
   if (variant.value === 'centered') {
-    return `${besideToggle} @content:col-start-2 @content:row-start-1 @content:justify-self-center`;
+    return `${drawer} @min-[68.8125rem]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @min-[68.8125rem]:gap-x-4 @min-[68.8125rem]:pt-1`;
   }
-  return drawerHasContent.value ? `${besideToggle} @content:col-start-1` : '';
+  return `${drawer} @min-[68.8125rem]:grid-cols-[auto_minmax(0,1fr)_auto_auto] @min-[68.8125rem]:gap-x-1`;
+});
+
+const brandPositionClass = computed(() => {
+  const drawer = 'col-start-4 row-start-1 justify-self-center';
+  if (variant.value === 'minimal') return drawer;
+  if (variant.value === 'centered') return `${drawer} @min-[68.8125rem]:col-start-2`;
+  return `${drawer} @min-[68.8125rem]:col-start-1 @min-[68.8125rem]:justify-self-start`;
 });
 const linksPositionClass = computed(() =>
   variant.value === 'centered'
-    ? `@content:col-start-1 @content:col-span-4 @content:row-start-2 @content:justify-center @content:border-t ${hairlineClass.value} @content:pt-3 @content:mt-1`
-    : '@content:col-start-2 @content:row-start-1'
+    ? `@min-[68.8125rem]:col-start-1 @min-[68.8125rem]:col-end-4 @min-[68.8125rem]:row-start-2 @min-[68.8125rem]:border-t ${hairlineClass.value} @min-[68.8125rem]:py-1`
+    : '@min-[68.8125rem]:col-start-2 @min-[68.8125rem]:row-start-1 @min-[68.8125rem]:mx-5 @wide:mx-8'
 );
-const searchPositionClass = computed(() =>
-  variant.value === 'centered' ? '@content:col-start-1 @content:row-start-1' : ''
+const searchPositionClass = computed(() => {
+  const drawer = 'col-start-2 row-start-1';
+  if (variant.value === 'minimal') return drawer;
+  if (variant.value === 'centered') {
+    return `${drawer} @min-[68.8125rem]:col-start-1 @min-[68.8125rem]:justify-self-start`;
+  }
+  return `${drawer} @min-[68.8125rem]:col-start-3`;
+});
+const actionsPositionClass = computed(() => {
+  const drawer = 'col-start-6 row-start-1 justify-self-end';
+  if (variant.value === 'minimal') return drawer;
+  if (variant.value === 'centered') return `${drawer} @min-[68.8125rem]:col-start-3`;
+  return `${drawer} @min-[68.8125rem]:col-start-4`;
+});
+/** A placeholder the width of one tool, so a missing Menu or Search keeps the brand centred. Only
+ *  in the drawer layout; from 68.8125rem the default and centered bars do not need one. */
+const toolSpacerClass = computed(() =>
+  variant.value === 'minimal'
+    ? TOOL_WIDTH_CLASSES
+    : `${TOOL_WIDTH_CLASSES} @min-[68.8125rem]:hidden`
 );
-const actionsPositionClass = computed(() =>
-  variant.value === 'centered' ? '@content:col-start-4 @content:row-start-1' : ''
-);
+
+/** Dropdown panels and mega panels share `NavMenu`'s `content` part; a dropdown's carries the
+ *  package's own `eldra-nav-menu-dropdown` class, which is how the rules below tell them apart. */
+const DROPDOWN = '[&[class~="eldra:eldra-nav-menu-dropdown"]]';
 
 /** What this header draws differently from `NavMenu`'s own look, part by part. */
 const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
-  nav: `self-stretch ${linksPositionClass.value}`,
-  list: variant.value === 'centered' ? 'h-full flex-nowrap justify-center' : 'h-full flex-nowrap',
-  link: 'text-sm',
-  trigger: 'text-sm',
-  toggle:
-    variant.value === 'minimal'
-      ? 'col-start-1 row-start-1 size-auto min-h-10 max-md:size-auto max-md:min-h-11 gap-2 px-3 text-sm font-medium'
-      : 'col-start-1 row-start-1',
+  nav: `@max-[68.8125rem]:hidden self-stretch ${linksPositionClass.value}`,
+  list:
+    variant.value === 'centered'
+      ? 'h-full flex-nowrap justify-center gap-0.5'
+      : 'h-full flex-nowrap gap-0.5',
+  // The design's pill entries: 2.75rem tall, full radius, `surface` on hover and while open, the
+  // current page on `surface-strong`.
+  link: 'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-[current=page]:bg-surface-strong',
+  trigger:
+    'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-expanded:bg-surface data-current:no-underline data-current:bg-surface-strong',
+  // The Menu tool: shown below 68.8125rem (the package hides it from `@content`), a labelled tool
+  // like its neighbours.
+  toggle: `${TOOL_CLASSES} @max-[68.8125rem]:inline-flex col-start-1 row-start-1 max-md:size-auto rounded-md`,
+  // A mega panel hangs from the whole header (its positioning box), full-bleed, with the columns
+  // inside the same wide container the bar uses; a dropdown hangs under its trigger.
   panel: 'pt-0',
-  content:
-    'rounded-none rounded-b-lg border-t-0 bg-(--eldra-header-surface) shadow-(--eldra-shadow-float) @wide:p-8',
-  // Twelve columns, a link column three of them. A panel with a cards column is laid out in equal
-  // tracks instead: a link column is one, the cards column spans two (the design's ~1.7x).
+  content: [
+    'rounded-none border-0 border-b border-border bg-(--eldra-header-surface) shadow-(--eldra-shadow-float)',
+    'py-8 px-(--eldra-gutter-mobile) @tablet:px-(--eldra-gutter-tablet) @content:px-(--eldra-gutter-desktop)',
+    `${DROPDOWN}:mt-2 ${DROPDOWN}:w-[21rem] ${DROPDOWN}:rounded-lg ${DROPDOWN}:border ${DROPDOWN}:px-2 ${DROPDOWN}:pt-2 ${DROPDOWN}:pb-3`,
+  ].join(' '),
+  // Link columns in equal tracks; a column of cards spans two of them. Inside the wide container.
   columns:
-    'grid-cols-12 gap-6 data-cards:grid-flow-col data-cards:auto-cols-fr data-cards:grid-cols-none',
+    'mx-auto w-full max-w-[calc(var(--eldra-container-wide)-2*var(--eldra-gutter-desktop))] grid-cols-12 gap-8 data-cards:grid-flow-col data-cards:auto-cols-fr data-cards:grid-cols-none',
   group: 'col-span-3 [[data-cards]>&]:col-span-1 [[data-cards]>&[data-cards]]:col-span-2',
-  footer: 'justify-end',
-  drawerLink: 'font-heading text-xl font-semibold',
-  drawerTrigger: 'font-heading text-xl font-semibold',
+  // Serif column headings, linked or plain.
+  groupHeading:
+    'font-heading px-0 pb-3 text-xl leading-tight font-medium tracking-normal normal-case text-text',
+  groupLink: 'text-text no-underline hover:underline underline-offset-[0.2em]',
+  panelList: 'gap-0.5',
+  // Quiet links that underline on hover; a link with a description (the dropdown) is a padded row
+  // with its title in `text` and a `surface` hover.
+  panelLink: [
+    'px-0 py-1.5 text-muted hover:bg-transparent hover:text-text hover:underline underline-offset-[0.2em]',
+    '[&:has([data-part=description])]:rounded-md [&:has([data-part=description])]:px-3 [&:has([data-part=description])]:py-2.5 [&:has([data-part=description])]:text-text [&:has([data-part=description])]:no-underline [&:has([data-part=description])]:hover:bg-surface',
+    // The column's "see all": primary, semibold, with an arrow.
+    'data-see-all:mt-2 data-see-all:text-[0.9375rem] data-see-all:font-semibold data-see-all:text-primary',
+    // In a dropdown it lines up with the padded rows above it.
+    'in-[[class~="eldra:eldra-nav-menu-dropdown"]]:data-see-all:px-3',
+  ].join(' '),
+  panelLabel: `gap-x-2 text-base font-normal in-data-see-all:font-semibold in-data-see-all:after:content-['→'] [[data-part=panelLink]:has([data-part=description])_&]:font-semibold`,
+  description: 'text-sm leading-snug',
+  badge:
+    'min-h-0 rounded-sm bg-accent px-1.5 py-0 text-[0.6875rem] leading-[1.4] font-bold tracking-[0.04em] text-accent-contrast',
+  // Cards: the picture, a semibold title and the price under it.
+  card: 'gap-2',
+  cardImage: 'rounded-lg',
+  cardTitle: 'text-base leading-snug font-semibold',
+  cardPrice: 'text-[0.9375rem]',
+  footer:
+    'mx-auto w-full max-w-[calc(var(--eldra-container-wide)-2*var(--eldra-gutter-desktop))] justify-end border-0 pt-2',
+  // The drawer: serif rows, section headings as small capitals, links at body size.
+  drawerBody: 'px-0 pt-0',
+  drawerLink: 'font-heading min-h-14 px-4 text-xl font-normal',
+  drawerTrigger:
+    'min-h-14 px-4 py-3 hover:no-underline [&_[data-part=title]]:font-heading [&_[data-part=title]]:text-xl [&_[data-part=title]]:font-normal [&_[data-part=title]]:no-underline',
+  drawerSectionHeading: 'font-heading min-h-14 px-4 text-xl font-normal',
+  drawerPanel: 'pb-0',
+  drawerNest: 'ms-0 border-s-0 px-4 pb-5',
+  drawerColumns: 'gap-5',
+  drawerGroupHeading: 'px-0 pb-1 text-xs font-bold tracking-[0.12em] uppercase text-muted',
+  drawerGroupLink: 'text-muted no-underline hover:underline',
+  drawerPanelLink:
+    'py-2 text-[1.0625rem] data-see-all:mt-1 data-see-all:text-[0.9375rem] data-see-all:font-semibold data-see-all:text-primary',
+  drawerPanelLabel: `font-normal in-data-see-all:font-semibold in-data-see-all:after:content-['→']`,
+  drawerBadge:
+    'min-h-0 rounded-sm bg-accent px-1.5 py-0 text-[0.6875rem] leading-[1.4] font-bold tracking-[0.04em] text-accent-contrast',
+  drawerCardImage: 'rounded-lg',
+  drawerCardTitle: 'font-semibold',
+  drawerFooter:
+    'flex-col items-stretch gap-3 bg-surface px-4 pt-5 pb-5 [&>[data-eldra-header-drawer-links]]:-mx-0',
 }));
 </script>
 
@@ -727,42 +1031,118 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
     @focusin="onBarFocusIn"
     @focusout="onBarFocusOut"
   >
-    <Container width="wide">
-      <!-- One `gap-1` at every width (spec "Header" -> Layout); the call to action adds its own
-           margin below. -->
-      <div
-        data-eldra-header-bar
-        :class="[
-          BAR_HEIGHT_CLASS,
-          'relative grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1',
-        ]"
+    <!-- The info strip: absent with no items. Phones keep its first item; below 68.8125rem the
+         end of it moves into the drawer's footer. -->
+    <div
+      v-if="hasInfo"
+      data-eldra-header-info
+      role="region"
+      :aria-label="t('header.info')"
+      :class="[
+        'text-[0.8125rem]',
+        isTransparent
+          ? 'border-primary-contrast/24 border-b bg-transparent'
+          : 'bg-surface text-muted border-border border-b',
+      ]"
+    >
+      <Container
+        width="wide"
+        class="flex min-h-9 items-center justify-between gap-4 @max-[47.5625rem]:justify-center"
       >
+        <ul v-if="infoStart.length > 0" class="m-0 flex list-none gap-6 p-0">
+          <li
+            v-for="(item, index) in infoStart"
+            :key="`start-${index}`"
+            :class="['inline-flex items-center gap-1.5', infoItemClass(index)]"
+          >
+            <EldraIcon
+              v-if="item.icon"
+              :name="item.icon"
+              size="sm"
+              :class="['size-4', isTransparent ? '' : 'text-primary']"
+            />
+            <Link
+              v-if="item.href"
+              :href="item.href"
+              :as="item.linkAs"
+              variant="standalone"
+              :underline="false"
+              :class="['font-normal', isTransparent ? 'text-current' : 'text-text']"
+              >{{ item.text }}</Link
+            >
+            <span v-else>{{ item.text }}</span>
+          </li>
+        </ul>
+        <ul v-if="infoEnd.length > 0" :class="['m-0 flex list-none gap-6 p-0', infoEndClass]">
+          <li
+            v-for="(item, index) in infoEnd"
+            :key="`end-${index}`"
+            :class="[
+              'inline-flex items-center gap-1.5',
+              infoStart.length > 0 ? '' : infoItemClass(index),
+            ]"
+          >
+            <EldraIcon
+              v-if="item.icon"
+              :name="item.icon"
+              size="sm"
+              :class="['size-4', isTransparent ? '' : 'text-primary']"
+            />
+            <Link
+              v-if="item.href"
+              :href="item.href"
+              :as="item.linkAs"
+              variant="standalone"
+              :underline="false"
+              :class="['font-normal', isTransparent ? 'text-current' : 'text-text']"
+              >{{ item.text }}</Link
+            >
+            <span v-else>{{ item.text }}</span>
+          </li>
+        </ul>
+      </Container>
+    </div>
+
+    <Container width="wide">
+      <div data-eldra-header-bar :class="[BAR_HEIGHT_CLASS, barGridClass]">
         <Link
           :href="brandHref"
           :as="EldraRouterLink"
           variant="standalone"
           :underline="false"
+          :aria-label="brandName"
           data-eldra-header-focus
-          :class="`font-heading flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-1 text-lg font-bold tracking-tight ${brandPositionClass}`"
+          data-eldra-header-brand
+          :class="`flex max-w-full min-w-0 rounded-sm text-current hover:no-underline ${brandPositionClass}`"
+          :classes="{
+            label: 'flex min-w-0 max-w-full items-center gap-2.5 @max-[47.5625rem]:gap-2',
+          }"
         >
           <img
-            v-if="brandLogoUrl"
-            :src="brandLogoUrl"
-            :alt="data.brandText"
-            class="h-8 w-auto max-w-40 object-contain"
+            v-if="brandMarkUrl"
+            :src="brandMarkUrl"
+            alt=""
+            :class="brandMarkClass"
             loading="eager"
             decoding="async"
           />
-          <!-- The spec keeps the wordmark from ever wrapping (block.json's own 20-character
-               maxLength keeps it fitting in the ordinary case); `min-w-0` on the root above stops
-               a CSS Grid item's default intrinsic min-width from blowing the brand column out
-               into its neighbours on very narrow viewports, and this span's own truncation is the
-               graceful fallback for the rare case that still doesn't leave enough room. -->
-          <span v-else class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-            data.brandText
-          }}</span>
+          <img
+            v-if="brandLogoUrl"
+            :src="brandLogoUrl"
+            alt=""
+            :class="brandLogoClass"
+            loading="eager"
+            decoding="async"
+          />
+          <!-- The wordmark never wraps on a wider screen (block.json's own 20-character maxLength
+               keeps it fitting); `min-w-0` on the link and this span's ellipsis are the fallback for
+               the rare case that still doesn't leave enough room. Below 360px a text-only wordmark
+               wraps onto two centred lines instead. -->
+          <span v-if="brandTextClass !== null" :class="brandTextClass">{{ data.brandText }}</span>
         </Link>
 
+        <!-- `NavMenu` collapses at its nearest stage, `@content` (64rem); the `nav` and `toggle`
+             classes below move that to the design's 68.8125rem (1100px) from this side. -->
         <NavMenu
           v-if="drawerHasContent"
           v-model="openMenuIndex"
@@ -770,6 +1150,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           :items="navItems"
           :aria-label="t('header.primary')"
           :collapse-below="variant === 'minimal' ? 'always' : '@content'"
+          :drawer-layout="drawerLayout"
           open-on-hover
           :link-as="MenuLink"
           :card-aspect="cardAspect"
@@ -778,8 +1159,8 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           :classes="navMenuClasses"
         >
           <template #toggle>
-            <EldraIcon name="menu-2" size="md" />
-            <span v-if="variant === 'minimal'">{{ t('header.menu') }}</span>
+            <EldraIcon name="menu-2" size="md" :class="TOOL_ICON_CLASSES" />
+            <span class="whitespace-nowrap">{{ t('header.menu') }}</span>
           </template>
           <template #panelFooter="{ item, index }">
             <Link
@@ -789,13 +1170,59 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               variant="standalone"
               arrow
               data-eldra-mega-view-all
+              :underline="false"
               :aria-label="t('header.viewAllOf', { label: item.label ?? '' })"
-              class="text-sm"
+              class="text-primary text-[0.9375rem] font-semibold"
             >
               {{ t('header.viewAll') }}
             </Link>
           </template>
-          <template v-if="hasCta || hasCurrencies" #drawerFooter="{ close }">
+          <template #drawerFooter="{ close }">
+            <ul
+              v-if="accountHref || variant !== 'minimal' || infoEndLinks.length > 0"
+              data-eldra-header-drawer-links
+              class="m-0 grid list-none gap-3 p-0 text-[0.9375rem]"
+            >
+              <li v-if="accountHref">
+                <Link
+                  :href="accountHref"
+                  :as="accountLinkAs"
+                  variant="standalone"
+                  :underline="false"
+                  class="text-text font-medium"
+                  :classes="{ label: 'inline-flex items-center gap-2' }"
+                  @click="close"
+                >
+                  <EldraIcon name="user" size="md" />{{ t('header.account') }}
+                </Link>
+              </li>
+              <li v-if="variant !== 'minimal'">
+                <Link
+                  :href="wishlistHref"
+                  :as="EldraRouterLink"
+                  variant="standalone"
+                  :underline="false"
+                  class="text-text font-medium"
+                  :classes="{ label: 'inline-flex items-center gap-2' }"
+                  @click="close"
+                >
+                  <EldraIcon name="heart" size="md" />{{ t('header.savedItems') }}
+                </Link>
+              </li>
+              <li v-for="(item, index) in infoEndLinks" :key="`drawer-info-${index}`">
+                <Link
+                  :href="item.href"
+                  :as="item.linkAs"
+                  variant="standalone"
+                  :underline="false"
+                  class="text-text font-medium"
+                  :classes="{ label: 'inline-flex items-center gap-2' }"
+                  @click="close"
+                >
+                  <EldraIcon v-if="item.icon" :name="item.icon" size="md" />{{ item.text }}
+                </Link>
+              </li>
+            </ul>
             <CurrencyPicker
               :currencies="currency.offered.value"
               :model-value="currency.active.value"
@@ -818,87 +1245,87 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             </Button>
           </template>
         </NavMenu>
+        <span
+          v-else
+          aria-hidden="true"
+          data-eldra-header-spacer-tool
+          :class="['col-start-1 row-start-1', toolSpacerClass]"
+        />
         <EditorPlaceholder
           v-if="showLinksPlaceholder"
           inline
           :label="t('editor.addLink')"
-          :class="`@content:flex hidden ${linksPositionClass}`"
+          :class="`hidden @min-[68.8125rem]:flex ${linksPositionClass}`"
         />
 
-        <!-- `justify-end` matters in exactly one case and is inert in every other: with no Menu
-             button in the grid (nothing to put in the drawer), the search control auto-places into
-             the `minmax(0,1fr)` column the brand usually takes, and left-aligned it would sit
-             against the wordmark with the cart stranded across the bar. Everywhere else this
-             wrapper lands in an `auto` column, which is content-sized, so the rule does nothing. -->
-        <div :class="['flex items-center justify-end', searchPositionClass]">
+        <div :class="['flex items-center', searchPositionClass]">
           <template v-if="showSearch">
+            <!-- `field`: the "Search the shop" pill from 80rem, the labelled Search tool below.
+                 `inline`: the live search bar, centered variant only, from 68.8125rem. `icon`: the
+                 labelled tool at every width. All but the live bar open the search overlay. -->
             <Button
-              v-if="searchStyle === 'icon'"
+              v-if="searchStyle === 'field'"
               variant="ghost"
-              size="sm"
-              icon-only
-              :label="t('header.search')"
+              size="md"
               aria-haspopup="dialog"
+              class="bg-surface text-muted hover:border-border-strong hover:bg-surface @wide:inline-flex hidden w-60 justify-start gap-2.5 rounded-full border border-transparent px-3.5 font-normal"
+              :classes="{ label: 'text-base' }"
               @click="openSearch"
             >
               <template #leadingIcon>
-                <EldraIcon name="search" size="md" />
+                <EldraIcon name="search" size="md" class="size-[1.125rem]" />
               </template>
+              {{ t('header.searchField') }}
             </Button>
-            <template v-else-if="searchStyle === 'field'">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-haspopup="dialog"
-                class="@content:inline-flex hidden rounded-full"
-                @click="openSearch"
-              >
-                {{ t('header.searchField') }}
-                <span class="text-muted ml-2 text-xs">⌘K</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon-only
-                :label="t('header.search')"
-                aria-haspopup="dialog"
-                class="@content:hidden"
-                @click="openSearch"
-              >
-                <template #leadingIcon>
-                  <EldraIcon name="search" size="md" />
-                </template>
-              </Button>
-            </template>
-            <template v-else>
-              <SearchBar
-                v-model="searchQuery"
-                size="md"
-                pill
-                :action="searchAction"
-                :label="t('header.searchField')"
-                :results="searchResults"
-                :loading="searchLoading"
-                class="@content:block hidden w-64"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                icon-only
-                :label="t('header.search')"
-                aria-haspopup="dialog"
-                class="@content:hidden"
-                @click="openSearch"
-              >
-                <template #leadingIcon>
-                  <EldraIcon name="search" size="md" />
-                </template>
-              </Button>
-            </template>
+            <SearchBar
+              v-else-if="searchStyle === 'inline'"
+              v-model="searchQuery"
+              size="md"
+              pill
+              :action="searchAction"
+              :label="t('header.searchField')"
+              :results="searchResults"
+              :loading="searchLoading"
+              class="hidden w-64 @min-[68.8125rem]:block"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-haspopup="dialog"
+              :class="[
+                TOOL_CLASSES,
+                searchStyle === 'field'
+                  ? '@wide:hidden'
+                  : searchStyle === 'inline'
+                    ? '@min-[68.8125rem]:hidden'
+                    : '',
+              ]"
+              @click="openSearch"
+            >
+              <template #leadingIcon>
+                <EldraIcon name="search" size="md" :class="TOOL_ICON_CLASSES" />
+              </template>
+              {{ t('header.search') }}
+            </Button>
           </template>
+          <span v-else aria-hidden="true" data-eldra-header-spacer-tool :class="toolSpacerClass" />
         </div>
 
-        <div data-eldra-header-actions :class="['flex items-center gap-1', actionsPositionClass]">
+        <div data-eldra-header-actions :class="['flex items-center gap-0.5', actionsPositionClass]">
+          <Button
+            v-if="accountHref"
+            variant="ghost"
+            size="sm"
+            :href="accountHref"
+            :as="accountLinkAs"
+            :class="[TOOL_CLASSES, '@max-[68.8125rem]:hidden']"
+          >
+            <template #leadingIcon>
+              <EldraIcon name="user" size="md" :class="TOOL_ICON_CLASSES" />
+            </template>
+            {{ t('header.account') }}
+          </Button>
+
           <!-- In every header but `minimal`, prerendered ones included: see `wishlist` in the
                script above. `EldraRouterLink` because `/wishlist` is this theme's own route — it
                should route, not reload the document. -->
@@ -906,14 +1333,15 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             <Button
               variant="ghost"
               size="sm"
-              icon-only
-              :label="wishlistAccessibleName"
+              :aria-label="wishlistAccessibleName"
               :href="wishlistHref"
               :as="EldraRouterLink"
+              :class="TOOL_CLASSES"
             >
               <template #leadingIcon>
-                <EldraIcon name="heart" size="md" />
+                <EldraIcon name="heart" size="md" :class="TOOL_ICON_CLASSES" />
               </template>
+              {{ t('header.saved') }}
             </Button>
             <!-- The bag's own two rules: no badge at zero, and `pointer-events-none`, because the
                  count is decorative (the button's accessible name carries it) and must not swallow
@@ -921,41 +1349,46 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             <Badge
               v-if="wishlistCount > 0"
               aria-hidden="true"
-              tone="primary"
+              tone="accent"
               pill
               :label="wishlistBadgeLabel"
               :class="COUNT_PILL_CLASSES"
             />
           </span>
+          <!-- `minimal` has no Saved tool; this keeps its two sides the same width. -->
+          <span
+            v-else
+            aria-hidden="true"
+            data-eldra-header-spacer-tool
+            :class="TOOL_WIDTH_CLASSES"
+          />
 
           <span class="relative inline-flex">
             <Button
               variant="ghost"
               size="sm"
-              icon-only
-              :label="cartAccessibleName"
+              :aria-label="cartAccessibleName"
               :href="cartHref"
               :as="toLinkAs(cartHref)"
               :aria-haspopup="cartPopupType"
+              :class="TOOL_CLASSES"
               @click="onCartClick"
             >
               <template #leadingIcon>
-                <EldraIcon name="shopping-bag" size="md" />
+                <EldraIcon name="shopping-bag" size="md" :class="TOOL_ICON_CLASSES" />
               </template>
+              {{ t('header.cart') }}
             </Button>
             <Badge
               v-if="cartCount > 0"
               aria-hidden="true"
-              tone="primary"
+              tone="accent"
               pill
               :label="cartBadgeLabel"
               :class="COUNT_PILL_CLASSES"
             />
           </span>
 
-          <!-- Spec Header -> Layout, From 64rem: the call to action sits 0.75rem after the cart.
-               0.25rem of that is already the actions row's own gap-1; @content:ml-2 (0.5rem) makes
-               up the rest, so it reads as its own button rather than a fourth icon in the row. -->
           <CurrencyPicker
             :currencies="currency.offered.value"
             :model-value="currency.active.value"
@@ -963,13 +1396,15 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             :class="barPickerClass"
             @update:model-value="currency.choose"
           />
+          <!-- The call to action sits 0.75rem after the cart where the links are inline: 0.125rem of
+               that is the actions row's own gap, `ml-2.5` the rest. In the drawer below. -->
           <Button
             v-if="hasCta && variant !== 'minimal'"
             variant="primary"
             size="sm"
             :href="ctaHref"
             :as="ctaLinkAs"
-            class="@content:inline-flex @content:ml-2 hidden"
+            class="ml-2.5 hidden @min-[68.8125rem]:inline-flex"
           >
             {{ ctaLabel }}
           </Button>
@@ -988,7 +1423,9 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
   <!-- The flow the fixed bar left behind — see `barSpacerClasses`. Empty and unlabelled: it is
        layout, with nothing in it for a screen reader or the tab order to reach. The outer box is the
        `<header>`'s counterpart (the `@container` the height is measured in, and the hairline) and the
-       inner one the bar grid's (the height itself). -->
+       inner ones the info strip's and the bar grid's (the height itself). The info strip's box
+       keeps its hairline outside the height, as the strip's own `border-b` sits outside its
+       `min-h-9` container: one box with both would be a pixel short of the bar until measured. -->
   <div
     v-if="sticky"
     data-eldra-header-spacer
@@ -996,6 +1433,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
     :class="barSpacerClasses"
     :style="barSpacerStyle"
   >
+    <div v-if="hasInfo" class="border-b border-transparent"><div class="min-h-9" /></div>
     <div :class="BAR_HEIGHT_CLASS" />
   </div>
 </template>

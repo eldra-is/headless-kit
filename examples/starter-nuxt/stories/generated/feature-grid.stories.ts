@@ -38,6 +38,12 @@ export const VariantPlain: Story = {
   },
 };
 
+export const VariantArched: Story = {
+  args: {
+    entry: { id: "feature-grid", data: { ...base, "variant": "arched" } },
+  },
+};
+
 export const Columns2: Story = {
   args: {
     entry: { id: "feature-grid", data: { ...base, "columns": "2" } },

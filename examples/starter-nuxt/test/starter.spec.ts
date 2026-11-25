@@ -89,14 +89,14 @@ describe('starter theme', () => {
     const result = scanTheme({ themeDir: templateDir, framework: 'nuxt' });
     expect(result.errors).toEqual([]);
     expect(result.manifest?.blocks.map((block) => block.apiId).sort()).toEqual(expectedBlocks);
-    // The design spec's brand slot (eldra-starter-spec/tokens.json): a deep
-    // ink a customer replaces with their own colour, not a blue.
-    expect(result.manifest?.tokens.colors.primary.value).toBe('#24201c');
+    // The Northwind palette's brand slot: a deep spruce a customer replaces
+    // with their own colour.
+    expect(result.manifest?.tokens.colors.primary.value).toBe('#1e4646');
     // The roles `@eldrajs/ui` needs beyond the original thirteen.
-    expect(result.manifest?.tokens.colors['border-strong']?.value).toBe('#7d7466');
-    expect(result.manifest?.tokens.colors.focus?.value).toBe('#1c1917');
+    expect(result.manifest?.tokens.colors['border-strong']?.value).toBe('#776c5c');
+    expect(result.manifest?.tokens.colors.focus?.value).toBe('#1d1b18');
     expect(result.manifest?.tokens.colors['focus-inner']?.value).toBe('#ffffff');
-    expect(result.manifest?.tokens.colors.overlay?.value).toBe('#1c1917b3');
+    expect(result.manifest?.tokens.colors.overlay?.value).toBe('#1d1b18b3');
     const fields = Object.fromEntries(
       result.manifest!.blocks.map((block) => [
         block.apiId,
@@ -121,6 +121,9 @@ describe('starter theme', () => {
         'successTitle',
         'successText',
         'formKey',
+        'helpHeading',
+        'helpText',
+        'contacts',
         'sectionBackground',
       ],
       form: [
@@ -140,6 +143,9 @@ describe('starter theme', () => {
         'subheading',
         'image',
         'slides',
+        'captionLabel',
+        'captionDetail',
+        'captionHref',
         'spacing',
         'primaryCtaLabel',
         'primaryCtaHref',
@@ -152,6 +158,10 @@ describe('starter theme', () => {
         'brandText',
         'brandLogo',
         'description',
+        'address',
+        'phone',
+        'email',
+        'hours',
         'groups',
         'links',
         'showNewsletter',
@@ -167,13 +177,17 @@ describe('starter theme', () => {
         'variant',
         'brandText',
         'brandLogo',
+        'brandMark',
         'links',
+        'drawerLayout',
+        'account',
         'showSearch',
         'searchStyle',
         'ctaLabel',
         'cta',
         'sticky',
         'transparentOverHero',
+        'infoItems',
       ],
       article: [
         'title',
@@ -268,7 +282,7 @@ describe('starter theme', () => {
         'trail',
         'subcollections',
       ],
-      'split-content': ['startWith', 'rows'],
+      'split-content': ['startWith', 'rows', 'list', 'background'],
       quote: [
         'variant',
         'quote',
@@ -364,12 +378,17 @@ describe('starter theme', () => {
         'emptyText',
       ],
       'product-carousel': [
+        'eyebrow',
         'heading',
         'variant',
         'sourceCollection',
         'limit',
         'viewAllLabel',
         'viewAllHref',
+        'layout',
+        'filters',
+        'allFilterLabel',
+        'quickAdd',
         'showSwatches',
         'background',
       ],
@@ -944,10 +963,8 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     for (const seed of pageSeeds) {
       expect(Object.keys(seed)).toEqual(['slug', 'title', 'blocks']);
     }
-    // The announcement bar precedes the header, which is only expressible because a region is a
-    // placement in the page's own order rather than a frame around the blocks.
+    // The header region is a placement in the page's own order, not a frame around the blocks.
     expect(pageSeeds[0]!.blocks.map((entry) => entry.type)).toEqual([
-      'announcement-bar',
       '@header',
       'breadcrumbs',
       'cart',
@@ -1372,13 +1389,12 @@ describe('seeded templates and pages (app/templates.ts)', () => {
   });
 
   it('seeds no list item that is missing a required media field', () => {
-    // The `hero` seed is the live case: all four of the home fixture's slides require an image,
-    // and all four carry demo imagery, so the seeded hero renders with an empty slideshow rather
-    // than four entries Core would refuse to publish. (Its `mock.json` omits `slides` entirely,
-    // which is the same shape an author gets on insert.)
+    // The home fixture's hero is the `card` variant, which has no slides, so the seed carries
+    // none; a hero whose slides all carry demo imagery (each requires an image) would seed an
+    // empty slideshow rather than entries Core would refuse to publish.
     const home = scanned.manifest!.templates!.find((template) => template.schemaApiId === 'home')!;
     const hero = home.blocks.find((block) => block.apiId === 'hero')!;
-    expect(hero.data.slides).toEqual([]);
+    expect(hero.data.slides ?? []).toEqual([]);
 
     // And the rule generally, walked against each block's own declared field types: no seed
     // block (or role) may carry a list item without a value for a media field the block marks

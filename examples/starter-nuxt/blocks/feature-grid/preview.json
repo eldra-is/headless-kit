@@ -1,45 +1,70 @@
 {
+  "heading": "Shop by category",
+  "intro": "",
+  "headLinkLabel": "All categories",
+  "headLinkHref": "/products",
   "columns": "3",
   "mediaType": "image",
   "items": [
     {
       "image": {
         "assetId": "demo-feature-1",
-        "url": "/demo/feature-1.svg",
-        "altText": "Merino wool being spun at the mill",
-        "width": 800,
-        "height": 600
+        "url": "/images/terracotta.webp",
+        "altText": "Handmade terracotta bowls and jugs",
+        "width": 1400,
+        "height": 933
       },
-      "title": "Merino from Yorkshire",
-      "text": "Mulesing-free wool, spun and dyed within 40 miles of the farm.",
-      "linkLabel": "About our wool",
-      "href": "/pages/wool"
+      "title": "Ceramics",
+      "text": "Mugs, bowls, vases",
+      "href": "/categories/home/ceramics"
     },
     {
       "image": {
         "assetId": "demo-feature-2",
-        "url": "/demo/feature-2.svg",
-        "altText": "Oregon clay on the wheel",
-        "width": 800,
-        "height": 600
+        "url": "/images/yarn-tools.webp",
+        "altText": "Yarn and knitting needles on a table",
+        "width": 1400,
+        "height": 933
       },
-      "title": "Clay from Oregon",
-      "text": "Thrown and fired in our Portland studio, lead-free glazes only.",
-      "linkLabel": "About our clay",
-      "href": "/pages/clay"
+      "title": "Knitwear",
+      "text": "Sweaters, throws and yarn",
+      "href": "/categories/knitwear"
     },
     {
       "image": {
         "assetId": "demo-feature-3",
-        "url": "/demo/feature-3.svg",
-        "altText": "Oak offcuts on a bench",
-        "width": 800,
-        "height": 600
+        "url": "/images/enamel-cups.webp",
+        "altText": "Enamel cups on a table",
+        "width": 1400,
+        "height": 933
       },
-      "title": "Oak from Vermont",
-      "text": "Offcuts from a furniture maker become boards, spoons and trivets.",
-      "linkLabel": "About our oak",
-      "href": "/pages/oak"
+      "title": "Tableware",
+      "text": "Cups, plates and platters",
+      "href": "/collections/the-winter-edit"
+    },
+    {
+      "image": {
+        "assetId": "demo-feature-4",
+        "url": "/images/reading.webp",
+        "altText": "A reader under a knitted throw",
+        "width": 1400,
+        "height": 933
+      },
+      "title": "Home",
+      "text": "Throws and cushions",
+      "href": "/categories/home"
+    },
+    {
+      "image": {
+        "assetId": "demo-feature-5",
+        "url": "/images/kitchen.webp",
+        "altText": "A laid kitchen table",
+        "width": 1400,
+        "height": 840
+      },
+      "title": "Kitchen",
+      "text": "Boards, jars and linen",
+      "href": "/categories/home/kitchen"
     }
   ]
 }

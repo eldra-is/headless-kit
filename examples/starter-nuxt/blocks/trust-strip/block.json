@@ -10,8 +10,8 @@
       "fieldId": "variant",
       "name": "Variant",
       "type": "select",
-      "helpText": "columns is the default. columns shows icon, title and one line; inline shows icon and title only, in one centred row.",
-      "metadata": { "options": ["columns", "inline"] },
+      "helpText": "columns is the default. columns shows icon, title and one line; inline shows icon and title only, in one centred row; numbered shows a large number in place of the icon, with title and one line, between hairlines.",
+      "metadata": { "options": ["columns", "inline", "numbered"] },
       "validators": { "required": true }
     },
     {
@@ -30,7 +30,7 @@
                 "fieldId": "icon",
                 "name": "Icon",
                 "type": "tabler-icon",
-                "helpText": "For example truck, arrow-back-up, shield-check or needle-thread.",
+                "helpText": "For example truck, arrow-back-up, shield-check or needle-thread. The numbered variant shows the item's number instead.",
                 "validators": { "required": true }
               },
               {
@@ -46,7 +46,7 @@
                 "name": "Text",
                 "type": "string",
                 "localized": true,
-                "helpText": "One line, up to about 60 characters. Only shown in the columns variant.",
+                "helpText": "One line, up to about 60 characters. Shown in the columns and numbered variants.",
                 "validators": { "maxLength": 60 }
               },
               {

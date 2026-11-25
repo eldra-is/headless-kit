@@ -468,8 +468,8 @@ describe('hydrating a prerendered commerce block', () => {
 
       const html = await renderBlockHtml(Navigation, entry);
       // The heart is in the file — it is nobody's state — and its name has no number in it.
-      expect(html).toContain('aria-label="Wishlist"');
-      expect(html).not.toContain('Wishlist, 1 item');
+      expect(html).toContain('aria-label="Saved"');
+      expect(html).not.toContain('Saved, 1 item');
 
       const run = hydrateBlock(Navigation, entry, html);
       runs.push(run);
@@ -478,13 +478,13 @@ describe('hydrating a prerendered commerce block', () => {
       expect(withoutPackageEnhancement(run.firstPaint)).toBe(
         withoutPackageEnhancement(run.expected)
       );
-      expect(run.firstPaint).not.toContain('Wishlist, 1 item');
+      expect(run.firstPaint).not.toContain('Saved, 1 item');
 
       // `onMounted` ran inside the mount; the render it queued is the next tick, and the store's
       // read reaches the count through one more.
       await nextTick();
       await nextTick();
-      expect(run.container.innerHTML).toContain('Wishlist, 1 item');
+      expect(run.container.innerHTML).toContain('Saved, 1 item');
       expect(run.container.innerHTML).toContain('href="/wishlist"');
     });
 

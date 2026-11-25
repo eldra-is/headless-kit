@@ -1,15 +1,16 @@
 {
+  "background": "surface",
   "rows": [
     {
       "image": {
         "assetId": "demo-split-1",
-        "url": "/demo/split-1.svg",
-        "altText": "A potter trimming a bowl on the wheel",
-        "width": 1600,
-        "height": 1200
+        "url": "/images/wheel.webp",
+        "altText": "Hands shaping clay on a potter's wheel",
+        "width": 1400,
+        "height": 933
       },
-      "eyebrow": "The studio",
-      "heading": "Every bowl passes through six pairs of hands",
+      "eyebrow": "The makers",
+      "heading": "Nine workshops, all within a day's drive",
       "text": {
         "type": "doc",
         "content": [
@@ -18,22 +19,22 @@
             "content": [
               {
                 "type": "text",
-                "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
+                "text": "We visit every workshop we sell from. Here are three of them."
               }
             ]
           }
         ]
       },
-      "linkLabel": "Inside the studio",
-      "href": "/pages/studio"
+      "linkLabel": "Read their stories",
+      "href": "/pages/makers"
     },
     {
       "image": {
         "assetId": "demo-split-2",
-        "url": "/demo/split-2.svg",
-        "altText": "Vintage knitting frame mid-row",
-        "width": 1600,
-        "height": 1200
+        "url": "/images/clay-hands.webp",
+        "altText": "A potter's hands working wet clay",
+        "width": 1400,
+        "height": 933
       },
       "eyebrow": "The mill",
       "heading": "Knitted slowly, so it lasts",
@@ -53,6 +54,26 @@
       },
       "linkLabel": "Visit the mill",
       "href": "/pages/mill"
+    }
+  ],
+  "list": [
+    {
+      "title": "Harbour Pottery",
+      "text": "Stoneware, thrown and glazed by hand",
+      "linkLabel": "Shop",
+      "href": "/collections/the-winter-edit"
+    },
+    {
+      "title": "Fell & Fleece",
+      "text": "Knitwear from their own flock",
+      "linkLabel": "Shop",
+      "href": "/collections/winter-knitwear"
+    },
+    {
+      "title": "Kiln Lane",
+      "text": "Small-batch vases and jugs",
+      "linkLabel": "Shop",
+      "href": "/collections/best-sellers"
     }
   ]
 }

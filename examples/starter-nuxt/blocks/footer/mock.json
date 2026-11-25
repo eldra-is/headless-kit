@@ -1,21 +1,16 @@
 {
   "variant": "default",
-  "background": "surface-strong",
+  "background": "primary",
   "brandText": "Northwind Goods",
-  "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+  "address": "14 Harbour Street, Northwind Bay",
+  "phone": "(555) 014-2290",
+  "email": "hello@northwind.example",
+  "hours": "Shop open Mon–Fri 10–18, Sat 10–16",
   "groups": [
     {
       "kind": "none",
       "label": "Shop",
       "children": [
-        {
-          "kind": "collection",
-          "target": {
-            "_type": "collection",
-            "slug": "knitwear"
-          },
-          "label": "Knitwear"
-        },
         {
           "kind": "collection",
           "target": {
@@ -28,9 +23,25 @@
           "kind": "collection",
           "target": {
             "_type": "collection",
+            "slug": "knitwear"
+          },
+          "label": "Knitwear"
+        },
+        {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
             "slug": "kitchen"
           },
           "label": "Kitchen"
+        },
+        {
+          "kind": "collection",
+          "target": {
+            "_type": "collection",
+            "slug": "home"
+          },
+          "label": "Home"
         },
         {
           "kind": "product",
@@ -48,18 +59,18 @@
       "children": [
         {
           "kind": "url",
-          "url": "/pages/shipping",
-          "label": "Shipping"
+          "url": "/pages/delivery",
+          "label": "Delivery"
         },
         {
           "kind": "url",
           "url": "/pages/returns",
-          "label": "Returns"
+          "label": "Returns and exchanges"
         },
         {
           "kind": "url",
-          "url": "/journal/care",
-          "label": "Care guides"
+          "url": "/pages/order-status",
+          "label": "Order status"
         },
         {
           "kind": "url",
@@ -70,7 +81,7 @@
     },
     {
       "kind": "none",
-      "label": "Company",
+      "label": "About",
       "children": [
         {
           "kind": "url",
@@ -80,17 +91,12 @@
         {
           "kind": "url",
           "url": "/pages/makers",
-          "label": "Makers"
+          "label": "The makers"
         },
         {
           "kind": "url",
           "url": "/journal",
           "label": "Journal"
-        },
-        {
-          "kind": "url",
-          "url": "/pages/visit",
-          "label": "Visit the studio"
         }
       ]
     }
@@ -98,8 +104,8 @@
   "links": [
     {
       "kind": "url",
-      "url": "/pages/shipping",
-      "label": "Shipping"
+      "url": "/pages/delivery",
+      "label": "Delivery"
     },
     {
       "kind": "url",
@@ -117,9 +123,9 @@
       "label": "Our story"
     }
   ],
-  "showNewsletter": true,
+  "showNewsletter": false,
   "newsletterTitle": "Letters from the workshop",
-  "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+  "newsletterText": "New pieces and small-batch restocks, once a month.",
   "social": [
     {
       "network": "instagram",
@@ -130,12 +136,8 @@
       "href": "https://pinterest.com/northwindgoods"
     },
     {
-      "network": "tiktok",
-      "href": "https://tiktok.com/@northwindgoods"
-    },
-    {
-      "network": "youtube",
-      "href": "https://youtube.com/@northwindgoods"
+      "network": "facebook",
+      "href": "https://facebook.com/northwindgoods"
     }
   ],
   "legalText": "© 2026 Northwind Goods",
@@ -148,12 +150,7 @@
     {
       "kind": "url",
       "url": "/pages/terms",
-      "label": "Terms"
-    },
-    {
-      "kind": "url",
-      "url": "/pages/accessibility",
-      "label": "Accessibility"
+      "label": "Terms of sale"
     }
   ],
   "showLocale": true,

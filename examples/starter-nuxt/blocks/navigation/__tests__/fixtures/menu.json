@@ -1,0 +1,182 @@
+{
+  "links": [
+    {
+      "kind": "collection",
+      "target": {
+        "_type": "collection",
+        "slug": "knitwear"
+      },
+      "label": "Knitwear",
+      "sections": [
+        {
+          "heading": "Women",
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "womens-sweaters"
+              },
+              "label": "Sweaters"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "womens-cardigans"
+              },
+              "label": "Cardigans"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "scarves-wraps"
+              },
+              "label": "Scarves & wraps"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "hats-gloves"
+              },
+              "label": "Hats & gloves"
+            }
+          ]
+        },
+        {
+          "heading": "Men",
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "mens-sweaters"
+              },
+              "label": "Sweaters"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "mens-cardigans"
+              },
+              "label": "Cardigans"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "mens-scarves"
+              },
+              "label": "Scarves"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "socks"
+              },
+              "label": "Socks"
+            }
+          ]
+        },
+        {
+          "heading": "Collections",
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "merino-essentials"
+              },
+              "label": "Merino essentials"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "heavy-winter-knits"
+              },
+              "label": "Heavy winter knits"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "undyed-wool"
+              },
+              "label": "Undyed wool"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "knitwear"
+              },
+              "label": "Shop all knitwear"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "collection",
+      "target": {
+        "_type": "collection",
+        "slug": "ceramics"
+      },
+      "label": "Ceramics",
+      "sections": [
+        {
+          "heading": "Tableware",
+          "links": [
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "plates"
+              },
+              "label": "Plates"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "bowls"
+              },
+              "label": "Bowls"
+            },
+            {
+              "kind": "collection",
+              "target": {
+                "_type": "collection",
+                "slug": "mugs-cups"
+              },
+              "label": "Mugs & cups"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "collection",
+      "target": {
+        "_type": "collection",
+        "slug": "kitchen"
+      },
+      "label": "Kitchen"
+    },
+    {
+      "kind": "url",
+      "url": "/journal",
+      "label": "Journal"
+    },
+    {
+      "kind": "url",
+      "url": "/pages/visit",
+      "label": "Visit the studio"
+    }
+  ]
+}

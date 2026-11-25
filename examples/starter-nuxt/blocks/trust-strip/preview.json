@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "icon": "needle-thread",
+      "title": "Made by people we know",
+      "text": "Every piece comes from one of nine workshops."
+    },
+    {
+      "icon": "truck",
+      "title": "Free delivery over $80",
+      "text": "Dispatched in 1 to 3 days, or collect from the shop."
+    },
+    {
+      "icon": "arrow-back-up",
+      "title": "30 days to change your mind",
+      "text": "Unused items back for a full refund.",
+      "linkLabel": "30 days to change your mind: our returns policy",
+      "href": "/pages/returns"
+    }
+  ]
+}
