@@ -101,6 +101,7 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
         :key="entry.item.handle"
         :product="entry.product"
         ratio="4x5"
+        class="min-w-0"
         :heading-level="3"
         :link-as="entry.internal ? EldraRouterLink : undefined"
         :currency="entry.currency ?? currency"

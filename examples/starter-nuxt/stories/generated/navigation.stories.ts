@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/navigation/Block.vue';
 import mock from '../../blocks/navigation/mock.json';
+import preview from '../../blocks/navigation/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/navigation",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "navigation", data: base } },
@@ -40,6 +41,18 @@ export const VariantCentered: Story = {
 export const VariantMinimal: Story = {
   args: {
     entry: { id: "navigation", data: { ...base, "variant": "minimal" } },
+  },
+};
+
+export const DrawerLayoutAccordion: Story = {
+  args: {
+    entry: { id: "navigation", data: { ...base, "drawerLayout": "accordion" } },
+  },
+};
+
+export const DrawerLayoutSections: Story = {
+  args: {
+    entry: { id: "navigation", data: { ...base, "drawerLayout": "sections" } },
   },
 };
 

@@ -4,8 +4,15 @@
  * states (spec `02-blocks.md` "Newsletter", lines 1645–1762). Use it once per page. `variant`:
  *  - `centered` (default): everything centred in a 36rem column; the form's own text (label,
  *    error, consent) stays left-aligned so it lines up with the field.
- *  - `split`: from `@content` (64rem) block width, copy left / form right (`1fr 1fr`, 4rem gap,
- *    vertically centred). Below that it stacks like `centered`, left-aligned, full container width.
+ *  - `split`: a rounded band (`radius-xl`) of two equal panels from 961px of block width, stacked
+ *    below that. The right panel is the sign-up on `primary` — it carries `data-section="primary"`,
+ *    the package's own inversion signal, so `Button` and links invert exactly as on a primary
+ *    `Section` — and the left panel, on `surface-strong`, is either a **help panel**
+ *    (`helpHeading`, `helpText` and up to four `contacts` lines: an icon, a label that may be a
+ *    link, and a note in `success` green such as opening hours) when `helpHeading` is set, or the
+ *    block's own heading and text, with the form alone on the right. The help panel comes first in
+ *    the DOM, so its heading is the first one read; the block's `<section>` stays labelled by the
+ *    newsletter heading. Unset, the section ground is `none` here (the band brings its own colours).
  *
  * **The field-row / checkbox / button / consent order** is one CSS grid (`@two-col`, the package's
  * own 36rem container-query token — the same breakpoint `FormLayout`'s own two-column layout uses)
@@ -65,6 +72,7 @@ import {
   FieldWrapper,
   FormLayout,
   Input,
+  Link,
   Section,
   type FormLayoutSubmitPayload,
   type SectionBackground,
@@ -78,6 +86,8 @@ import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
+import { isInternalHref, safeHref } from '../../app/utils/links';
 import FormHoneypot from '../../app/components/FormHoneypot.vue';
 
 const props = defineProps<{ entry: EldraBlockEntry<'newsletter'> }>();
@@ -107,11 +117,44 @@ const variant = computed<Variant>(() => data.value.variant ?? 'centered');
 const isSplit = computed(() => variant.value === 'split');
 
 const sectionBackground = computed<SectionBackground>(
-  () => data.value.sectionBackground ?? 'surface'
+  () => data.value.sectionBackground ?? (isSplit.value ? 'none' : 'surface')
 );
-const isInverted = computed(
-  () => sectionBackground.value === 'primary' || sectionBackground.value === 'accent'
+
+/* ---------------------------------------------------------------------- */
+/* The split band's help panel                                             */
+/* ---------------------------------------------------------------------- */
+
+const helpHeading = computed(() => (isSplit.value ? (data.value.helpHeading ?? '').trim() : ''));
+const hasHelp = computed(() => helpHeading.value !== '');
+const helpText = computed(() => (data.value.helpText ?? '').trim());
+const helpHeadingId = `newsletter-help-heading-${useUiId()}`;
+const contacts = computed(() =>
+  (data.value.contacts ?? [])
+    .map((line) => {
+      const href = safeHref(line.href);
+      return {
+        icon: line.icon || undefined,
+        label: (line.label ?? '').trim(),
+        note: (line.note ?? '').trim(),
+        href,
+        linkAs: href !== null && isInternalHref(href) ? EldraRouterLink : undefined,
+      };
+    })
+    .filter((line) => line.label !== '')
+    .slice(0, 4)
 );
+
+/** Which ground each part sits on: the copy and the form follow the section's own background,
+ *  except in `split`, where the band's panels decide — the form is always on `primary`, the copy on
+ *  `primary` beside a help panel and on `surface-strong` without one. */
+const formGround = computed<SectionBackground>(() =>
+  isSplit.value ? 'primary' : sectionBackground.value
+);
+const copyGround = computed<SectionBackground>(() => {
+  if (!isSplit.value) return sectionBackground.value;
+  return hasHelp.value ? 'primary' : 'surface-strong';
+});
+const isInverted = computed(() => formGround.value === 'primary' || formGround.value === 'accent');
 
 const heading = computed(() => (data.value.heading ?? '').trim());
 const text = computed(() => (data.value.text ?? '').trim());
@@ -135,20 +178,20 @@ const showTextHint = computed(() => isEditing.value && text.value === '');
  *  reads `muted` on those two backgrounds. `undefined` on every other ground leaves the package's
  *  own default (`text-text`) in place. */
 const contrastTextClass = computed<string | undefined>(() => {
-  if (sectionBackground.value === 'primary') return 'text-primary-contrast';
-  if (sectionBackground.value === 'accent') return 'text-accent-contrast';
+  if (formGround.value === 'primary') return 'text-primary-contrast';
+  if (formGround.value === 'accent') return 'text-accent-contrast';
   return undefined;
 });
 const mutedToneClass = computed(() => {
-  if (sectionBackground.value === 'primary') return 'text-primary-contrast/90';
-  if (sectionBackground.value === 'accent') return 'text-accent-contrast/90';
+  if (copyGround.value === 'primary') return 'text-primary-contrast/90';
+  if (copyGround.value === 'accent') return 'text-accent-contrast/90';
   return 'text-muted';
 });
 const consentToneClass = computed(() => {
-  if (sectionBackground.value === 'primary') {
+  if (formGround.value === 'primary') {
     return 'text-primary-contrast/90 [&_a]:text-primary-contrast';
   }
-  if (sectionBackground.value === 'accent') {
+  if (formGround.value === 'accent') {
     return 'text-accent-contrast/90 [&_a]:text-accent-contrast';
   }
   return 'text-muted [&_a]:text-muted';
@@ -164,14 +207,47 @@ const fieldWrapperClasses = computed(() => ({
 }));
 const checkboxClasses = computed(() => ({ label: contrastTextClass.value }));
 
+/** One band panel: 3rem in, 2rem/1.25rem below 761px of block width. */
+const PANEL_CLASS = 'px-5 py-8 @min-[47.5625rem]:p-12';
+const PRIMARY_PANEL_CLASS = `${PANEL_CLASS} bg-primary text-primary-contrast`;
 const outerClass = computed(() =>
   isSplit.value
-    ? '@content:grid @content:grid-cols-2 @content:items-center @content:gap-16'
+    ? 'bg-surface-strong grid overflow-hidden rounded-xl @min-[60.0625rem]:grid-cols-2'
     : 'mx-auto max-w-[36rem] text-center'
 );
-const copyClass = computed(() => (isSplit.value ? 'grid gap-3 text-left' : 'grid gap-3'));
-const formColumnClass = computed(() =>
-  isSplit.value ? 'mt-6 @content:mt-0 text-left' : 'mt-6 text-left'
+/** `split` with a help panel: the copy and the form share the primary panel. */
+const sharedPanelClass = computed(() =>
+  isSplit.value && hasHelp.value ? PRIMARY_PANEL_CLASS : 'contents'
+);
+const copyClass = computed(() => {
+  if (!isSplit.value) return 'grid gap-3';
+  return hasHelp.value ? 'grid gap-3 text-left' : `${PANEL_CLASS} grid content-center gap-3`;
+});
+const formColumnClass = computed(() => {
+  if (!isSplit.value) return 'mt-6 text-left';
+  return hasHelp.value ? 'mt-5 text-left' : `${PRIMARY_PANEL_CLASS} grid content-center`;
+});
+/** `data-section="primary"` on whichever element is the primary panel. */
+const sharedPanelSection = computed(() => (isSplit.value && hasHelp.value ? 'primary' : undefined));
+const formColumnSection = computed(() => (isSplit.value && !hasHelp.value ? 'primary' : undefined));
+const headingClass = computed(() =>
+  isSplit.value
+    ? 'font-heading text-[1.875rem] leading-[1.15] font-medium text-balance'
+    : '@tablet:text-[2rem] text-[1.625rem] leading-tight font-semibold text-balance'
+);
+/** `FormLayout` is its own width container, so these measure the form, not the block. In the band
+ *  (a half-width panel) the field and button share a row once the form is 24rem wide — on a phone
+ *  they stack, as the design's narrow band does. */
+const fieldsClass = computed(() =>
+  isSplit.value
+    ? 'grid gap-3 @min-[24rem]:grid-cols-[1fr_auto] @min-[24rem]:items-end'
+    : 'grid gap-3 @two-col:grid-cols-[1fr_auto] @two-col:items-end'
+);
+const spanAllClass = computed(() =>
+  isSplit.value ? '@min-[24rem]:col-span-2' : '@two-col:col-span-2'
+);
+const submitWidthClass = computed(() =>
+  isSplit.value ? '@min-[24rem]:w-auto w-full' : '@two-col:w-auto w-full'
 );
 
 /* ---------------------------------------------------------------------- */
@@ -304,147 +380,175 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
 
 <template>
   <Section :background="sectionBackground" spacing="md" :labelled-by="headingId">
-    <Container width="content">
+    <Container :width="isSplit ? 'wide' : 'content'">
       <div :class="outerClass">
-        <div :class="copyClass">
-          <h2
-            v-if="heading"
-            :id="headingId"
-            class="@tablet:text-[2rem] text-[1.625rem] leading-tight font-semibold text-balance"
-          >
-            {{ heading }}
-          </h2>
-          <EditorPlaceholder
-            v-else-if="showHeadingHint"
-            :id="headingId"
-            inline
-            :label="t('newsletter.headingHintLabel')"
-          />
-          <p v-if="text" class="text-base leading-[1.6]" :class="mutedToneClass">{{ text }}</p>
-          <EditorPlaceholder
-            v-else-if="showTextHint"
-            inline
-            :label="t('newsletter.textHintLabel')"
-          />
+        <div v-if="hasHelp" :class="PANEL_CLASS">
+          <h2 :id="helpHeadingId" :class="headingClass">{{ helpHeading }}</h2>
+          <p v-if="helpText" class="text-muted mt-3">{{ helpText }}</p>
+          <ul v-if="contacts.length > 0" role="list" class="mt-5 grid gap-3">
+            <li v-for="(line, index) in contacts" :key="index" class="flex items-center gap-3">
+              <EldraIcon
+                v-if="line.icon"
+                :name="line.icon"
+                size="md"
+                class="text-primary shrink-0"
+              />
+              <span>
+                <Link
+                  v-if="line.href !== null"
+                  :href="line.href"
+                  :as="line.linkAs"
+                  class="text-text font-semibold"
+                  >{{ line.label }}</Link
+                >
+                <template v-else>{{ line.label }}</template>
+                <template v-if="line.note">
+                  ·
+                  <span class="text-success font-semibold">{{ line.note }}</span>
+                </template>
+              </span>
+            </li>
+          </ul>
         </div>
 
-        <div :class="formColumnClass">
-          <FormLayout
-            v-if="!succeeded"
-            novalidate
-            :submitting="isSubmitting"
-            :classes="{ fields: 'grid gap-3 @two-col:grid-cols-[1fr_auto] @two-col:items-end' }"
-            @submit="onSubmit"
-            @invalid="onInvalid"
-          >
-            <div ref="emailFieldRoot" class="contents">
-              <FieldWrapper
-                :label="fieldLabelText"
-                :error="emailError ?? undefined"
-                :classes="fieldWrapperClasses"
-              >
-                <Input
-                  v-model="email"
-                  type="email"
-                  name="email"
-                  autocomplete="email"
-                  size="lg"
-                  :placeholder="placeholderText"
-                />
-              </FieldWrapper>
-            </div>
+        <div :class="sharedPanelClass" :data-section="sharedPanelSection">
+          <div :class="copyClass">
+            <h2 v-if="heading" :id="headingId" :class="headingClass">
+              {{ heading }}
+            </h2>
+            <EditorPlaceholder
+              v-else-if="showHeadingHint"
+              :id="headingId"
+              inline
+              :label="t('newsletter.headingHintLabel')"
+            />
+            <p v-if="text" class="text-base leading-[1.6]" :class="mutedToneClass">{{ text }}</p>
+            <EditorPlaceholder
+              v-else-if="showTextHint"
+              inline
+              :label="t('newsletter.textHintLabel')"
+            />
+          </div>
 
-            <FormHoneypot v-model="honeypot" :name="honeypotField" />
-            <div v-if="siteKey" ref="turnstileRoot" class="@two-col:col-span-2 order-2" />
+          <div :class="formColumnClass" :data-section="formColumnSection">
+            <FormLayout
+              v-if="!succeeded"
+              novalidate
+              :submitting="isSubmitting"
+              :classes="{ fields: fieldsClass }"
+              @submit="onSubmit"
+              @invalid="onInvalid"
+            >
+              <div ref="emailFieldRoot" class="contents">
+                <FieldWrapper
+                  :label="fieldLabelText"
+                  :error="emailError ?? undefined"
+                  :classes="fieldWrapperClasses"
+                >
+                  <Input
+                    v-model="email"
+                    type="email"
+                    name="email"
+                    autocomplete="email"
+                    size="lg"
+                    :placeholder="placeholderText"
+                  />
+                </FieldWrapper>
+              </div>
+
+              <FormHoneypot v-model="honeypot" :name="honeypotField" />
+              <div v-if="siteKey" ref="turnstileRoot" class="order-2" :class="spanAllClass" />
+
+              <div
+                v-if="requireConsentCheckbox"
+                ref="checkboxFieldRoot"
+                class="order-2 grid gap-1"
+                :class="spanAllClass"
+              >
+                <Checkbox
+                  v-model="consentChecked"
+                  name="consent"
+                  :invalid="consentError !== null"
+                  :described-by="consentError ? consentErrorId : undefined"
+                  :classes="checkboxClasses"
+                >
+                  {{ consentCheckboxLabelText }}
+                </Checkbox>
+                <p
+                  v-if="consentError"
+                  :id="consentErrorId"
+                  class="text-field-note text-danger flex items-start gap-1.25 font-medium"
+                  :class="errorChipClass"
+                >
+                  <EldraIcon
+                    name="alert-circle"
+                    size="sm"
+                    class="size-4 shrink-0 translate-y-[0.1em]"
+                    aria-hidden="true"
+                  />
+                  <span>{{ consentError }}</span>
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                :class="submitWidthClass"
+                :label="t('newsletter.subscribing')"
+                :aria-describedby="consentSentence ? consentSentenceId : undefined"
+              >
+                {{ buttonLabelText }}
+              </Button>
+
+              <p
+                v-if="consentSentence"
+                :id="consentSentenceId"
+                data-part="consent-sentence"
+                class="text-body-sm order-3"
+                :class="[consentToneClass, spanAllClass]"
+              >
+                {{ consentSentence }}
+              </p>
+
+              <div ref="consentRoot" class="order-3" :class="spanAllClass">
+                <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->
+                <EldraRichText
+                  v-if="hasConsent"
+                  class="prose-eldra text-body-sm"
+                  :class="consentToneClass"
+                  :entry-id="entryId"
+                  field="consent"
+                  :doc="data.consent"
+                  api-id="newsletter"
+                  :min-heading-level="3"
+                />
+              </div>
+            </FormLayout>
 
             <div
-              v-if="requireConsentCheckbox"
-              ref="checkboxFieldRoot"
-              class="@two-col:col-span-2 order-2 grid gap-1"
+              ref="statusRoot"
+              role="status"
+              tabindex="-1"
+              :class="
+                succeeded
+                  ? 'border-border bg-background text-text mt-3 flex items-start gap-3 rounded-lg border p-5'
+                  : ''
+              "
             >
-              <Checkbox
-                v-model="consentChecked"
-                name="consent"
-                :invalid="consentError !== null"
-                :described-by="consentError ? consentErrorId : undefined"
-                :classes="checkboxClasses"
-              >
-                {{ consentCheckboxLabelText }}
-              </Checkbox>
-              <p
-                v-if="consentError"
-                :id="consentErrorId"
-                class="text-field-note text-danger flex items-start gap-1.25 font-medium"
-                :class="errorChipClass"
-              >
+              <template v-if="succeeded">
                 <EldraIcon
-                  name="alert-circle"
-                  size="sm"
-                  class="size-4 shrink-0 translate-y-[0.1em]"
+                  name="circle-check"
+                  size="lg"
+                  class="text-success shrink-0"
                   aria-hidden="true"
                 />
-                <span>{{ consentError }}</span>
-              </p>
+                <div class="grid gap-1">
+                  <p class="font-semibold">{{ successTitleText }}</p>
+                  <p v-if="successTextValue" class="text-muted">{{ successTextValue }}</p>
+                </div>
+              </template>
             </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              class="@two-col:w-auto w-full"
-              :label="t('newsletter.subscribing')"
-              :aria-describedby="consentSentence ? consentSentenceId : undefined"
-            >
-              {{ buttonLabelText }}
-            </Button>
-
-            <p
-              v-if="consentSentence"
-              :id="consentSentenceId"
-              data-part="consent-sentence"
-              class="text-body-sm @two-col:col-span-2 order-3"
-              :class="consentToneClass"
-            >
-              {{ consentSentence }}
-            </p>
-
-            <div ref="consentRoot" class="@two-col:col-span-2 order-3">
-              <!-- Under this block's own `h2`, so any heading in the consent copy starts at `h3`. -->
-              <EldraRichText
-                v-if="hasConsent"
-                class="prose-eldra text-body-sm"
-                :class="consentToneClass"
-                :entry-id="entryId"
-                field="consent"
-                :doc="data.consent"
-                api-id="newsletter"
-                :min-heading-level="3"
-              />
-            </div>
-          </FormLayout>
-
-          <div
-            ref="statusRoot"
-            role="status"
-            tabindex="-1"
-            :class="
-              succeeded
-                ? 'border-border bg-background text-text mt-3 flex items-start gap-3 rounded-lg border p-5'
-                : ''
-            "
-          >
-            <template v-if="succeeded">
-              <EldraIcon
-                name="circle-check"
-                size="lg"
-                class="text-success shrink-0"
-                aria-hidden="true"
-              />
-              <div class="grid gap-1">
-                <p class="font-semibold">{{ successTitleText }}</p>
-                <p v-if="successTextValue" class="text-muted">{{ successTextValue }}</p>
-              </div>
-            </template>
           </div>
         </div>
       </div>

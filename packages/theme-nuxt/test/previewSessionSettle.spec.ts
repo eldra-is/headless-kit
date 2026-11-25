@@ -88,6 +88,68 @@ describe('settling the drafts', () => {
     expect(session.usePreviewSession().status).toBe('ready');
   });
 
+  it('keeps the veil up for work the draft’s render started, then renders once more', async () => {
+    const session = await startSession();
+    const order: string[] = [];
+    let answer = (): void => undefined;
+    const settling = session.settlePreviewSessionDrafts(
+      async () => order.push('reads'),
+      async () => {
+        order.push('render');
+        // The first render starts a read the pinned build never made (a block's new collection).
+        if (order.length === 2) {
+          session.holdPreviewSession(
+            new Promise<void>((resolve) => {
+              answer = () => {
+                order.push('answer');
+                resolve();
+              };
+            })
+          );
+        }
+      }
+    );
+    await vi.waitFor(() => expect(order).toEqual(['reads', 'render']));
+    expect(session.usePreviewSession().status).toBe('pending');
+    answer();
+    await settling;
+    expect(order).toEqual(['reads', 'render', 'answer', 'render']);
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
+
+  it('counts held work that fails as settled', async () => {
+    const session = await startSession();
+    session.holdPreviewSession(Promise.reject(new Error('404')));
+    await session.settlePreviewSessionDrafts(
+      async () => undefined,
+      async () => undefined
+    );
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
+
+  it('holds nothing once the draft is shown', async () => {
+    const session = await startSession();
+    await session.settlePreviewSessionDrafts(
+      async () => undefined,
+      async () => undefined
+    );
+    session.holdPreviewSession(new Promise(() => undefined));
+    expect(session.usePreviewSession().status).toBe('ready');
+  });
+
+  it('ends in the unavailable notice when held work does not settle in time', async () => {
+    vi.useFakeTimers();
+    const session = await startSession();
+    session.holdPreviewSession(new Promise(() => undefined));
+    const settling = session.settlePreviewSessionDrafts(
+      async () => undefined,
+      async () => undefined
+    );
+    await vi.advanceTimersByTimeAsync(session.PREVIEW_SESSION_DRAFT_TIMEOUT_MS);
+    await settling;
+    expect(session.usePreviewSession().status).toBe('unavailable');
+  });
+
   it('never sets it outside a session', async () => {
     vi.resetModules();
     const session = await import('../src/runtime/previewSession');

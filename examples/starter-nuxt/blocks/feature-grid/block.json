@@ -10,8 +10,8 @@
       "fieldId": "variant",
       "name": "Variant",
       "type": "select",
-      "helpText": "cards is the default.",
-      "metadata": { "options": ["cards", "plain"] },
+      "helpText": "cards is the default. arched shows each item as an arch-topped photo with its title and line under it, the whole tile one link, in a single row that scrolls sideways on smaller screens. Use it for category tiles; it always shows images and ignores columns and media type.",
+      "metadata": { "options": ["cards", "plain", "arched"] },
       "validators": { "required": true }
     },
     {

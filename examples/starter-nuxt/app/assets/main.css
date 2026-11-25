@@ -23,8 +23,31 @@
    to this file. */
 @source '../../blocks';
 
+/* The theme's own look on top of the package defaults: colours come from `tokens.json` (Studio can
+   override those per site); type, shape and control size are set here because they are the
+   theme's design, not a merchant setting. Every value is one of the package's own `--eldra-*`
+   variables, so the prebuilt components pick it up with no class overrides.
+
+   Type uses system font stacks on purpose: a serif for headings and the platform sans for body
+   text. No web font is downloaded, so there is no layout shift and nothing to licence; a theme that
+   wants a brand face loads it and names it first in these two stacks. */
 :root {
   color-scheme: light;
+  --eldra-font-heading:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Charter, 'Bitstream Charter',
+    Georgia, serif;
+  --eldra-font-body:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --eldra-text-display-weight: 500;
+  --eldra-text-display-tracking: -0.015em;
+  --eldra-text-h1-weight: 500;
+  --eldra-text-h1-tracking: -0.015em;
+  --eldra-text-h2-weight: 500;
+  --eldra-text-h2-tracking: -0.01em;
+  --eldra-text-h3-weight: 500;
+  --eldra-radius-xl: 1.25rem;
+  --eldra-control-height: 2.75rem;
+  --eldra-control-height-lg: 3.25rem;
 }
 
 /* Hides the native scrollbar on a scroll-snap carousel track while keeping

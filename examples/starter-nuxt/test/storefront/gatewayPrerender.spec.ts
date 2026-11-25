@@ -329,6 +329,32 @@ describe('gateway storefront — prerendered results', () => {
   });
 });
 
+describe('gateway storefront — the loads it hands the runtime', () => {
+  it('hands over every load, settled once its answer is written, and a reload too', async () => {
+    const calls = fakeClient();
+    const held: Array<Promise<void>> = [];
+    const storefront = createGatewayStorefront(calls.client, {
+      route: fakeRoute(),
+      // A draft preview session keeps its veil up for these (`holdPreviewSession`).
+      runtime: { hold: (load) => held.push(load) },
+    });
+
+    const collection = ref({ slug: 'winter-knitwear' });
+    const grid = storefront.catalog.collectionProducts(collection, ref({ pageSize: 24, page: 1 }));
+    expect(held).toHaveLength(1);
+    expect(grid.pending.value).toBe(true);
+    await held[0];
+    expect(grid.pending.value).toBe(false);
+    expect(grid.data.value?.items).toHaveLength(2);
+
+    collection.value = { slug: 'the-winter-edit' };
+    await nextTick();
+    expect(held).toHaveLength(2);
+    await held[1];
+    expect(grid.pending.value).toBe(false);
+  });
+});
+
 describe('gateway storefront — the volatile refresh after hydration', () => {
   /**
    * Asserted at the URL the SDK actually sends: `filter` is the gateway's one repeatable

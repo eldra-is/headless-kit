@@ -124,6 +124,38 @@ skipped heading level, unique ids across every block instance on the page, and t
 page-level gate `docs/starter-kit.md`'s testing section describes. Use them as a starting point for
 your own site's pages, or as a reference for how a set of blocks composes.
 
+The fixtures are also what a first deploy seeds, so their header and footer carry no menu, links or
+store details (`test/starter.spec.ts` holds them to it). The page stories fill those in from the
+header's and footer's own demo data (`stories/support/demoChrome.ts`), so Storybook shows the theme
+as a filled-in store.
+
+## Where each page-builder feature lives
+
+Every theme feature the page builder offers has a working example in this starter:
+
+| Feature                                                                  | Where                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header and footer as reusable components (`@header` / `@footer` regions) | `blocks/navigation`, `blocks/footer`; the roles come from `pages/home.page.json` through `starterTemplateRoles()` in `app/templates.ts`, and every page fixture places them                                                      |
+| Menus with sections, product cards, badges and "see all" links           | `blocks/navigation/block.json` (`links` declares `tree.sections` and `cards`), drawn by `Block.vue` through `@eldrajs/ui`'s `NavMenu`; demo menu in `blocks/navigation/mock.json` / `preview.json`                               |
+| Grouped menu children moved to sections (migration step)                 | `blocks/navigation/block.json`, `migrations` version 5: `groupsToSections`                                                                                                                                                       |
+| Phone menu layout the merchant picks                                     | `blocks/navigation` `drawerLayout` (`accordion` / `sections`)                                                                                                                                                                    |
+| Header info strip, labelled tools, a square mark for small phones        | `blocks/navigation` `infoItems`, `brandMark`, `account`                                                                                                                                                                          |
+| Seeded route templates and static pages                                  | `pages/*.page.json` and `app/templates.ts`; `/cart`, `/wishlist`, `/search`, `/products` are page seeds with their one block `required`                                                                                          |
+| Form seeds                                                               | `app/formSeeds.ts`; rendered by `blocks/contact`, `blocks/newsletter`, `blocks/footer`                                                                                                                                           |
+| Design tokens a merchant can override in Studio                          | `tokens.json`, read by `app/assets/main.css` (the Northwind palette and type)                                                                                                                                                    |
+| Theme texts a merchant can override or translate                         | `i18n/en-US.json`, `i18n/is-IS.json`                                                                                                                                                                                             |
+| Shopping in more than one currency                                       | `CurrencyPicker` in `blocks/navigation` (drawer on phones) and `blocks/footer`; prices through `app/storefront/money.ts` (see [Prices and the store currency](#prices-and-the-store-currency))                                   |
+| Block slots                                                              | `blocks/hero/block.json` `slots` (see [Block slots](#block-slots))                                                                                                                                                               |
+| Variants a merchant switches between                                     | e.g. `hero` `card`, `trust-strip` `numbered`, `feature-grid` `arched`, `collection-grid` `filter-bar`; Storybook draws one story per variant                                                                                     |
+| Image fields with framing                                                | hero, feature-grid, split-content, collection-header and product cards (`app/components/ui/UiImage.vue`)                                                                                                                         |
+| Lightbox zoom                                                            | `blocks/product-detail/parts/Gallery.vue` (`zoom`)                                                                                                                                                                               |
+| A fixed header that does not widen when a dialog opens                   | `blocks/navigation/Block.vue`, `padding-right: var(--eldra-scrollbar-width)` on the fixed bar                                                                                                                                    |
+| Draft preview sessions and live/preview parity                           | runtime behaviour of `@eldrajs/theme-nuxt` (`docs/themes.md`); `test/previewParity.browser.spec.ts` proves a session renders these pages as the live site does. Off until the kit release that declares the capability (WS-1375) |
+| `robots.txt` and `sitemap.xml` from the crawl settings                   | written by `@eldrajs/theme-nuxt` on a production build; nothing to add in the theme                                                                                                                                              |
+
+Not shown here: `Tabs` `size="sm"`/`fill` (meant for compact tool panels, not a storefront), and
+`@eldrajs/nuxt`'s 404 for unbuilt paths, which would add a dependency to the starter.
+
 ## Storefront forms
 
 Forms come from the platform: a merchant builds them on Studio's Forms page, and the `form` block

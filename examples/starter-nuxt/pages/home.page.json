@@ -3,25 +3,15 @@
   "title": "Home",
   "blocks": [
     {
-      "apiId": "announcement-bar",
-      "id": "home-announcement",
-      "data": {
-        "variant": "primary",
-        "message": "Free shipping on orders over $80",
-        "linkLabel": "Details",
-        "linkHref": "/pages/shipping",
-        "dismissable": true
-      }
-    },
-    {
       "apiId": "navigation",
       "id": "home-navigation",
       "data": {
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -30,127 +20,155 @@
       "apiId": "hero",
       "id": "home-hero",
       "data": {
-        "variant": "image-right",
-        "eyebrow": "New season",
+        "variant": "card",
+        "eyebrow": "New this season",
         "heading": "Made slowly, used daily",
-        "subheading": "Merino knits, hand-thrown stoneware and kitchen goods from small workshops. Made to be used every day and kept for years.",
+        "subheading": "Stoneware, knitwear and kitchen goods from small workshops, chosen to be used every day and kept for years.",
         "primaryCtaLabel": "Shop new arrivals",
-        "primaryCtaHref": "/collections/new",
-        "secondaryCtaLabel": "Our story",
-        "secondaryCtaHref": "/pages/about",
+        "primaryCtaHref": "/collections/the-winter-edit",
+        "secondaryCtaLabel": "Meet the makers",
+        "secondaryCtaHref": "/pages/makers",
         "spacing": "md",
         "image": {
           "assetId": "demo-hero",
-          "url": "/demo/hero.svg",
-          "altText": "Speckled stoneware serving bowl on a linen cloth",
-          "width": 1600,
-          "height": 1000
+          "url": "/images/hero.webp",
+          "altText": "Rows of pale green and white ceramic bottles",
+          "width": 1400,
+          "height": 933
         },
-        "slides": [
-          {
-            "image": {
-              "assetId": "demo-hero-slide-1",
-              "url": "/demo/hero-slide-1.svg",
-              "altText": "Terracotta serving bowl",
-              "width": 1200,
-              "height": 1500
-            },
-            "alt": "Terracotta serving bowl",
-            "href": "/products/serving-bowl"
-          },
-          {
-            "image": {
-              "assetId": "demo-hero-slide-2",
-              "url": "/demo/hero-slide-2.svg",
-              "altText": "Sage glazed mug",
-              "width": 1200,
-              "height": 1500
-            },
-            "alt": "Sage glazed mug",
-            "href": "/products/latte-mug"
-          },
-          {
-            "image": {
-              "assetId": "demo-hero-slide-3",
-              "url": "/demo/hero-slide-3.svg",
-              "altText": "Folded linen napkins",
-              "width": 1200,
-              "height": 1500
-            },
-            "alt": "Folded linen napkins",
-            "href": "/products/linen-napkins"
-          },
-          {
-            "image": {
-              "assetId": "demo-hero-slide-4",
-              "url": "/demo/hero-slide-4.svg",
-              "altText": "Grey stoneware plates",
-              "width": 1200,
-              "height": 1500
-            },
-            "alt": "Grey stoneware plates",
-            "href": "/products/dinner-plates"
-          }
-        ]
+        "captionLabel": "Glazed milk jug",
+        "captionDetail": "$34",
+        "captionHref": "/products/glazed-milk-jug"
       }
     },
     {
       "apiId": "trust-strip",
       "id": "home-trust-strip",
       "data": {
-        "variant": "columns",
+        "variant": "numbered",
         "items": [
           {
+            "icon": "needle-thread",
+            "title": "Made by people we know",
+            "text": "Every piece comes from one of nine workshops."
+          },
+          {
             "icon": "truck",
-            "title": "Free shipping over $80",
-            "text": "Delivered in 2–4 business days, carbon-neutral."
+            "title": "Free delivery over $80",
+            "text": "Dispatched in 1 to 3 days, or collect from the shop."
           },
           {
             "icon": "arrow-back-up",
-            "title": "30-day returns",
-            "text": "Changed your mind? Send it back free of charge.",
-            "linkLabel": "30-day returns",
+            "title": "30 days to change your mind",
+            "text": "Unused items back for a full refund.",
+            "linkLabel": "30 days to change your mind: our returns policy",
             "href": "/pages/returns"
-          },
-          {
-            "icon": "shield-check",
-            "title": "Secure payment",
-            "text": "Encrypted checkout, and we never store card details."
-          },
-          {
-            "icon": "needle-thread",
-            "title": "Made by hand",
-            "text": "In small batches by four family-run workshops."
           }
         ],
         "mobileLayout": "grid",
-        "showPayments": true,
-        "paymentsLabel": "Secure checkout with",
-        "payments": [
+        "showPayments": false,
+        "background": "none"
+      }
+    },
+    {
+      "apiId": "feature-grid",
+      "id": "home-categories",
+      "data": {
+        "variant": "arched",
+        "heading": "Shop by category",
+        "headLinkLabel": "All categories",
+        "headLinkHref": "/products",
+        "columns": "4",
+        "mediaType": "image",
+        "items": [
           {
-            "brand": "visa"
+            "image": {
+              "assetId": "demo-feature-1",
+              "url": "/images/terracotta.webp",
+              "altText": "Handmade terracotta bowls and jugs",
+              "width": 1400,
+              "height": 933
+            },
+            "title": "Ceramics",
+            "text": "Mugs, bowls, vases",
+            "href": "/categories/home/ceramics"
           },
           {
-            "brand": "mastercard"
+            "image": {
+              "assetId": "demo-feature-2",
+              "url": "/images/yarn-tools.webp",
+              "altText": "Yarn and knitting needles on a table",
+              "width": 1400,
+              "height": 933
+            },
+            "title": "Knitwear",
+            "text": "Sweaters, throws and yarn",
+            "href": "/categories/knitwear"
           },
           {
-            "brand": "paypal"
+            "image": {
+              "assetId": "demo-feature-3",
+              "url": "/images/enamel-cups.webp",
+              "altText": "Enamel cups on a table",
+              "width": 1400,
+              "height": 933
+            },
+            "title": "Tableware",
+            "text": "Cups, plates and platters",
+            "href": "/collections/the-winter-edit"
           },
           {
-            "brand": "apple-pay"
+            "image": {
+              "assetId": "demo-feature-4",
+              "url": "/images/reading.webp",
+              "altText": "A reader under a knitted throw",
+              "width": 1400,
+              "height": 933
+            },
+            "title": "Home",
+            "text": "Throws and cushions",
+            "href": "/categories/home"
+          },
+          {
+            "image": {
+              "assetId": "demo-feature-5",
+              "url": "/images/kitchen.webp",
+              "altText": "A laid kitchen table",
+              "width": 1400,
+              "height": 840
+            },
+            "title": "Kitchen",
+            "text": "Boards, jars and linen",
+            "href": "/categories/home/kitchen"
           }
-        ],
-        "background": "surface"
+        ]
       }
     },
     {
       "apiId": "product-carousel",
       "id": "home-product-carousel",
       "data": {
-        "heading": "New this season",
-        "variant": "collection",
-        "limit": "8",
+        "eyebrow": "Just in",
+        "heading": "New arrivals",
         "viewAllLabel": "View all",
+        "variant": "collection",
+        "layout": "grid",
+        "limit": "8",
+        "quickAdd": true,
+        "filters": [
+          {
+            "label": "Ceramics",
+            "category": "ceramics"
+          },
+          {
+            "label": "Knitwear",
+            "category": "knitwear"
+          },
+          {
+            "label": "Kitchen",
+            "category": "kitchen"
+          }
+        ],
         "showSwatches": true,
         "background": "none",
         "sourceCollection": {
@@ -164,17 +182,18 @@
       "id": "home-split-content",
       "data": {
         "startWith": "image-left",
+        "background": "surface",
         "rows": [
           {
             "image": {
               "assetId": "demo-split-1",
-              "url": "/demo/split-1.svg",
-              "altText": "A potter trimming a bowl on the wheel",
-              "width": 1600,
-              "height": 1200
+              "url": "/images/wheel.webp",
+              "altText": "Hands shaping clay on a potter's wheel",
+              "width": 1400,
+              "height": 933
             },
-            "eyebrow": "The studio",
-            "heading": "Every bowl passes through six pairs of hands",
+            "eyebrow": "The makers",
+            "heading": "Nine workshops, all within a day's drive",
             "text": {
               "type": "doc",
               "content": [
@@ -183,113 +202,112 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
+                      "text": "We visit every workshop we sell from. Here are three of them."
                     }
                   ]
                 }
               ]
             },
-            "linkLabel": "Inside the studio",
-            "href": "/pages/studio"
+            "linkLabel": "Read their stories",
+            "href": "/pages/makers"
+          }
+        ],
+        "list": [
+          {
+            "title": "Harbour Pottery",
+            "text": "Stoneware, thrown and glazed by hand",
+            "linkLabel": "Shop",
+            "href": "/collections/the-winter-edit"
           },
           {
-            "image": {
-              "assetId": "demo-split-2",
-              "url": "/demo/split-2.svg",
-              "altText": "Vintage knitting frame mid-row",
-              "width": 1600,
-              "height": 1200
-            },
-            "eyebrow": "The mill",
-            "heading": "Knitted slowly, so it lasts",
-            "text": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Our sweaters are knitted on vintage frames at a third of the usual speed. The tighter stitch holds its shape through ten winters or more."
-                    }
-                  ]
-                }
-              ]
-            },
-            "linkLabel": "Visit the mill",
-            "href": "/pages/mill"
+            "title": "Fell & Fleece",
+            "text": "Knitwear from their own flock",
+            "linkLabel": "Shop",
+            "href": "/collections/winter-knitwear"
+          },
+          {
+            "title": "Kiln Lane",
+            "text": "Small-batch vases and jugs",
+            "linkLabel": "Shop",
+            "href": "/collections/best-sellers"
           }
         ]
       }
     },
     {
-      "apiId": "testimonials",
-      "id": "home-testimonials",
+      "apiId": "article-list",
+      "id": "home-article-list",
       "data": {
         "variant": "grid",
-        "heading": "Used every day, reviewed honestly",
-        "summary": "4.8 out of 5 from 9,214 verified reviews",
-        "linkLabel": "Read all reviews",
-        "linkHref": "/pages/reviews",
+        "heading": "From the journal",
+        "viewAllLabel": "All articles",
+        "viewAllHref": "/journal",
+        "source": "manual",
+        "perPage": "3",
+        "showFilters": false,
+        "showPagination": false,
+        "showExcerpt": false,
         "items": [
           {
-            "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
-            "name": "Hannah Reeve",
-            "meta": "Portland, OR · Speckled latte mug",
-            "rating": "5",
-            "productLabel": "Speckled latte mug",
-            "productHref": "/products/latte-mug",
-            "avatar": {
-              "assetId": "demo-avatar-1",
-              "url": "/demo/avatar-1.svg",
-              "altText": "",
-              "width": 256,
-              "height": 256
+            "title": "Five small rituals for a slower morning coffee",
+            "dek": "Warm the cup, grind by hand, sit down to drink it. Small habits that make the first ten minutes of the day your own.",
+            "href": "/journal/slower-morning-coffee",
+            "categoryLabel": "At home",
+            "categoryHref": "/journal/home",
+            "publishedAt": "2026-10-02",
+            "readingTime": "4 min read",
+            "image": {
+              "assetId": "demo-journal-1",
+              "url": "/images/coffee-table.webp",
+              "altText": "A polka-dot mug of coffee with biscuits and reading glasses",
+              "width": 1400,
+              "height": 933
             }
           },
           {
-            "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
-            "name": "Marcus Bell",
-            "meta": "Austin, TX · Lambswool throw",
-            "rating": "5",
-            "productLabel": "Lambswool throw blanket",
-            "productHref": "/products/lambswool-throw",
-            "avatar": {
-              "assetId": "demo-avatar-2",
-              "url": "/demo/avatar-2.svg",
-              "altText": "",
-              "width": 256,
-              "height": 256
+            "title": "A morning at the wheel with Harbour Pottery",
+            "dek": "Six pairs of hands, two firings and a kiln that always has the last word. We spent a morning in the studio.",
+            "href": "/journal/harbour-pottery",
+            "categoryLabel": "Workshop visit",
+            "categoryHref": "/journal/makers",
+            "publishedAt": "2026-09-24",
+            "readingTime": "6 min read",
+            "image": {
+              "assetId": "demo-journal-2",
+              "url": "/images/clay-hands.webp",
+              "altText": "A potter's hands working wet clay",
+              "width": 1400,
+              "height": 933
             }
           },
           {
-            "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
-            "name": "Priya Nair",
-            "meta": "Minneapolis, MN · Stoneware dinner plates",
-            "rating": "4",
-            "productLabel": "Stoneware dinner plates",
-            "productHref": "/products/dinner-plates",
-            "avatar": {
-              "assetId": "demo-avatar-3",
-              "url": "/demo/avatar-3.svg",
-              "altText": "",
-              "width": 256,
-              "height": 256
+            "title": "Layering throws for a colder season",
+            "dek": "Wool over linen, heavy over light: how to build a sofa corner that keeps you warm from October to April.",
+            "href": "/journal/layering-throws",
+            "categoryLabel": "Knitting",
+            "categoryHref": "/journal/care",
+            "publishedAt": "2026-09-12",
+            "readingTime": "3 min read",
+            "image": {
+              "assetId": "demo-journal-3",
+              "url": "/images/throws.webp",
+              "altText": "Folded knitted throws in green and grey",
+              "width": 1400,
+              "height": 910
             }
           }
-        ],
-        "sectionBackground": "none"
+        ]
       }
     },
     {
       "apiId": "newsletter",
       "id": "home-newsletter",
       "data": {
-        "variant": "centered",
+        "variant": "split",
         "heading": "Letters from the workshop",
-        "text": "New makers, restocks and first pick of our seconds sales, once a month. Take 10% off your first order when you join.",
+        "text": "New pieces and small-batch restocks, once a month. Take 10% off your first order when you join.",
         "fieldLabel": "Email address",
-        "placeholder": "name@example.com",
+        "placeholder": "you@example.com",
         "buttonLabel": "Subscribe",
         "consent": {
           "type": "doc",
@@ -299,7 +317,7 @@
               "content": [
                 {
                   "type": "text",
-                  "text": "One email a month, never shared. Read our "
+                  "text": "Unsubscribe at any time. Read our "
                 },
                 {
                   "type": "text",
@@ -315,18 +333,35 @@
                 },
                 {
                   "type": "text",
-                  "text": "; unsubscribe with one click."
+                  "text": "."
                 }
               ]
             }
           ]
         },
         "requireConsentCheckbox": false,
-        "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
         "successTitle": "You're on the list",
         "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
-        "list": "letters-from-the-workshop",
-        "sectionBackground": "surface"
+        "helpHeading": "Questions before you buy?",
+        "helpText": "Sizes, glazes, gift ideas: we know every piece in the shop.",
+        "contacts": [
+          {
+            "icon": "phone",
+            "label": "(555) 014-2290",
+            "href": "tel:+15550142290"
+          },
+          {
+            "icon": "mail",
+            "label": "hello@northwind.example",
+            "href": "mailto:hello@northwind.example"
+          },
+          {
+            "icon": "map-pin",
+            "label": "14 Harbour Street",
+            "note": "open today until 18:00"
+          }
+        ],
+        "sectionBackground": "none"
       }
     },
     {
@@ -334,7 +369,7 @@
       "id": "home-footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],

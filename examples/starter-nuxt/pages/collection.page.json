@@ -9,8 +9,9 @@
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -89,10 +90,10 @@
         ],
         "image": {
           "assetId": "demo-collection-1",
-          "url": "/demo/collection-1.svg",
-          "altText": "Folded winter knitwear in oat, charcoal and moss",
-          "width": 1600,
-          "height": 1067
+          "url": "/images/sweater.webp",
+          "altText": "A folded knitted sweater",
+          "width": 1400,
+          "height": 933
         }
       }
     },
@@ -104,8 +105,8 @@
           "_type": "collection",
           "slug": "the-winter-edit"
         },
-        "variant": "sidebar",
-        "columns": "3",
+        "variant": "filter-bar",
+        "columns": "4",
         "pageSize": "24",
         "paginationStyle": "load-more",
         "sortOptions": [
@@ -147,7 +148,7 @@
             "label": "Availability"
           }
         ],
-        "showColumnSelect": true,
+        "showColumnSelect": false,
         "emptyTitle": "No products match these filters",
         "emptyText": "Try removing a filter or widening the price range."
       }
@@ -163,10 +164,10 @@
         "primaryCtaHref": "/products/gift-card",
         "image": {
           "assetId": "demo-cta-split",
-          "url": "/demo/cta-split.svg",
-          "altText": "Darned elbow of a sage wool sweater",
-          "width": 1200,
-          "height": 900
+          "url": "/images/planters.webp",
+          "altText": "Ceramic planters with green plants",
+          "width": 932,
+          "height": 1400
         }
       }
     },
@@ -175,12 +176,12 @@
       "id": "collection-footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
-        "showNewsletter": true,
+        "showNewsletter": false,
         "newsletterTitle": "Letters from the workshop",
         "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
         "social": [],

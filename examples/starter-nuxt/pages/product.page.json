@@ -3,25 +3,15 @@
   "title": "Product",
   "blocks": [
     {
-      "apiId": "announcement-bar",
-      "id": "product-announcement",
-      "data": {
-        "variant": "primary",
-        "message": "Free shipping on orders over $80",
-        "linkLabel": "Details",
-        "linkHref": "/pages/shipping",
-        "dismissable": true
-      }
-    },
-    {
       "apiId": "navigation",
       "id": "product-navigation",
       "data": {
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -36,7 +26,7 @@
         "fromProduct": true,
         "currentTitle": "Merino crew sweater",
         "showCurrent": true,
-        "container": "content"
+        "container": "wide"
       }
     },
     {
@@ -52,13 +42,18 @@
         "perks": [
           {
             "icon": "truck",
-            "title": "Free delivery over $80.",
-            "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+            "title": "Free delivery",
+            "text": "on orders over $80"
+          },
+          {
+            "icon": "building-store",
+            "title": "Collect for free",
+            "text": "from our Portland studio, usually the next day"
           },
           {
             "icon": "arrow-back-up",
-            "title": "Free 30-day returns.",
-            "text": "Unworn, with tags, no questions asked."
+            "title": "30-day returns",
+            "text": "on unworn items, with tags"
           }
         ],
         "tabs": [
@@ -67,15 +62,6 @@
             "body": {
               "type": "doc",
               "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
-                    }
-                  ]
-                },
                 {
                   "type": "bulletList",
                   "content": [
@@ -101,7 +87,7 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Hand wash cold or wool cycle, dry flat"
+                              "text": "Knitted in a family mill in Biella, Italy"
                             }
                           ]
                         }
@@ -115,7 +101,7 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Model is 180 cm and wears size M"
+                              "text": "Relaxed fit; the model is 180 cm and wears size M"
                             }
                           ]
                         }
@@ -127,16 +113,40 @@
             }
           },
           {
-            "label": "Shipping",
+            "label": "Care",
             "body": {
               "type": "doc",
               "content": [
                 {
-                  "type": "paragraph",
+                  "type": "bulletList",
                   "content": [
                     {
-                      "type": "text",
-                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Hand wash cold or use a wool cycle"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Dry flat, away from direct heat"
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }
@@ -144,7 +154,7 @@
             }
           },
           {
-            "label": "Returns",
+            "label": "Delivery and returns",
             "body": {
               "type": "doc",
               "content": [
@@ -153,7 +163,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later; delivery costs are shown before you pay. Send anything unworn back within 30 days with the prepaid label in your parcel."
                     }
                   ]
                 }
@@ -304,12 +314,12 @@
       "id": "product-footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
-        "showNewsletter": true,
+        "showNewsletter": false,
         "newsletterTitle": "Letters from the workshop",
         "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
         "social": [],

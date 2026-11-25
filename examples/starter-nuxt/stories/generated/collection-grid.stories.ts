@@ -56,6 +56,12 @@ export const VariantDrawerOnly: Story = {
   },
 };
 
+export const VariantFilterBar: Story = {
+  args: {
+    entry: { id: "collection-grid", data: { ...base, "variant": "filter-bar" } },
+  },
+};
+
 export const Columns2: Story = {
   args: {
     entry: { id: "collection-grid", data: { ...base, "columns": "2" } },

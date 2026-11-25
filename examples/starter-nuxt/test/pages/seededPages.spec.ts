@@ -5,7 +5,7 @@
 // (`pages/{cart,wishlist,search,products}.page.json`, `app/templates.ts`'s `starterPages()`).
 //
 // One spec for all three rather than three near-identical files: they are the same page by design —
-// announcement bar, the shared header, breadcrumbs, the one block the page exists for, a
+// the shared header (which carries its own info strip), breadcrumbs, the one block the page exists for, a
 // recently-viewed carousel, the shared footer — and what each of them is *for* is the block in the
 // middle. The per-page table below is the whole difference.
 //
@@ -86,7 +86,6 @@ const PAGES: SeededPage[] = [
 
 function expectedApiIds(page: SeededPage): string[] {
   return [
-    'announcement-bar',
     'navigation',
     'breadcrumbs',
     ...(page.above === undefined ? [] : [page.above]),
@@ -111,10 +110,13 @@ describe.each(PAGES)('the seeded $slug page', (page) => {
 
     const roots = pageBlockRoots(wrapper);
     expect(roots).toHaveLength(expectedApiIds(page).length);
-    expect(roots[1]!.tagName).toBe('HEADER');
+    // Indexed off the expected order rather than literal positions, so a block added or removed
+    // ahead of them cannot silently point these at the wrong root.
+    const ids = expectedApiIds(page);
+    expect(roots[ids.indexOf('navigation')]!.tagName).toBe('HEADER');
     expect(roots.at(-1)!.tagName).toBe('FOOTER');
     // Breadcrumbs stays inside `<main>`: it renders a `<nav>`, a landmark wherever it sits.
-    expect(roots[2]!.querySelector('nav[aria-label]')).not.toBeNull();
+    expect(roots[ids.indexOf('breadcrumbs')]!.querySelector('nav[aria-label]')).not.toBeNull();
   });
 
   it('has exactly one h1, and it is the block that owns the page’s title', async () => {
@@ -153,7 +155,7 @@ describe('the page seeds built from those fixtures', () => {
     for (const [index, seed] of seeds.entries()) {
       const page = PAGES[index]!;
       expect(seed.title).toBe(page.title);
-      // The announcement bar precedes the header, exactly as the fixture has it: a region is a
+      // The header leads, exactly as the fixture has it: a region is a
       // placement in the page's own order, not a frame around it.
       expect(
         seed.blocks.map((entry) => ('role' in entry ? `@${entry.role}` : entry.apiId))
@@ -171,7 +173,10 @@ describe('the page seeds built from those fixtures', () => {
         (entry) => 'required' in entry && entry.required === true
       );
       expect(required).toHaveLength(1);
-      expect(required[0]).toMatchObject({ apiId: PAGES[index]!.fixed, required: true });
+      expect(required[0]).toMatchObject({
+        apiId: PAGES[index]!.fixed,
+        required: true,
+      });
     }
   });
 

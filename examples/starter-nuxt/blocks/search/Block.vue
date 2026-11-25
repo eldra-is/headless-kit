@@ -504,6 +504,7 @@ const headingClass =
               :key="entry.item.handle"
               :product="entry.product"
               ratio="4x5"
+              class="min-w-0"
               :heading-level="2"
               :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="entry.currency ?? currency"

@@ -5,25 +5,15 @@
   "title": "Search",
   "blocks": [
     {
-      "apiId": "announcement-bar",
-      "id": "search-announcement",
-      "data": {
-        "variant": "primary",
-        "message": "Free shipping on orders over $80",
-        "linkLabel": "Details",
-        "linkHref": "/pages/shipping",
-        "dismissable": true
-      }
-    },
-    {
       "apiId": "navigation",
       "id": "search-navigation",
       "data": {
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -64,7 +54,7 @@
       "id": "search-footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],

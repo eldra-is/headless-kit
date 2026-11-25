@@ -185,6 +185,12 @@ interface CardView {
   readingTime: string | null;
   image: { src: string; alt: string; width?: number; height?: number } | null;
   featured: boolean;
+  /**
+   * "At home · 4 min read": the category and the reading time, the small line above the title. Two
+   * nodes, each value exactly as stored: Studio finds a field to edit inline by its value, one per
+   * text node, so a joined string would leave the reading time uneditable.
+   */
+  kicker: string[];
 }
 
 const cards = computed<CardView[]>(() =>
@@ -202,38 +208,60 @@ const cards = computed<CardView[]>(() =>
       readingTime: (item.readingTime ?? '').trim() || null,
       image: media ? { src: media.url, alt: '', width: media.width, height: media.height } : null,
       featured: isFeaturedFirst.value && index === 0,
+      kicker: [item.categoryLabel, item.readingTime].filter(
+        (part): part is string => typeof part === 'string' && part.trim() !== ''
+      ),
     };
   })
 );
 
-/** Static, variant-keyed class lookups (Tailwind cannot see a dynamically built class name). */
-const GRID_ROOT_CLASS =
-  'grid grid-cols-1 gap-y-8 @tablet:grid-cols-2 @tablet:gap-x-6 @tablet:gap-y-12 @content:grid-cols-3 @content:gap-x-8';
+/**
+ * The theme's journal card, on every variant (`ContentCard` restyled through `classes`, never
+ * forked): the category and reading time as one small muted line *above* the title (the card's
+ * `eyebrow` part, its overline look undone), the title in the heading serif at 1.375rem, weight
+ * 500, not underlined until hover, and a 0.75rem rhythm. The date, when a story has one, stays in
+ * the card's own meta line under the title.
+ */
+const NO_UNDERLINE_UNTIL_HOVER =
+  'no-underline group-hover:underline group-hover:decoration-1 group-hover:decoration-current ' +
+  'group-hover:underline-offset-[0.2em]';
+const BASE_CARD_CLASSES: Partial<Record<ContentCardPart, string>> = {
+  body: 'gap-1.5',
+  eyebrow: 'text-muted text-[0.8125rem] leading-[1.4] font-normal normal-case tracking-[0.04em]',
+  title: 'font-heading text-[1.375rem] leading-[1.25] font-medium tracking-normal',
+  titleLink: NO_UNDERLINE_UNTIL_HOVER,
+};
+
+/** Static, variant-keyed class lookups (Tailwind cannot see a dynamically built class name). One
+ *  column until 961px of block width, three from there. */
+const GRID_ROOT_CLASS = 'grid grid-cols-1 gap-8 @min-[60.0625rem]:grid-cols-3';
 const LIST_ROOT_CLASS = 'flex flex-col border-t border-border';
 const listContainerClass = computed(() => (isList.value ? LIST_ROOT_CLASS : GRID_ROOT_CLASS));
 
 const FEATURED_CARD_CLASS =
   'grid gap-6 @tablet:grid-cols-[7fr_5fr] @tablet:items-center @tablet:gap-8 @content:gap-12';
 const FEATURED_CARD_CLASSES: Partial<Record<ContentCardPart, string>> = {
-  title: '@content:text-[2rem] @content:leading-[1.15]',
-  body: '@content:gap-4',
+  ...BASE_CARD_CLASSES,
+  title: `${BASE_CARD_CLASSES.title} @content:text-[2rem] @content:leading-[1.15]`,
+  body: 'gap-1.5 @content:gap-3',
 };
 const LIST_CARD_CLASS =
   'grid grid-cols-[6.5rem_1fr] items-start gap-4 @tablet:grid-cols-[15rem_1fr] @tablet:items-center @tablet:gap-8';
 const LIST_CARD_CLASSES: Partial<Record<ContentCardPart, string>> = {
+  ...BASE_CARD_CLASSES,
   excerpt: '@max-tablet:hidden',
 };
 
-function cardClass(card: CardView): string | undefined {
+function cardClass(card: CardView): string {
   if (card.featured) return FEATURED_CARD_CLASS;
   if (isList.value) return LIST_CARD_CLASS;
-  return undefined;
+  return 'gap-3';
 }
 
-function cardClasses(card: CardView): Partial<Record<ContentCardPart, string>> | undefined {
+function cardClasses(card: CardView): Partial<Record<ContentCardPart, string>> {
   if (card.featured) return FEATURED_CARD_CLASSES;
   if (isList.value) return LIST_CARD_CLASSES;
-  return undefined;
+  return BASE_CARD_CLASSES;
 }
 
 function itemWrapperClass(card: CardView): string {
@@ -244,15 +272,12 @@ function itemWrapperClass(card: CardView): string {
 
 <template>
   <Section spacing="md" :labelled-by="hasHeading ? headingId : undefined">
-    <Container width="content">
-      <div
-        v-if="hasHead"
-        class="@tablet:flex-row @tablet:items-baseline @tablet:justify-between mb-6 flex flex-col items-start gap-2"
-      >
+    <Container width="wide">
+      <div v-if="hasHead" class="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <h2
           v-if="hasHeading"
           :id="headingId"
-          class="font-heading text-text @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
+          class="font-heading text-text text-[1.75rem] leading-[1.1] font-medium tracking-[-0.01em] text-balance @min-[47.5625rem]:text-[2.25rem]"
         >
           {{ heading }}
         </h2>
@@ -269,7 +294,7 @@ function itemWrapperClass(card: CardView): string {
           :as="viewAllLinkAs"
           variant="standalone"
           arrow
-          class="text-control"
+          :underline="false"
         >
           {{ viewAllLabel }}
         </Link>
@@ -306,14 +331,18 @@ function itemWrapperClass(card: CardView): string {
             :link-as="card.linkAs"
             :image="card.image"
             ratio="3x2"
-            :eyebrow="card.categoryLabel"
             :date="card.publishedAt"
-            :meta="card.readingTime"
             :excerpt="card.dek"
             :heading-level="3"
             :class="cardClass(card)"
             :classes="cardClasses(card)"
-          />
+          >
+            <template v-if="card.kicker.length > 0" #eyebrow>
+              <template v-for="(part, index) in card.kicker" :key="index">
+                <span v-if="index > 0" aria-hidden="true"> · </span><span>{{ part }}</span>
+              </template>
+            </template>
+          </ContentCard>
         </li>
       </ul>
       <EditorPlaceholder

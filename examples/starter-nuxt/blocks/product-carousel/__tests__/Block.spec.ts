@@ -10,6 +10,7 @@ import { ProductCard, Skeleton } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
@@ -534,6 +535,95 @@ describe('product-carousel block', () => {
    * draft overlay, or a depth-0 read); a theme's own seed carries the slug with
    * no id at all.
    */
+  describe('grid layout, filter chips and quick add (the preview overlay)', () => {
+    const design = { ...mock, ...preview };
+
+    function cardTitles(wrapper: VueWrapper): string[] {
+      return wrapper
+        .findAllComponents(ProductCard)
+        .map((card) => (card.props('product') as { title: string }).title);
+    }
+
+    it('renders the eyebrow, heading, chips and a grid of cards with no axe violations', async () => {
+      const wrapper = mountBlock(design);
+      await flushPromises();
+      expect(wrapper.find('[data-part="track"]').exists()).toBe(false);
+      expect(wrapper.text()).toContain(preview.eyebrow);
+      expect(wrapper.get('h2').text()).toContain(preview.heading);
+      expect(wrapper.findAllComponents(ProductCard).length).toBeGreaterThanOrEqual(2);
+      const chips = wrapper.findAll('button[aria-pressed]');
+      expect(chips.map((chip) => chip.text())).toEqual([
+        enUS.productCarousel.allFilter,
+        ...preview.filters.map((chip) => chip.label),
+      ]);
+      expect(chips[0]!.attributes('aria-pressed')).toBe('true');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('a chip narrows the read to its category, and "All" puts it back', async () => {
+      const wrapper = mountBlock(design);
+      await flushPromises();
+      const all = cardTitles(wrapper);
+      const chips = () => wrapper.findAll('button[aria-pressed]');
+      await chips()[1]!.trigger('click');
+      await flushPromises();
+      expect(chips()[1]!.attributes('aria-pressed')).toBe('true');
+      expect(chips()[0]!.attributes('aria-pressed')).toBe('false');
+      const ceramics = cardTitles(wrapper);
+      expect(ceramics.length).toBeGreaterThan(0);
+      expect(ceramics).not.toEqual(all);
+      const ceramicHandles = new Set([
+        'speckled-latte-mug',
+        'stoneware-dinner-plates-set-of-4',
+        'hand-thrown-serving-bowl',
+        'glazed-milk-jug',
+      ]);
+      const ceramicTitles = PRODUCTS.filter((p) => ceramicHandles.has(p.handle)).map(
+        (p) => p.title
+      );
+      for (const title of ceramics) expect(ceramicTitles).toContain(title);
+      await chips()[0]!.trigger('click');
+      await flushPromises();
+      expect(cardTitles(wrapper)).toEqual(all);
+    });
+
+    it('shows no chips outside the grid layout or the collection variant', async () => {
+      const carousel = mountBlock({ ...design, layout: 'carousel' });
+      await flushPromises();
+      expect(carousel.find('button[aria-pressed]').exists()).toBe(false);
+      const related = mountBlock({ ...design, variant: 'related' });
+      await flushPromises();
+      expect(related.find('button[aria-pressed]').exists()).toBe(false);
+    });
+
+    it.each(['carousel', 'grid'] as const)(
+      'quick add (%s layout) reads the product and puts its variant in the cart',
+      async (layout) => {
+        const storefront = createDemoStorefront();
+        const add = vi.spyOn(storefront.cart, 'add');
+        const wrapper = mountBlock({ ...design, layout }, { storefront });
+        await flushPromises();
+        const first = wrapper.findAllComponents(ProductCard)[0]!;
+        const button = first.get('button[data-part="quickAdd"]');
+        const title = (first.props('product') as { title: string }).title;
+        expect(button.attributes('aria-label')).toContain(title);
+        await button.trigger('click');
+        await flushPromises();
+        expect(add).toHaveBeenCalledTimes(1);
+        const input = add.mock.calls[0]![0];
+        expect(input.quantity).toBe(1);
+        expect(input.variantId).not.toBe('');
+        expect(storefront.cart.lines.value.length).toBe(1);
+      }
+    );
+
+    it('offers no quick add when it is off, or in recently-viewed', async () => {
+      const off = mountBlock({ ...design, quickAdd: false });
+      await flushPromises();
+      expect(off.find('[data-part="quickAdd"]').exists()).toBe(false);
+    });
+  });
+
   describe('the collection variant\u2019s source', () => {
     const WINTER = demoCollectionId('winter-knitwear')!;
     const BEST_SELLERS = demoCollectionId('best-sellers')!;

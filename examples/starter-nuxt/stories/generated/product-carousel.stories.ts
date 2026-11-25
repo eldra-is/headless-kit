@@ -62,6 +62,18 @@ export const Limit12: Story = {
   },
 };
 
+export const LayoutCarousel: Story = {
+  args: {
+    entry: { id: "product-carousel", data: { ...base, "layout": "carousel" } },
+  },
+};
+
+export const LayoutGrid: Story = {
+  args: {
+    entry: { id: "product-carousel", data: { ...base, "layout": "grid" } },
+  },
+};
+
 export const BackgroundNone: Story = {
   args: {
     entry: { id: "product-carousel", data: { ...base, "background": "none" } },

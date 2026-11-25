@@ -6,6 +6,7 @@ import { axe } from '../../../test/support/axe';
 import { afterEach, describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 
 /** The genuinely minimal fixture: only the fields the block requires. */
@@ -88,7 +89,7 @@ describe('trust-strip block', () => {
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
-  it.each(['columns', 'inline'] as const)(
+  it.each(['columns', 'inline', 'numbered'] as const)(
     'renders variant "%s" with no axe violations',
     async (variant) => {
       const wrapper = mountBlock({ ...mock, variant });
@@ -96,6 +97,34 @@ describe('trust-strip block', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
+
+  describe('numbered variant', () => {
+    const numbered = { ...mock, ...preview, variant: 'numbered', showPayments: false };
+
+    it('renders the preview content axe-clean, a hidden 01/02/03 in place of each icon', async () => {
+      const wrapper = mountBlock(numbered);
+      await flushIcons();
+      expect(wrapper.find('svg').exists()).toBe(false);
+      const numbers = wrapper.findAll('li > span[aria-hidden="true"]');
+      expect(numbers.map((n) => n.text())).toEqual(['01', '02', '03']);
+      for (const item of preview.items) expect(wrapper.text()).toContain(item.text);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('ignores mobileLayout "scroll": a plain list, never a tab stop', () => {
+      const wrapper = mountBlock({ ...numbered, mobileLayout: 'scroll' });
+      expect(wrapper.find('[tabindex]').exists()).toBe(false);
+      expect(wrapper.get('ul').classes()).not.toContain('overflow-x-auto');
+    });
+
+    it('Tab reaches only the linked title', () => {
+      const wrapper = mountBlock(numbered);
+      const links = wrapper.findAll('a');
+      expect(links).toHaveLength(1);
+      expect(links[0]!.attributes('href')).toBe('/pages/returns');
+      expect(links[0]!.attributes('aria-label')).toBe(preview.items[2]!.linkLabel);
+    });
+  });
 
   it('has no axe violations with mobileLayout "scroll"', async () => {
     const wrapper = mountBlock({ ...mock, mobileLayout: 'scroll' });

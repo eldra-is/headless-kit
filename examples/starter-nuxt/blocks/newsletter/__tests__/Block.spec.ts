@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
+import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { STOREFRONT_KEY } from '../../../app/storefront/types';
 import type {
@@ -413,11 +414,52 @@ describe('newsletter block', () => {
   });
 
   describe('split variant', () => {
+    const band = { ...mock, ...preview };
+
     it('renders the same field and button as centered', () => {
       const wrapper = mountNewsletter({ ...mock, variant: 'split' });
       expect(wrapper.find('input[type="email"]').exists()).toBe(true);
       expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
       expect(wrapper.text()).toContain(mock.heading);
+    });
+
+    it('renders the help panel first, then the sign-up on a primary panel, with no axe violations', async () => {
+      const wrapper = mountNewsletter(band);
+      const headings = wrapper.findAll('h2').map((h) => h.text());
+      expect(headings).toEqual([preview.helpHeading, preview.heading]);
+      // The section stays named by the newsletter heading.
+      const section = wrapper.get('section');
+      expect(wrapper.get(`#${section.attributes('aria-labelledby')}`).text()).toBe(preview.heading);
+      // The form sits inside the panel that carries the package's inversion signal.
+      const panel = wrapper.get('[data-section="primary"]');
+      expect(panel.find('form').exists()).toBe(true);
+      expect(panel.text()).toContain(preview.heading);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('lists the contact lines: a link where there is one, plain text and a note where not', () => {
+      const wrapper = mountNewsletter(band);
+      const lines = wrapper.findAll('ul[role="list"] > li');
+      expect(lines).toHaveLength(preview.contacts.length);
+      expect(lines[0]!.get('a').attributes('href')).toBe('tel:+15550142290');
+      expect(lines[1]!.get('a').attributes('href')).toBe('mailto:hello@northwind.example');
+      expect(lines[2]!.find('a').exists()).toBe(false);
+      expect(lines[2]!.text()).toContain(preview.contacts[2]!.note!);
+    });
+
+    it('without a help heading, the heading and text take the left panel and the form the right', () => {
+      const wrapper = mountNewsletter({ ...band, helpHeading: '' });
+      expect(wrapper.findAll('h2')).toHaveLength(1);
+      const panel = wrapper.get('[data-section="primary"]');
+      expect(panel.find('form').exists()).toBe(true);
+      expect(panel.text()).not.toContain(preview.heading);
+    });
+
+    it('shows no help panel in the centered variant, and defaults the split ground to none', () => {
+      const centered = mountNewsletter({ ...band, variant: 'centered' });
+      expect(centered.text()).not.toContain(preview.helpHeading);
+      const { sectionBackground: _omit, ...unset } = band;
+      expect(mountNewsletter(unset).get('section').attributes('data-section-bg')).toBe('none');
     });
   });
 });

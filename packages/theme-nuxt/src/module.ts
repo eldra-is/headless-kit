@@ -341,6 +341,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       { name: 'useEldraLocale', from: '@eldrajs/theme-vue' },
       { name: 'useEldraEntry', from: '@eldrajs/theme-vue' },
       { name: 'useEldraPreview', from: '@eldrajs/theme-vue' },
+      // A read a theme makes outside Nuxt's async data, started while a draft preview session is
+      // covered, keeps the veil up until it has answered (`./runtime/previewSession.ts`).
+      { name: 'holdPreviewSession', from: resolver.resolve('./runtime/previewSession') },
     ]);
 
     /**

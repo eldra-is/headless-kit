@@ -73,7 +73,7 @@ describe('split-content block', () => {
   it('renders rows as an ordered role=list, one h2 heading per row', () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
     const list = wrapper.get('ol[role="list"]');
-    const items = list.findAll('li');
+    const items = list.findAll(':scope > li');
     expect(items).toHaveLength(withImage.rows.length);
     const headings = list.findAll('h2');
     expect(headings).toHaveLength(withImage.rows.length);
@@ -89,7 +89,7 @@ describe('split-content block', () => {
         Block,
         mountOptions({ entry: { id: 'e1', data: { ...withImage, startWith } } })
       );
-      const items = wrapper.findAll('li');
+      const items = wrapper.findAll('ol > li');
       expect(items).toHaveLength(withImage.rows.length);
       items.forEach((item) => {
         const first = item.element.children[0] as HTMLElement;
@@ -103,14 +103,21 @@ describe('split-content block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { ...withImage, startWith: 'image-left' } } })
     );
-    const items = wrapper.findAll('li');
-    // Row 1 (index 0, image-left): the image's own 7fr column comes first, no order override.
-    expect(items[0]!.classes()).toContain('@tablet:grid-cols-[7fr_5fr]');
-    expect(items[0]!.get('[data-part="root"]').classes()).not.toContain('@tablet:order-2');
-    // Row 2 (index 1, image-right): the text's 5fr column comes first; the image (still first in
-    // the DOM) is pushed to the second, 7fr track with `order`.
-    expect(items[1]!.classes()).toContain('@tablet:grid-cols-[5fr_7fr]');
-    expect(items[1]!.get('[data-part="root"]').classes()).toContain('@tablet:order-2');
+    const items = wrapper.findAll('ol > li');
+    // Row 1 (index 0, image-left): the image's own wider 1.15fr column comes first, no order
+    // override; side by side from 961px of block width.
+    expect(items[0]!.classes()).toContain(
+      '@min-[60.0625rem]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]'
+    );
+    expect(items[0]!.get('[data-part="root"]').classes()).not.toContain(
+      '@min-[60.0625rem]:order-2'
+    );
+    // Row 2 (index 1, image-right): the text's 1fr column comes first; the image (still first in
+    // the DOM) is pushed to the second, wider track with `order`.
+    expect(items[1]!.classes()).toContain(
+      '@min-[60.0625rem]:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'
+    );
+    expect(items[1]!.get('[data-part="root"]').classes()).toContain('@min-[60.0625rem]:order-2');
   });
 
   it('a row with no image renders no <img>, stays single column, and gives its text a 40rem max width', () => {
@@ -122,7 +129,7 @@ describe('split-content block', () => {
     );
     const item = wrapper.get('li');
     expect(item.find('img').exists()).toBe(false);
-    expect(item.classes().some((c) => c.startsWith('@tablet:grid-cols'))).toBe(false);
+    expect(item.classes().some((c) => c.includes('grid-cols'))).toBe(false);
     expect(item.element.children).toHaveLength(1);
     expect((item.element.children[0] as HTMLElement).className).toContain('max-w-[40rem]');
   });
@@ -136,18 +143,50 @@ describe('split-content block', () => {
       Block,
       mountOptions({ entry: { id: 'e1', data: { startWith: 'image-left', rows } } })
     );
-    expect(wrapper.findAll('li')).toHaveLength(6);
+    expect(wrapper.findAll('ol > li')).toHaveLength(6);
   });
 
-  it('every row link is reachable in source order', () => {
+  it("every link is reachable in source order: a row's list entries, then its button", () => {
     const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
     const links = wrapper.element.querySelectorAll('a[href]');
-    expect(Array.from(links).map((link) => link.textContent?.trim())).toEqual(
-      withImage.rows.map((row) => row.linkLabel)
+    const expected = withImage.rows.flatMap((row, index) => [
+      ...(index === 0 ? withImage.list : []).map((entry) => ({
+        name: `${entry.linkLabel}\u00a0${entry.title}`,
+        href: entry.href,
+      })),
+      { name: row.linkLabel, href: row.href },
+    ]);
+    expect(
+      Array.from(links).map((link) => ({
+        name: link.textContent?.trim(),
+        href: link.getAttribute('href'),
+      }))
+    ).toEqual(expected);
+  });
+
+  it('renders a row list: hidden initials, a name and line per entry, links named with the entry, axe-clean', async () => {
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
+    const entries = wrapper.findAll('ol > li:first-child ul > li');
+    expect(entries).toHaveLength(withImage.list.length);
+    expect(wrapper.findAll('ol > li:nth-child(2) ul > li')).toHaveLength(0);
+    entries.forEach((entry, index) => {
+      const source = withImage.list[index]!;
+      const initial = entry.get('span[aria-hidden="true"]');
+      expect(initial.text()).toBe(source.title.charAt(0));
+      expect(entry.text()).toContain(source.text);
+      expect(entry.get('a').text()).toContain(source.title);
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('puts the block on surface when background is surface, and on the page ground by default', () => {
+    const onSurface = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
+    expect(onSurface.get('section').attributes('data-section-bg')).toBe('surface');
+    const plain = mount(
+      Block,
+      mountOptions({ entry: { id: 'e1', data: { ...withImage, background: undefined } } })
     );
-    expect(Array.from(links).map((link) => link.getAttribute('href'))).toEqual(
-      withImage.rows.map((row) => row.href)
-    );
+    expect(plain.get('section').attributes('data-section-bg')).toBe('none');
   });
 
   it("a row link is a real <a href>, so Tab and Enter are the platform's own way to reach and activate it", () => {

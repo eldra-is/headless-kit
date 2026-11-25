@@ -59,7 +59,9 @@ describe('feature-grid block', () => {
     // future overlay edit that forgets `mediaType`/`columns` fails here rather than only showing up
     // as a wrong insert thumbnail in Studio.
     expect(preview.mediaType).toBe('image');
-    expect(preview.columns).toBe(String(preview.items.length));
+    // Five category tiles (the arched variant's demo row) in the cards' three-column grid: the
+    // grid must never have more columns than items, which is what left blank cells before.
+    expect(Number(preview.columns)).toBeLessThanOrEqual(preview.items.length);
 
     const wrapper = mountBlock(withImages);
     const images = wrapper.findAll('img');
@@ -91,6 +93,46 @@ describe('feature-grid block', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
+
+  describe('arched variant', () => {
+    const arched = { ...withImages, variant: 'arched' };
+
+    it('renders the preview row axe-clean, one link per tile naming its title and line', async () => {
+      const wrapper = mountBlock(arched);
+      const tiles = wrapper.findAll('ul > li');
+      expect(tiles).toHaveLength(preview.items.length);
+      preview.items.forEach((tile, index) => {
+        const link = tiles[index]!.get('a');
+        expect(tiles[index]!.findAll('a')).toHaveLength(1);
+        expect(link.text()).toContain(tile.title);
+        expect(link.text()).toContain(tile.text);
+        // The photo is decorative: the link's text already names the destination.
+        expect(link.get('img').attributes('alt')).toBe('');
+      });
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('routes a same-site tile through the router and drops an unsafe one to plain text', () => {
+      const wrapper = mountBlock({
+        ...arched,
+        items: [
+          { ...preview.items[0], href: 'javascript:alert(1)' },
+          { ...preview.items[1], href: 'https://example.com/knitwear' },
+        ],
+      });
+      const tiles = wrapper.findAll('ul > li');
+      expect(tiles[0]!.find('a').exists()).toBe(false);
+      expect(tiles[0]!.text()).toContain(preview.items[0]!.title);
+      expect(tiles[1]!.get('a').attributes('href')).toBe('https://example.com/knitwear');
+    });
+
+    it('Tab walks the head link, then every tile, in order — no other tab stop', () => {
+      const wrapper = mountBlock(arched);
+      const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
+      expect(hrefs).toEqual([preview.headLinkHref, ...preview.items.map((tile) => tile.href)]);
+      expect(wrapper.find('[tabindex]').exists()).toBe(false);
+    });
+  });
 
   it('renders the image media type with no axe violations', async () => {
     const wrapper = mountBlock({ ...withImages, mediaType: 'image' });

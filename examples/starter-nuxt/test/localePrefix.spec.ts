@@ -150,9 +150,10 @@ describe('the header’s own destinations', () => {
     // the shell claims the drawer — which is exactly the prerendered state a static host serves.
     expect(internal).toContain('/is-IS/wishlist');
     expect(internal).toContain('/is-IS/cart');
-    // And the author's own navigation row, resolved through `useEldraLink()` and then routed —
-    // prefixed exactly once by the two rules together.
-    expect(internal).toContain('/is-IS/collections/knitwear');
+    // And the author's own navigation rows, resolved through `useEldraLink()` and then routed —
+    // prefixed exactly once by the two rules together: a catalog row and a path row.
+    expect(internal).toContain('/is-IS/collections/mugs-cups');
+    expect(internal).toContain('/is-IS/categories/knitwear');
     for (const href of internal) {
       expect(href, href).toMatch(/^\/is-IS(\/|$|\?)/);
     }
@@ -217,9 +218,13 @@ describe('the header’s search', () => {
   it('submits the overlay’s form into the active locale, and offers its rows there', async () => {
     const wrapper = mountHeader(navigationMock as Record<string, unknown>);
     try {
-      // The search trigger, not the menu drawer's: both are `aria-haspopup="dialog"`. Its label is
-      // Icelandic here, which is itself part of the rule under test one layer up.
-      await wrapper.get(`button[aria-label="${isIS.header.search}"]`).trigger('click');
+      // The search trigger, not the menu drawer's: both are `aria-haspopup="dialog"`. It is named
+      // by its visible label, Icelandic here, which is itself part of the rule under test one layer
+      // up. (The seed's `field` style also draws the "search the shop" pill, from 80rem.)
+      const trigger = wrapper
+        .findAll('button')
+        .find((button) => button.text().trim() === isIS.header.search);
+      await trigger!.trigger('click');
       await nextTick();
 
       // 1. The native submit path.

@@ -314,7 +314,7 @@ interface GridState {
 const GRID_SECTION = 'section[aria-label="The winter edit products"]';
 
 function readGrid(page: Page): Promise<GridState> {
-  return page.evaluate((selector) => {
+  return page.evaluate(async (selector) => {
     const section = document.querySelector(selector);
     // `aria-labelledby`, not any `ul`: that is the grid's own card list. The active-filter chips
     // are a `ul[aria-label]` in the same section, and they only exist once something is filtered.
@@ -324,9 +324,24 @@ function readGrid(page: Page): Promise<GridState> {
     const status = [...(section?.querySelectorAll('p[role="status"]') ?? [])]
       .map((node) => (node as HTMLElement).textContent?.trim() ?? '')
       .filter((text) => text !== '');
-    const price = [...(section?.querySelectorAll('aside [role="slider"]') ?? [])].map(
-      (thumb) => thumb.getAttribute('aria-valuenow') ?? ''
-    );
+    const thumbs = (root: ParentNode | null): string[] =>
+      [...(root?.querySelectorAll('[role="slider"]') ?? [])].map(
+        (thumb) => thumb.getAttribute('aria-valuenow') ?? ''
+      );
+    // The sidebar shows its price thumbs all the time. The filter bar (the collection page's
+    // variant) keeps them in the Price chip's popover, which only renders while it is open, so the
+    // chip is opened to read them and closed again.
+    let price = thumbs(section?.querySelector('aside') ?? null);
+    const priceChip = [
+      ...(section?.querySelectorAll('[role="group"] button[aria-controls]') ?? []),
+    ].find((button) => (button.textContent ?? '').trim().startsWith('Price'));
+    if (price.length === 0 && priceChip instanceof HTMLElement) {
+      priceChip.click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      price = thumbs(document.getElementById(priceChip.getAttribute('aria-controls') ?? ''));
+      priceChip.click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     return { titles, count: status[0] ?? '', price };
   }, GRID_SECTION);
 }
@@ -674,8 +689,8 @@ describe('prerendered commerce data on the generated static site', () => {
     // case would keep passing while quietly testing nothing.
     expect(visited.url).toBe(`${statics.origin}${productPage}/`);
     const instances = blockInstances(visited);
-    // The page's own seven, plus the shell's hosted cart drawer (see the control above).
-    expect(Object.keys(instances.created).length).toBe(8);
+    // The page's own six, plus the shell's hosted cart drawer (see the control above).
+    expect(Object.keys(instances.created).length).toBe(7);
     // The page is served at `/products/ash-glaze-mug/` and prerendered at
     // `/products/ash-glaze-mug` (`startStaticServer`'s 308 is the deployed host's). Nuxt therefore
     // re-navigates between the two while the page hydrates, and unless the route key and the page
@@ -731,11 +746,12 @@ describe('prerendered commerce data on the generated static site', () => {
     }
   });
 
-  it("opens a mega-menu that spans the header's container, whichever item opened it", async () => {
+  it("opens a mega-menu that spans the header, its columns in the bar's container, whichever item opened it", async () => {
     // Geometry only a real browser can answer. The panel used to be pinned to the item that
     // opened it at a width of its own, so where it started and stopped depended on which word in
-    // the bar the visitor happened to hover. It now spans the bar's own container: its left edge
-    // on the brand's, its right edge on the actions', and its top on the bar's bottom edge.
+    // the bar the visitor happened to hover. It is now a full-bleed sheet: its edges on the
+    // header's, its top on the bar's bottom edge, and its content inside the bar's own container —
+    // the first column on the brand's left edge, the "View all" on the actions' right edge.
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     try {
       await page.goto(`${statics.origin}${HOME_PAGE_PATH}`, { waitUntil: 'domcontentloaded' });
@@ -782,17 +798,17 @@ describe('prerendered commerce data on the generated static site', () => {
         };
       }, panelId ?? '');
 
-      expect(Math.round(edges.panel.left)).toBe(Math.round(edges.brand.left));
-      expect(Math.round(edges.panel.right)).toBe(Math.round(edges.actions.right));
+      expect(Math.round(edges.panel.left)).toBe(Math.round(edges.bar.left));
+      expect(Math.round(edges.panel.right)).toBe(Math.round(edges.bar.right));
+      expect(Math.abs(edges.firstColumn.left - edges.brand.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(edges.viewAll.right - edges.actions.right)).toBeLessThanOrEqual(1);
       // Directly below the bar — within the bar's own 1px bottom border.
       expect(Math.abs(edges.panel.top - edges.bar.bottom)).toBeLessThanOrEqual(2);
       // And the premise: the trigger is nowhere near either edge, so "spans the container" is a
       // real claim rather than a coincidence of where this item sits.
       expect(edges.trigger.left).toBeGreaterThan(edges.panel.left + 1);
       expect(edges.trigger.right).toBeLessThan(edges.panel.right - 1);
-      // And the inset the operator asked for: nothing inside the panel sits flush against its
-      // edges. 24px is the narrow-container figure; the wide container's own 32px clears it too,
-      // so one bound holds at every width this page is measured at.
+      // And nothing inside the panel sits flush against its edges: the page's own gutters at least.
       expect(edges.firstColumn.left).toBeGreaterThanOrEqual(edges.panel.left + 24);
       expect(edges.viewAll.right).toBeLessThanOrEqual(edges.panel.right - 24);
     } finally {
@@ -952,8 +968,10 @@ describe('prerendered commerce data on the generated static site', () => {
           // The height the spacer's *classes* alone reserve — all the first paint of a prerendered
           // page has, before the bar has been measured at all — against the bar's own box for those
           // same classes. A difference here is a page that jumps on hydration.
+          // The bar's box is the spacer's last child; an info strip, when the header has one,
+          // reserves its own box before it.
           reserved:
-            spacer === null ? null : spacer.firstElementChild!.getBoundingClientRect().height,
+            spacer === null ? null : spacer.lastElementChild!.getBoundingClientRect().height,
           nav: element.querySelector('[data-eldra-header-bar]')!.getBoundingClientRect().height,
           wrapper: wrapper === null ? null : wrapper.getBoundingClientRect().height,
         };
@@ -1011,6 +1029,9 @@ describe('prerendered commerce data on the generated static site', () => {
       'storefront:catalog.category:[null]',
       'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
+      // `product-carousel`'s quick-add read, keyed `null` until a shopper presses Quick add: no
+      // request and no data, in the payload because it exists, like the category read above.
+      'storefront:catalog.product:[null]',
       'storefront:catalog.related:["ash-glaze-mug",8]',
       // The footer's sign-up spam guard (`useFormSpam`): a footer with no newsletter zone names no
       // form, so the read is keyed `""`, resolves `null` without a request and is in the payload

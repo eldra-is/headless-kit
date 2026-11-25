@@ -19,6 +19,7 @@ const VARIANTS = [
   'image-background',
   'centered',
   'split-carousel',
+  'card',
 ] as const;
 
 describe('hero block', () => {
@@ -76,6 +77,51 @@ describe('hero block', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
+
+  describe('card variant', () => {
+    const card = { ...withImage, variant: 'card' };
+
+    it('renders the heading before the photo in the DOM, and the photo as a 21:9 frame from 1101px', () => {
+      const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: card } }));
+      const html = wrapper.html();
+      expect(html.indexOf('<h1')).toBeLessThan(html.indexOf('<img'));
+      const frame = wrapper.get('[data-part="frame"]');
+      expect(frame.classes()).toContain('@min-[68.8125rem]:aspect-[21/9]!');
+    });
+
+    it('renders the caption as one same-site link naming the item and its detail', () => {
+      const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: card } }));
+      const caption = wrapper
+        .findAll('a')
+        .find((link) => link.text().includes(withImage.captionLabel));
+      expect(caption).toBeDefined();
+      expect(caption!.text()).toContain(withImage.captionDetail);
+      expect(caption!.attributes('href')).toBe(withImage.captionHref);
+    });
+
+    it('renders no caption without a link, and none in the other variants', () => {
+      const noHref = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...card, captionHref: '' } } })
+      );
+      expect(noHref.text()).not.toContain(withImage.captionLabel);
+      const imageRight = mount(
+        Block,
+        mountOptions({ entry: { id: 'e1', data: { ...card, variant: 'image-right' } } })
+      );
+      expect(imageRight.text()).not.toContain(withImage.captionLabel);
+    });
+
+    it('drops an unsafe caption link', () => {
+      const wrapper = mount(
+        Block,
+        mountOptions({
+          entry: { id: 'e1', data: { ...card, captionHref: 'javascript:alert(1)' } },
+        })
+      );
+      expect(wrapper.text()).not.toContain(withImage.captionLabel);
+    });
+  });
 
   it('carries the framing marker attributes on the rendered image (image-right)', () => {
     const wrapper = mount(

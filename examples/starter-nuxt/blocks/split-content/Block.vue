@@ -28,6 +28,15 @@
  * here would silently (and wrongly) resolve `localized: false` regardless of the manifest. See
  * `blocks/faq/Block.vue`'s own comment for the full reasoning.
  *
+ * **The theme's look** (the "makers" story): the image takes the wider `1.15fr` track and the
+ * text `1fr`, side by side from 961px of block width (stacked, image first, below that), with a
+ * 5:4 photo, the design's `h2`, the row text as a muted lead paragraph and the row link as an
+ * outline button. The block can carry a short `list`, shown under the first row's text — a round initial (`primary`,
+ * `accent` and `border-strong` in turn, `aria-hidden`: the name beside it says the same), a name,
+ * one line and a small link whose accessible name adds the entry's name ("Shop Harbour Pottery"),
+ * so three "Shop" links are never three identical names. `background` puts the whole block on
+ * `surface`.
+ *
  * `useRichTextScrollRegions` is applied once, to a ref around the whole `<ol>`, rather than once per
  * row: its own contract only needs a ref that *contains* every rendered rich-text root (it wraps
  * every `<table>`/marks every `<pre>` under whatever element it is given — see that composable's
@@ -35,7 +44,15 @@
  * call covers every row's rich text at once.
  */
 import { computed, ref } from 'vue';
-import { Container, EditorPlaceholder, Link, Section } from '@eldrajs/ui';
+import {
+  Button,
+  Container,
+  EditorPlaceholder,
+  Link,
+  Section,
+  VisuallyHidden,
+  type SectionBackground,
+} from '@eldrajs/ui';
 import { EldraRichText } from '@eldrajs/theme-vue';
 import { DEFAULT_IMAGE_FRAMING, type ImageFraming } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
@@ -48,11 +65,19 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 
 type Side = 'image-left' | 'image-right';
 
+interface SplitContentEntry {
+  title?: string;
+  text?: string;
+  linkLabel?: string;
+  href?: string;
+}
+
 interface SplitContentRow {
   image?: { url: string; altText?: string | null; framing?: ImageFraming | null } | null;
   eyebrow?: string;
   heading?: string;
   text?: { content?: unknown[] } | null;
+
   linkLabel?: string;
   href?: string;
 }
@@ -63,6 +88,7 @@ const editing = useEditing();
 const { t } = useI18n();
 
 const startWith = computed<Side>(() => data.value.startWith ?? 'image-left');
+const background = computed<SectionBackground>(() => data.value.background ?? 'none');
 const rows = computed<SplitContentRow[]>(() => data.value.rows ?? []);
 
 function oppositeSide(side: Side): Side {
@@ -85,16 +111,42 @@ function rowFraming(row: SplitContentRow): ImageFraming | undefined {
 /** The image's own column is always `7fr`, wherever it lands — see the module doc comment. */
 function rowGridColsClass(index: number): string {
   return rowSide(index) === 'image-left'
-    ? '@tablet:grid-cols-[7fr_5fr]'
-    : '@tablet:grid-cols-[5fr_7fr]';
+    ? '@min-[60.0625rem]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]'
+    : '@min-[60.0625rem]:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]';
 }
 /** The image is always first in the DOM (see the template); `order` only ever needs to move it —
  *  the text column's own class is just its mirror. */
 function imageOrderClass(index: number): string {
-  return rowSide(index) === 'image-right' ? '@tablet:order-2' : '';
+  return rowSide(index) === 'image-right' ? '@min-[60.0625rem]:order-2' : '';
 }
 function textOrderClass(index: number): string {
-  return rowSide(index) === 'image-right' ? '@tablet:order-1' : '';
+  return rowSide(index) === 'image-right' ? '@min-[60.0625rem]:order-1' : '';
+}
+
+/** The round initials cycle through three theme colours, all dark enough for the light letter. */
+const AVATAR_TONES = ['bg-primary', 'bg-accent', 'bg-border-strong'] as const;
+function entryTone(index: number): string {
+  return AVATAR_TONES[index % AVATAR_TONES.length]!;
+}
+function entryInitial(entry: SplitContentEntry): string {
+  return Array.from((entry.title ?? '').trim())[0]?.toLocaleUpperCase() ?? '';
+}
+/** The block's `list` belongs to the first row (a block-level field, so adding it never changed
+ *  the stored shape of `rows`). */
+const entries = computed<SplitContentEntry[]>(() =>
+  ((data.value.list ?? []) as SplitContentEntry[]).filter(
+    (entry) => (entry.title ?? '').trim() !== ''
+  )
+);
+function rowEntries(index: number): SplitContentEntry[] {
+  return index === 0 ? entries.value : [];
+}
+function entryHref(entry: SplitContentEntry): string | null {
+  return entry.linkLabel ? safeHref(entry.href) : null;
+}
+function entryLinkAs(entry: SplitContentEntry): typeof EldraRouterLink | undefined {
+  const href = entryHref(entry);
+  return href !== null && isInternalHref(href) ? EldraRouterLink : undefined;
 }
 
 function rowHref(row: SplitContentRow): string | null {
@@ -119,13 +171,13 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
 </script>
 
 <template>
-  <Section spacing="md" :aria-label="t('splitContent.label')">
+  <Section :background="background" spacing="md" :aria-label="t('splitContent.label')">
     <Container width="wide">
-      <ol ref="rowsRoot" role="list" class="@tablet:gap-16 grid gap-12">
+      <ol ref="rowsRoot" role="list" class="grid gap-16 @min-[60.0625rem]:gap-24">
         <li
           v-for="(row, index) in rows"
           :key="index"
-          class="@tablet:gap-12 @content:gap-16 grid items-center gap-6"
+          class="grid items-center gap-8 @min-[60.0625rem]:gap-16"
           :class="rowHasImage(row) ? rowGridColsClass(index) : ''"
         >
           <UiImage
@@ -135,7 +187,7 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
             :framing="rowFraming(row)"
             :entry-id="entryId"
             :field-path="`rows.${index}.image`"
-            aspect="4/3"
+            aspect="5/4"
             rounded="xl"
             :class="imageOrderClass(index)"
           />
@@ -143,17 +195,17 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
             v-else-if="editing"
             inline
             :label="t('splitContent.imageHintLabel')"
-            :class="['bg-surface-strong aspect-[4/3] w-full rounded-xl', imageOrderClass(index)]"
+            :class="['bg-surface-strong aspect-[5/4] w-full rounded-xl', imageOrderClass(index)]"
           />
 
           <div
-            class="grid gap-4"
-            :class="[rowHasImage(row) ? 'max-w-[30rem]' : 'max-w-[40rem]', textOrderClass(index)]"
+            class="min-w-0"
+            :class="[rowHasImage(row) ? '' : 'max-w-[40rem]', textOrderClass(index)]"
           >
-            <p v-if="row.eyebrow" class="text-overline text-accent">{{ row.eyebrow }}</p>
+            <p v-if="row.eyebrow" class="text-overline text-accent mb-2">{{ row.eyebrow }}</p>
             <h2
               v-if="row.heading"
-              class="font-heading text-text @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]"
+              class="font-heading text-text text-[1.75rem] leading-[1.1] font-medium tracking-[-0.01em] text-balance @min-[47.5625rem]:text-[2.25rem]"
             >
               {{ row.heading }}
             </h2>
@@ -169,23 +221,49 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
                  floor costs nothing and survives a toolbar change.) -->
             <EldraRichText
               v-if="rowHasText(row)"
-              class="prose-eldra text-body-lg text-muted [&>*+*]:mt-3"
+              class="prose-eldra text-muted mt-4 text-[1.125rem] leading-[1.6] [&>*+*]:mt-3"
               :entry-id="entryId"
               :field="`rows.${index}.text`"
               :doc="row.text"
               :min-heading-level="3"
             />
 
-            <Link
+            <ul v-if="rowEntries(index).length > 0" role="list" class="border-border mt-6 border-t">
+              <li
+                v-for="(entry, entryIndex) in rowEntries(index)"
+                :key="entryIndex"
+                class="border-border grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-3.5"
+              >
+                <span
+                  class="font-heading text-primary-contrast grid size-12 place-items-center rounded-full text-[1.125rem]"
+                  :class="entryTone(entryIndex)"
+                  aria-hidden="true"
+                  >{{ entryInitial(entry) }}</span
+                >
+                <span class="min-w-0">
+                  <span class="block font-semibold">{{ entry.title }}</span>
+                  <span v-if="entry.text" class="text-muted block text-sm">{{ entry.text }}</span>
+                </span>
+                <Link
+                  v-if="entryHref(entry) !== null"
+                  :href="entryHref(entry)!"
+                  :as="entryLinkAs(entry)"
+                  class="text-[0.9375rem] font-semibold"
+                >
+                  {{ entry.linkLabel }}<VisuallyHidden>&nbsp;{{ entry.title }}</VisuallyHidden>
+                </Link>
+              </li>
+            </ul>
+
+            <Button
               v-if="rowHasLink(row)"
               :href="rowHref(row)!"
               :as="rowLinkAs(row)"
-              variant="standalone"
-              arrow
-              class="mt-1 text-lg"
+              variant="outline"
+              class="mt-7"
             >
               {{ row.linkLabel }}
-            </Link>
+            </Button>
           </div>
         </li>
       </ol>

@@ -6,6 +6,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import Block from '../../blocks/trust-strip/Block.vue';
 import mock from '../../blocks/trust-strip/mock.json';
+import preview from '../../blocks/trust-strip/preview.json';
 
 const meta: Meta<typeof Block> = {
   title: "Blocks/trust-strip",
@@ -15,7 +16,7 @@ export default meta;
 
 type Story = StoryObj<typeof Block>;
 
-const base = mock;
+const base = { ...mock, ...preview };
 
 export const Default: Story = {
   args: { entry: { id: "trust-strip", data: base } },
@@ -34,6 +35,12 @@ export const VariantColumns: Story = {
 export const VariantInline: Story = {
   args: {
     entry: { id: "trust-strip", data: { ...base, "variant": "inline" } },
+  },
+};
+
+export const VariantNumbered: Story = {
+  args: {
+    entry: { id: "trust-strip", data: { ...base, "variant": "numbered" } },
   },
 };
 

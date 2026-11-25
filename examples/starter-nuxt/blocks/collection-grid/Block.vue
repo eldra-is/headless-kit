@@ -3,7 +3,8 @@
  * Collection grid: a collection's products as a filterable, sortable card grid — a sticky filter
  * sidebar from 64rem of the block's own width, a filter drawer below that (and at every width in
  * `drawer-only`) (spec `02-blocks.md` "Collection grid", 3047–3170, over the shared "Product grid"
- * and "Progress bar" parts at 3036–3045).
+ * and "Progress bar" parts at 3036–3045) — or, in `filter-bar`, one horizontal row of filter chips
+ * above the grid with the applied filters as removable tags under it (see `isBar`).
  *
  * **Where the data comes from.** Everything a shopper sees — cards, prices, filter values, counts,
  * the total — is `useStorefront().catalog.collectionProducts()`; the CMS fields only configure the
@@ -53,6 +54,7 @@ import {
 import {
   Badge,
   Button,
+  Chip,
   Container,
   Drawer,
   EditorPlaceholder,
@@ -61,6 +63,7 @@ import {
   FilterPanel,
   LoadMore,
   Pagination,
+  Popover,
   ProductCard,
   Section,
   Select,
@@ -72,6 +75,7 @@ import {
   type FilterFacetLayout,
   type FilterSelection as UiFilterSelection,
   type SelectOption,
+  type UiMessages,
 } from '@eldrajs/ui';
 import { useEldraLink } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
@@ -81,6 +85,7 @@ import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
+import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
 import { useMoney } from '../../app/storefront/money';
@@ -167,11 +172,24 @@ const filterPanelMessages = useMessages();
  *  visually hidden `h2` 'Products'"). */
 const productsHeadingId = `collection-grid-products-${uid}`;
 
-type Variant = 'sidebar' | 'drawer-only';
+type Variant = 'sidebar' | 'drawer-only' | 'filter-bar';
 const variant = computed<Variant>(() =>
-  data.value.variant === 'drawer-only' ? 'drawer-only' : 'sidebar'
+  data.value.variant === 'drawer-only'
+    ? 'drawer-only'
+    : data.value.variant === 'filter-bar'
+      ? 'filter-bar'
+      : 'sidebar'
 );
 const hasSidebar = computed(() => variant.value === 'sidebar');
+/**
+ * **`filter-bar`**: one horizontal row of filter chips above the grid instead of a sidebar or a
+ * drawer — a chip per group that opens that group's own `FilterPanel` in a `Popover`, a pressed chip
+ * per on/off value (In stock only), and the sort on the far end — with the applied filters as
+ * removable tags under it beside the count. Only the **layout** differs: every change goes through
+ * the sidebar's own live path (`onPanelChange` and its debounce, `onPanelRemove`'s focus rule,
+ * `onClearAll`), so the requests, the URL and the results are exactly the sidebar variant's.
+ */
+const isBar = computed(() => variant.value === 'filter-bar');
 
 /** The column counts the field, the Select and a shared URL all agree on. */
 const COLUMN_CHOICES = ['2', '3', '4'];
@@ -1358,8 +1376,11 @@ async function onClearAll(): Promise<void> {
  * for the Nth remove button in document order is exactly what a shopper's or a screen reader's own
  * next stop would be, and does not depend on that internal bookkeeping.
  */
-function focusNthRemoveButton(panel: InstanceType<typeof FilterPanel> | null, index: number): void {
-  const root = (panel as { $el?: Element } | null)?.$el;
+function focusNthRemoveButton(
+  panel: InstanceType<typeof FilterPanel> | Element | null,
+  index: number
+): void {
+  const root = panel instanceof Element ? panel : (panel as { $el?: Element } | null)?.$el;
   const button = root?.querySelectorAll('[data-part="removeButton"]')[index];
   (button as HTMLElement | undefined)?.focus();
 }
@@ -1382,8 +1403,97 @@ async function onPanelRemove(removal: { facetId: string; value: string }): Promi
     focusCount();
     return;
   }
-  focusNthRemoveButton(sidebarPanelEl.value, Math.min(index, remaining.length - 1));
+  focusNthRemoveButton(
+    isBar.value ? barTagsEl.value : sidebarPanelEl.value,
+    Math.min(index, remaining.length - 1)
+  );
 }
+
+// ---------------------------------------------------------------------------------------------
+// The filter bar (`filter-bar` only)
+// ---------------------------------------------------------------------------------------------
+
+/** The bar's applied-filter tags, for `onPanelRemove`'s "focus the next tag" rule. */
+const barTagsEl = ref<HTMLElement | null>(null);
+
+/** The applied values as tags — `@eldrajs/ui`'s own `appliedFilters`, the same list the sidebar
+ *  panel's chips are drawn from, so a range contributes none here either. */
+const barTags = computed(() => appliedFilters(filterFacets.value, panelSelection.value));
+
+/** On/off groups (availability and the store's own toggles) are pressed chips in the bar itself;
+ *  every other group opens its own popover. */
+const barToggleFacets = computed(() =>
+  filterFacets.value.filter((facet) => facet.type === 'toggle')
+);
+const barPopoverFacets = computed(() =>
+  filterFacets.value.filter((facet) => facet.type !== 'toggle')
+);
+
+/** A popover holds one group, open: the facet's own "Start closed" belongs to a list of groups,
+ *  and a popover the shopper just asked for showing a collapsed group would be one click too many. */
+function popoverFacets(facet: FilterFacet): FilterFacet[] {
+  return [{ ...facet, collapsed: false }];
+}
+
+function selectedIn(facetId: string): string[] {
+  const value = panelSelection.value[facetId];
+  return Array.isArray(value) && typeof value[0] !== 'number' ? (value as string[]) : [];
+}
+
+/** The digit beside a chip: checked values, or 1 for a price range away from its limits. */
+function barCount(facet: FilterFacet): number {
+  if (facet.type === 'range') return priceMin.value !== '' || priceMax.value !== '' ? 1 : 0;
+  return selectedIn(facet.id).length;
+}
+
+function isBarValuePressed(facetId: string, value: string): boolean {
+  return selectedIn(facetId).includes(value);
+}
+
+/** A pressed chip is one checkbox of its group: the whole resulting selection goes through the
+ *  sidebar's live path, as the panel's own `change` does. */
+function toggleBarValue(facetId: string, value: string): void {
+  const current = selectedIn(facetId);
+  const nextValues = current.includes(value)
+    ? current.filter((entry) => entry !== value)
+    : [...current, value];
+  const next: UiFilterSelection = { ...panelSelection.value };
+  if (nextValues.length > 0) next[facetId] = nextValues;
+  else delete next[facetId];
+  onPanelChange(next);
+}
+
+/** A tag's remove button: the panel's own chip removal, replayed — `change` with the value gone,
+ *  then `remove`, which flushes and moves focus to the next tag or the count. */
+function removeBarTag(tag: { facetId: string; value: string }): void {
+  const nextValues = selectedIn(tag.facetId).filter((entry) => entry !== tag.value);
+  const next: UiFilterSelection = { ...panelSelection.value };
+  if (nextValues.length > 0) next[tag.facetId] = nextValues;
+  else delete next[tag.facetId];
+  onPanelChange(next);
+  void onPanelRemove({ facetId: tag.facetId, value: tag.value });
+}
+
+function barTagMessages(tag: { facetLabel: string; label: string }): Partial<UiMessages> {
+  return {
+    removeTag: () => filterPanelMessages.value.filterPanelRemoveFilter(tag.facetLabel, tag.label),
+  };
+}
+
+/** The Northwind chip: outlined, 2.5rem, filled with `text` while pressed or open. Exclusive
+ *  branches, so no class is ever overridden by another on the same element. */
+const BAR_CHIP_BASE =
+  'eldra-focus inline-flex min-h-10 cursor-pointer items-center gap-1.5 whitespace-nowrap ' +
+  'rounded-full border px-4 text-[0.9375rem] font-medium motion-safe:transition-colors ' +
+  'motion-safe:duration-fast disabled:cursor-not-allowed disabled:opacity-50';
+const BAR_CHIP_ON = `${BAR_CHIP_BASE} bg-text text-background border-text`;
+const BAR_CHIP_OFF = `${BAR_CHIP_BASE} border-border-strong text-text hover:bg-surface`;
+const BAR_POPOVER_CLASSES = {
+  panel: 'w-[20rem] max-w-[calc(100vw-2rem)] max-h-[min(30rem,70vh)] overflow-y-auto px-4 pb-2',
+};
+/** The group's own disclosure row reads as the popover's heading; its rules are the popover's
+ *  border already. */
+const BAR_PANEL_CLASSES = { group: 'border-0', foot: 'hidden' };
 
 /** Widen the window first, resolve an armed sidebar wait second — the ordering `onColumns` explains
  *  at length. Flushing first assigned the mirror on the old window, and the wider one that followed
@@ -1668,8 +1778,146 @@ function hrefForPage(page: number): string {
           </aside>
 
           <div class="min-w-0">
+            <!-- The filter bar (`filter-bar`): a chip per group, the pressed on/off chips and the
+                 sort, one row that wraps on a narrow screen and stays in view while the grid
+                 scrolls from 48rem. -->
+            <template v-if="isBar">
+              <div
+                v-if="showTopBar"
+                role="group"
+                :aria-label="t('grid.filterAndSort')"
+                class="border-border bg-background @tablet:sticky @tablet:top-[var(--eldra-header-height,0px)] @tablet:z-10 flex flex-wrap items-center gap-2 border-y py-3.5"
+              >
+                <Popover
+                  v-for="facet in barPopoverFacets"
+                  :key="facet.id"
+                  role="dialog"
+                  haspopup="dialog"
+                  placement="bottom-start"
+                  :aria-label="facet.label"
+                  :classes="BAR_POPOVER_CLASSES"
+                >
+                  <template #trigger="{ attrs, open }">
+                    <button v-bind="attrs" :class="open ? BAR_CHIP_ON : BAR_CHIP_OFF">
+                      {{ facet.label }}
+                      <Badge
+                        v-if="barCount(facet) > 0"
+                        tone="primary"
+                        pill
+                        :hidden-suffix="t('grid.nActive', { count: barCount(facet) })"
+                      >
+                        <span aria-hidden="true">{{ barCount(facet) }}</span>
+                      </Badge>
+                      <EldraIcon
+                        name="chevron-down"
+                        size="sm"
+                        :class="
+                          open
+                            ? 'rotate-180 motion-safe:transition-transform'
+                            : 'motion-safe:transition-transform'
+                        "
+                      />
+                    </button>
+                  </template>
+                  <FilterPanel
+                    mode="drawer"
+                    dense
+                    :show-head="false"
+                    :label="facet.label"
+                    :facets="popoverFacets(facet)"
+                    :model-value="panelSelection"
+                    :currency="money.currency.value"
+                    :id-prefix="`collection-grid-bar-${uid}-${facet.id}`"
+                    :classes="BAR_PANEL_CLASSES"
+                    @change="onPanelChange"
+                  >
+                    <template #foot><span /></template>
+                  </FilterPanel>
+                </Popover>
+
+                <template v-for="facet in barToggleFacets" :key="facet.id">
+                  <button
+                    v-for="value in facet.values ?? []"
+                    :key="value.value"
+                    type="button"
+                    :aria-pressed="isBarValuePressed(facet.id, value.value) ? 'true' : 'false'"
+                    :disabled="value.disabled && !isBarValuePressed(facet.id, value.value)"
+                    :class="isBarValuePressed(facet.id, value.value) ? BAR_CHIP_ON : BAR_CHIP_OFF"
+                    @click="toggleBarValue(facet.id, value.value)"
+                  >
+                    {{ value.label }}
+                  </button>
+                </template>
+
+                <div
+                  class="@tablet:ms-auto @tablet:w-auto flex w-full flex-wrap items-center gap-x-6 gap-y-2"
+                >
+                  <FieldWrapper
+                    v-if="hasSort"
+                    :label="t('grid.sort')"
+                    class="flex min-w-0 flex-1 items-center gap-3"
+                    :classes="{ label: 'mb-0 shrink-0 font-semibold', control: 'min-w-0 flex-1' }"
+                  >
+                    <Select
+                      :model-value="sort"
+                      size="md"
+                      :options="sortOptions"
+                      class="@tablet:min-w-48 w-full"
+                      @update:model-value="onSort"
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper
+                    v-if="showColumnSelect"
+                    :label="t('grid.columns')"
+                    class="@content:flex hidden items-center gap-3"
+                    :classes="{ label: 'mb-0 shrink-0 font-semibold' }"
+                  >
+                    <Select
+                      :model-value="columnsChoice"
+                      size="md"
+                      :options="columnOptions"
+                      @update:model-value="onColumns"
+                    />
+                  </FieldWrapper>
+                </div>
+              </div>
+
+              <!-- The count and the applied filters as removable tags, then Clear all. -->
+              <div class="flex flex-wrap items-center gap-2 pt-4">
+                <p
+                  ref="countEl"
+                  tabindex="-1"
+                  role="status"
+                  aria-live="polite"
+                  class="text-muted me-2 tabular-nums"
+                >
+                  {{ countText }}
+                </p>
+                <ul
+                  v-if="barTags.length > 0"
+                  ref="barTagsEl"
+                  :aria-label="filterPanelMessages.filterPanelApplied"
+                  class="flex flex-wrap gap-2"
+                >
+                  <li v-for="tag in barTags" :key="`${tag.facetId}:${tag.value}`">
+                    <Chip
+                      size="sm"
+                      removable
+                      :label="tag.label"
+                      :messages="barTagMessages(tag)"
+                      class="bg-surface-strong border-transparent"
+                      @remove="removeBarTag(tag)"
+                    />
+                  </li>
+                </ul>
+                <Button v-if="activeCount > 0" variant="link" size="sm" @click="onClearAll">
+                  {{ filterPanelMessages.filterPanelClearAll }}
+                </Button>
+              </div>
+            </template>
+
             <!-- Top bar: Filter + sort, below 64rem (always in drawer-only). -->
-            <div v-if="showTopBar" :class="topBarClass">
+            <div v-if="showTopBar && !isBar" :class="topBarClass">
               <Button
                 v-if="hasFilters"
                 variant="outline"
@@ -1709,7 +1957,10 @@ function hrefForPage(page: number): string {
             </div>
 
             <!-- Toolbar: the count, and Sort by + Columns from 64rem. -->
-            <div class="border-border flex flex-wrap items-center gap-x-6 gap-y-2 border-b pb-4">
+            <div
+              v-if="!isBar"
+              class="border-border flex flex-wrap items-center gap-x-6 gap-y-2 border-b pb-4"
+            >
               <p
                 ref="countEl"
                 tabindex="-1"
@@ -1838,7 +2089,7 @@ function hrefForPage(page: number): string {
         </div>
 
         <Drawer
-          v-if="hasFilters"
+          v-if="hasFilters && !isBar"
           :id="drawerId"
           v-model="drawerOpen"
           side="right"

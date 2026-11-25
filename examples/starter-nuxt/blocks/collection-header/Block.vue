@@ -24,9 +24,10 @@
  * categories carry no count, and a curated collection chip beside a category chip would be two
  * different things in one strip.
  *
- * `variant: 'image'` renders two columns from `@tablet` (48rem: text left, a 3:2 image right,
- * vertically centred) and stacks image-first below it; `variant: 'text-only'` is a single column
- * capped at 48rem with a bottom rule. Neither field nor collection image resolves the `image`
+ * `variant: 'image'` is a banner: text left and a 26rem, 16:10 image right from 60rem of the
+ * block's width, vertically centred, and below that the text first with a wide 21:9 crop under it;
+ * `variant: 'text-only'` is a single column capped at 48rem. The chip strip (sub-collections, or a
+ * category's children) runs under either, full width, scrolling sideways on a narrow screen. Neither field nor collection image resolves the `image`
  * variant silently becomes `text-only` — `effectiveVariant` below, never an empty frame (spec
  * States, "No image"; Acceptance: "With no image and no collection image, the block renders as
  * text-only").
@@ -233,7 +234,7 @@ function onDescriptionKeydown(event: KeyboardEvent): void {
 }
 
 const descriptionClass = computed(() => [
-  'text-muted max-w-[60ch]',
+  'text-muted max-w-[34rem] text-[1.125rem]',
   !expanded.value ? 'line-clamp-3' : '',
 ]);
 
@@ -384,38 +385,44 @@ const pillsLabel = computed(() =>
   categoryMode.value ? t('collection.subcategories') : t('collection.subcollections')
 );
 
+/**
+ * The Northwind chip: a 2.5rem outlined pill, the current one filled with `text` on `background`
+ * (marked by `aria-current` and a heavier weight as well, so it never rests on colour alone).
+ * Exclusive branches, never a base class a variant overrides.
+ */
+const PILL_BASE =
+  'inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border px-4 ' +
+  'text-[0.9375rem] motion-safe:transition-colors motion-safe:duration-fast';
 function pillClass(pill: ResolvedPill): string {
-  const base =
-    'inline-flex h-11 items-center justify-center whitespace-nowrap rounded-full border px-4 ' +
-    'text-[0.875rem] font-medium @tablet:h-9 motion-safe:transition-colors motion-safe:duration-fast';
   if (pill.current) {
-    return `${base} bg-primary text-primary-contrast border-transparent font-semibold`;
+    return `${PILL_BASE} bg-text text-background border-text font-semibold`;
   }
-  return `${base} border-border-strong text-text hover:border-text hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]`;
+  return `${PILL_BASE} border-border-strong text-text font-medium hover:bg-surface`;
 }
 
 // ---------------------------------------------------------------------------------------------
 // Layout.
 // ---------------------------------------------------------------------------------------------
 
-/** Spec "Collection header" → Container/Section spacing: the shared `sm`/`md`/`lg` scale doesn't
- *  carry these exact asymmetric steps, so `spacing="none"` on `Section` and the padding is written
- *  here — the same pattern `footer`'s own `paddingClass` uses. */
-const PADDING_CLASS = 'pt-6 pb-8 @tablet:pt-8 @tablet:pb-12';
+/**
+ * The banner: text beside a 26rem image from 60rem of the block's width (the design's own 960px
+ * edge, so a tablet gets the stacked layout), stacked below that with the text first and a wide
+ * 21:9 crop under it. The chip strip sits under the banner, full width, scrolling sideways rather
+ * than wrapping on a phone. `Section`'s shared spacing steps don't carry these asymmetric values,
+ * so `spacing="none"` and the padding is written here, the same pattern `footer` uses.
+ */
 const sectionClass = computed(() =>
-  isImageVariant.value ? PADDING_CLASS : `${PADDING_CLASS} border-border border-b`
+  isImageVariant.value || hasPills.value ? 'pt-6 pb-6' : 'pt-6 pb-8 border-border border-b'
 );
 
 const rootClass = computed(() =>
   isImageVariant.value
-    ? 'grid grid-cols-1 gap-6 @tablet:grid-cols-2 @tablet:items-center @tablet:gap-12'
+    ? 'grid grid-cols-1 gap-6 @min-[60rem]:grid-cols-[minmax(0,1fr)_26rem] @min-[60rem]:items-center @min-[60rem]:gap-12'
     : 'flex max-w-[48rem] flex-col'
 );
-const textColumnClass = computed(() =>
-  isImageVariant.value
-    ? 'flex flex-col gap-4 @tablet:order-1 @content:max-w-[40rem]'
-    : 'flex flex-col gap-4'
-);
+/** The 21:9 → 16:10 crop is the wrapper's, so `UiImage` fills it (`fill`) rather than reserving a
+ *  single fixed ratio of its own. */
+const IMAGE_FRAME_CLASS = 'relative aspect-[21/9] w-full @min-[60rem]:aspect-[16/10]';
 </script>
 
 <template>
@@ -428,20 +435,7 @@ const textColumnClass = computed(() =>
   >
     <Container width="wide">
       <div :class="rootClass">
-        <div v-if="isImageVariant" class="@tablet:order-2">
-          <UiImage
-            :src="resolvedImage!.src"
-            :alt="resolvedImage!.alt"
-            :framing="resolvedImage!.framing"
-            :entry-id="resolvedImage!.fromField ? entryId : undefined"
-            :field-path="resolvedImage!.fromField ? 'image' : undefined"
-            aspect="3/2"
-            rounded="xl"
-            class="w-full"
-          />
-        </div>
-
-        <div :class="textColumnClass">
+        <div class="flex flex-col gap-4">
           <Breadcrumb
             v-if="showBreadcrumb && breadcrumbItems.length > 0"
             :items="breadcrumbItems"
@@ -451,7 +445,7 @@ const textColumnClass = computed(() =>
           <h1
             v-if="hasTitle"
             :id="headingId"
-            class="font-heading @content:text-[2.75rem] text-[2.125rem] leading-[1.1] font-bold text-balance"
+            class="font-heading @tablet:text-[3.25rem] text-[2.25rem] leading-[1.05] font-medium tracking-[-0.015em] text-balance"
           >
             {{ resolvedTitle }}
           </h1>
@@ -475,7 +469,7 @@ const textColumnClass = computed(() =>
                    collection page. A floor, never an offset: h2/h3 in the document stay put. -->
               <EldraRichText
                 v-if="hasFieldDescription"
-                class="prose-eldra text-muted"
+                class="prose-eldra text-muted text-[1.125rem]"
                 :entry-id="entryId"
                 field="description"
                 api-id="collection-header"
@@ -510,24 +504,43 @@ const textColumnClass = computed(() =>
             </Button>
           </div>
 
-          <div v-if="hasCount || hasPills" class="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <p v-if="hasCount" class="text-muted text-[0.875rem] tabular-nums">{{ countText }}</p>
-            <ul v-if="hasPills" :aria-label="pillsLabel" class="flex flex-wrap gap-2">
-              <li v-for="pill in pills" :key="pill.href">
-                <Link
-                  :href="pill.href"
-                  :as="pill.as"
-                  :underline="false"
-                  :aria-current="pill.current ? 'page' : undefined"
-                  :class="pillClass(pill)"
-                >
-                  {{ pill.label }}
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <p v-if="hasCount" class="text-muted text-[0.875rem] tabular-nums">{{ countText }}</p>
+        </div>
+
+        <!-- Second in the DOM and on screen: beside the text from 60rem, under it below. -->
+        <div v-if="isImageVariant" :class="IMAGE_FRAME_CLASS">
+          <UiImage
+            :src="resolvedImage!.src"
+            :alt="resolvedImage!.alt"
+            :framing="resolvedImage!.framing"
+            :entry-id="resolvedImage!.fromField ? entryId : undefined"
+            :field-path="resolvedImage!.fromField ? 'image' : undefined"
+            fill
+            rounded="xl"
+          />
         </div>
       </div>
+
+      <!-- The chip strip scrolls sideways on a narrow screen rather than wrapping into a block of
+           pills; `py-1`/`px-1` with the matching negative margin keeps each link's focus ring
+           inside the scroll container, which would otherwise clip it. -->
+      <ul
+        v-if="hasPills"
+        :aria-label="pillsLabel"
+        class="scrollbar-hidden -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 py-1"
+      >
+        <li v-for="pill in pills" :key="pill.href" class="shrink-0">
+          <Link
+            :href="pill.href"
+            :as="pill.as"
+            :underline="false"
+            :aria-current="pill.current ? 'page' : undefined"
+            :class="pillClass(pill)"
+          >
+            {{ pill.label }}
+          </Link>
+        </li>
+      </ul>
     </Container>
   </Section>
 </template>

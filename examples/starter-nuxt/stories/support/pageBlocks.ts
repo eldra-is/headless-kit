@@ -23,7 +23,6 @@ import { partitionPageBlocks } from '../../app/utils/pageStructure';
 // Extend it by adding one import + one entry per block a new page fixture introduces, and drop
 // an entry when the last fixture that named it stops doing so: an entry no fixture uses still
 // pulls that block into every page spec's and page story's bundle.
-import Announcement from '../../blocks/announcement-bar/Block.vue';
 import Article from '../../blocks/article/Block.vue';
 import ArticleList from '../../blocks/article-list/Block.vue';
 import Breadcrumbs from '../../blocks/breadcrumbs/Block.vue';
@@ -32,6 +31,7 @@ import CollectionGrid from '../../blocks/collection-grid/Block.vue';
 import CollectionHeader from '../../blocks/collection-header/Block.vue';
 import Cta from '../../blocks/cta/Block.vue';
 import Faq from '../../blocks/faq/Block.vue';
+import FeatureGrid from '../../blocks/feature-grid/Block.vue';
 import Footer from '../../blocks/footer/Block.vue';
 import Hero from '../../blocks/hero/Block.vue';
 import Navigation from '../../blocks/navigation/Block.vue';
@@ -40,12 +40,10 @@ import ProductCarousel from '../../blocks/product-carousel/Block.vue';
 import ProductDetail from '../../blocks/product-detail/Block.vue';
 import Search from '../../blocks/search/Block.vue';
 import SplitContent from '../../blocks/split-content/Block.vue';
-import Testimonials from '../../blocks/testimonials/Block.vue';
 import TrustStrip from '../../blocks/trust-strip/Block.vue';
 import Wishlist from '../../blocks/wishlist/Block.vue';
 
 export const pageBlockComponents: Record<string, Component> = {
-  'announcement-bar': Announcement,
   article: Article,
   'article-list': ArticleList,
   breadcrumbs: Breadcrumbs,
@@ -54,6 +52,7 @@ export const pageBlockComponents: Record<string, Component> = {
   'collection-header': CollectionHeader,
   cta: Cta,
   faq: Faq,
+  'feature-grid': FeatureGrid,
   footer: Footer,
   hero: Hero,
   navigation: Navigation,
@@ -62,7 +61,6 @@ export const pageBlockComponents: Record<string, Component> = {
   'product-detail': ProductDetail,
   search: Search,
   'split-content': SplitContent,
-  testimonials: Testimonials,
   'trust-strip': TrustStrip,
   wishlist: Wishlist,
 };

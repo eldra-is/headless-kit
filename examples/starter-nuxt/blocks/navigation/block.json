@@ -1,7 +1,7 @@
 {
   "apiId": "navigation",
   "name": "Header",
-  "description": "The store's top bar: brand, primary links with optional mega-menus, search, cart and one call to action.",
+  "description": "The store's top bar: an optional info strip, brand, primary links with optional mega-menus, search, saved items, cart and one call to action.",
   "icon": "layout-navbar",
   "category": "structure",
   "version": 5,
@@ -17,6 +17,10 @@
     {
       "groupId": "actions",
       "name": "Actions"
+    },
+    {
+      "groupId": "info",
+      "name": "Info strip"
     }
   ],
   "migrations": [
@@ -58,7 +62,11 @@
     },
     {
       "version": 5,
-      "groupsToSections": [{ "field": "links" }]
+      "groupsToSections": [
+        {
+          "field": "links"
+        }
+      ]
     }
   ],
   "fields": [
@@ -96,7 +104,17 @@
       "metadata": {
         "multiple": false
       },
-      "helpText": "SVG or PNG. Replaces the wordmark. Shown 2rem tall, max 10rem wide."
+      "helpText": "SVG, PNG or WebP of any shape. Replaces the wordmark. Sized by height (2.25rem, 2rem on phones) and capped at 15rem wide, so a wide logo gets smaller rather than crowding the bar. A logo wider than 4:1 with no mark shows the store name instead on small phones."
+    },
+    {
+      "fieldId": "brandMark",
+      "name": "Square mark",
+      "type": "media",
+      "groupId": "brand",
+      "metadata": {
+        "multiple": false
+      },
+      "helpText": "Optional square symbol (an initial, a monogram). Shown beside the wordmark when there is no logo, and in place of the logo or wordmark on phones narrower than 400px."
     },
     {
       "fieldId": "links",
@@ -113,13 +131,42 @@
           "metadata": {
             "tree": {
               "depth": 2,
-              "sections": { "max": 4, "headingLink": true, "seeAll": true },
-              "cards": { "kinds": ["product", "collection"], "max": 2, "aspect": "4:3" }
+              "sections": {
+                "max": 4,
+                "headingLink": true,
+                "seeAll": true
+              },
+              "cards": {
+                "kinds": ["product", "collection"],
+                "max": 2,
+                "aspect": "4:5"
+              }
             },
             "kinds": ["product", "collection", "category", "page", "entry", "url", "none"]
           }
         }
       }
+    },
+    {
+      "fieldId": "drawerLayout",
+      "name": "Phone menu layout",
+      "type": "select",
+      "groupId": "navigation",
+      "metadata": {
+        "options": ["accordion", "sections"]
+      },
+      "helpText": "How the Menu drawer shows a link's panel. accordion (default): each panel folds into a row that opens. sections: every panel listed open under its heading."
+    },
+    {
+      "fieldId": "account",
+      "name": "Account link",
+      "type": "link",
+      "groupId": "actions",
+      "localized": true,
+      "metadata": {
+        "kinds": ["page", "entry", "url"]
+      },
+      "helpText": "Where the Account button goes. Leave empty to hide the button."
     },
     {
       "fieldId": "showSearch",
@@ -137,7 +184,7 @@
       "metadata": {
         "options": ["icon", "field", "inline"]
       },
-      "helpText": "icon: a ghost icon button. field: a pill field-like trigger, from 64rem only. inline: a live search bar in the bar, centered variant only, from 64rem only."
+      "helpText": "icon: a labelled Search button. field: a \"Search the shop\" pill from 80rem, the Search button below. inline: a live search bar in the bar, centered variant only, from 68.8rem only."
     },
     {
       "fieldId": "ctaLabel",
@@ -170,6 +217,55 @@
       "groupId": "actions",
       "default": false,
       "helpText": "Only takes effect when the next block is a Hero with the image-background variant."
+    },
+    {
+      "fieldId": "infoItems",
+      "name": "Info strip",
+      "type": "list",
+      "groupId": "info",
+      "helpText": "A thin strip above the bar: delivery, returns and opening hours at the start, help links and a phone number at the end. Up to 3 per side. Empty hides the strip. Phones show only the first item.",
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Item",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "text",
+                "name": "Text",
+                "type": "string",
+                "localized": true,
+                "validators": {
+                  "required": true,
+                  "maxLength": 40
+                }
+              },
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "tabler-icon",
+                "helpText": "For example truck, arrow-back-up or clock."
+              },
+              {
+                "fieldId": "href",
+                "name": "Link URL",
+                "type": "string",
+                "helpText": "Optional. A page path, a full URL or tel:/mailto:."
+              },
+              {
+                "fieldId": "placement",
+                "name": "Side",
+                "type": "select",
+                "metadata": {
+                  "options": ["start", "end"]
+                },
+                "helpText": "start (default) or end of the strip."
+              }
+            ]
+          }
+        }
+      }
     }
   ]
 }

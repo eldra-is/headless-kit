@@ -115,18 +115,22 @@
   "header": {
     "primary": "Aðalvalmynd",
     "menu": "Valmynd",
-    "openMenu": "Opna valmynd",
     "search": "Leita",
     "searchField": "Leita í versluninni",
     "cartEmpty": "Karfa, tóm",
     "cartOne": "Karfa, 1 vara",
     "cartMany": "Karfa, {count} vörur",
-    "wishlistEmpty": "Óskalisti",
-    "wishlistOne": "Óskalisti, 1 vara",
-    "wishlistMany": "Óskalisti, {count} vörur",
+    "wishlistEmpty": "Vistað",
+    "wishlistOne": "Vistað, 1 vara",
+    "wishlistMany": "Vistað, {count} vörur",
     "viewAll": "Sjá allt",
     "viewAllOf": "Sjá allt: {label}",
-    "cart": "Karfa"
+    "cart": "Karfa",
+    "saved": "Vistað",
+    "savedItems": "Vistaðar vörur",
+    "account": "Aðgangur",
+    "home": "{brand}, forsíða",
+    "info": "Upplýsingar um verslunina"
   },
   "editor": {
     "addLink": "Bæta við tengli"
@@ -354,7 +358,10 @@
     "carouselLabel": "Vörur í {heading}",
     "clearHistory": "Hreinsa feril",
     "headingHintLabel": "Bættu við fyrirsögn",
-    "headingHintHelp": "t.d. „Þér gæti einnig líkað við“"
+    "headingHintHelp": "t.d. „Þér gæti einnig líkað við“",
+    "allFilter": "Allt",
+    "filterLabel": "Sía: {heading}",
+    "filterEmpty": "Ekkert í þessum flokki enn. Prófaðu annan."
   },
   "grid": {
     "sectionLabel": "Vörur í {collection}",
@@ -387,6 +394,8 @@
     "sortPriceDesc": "Verð, hátt til lágt",
     "sortNewest": "Nýjast",
     "columns": "Dálkar",
+    "sort": "Raða",
+    "filterAndSort": "Sía og raða",
     "noCollectionLabel": "Veldu vörulista",
     "noCollectionHelp": "Vörur, síur og fjöldi koma úr vefbúðinni. Veldu vörulista og hvaða síur eiga að birtast.",
     "noCategoryLabel": "Þessi tafla sýnir vöruflokk",
@@ -396,10 +405,8 @@
     "images": "Myndir af vörunni",
     "information": "Upplýsingar um vöruna",
     "tabsLabel": "Nánar um vöruna",
-    "zoom": "Stækka mynd {index} af {count}",
     "viewer": "{title}, myndir",
-    "showImage": "Sýna mynd {index} af {count}: {alt}",
-    "imageIndex": "{index} / {count}",
+    "openImage": "Opna mynd {index} af {count}: {alt}",
     "saleBadge": "Tilboð",
     "saving": "Sparar {amount}",
     "taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast í greiðslu.",

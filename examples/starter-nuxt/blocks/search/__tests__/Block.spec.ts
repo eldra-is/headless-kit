@@ -448,6 +448,29 @@ describe('search block', () => {
       expect(status.findAll('a[href^="/products/"]').length).toBeLessThanOrEqual(4);
     });
 
+    it('lets the grid track, not the card, decide a card width (two columns fit a phone)', async () => {
+      // `ProductCard` carries its own `min-w-56`: in a two-column grid on a phone that pushed the
+      // second column past the screen and widened the whole page. Both card grids, the results and
+      // the no-results suggestions, hand the width to the track, as `collection-grid` does.
+      const results = mountSearch(mock, {
+        storefront: withSearch({
+          query: 'linen',
+          total: 2,
+          products: [PRODUCTS[0]!, PRODUCTS[1]!],
+          articles: [],
+          pages: [],
+          suggestion: null,
+        }),
+      });
+      const none = mountSearch(mock, { storefront: withNoResults() });
+      await nextTick();
+      for (const wrapper of [results, none]) {
+        const cards = wrapper.findAll('article');
+        expect(cards.length).toBeGreaterThan(0);
+        for (const card of cards) expect(card.classes()).toContain('min-w-0');
+      }
+    });
+
     it('the popular-search chips are links to the results page', async () => {
       const wrapper = mountSearch(mock, { storefront: withNoResults() });
       await nextTick();

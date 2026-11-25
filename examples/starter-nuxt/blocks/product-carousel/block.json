@@ -7,6 +7,13 @@
   "version": 3,
   "fields": [
     {
+      "fieldId": "eyebrow",
+      "name": "Eyebrow",
+      "type": "string",
+      "localized": true,
+      "helpText": "A short line above the heading, e.g. \"Just in\". Optional."
+    },
+    {
       "fieldId": "heading",
       "name": "Heading",
       "type": "string",
@@ -52,6 +59,60 @@
       "type": "string",
       "helpText": "Where the heading links to. The collection variant links to the collection you picked instead.",
       "showWhen": { "field": "variant", "in": ["related"] }
+    },
+    {
+      "fieldId": "layout",
+      "name": "Layout",
+      "type": "select",
+      "helpText": "carousel is the default: one row that scrolls sideways. grid shows every product at once, 4 across on wide screens, 3 on tablets and 2 on phones.",
+      "metadata": { "options": ["carousel", "grid"] }
+    },
+    {
+      "fieldId": "filters",
+      "name": "Filter chips",
+      "type": "list",
+      "helpText": "Grid layout only. Chips above the products that narrow them to one category, after an \"All\" chip. Up to 6.",
+      "showWhen": { "field": "variant", "in": ["collection"] },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Chip",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "category",
+                "name": "Category",
+                "type": "string",
+                "helpText": "The category's handle, e.g. ceramics.",
+                "validators": { "required": true }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "allFilterLabel",
+      "name": "\"All\" chip label",
+      "type": "string",
+      "localized": true,
+      "helpText": "Defaults to \"All\".",
+      "showWhen": { "field": "variant", "in": ["collection"] }
+    },
+    {
+      "fieldId": "quickAdd",
+      "name": "Quick add",
+      "type": "bool",
+      "default": false,
+      "helpText": "Adds a button on each photo that puts the product straight in the cart. Off in recently-viewed."
     },
     {
       "fieldId": "showSwatches",

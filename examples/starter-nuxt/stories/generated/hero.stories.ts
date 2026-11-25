@@ -56,6 +56,12 @@ export const VariantSplitCarousel: Story = {
   },
 };
 
+export const VariantCard: Story = {
+  args: {
+    entry: { id: "hero", data: { ...base, "variant": "card" } },
+  },
+};
+
 export const SpacingMd: Story = {
   args: {
     entry: { id: "hero", data: { ...base, "spacing": "md" } },

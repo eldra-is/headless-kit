@@ -1276,7 +1276,7 @@
     {
       "apiId": "collection-grid",
       "name": "Collection grid",
-      "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
+      "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones, or a horizontal filter bar above the grid.",
       "icon": "layout-grid",
       "category": "commerce",
       "version": 3,
@@ -1307,11 +1307,12 @@
           "fieldId": "variant",
           "name": "Variant",
           "type": "select",
-          "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size.",
+          "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size. filter-bar puts one row of filter chips above the grid, each opening its own group, with the applied filters as removable tags under it.",
           "metadata": {
             "options": [
               "sidebar",
-              "drawer-only"
+              "drawer-only",
+              "filter-bar"
             ]
           },
           "validators": {
@@ -2426,11 +2427,12 @@
           "fieldId": "variant",
           "name": "Variant",
           "type": "select",
-          "helpText": "cards is the default.",
+          "helpText": "cards is the default. arched shows each item as an arch-topped photo with its title and line under it, the whole tile one link, in a single row that scrolls sideways on smaller screens. Use it for category tiles; it always shows images and ignores columns and media type.",
           "metadata": {
             "options": [
               "cards",
-              "plain"
+              "plain",
+              "arched"
             ]
           },
           "validators": {
@@ -2590,7 +2592,7 @@
     {
       "apiId": "footer",
       "name": "Footer",
-      "description": "Site footer with brand, link groups, a newsletter sign-up, social links, a legal line and locale/currency selectors.",
+      "description": "Site footer with brand, store address and hours, link groups, social links, an optional newsletter sign-up, a legal line and locale/currency selectors.",
       "icon": "layout-bottombar",
       "category": "structure",
       "version": 3,
@@ -2660,11 +2662,11 @@
           "fieldId": "background",
           "name": "Background",
           "type": "select",
-          "helpText": "Defaults to \"surface-strong\" when unset.",
+          "helpText": "Defaults to \"primary\" when unset.",
           "metadata": {
             "options": [
-              "surface-strong",
-              "primary"
+              "primary",
+              "surface-strong"
             ]
           }
         },
@@ -2693,9 +2695,47 @@
           "name": "Description",
           "type": "text",
           "localized": true,
-          "helpText": "1–3 sentences. Shown on the default variant only.",
+          "helpText": "One short sentence under the brand. Shown on the default variant only.",
           "validators": {
             "maxLength": 300
+          }
+        },
+        {
+          "fieldId": "address",
+          "name": "Address",
+          "type": "string",
+          "localized": true,
+          "helpText": "One line, e.g. \"14 Harbour Street, Northwind Bay\". Shown on the default variant only.",
+          "validators": {
+            "maxLength": 120
+          }
+        },
+        {
+          "fieldId": "phone",
+          "name": "Phone",
+          "type": "string",
+          "helpText": "Rendered as a tel: link. Shown on the default variant only.",
+          "validators": {
+            "maxLength": 40
+          }
+        },
+        {
+          "fieldId": "email",
+          "name": "Email",
+          "type": "string",
+          "helpText": "Rendered as a mailto: link. Shown on the default variant only.",
+          "validators": {
+            "maxLength": 120
+          }
+        },
+        {
+          "fieldId": "hours",
+          "name": "Opening hours",
+          "type": "string",
+          "localized": true,
+          "helpText": "One line, e.g. \"Shop open Mon–Fri 10–18, Sat 10–16\". Shown on the default variant only.",
+          "validators": {
+            "maxLength": 120
           }
         },
         {
@@ -2847,22 +2887,17 @@
       ],
       "mock": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
-        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
+        "address": "14 Harbour Street, Northwind Bay",
+        "phone": "(555) 014-2290",
+        "email": "hello@northwind.example",
+        "hours": "Shop open Mon–Fri 10–18, Sat 10–16",
         "groups": [
           {
             "kind": "none",
             "label": "Shop",
             "children": [
-              {
-                "kind": "collection",
-                "target": {
-                  "_type": "collection",
-                  "slug": "knitwear"
-                },
-                "label": "Knitwear"
-              },
               {
                 "kind": "collection",
                 "target": {
@@ -2875,9 +2910,25 @@
                 "kind": "collection",
                 "target": {
                   "_type": "collection",
+                  "slug": "knitwear"
+                },
+                "label": "Knitwear"
+              },
+              {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
                   "slug": "kitchen"
                 },
                 "label": "Kitchen"
+              },
+              {
+                "kind": "collection",
+                "target": {
+                  "_type": "collection",
+                  "slug": "home"
+                },
+                "label": "Home"
               },
               {
                 "kind": "product",
@@ -2895,18 +2946,18 @@
             "children": [
               {
                 "kind": "url",
-                "url": "/pages/shipping",
-                "label": "Shipping"
+                "url": "/pages/delivery",
+                "label": "Delivery"
               },
               {
                 "kind": "url",
                 "url": "/pages/returns",
-                "label": "Returns"
+                "label": "Returns and exchanges"
               },
               {
                 "kind": "url",
-                "url": "/journal/care",
-                "label": "Care guides"
+                "url": "/pages/order-status",
+                "label": "Order status"
               },
               {
                 "kind": "url",
@@ -2917,7 +2968,7 @@
           },
           {
             "kind": "none",
-            "label": "Company",
+            "label": "About",
             "children": [
               {
                 "kind": "url",
@@ -2927,17 +2978,12 @@
               {
                 "kind": "url",
                 "url": "/pages/makers",
-                "label": "Makers"
+                "label": "The makers"
               },
               {
                 "kind": "url",
                 "url": "/journal",
                 "label": "Journal"
-              },
-              {
-                "kind": "url",
-                "url": "/pages/visit",
-                "label": "Visit the studio"
               }
             ]
           }
@@ -2945,8 +2991,8 @@
         "links": [
           {
             "kind": "url",
-            "url": "/pages/shipping",
-            "label": "Shipping"
+            "url": "/pages/delivery",
+            "label": "Delivery"
           },
           {
             "kind": "url",
@@ -2964,9 +3010,9 @@
             "label": "Our story"
           }
         ],
-        "showNewsletter": true,
+        "showNewsletter": false,
         "newsletterTitle": "Letters from the workshop",
-        "newsletterText": "New pieces, maker stories and the occasional early sale. Once a month.",
+        "newsletterText": "New pieces and small-batch restocks, once a month.",
         "social": [
           {
             "network": "instagram",
@@ -2977,12 +3023,8 @@
             "href": "https://pinterest.com/northwindgoods"
           },
           {
-            "network": "tiktok",
-            "href": "https://tiktok.com/@northwindgoods"
-          },
-          {
-            "network": "youtube",
-            "href": "https://youtube.com/@northwindgoods"
+            "network": "facebook",
+            "href": "https://facebook.com/northwindgoods"
           }
         ],
         "legalText": "© 2026 Northwind Goods",
@@ -2995,12 +3037,7 @@
           {
             "kind": "url",
             "url": "/pages/terms",
-            "label": "Terms"
-          },
-          {
-            "kind": "url",
-            "url": "/pages/accessibility",
-            "label": "Accessibility"
+            "label": "Terms of sale"
           }
         ],
         "showLocale": true,
@@ -3334,7 +3371,8 @@
               "image-left",
               "image-background",
               "centered",
-              "split-carousel"
+              "split-carousel",
+              "card"
             ]
           }
         },
@@ -3428,6 +3466,53 @@
                 ]
               }
             }
+          }
+        },
+        {
+          "fieldId": "captionLabel",
+          "name": "Image caption",
+          "type": "string",
+          "groupId": "content",
+          "localized": true,
+          "helpText": "A small link on the photo naming what is in it, e.g. \"Glazed milk jug\". Card variant only.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "card"
+            ]
+          },
+          "validators": {
+            "maxLength": 60
+          }
+        },
+        {
+          "fieldId": "captionDetail",
+          "name": "Image caption detail",
+          "type": "string",
+          "groupId": "content",
+          "localized": true,
+          "helpText": "Shown after the caption in a lighter weight, e.g. the price.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "card"
+            ]
+          },
+          "validators": {
+            "maxLength": 30
+          }
+        },
+        {
+          "fieldId": "captionHref",
+          "name": "Image caption link",
+          "type": "string",
+          "groupId": "content",
+          "helpText": "Where the caption goes, usually the product in the photo. No link, no caption.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "card"
+            ]
           }
         },
         {
@@ -3742,7 +3827,7 @@
     {
       "apiId": "navigation",
       "name": "Header",
-      "description": "The store's top bar: brand, primary links with optional mega-menus, search, cart and one call to action.",
+      "description": "The store's top bar: an optional info strip, brand, primary links with optional mega-menus, search, saved items, cart and one call to action.",
       "icon": "layout-navbar",
       "category": "structure",
       "version": 5,
@@ -3758,6 +3843,10 @@
         {
           "groupId": "actions",
           "name": "Actions"
+        },
+        {
+          "groupId": "info",
+          "name": "Info strip"
         }
       ],
       "migrations": [
@@ -3845,7 +3934,17 @@
           "metadata": {
             "multiple": false
           },
-          "helpText": "SVG or PNG. Replaces the wordmark. Shown 2rem tall, max 10rem wide."
+          "helpText": "SVG, PNG or WebP of any shape. Replaces the wordmark. Sized by height (2.25rem, 2rem on phones) and capped at 15rem wide, so a wide logo gets smaller rather than crowding the bar. A logo wider than 4:1 with no mark shows the store name instead on small phones."
+        },
+        {
+          "fieldId": "brandMark",
+          "name": "Square mark",
+          "type": "media",
+          "groupId": "brand",
+          "metadata": {
+            "multiple": false
+          },
+          "helpText": "Optional square symbol (an initial, a monogram). Shown beside the wordmark when there is no logo, and in place of the logo or wordmark on phones narrower than 400px."
         },
         {
           "fieldId": "links",
@@ -3873,7 +3972,7 @@
                       "collection"
                     ],
                     "max": 2,
-                    "aspect": "4:3"
+                    "aspect": "4:5"
                   }
                 },
                 "kinds": [
@@ -3888,6 +3987,34 @@
               }
             }
           }
+        },
+        {
+          "fieldId": "drawerLayout",
+          "name": "Phone menu layout",
+          "type": "select",
+          "groupId": "navigation",
+          "metadata": {
+            "options": [
+              "accordion",
+              "sections"
+            ]
+          },
+          "helpText": "How the Menu drawer shows a link's panel. accordion (default): each panel folds into a row that opens. sections: every panel listed open under its heading."
+        },
+        {
+          "fieldId": "account",
+          "name": "Account link",
+          "type": "link",
+          "groupId": "actions",
+          "localized": true,
+          "metadata": {
+            "kinds": [
+              "page",
+              "entry",
+              "url"
+            ]
+          },
+          "helpText": "Where the Account button goes. Leave empty to hide the button."
         },
         {
           "fieldId": "showSearch",
@@ -3909,7 +4036,7 @@
               "inline"
             ]
           },
-          "helpText": "icon: a ghost icon button. field: a pill field-like trigger, from 64rem only. inline: a live search bar in the bar, centered variant only, from 64rem only."
+          "helpText": "icon: a labelled Search button. field: a \"Search the shop\" pill from 80rem, the Search button below. inline: a live search bar in the bar, centered variant only, from 68.8rem only."
         },
         {
           "fieldId": "ctaLabel",
@@ -3949,6 +4076,58 @@
           "groupId": "actions",
           "default": false,
           "helpText": "Only takes effect when the next block is a Hero with the image-background variant."
+        },
+        {
+          "fieldId": "infoItems",
+          "name": "Info strip",
+          "type": "list",
+          "groupId": "info",
+          "helpText": "A thin strip above the bar: delivery, returns and opening hours at the start, help links and a phone number at the end. Up to 3 per side. Empty hides the strip. Phones show only the first item.",
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Item",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "text",
+                    "name": "Text",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true,
+                      "maxLength": 40
+                    }
+                  },
+                  {
+                    "fieldId": "icon",
+                    "name": "Icon",
+                    "type": "tabler-icon",
+                    "helpText": "For example truck, arrow-back-up or clock."
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link URL",
+                    "type": "string",
+                    "helpText": "Optional. A page path, a full URL or tel:/mailto:."
+                  },
+                  {
+                    "fieldId": "placement",
+                    "name": "Side",
+                    "type": "select",
+                    "metadata": {
+                      "options": [
+                        "start",
+                        "end"
+                      ]
+                    },
+                    "helpText": "start (default) or end of the strip."
+                  }
+                ]
+              }
+            }
+          }
         }
       ],
       "mock": {
@@ -3956,144 +4135,25 @@
         "brandText": "Northwind Goods",
         "links": [
           {
-            "kind": "collection",
-            "target": {
-              "_type": "collection",
-              "slug": "knitwear"
-            },
-            "label": "Knitwear",
+            "kind": "url",
+            "url": "/products",
+            "label": "Shop",
             "sections": [
               {
-                "heading": "Women",
+                "heading": "Ceramics",
+                "headingLink": {
+                  "kind": "url",
+                  "url": "/categories/home/ceramics",
+                  "label": "Ceramics"
+                },
                 "links": [
                   {
                     "kind": "collection",
                     "target": {
                       "_type": "collection",
-                      "slug": "womens-sweaters"
+                      "slug": "mugs-cups"
                     },
-                    "label": "Sweaters"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "womens-cardigans"
-                    },
-                    "label": "Cardigans"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "scarves-wraps"
-                    },
-                    "label": "Scarves & wraps"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "hats-gloves"
-                    },
-                    "label": "Hats & gloves"
-                  }
-                ]
-              },
-              {
-                "heading": "Men",
-                "links": [
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "mens-sweaters"
-                    },
-                    "label": "Sweaters"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "mens-cardigans"
-                    },
-                    "label": "Cardigans"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "mens-scarves"
-                    },
-                    "label": "Scarves"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "socks"
-                    },
-                    "label": "Socks"
-                  }
-                ]
-              },
-              {
-                "heading": "Collections",
-                "links": [
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "merino-essentials"
-                    },
-                    "label": "Merino essentials"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "heavy-winter-knits"
-                    },
-                    "label": "Heavy winter knits"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "undyed-wool"
-                    },
-                    "label": "Undyed wool"
-                  },
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "knitwear"
-                    },
-                    "label": "Shop all knitwear"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "kind": "collection",
-            "target": {
-              "_type": "collection",
-              "slug": "ceramics"
-            },
-            "label": "Ceramics",
-            "sections": [
-              {
-                "heading": "Tableware",
-                "links": [
-                  {
-                    "kind": "collection",
-                    "target": {
-                      "_type": "collection",
-                      "slug": "plates"
-                    },
-                    "label": "Plates"
+                    "label": "Mugs and cups"
                   },
                   {
                     "kind": "collection",
@@ -4107,11 +4167,334 @@
                     "kind": "collection",
                     "target": {
                       "_type": "collection",
-                      "slug": "mugs-cups"
+                      "slug": "plates-platters"
                     },
-                    "label": "Mugs & cups"
+                    "label": "Plates and platters"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "vases"
+                    },
+                    "label": "Vases"
                   }
                 ]
+              },
+              {
+                "heading": "Knitwear",
+                "headingLink": {
+                  "kind": "url",
+                  "url": "/categories/knitwear",
+                  "label": "Knitwear"
+                },
+                "links": [
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "sweaters"
+                    },
+                    "label": "Sweaters"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "cardigans"
+                    },
+                    "label": "Cardigans"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "hats-scarves"
+                    },
+                    "label": "Hats and scarves"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "yarn"
+                    },
+                    "label": "Yarn"
+                  }
+                ]
+              },
+              {
+                "heading": "Kitchen",
+                "headingLink": {
+                  "kind": "url",
+                  "url": "/categories/home/kitchen",
+                  "label": "Kitchen"
+                },
+                "links": [
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "jugs-pitchers"
+                    },
+                    "label": "Jugs and pitchers"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "boards"
+                    },
+                    "label": "Boards"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "utensils"
+                    },
+                    "label": "Utensils"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "table-linen"
+                    },
+                    "label": "Table linen"
+                  }
+                ]
+              },
+              {
+                "heading": "Picked for you",
+                "display": "card",
+                "links": [
+                  {
+                    "kind": "product",
+                    "target": {
+                      "_type": "product",
+                      "slug": "speckled-latte-mug"
+                    },
+                    "label": "Speckled latte mug",
+                    "display": "card"
+                  },
+                  {
+                    "kind": "product",
+                    "target": {
+                      "_type": "product",
+                      "slug": "merino-crew-sweater"
+                    },
+                    "label": "Merino crew sweater",
+                    "display": "card"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "url",
+            "url": "/categories/home/ceramics",
+            "label": "Ceramics",
+            "sections": [
+              {
+                "heading": "By type",
+                "headingLink": {
+                  "kind": "url",
+                  "url": "/categories/home/ceramics",
+                  "label": "By type"
+                },
+                "links": [
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "mugs-cups"
+                    },
+                    "label": "Mugs and cups"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "bowls"
+                    },
+                    "label": "Bowls"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "plates-platters"
+                    },
+                    "label": "Plates and platters"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "vases"
+                    },
+                    "label": "Vases",
+                    "badge": "New"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "planters"
+                    },
+                    "label": "Planters"
+                  }
+                ],
+                "seeAll": {
+                  "label": "All ceramics",
+                  "link": {
+                    "kind": "url",
+                    "url": "/categories/home/ceramics",
+                    "label": "Ceramics"
+                  }
+                }
+              },
+              {
+                "heading": "By glaze",
+                "links": [
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "speckled"
+                    },
+                    "label": "Speckled"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "celadon"
+                    },
+                    "label": "Celadon"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "cobalt-on-white"
+                    },
+                    "label": "Cobalt on white"
+                  },
+                  {
+                    "kind": "collection",
+                    "target": {
+                      "_type": "collection",
+                      "slug": "raw-clay"
+                    },
+                    "label": "Raw clay"
+                  }
+                ]
+              },
+              {
+                "heading": "Makers",
+                "headingLink": {
+                  "kind": "url",
+                  "url": "/pages/makers",
+                  "label": "Makers"
+                },
+                "links": [
+                  {
+                    "kind": "url",
+                    "url": "/pages/makers/harbour-pottery",
+                    "label": "Harbour Pottery"
+                  },
+                  {
+                    "kind": "url",
+                    "url": "/pages/makers/kiln-lane",
+                    "label": "Kiln Lane"
+                  },
+                  {
+                    "kind": "url",
+                    "url": "/pages/makers/studio-ash",
+                    "label": "Studio Ash"
+                  }
+                ],
+                "seeAll": {
+                  "label": "Meet the makers",
+                  "link": {
+                    "kind": "url",
+                    "url": "/pages/makers",
+                    "label": "Makers"
+                  }
+                }
+              },
+              {
+                "heading": "Best sellers",
+                "display": "card",
+                "links": [
+                  {
+                    "kind": "product",
+                    "target": {
+                      "_type": "product",
+                      "slug": "speckled-latte-mug"
+                    },
+                    "label": "Speckled latte mug",
+                    "display": "card"
+                  },
+                  {
+                    "kind": "product",
+                    "target": {
+                      "_type": "product",
+                      "slug": "hand-thrown-serving-bowl"
+                    },
+                    "label": "Hand-thrown serving bowl",
+                    "display": "card"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "url",
+            "url": "/categories/knitwear",
+            "label": "Knitwear"
+          },
+          {
+            "kind": "url",
+            "url": "/categories/home/kitchen",
+            "label": "Kitchen"
+          },
+          {
+            "kind": "url",
+            "url": "/journal",
+            "label": "Journal",
+            "sections": [
+              {
+                "links": [
+                  {
+                    "kind": "url",
+                    "url": "/journal/care",
+                    "label": "Care guides",
+                    "description": "Washing linen, seasoning boards, storing wool"
+                  },
+                  {
+                    "kind": "url",
+                    "url": "/journal/workshops",
+                    "label": "Workshop visits",
+                    "description": "Mornings with the people who make our goods"
+                  },
+                  {
+                    "kind": "url",
+                    "url": "/journal/at-home",
+                    "label": "At home",
+                    "description": "Small rituals and slow mornings"
+                  }
+                ],
+                "seeAll": {
+                  "label": "All articles",
+                  "link": {
+                    "kind": "url",
+                    "url": "/journal",
+                    "label": "Journal"
+                  }
+                }
               }
             ]
           },
@@ -4119,23 +4502,14 @@
             "kind": "collection",
             "target": {
               "_type": "collection",
-              "slug": "kitchen"
+              "slug": "sale"
             },
-            "label": "Kitchen"
-          },
-          {
-            "kind": "url",
-            "url": "/journal",
-            "label": "Journal"
-          },
-          {
-            "kind": "url",
-            "url": "/pages/visit",
-            "label": "Visit the studio"
+            "label": "Sale"
           }
         ],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "ctaLabel": "Shop gifts",
         "cta": {
           "kind": "collection",
@@ -4145,7 +4519,39 @@
           }
         },
         "sticky": true,
-        "transparentOverHero": false
+        "transparentOverHero": false,
+        "infoItems": [
+          {
+            "text": "Free delivery over $80",
+            "icon": "truck",
+            "placement": "start"
+          },
+          {
+            "text": "30-day returns",
+            "icon": "arrow-back-up",
+            "placement": "start"
+          },
+          {
+            "text": "Shop open today 10–18",
+            "icon": "clock",
+            "placement": "start"
+          },
+          {
+            "text": "Help",
+            "href": "/pages/help",
+            "placement": "end"
+          },
+          {
+            "text": "Order status",
+            "href": "/pages/order-status",
+            "placement": "end"
+          },
+          {
+            "text": "(555) 014-2290",
+            "href": "tel:+15550142290",
+            "placement": "end"
+          }
+        ]
       },
       "previewImage": ".eldra/previews/navigation.png"
     },
@@ -4161,7 +4567,7 @@
           "fieldId": "variant",
           "name": "Variant",
           "type": "select",
-          "helpText": "centered is the default.",
+          "helpText": "centered is the default. split is a rounded band of two panels: the sign-up on the primary colour on the right, and on the left either the help panel below (when it has a heading) or the heading and text.",
           "metadata": {
             "options": [
               "centered",
@@ -4264,10 +4670,86 @@
           "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
         },
         {
+          "fieldId": "helpHeading",
+          "name": "Help heading",
+          "type": "string",
+          "localized": true,
+          "helpText": "Split variant only. A heading for a panel beside the sign-up, e.g. \"Questions before you buy?\". No heading, no panel.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "split"
+            ]
+          }
+        },
+        {
+          "fieldId": "helpText",
+          "name": "Help text",
+          "type": "text",
+          "localized": true,
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "split"
+            ]
+          }
+        },
+        {
+          "fieldId": "contacts",
+          "name": "Contact lines",
+          "type": "list",
+          "helpText": "Up to 4 lines in the help panel: phone, email, address. Each an icon, a label, an optional link and an optional highlighted note such as opening hours.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "split"
+            ]
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Contact line",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "icon",
+                    "name": "Icon",
+                    "type": "tabler-icon",
+                    "helpText": "For example phone, mail or map-pin."
+                  },
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Link",
+                    "type": "string",
+                    "helpText": "tel:, mailto: or a page. Optional."
+                  },
+                  {
+                    "fieldId": "note",
+                    "name": "Note",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Shown after the label in green, e.g. \"open today until 18:00\"."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
           "fieldId": "sectionBackground",
           "name": "Section background",
           "type": "select",
-          "helpText": "Defaults to \"surface\" when unset.",
+          "helpText": "Defaults to \"surface\" when unset (\"none\" in the split variant, whose band brings its own colours).",
           "metadata": {
             "options": [
               "none",
@@ -4783,6 +5265,13 @@
       "version": 3,
       "fields": [
         {
+          "fieldId": "eyebrow",
+          "name": "Eyebrow",
+          "type": "string",
+          "localized": true,
+          "helpText": "A short line above the heading, e.g. \"Just in\". Optional."
+        },
+        {
           "fieldId": "heading",
           "name": "Heading",
           "type": "string",
@@ -4864,6 +5353,79 @@
           }
         },
         {
+          "fieldId": "layout",
+          "name": "Layout",
+          "type": "select",
+          "helpText": "carousel is the default: one row that scrolls sideways. grid shows every product at once, 4 across on wide screens, 3 on tablets and 2 on phones.",
+          "metadata": {
+            "options": [
+              "carousel",
+              "grid"
+            ]
+          }
+        },
+        {
+          "fieldId": "filters",
+          "name": "Filter chips",
+          "type": "list",
+          "helpText": "Grid layout only. Chips above the products that narrow them to one category, after an \"All\" chip. Up to 6.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "collection"
+            ]
+          },
+          "metadata": {
+            "item": {
+              "fieldId": "item",
+              "name": "Chip",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "label",
+                    "name": "Label",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "category",
+                    "name": "Category",
+                    "type": "string",
+                    "helpText": "The category's handle, e.g. ceramics.",
+                    "validators": {
+                      "required": true
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "allFilterLabel",
+          "name": "\"All\" chip label",
+          "type": "string",
+          "localized": true,
+          "helpText": "Defaults to \"All\".",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "collection"
+            ]
+          }
+        },
+        {
+          "fieldId": "quickAdd",
+          "name": "Quick add",
+          "type": "bool",
+          "default": false,
+          "helpText": "Adds a button on each photo that puts the product straight in the cart. Off in recently-viewed."
+        },
+        {
           "fieldId": "showSwatches",
           "name": "Show swatches",
           "type": "bool",
@@ -4897,7 +5459,7 @@
     {
       "apiId": "product-detail",
       "name": "Product detail",
-      "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery notes and description tabs, plus a quick-add bar on narrow widths.",
+      "description": "The product page's buy box: gallery, title, price, rating, variant pickers, quantity, add to cart, honest stock status, delivery promises and a details accordion beside an image mosaic, plus a quick-add bar on narrow widths.",
       "icon": "shirt",
       "category": "commerce",
       "version": 1,
@@ -4962,7 +5524,7 @@
           "fieldId": "perks",
           "name": "Perks",
           "type": "list",
-          "helpText": "Delivery and returns notes under the buy button. 2 work best.",
+          "helpText": "Delivery, collection and returns promises under the buy button, one ruled row each. 2 or 3 work best.",
           "metadata": {
             "item": {
               "fieldId": "perk",
@@ -4980,7 +5542,8 @@
                         "arrow-back-up",
                         "leaf",
                         "shield-check",
-                        "gift"
+                        "gift",
+                        "building-store"
                       ]
                     },
                     "validators": {
@@ -5013,7 +5576,7 @@
           "fieldId": "tabs",
           "name": "Tabs",
           "type": "list",
-          "helpText": "Details, Shipping and Returns by default.",
+          "helpText": "Shown as an accordion under the buy panel, the first one open. Details, Shipping and Returns by default.",
           "metadata": {
             "item": {
               "fieldId": "tab",
@@ -5095,13 +5658,18 @@
         "perks": [
           {
             "icon": "truck",
-            "title": "Free delivery over $80.",
-            "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+            "title": "Free delivery",
+            "text": "on orders over $80"
+          },
+          {
+            "icon": "building-store",
+            "title": "Collect for free",
+            "text": "from our Portland studio, usually the next day"
           },
           {
             "icon": "arrow-back-up",
-            "title": "Free 30-day returns.",
-            "text": "Unworn, with tags, no questions asked."
+            "title": "30-day returns",
+            "text": "on unworn items, with tags"
           }
         ],
         "tabs": [
@@ -5110,15 +5678,6 @@
             "body": {
               "type": "doc",
               "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "A relaxed crew knitted from extra-fine Merino in a family mill in Biella. Soft enough to wear next to skin, warm without the bulk."
-                    }
-                  ]
-                },
                 {
                   "type": "bulletList",
                   "content": [
@@ -5144,7 +5703,7 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Hand wash cold or wool cycle, dry flat"
+                              "text": "Knitted in a family mill in Biella, Italy"
                             }
                           ]
                         }
@@ -5158,7 +5717,7 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Model is 180 cm and wears size M"
+                              "text": "Relaxed fit; the model is 180 cm and wears size M"
                             }
                           ]
                         }
@@ -5170,16 +5729,40 @@
             }
           },
           {
-            "label": "Shipping",
+            "label": "Care",
             "body": {
               "type": "doc",
               "content": [
                 {
-                  "type": "paragraph",
+                  "type": "bulletList",
                   "content": [
                     {
-                      "type": "text",
-                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Hand wash cold or use a wool cycle"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Dry flat, away from direct heat"
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }
@@ -5187,7 +5770,7 @@
             }
           },
           {
-            "label": "Returns",
+            "label": "Delivery and returns",
             "body": {
               "type": "doc",
               "content": [
@@ -5196,7 +5779,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later; delivery costs are shown before you pay. Send anything unworn back within 30 days with the prepaid label in your parcel."
                     }
                   ]
                 }
@@ -5749,9 +6332,53 @@
                   },
                   {
                     "fieldId": "linkLabel",
-                    "name": "Link label",
+                    "name": "Button label",
                     "type": "string",
                     "localized": true
+                  },
+                  {
+                    "fieldId": "href",
+                    "name": "Button link",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "fieldId": "list",
+          "name": "List",
+          "type": "list",
+          "helpText": "Optional short entries under the first row's text, each with a round initial, a name, one line and a link, e.g. the makers you work with. 2-4 work best.",
+          "metadata": {
+            "item": {
+              "fieldId": "entry",
+              "name": "Entry",
+              "type": "composite",
+              "metadata": {
+                "fields": [
+                  {
+                    "fieldId": "title",
+                    "name": "Name",
+                    "type": "string",
+                    "localized": true,
+                    "validators": {
+                      "required": true
+                    }
+                  },
+                  {
+                    "fieldId": "text",
+                    "name": "Line",
+                    "type": "string",
+                    "localized": true
+                  },
+                  {
+                    "fieldId": "linkLabel",
+                    "name": "Link label",
+                    "type": "string",
+                    "localized": true,
+                    "helpText": "Short, e.g. \"Shop\". Screen readers hear the name after it."
                   },
                   {
                     "fieldId": "href",
@@ -5761,6 +6388,18 @@
                 ]
               }
             }
+          }
+        },
+        {
+          "fieldId": "background",
+          "name": "Section background",
+          "type": "select",
+          "helpText": "none is the default.",
+          "metadata": {
+            "options": [
+              "none",
+              "surface"
+            ]
           }
         }
       ],
@@ -6801,11 +7440,12 @@
           "fieldId": "variant",
           "name": "Variant",
           "type": "select",
-          "helpText": "columns is the default. columns shows icon, title and one line; inline shows icon and title only, in one centred row.",
+          "helpText": "columns is the default. columns shows icon, title and one line; inline shows icon and title only, in one centred row; numbered shows a large number in place of the icon, with title and one line, between hairlines.",
           "metadata": {
             "options": [
               "columns",
-              "inline"
+              "inline",
+              "numbered"
             ]
           },
           "validators": {
@@ -6828,7 +7468,7 @@
                     "fieldId": "icon",
                     "name": "Icon",
                     "type": "tabler-icon",
-                    "helpText": "For example truck, arrow-back-up, shield-check or needle-thread.",
+                    "helpText": "For example truck, arrow-back-up, shield-check or needle-thread. The numbered variant shows the item's number instead.",
                     "validators": {
                       "required": true
                     }
@@ -6848,7 +7488,7 @@
                     "name": "Text",
                     "type": "string",
                     "localized": true,
-                    "helpText": "One line, up to about 60 characters. Only shown in the columns variant.",
+                    "helpText": "One line, up to about 60 characters. Shown in the columns and numbered variants.",
                     "validators": {
                       "maxLength": 60
                     }
@@ -7193,17 +7833,6 @@
       "title": "Product",
       "blocks": [
         {
-          "id": "product-announcement",
-          "apiId": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
-        {
           "id": "product-breadcrumbs",
           "apiId": "breadcrumbs",
           "data": {
@@ -7212,7 +7841,7 @@
             "trail": [],
             "fromProduct": true,
             "showCurrent": true,
-            "container": "content"
+            "container": "wide"
           }
         },
         {
@@ -7227,27 +7856,56 @@
             "perks": [
               {
                 "icon": "truck",
-                "title": "Free delivery over $80.",
-                "text": "Order today, arrives Tue 29 Sep to Thu 1 Oct."
+                "title": "Free delivery",
+                "text": "on orders over $80"
+              },
+              {
+                "icon": "building-store",
+                "title": "Collect for free",
+                "text": "from our Portland studio, usually the next day"
               },
               {
                 "icon": "arrow-back-up",
-                "title": "Free 30-day returns.",
-                "text": "Unworn, with tags, no questions asked."
+                "title": "30-day returns",
+                "text": "on unworn items, with tags"
               }
             ],
             "tabs": [
               {
-                "label": "Shipping",
+                "label": "Care",
                 "body": {
                   "type": "doc",
                   "content": [
                     {
-                      "type": "paragraph",
+                      "type": "bulletList",
                       "content": [
                         {
-                          "type": "text",
-                          "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Free over $80."
+                          "type": "listItem",
+                          "content": [
+                            {
+                              "type": "paragraph",
+                              "content": [
+                                {
+                                  "type": "text",
+                                  "text": "Hand wash cold or use a wool cycle"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "listItem",
+                          "content": [
+                            {
+                              "type": "paragraph",
+                              "content": [
+                                {
+                                  "type": "text",
+                                  "text": "Dry flat, away from direct heat"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     }
@@ -7255,7 +7913,7 @@
                 }
               },
               {
-                "label": "Returns",
+                "label": "Delivery and returns",
                 "body": {
                   "type": "doc",
                   "content": [
@@ -7264,7 +7922,7 @@
                       "content": [
                         {
                           "type": "text",
-                          "text": "30 days to send anything back unworn, with the prepaid label in your parcel. US returns are free."
+                          "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later; delivery costs are shown before you pay. Send anything unworn back within 30 days with the prepaid label in your parcel."
                         }
                       ]
                     }
@@ -7427,11 +8085,6 @@
               "role": "header"
             },
             {
-              "id": "product-announcement",
-              "type": "block",
-              "entryId": "product-announcement"
-            },
-            {
               "id": "product-breadcrumbs",
               "type": "block",
               "entryId": "product-breadcrumbs",
@@ -7494,8 +8147,8 @@
           "id": "collection-grid",
           "apiId": "collection-grid",
           "data": {
-            "variant": "sidebar",
-            "columns": "3",
+            "variant": "filter-bar",
+            "columns": "4",
             "pageSize": "24",
             "paginationStyle": "load-more",
             "sortOptions": [
@@ -7537,7 +8190,7 @@
                 "label": "Availability"
               }
             ],
-            "showColumnSelect": true,
+            "showColumnSelect": false,
             "emptyTitle": "No products match these filters",
             "emptyText": "Try removing a filter or widening the price range."
           }
@@ -7628,7 +8281,7 @@
           "apiId": "collection-header",
           "data": {
             "scope": "category",
-            "variant": "text-only",
+            "variant": "image",
             "showCount": false,
             "showBreadcrumb": false,
             "trail": [],
@@ -7640,8 +8293,8 @@
           "apiId": "collection-grid",
           "data": {
             "scope": "category",
-            "variant": "sidebar",
-            "columns": "3",
+            "variant": "filter-bar",
+            "columns": "4",
             "pageSize": "24",
             "paginationStyle": "load-more",
             "sortOptions": [
@@ -7683,7 +8336,7 @@
                 "label": "Availability"
               }
             ],
-            "showColumnSelect": true,
+            "showColumnSelect": false,
             "emptyTitle": "No products match these filters",
             "emptyText": "Try removing a filter or widening the price range."
           }
@@ -7741,89 +8394,116 @@
       "title": "Home",
       "blocks": [
         {
-          "id": "home-announcement",
-          "apiId": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
-        {
           "id": "home-hero",
           "apiId": "hero",
           "data": {
-            "variant": "image-right",
-            "eyebrow": "New season",
+            "variant": "card",
+            "eyebrow": "New this season",
             "heading": "Made slowly, used daily",
-            "subheading": "Merino knits, hand-thrown stoneware and kitchen goods from small workshops. Made to be used every day and kept for years.",
+            "subheading": "Stoneware, knitwear and kitchen goods from small workshops, chosen to be used every day and kept for years.",
             "primaryCtaLabel": "Shop new arrivals",
-            "primaryCtaHref": "/collections/new",
-            "secondaryCtaLabel": "Our story",
-            "secondaryCtaHref": "/pages/about",
+            "primaryCtaHref": "/collections/the-winter-edit",
+            "secondaryCtaLabel": "Meet the makers",
+            "secondaryCtaHref": "/pages/makers",
             "spacing": "md",
-            "slides": []
+            "captionLabel": "Glazed milk jug",
+            "captionDetail": "$34",
+            "captionHref": "/products/glazed-milk-jug"
           }
         },
         {
           "id": "home-trust-strip",
           "apiId": "trust-strip",
           "data": {
-            "variant": "columns",
+            "variant": "numbered",
             "items": [
               {
+                "icon": "needle-thread",
+                "title": "Made by people we know",
+                "text": "Every piece comes from one of nine workshops."
+              },
+              {
                 "icon": "truck",
-                "title": "Free shipping over $80",
-                "text": "Delivered in 2–4 business days, carbon-neutral."
+                "title": "Free delivery over $80",
+                "text": "Dispatched in 1 to 3 days, or collect from the shop."
               },
               {
                 "icon": "arrow-back-up",
-                "title": "30-day returns",
-                "text": "Changed your mind? Send it back free of charge.",
-                "linkLabel": "30-day returns",
+                "title": "30 days to change your mind",
+                "text": "Unused items back for a full refund.",
+                "linkLabel": "30 days to change your mind: our returns policy",
                 "href": "/pages/returns"
-              },
-              {
-                "icon": "shield-check",
-                "title": "Secure payment",
-                "text": "Encrypted checkout, and we never store card details."
-              },
-              {
-                "icon": "needle-thread",
-                "title": "Made by hand",
-                "text": "In small batches by four family-run workshops."
               }
             ],
             "mobileLayout": "grid",
-            "showPayments": true,
-            "paymentsLabel": "Secure checkout with",
-            "payments": [
+            "showPayments": false,
+            "background": "none"
+          }
+        },
+        {
+          "id": "home-categories",
+          "apiId": "feature-grid",
+          "data": {
+            "variant": "arched",
+            "heading": "Shop by category",
+            "headLinkLabel": "All categories",
+            "headLinkHref": "/products",
+            "columns": "4",
+            "mediaType": "image",
+            "items": [
               {
-                "brand": "visa"
+                "title": "Ceramics",
+                "text": "Mugs, bowls, vases",
+                "href": "/categories/home/ceramics"
               },
               {
-                "brand": "mastercard"
+                "title": "Knitwear",
+                "text": "Sweaters, throws and yarn",
+                "href": "/categories/knitwear"
               },
               {
-                "brand": "paypal"
+                "title": "Tableware",
+                "text": "Cups, plates and platters",
+                "href": "/collections/the-winter-edit"
               },
               {
-                "brand": "apple-pay"
+                "title": "Home",
+                "text": "Throws and cushions",
+                "href": "/categories/home"
+              },
+              {
+                "title": "Kitchen",
+                "text": "Boards, jars and linen",
+                "href": "/categories/home/kitchen"
               }
-            ],
-            "background": "surface"
+            ]
           }
         },
         {
           "id": "home-product-carousel",
           "apiId": "product-carousel",
           "data": {
-            "heading": "New this season",
-            "variant": "collection",
-            "limit": "8",
+            "eyebrow": "Just in",
+            "heading": "New arrivals",
             "viewAllLabel": "View all",
+            "variant": "collection",
+            "layout": "grid",
+            "limit": "8",
+            "quickAdd": true,
+            "filters": [
+              {
+                "label": "Ceramics",
+                "category": "ceramics"
+              },
+              {
+                "label": "Knitwear",
+                "category": "knitwear"
+              },
+              {
+                "label": "Kitchen",
+                "category": "kitchen"
+              }
+            ],
             "showSwatches": true,
             "background": "none",
             "sourceCollection": {
@@ -7837,10 +8517,11 @@
           "apiId": "split-content",
           "data": {
             "startWith": "image-left",
+            "background": "surface",
             "rows": [
               {
-                "eyebrow": "The studio",
-                "heading": "Every bowl passes through six pairs of hands",
+                "eyebrow": "The makers",
+                "heading": "Nine workshops, all within a day's drive",
                 "text": {
                   "type": "doc",
                   "content": [
@@ -7849,85 +8530,91 @@
                       "content": [
                         {
                           "type": "text",
-                          "text": "Our Portland potters throw, trim, glaze and fire in small batches of forty. Slight differences in speckle and rim are the mark of that process, not a flaw."
+                          "text": "We visit every workshop we sell from. Here are three of them."
                         }
                       ]
                     }
                   ]
                 },
-                "linkLabel": "Inside the studio",
-                "href": "/pages/studio"
+                "linkLabel": "Read their stories",
+                "href": "/pages/makers"
+              }
+            ],
+            "list": [
+              {
+                "title": "Harbour Pottery",
+                "text": "Stoneware, thrown and glazed by hand",
+                "linkLabel": "Shop",
+                "href": "/collections/the-winter-edit"
               },
               {
-                "eyebrow": "The mill",
-                "heading": "Knitted slowly, so it lasts",
-                "text": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Our sweaters are knitted on vintage frames at a third of the usual speed. The tighter stitch holds its shape through ten winters or more."
-                        }
-                      ]
-                    }
-                  ]
-                },
-                "linkLabel": "Visit the mill",
-                "href": "/pages/mill"
+                "title": "Fell & Fleece",
+                "text": "Knitwear from their own flock",
+                "linkLabel": "Shop",
+                "href": "/collections/winter-knitwear"
+              },
+              {
+                "title": "Kiln Lane",
+                "text": "Small-batch vases and jugs",
+                "linkLabel": "Shop",
+                "href": "/collections/best-sellers"
               }
             ]
           }
         },
         {
-          "id": "home-testimonials",
-          "apiId": "testimonials",
+          "id": "home-article-list",
+          "apiId": "article-list",
           "data": {
             "variant": "grid",
-            "heading": "Used every day, reviewed honestly",
-            "summary": "4.8 out of 5 from 9,214 verified reviews",
-            "linkLabel": "Read all reviews",
-            "linkHref": "/pages/reviews",
+            "heading": "From the journal",
+            "viewAllLabel": "All articles",
+            "viewAllHref": "/journal",
+            "source": "manual",
+            "perPage": "3",
+            "showFilters": false,
+            "showPagination": false,
+            "showExcerpt": false,
             "items": [
               {
-                "quote": "The latte mug has been in my hand every morning since March. It keeps coffee hot for ages, and the speckled glaze is even nicer in person.",
-                "name": "Hannah Reeve",
-                "meta": "Portland, OR · Speckled latte mug",
-                "rating": "5",
-                "productLabel": "Speckled latte mug",
-                "productHref": "/products/latte-mug"
+                "title": "Five small rituals for a slower morning coffee",
+                "dek": "Warm the cup, grind by hand, sit down to drink it. Small habits that make the first ten minutes of the day your own.",
+                "href": "/journal/slower-morning-coffee",
+                "categoryLabel": "At home",
+                "categoryHref": "/journal/home",
+                "publishedAt": "2026-10-02",
+                "readingTime": "4 min read"
               },
               {
-                "quote": "I bought the lambswool throw as a gift and ordered a second for myself a week later. Heavy, soft, and not one loose thread after a whole winter on the sofa.",
-                "name": "Marcus Bell",
-                "meta": "Austin, TX · Lambswool throw",
-                "rating": "5",
-                "productLabel": "Lambswool throw blanket",
-                "productHref": "/products/lambswool-throw"
+                "title": "A morning at the wheel with Harbour Pottery",
+                "dek": "Six pairs of hands, two firings and a kiln that always has the last word. We spent a morning in the studio.",
+                "href": "/journal/harbour-pottery",
+                "categoryLabel": "Workshop visit",
+                "categoryHref": "/journal/makers",
+                "publishedAt": "2026-09-24",
+                "readingTime": "6 min read"
               },
               {
-                "quote": "The plates arrived double-boxed without a chip. One is a shade warmer than the others, and the card in the box explained why. I like it more for that.",
-                "name": "Priya Nair",
-                "meta": "Minneapolis, MN · Stoneware dinner plates",
-                "rating": "4",
-                "productLabel": "Stoneware dinner plates",
-                "productHref": "/products/dinner-plates"
+                "title": "Layering throws for a colder season",
+                "dek": "Wool over linen, heavy over light: how to build a sofa corner that keeps you warm from October to April.",
+                "href": "/journal/layering-throws",
+                "categoryLabel": "Knitting",
+                "categoryHref": "/journal/care",
+                "publishedAt": "2026-09-12",
+                "readingTime": "3 min read"
               }
-            ],
-            "sectionBackground": "none"
+            ]
           }
         },
         {
           "id": "home-newsletter",
           "apiId": "newsletter",
           "data": {
-            "variant": "centered",
+            "variant": "split",
             "heading": "Letters from the workshop",
-            "text": "New makers, restocks and first pick of our seconds sales, once a month. Take 10% off your first order when you join.",
+            "text": "New pieces and small-batch restocks, once a month. Take 10% off your first order when you join.",
             "fieldLabel": "Email address",
-            "placeholder": "name@example.com",
+            "placeholder": "you@example.com",
             "buttonLabel": "Subscribe",
             "consent": {
               "type": "doc",
@@ -7937,7 +8624,7 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "One email a month, never shared. Read our "
+                      "text": "Unsubscribe at any time. Read our "
                     },
                     {
                       "type": "text",
@@ -7953,18 +8640,35 @@
                     },
                     {
                       "type": "text",
-                      "text": "; unsubscribe with one click."
+                      "text": "."
                     }
                   ]
                 }
               ]
             },
             "requireConsentCheckbox": false,
-            "consentCheckboxLabel": "I'd like to receive emails from Northwind Goods",
             "successTitle": "You're on the list",
             "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
-            "list": "letters-from-the-workshop",
-            "sectionBackground": "surface"
+            "helpHeading": "Questions before you buy?",
+            "helpText": "Sizes, glazes, gift ideas: we know every piece in the shop.",
+            "contacts": [
+              {
+                "icon": "phone",
+                "label": "(555) 014-2290",
+                "href": "tel:+15550142290"
+              },
+              {
+                "icon": "mail",
+                "label": "hello@northwind.example",
+                "href": "mailto:hello@northwind.example"
+              },
+              {
+                "icon": "map-pin",
+                "label": "14 Harbour Street",
+                "note": "open today until 18:00"
+              }
+            ],
+            "sectionBackground": "none"
           }
         }
       ],
@@ -7985,11 +8689,6 @@
               "role": "header"
             },
             {
-              "id": "home-announcement",
-              "type": "block",
-              "entryId": "home-announcement"
-            },
-            {
               "id": "home-hero",
               "type": "block",
               "entryId": "home-hero"
@@ -7998,6 +8697,11 @@
               "id": "home-trust-strip",
               "type": "block",
               "entryId": "home-trust-strip"
+            },
+            {
+              "id": "home-categories",
+              "type": "block",
+              "entryId": "home-categories"
             },
             {
               "id": "home-product-carousel",
@@ -8010,9 +8714,9 @@
               "entryId": "home-split-content"
             },
             {
-              "id": "home-testimonials",
+              "id": "home-article-list",
               "type": "block",
-              "entryId": "home-testimonials"
+              "entryId": "home-article-list"
             },
             {
               "id": "home-newsletter",
@@ -8036,8 +8740,9 @@
         "variant": "default",
         "brandText": "Northwind Goods",
         "links": [],
+        "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "icon",
+        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -8046,7 +8751,7 @@
       "apiId": "footer",
       "data": {
         "variant": "default",
-        "background": "surface-strong",
+        "background": "primary",
         "brandText": "Northwind Goods",
         "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
@@ -8067,16 +8772,6 @@
       "slug": "cart",
       "title": "Your cart",
       "blocks": [
-        {
-          "type": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
         {
           "type": "@header"
         },
@@ -8120,16 +8815,6 @@
       "slug": "wishlist",
       "title": "Your wishlist",
       "blocks": [
-        {
-          "type": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
         {
           "type": "@header"
         },
@@ -8177,16 +8862,6 @@
       "title": "Search",
       "blocks": [
         {
-          "type": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
-        {
           "type": "@header"
         },
         {
@@ -8227,16 +8902,6 @@
       "slug": "products",
       "title": "All products",
       "blocks": [
-        {
-          "type": "announcement-bar",
-          "data": {
-            "variant": "primary",
-            "message": "Free shipping on orders over $80",
-            "linkLabel": "Details",
-            "linkHref": "/pages/shipping",
-            "dismissable": true
-          }
-        },
         {
           "type": "@header"
         },
@@ -8449,7 +9114,7 @@
     "colors": {
       "accent": {
         "label": "Accent",
-        "value": "#9c3f24",
+        "value": "#9c3d26",
         "group": "Brand",
         "allowSiteOverride": true
       },
@@ -8461,19 +9126,19 @@
       },
       "background": {
         "label": "Background",
-        "value": "#fcfbf8",
+        "value": "#f7f4ee",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "border": {
         "label": "Border",
-        "value": "#ddd6ca",
+        "value": "#d8cebd",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "border-strong": {
         "label": "Border strong",
-        "value": "#7d7466",
+        "value": "#776c5c",
         "group": "Surface",
         "allowSiteOverride": true
       },
@@ -8485,7 +9150,7 @@
       },
       "focus": {
         "label": "Focus ring",
-        "value": "#1c1917",
+        "value": "#1d1b18",
         "group": "Focus",
         "allowSiteOverride": true
       },
@@ -8497,25 +9162,25 @@
       },
       "muted": {
         "label": "Muted",
-        "value": "#595249",
+        "value": "#5a5248",
         "group": "Content",
         "allowSiteOverride": true
       },
       "overlay": {
         "label": "Overlay",
-        "value": "#1c1917b3",
+        "value": "#1d1b18b3",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "primary": {
         "label": "Primary",
-        "value": "#24201c",
+        "value": "#1e4646",
         "group": "Brand",
         "allowSiteOverride": true
       },
       "primary-contrast": {
         "label": "Primary contrast",
-        "value": "#fcfbf8",
+        "value": "#f7f4ee",
         "group": "Brand",
         "allowSiteOverride": true
       },
@@ -8527,19 +9192,19 @@
       },
       "surface": {
         "label": "Surface",
-        "value": "#f4f1eb",
+        "value": "#efe9df",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "surface-strong": {
         "label": "Surface strong",
-        "value": "#e9e4da",
+        "value": "#e3dacb",
         "group": "Surface",
         "allowSiteOverride": true
       },
       "text": {
         "label": "Text",
-        "value": "#1c1917",
+        "value": "#1d1b18",
         "group": "Content",
         "allowSiteOverride": true
       },
@@ -8583,7 +9248,7 @@
       },
       "wide": {
         "label": "Wide",
-        "maxWidth": "80rem",
+        "maxWidth": "78rem",
         "gutter": {
           "normal": "2rem",
           "tablet": "1.5rem",
@@ -8685,18 +9350,22 @@
         "storefront.orderSteps.delivered": "Delivered",
         "header.primary": "Primary navigation",
         "header.menu": "Menu",
-        "header.openMenu": "Open menu",
         "header.search": "Search",
         "header.searchField": "Search the shop",
         "header.cartEmpty": "Cart, empty",
         "header.cartOne": "Cart, 1 item",
         "header.cartMany": "Cart, {count} items",
-        "header.wishlistEmpty": "Wishlist",
-        "header.wishlistOne": "Wishlist, 1 item",
-        "header.wishlistMany": "Wishlist, {count} items",
+        "header.wishlistEmpty": "Saved",
+        "header.wishlistOne": "Saved, 1 item",
+        "header.wishlistMany": "Saved, {count} items",
         "header.viewAll": "View all",
         "header.viewAllOf": "View all {label}",
         "header.cart": "Cart",
+        "header.saved": "Saved",
+        "header.savedItems": "Saved items",
+        "header.account": "Account",
+        "header.home": "{brand}, home",
+        "header.info": "Store information",
         "editor.addLink": "Add a link",
         "splitContent.label": "Our story",
         "splitContent.imageHintLabel": "Choose an image",
@@ -8883,6 +9552,9 @@
         "productCarousel.clearHistory": "Clear history",
         "productCarousel.headingHintLabel": "Add a heading",
         "productCarousel.headingHintHelp": "e.g. \"You may also like\"",
+        "productCarousel.allFilter": "All",
+        "productCarousel.filterLabel": "Filter {heading}",
+        "productCarousel.filterEmpty": "Nothing in this category yet. Try another one.",
         "grid.sectionLabel": "{collection} products",
         "grid.products": "Products",
         "grid.legendCategory": "Category",
@@ -8913,6 +9585,8 @@
         "grid.sortPriceDesc": "Price high to low",
         "grid.sortNewest": "Newest",
         "grid.columns": "Columns",
+        "grid.sort": "Sort",
+        "grid.filterAndSort": "Filter and sort",
         "grid.noCollectionLabel": "Choose a collection",
         "grid.noCollectionHelp": "Products, filters and counts come from the store. Pick a collection and the filters to show.",
         "grid.noCategoryLabel": "This grid lists a category",
@@ -8920,10 +9594,8 @@
         "product.images": "Product images",
         "product.information": "Product information",
         "product.tabsLabel": "Product details",
-        "product.zoom": "Zoom image {index} of {count}",
         "product.viewer": "{title}, images",
-        "product.showImage": "Show image {index} of {count}: {alt}",
-        "product.imageIndex": "{index} / {count}",
+        "product.openImage": "Open image {index} of {count}: {alt}",
         "product.saleBadge": "Sale",
         "product.saving": "Save {amount}",
         "product.taxNote": "Taxes included. Shipping calculated at checkout.",
@@ -9247,18 +9919,22 @@
         "storefront.orderSteps.delivered": "Afhent",
         "header.primary": "Aðalvalmynd",
         "header.menu": "Valmynd",
-        "header.openMenu": "Opna valmynd",
         "header.search": "Leita",
         "header.searchField": "Leita í versluninni",
         "header.cartEmpty": "Karfa, tóm",
         "header.cartOne": "Karfa, 1 vara",
         "header.cartMany": "Karfa, {count} vörur",
-        "header.wishlistEmpty": "Óskalisti",
-        "header.wishlistOne": "Óskalisti, 1 vara",
-        "header.wishlistMany": "Óskalisti, {count} vörur",
+        "header.wishlistEmpty": "Vistað",
+        "header.wishlistOne": "Vistað, 1 vara",
+        "header.wishlistMany": "Vistað, {count} vörur",
         "header.viewAll": "Sjá allt",
         "header.viewAllOf": "Sjá allt: {label}",
         "header.cart": "Karfa",
+        "header.saved": "Vistað",
+        "header.savedItems": "Vistaðar vörur",
+        "header.account": "Aðgangur",
+        "header.home": "{brand}, forsíða",
+        "header.info": "Upplýsingar um verslunina",
         "editor.addLink": "Bæta við tengli",
         "splitContent.label": "Sagan okkar",
         "splitContent.imageHintLabel": "Veldu mynd",
@@ -9445,6 +10121,9 @@
         "productCarousel.clearHistory": "Hreinsa feril",
         "productCarousel.headingHintLabel": "Bættu við fyrirsögn",
         "productCarousel.headingHintHelp": "t.d. „Þér gæti einnig líkað við“",
+        "productCarousel.allFilter": "Allt",
+        "productCarousel.filterLabel": "Sía: {heading}",
+        "productCarousel.filterEmpty": "Ekkert í þessum flokki enn. Prófaðu annan.",
         "grid.sectionLabel": "Vörur í {collection}",
         "grid.products": "Vörur",
         "grid.legendCategory": "Vöruflokkur",
@@ -9475,6 +10154,8 @@
         "grid.sortPriceDesc": "Verð, hátt til lágt",
         "grid.sortNewest": "Nýjast",
         "grid.columns": "Dálkar",
+        "grid.sort": "Raða",
+        "grid.filterAndSort": "Sía og raða",
         "grid.noCollectionLabel": "Veldu vörulista",
         "grid.noCollectionHelp": "Vörur, síur og fjöldi koma úr vefbúðinni. Veldu vörulista og hvaða síur eiga að birtast.",
         "grid.noCategoryLabel": "Þessi tafla sýnir vöruflokk",
@@ -9482,10 +10163,8 @@
         "product.images": "Myndir af vörunni",
         "product.information": "Upplýsingar um vöruna",
         "product.tabsLabel": "Nánar um vöruna",
-        "product.zoom": "Stækka mynd {index} af {count}",
         "product.viewer": "{title}, myndir",
-        "product.showImage": "Sýna mynd {index} af {count}: {alt}",
-        "product.imageIndex": "{index} / {count}",
+        "product.openImage": "Opna mynd {index} af {count}: {alt}",
         "product.saleBadge": "Tilboð",
         "product.saving": "Sparar {amount}",
         "product.taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast í greiðslu.",

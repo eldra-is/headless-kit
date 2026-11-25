@@ -10,7 +10,7 @@
       "fieldId": "variant",
       "name": "Variant",
       "type": "select",
-      "helpText": "centered is the default.",
+      "helpText": "centered is the default. split is a rounded band of two panels: the sign-up on the primary colour on the right, and on the left either the help panel below (when it has a heading) or the heading and text.",
       "metadata": { "options": ["centered", "split"] },
       "validators": { "required": true }
     },
@@ -94,10 +94,69 @@
       "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
     },
     {
+      "fieldId": "helpHeading",
+      "name": "Help heading",
+      "type": "string",
+      "localized": true,
+      "helpText": "Split variant only. A heading for a panel beside the sign-up, e.g. \"Questions before you buy?\". No heading, no panel.",
+      "showWhen": { "field": "variant", "in": ["split"] }
+    },
+    {
+      "fieldId": "helpText",
+      "name": "Help text",
+      "type": "text",
+      "localized": true,
+      "showWhen": { "field": "variant", "in": ["split"] }
+    },
+    {
+      "fieldId": "contacts",
+      "name": "Contact lines",
+      "type": "list",
+      "helpText": "Up to 4 lines in the help panel: phone, email, address. Each an icon, a label, an optional link and an optional highlighted note such as opening hours.",
+      "showWhen": { "field": "variant", "in": ["split"] },
+      "metadata": {
+        "item": {
+          "fieldId": "item",
+          "name": "Contact line",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "icon",
+                "name": "Icon",
+                "type": "tabler-icon",
+                "helpText": "For example phone, mail or map-pin."
+              },
+              {
+                "fieldId": "label",
+                "name": "Label",
+                "type": "string",
+                "localized": true,
+                "validators": { "required": true }
+              },
+              {
+                "fieldId": "href",
+                "name": "Link",
+                "type": "string",
+                "helpText": "tel:, mailto: or a page. Optional."
+              },
+              {
+                "fieldId": "note",
+                "name": "Note",
+                "type": "string",
+                "localized": true,
+                "helpText": "Shown after the label in green, e.g. \"open today until 18:00\"."
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "fieldId": "sectionBackground",
       "name": "Section background",
       "type": "select",
-      "helpText": "Defaults to \"surface\" when unset.",
+      "helpText": "Defaults to \"surface\" when unset (\"none\" in the split variant, whose band brings its own colours).",
       "metadata": { "options": ["none", "surface", "surface-strong", "primary", "accent"] }
     }
   ]

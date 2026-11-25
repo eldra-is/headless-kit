@@ -1,0 +1,311 @@
+{
+  "brandMark": {
+    "url": "/images/northwind-mark.svg",
+    "assetId": "demo-brand-mark",
+    "altText": "Northwind Goods",
+    "width": 64,
+    "height": 64
+  },
+  "links": [
+    {
+      "kind": "url",
+      "url": "/products",
+      "label": "Shop",
+      "sections": [
+        {
+          "heading": "Ceramics",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/ceramics",
+            "label": "Ceramics"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/collections/mugs-cups",
+              "label": "Mugs and cups"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/bowls",
+              "label": "Bowls"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/plates-platters",
+              "label": "Plates and platters"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/vases",
+              "label": "Vases"
+            }
+          ]
+        },
+        {
+          "heading": "Knitwear",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/knitwear",
+            "label": "Knitwear"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/collections/sweaters",
+              "label": "Sweaters"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/cardigans",
+              "label": "Cardigans"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/hats-scarves",
+              "label": "Hats and scarves"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/yarn",
+              "label": "Yarn"
+            }
+          ]
+        },
+        {
+          "heading": "Kitchen",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/kitchen",
+            "label": "Kitchen"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/collections/jugs-pitchers",
+              "label": "Jugs and pitchers"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/boards",
+              "label": "Boards"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/utensils",
+              "label": "Utensils"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/table-linen",
+              "label": "Table linen"
+            }
+          ]
+        },
+        {
+          "heading": "Picked for you",
+          "display": "card",
+          "links": [
+            {
+              "kind": "url",
+              "url": "/products/speckled-latte-mug",
+              "label": "Speckled latte mug",
+              "display": "card",
+              "imageUrl": "/images/mug.webp"
+            },
+            {
+              "kind": "url",
+              "url": "/products/merino-crew-sweater",
+              "label": "Merino crew sweater",
+              "display": "card",
+              "imageUrl": "/images/sweater.webp"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "url",
+      "url": "/categories/home/ceramics",
+      "label": "Ceramics",
+      "sections": [
+        {
+          "heading": "By type",
+          "headingLink": {
+            "kind": "url",
+            "url": "/categories/home/ceramics",
+            "label": "By type"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/collections/mugs-cups",
+              "label": "Mugs and cups"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/bowls",
+              "label": "Bowls"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/plates-platters",
+              "label": "Plates and platters"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/vases",
+              "label": "Vases",
+              "badge": "New"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/planters",
+              "label": "Planters"
+            }
+          ],
+          "seeAll": {
+            "label": "All ceramics",
+            "link": {
+              "kind": "url",
+              "url": "/categories/home/ceramics",
+              "label": "Ceramics"
+            }
+          }
+        },
+        {
+          "heading": "By glaze",
+          "links": [
+            {
+              "kind": "url",
+              "url": "/collections/speckled",
+              "label": "Speckled"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/celadon",
+              "label": "Celadon"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/cobalt-on-white",
+              "label": "Cobalt on white"
+            },
+            {
+              "kind": "url",
+              "url": "/collections/raw-clay",
+              "label": "Raw clay"
+            }
+          ]
+        },
+        {
+          "heading": "Makers",
+          "headingLink": {
+            "kind": "url",
+            "url": "/pages/makers",
+            "label": "Makers"
+          },
+          "links": [
+            {
+              "kind": "url",
+              "url": "/pages/makers/harbour-pottery",
+              "label": "Harbour Pottery"
+            },
+            {
+              "kind": "url",
+              "url": "/pages/makers/kiln-lane",
+              "label": "Kiln Lane"
+            },
+            {
+              "kind": "url",
+              "url": "/pages/makers/studio-ash",
+              "label": "Studio Ash"
+            }
+          ],
+          "seeAll": {
+            "label": "Meet the makers",
+            "link": {
+              "kind": "url",
+              "url": "/pages/makers",
+              "label": "Makers"
+            }
+          }
+        },
+        {
+          "heading": "Best sellers",
+          "display": "card",
+          "links": [
+            {
+              "kind": "url",
+              "url": "/products/speckled-latte-mug",
+              "label": "Speckled latte mug",
+              "display": "card",
+              "imageUrl": "/images/mug.webp"
+            },
+            {
+              "kind": "url",
+              "url": "/products/hand-thrown-serving-bowl",
+              "label": "Hand-thrown serving bowl",
+              "display": "card",
+              "imageUrl": "/images/bowl.webp"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "url",
+      "url": "/categories/knitwear",
+      "label": "Knitwear"
+    },
+    {
+      "kind": "url",
+      "url": "/categories/home/kitchen",
+      "label": "Kitchen"
+    },
+    {
+      "kind": "url",
+      "url": "/journal",
+      "label": "Journal",
+      "sections": [
+        {
+          "links": [
+            {
+              "kind": "url",
+              "url": "/pages/care",
+              "label": "Care guides",
+              "description": "Washing linen, seasoning boards, storing wool"
+            },
+            {
+              "kind": "url",
+              "url": "/journal/a-visit-to-the-kortrijk-flax-mill",
+              "label": "Workshop visits",
+              "description": "Mornings with the people who make our goods"
+            },
+            {
+              "kind": "url",
+              "url": "/journal/how-to-wash-and-store-linen",
+              "label": "At home",
+              "description": "Small rituals and slow mornings"
+            }
+          ],
+          "seeAll": {
+            "label": "All articles",
+            "link": {
+              "kind": "url",
+              "url": "/journal",
+              "label": "Journal"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "url",
+      "url": "/collections/the-winter-edit",
+      "label": "Sale"
+    }
+  ],
+  "ctaLabel": null,
+  "cta": null
+}

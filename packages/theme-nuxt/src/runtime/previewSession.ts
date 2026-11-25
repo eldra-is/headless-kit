@@ -408,20 +408,66 @@ export async function settlePreviewSessionDrafts(
       () => 'settled' as const
     );
   const outcome = await Promise.race([settled, timedOut]);
-  clearTimeout(timer);
   if (outcome === 'timeout') {
+    clearTimeout(timer);
     refuse({ status: 'unavailable', errorId: null });
     return;
   }
-  try {
-    await afterRender();
-  } catch (cause) {
-    // Not knowing whether the draft is on screen is not showing it: the unavailable notice.
-    console.warn('[eldra] the draft preview could not be rendered', cause);
-    refuse({ status: 'unavailable', errorId: null });
-    return;
+  // The draft is rendered, and so is whatever that render itself started and held
+  // (`holdPreviewSession`): a block whose draft names something the pinned build never read loads
+  // it now, and the veil stays up until it has answered and rendered too, under the same bound.
+  for (let round = 0; ; round += 1) {
+    try {
+      await afterRender();
+    } catch (cause) {
+      // Not knowing whether the draft is on screen is not showing it: the unavailable notice.
+      clearTimeout(timer);
+      console.warn('[eldra] the draft preview could not be rendered', cause);
+      refuse({ status: 'unavailable', errorId: null });
+      return;
+    }
+    // A render that keeps starting more is shown after a few rounds rather than never.
+    if (held.size === 0 || round >= PREVIEW_SESSION_HELD_ROUNDS) break;
+    const quiet = await Promise.race([
+      Promise.all([...held]).then(() => 'quiet' as const),
+      timedOut,
+    ]);
+    if (quiet === 'timeout') {
+      clearTimeout(timer);
+      refuse({ status: 'unavailable', errorId: null });
+      return;
+    }
   }
+  clearTimeout(timer);
   markPreviewSessionDraftShown();
+}
+
+/** How many times the veil waits for work a draft's render started before it shows the draft. */
+const PREVIEW_SESSION_HELD_ROUNDS = 5;
+
+/** Work held by `holdPreviewSession`, each one settled (never rejecting) and gone once it is. */
+const held = new Set<Promise<void>>();
+
+/**
+ * Keep the veil up until `work` has settled, when it was started while the session is covered —
+ * a no-op otherwise (outside a session, or once the draft is shown).
+ *
+ * For the reads a theme makes outside Nuxt's async data, which the session cannot see: a block
+ * whose draft names a collection the pinned build never read starts that read in the draft's own
+ * render, and without this the veil drops on its skeleton and the page changes under the merchant
+ * a moment later — and a focus the session replays (`replayCoveredFocus`) scrolls against a layout
+ * that is about to change, landing where the live page, which never had the skeleton, does not.
+ * Resolve `work` once its answer has been written where the page renders it from; the session
+ * renders once more after it.
+ */
+export function holdPreviewSession(work: PromiseLike<unknown>): void {
+  if (state.status !== 'pending') return;
+  const settled = Promise.resolve(work).then(
+    () => undefined,
+    () => undefined
+  );
+  held.add(settled);
+  void settled.then(() => held.delete(settled));
 }
 
 /** How long a session waits for the site's saved settings before it keeps the build's. */

@@ -3161,3 +3161,205 @@ describe('collection-grid — card width on a phone', () => {
     wrapper.unmount();
   });
 });
+
+/**
+ * **`filter-bar`**: the same filters as the sidebar, laid out as one row of chips above the grid —
+ * a chip per group opening that group's own panel in a popover, a pressed chip per on/off value, the
+ * sort at the far end, and the applied values as removable tags under it. Only the layout differs,
+ * so every change here goes through the sidebar's own live path (and its debounce): the URL write,
+ * the request and the focus rules are asserted against the same contract the sidebar tests use.
+ */
+describe('collection-grid — the filter-bar variant', () => {
+  const barMock = { ...mock, variant: 'filter-bar' };
+  const bar = (wrapper: VueWrapper) =>
+    wrapper.get(`[role="group"][aria-label="${enUS.grid.filterAndSort}"]`);
+  const barTrigger = (wrapper: VueWrapper, label: string) =>
+    bar(wrapper)
+      .findAll('button[aria-haspopup="dialog"]')
+      .find((button) => button.text().startsWith(label))!;
+  const panelOf = (trigger: Element) =>
+    document.getElementById(`${trigger.getAttribute('aria-controls')!}`);
+
+  async function flush(): Promise<void> {
+    for (let index = 0; index < 4; index += 1) {
+      await nextTick();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  /** What a browser does when `Enter` activates a focused `<button>`: keydown, then a `detail: 0`
+   *  click. */
+  async function pressEnter(button: HTMLElement): Promise<void> {
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+    await flush();
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('draws a chip per group, a pressed chip per on/off value and the sort — no sidebar, no drawer', async () => {
+    const wrapper = mountGrid(barMock);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('aside').exists()).toBe(false);
+    expect(wrapper.find('dialog').exists()).toBe(false);
+    const groups = bar(wrapper).findAll('button[aria-haspopup="dialog"]');
+    // Category, Size, Colour, Price: every seeded group but the on/off Availability one.
+    expect(groups.map((button) => button.text())).toEqual([
+      enUS.grid.legendCategory,
+      'Size',
+      'Colour',
+      PRICE_LEGEND,
+    ]);
+    const pressed = bar(wrapper).get('button[aria-pressed]');
+    expect(pressed.text()).toBe(enUS.grid.availabilityInStock);
+    expect(pressed.attributes('aria-pressed')).toBe('false');
+    expect(comboboxes(wrapper)).toHaveLength(2); // Sort, and Columns from 64rem
+    expect(countLine(wrapper).text()).toBe('48 products');
+  });
+
+  it('is axe-clean closed, with a group open, and with filters applied', async () => {
+    const wrapper = mountGrid(barMock, { attachTo: document.body });
+    await wrapper.vm.$nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+
+    const colour = barTrigger(wrapper, 'Colour').element as HTMLElement;
+    await pressEnter(colour);
+    const panel = panelOf(colour)!;
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-label')).toBe('Colour');
+    expect(await axe(panel)).toHaveNoViolations();
+
+    (panel.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    await flush();
+    await bar(wrapper).get('button[aria-pressed]').trigger('click');
+    await flush();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  describe('keyboard', () => {
+    it('Enter opens a group, a ticked value applies at once, Escape closes and returns focus', async () => {
+      const source = createDemoStorefront();
+      const patches: Array<Record<string, unknown>> = [];
+      const route = {
+        ...source.route,
+        setQuery(patch: Record<string, string | string[] | null>) {
+          patches.push(patch);
+        },
+      };
+      const wrapper = mountGrid(barMock, {
+        source: { ...source, route },
+        attachTo: document.body,
+      });
+      await wrapper.vm.$nextTick();
+
+      const size = barTrigger(wrapper, 'Size').element as HTMLElement;
+      size.focus();
+      await pressEnter(size);
+      expect(size.getAttribute('aria-expanded')).toBe('true');
+
+      const panel = panelOf(size)!;
+      const box = panel.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[2]!;
+      box.focus();
+      box.click();
+      await flush();
+
+      // The sidebar's own live path: the URL moves on the tick, the trigger counts it.
+      expect(patches.at(-1)).toMatchObject({ page: null, size: ['m'] });
+      expect(barTrigger(wrapper, 'Size').text()).toContain('1');
+      expect(wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`).text()).toContain('M');
+
+      box.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      );
+      await flush();
+      expect(panelOf(size)).toBeNull();
+      expect(document.activeElement).toBe(size);
+    });
+
+    it('Enter on an on/off chip presses it and adds its tag; removing the tag focuses the count', async () => {
+      const wrapper = mountGrid(barMock, { attachTo: document.body });
+      await wrapper.vm.$nextTick();
+
+      const chip = bar(wrapper).get('button[aria-pressed]');
+      (chip.element as HTMLElement).focus();
+      // A native button turns Enter into a click; jsdom does not, so the click is dispatched.
+      await chip.trigger('click');
+      await flush();
+      expect(chip.attributes('aria-pressed')).toBe('true');
+
+      const tags = wrapper.get(`ul[aria-label="${enUS.grid.activeFilters}"]`);
+      const remove = tags.get('[data-part="removeButton"]');
+      expect(remove.attributes('aria-label')).toBe(
+        `Remove filter ${enUS.grid.legendAvailability}: ${enUS.grid.availabilityInStock}`
+      );
+      await remove.trigger('click');
+      await flush();
+
+      expect(chip.attributes('aria-pressed')).toBe('false');
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(document.activeElement).toBe(countLine(wrapper).element);
+    });
+
+    it('removing one of two tags moves focus to the next tag', async () => {
+      const wrapper = mountGrid(barMock, { attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      const size = barTrigger(wrapper, 'Size').element as HTMLElement;
+      await pressEnter(size);
+      const boxes = panelOf(size)!.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+      boxes[0]!.click();
+      await flush();
+      boxes[1]!.click();
+      await flush();
+
+      const tags = () =>
+        wrapper
+          .get(`ul[aria-label="${enUS.grid.activeFilters}"]`)
+          .findAll('[data-part="removeButton"]');
+      expect(tags()).toHaveLength(2);
+      await tags()[0]!.trigger('click');
+      await flush();
+      expect(tags()).toHaveLength(1);
+      expect(document.activeElement).toBe(tags()[0]!.element);
+    });
+
+    it('Clear all empties the selection and focuses the count', async () => {
+      const wrapper = mountGrid(barMock, { attachTo: document.body });
+      await wrapper.vm.$nextTick();
+      await bar(wrapper).get('button[aria-pressed]').trigger('click');
+      await flush();
+
+      const clearAll = wrapper
+        .findAll('button')
+        .find((button) => button.text() === enUS.grid.clearAll)!;
+      (clearAll.element as HTMLElement).focus();
+      await clearAll.trigger('click');
+      await flush();
+
+      expect(bar(wrapper).get('button[aria-pressed]').attributes('aria-pressed')).toBe('false');
+      expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
+      expect(document.activeElement).toBe(countLine(wrapper).element);
+    });
+  });
+
+  it('the bar’s requests are the sidebar’s: one debounced read for a run of changes', async () => {
+    const stub = createStub(PRODUCTS, { filteredCount: 4 });
+    const wrapper = mountGrid(barMock, { source: stub.source, attachTo: document.body });
+    await wrapper.vm.$nextTick();
+    const before = stub.requests.length;
+
+    useFilterTimers();
+    await bar(wrapper).get('button[aria-pressed]').trigger('click');
+    await bar(wrapper).get('button[aria-pressed]').trigger('click');
+    await bar(wrapper).get('button[aria-pressed]').trigger('click');
+    await settleFilterDebounce(wrapper);
+    await flushPromises();
+
+    expect(stub.requests.length).toBe(before + 1);
+    expect(stub.requests.at(-1)?.filters).toEqual({ availability: ['in_stock'] });
+    expect(countLine(wrapper).text()).toBe('4 products');
+  });
+});

@@ -1,4 +1,16 @@
 {
+  "eyebrow": "Just in",
+  "heading": "New arrivals",
+  "variant": "collection",
+  "layout": "grid",
+  "limit": "8",
+  "quickAdd": true,
+  "showSwatches": true,
+  "filters": [
+    { "label": "Ceramics", "category": "ceramics" },
+    { "label": "Knitwear", "category": "knitwear" },
+    { "label": "Kitchen", "category": "kitchen" }
+  ],
   "sourceCollection": {
     "_type": "collection",
     "id": "2f1b8d54-0d3a-4a6f-9a0b-7f6c1d2e3a02",

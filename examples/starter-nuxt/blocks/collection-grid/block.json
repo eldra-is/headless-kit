@@ -1,7 +1,7 @@
 {
   "apiId": "collection-grid",
   "name": "Collection grid",
-  "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones.",
+  "description": "A collection's products as a filterable, sortable card grid, with a filter sidebar on wide layouts and a filter drawer on narrow ones, or a horizontal filter bar above the grid.",
   "icon": "layout-grid",
   "category": "commerce",
   "version": 3,
@@ -24,8 +24,8 @@
       "fieldId": "variant",
       "name": "Variant",
       "type": "select",
-      "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size.",
-      "metadata": { "options": ["sidebar", "drawer-only"] },
+      "helpText": "sidebar is the default. drawer-only gives the grid the full width at every size. filter-bar puts one row of filter chips above the grid, each opening its own group, with the applied filters as removable tags under it.",
+      "metadata": { "options": ["sidebar", "drawer-only", "filter-bar"] },
       "validators": { "required": true }
     },
     {

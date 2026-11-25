@@ -30,12 +30,32 @@
  * below), and `recently-viewed` has no link at all. A hidden field keeps its stored value, so
  * switching variants back restores what the author typed.
  *
- * `quickAdd` is left off every card: this block's own "Uses" list in the design spec names Badge,
- * Price and the swatch summary but never quick add, and turning it on would give each card two
- * separate tab stops (the stretched title link, then the quick-add button) where the spec's
- * keyboard table describes exactly one ("Tab moves through every card in order").
+ * **Quick add is opt-in** (`quickAdd`, off by default and always off in `recently-viewed`). Off,
+ * each card is one tab stop, the spec's keyboard table ("Tab moves through every card in order").
+ * On, each card gains a second one, a small "Quick add" pill over the bottom-right of the photo. A
+ * list row carries no variant id (`StorefrontProductListItem.productId`'s own comment), so a press
+ * first reads the product (`catalog.product`, a result whose handle is `null` — no request — until
+ * a pill is pressed) and adds the variant that product's page would add; then the same toast as the
+ * product page's own add (`cart.added`, offering the cart), or the shared failure toast.
+ *
+ * **`layout`.** `carousel` (the default) is the row described above. `grid` shows the same cards
+ * all at once: 4 across from 1101px of block width, 3 from 761px, 2 below, under a head row with
+ * the heading on the left and, for `collection`, optional **filter chips** on the right
+ * (`filters`: a label and a category handle each, after an "All" chip). A chip is a toggle
+ * button (`aria-pressed`); choosing one narrows the collection read to that category
+ * (`filters.category`, the same vocabulary `collection-grid` sends) and the cards dim while the
+ * new read is in flight, as on any refresh. "All" — no chip — is the state the page is
+ * prerendered in, so the chips never change what the server wrote. A chip that matches fewer than
+ * two products still shows the block (with a short line when it matches none): the "fewer than 2
+ * products" floor is about whether the block is worth showing at all, not about a shopper's own
+ * narrowing.
+ *
+ * Cards are restyled through `ProductCard`'s `classes`, never forked: the title is not underlined
+ * until hover, the price sits beside the title from 761px, and the quick-add pill shares the
+ * photo's grid cell (the card root becomes a one-column grid so the pill can sit on the media
+ * without knowing its height).
  */
-import { computed, inject, toValue } from 'vue';
+import { computed, inject, nextTick, ref, toValue, watch } from 'vue';
 import {
   Button,
   Carousel,
@@ -47,9 +67,13 @@ import {
   ProductCard,
   Section,
   Skeleton,
+  useToast,
   VisuallyHidden,
 } from '@eldrajs/ui';
-import type { CarouselPart, SectionBackground } from '@eldrajs/ui';
+import type { CarouselPart, ProductCardPart, SectionBackground } from '@eldrajs/ui';
+import { useEldraLocale } from '@eldrajs/theme-vue';
+import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
+import { CART_ADD_TOAST_ID } from '../../app/storefront/feedback';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRevalidating } from '../../app/composables/useRevalidating';
@@ -60,6 +84,7 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type {
   StorefrontCollectionSelector,
+  StorefrontProduct,
   StorefrontProductListItem,
 } from '../../app/storefront/types';
 import {
@@ -78,7 +103,7 @@ const headingId = `product-carousel-heading-${useUiId()}`;
 /** The h2 recipe, also applied to the heading's own link so `Link`'s standalone size and weight do
  *  not shrink the title (an app utility outranks the kit's `eldra:` classes by cascade layer). */
 const HEADING_CLASSES =
-  'font-heading @tablet:text-h2 text-[1.625rem] leading-[1.15] font-bold tracking-[-0.015em]';
+  'font-heading text-[1.75rem] @min-[47.5625rem]:text-[2.25rem] leading-[1.1] font-medium tracking-[-0.01em] text-balance';
 
 const storefront = useStorefront();
 
@@ -124,7 +149,38 @@ const showSwatchesField = computed(() => data.value.showSwatches ?? true);
 const source = computed<StorefrontCollectionSelector | null>(() =>
   isCollection.value ? collectionSelector(data.value.sourceCollection) : null
 );
-const collectionOpts = computed(() => ({ page: 1, pageSize: limit.value }));
+/** The grid layout's chips — see the module doc comment. Only the `collection` variant reads a
+ *  collection, so only it has anything to narrow. At most six, each with a label and a handle. */
+const isGrid = computed(() => data.value.layout === 'grid');
+const filterChips = computed(() =>
+  isCollection.value && isGrid.value
+    ? (data.value.filters ?? [])
+        .map((chip) => ({
+          label: (chip.label ?? '').trim(),
+          category: (chip.category ?? '').trim(),
+        }))
+        .filter((chip) => chip.label !== '' && chip.category !== '')
+        .slice(0, 6)
+    : []
+);
+const hasFilterChips = computed(() => filterChips.value.length > 0);
+const allFilterLabel = computed(
+  () => (data.value.allFilterLabel ?? '').trim() || t('productCarousel.allFilter')
+);
+/** `null` is "All" — the prerendered state. */
+const activeCategory = ref<string | null>(null);
+/** A chip an editor removes (or a layout switch away from `grid`) must not leave the read narrowed
+ *  to a category no chip names any more. */
+watch(filterChips, (chips) => {
+  if (activeCategory.value !== null && !chips.some((c) => c.category === activeCategory.value)) {
+    activeCategory.value = null;
+  }
+});
+const collectionOpts = computed(() =>
+  activeCategory.value === null
+    ? { page: 1, pageSize: limit.value }
+    : { page: 1, pageSize: limit.value, filters: { category: [activeCategory.value] } }
+);
 
 /**
  * **Three results, and only the variant's own reads anything.** A block cannot create a result
@@ -348,7 +404,123 @@ function onClearHistory(): void {
 
 /** The Carousel (and everything inside it) renders only once there is a heading to name it by and
  *  either the outcome is still unknown (`pending`) or there is enough content to show. */
-const showCarousel = computed(() => hasHeading.value && (pending.value || hasEnoughProducts.value));
+const showCarousel = computed(
+  () =>
+    hasHeading.value && (pending.value || hasEnoughProducts.value || activeCategory.value !== null)
+);
+const showFilteredEmpty = computed(
+  () => activeCategory.value !== null && !pending.value && cards.value.length === 0
+);
+
+/* ---------------------------------------------------------------------------------------------- */
+/* Quick add                                                                                      */
+/* ---------------------------------------------------------------------------------------------- */
+
+const showQuickAdd = computed(() => (data.value.quickAdd ?? false) && !isRecentlyViewed.value);
+/** `null` until a pill is pressed, so the read asks for nothing on the server or on load. */
+const quickAddHandle = ref<string | null>(null);
+const quickAddResult = storefront.catalog.product(quickAddHandle);
+const quickAddBusy = ref(false);
+const toast = useToast();
+const feedback = useStorefrontFeedback();
+const activeLocale = useEldraLocale();
+
+/** Resolves once the product read for `handle` has settled: the product, or `null` when the read
+ *  failed or answered nothing. */
+async function readProduct(handle: string): Promise<StorefrontProduct | null> {
+  quickAddHandle.value = handle;
+  await nextTick();
+  const settled = (): boolean =>
+    !quickAddResult.loading.value &&
+    (quickAddResult.data.value?.handle === handle || quickAddResult.error.value !== null);
+  if (!settled()) {
+    await new Promise<void>((resolve) => {
+      const stop = watch(
+        () => [quickAddResult.loading.value, quickAddResult.data.value, quickAddResult.error.value],
+        () => {
+          if (!settled()) return;
+          stop();
+          resolve();
+        }
+      );
+    });
+  }
+  const product = quickAddResult.data.value;
+  return product !== null && product.handle === handle ? product : null;
+}
+
+async function onQuickAdd(item: { handle: string }): Promise<void> {
+  if (quickAddBusy.value) return;
+  quickAddBusy.value = true;
+  try {
+    const product = await readProduct(item.handle);
+    if (product === null || product.variantId === '') {
+      feedback.report(null, { id: CART_ADD_TOAST_ID });
+      return;
+    }
+    const cart = storefront.cart;
+    const failure = await cart.add({
+      productId: product.productId,
+      variantId: product.variantId,
+      quantity: 1,
+    });
+    if (failure !== null) {
+      feedback.report(failure, { id: CART_ADD_TOAST_ID });
+      return;
+    }
+    toast.show({
+      id: CART_ADD_TOAST_ID,
+      title: t('cart.added'),
+      action: cart.drawerAvailable.value
+        ? {
+            label: t('cart.viewCart'),
+            onActivate: () => {
+              cart.drawerOpen.value = true;
+            },
+          }
+        : { label: t('cart.viewCart'), href: activeLocale.path('/cart') },
+    });
+  } finally {
+    quickAddBusy.value = false;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------- */
+/* Card and grid styling                                                                          */
+/* ---------------------------------------------------------------------------------------------- */
+
+/** The card's own parts, restyled to the theme (see the module doc comment). The root is a
+ *  one-column grid so the quick-add pill can share the photo's cell; from 761px of block width
+ *  the price moves beside the title. */
+const CARD_ROOT_CLASS = 'grid grid-cols-1 grid-rows-[auto_1fr] content-start';
+const cardClasses = computed<Partial<Record<ProductCardPart, string>>>(() => ({
+  media: '[grid-area:1/1]',
+  body:
+    '[grid-area:2/1] @min-[47.5625rem]:grid @min-[47.5625rem]:grid-cols-[minmax(0,1fr)_auto] ' +
+    '@min-[47.5625rem]:items-baseline @min-[47.5625rem]:content-start @min-[47.5625rem]:gap-x-3',
+  title: 'leading-[1.35]',
+  link:
+    'no-underline hover:underline hover:decoration-1 hover:decoration-current ' +
+    'hover:underline-offset-[0.2em]',
+  price: 'whitespace-nowrap',
+  rating: '@min-[47.5625rem]:col-span-2',
+  stockLine: '@min-[47.5625rem]:col-span-2',
+  swatches: 'mt-1 @min-[47.5625rem]:col-span-2',
+  quickAdd:
+    '[grid-area:1/1] z-10 m-3 mt-0 self-end justify-self-end w-auto h-10 min-h-10 rounded-full ' +
+    'border-0 bg-background px-3.5 text-sm font-semibold text-text shadow-sm ' +
+    'hover:bg-text hover:text-background disabled:opacity-90',
+}));
+
+const GRID_CLASS =
+  'grid grid-cols-2 gap-x-3 gap-y-8 @min-[47.5625rem]:grid-cols-3 @min-[47.5625rem]:gap-x-5 ' +
+  '@min-[47.5625rem]:gap-y-10 @min-[68.8125rem]:grid-cols-4';
+
+function chipClass(active: boolean): string {
+  return active
+    ? 'border-text bg-text text-background'
+    : 'border-border-strong text-text hover:bg-surface';
+}
 /** The whole block gates on having a heading — spec: a block with no required content renders
  *  nothing live; in the editor an empty heading gets its own hint instead of vanishing. */
 const showBlock = computed(() =>
@@ -395,27 +567,13 @@ const showBlock = computed(() =>
         :help="t('storefront.unresolvedCollectionHelp')"
       />
 
-      <Carousel
-        v-else-if="showCarousel"
-        :ariaLabel="carouselAriaLabel"
-        controls="header"
-        :dots="false"
-        draggable
-        :per-view="perView"
-        :classes="carouselClasses"
-      >
-        <template #header>
-          <div class="flex flex-1 flex-wrap items-end justify-between gap-x-8 gap-y-4">
+      <template v-else-if="showCarousel && isGrid">
+        <div class="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div>
+            <p v-if="data.eyebrow" class="text-overline text-accent mb-2">{{ data.eyebrow }}</p>
             <h2 :id="headingId" :class="HEADING_CLASSES">
-              <!-- The heading itself is the "view all" link: its visible text stays the heading (so
-                   the Section this `<h2>` labels keeps that exact name) and the link's own
-                   accessible name starts with it and adds `viewAllLabel` + context ("You may also
-                   like — View all products"). A separate link in the same row as the arrows read
-                   as a third control. No counter: a product row shows several cards at once, so
-                   "3 / 6" while the track sits at its end reads wrong (spec "Carousel" → Product
-                   row: no dots and no counter). -->
               <Link
-                v-if="hasViewAll && !isRecentlyViewed"
+                v-if="hasViewAll"
                 :href="viewAllHref!"
                 :as="viewAllLinkAs"
                 variant="standalone"
@@ -427,6 +585,92 @@ const showBlock = computed(() =>
               </Link>
               <template v-else>{{ heading }}</template>
             </h2>
+          </div>
+          <ul
+            v-if="hasFilterChips"
+            class="eldra-scrollbar-hide flex max-w-full gap-2 overflow-x-auto px-0.5 py-1"
+            :aria-label="t('productCarousel.filterLabel', { heading })"
+          >
+            <li
+              v-for="chip in [{ label: allFilterLabel, category: null }, ...filterChips]"
+              :key="chip.category ?? ''"
+            >
+              <button
+                type="button"
+                class="eldra-focus inline-flex min-h-10 items-center rounded-full border px-4 text-[0.9375rem] font-medium whitespace-nowrap"
+                :class="chipClass(activeCategory === chip.category)"
+                :aria-pressed="activeCategory === chip.category ? 'true' : 'false'"
+                @click="activeCategory = chip.category"
+              >
+                {{ chip.label }}
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <ul v-if="showSkeletons" role="list" :class="GRID_CLASS">
+          <li v-for="n in 4" :key="n"><Skeleton variant="media" :ratio="cardRatio" /></li>
+        </ul>
+        <ul v-else-if="cards.length > 0" role="list" :class="GRID_CLASS">
+          <li v-for="entry in cards" :key="entry.item.handle">
+            <ProductCard
+              :product="entry.product"
+              :ratio="cardRatio"
+              :class="[CARD_CLASS, CARD_ROOT_CLASS]"
+              :classes="cardClasses"
+              :show-swatches="showSwatchesField"
+              :show-rating="true"
+              :quick-add="showQuickAdd"
+              :heading-level="3"
+              :revalidating="entry.revalidating"
+              :announce="false"
+              :link-as="entry.internal ? EldraRouterLink : undefined"
+              :currency="entry.currency ?? currency"
+              :locale="locale"
+              @quick-add="onQuickAdd(entry.item)"
+            />
+          </li>
+        </ul>
+        <p v-else-if="showFilteredEmpty" class="text-muted">
+          {{ t('productCarousel.filterEmpty') }}
+        </p>
+      </template>
+
+      <Carousel
+        v-else-if="showCarousel"
+        :ariaLabel="carouselAriaLabel"
+        controls="header"
+        :dots="false"
+        draggable
+        :per-view="perView"
+        :classes="carouselClasses"
+      >
+        <template #header>
+          <div class="flex flex-1 flex-wrap items-end justify-between gap-x-8 gap-y-4">
+            <div>
+              <p v-if="data.eyebrow" class="text-overline text-accent mb-2">{{ data.eyebrow }}</p>
+              <h2 :id="headingId" :class="HEADING_CLASSES">
+                <!-- The heading itself is the "view all" link: its visible text stays the heading (so
+                   the Section this `<h2>` labels keeps that exact name) and the link's own
+                   accessible name starts with it and adds `viewAllLabel` + context ("You may also
+                   like — View all products"). A separate link in the same row as the arrows read
+                   as a third control. No counter: a product row shows several cards at once, so
+                   "3 / 6" while the track sits at its end reads wrong (spec "Carousel" → Product
+                   row: no dots and no counter). -->
+                <Link
+                  v-if="hasViewAll && !isRecentlyViewed"
+                  :href="viewAllHref!"
+                  :as="viewAllLinkAs"
+                  variant="standalone"
+                  arrow
+                  :aria-label="`${heading} — ${data.viewAllLabel}${t('productCarousel.viewAllContext')}`"
+                  :class="`${HEADING_CLASSES} text-inherit`"
+                >
+                  {{ heading }}
+                </Link>
+                <template v-else>{{ heading }}</template>
+              </h2>
+            </div>
             <Button v-if="isRecentlyViewed" variant="link" type="button" @click="onClearHistory">
               {{ t('productCarousel.clearHistory') }}
             </Button>
@@ -443,16 +687,18 @@ const showBlock = computed(() =>
             <ProductCard
               :product="entry.product"
               :ratio="cardRatio"
-              :class="CARD_CLASS"
+              :class="[CARD_CLASS, CARD_ROOT_CLASS]"
+              :classes="cardClasses"
               :show-swatches="!isRecentlyViewed && showSwatchesField"
               :show-rating="!isRecentlyViewed"
-              :quick-add="false"
+              :quick-add="showQuickAdd"
               :heading-level="3"
               :revalidating="entry.revalidating"
               :announce="false"
               :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="entry.currency ?? currency"
               :locale="locale"
+              @quick-add="onQuickAdd(entry.item)"
             />
           </div>
         </template>

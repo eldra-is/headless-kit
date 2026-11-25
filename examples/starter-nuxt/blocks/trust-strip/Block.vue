@@ -37,6 +37,13 @@
  * environment with no `ResizeObserver` such as jsdom under Vitest) and is only ever true once the
  * list is both in `scroll` mode and actually wider than its own box.
  *
+ * **`numbered`** is its own list rather than a third combination of the two axes above: the
+ * design's three promises in equal columns between hairlines (`border-y`, a 1px `border` between
+ * columns), each a large serif `01`/`02`/`03` in `accent` beside its title and line. It ignores
+ * `mobileLayout` — below 961px of block width the items simply stack, one per row, divided by the
+ * same hairline — and it never shows icons. The number is `aria-hidden`: it only restates the
+ * item's position, which the list already announces.
+ *
  * **Payment marks never use brand colour.** `apple-pay` has no Tabler icon, so
  * it renders `brand-apple` while its hidden name still reads "Apple Pay"; the other three map onto
  * their own Tabler brand icon. Every mark is a fixed-size chip with a `text`-toned icon plus a
@@ -82,6 +89,7 @@ const isEditing = useEditing();
 const headingId = `trust-strip-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'columns');
+const isNumbered = computed(() => variant.value === 'numbered');
 const isColumns = computed(() => variant.value !== 'inline');
 
 const mobileLayout = computed(() => data.value.mobileLayout ?? 'grid');
@@ -106,6 +114,14 @@ onMounted(() => {
   listResizeObserver.observe(listEl.value);
 });
 
+/** The scroll list only exists outside the `numbered` variant, so an editor switching variants
+ *  mounts and unmounts it: keep the observer on whichever list element is there now. */
+watch(listEl, (el, previous) => {
+  if (previous) listResizeObserver?.unobserve(previous);
+  if (el) listResizeObserver?.observe(el);
+  measureListOverflow();
+});
+
 onBeforeUnmount(() => {
   listResizeObserver?.disconnect();
   listResizeObserver = null;
@@ -114,7 +130,23 @@ onBeforeUnmount(() => {
 /** See the module doc comment: the extra tab stop exists only while `mobileLayout` is `scroll`
  *  AND the list is actually wider than its own box (i.e. below 48rem — from 48rem the same list
  *  becomes the non-scrolling row and this goes back to `false`). */
-const isFocusableScrollRegion = computed(() => isScrollMobile.value && overflowsHorizontally.value);
+const isFocusableScrollRegion = computed(
+  () => !isNumbered.value && isScrollMobile.value && overflowsHorizontally.value
+);
+
+/** `01`, `02`, … — the numbered variant's marker in place of an icon. */
+function itemNumber(index: number): string {
+  return String(index + 1).padStart(2, '0');
+}
+
+/** The numbered list: three equal columns between hairlines from 961px of block width, a stack of
+ *  rows below that — see the module doc comment. */
+const NUMBERED_LIST_CLASS =
+  'border-border grid grid-cols-1 border-y @min-[60.0625rem]:grid-flow-col @min-[60.0625rem]:auto-cols-fr';
+const NUMBERED_ITEM_CLASS =
+  'border-border grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 py-[1.125rem] ' +
+  'not-first:border-t @min-[60.0625rem]:px-8 @min-[60.0625rem]:py-6 ' +
+  '@min-[60.0625rem]:not-first:border-t-0 @min-[60.0625rem]:not-first:border-l';
 
 /** At most four (spec States → "Many items: at most 4."); a fifth never reaches the DOM at all,
  *  editor included, so there is nothing for the editor's own item count to disagree with. */
@@ -273,7 +305,41 @@ const showPaymentsRow = computed(() => showPayments.value && paymentMarks.value.
     <Container width="wide">
       <VisuallyHidden as="h2" :id="headingId">{{ t('trust.title') }}</VisuallyHidden>
 
+      <ul v-if="isNumbered" :class="NUMBERED_LIST_CLASS">
+        <li v-for="(item, index) in renderedItems" :key="index" :class="NUMBERED_ITEM_CLASS">
+          <template v-if="isEditing && !hasTitle(item)">
+            <EditorPlaceholder
+              inline
+              class="col-span-2"
+              :label="t('trust.itemHintLabel')"
+              :help="t('trust.itemHintHelp')"
+            />
+          </template>
+          <template v-else>
+            <span
+              class="font-heading text-accent row-span-2 text-[2rem] leading-none"
+              aria-hidden="true"
+              >{{ itemNumber(index) }}</span
+            >
+            <Link
+              v-if="itemHasHref(item)"
+              :href="itemHref(item)!"
+              :as="itemLinkAs(item)"
+              :aria-label="item.linkLabel || undefined"
+              class="justify-self-start text-base leading-[1.5] font-semibold"
+            >
+              {{ item.title }}
+            </Link>
+            <p v-else class="text-base leading-[1.5] font-semibold">{{ item.title }}</p>
+            <p v-if="item.text" class="text-muted col-start-2 text-[0.9375rem] leading-[1.6]">
+              {{ item.text }}
+            </p>
+          </template>
+        </li>
+      </ul>
+
       <ul
+        v-else
         ref="listEl"
         :class="[listClass, isFocusableScrollRegion ? focusRing : '']"
         :tabindex="isFocusableScrollRegion ? 0 : undefined"

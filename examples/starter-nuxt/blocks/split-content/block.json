@@ -11,8 +11,12 @@
       "name": "Start with",
       "type": "select",
       "helpText": "image-left is the default. Only the first row's image side — rows then alternate.",
-      "metadata": { "options": ["image-left", "image-right"] },
-      "validators": { "required": true }
+      "metadata": {
+        "options": ["image-left", "image-right"]
+      },
+      "validators": {
+        "required": true
+      }
     },
     {
       "fieldId": "rows",
@@ -30,7 +34,10 @@
                 "fieldId": "image",
                 "name": "Image",
                 "type": "media",
-                "metadata": { "multiple": false, "framing": true }
+                "metadata": {
+                  "multiple": false,
+                  "framing": true
+                }
               },
               {
                 "fieldId": "eyebrow",
@@ -43,7 +50,9 @@
                 "name": "Heading",
                 "type": "string",
                 "localized": true,
-                "validators": { "required": true }
+                "validators": {
+                  "required": true
+                }
               },
               {
                 "fieldId": "text",
@@ -56,14 +65,71 @@
               },
               {
                 "fieldId": "linkLabel",
-                "name": "Link label",
+                "name": "Button label",
                 "type": "string",
                 "localized": true
               },
-              { "fieldId": "href", "name": "Link", "type": "string" }
+              {
+                "fieldId": "href",
+                "name": "Button link",
+                "type": "string"
+              }
             ]
           }
         }
+      }
+    },
+    {
+      "fieldId": "list",
+      "name": "List",
+      "type": "list",
+      "helpText": "Optional short entries under the first row's text, each with a round initial, a name, one line and a link, e.g. the makers you work with. 2-4 work best.",
+      "metadata": {
+        "item": {
+          "fieldId": "entry",
+          "name": "Entry",
+          "type": "composite",
+          "metadata": {
+            "fields": [
+              {
+                "fieldId": "title",
+                "name": "Name",
+                "type": "string",
+                "localized": true,
+                "validators": {
+                  "required": true
+                }
+              },
+              {
+                "fieldId": "text",
+                "name": "Line",
+                "type": "string",
+                "localized": true
+              },
+              {
+                "fieldId": "linkLabel",
+                "name": "Link label",
+                "type": "string",
+                "localized": true,
+                "helpText": "Short, e.g. \"Shop\". Screen readers hear the name after it."
+              },
+              {
+                "fieldId": "href",
+                "name": "Link",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "fieldId": "background",
+      "name": "Section background",
+      "type": "select",
+      "helpText": "none is the default.",
+      "metadata": {
+        "options": ["none", "surface"]
       }
     }
   ]

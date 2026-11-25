@@ -891,6 +891,13 @@ export interface StorefrontRuntime {
   prerender?<T>(key: string, load: () => Promise<T | null>): StorefrontPrerenderHandle<T> | null;
   /** Takes the result into the page's one batched volatile refresh (`refresh.ts`). */
   register?(entry: VolatileRefreshEntry): void;
+  /**
+   * Hands over every load a result starts, settled once its answer is written. A draft preview
+   * session keeps its veil up for the ones started while it is covered (`holdPreviewSession`), so
+   * a block whose draft names a collection the pinned build never read is shown with its answer,
+   * not with the skeleton it has for the moment that read takes.
+   */
+  hold?(load: Promise<void>): void;
 }
 
 export interface StorefrontPrerenderHandle<T> {
@@ -1067,7 +1074,14 @@ function createGatewayResult<T>(
     }
   }
 
-  watch(options.currency === undefined ? sources : [...sources, options.currency], load, {
+  /** Every load, handed to the runtime as well (`StorefrontRuntime.hold`). */
+  function run(): Promise<void> {
+    const loaded = load();
+    options.runtime?.hold?.(loaded);
+    return loaded;
+  }
+
+  watch(options.currency === undefined ? sources : [...sources, options.currency], run, {
     immediate: true,
     deep: true,
   });
@@ -1092,7 +1106,7 @@ function createGatewayResult<T>(
     options.runtime.register(entry);
   }
 
-  return { data, pending, loading, error, revalidating, refresh: load };
+  return { data, pending, loading, error, revalidating, refresh: run };
 }
 
 // ---------------------------------------------------------------------------------------------
