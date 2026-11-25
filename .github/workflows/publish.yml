@@ -99,6 +99,13 @@ jobs:
       - if: steps.gate.outputs.present == 'true'
         run: pnpm build
 
+      # The parity spec loads the starter's .nuxt/tsconfig.json, which CI's `check` makes as a side
+      # effect of `nuxi typecheck`; this job runs no typecheck, so it prepares the starter itself.
+      # Without it every release since the gate existed failed here and published nothing.
+      - name: Prepare the starter's Nuxt types
+        if: steps.gate.outputs.present == 'true'
+        run: pnpm --filter starter-nuxt exec nuxi prepare
+
       - name: Draft preview parity
         if: steps.gate.outputs.present == 'true'
         run: pnpm test:parity

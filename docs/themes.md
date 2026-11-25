@@ -219,7 +219,7 @@ nofollow">` and `<meta name="eldra-preview">` in the head, and right after them 
   under "Parity" below.
 - **Parity with the published page (WS-1358).** A session must render exactly what Publish puts
   live; the starter's `test/previewParity.browser.spec.ts` is the proof and the release gate
-  (`pnpm test:parity`; part of `pnpm check`, and run again by `publish.yml` before any package is
+  (`pnpm test:parity`; part of `pnpm check` through `test:slow`, and run again by `publish.yml` before any package is
   published). It generates the starter twice as production builds: a _pinned_ build made while
   older content was live, served by a stand-in router as a session whose draft reads answer the new
   content in Core's preview shape, and a _live_ build made after that content was published, served

@@ -8,6 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:parity": "pnpm --filter starter-nuxt exec vitest run test/previewParity.browser.spec.ts",
+    "test:fast": "vitest run --exclude test/previewParity.browser.spec.ts --exclude test/generate.spec.ts",
+    "test:slow": "vitest run examples/starter-nuxt/test/previewParity.browser.spec.ts packages/theme-nuxt/test/generate.spec.ts",
     "dev": "vitest",
     "lint": "oxlint --fix && node scripts/check-framework-free.mjs",
     "lint:check": "oxlint && node scripts/check-framework-free.mjs && pnpm --filter @eldrajs/ui check:tokens && pnpm --filter @eldrajs/ui check:tabler-icons && pnpm --filter @eldrajs/ui check:phone-flags && pnpm --filter @eldrajs/sdk check:format-data",
@@ -17,7 +19,8 @@
     "attw": "pnpm -r --filter './packages/*' exec attw --pack . --profile esm-only",
     "size": "size-limit",
     "pack-smoke": "node scripts/pack-smoke.mjs",
-    "check": "pnpm lint:check && pnpm format:check && pnpm build && pnpm typecheck && pnpm test && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke && pnpm --filter @eldrajs/ui build-storybook && pnpm --filter starter-nuxt build-storybook"
+    "check:core": "pnpm lint:check && pnpm format:check && pnpm build && pnpm typecheck && pnpm test:fast && pnpm publint && pnpm attw && pnpm size && pnpm pack-smoke && pnpm --filter @eldrajs/ui build-storybook && pnpm --filter starter-nuxt build-storybook",
+    "check": "pnpm check:core && pnpm test:slow"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
