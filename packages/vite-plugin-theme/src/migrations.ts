@@ -1,4 +1,9 @@
-import type { BlockDefinition, BlockField, BlockMigrationLinkConversion } from './types';
+import type {
+  BlockDefinition,
+  BlockField,
+  BlockMigrationGroupsToSections,
+  BlockMigrationLinkConversion,
+} from './types';
 
 // Core cms/field.IsValidFieldType, including types only used by descendants.
 const STORED_FIELD_TYPES = new Set([
@@ -66,6 +71,8 @@ export function migrationChecks(
 ): void {
   const next = new Map(block.fields.map((field) => [field.fieldId, field]));
   const versions = new Set<number>();
+  // One field is converted once across the block, as Core's ingest requires.
+  const groupedFields = new Set<string>();
   for (const [index, step] of (block.migrations ?? []).entries()) {
     const at = `${file}: migrations[${index}]`;
     if (step.version > block.version) errors.push(`${at}.version — must be a block version bump`);
@@ -77,9 +84,16 @@ export function migrationChecks(
     // A step that carries neither key says nothing at all; an empty `renames`
     // stays legal, because it is how a step that only bumps a version has
     // always been written.
-    if (step.renames === undefined && step.convertToLink === undefined) {
-      errors.push(`${at} — a migration step must declare renames or convertToLink`);
+    if (
+      step.renames === undefined &&
+      step.convertToLink === undefined &&
+      step.groupsToSections === undefined
+    ) {
+      errors.push(
+        `${at} — a migration step must declare renames, convertToLink or groupsToSections`
+      );
     }
+    checkGroupsToSections(at, step.groupsToSections ?? [], next, groupedFields, errors);
     const conversionTargets = new Set<string>();
     for (const conversion of conversions) {
       checkConversionTarget(at, conversion, next, errors);
@@ -160,6 +174,45 @@ export function migrationChecks(
     }
   }
   requireVersionBumpForRetirement(file, block, previous, old, next, errors);
+}
+
+/**
+ * What a `groupsToSections` step must be true of in the *incoming* fields: it
+ * names a link field, or a list of links, and that link declares
+ * `tree.sections`, so the sections the step writes are ones the field then
+ * accepts on every save. Core re-checks the same rules at ingest.
+ */
+function checkGroupsToSections(
+  at: string,
+  steps: BlockMigrationGroupsToSections[],
+  next: Map<string, BlockField>,
+  seen: Set<string>,
+  errors: string[]
+): void {
+  for (const { field: fieldId } of steps) {
+    const target = next.get(fieldId);
+    if (target === undefined) {
+      errors.push(`${at} — groupsToSections field "${fieldId}" does not exist in incoming fields`);
+      continue;
+    }
+    const link = target.type === 'list' ? listItem(target) : target;
+    if (link === null || link.type !== 'link') {
+      errors.push(
+        `${at} — groupsToSections field "${fieldId}" must be a link field or a list of links`
+      );
+      continue;
+    }
+    const tree = link.metadata?.tree;
+    if (!isRecord(tree) || !isRecord(tree.sections)) {
+      errors.push(`${at} — groupsToSections field "${fieldId}" must declare tree.sections`);
+    }
+    if (seen.has(fieldId)) {
+      errors.push(
+        `${at} — groupsToSections fields must be unique; one field cannot be converted twice`
+      );
+    }
+    seen.add(fieldId);
+  }
 }
 
 /**

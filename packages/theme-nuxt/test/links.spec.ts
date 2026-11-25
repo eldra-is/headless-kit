@@ -104,6 +104,43 @@ function stubClient(handlers: Handlers = {}): { client: EldraClient; paths: stri
 }
 
 describe('collectLinkTargets', () => {
+  it("fills a card's picture and price from the reads it already makes", async () => {
+    const { client } = stubClient({
+      listProducts: () =>
+        listPage([
+          {
+            id: PRODUCT_ID,
+            slug: 'ash-glaze-mug',
+            title: 'Ash mug',
+            minPrice: 28,
+            thumbnail: { assetId: 'a1', url: 'https://m.test/p.jpg' },
+          },
+        ]),
+      listCollections: () =>
+        listPage([
+          {
+            id: COLLECTION_ID,
+            slug: 'knitwear',
+            title: 'Knitwear',
+            image: { assetId: 'a2', url: 'https://m.test/c.jpg' },
+          },
+        ]),
+    });
+    const targets = await collectLinkTargets(client, [
+      `product:${PRODUCT_ID}`,
+      `collection:${COLLECTION_ID}`,
+    ]);
+    expect(targets.get(`product:${PRODUCT_ID}`)).toMatchObject({
+      image: 'https://m.test/p.jpg',
+      price: 28,
+    });
+    expect(targets.get(`collection:${COLLECTION_ID}`)).toEqual({
+      slug: 'knitwear',
+      title: 'Knitwear',
+      image: 'https://m.test/c.jpg',
+    });
+  });
+
   it('reads one batch per type, and keys what it finds by type and id', async () => {
     const { client, paths } = stubClient({
       listProducts: () => listPage([{ id: PRODUCT_ID, slug: 'ash-glaze-mug', title: 'Ash mug' }]),

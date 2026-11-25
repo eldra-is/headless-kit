@@ -1017,20 +1017,15 @@ describe('scanTheme link field metadata', () => {
     expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([]);
   });
 
-  it('refuses metadata.tree on a top-level link — a list is what a tree is authored in', () => {
-    const dir = withHeroField({
+  it('accepts metadata.tree on a top-level link and on a composite child, as Core does', () => {
+    const top = withHeroField({
       fieldId: 'cta',
       name: 'Button link',
       type: 'link',
       metadata: { tree: true },
     });
-    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT} — metadata.tree is only allowed on a link that is a list's item`,
-    ]);
-  });
-
-  it("refuses metadata.tree on a link inside a composite's fields", () => {
-    const dir = withHeroField({
+    expect(scanTheme({ themeDir: top, framework: 'nuxt' }).errors).toEqual([]);
+    const nested = withHeroField({
       fieldId: 'card',
       name: 'Card',
       type: 'composite',
@@ -1038,12 +1033,10 @@ describe('scanTheme link field metadata', () => {
         fields: [{ fieldId: 'cta', name: 'Link', type: 'link', metadata: { tree: true } }],
       },
     });
-    expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT}.metadata.fields[0] — metadata.tree is only allowed on a link that is a list's item`,
-    ]);
+    expect(scanTheme({ themeDir: nested, framework: 'nuxt' }).errors).toEqual([]);
   });
 
-  it('rejects a non-boolean tree', () => {
+  it('rejects a tree that is neither a boolean nor an object', () => {
     const dir = linkList({
       fieldId: 'link',
       name: 'Link',
@@ -1051,7 +1044,7 @@ describe('scanTheme link field metadata', () => {
       metadata: { tree: 'yes' },
     });
     expect(scanTheme({ themeDir: dir, framework: 'nuxt' }).errors).toEqual([
-      `${AT}.metadata.item.metadata.tree — must be a boolean`,
+      `${AT}.metadata.item.metadata.tree — must be a boolean or an object`,
     ]);
   });
 
@@ -1263,6 +1256,293 @@ describe('scanTheme theme messages', () => {
     );
     // Only the first offending key (in file order) is named, not every one.
     expect(joined).not.toContain('aaaBad');
+  });
+});
+
+describe('link field tree declaration (WS-1312)', () => {
+  type Meta = Record<string, unknown>;
+  const link = (metadata: Meta, fieldId = 'link') => ({
+    fieldId,
+    name: fieldId,
+    type: 'link',
+    metadata,
+  });
+  const list = (item: unknown, fieldId = 'links') => ({
+    fieldId,
+    name: fieldId,
+    type: 'list',
+    metadata: { item },
+  });
+  const composite = (fields: unknown[], fieldId = 'box') => ({
+    fieldId,
+    name: fieldId,
+    type: 'composite',
+    metadata: { fields },
+  });
+  /** Scans a whole theme whose hero block carries these fields. */
+  function scan(fields: unknown[], migrations?: unknown, version = 1) {
+    const root = mkdtempSync(join(tmpdir(), 'eldra-link-tree-'));
+    cpSync(fixture('valid-theme'), root, { recursive: true });
+    writeFileSync(
+      join(root, 'blocks/hero/block.json'),
+      JSON.stringify({
+        apiId: 'hero',
+        name: 'Hero',
+        version,
+        fields,
+        ...(migrations === undefined ? {} : { migrations }),
+      })
+    );
+    return scanTheme({ themeDir: root, framework: 'nuxt' });
+  }
+  const errorsOf = (fields: unknown[], migrations?: unknown, version = 1) =>
+    scan(fields, migrations, version).errors.join('\n');
+
+  const sections = { max: 4, headingLink: true, seeAll: true };
+  const productCards = { kinds: ['product', 'collection'], max: 2, aspect: '4:5' };
+  const cardsMessage =
+    'metadata.tree.cards — only allowed on a top-level link field or the link item of a top-level list';
+
+  it('tree object accepted', () => {
+    const trees: unknown[] = [
+      true,
+      false,
+      null,
+      {},
+      { depth: 1 },
+      { depth: 2 },
+      { depth: 0 },
+      { depth: 2, sections },
+      { sections },
+      { sections: null },
+      { depth: 2, sections, cards: productCards },
+      { cards: { max: 2, customImage: true } },
+      { cards: { kinds: ['collection'], max: 1, aspect: '16:9' } },
+      { cards: { kinds: ['product', 'product'], max: 1 } },
+      { cards: { kinds: ['none'], max: 1 } },
+      { unknownKey: 1 },
+    ];
+    for (const tree of trees) {
+      expect(errorsOf([link({ tree })]), JSON.stringify(tree)).toBe('');
+      expect(errorsOf([list(link({ tree }))]), JSON.stringify(tree)).toBe('');
+    }
+  });
+
+  it('emits an object tree into the manifest unchanged', () => {
+    const tree = { depth: 2, sections, cards: productCards };
+    const { manifest, errors } = scan([list(link({ tree }))]);
+    expect(errors).toEqual([]);
+    const hero = manifest?.blocks.find((block) => block.apiId === 'hero');
+    expect((hero?.fields as unknown[] | undefined)?.[0]).toMatchObject({
+      metadata: { item: { metadata: { tree } } },
+    });
+  });
+
+  it.each(['yes', 1, ['x'], []])('refuses tree %j that is neither boolean nor object', (tree) => {
+    expect(errorsOf([link({ tree })])).toContain(
+      'fields[0].metadata.tree — must be a boolean or an object'
+    );
+  });
+
+  it.each([3, -1, 1.5, '2', true])('refuses depth %j', (depth) => {
+    expect(errorsOf([link({ tree: { depth } })])).toMatch(/metadata\.tree\.depth — must be 1 or 2/);
+  });
+
+  it('refuses sections and cards at depth 1', () => {
+    for (const tree of [
+      { depth: 1, sections },
+      { depth: 1, cards: productCards },
+    ]) {
+      expect(errorsOf([link({ tree })])).toContain('sections and cards require depth 2');
+    }
+  });
+
+  it.each([0, -1, 1.5, '2', undefined])('refuses sections.max %j', (max) => {
+    expect(errorsOf([link({ tree: { sections: { max } } })])).toContain(
+      'tree.sections.max — must be an integer of at least 1'
+    );
+  });
+
+  it.each([0, -3, 1.5, undefined])('refuses cards.max %j', (max) => {
+    expect(errorsOf([link({ tree: { cards: { kinds: ['product'], max } } })])).toContain(
+      'tree.cards.max — must be an integer of at least 1'
+    );
+  });
+
+  it.each(['4x5', '4:', ':5', 'wide', '4:5:6', '-4:5', '4:5 ', 5])(
+    'refuses aspect %j',
+    (aspect) => {
+      expect(
+        errorsOf([link({ tree: { cards: { kinds: ['product'], max: 1, aspect } } })])
+      ).toContain('cards.aspect');
+    }
+  );
+
+  it('accepts an empty or null aspect', () => {
+    for (const aspect of ['', null]) {
+      expect(errorsOf([link({ tree: { cards: { kinds: ['product'], max: 1, aspect } } })])).toBe(
+        ''
+      );
+    }
+  });
+
+  it('cards.kinds outside kinds refused', () => {
+    expect(
+      errorsOf([
+        link({ kinds: ['product', 'url'], tree: { cards: { kinds: ['collection'], max: 1 } } }),
+      ])
+    ).toContain('cards.kinds — "collection" is not one of the field');
+    // No `kinds` on the field means every kind is allowed; an unknown one is not.
+    expect(
+      errorsOf([link({ tree: { cards: { kinds: ['blog'], max: 1, customImage: true } } })])
+    ).toContain('cards.kinds — "blog" is not one of the field');
+    expect(errorsOf([link({ tree: { cards: { kinds: ['collection'], max: 1 } } })])).toBe('');
+    expect(errorsOf([link({ tree: { cards: { kinds: 'product', max: 1 } } })])).toContain(
+      'cards.kinds — must be an array of link kinds'
+    );
+  });
+
+  it('refuses cards: { max: N } alone, which allows every kind including ones without a picture', () => {
+    expect(errorsOf([link({ tree: { cards: { max: 2 } } })])).toContain('cards.customImage');
+  });
+
+  it('applies the customImage rule to the kinds the cards may be', () => {
+    for (const kind of ['page', 'entry', 'url', 'category']) {
+      expect(errorsOf([link({ tree: { cards: { kinds: [kind], max: 1 } } })])).toContain(
+        'cards.customImage'
+      );
+      expect(
+        errorsOf([link({ tree: { cards: { kinds: [kind], max: 1, customImage: true } } })])
+      ).toBe('');
+    }
+    // Empty cards.kinds falls back to the field's kinds.
+    expect(
+      errorsOf([link({ kinds: ['category'], tree: { cards: { kinds: [], max: 1 } } })])
+    ).toContain('cards.customImage');
+    expect(errorsOf([link({ kinds: ['product'], tree: { cards: { max: 2 } } })])).toBe('');
+    expect(
+      errorsOf([link({ kinds: ['product', 'collection'], tree: { cards: { max: 2 } } })])
+    ).toBe('');
+    // `none` and product/collection bring no image requirement.
+    expect(errorsOf([link({ tree: { cards: { kinds: ['collection'], max: 1 } } })])).toBe('');
+    expect(errorsOf([link({ tree: { cards: { max: 2, customImage: false } } })])).toContain(
+      'cards.customImage'
+    );
+  });
+
+  it('refuses wrongly typed keys inside the declaration', () => {
+    expect(errorsOf([link({ tree: { enabled: 'yes' } })])).toContain(
+      'tree.enabled — must be a boolean'
+    );
+    expect(errorsOf([link({ tree: { sections: 3 } })])).toContain(
+      'tree.sections — must be an object'
+    );
+    expect(errorsOf([link({ tree: { sections: { max: 1, headingLink: 'y' } } })])).toContain(
+      'tree.sections.headingLink — must be a boolean'
+    );
+    expect(errorsOf([link({ tree: { sections: { max: 1, seeAll: 1 } } })])).toContain(
+      'tree.sections.seeAll — must be a boolean'
+    );
+    expect(errorsOf([link({ tree: { cards: [] } })])).toContain('tree.cards — must be an object');
+    expect(
+      errorsOf([link({ tree: { cards: { kinds: ['product'], max: 1, customImage: 'y' } } })])
+    ).toContain('cards.customImage — must be a boolean');
+  });
+
+  it('treats an explicit null boolean like an absent one, as Core does', () => {
+    expect(errorsOf([link({ tree: { enabled: null } })])).toBe('');
+    expect(errorsOf([link({ tree: { sections: { max: 1, headingLink: null } } })])).toBe('');
+    expect(errorsOf([link({ tree: { sections: { max: 1, seeAll: null } } })])).toBe('');
+    expect(
+      errorsOf([link({ tree: { cards: { kinds: ['product'], max: 1, customImage: null } } })])
+    ).toBe('');
+    // A null customImage is "not declared", so the image rule still applies.
+    expect(
+      errorsOf([link({ tree: { cards: { kinds: ['page'], max: 1, customImage: null } } })])
+    ).toContain('cards.customImage');
+  });
+
+  describe('where cards may appear', () => {
+    const cards = { kinds: ['product'], max: 1 };
+
+    it('accepts cards on a top-level link and on the link item of a top-level list', () => {
+      expect(errorsOf([link({ tree: { cards } })])).toBe('');
+      expect(errorsOf([list(link({ tree: { cards } }))])).toBe('');
+    });
+
+    it('refuses cards on a composite child', () => {
+      expect(errorsOf([composite([link({ tree: { cards } })])])).toContain(cardsMessage);
+    });
+
+    it('refuses cards on a list inside a composite', () => {
+      expect(errorsOf([composite([list(link({ tree: { cards } }))])])).toContain(cardsMessage);
+    });
+
+    it('refuses cards on a list inside a list', () => {
+      expect(errorsOf([list(list(link({ tree: { cards } })), 'outer')])).toContain(cardsMessage);
+    });
+
+    it('refuses cards on a composite that is a top-level list item', () => {
+      expect(errorsOf([list(composite([link({ tree: { cards } })]))])).toContain(cardsMessage);
+    });
+
+    it('accepts tree and sections, without cards, on a nested link', () => {
+      expect(
+        errorsOf([
+          composite([link({ tree: true }), link({ tree: { sections } }, 'other')]),
+          list(composite([link({ tree: { depth: 1 } })]), 'rows'),
+        ])
+      ).toBe('');
+    });
+  });
+
+  it('reports every list item as .metadata.item', () => {
+    expect(errorsOf([list(link({ kinds: ['blog'] }))])).toContain(
+      'fields[0].metadata.item.metadata.kinds — unknown kind "blog"'
+    );
+    expect(errorsOf([composite([list(link({ kinds: ['blog'] }))])])).toContain(
+      'fields[0].metadata.fields[0].metadata.item.metadata.kinds — unknown kind "blog"'
+    );
+    expect(
+      errorsOf([list(list(link({ kinds: ['product'], tree: { cards: { max: 1 } } })), 'outer')])
+    ).toContain('fields[0].metadata.item.metadata.item.metadata.tree.cards');
+  });
+
+  describe('through the full scan, with a groupsToSections step', () => {
+    const step = (...fieldIds: string[]) => [
+      { version: 2, groupsToSections: fieldIds.map((field) => ({ field })) },
+    ];
+
+    it('accepts an object tree with sections on a list item and on a top-level link', () => {
+      const tree = { depth: 2, sections: { max: 4 } };
+      const result = scan([list(link({ tree })), link({ tree }, 'cta')], step('links', 'cta'), 2);
+      expect(result.errors).toEqual([]);
+      expect(result.manifest?.blocks.find((b) => b.apiId === 'hero')?.migrations).toEqual(
+        step('links', 'cta')
+      );
+    });
+
+    it('accepts sections alone, with the default depth, and with cards', () => {
+      expect(
+        errorsOf(
+          [list(link({ tree: { sections: { max: 2 }, cards: productCards } }))],
+          step('links'),
+          2
+        )
+      ).toBe('');
+    });
+
+    it('still refuses the step on a boolean tree', () => {
+      expect(errorsOf([list(link({ tree: true }))], step('links'), 2)).toContain(
+        'groupsToSections field "links" must declare tree.sections'
+      );
+    });
+
+    it('still refuses the step on a tree object that declares no sections', () => {
+      expect(errorsOf([list(link({ tree: { depth: 2 } }))], step('links'), 2)).toContain(
+        'must declare tree.sections'
+      );
+    });
   });
 });
 

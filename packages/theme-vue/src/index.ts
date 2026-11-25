@@ -21,8 +21,10 @@ export {
   type LinkRouteContext,
   type LinkTarget,
   type LinkTargetInfo,
+  type LinkSectionValue,
   type LinkValue,
   type ResolvedLink,
+  type ResolvedSection,
 } from '@eldrajs/theme-core/links';
 export { EldraBlockZone, getBlockSchemaApiId } from './EldraBlockZone';
 export { EldraLayout } from './EldraLayout';

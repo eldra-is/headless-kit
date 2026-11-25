@@ -9,6 +9,7 @@ import {
   navLinkTag,
   panelLayout,
   panelLinks,
+  panelRuns,
 } from '../navLinks';
 import type { NavMenuItem, NavMenuLink } from '../types';
 
@@ -19,6 +20,18 @@ interface ResolvedLink {
   newTab: boolean;
   group: string | null;
   children: ResolvedLink[];
+  display?: 'card' | 'link';
+  imageUrl?: string;
+  card?: { image: string; title: string; price?: number };
+  sections?: ResolvedSection[];
+}
+
+interface ResolvedSection {
+  heading: string | null;
+  headingLink: ResolvedLink | null;
+  display?: 'card' | 'link';
+  links: ResolvedLink[];
+  seeAll: ResolvedLink | null;
 }
 
 describe('the data shape', () => {
@@ -129,5 +142,106 @@ describe('navLinkTag and navLinkAttrs', () => {
       rel: 'noopener noreferrer',
       'aria-current': 'page',
     });
+  });
+});
+
+describe('sections', () => {
+  const link = (label: string | null, href: string | null = null): ResolvedLink => ({
+    href,
+    label,
+    newTab: false,
+    group: null,
+    children: [],
+  });
+  const shop: ResolvedLink = {
+    ...link('Shop'),
+    sections: [
+      {
+        heading: 'Knitwear',
+        headingLink: link('Knitwear', '/knitwear'),
+        links: [link('Sweaters', '/sweaters'), link(null)],
+        seeAll: link('See all', '/knitwear'),
+      },
+      { heading: null, headingLink: null, links: [link('Mugs', '/mugs')], seeAll: null },
+      { heading: 'Empty', headingLink: null, links: [link(null)], seeAll: null },
+    ],
+  };
+
+  it('takes a resolved link with sections as it is', () => {
+    expectTypeOf<ResolvedLink>().toExtend<NavMenuItem>();
+  });
+
+  it('opens a mega panel from sections, with their links as the panel links', () => {
+    expect(hasPanel(shop)).toBe(true);
+    expect(panelLayout(shop)).toBe('mega');
+    expect(panelLinks(shop).map((entry) => entry.label)).toEqual(['Sweaters', 'Mugs']);
+  });
+
+  it('turns each section into a run, in order, without merging two of the same heading', () => {
+    const runs = panelRuns({
+      ...shop,
+      sections: [
+        ...(shop.sections ?? []),
+        { heading: 'Knitwear', headingLink: null, links: [link('Hats')], seeAll: null },
+      ],
+    });
+    expect(runs.map((run) => [run.group, run.links.map((entry) => entry.label)])).toEqual([
+      ['Knitwear', ['Sweaters']],
+      [null, ['Mugs']],
+      ['Knitwear', ['Hats']],
+    ]);
+    expect(runs[0]?.headingLink?.href).toBe('/knitwear');
+    expect(runs[0]?.seeAll?.label).toBe('See all');
+  });
+
+  it('heads a section that has only a heading link with its label', () => {
+    const runs = panelRuns({
+      label: 'Shop',
+      sections: [{ headingLink: { label: 'Knitwear', href: '/k' }, links: [{ label: 'A' }] }],
+    });
+    expect(runs[0]?.group).toBe('Knitwear');
+    expect(runs[0]?.headingLink?.href).toBe('/k');
+  });
+
+  it('keeps a section whose only content is a see-all link', () => {
+    const only: NavMenuItem = {
+      label: 'Shop',
+      sections: [{ heading: 'A', links: [], seeAll: { label: 'All', href: '/all' } }],
+    };
+    expect(panelRuns(only)).toHaveLength(1);
+    expect(hasPanel(only)).toBe(true);
+  });
+
+  it('falls back to grouped children when there are no sections', () => {
+    const legacy: NavMenuItem = {
+      label: 'Shop',
+      children: [{ label: 'Mugs', group: 'Ceramics' }],
+    };
+    expect(panelRuns(legacy).map((run) => run.group)).toEqual(['Ceramics']);
+    expect(panelRuns({ ...legacy, sections: [] }).map((run) => run.group)).toEqual(['Ceramics']);
+  });
+
+  it('is the current item when a section link, heading link or see-all link is', () => {
+    const current = (patch: Partial<NavMenuLink>): NavMenuItem => ({
+      label: 'Shop',
+      sections: [
+        {
+          heading: 'A',
+          headingLink: { label: 'A', href: '/a', ...patch },
+          links: [{ label: 'B' }],
+        },
+      ],
+    });
+    expect(containsCurrent(current({ current: true }))).toBe(true);
+    expect(containsCurrent(current({}))).toBe(false);
+    expect(
+      containsCurrent({ label: 'S', sections: [{ links: [{ label: 'B', current: true }] }] })
+    ).toBe(true);
+    expect(
+      containsCurrent({
+        label: 'S',
+        sections: [{ links: [], seeAll: { label: 'All', current: true } }],
+      })
+    ).toBe(true);
   });
 });

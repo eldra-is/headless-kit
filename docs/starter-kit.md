@@ -192,10 +192,16 @@ Studio link tree, and hands the links, their mega-menus and the narrow-screen dr
 - **Measured on the header.** `collapseBelow: '@content'`, 64rem of the block's own width like every
   other breakpoint in it; `minimal` uses `'always'`.
 - **One sheet per parent.** Every parent opens a `mega` panel flush under the bar (`classes.panel:
-'pt-0'`), painted with the bar's own `--eldra-header-surface`, its groups three columns each of a
-  12-column grid. A parent is a disclosure, so its own destination moves from the trigger to a
+'pt-0'`), painted with the bar's own `--eldra-header-surface`, its columns three each of a
+  12-column grid (a panel with a cards column is equal tracks instead: a link column one, the cards
+  column two). A parent is a disclosure, so its own destination moves from the trigger to a
   "View all" row in `panelFooter`; a `kind: "none"` heading has none, and the empty footer takes no
-  room. Children sharing a `group` form one column even when the author split them.
+  room. The block declares **sections** (`tree.sections`, up to 4 columns, each with a heading, a
+  heading link and a See all) and **cards** (`tree.cards`: up to 2 product or collection cards, at
+  4:3, drawn by `NavMenu`). Version 5 migrates stored `children` + `group` into sections
+  (`groupsToSections`); the block still draws `children` when a restored revision brings them back.
+  **Deploy order:** v5's migration needs a cms-service that already has `groupsToSections`; deploy
+  the platform first, then this theme.
 - **Routing.** `linkAs` is `parts/MenuLink.vue`: `EldraRouterLink` for a same-site destination, a
   plain anchor for anything else. A link's `openInNewTab` is honoured.
 - **The rest is `NavMenu`'s**: the 150ms hover rest, the arrow keys, `Escape`, focus leaving,
@@ -331,11 +337,13 @@ Core's (`string`, `text`, `rich-text`, `media`, `select`, `bool`, `int`, `list`,
 product, collection, category, entry or page by id, or an external URL — and the theme derives the
 href with `useEldraLink()` (see `docs/themes.md`, "Links"), so a renamed collection can never leave
 a header pointing at a 404. It may narrow what an author can pick with `metadata.kinds`, restrict
-`kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a `link` that is a `list`'s
-`metadata.item` — ask for a one-level tree with `metadata.tree: true`, which is how the header and
-footer author their navigation. A `reference` field carries a `relation` naming what an editor may pick, as any
-combination of `allowedTagIds` (semantic tag names — never schema ids, which are not portable
-across organizations), `allowProducts` and `allowCollections`, with **at least one of them**:
+`kind: "entry"` with `metadata.allowedEntrySchemaApiIds`, and — on a top-level `link` or a `link`
+that is a top-level `list`'s `metadata.item` — ask for a menu with `metadata.tree`: `true` is a
+one-level tree, or an object declares `depth`, `sections` and `cards` (see `docs/themes.md`,
+"Declaring a menu"), which is how the header and footer author their navigation. A `reference`
+field carries a `relation` naming what an editor may pick, as any combination of `allowedTagIds`
+(semantic tag names — never schema ids, which are not portable across organizations),
+`allowProducts` and `allowCollections`, with **at least one of them**:
 `eldra-theme validate` fails a relation that names none with `relation requires one of
 allowedTagIds, allowProducts or allowCollections`, and Core's manifest ingest refuses it the same
 way. Add `"multiple": true` for a list of picks.

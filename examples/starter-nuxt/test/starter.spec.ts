@@ -1180,7 +1180,12 @@ describe('seeded templates and pages (app/templates.ts)', () => {
   it('ships no showAccount field, at a version that tells Core to retire it', () => {
     const navigation = scanned.manifest!.blocks.find((block) => block.apiId === 'navigation')!;
     expect(navigation.fields.map((field) => field.fieldId)).not.toContain('showAccount');
-    expect(navigation.version).toBe(4);
+    // Version 5 is the `groupsToSections` step (WS-1362); the retirement happened at 4 and stays.
+    expect(navigation.version).toBe(5);
+    expect(navigation.migrations?.at(-1)).toEqual({
+      version: 5,
+      groupsToSections: [{ field: 'links' }],
+    });
     // No step names it: a retire has no rename to declare.
     const named = (navigation.migrations ?? []).flatMap((step) => [
       ...(step.renames ?? []).map((rename) => rename.from),

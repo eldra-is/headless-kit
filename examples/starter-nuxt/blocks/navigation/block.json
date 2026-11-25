@@ -4,7 +4,7 @@
   "description": "The store's top bar: brand, primary links with optional mega-menus, search, cart and one call to action.",
   "icon": "layout-navbar",
   "category": "structure",
-  "version": 4,
+  "version": 5,
   "groups": [
     {
       "groupId": "brand",
@@ -55,6 +55,10 @@
           "label": "ctaLabel"
         }
       ]
+    },
+    {
+      "version": 5,
+      "groupsToSections": [{ "field": "links" }]
     }
   ],
   "fields": [
@@ -99,7 +103,7 @@
       "name": "Links",
       "type": "list",
       "groupId": "navigation",
-      "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem. Give a link children to turn it into a mega-menu: consecutive children sharing the same Group form one column, in order — up to 4 groups × 8 links.",
+      "helpText": "Primary links. 3 to 6 recommended; more than 6 may overflow at 64–80rem. Give a link a panel to turn it into a mega-menu: up to 4 columns, each with a heading, its links and a See all link. A column can hold up to 2 product or collection cards, a picture with a title and a price.",
       "metadata": {
         "item": {
           "fieldId": "link",
@@ -107,7 +111,11 @@
           "type": "link",
           "localized": true,
           "metadata": {
-            "tree": true,
+            "tree": {
+              "depth": 2,
+              "sections": { "max": 4, "headingLink": true, "seeAll": true },
+              "cards": { "kinds": ["product", "collection"], "max": 2, "aspect": "4:3" }
+            },
             "kinds": ["product", "collection", "category", "page", "entry", "url", "none"]
           }
         }

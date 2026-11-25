@@ -50,6 +50,53 @@ const STUDIO_TREE = [
   { href: 'https://instagram.com', label: 'Instagram', newTab: true, group: null, children: [] },
 ];
 
+/** A flat grey picture, so the story needs no network. */
+const picture = (shade: string) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="${shade}"/></svg>`)}`;
+
+/** Sections as columns: two link columns and a cards column, as a resolved Studio link's `sections`. */
+const WITH_CARDS: NavMenuItem[] = [
+  {
+    label: 'Shop',
+    sections: [
+      {
+        heading: 'Knitwear',
+        links: [
+          { label: 'Sweaters', href: '#sweaters' },
+          { label: 'Cardigans', href: '#cardigans' },
+        ],
+        seeAll: { label: 'See all knitwear', href: '#knitwear' },
+      },
+      {
+        heading: 'Ceramics',
+        links: [
+          { label: 'Mugs', href: '#mugs' },
+          { label: 'Bowls', href: '#bowls' },
+        ],
+      },
+      {
+        heading: 'Featured',
+        display: 'card',
+        links: [
+          {
+            label: 'Tall mug',
+            href: '#tall-mug',
+            display: 'card',
+            card: { image: picture('#c9c4bb'), title: 'Tall mug', price: 28 },
+          },
+          {
+            label: 'Winter knits',
+            href: '#winter',
+            display: 'card',
+            card: { image: picture('#b9c2c9'), title: 'Winter knits' },
+          },
+        ],
+      },
+    ],
+  },
+  { label: 'About', href: '#about' },
+];
+
 const meta = {
   title: 'Navigation/NavMenu',
   component: NavMenu,
@@ -85,7 +132,7 @@ const meta = {
           '**Parts** (`data-part`, and the keys of `classes`): `root` (styled with `class`), `nav`, `list`, `item`,',
           '`link`, `trigger`, `triggerIcon`, `panel`, `content`, `overview`, `columns`, `group`,',
           '`groupHeading`, `groupLink`, `panelList`, `panelItem`, `panelLink`, `panelLabel`, `description`,',
-          '`badge`, `footer`, `toggle`, `toggleIcon`, `drawerRoot`, `drawer`, `drawerHeader`,',
+          '`badge`, `card`, `cardImage`, `cardTitle`, `cardPrice`, `footer`, `toggle`, `toggleIcon`, `drawerRoot`, `drawer`, `drawerHeader`,',
           '`drawerClose`, `drawerBody`, `drawerList`, `drawerItem`, `drawerLink`, `drawerTrigger`,',
           '`drawerPanel`, `drawerSectionHeading`, `drawerFooter`, and in the drawer each panel part',
           'again with a `drawer` prefix (`drawerPanelLink`, `drawerGroupHeading`…), so the bar and the',
@@ -131,6 +178,18 @@ export const MegaOpen: Story = {
 /** The plain panel, open under its button, led by the item's own page. */
 export const DropdownOpen: Story = {
   args: { modelValue: 1 },
+  render: Default.render,
+};
+
+/** A cards column beside two link columns: pictures at `cardAspect`, a price for the product. */
+export const WithCards: Story = {
+  args: { items: WITH_CARDS, modelValue: 0, cardAspect: '4:3' },
+  render: Default.render,
+};
+
+/** The same menu in the drawer, cards in two columns under their heading. */
+export const DrawerWithCards: Story = {
+  args: { items: WITH_CARDS, drawerOpen: true, collapseBelow: 'xl', drawerLayout: 'sections' },
   render: Default.render,
 };
 

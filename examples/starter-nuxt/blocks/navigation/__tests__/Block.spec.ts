@@ -35,7 +35,14 @@ interface SeedTarget {
   slug?: string;
   id?: string;
 }
+interface SeedSection {
+  heading?: string;
+  links?: SeedLink[];
+  seeAll?: SeedLink;
+  headingLink?: SeedLink;
+}
 interface SeedLink {
+  sections?: SeedSection[];
   kind: string;
   target?: SeedTarget;
   url?: string;
@@ -53,16 +60,22 @@ function resolveTargets<T extends Record<string, unknown>>(
   const targets = new Map<string, unknown>();
   const rewrite = (link: SeedLink): SeedLink => {
     const slug = link.target?.slug;
-    if (link.target === undefined || slug === undefined) {
-      return { ...link, ...(link.children ? { children: link.children.map(rewrite) } : {}) };
-    }
+    const nested = {
+      ...(link.children ? { children: link.children.map(rewrite) } : {}),
+      ...(link.sections
+        ? {
+            sections: link.sections.map((section) => ({
+              ...section,
+              ...(section.links ? { links: section.links.map(rewrite) } : {}),
+              ...(section.seeAll ? { seeAll: rewrite(section.seeAll) } : {}),
+            })),
+          }
+        : {}),
+    };
+    if (link.target === undefined || slug === undefined) return { ...link, ...nested };
     const id = `id-${slug}`;
     targets.set(`${link.target._type}:${id}`, { slug, title: link.label });
-    return {
-      ...link,
-      target: { _type: link.target._type, id },
-      ...(link.children ? { children: link.children.map(rewrite) } : {}),
-    };
+    return { ...link, target: { _type: link.target._type, id }, ...nested };
   };
   const next = { ...data } as Record<string, unknown>;
   if (Array.isArray(next.links)) next.links = (next.links as SeedLink[]).map(rewrite);
@@ -274,6 +287,76 @@ describe('header block (navigation apiId)', () => {
     expect(panel.text()).toContain('Women');
     const sweaters = panel.findAll('a').find((a) => a.text() === 'Sweaters')!;
     expect(sweaters.attributes('href')).toBe('/collections/womens-sweaters');
+    wrapper.unmount();
+  });
+
+  it('draws a menu card with its picture at the declared aspect, its title and its price, axe-clean', async () => {
+    const targets = new Map(resolved.links.targets);
+    targets.set('product:p-1', {
+      slug: 'ash-mug',
+      title: 'Ash glaze mug',
+      image: 'https://media.test/mug-md.jpg',
+      price: 28,
+    });
+    targets.set('collection:c-1', {
+      slug: 'winter-knits',
+      title: 'Winter knits',
+      image: 'https://media.test/winter-md.jpg',
+    });
+    const wrapper = mount(Block, {
+      ...mountOptions(
+        {
+          entry: {
+            id: 'e1',
+            data: {
+              ...resolved.data,
+              links: [
+                {
+                  kind: 'none',
+                  label: 'Shop',
+                  sections: [
+                    {
+                      heading: 'Featured',
+                      display: 'card',
+                      links: [
+                        { kind: 'product', target: { _type: 'product', id: 'p-1' } },
+                        { kind: 'collection', target: { _type: 'collection', id: 'c-1' } },
+                      ],
+                    },
+                    {
+                      heading: 'Care',
+                      links: [{ kind: 'url', url: '/care', label: 'Care guides' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        { links: { ...resolved.links, targets } }
+      ),
+      attachTo: document.body,
+    });
+    const trigger = wrapper.findAll('button').find((b) => b.text().includes('Shop'))!;
+    await trigger.trigger('click');
+    const panel = wrapper.get(`#${trigger.attributes('aria-controls')}`);
+    const cards = panel.findAll('[data-part="card"]');
+    expect(cards).toHaveLength(2);
+    const image = cards[0]!.get('img');
+    expect(image.attributes('src')).toBe('https://media.test/mug-md.jpg');
+    expect((image.element as HTMLImageElement).style.aspectRatio).toBe('4 / 3');
+    expect(cards[0]!.get('[data-part="cardTitle"]').text()).toBe('Ash glaze mug');
+    expect(cards[0]!.get('[data-part="cardPrice"]').text()).toMatch(/28/);
+    expect(cards[1]!.get('img').attributes('src')).toBe('https://media.test/winter-md.jpg');
+    expect(cards[1]!.find('[data-part="cardPrice"]').exists()).toBe(false);
+    // The cards column is the wide one; the link column is one track.
+    const columns = panel.findAll('[data-part="group"]');
+    expect(columns[0]!.attributes('data-cards')).toBeDefined();
+    expect(columns[0]!.classes()).toContain('[[data-cards]>&[data-cards]]:col-span-2');
+    expect(columns[1]!.attributes('data-cards')).toBeUndefined();
+    // A plain link beside the cards is still a link.
+    expect(panel.findAll('a').some((a) => a.text() === 'Care guides')).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
     wrapper.unmount();
   });
 

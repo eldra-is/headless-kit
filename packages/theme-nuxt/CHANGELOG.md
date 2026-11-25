@@ -5,6 +5,9 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Link targets carry a card's picture and price (WS-1326).** `collectLinkTargets` fills
+  `LinkTargetInfo.image` from a product's `thumbnail` or a collection's `image` and
+  `LinkTargetInfo.price` from a product's `minPrice`, out of the reads it already makes.
 - **A store's own currency can be off (WS-1399).** `commerce` on `runtimeConfig.public.eldra` carries `defaultCurrency` when it is not the store's own `currency`, and `currencies` is cleaned with the default first. A store selling in its own currency gets the same config as before.
 - **Selling in more than one currency (WS-1391).** `commerce` on `runtimeConfig.public.eldra` carries `currencies`, the currencies the store offers with its own first, when it offers more than one (a one-currency store's config is unchanged). New server route `GET /_eldra/visitor` answers `{ country }` from Cloudflare's `CF-IPCountry` header, `private, no-store`, so a prerendered page can start a first-time visitor in their country's currency; it answers `null` off Cloudflare.
 - **Draft preview sessions (WS-1303).** On the preview router's session host (its

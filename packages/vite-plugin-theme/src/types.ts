@@ -226,10 +226,50 @@ export interface BlockFieldLinkMetadata {
   kinds?: LinkKind[];
   /** Restricts `kind: "entry"` to entries of the named schemas. */
   allowedEntrySchemaApiIds?: string[];
-  /** Author this link as a tree of one level of children. Declared on the
-   * link itself — a `list` may declare only `allowedSchemas` and `item` — so a
-   * `link` carrying it must be a list's item. */
-  tree?: boolean;
+  /** Author this link as a tree. `true` is a link with one level of children
+   * (depth 2, no sections, no cards); an object declares the menu's depth,
+   * sections and cards. Declared on the link itself, a top-level link or a
+   * `list`'s item (a `list` may declare only `allowedSchemas` and `item`).
+   * The scanner accepts `tree` and `sections` on a nested link too, but Core
+   * projects only a top-level link and a top-level list's link item for a
+   * public read; a nested link is served as stored. Only `cards` is refused
+   * below the top level. */
+  tree?: boolean | EldraLinkTree;
+}
+
+/** The menu a theme declares for a `link` field, spelled with Core's own JSON
+ * keys (`LinkTreeDecl`). `{}` means the same as `true`. */
+export interface EldraLinkTree {
+  /** How many levels the editor offers: 1 (links only) or 2 (a link and one
+   * level under it). Defaults to 2; `sections` and `cards` need 2. */
+  depth?: 1 | 2;
+  /** Grouped columns under a top-level link. */
+  sections?: EldraLinkTreeSections;
+  /** Promotional cards a top-level link may carry. Allowed only on a top-level
+   * link field or the link item of a top-level list. */
+  cards?: EldraLinkTreeCards;
+}
+
+export interface EldraLinkTreeSections {
+  /** Most sections one link may have; at least 1. */
+  max: number;
+  /** A section may have a heading that is itself a link. */
+  headingLink?: boolean;
+  /** A section may end with a "see all" link. */
+  seeAll?: boolean;
+}
+
+export interface EldraLinkTreeCards {
+  /** The link kinds a card may be; every kind the field offers when absent.
+   * Must be within the field's `kinds`. */
+  kinds?: LinkKind[];
+  /** Most cards per section, or per link without sections; at least 1. */
+  max: number;
+  /** The image's `width:height`, such as `4:5` or `16:9`. */
+  aspect?: string;
+  /** An author may upload a card's own image. Required when cards may be a
+   * page, entry, url or category, which have no picture of their own. */
+  customImage?: boolean;
 }
 
 export interface BlockField {
@@ -299,12 +339,24 @@ export interface BlockMigrationLinkConversion {
   };
 }
 
+/** One link field whose rows' children are grouped into sections on deploy:
+ * each row's children are partitioned on their `group` text, in first-seen
+ * order, into `sections` (children with no group form one section with no
+ * heading), and the row keeps `sections` instead of `children`. `field` names
+ * a top-level `link` field, or a `list` of links, and the block must declare
+ * `tree.sections` on that link. It runs after the same deploy's `convertToLink`
+ * conversions, which are what write the `group` it reads. */
+export interface BlockMigrationGroupsToSections {
+  field: string;
+}
+
 export interface BlockMigration {
   version: number;
   /** Optional: a step may carry only conversions. A step must declare at least
-   * one of `renames` and `convertToLink`. */
+   * one of `renames`, `convertToLink` and `groupsToSections`. */
   renames?: Array<{ from: string; to: string }>;
   convertToLink?: BlockMigrationLinkConversion[];
+  groupsToSections?: BlockMigrationGroupsToSections[];
 }
 
 export interface BlockDefinition {

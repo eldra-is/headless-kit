@@ -5,6 +5,24 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A theme can declare its menu as an object: `metadata.tree` takes depth, sections and cards
+  (WS-1312).** `tree` on a `link` field is now `boolean | EldraLinkTree` (new types `EldraLinkTree`,
+  `EldraLinkTreeSections`, `EldraLinkTreeCards`, Core's own JSON keys). The scanner refuses exactly
+  what Core's manifest ingest refuses: a depth other than 1 or 2, `sections` or `cards` at depth 1,
+  a `max` below 1, a malformed `aspect`, `cards.kinds` outside the field's `kinds`, a cards
+  declaration that allows page, entry, url or category without `customImage`, and `cards` anywhere
+  but a top-level link or a top-level list's link item. It also stops refusing `tree` on a top-level
+  link or a composite child, which Core accepts (`groupsToSections` supports a top-level link or a
+  list of links, never a composite child). See
+  `docs/themes.md`, "Declaring a menu".
+
+- **`migrations[].groupsToSections`: grouped menu children become sections (WS-1318).** A step may
+  declare `groupsToSections: [{ "field": "links" }]` (at most 16, `field` the only key) to turn a link
+  field's rows' children, grouped by their `group` text, into `sections` on deploy. The scanner
+  refuses a field that is missing, is not a `link` or a `list` of links, does not declare
+  `tree.sections`, or is converted twice, and a step now has to declare `renames`, `convertToLink`
+  or `groupsToSections`. New type `BlockMigrationGroupsToSections`. Needs a Core that accepts the
+  step; `convertToLink` in the same deploy runs first. See `docs/theme-field-migrations.md`.
 - **`capabilities` (WS-1303).** `EldraThemeOptions.capabilities` (set by a framework wrapper) puts
   `capabilities: { draftPreview: 1 }` in the manifest; an unknown capability or version is an error.
   Absent when none is declared, so today's manifests are unchanged.

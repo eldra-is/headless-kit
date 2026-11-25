@@ -2,6 +2,15 @@ import type { Component } from 'vue';
 import type { UiMessages } from '../../composables/useMessages';
 import type { DrawerSide } from '../drawer/types';
 
+/** A promotional card's content, resolved by `@eldrajs/theme-core`: the picture, the title and, for a product, its price. */
+export interface NavMenuCard {
+  /** The picture's URL: the card's own image, else its target's. The panel's card draws it with an empty `alt` beside the printed `title`; a custom card names it with `title`. */
+  image: string;
+  title: string;
+  /** A product's lowest price in the store's major units; format it with the store's currency. */
+  price?: number;
+}
+
 /** One entry; `@eldrajs/theme-core`'s `ResolvedLink` (a resolved Studio link tree) fits it as is. */
 export interface NavMenuLink {
   /** The visible text. An entry with no label (`null` or empty) is not rendered. */
@@ -18,6 +27,24 @@ export interface NavMenuLink {
   group?: string | null;
   /** Marks the page the visitor is on (`aria-current="page"`). */
   current?: boolean;
+  /** `card` when the author made the entry a promotional card. With a resolved `card` the panel draws a picture, title and price; without one it is a plain link. */
+  display?: 'card' | 'link';
+  /** Set only on a resolved card; without it the entry is a plain link whatever `display` says. */
+  card?: NavMenuCard;
+}
+
+/** One column of a panel, as a resolved Studio link's `sections`. */
+export interface NavMenuSection {
+  /** The column heading. Without one the column's links sit under no heading. */
+  heading?: string | null;
+  /** The heading's own page. Without one (or without a destination) the heading is plain text. */
+  headingLink?: NavMenuLink | null;
+  /** `card` when the author made the column cards; each entry decides by its own resolved `card`. */
+  display?: 'card' | 'link';
+  /** The column's entries. */
+  links: readonly NavMenuLink[];
+  /** The trailing "see all" entry under the column's links. */
+  seeAll?: NavMenuLink | null;
 }
 
 /** `dropdown` hangs a compact panel under its trigger; `mega` spans the menu's positioning box. */
@@ -39,6 +66,8 @@ export interface NavMenuGroup {
 export interface NavMenuItem extends NavMenuLink {
   /** The panel's entries, one level deep. */
   children?: readonly NavMenuLink[];
+  /** The panel's columns, each with its own heading. When present they are the panel and `children` is not read. */
+  sections?: readonly NavMenuSection[];
   /** The panel's column headings, for those that link to a page of their own. */
   groups?: readonly NavMenuGroup[];
   /** Default `mega` when any child has a `group`, else `dropdown`. */
@@ -80,7 +109,11 @@ export type NavMenuPanelPart =
   | 'panelLink'
   | 'panelLabel'
   | 'description'
-  | 'badge';
+  | 'badge'
+  | 'card'
+  | 'cardImage'
+  | 'cardTitle'
+  | 'cardPrice';
 
 /** A panel part as the drawer names it: `panelLink` is `drawerPanelLink`. */
 export type NavMenuDrawerPanelPart = `drawer${Capitalize<NavMenuPanelPart>}`;
@@ -90,6 +123,8 @@ export interface NavMenuPanelItemSlotProps {
   link: NavMenuLink;
   item: NavMenuItem;
   placement: NavMenuPlacement;
+  /** True for a section's trailing "see all" entry. */
+  isSeeAll?: boolean;
 }
 
 /** What the `groupHeading` slot is handed: the heading, its entries, their item, and where it is drawn. */
@@ -155,6 +190,12 @@ export interface NavMenuProps {
    * the tag and keeps `href`; a component receives the destination as `to`.
    */
   linkAs?: string | Component;
+  /**
+   * The crop of every card's picture, as `width:height` (`4:3`, `16:9`): the aspect the theme's block
+   * declares in `cards.aspect`. Default `4:3`; a value that is not two positive numbers is `4:3`.
+   * A card's price is written in the ambient store currency and locale, as `Price` is.
+   */
+  cardAspect?: string;
   /** Message overrides. See `useMessages`. */
   messages?: Partial<UiMessages>;
   /** Per-part classes, appended to the part's own (a consumer class wins by cascade layer). */

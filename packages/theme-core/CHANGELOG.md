@@ -5,6 +5,20 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`resolveLink` resolves cards (WS-1326).** A child or section link whose `display` is `card` (its
+  own, else its section's) carries `card: { image, title, price? }`: the image is the link's own
+  `imageUrl`, else the target's (`LinkTargetInfo.image`: a product's thumbnail, a collection's
+  image), `price` a product's `LinkTargetInfo.price`. A card with no picture or title resolves as a
+  plain link (`display: 'link'`, no `card`); heading, see-all and top-level links carry neither
+  `display` nor `card`. `card.price` is in major units, no currency. New type `ResolvedCard`.
+
+- **`resolveLink` resolves `sections` (WS-1321).** A link a theme that declares `tree.sections` is
+  served carries `sections: ResolvedSection[]` (`heading`, `headingLink`, `links`, `seeAll`, `display`),
+  each link resolved like a child (a section with only a heading link takes its label as the heading); `children` is `[]` then. `linkTargetKeys` walks a link's sections,
+  their heading links and see-all links, so their targets are read with the rest. A card's `display`
+  and `imageUrl` are carried through on `ResolvedLink`. New types `ResolvedSection` and
+  `LinkSectionValue`.
+
 - **`defaultCurrencyOf(commerce)` (WS-1399).** The currency pages are built in: `defaultCurrency` (contract 6.22.0), else the first of a `currencies` list without the store's own currency, else `currency`. `resolveVisitorCurrency` and `offeredCurrencies` take that default as `base`.
 - **Currencies (WS-1391).** `SELLING_CURRENCIES`, `currencyForCountry(country)` (one table, country code to selling currency), `countryFromHeader(value)`, `VISITOR_COUNTRY_PATH`, `resolveVisitorCurrency({ base, offered, remembered, country })` (the remembered choice, then the visitor's country, then the store's own currency, each only when offered) and `offeredCurrencies(base, listed)`.
 - **`expandReusableLayout(layout, projection, { routeTemplate? })` (WS-1358).** A layout with

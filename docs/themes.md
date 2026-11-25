@@ -454,7 +454,8 @@ const link = useEldraLink();
 ```
 
 `useEldraLink()` returns `(value) => ResolvedLink | null`, where `ResolvedLink` is
-`{ href, label, newTab, group, children }`. Two rules matter to a theme:
+`{ href, label, newTab, group, children }`, plus `sections` on a link the read served sections for,
+and `display` and `imageUrl` where a card set them. Two rules matter to a theme:
 
 - **`href` is null whenever nothing addressable was found** — the target is gone, carries no slug,
   or the site has no route template serving its kind. Render the label as plain text then (or
@@ -464,6 +465,96 @@ const link = useEldraLink();
 
 `children` is one level deep and never more, which is what a mega-menu column needs and all the
 grammar allows. A child's `group` is its column heading.
+
+A theme that declares `tree.sections` (see "Declaring a menu") is served `sections` instead, and
+`children` is then `[]`: a link never carries both. Each section resolves to
+`{ heading, headingLink, display?, links, seeAll }`: `heading` is the column heading (null when
+blank), `headingLink` the heading as a link when the author made it one, `links` the column's
+entries and `seeAll` the trailing "see all" link, whose label is its own when the author set one and
+its target's otherwise (null when it has neither). Every link in a section is resolved like a
+child, hrefs in the active locale included, and `linkTargetKeys` walks the heading links, links and
+see-all links too, so a site batches their targets with the rest. `NavMenu` takes the result as it
+is: each section is a column (the item opens a `mega` panel unless its `layout` says otherwise), a
+heading with an `href` is a link, the "see all" entry is last in its column, and a section with
+nothing to show is left out. Two sections with one heading stay two columns. `display` and
+`imageUrl` are carried through, and a link that can be a card (a child or a section link) carries
+`display` (its own, else its section's) and, when it is a card, `card: { image, title, price? }`. The
+top-level link, a heading link and a see-all link never carry `display` or `card`. `image` is the
+link's own `imageUrl`, else the target's picture (a product's `thumbnail`, a collection's `image`,
+from the reads the site already makes); `title` is the label. A card with no picture or no title
+resolves as a plain link (`display: 'link'`, no `card`). `price` is a product's lowest price in
+**major units** (the /web product list's `minPrice`, `28` for 28 kr.) with no currency: format it
+with `formatPrice(amount, currency, locale)` from `@eldrajs/sdk/format`, the currency being the
+store's, which `@eldrajs/theme-nuxt` puts on the runtime config as
+`useRuntimeConfig().public.eldra.commerce.currency` (type `StoreCommerce` from
+`@eldrajs/theme-nuxt/commerce`; render a plain number when it is null or empty). `NavMenu` draws a
+link with a resolved `card` as a card, and a card-aware theme can still replace it through the
+`panelItem` slot, which is handed `link.card`:
+
+- the picture, cropped with CSS to the `aspect` the theme passes as `NavMenu`'s `card-aspect` prop
+  (`width:height`, default `4:3`; the starter reads it from its own `cards.aspect` declaration),
+  the title, and the price when the card has one;
+- the price is written with `formatPrice` in the ambient store currency and locale, the pair `Price`
+  reads (`CURRENCY_KEY`, `LOCALE_KEY`, which the starter's plugin provides from
+  `public.eldra.commerce.currency`), and as a plain number when the store has no currency;
+- a column that holds cards lays them out two to a row, in the bar and in the drawer; a plain link
+  in the same column takes a whole row, and legacy link menus keep their HTML unchanged;
+- the picture's `alt` is empty: the title printed beside it inside the same link already names it,
+  and an `alt` repeating it fails axe's `image-redundant-alt`. A custom card in the `panelItem` slot
+  that prints no title must give the image an `alt` from the title;
+- ask the media worker for the `md` variant (800px, scale-down) of a card's own image, as the
+  resolved `card.image` already is for a product or collection.
+
+The starter's header declares sections and `cards` on its `links` field (`blocks/navigation`) and
+passes `sections`, `display` and `card` through `toNavLink`. Its version 5 runs `groupsToSections` on stored menus, which needs a cms-service that has that step: deploy the platform before the theme.
+
+### Declaring a menu
+
+A `link` field opts into the menu editor with `metadata.tree`, on a top-level link or on the link
+that is a top-level list's `item` (a header's list of links). `true` is a link with one level of
+children. An object declares more, with the same keys Core stores (`EldraLinkTree` in
+`@eldrajs/vite-plugin-theme`):
+
+```json
+{
+  "fieldId": "links",
+  "type": "list",
+  "metadata": {
+    "item": {
+      "fieldId": "link",
+      "type": "link",
+      "metadata": {
+        "kinds": ["product", "collection", "page", "url"],
+        "tree": {
+          "depth": 2,
+          "sections": { "max": 4, "headingLink": true, "seeAll": true },
+          "cards": { "kinds": ["product", "collection"], "max": 2, "aspect": "4:5" }
+        }
+      }
+    }
+  }
+}
+```
+
+- `depth` is 1 (links only) or 2 (a link and one level under it); it defaults to 2, and `{}` means
+  the same as `true`. `sections` and `cards` need depth 2.
+- `sections` groups a link's children into columns: `max` (at least 1) columns, a heading that may
+  itself be a link (`headingLink`) and a trailing "see all" link (`seeAll`).
+- `cards` lets a link carry promotional cards: `max` (at least 1), the `aspect` as `width:height`
+  (`4:5`, `16:9`), and `kinds`, which must be within the field's own `kinds`. A card of kind page,
+  entry, url or category has no picture of its own, so a declaration that allows one needs
+  `customImage: true`; `cards: { max: 2 }` alone allows every kind and is refused until you list
+  `kinds` or set `customImage`.
+- `tree` and `sections` are accepted on a nested link too (a composite child, a list inside a
+  composite), but a public read projects only a top-level link field and a top-level list's link
+  item: a nested link is served as stored, with its sections and no key filtering, so declare a
+  menu at the top level.
+- `cards` is allowed only on a top-level link field or the link item of a top-level list. A composite
+  child, a list inside a composite and a list inside a list are refused.
+
+`eldra-theme validate` and the build refuse exactly what Core's manifest ingest refuses, so a theme
+that builds deploys. A theme that declares no `sections` is served sections as `children`, and one
+that declares no `cards` is served its cards as plain links.
 
 `@eldrajs/theme-nuxt` fills the context inside the same `useAsyncData` call that resolves the route,
 so a `nuxi generate` build bakes every href into the page's payload and a prerendered page resolves

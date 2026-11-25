@@ -4,6 +4,8 @@ import { defineComponent, h, nextTick } from 'vue';
 import { isIS } from '../../../messages/is-IS';
 import { axe } from '../../../test/axe';
 import { mountWith } from '../../../test/mount';
+import { formatPrice } from '@eldrajs/sdk/format';
+import { CURRENCY_KEY, LOCALE_KEY } from '../../../composables/useLocale';
 import NavMenu from '../NavMenu.vue';
 import type { NavMenuItem } from '../types';
 
@@ -31,10 +33,43 @@ const ITEMS: NavMenuItem[] = [
 
 type Wrapper = VueWrapper<InstanceType<typeof NavMenu>>;
 
-function mount(props: Record<string, unknown> = {}, slots: Record<string, unknown> = {}): Wrapper {
+const CARDS: NavMenuItem[] = [
+  {
+    label: 'Shop',
+    sections: [
+      { heading: 'Knitwear', links: [{ label: 'Sweaters', href: '/sweaters' }] },
+      {
+        heading: 'Featured',
+        display: 'card',
+        links: [
+          {
+            label: 'Tall mug',
+            href: '/tall',
+            display: 'card',
+            card: { image: '/tall.jpg', title: 'Tall mug', price: 2800 },
+          },
+          {
+            label: 'Mugs',
+            href: '/mugs',
+            display: 'card',
+            card: { image: '/mugs.jpg', title: 'Mugs' },
+          },
+          { label: 'Glaze guide', href: '/glaze' },
+        ],
+      },
+    ],
+  },
+];
+
+function mount(
+  props: Record<string, unknown> = {},
+  slots: Record<string, unknown> = {},
+  provide: Record<symbol, unknown> = {}
+): Wrapper {
   return mountWith(NavMenu, {
     props: { items: ITEMS, ...props },
     slots: slots as never,
+    global: { provide },
   }) as Wrapper;
 }
 
@@ -1153,5 +1188,253 @@ describe('NavMenu — accessibility', () => {
     await nextTick();
     expect(await axe(drawer.get('dialog').element)).toHaveNoViolations();
     drawer.unmount();
+  });
+});
+
+describe('NavMenu — sections', () => {
+  const sectioned: NavMenuItem[] = [
+    {
+      label: 'Shop',
+      sections: [
+        {
+          heading: 'Knitwear',
+          headingLink: { label: 'Knitwear', href: '/knitwear' },
+          links: [{ label: 'Sweaters', href: '/sweaters' }],
+          seeAll: { label: 'See all knitwear', href: '/knitwear' },
+        },
+        { heading: 'Knitwear', links: [{ label: 'Hats', href: '/hats' }] },
+      ],
+    },
+  ];
+
+  it('draws one labelled column per section, a linked heading and a see-all entry last', async () => {
+    const wrapper = mount({ items: sectioned, modelValue: 0 });
+    await nextTick();
+    const columns = panel(wrapper, 0).querySelectorAll('[data-part="group"]');
+    expect(columns).toHaveLength(2);
+    expect(columns[0]!.querySelector('[data-part="groupLink"]')!.getAttribute('href')).toBe(
+      '/knitwear'
+    );
+    const entries = [...columns[0]!.querySelectorAll('[data-part="panelLink"]')];
+    expect(entries.map((entry) => entry.textContent!.trim())).toEqual([
+      'Sweaters',
+      'See all knitwear',
+    ]);
+    expect(entries[1]!.hasAttribute('data-see-all')).toBe(true);
+    expect(columns[1]!.querySelector('[data-part="groupLink"]')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('draws a section with only a heading link under that link as its heading', async () => {
+    const items: NavMenuItem[] = [
+      {
+        label: 'Shop',
+        sections: [
+          { headingLink: { label: 'Mugs', href: '/mugs' }, links: [{ label: 'Tall', href: '/t' }] },
+        ],
+      },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    const link = panel(wrapper, 0).querySelector(
+      '[data-part="groupHeading"] [data-part="groupLink"]'
+    )!;
+    expect(link.textContent!.trim()).toBe('Mugs');
+    expect(link.getAttribute('href')).toBe('/mugs');
+    wrapper.unmount();
+  });
+
+  it('gives the panelItem slot isSeeAll for the see-all entry only', async () => {
+    const seen: Array<[string, boolean | undefined]> = [];
+    const wrapper = mount(
+      { items: sectioned, modelValue: 0 },
+      {
+        panelItem: ({ link, isSeeAll }: { link: { label: string | null }; isSeeAll?: boolean }) => {
+          seen.push([link.label ?? '', isSeeAll]);
+          return h('span', link.label ?? '');
+        },
+      }
+    );
+    await nextTick();
+    expect(seen).toContainEqual(['Sweaters', false]);
+    expect(seen).toContainEqual(['See all knitwear', true]);
+    wrapper.unmount();
+  });
+
+  it('hands a resolved card to the panelItem slot, which replaces the card the panel draws', async () => {
+    const items = [
+      {
+        label: 'Shop',
+        children: [
+          {
+            label: 'Mug',
+            href: '/mug',
+            display: 'card' as const,
+            card: { image: '/mug.jpg', title: 'Mug', price: 28 },
+          },
+        ],
+      },
+    ];
+    const seen: unknown[] = [];
+    const wrapper = mount(
+      { items, modelValue: 0 },
+      {
+        panelItem: ({ link }: { link: { card?: unknown } }) => {
+          seen.push(link.card);
+          return h('span', 'x');
+        },
+      }
+    );
+    await nextTick();
+    expect(seen).toContainEqual({ image: '/mug.jpg', title: 'Mug', price: 28 });
+    wrapper.unmount();
+  });
+
+  it('draws a link whose card did not resolve as a plain link', async () => {
+    const items = [
+      {
+        label: 'Shop',
+        children: [{ label: 'Mug', href: '/mug', display: 'card' as const }],
+      },
+    ];
+    const plain = mount({ items, modelValue: 0 });
+    await nextTick();
+    const link = plain.element.querySelector('[data-part="panelLink"]')!;
+    expect(link.getAttribute('href')).toBe('/mug');
+    expect(link.querySelector('img')).toBeNull();
+    plain.unmount();
+  });
+
+  it('draws a card with its picture cropped to the aspect, its title and its price', async () => {
+    const wrapper = mount(
+      { items: CARDS, modelValue: 0, cardAspect: '4:5' },
+      {},
+      { [CURRENCY_KEY as symbol]: 'ISK', [LOCALE_KEY as symbol]: 'is-IS' }
+    );
+    await nextTick();
+    const cards = [...panel(wrapper, 0).querySelectorAll('[data-part="card"]')];
+    expect(cards).toHaveLength(2);
+    const img = cards[0]!.querySelector('img')!;
+    // The title beside it names the link; a copy as `alt` would be read twice (axe image-redundant-alt).
+    expect(img.getAttribute('alt')).toBe('');
+    expect(cards[0]!.closest('a')!.textContent).toContain('Tall mug');
+    expect(img.getAttribute('src')).toBe('/tall.jpg');
+    expect(img.style.aspectRatio).toBe('4 / 5');
+    expect(cards[0]!.querySelector('[data-part="cardTitle"]')!.textContent).toBe('Tall mug');
+    expect(cards[0]!.querySelector('[data-part="cardPrice"]')!.textContent).toBe(
+      formatPrice(2800, 'ISK', 'is-IS')
+    );
+    // A collection card has no price line.
+    expect(cards[1]!.querySelector('[data-part="cardPrice"]')).toBeNull();
+    expect(cards[0]!.closest('a')!.getAttribute('href')).toBe('/tall');
+    wrapper.unmount();
+  });
+
+  it('lays cards in two columns beside a text column, and a plain entry takes a whole row', async () => {
+    const wrapper = mount({ items: CARDS, modelValue: 0 });
+    await nextTick();
+    const lists = [...panel(wrapper, 0).querySelectorAll('[data-part="panelList"]')];
+    expect(lists[0]!.className).not.toContain('grid-cols-2');
+    expect(lists[1]!.className).toContain('eldra:grid-cols-2');
+    const items = [...lists[1]!.querySelectorAll('[data-part="panelItem"]')];
+    expect(items.map((i) => i.className.includes('col-span-2'))).toEqual([false, false, true]);
+    wrapper.unmount();
+  });
+
+  it('crops to 4:3 when the aspect is missing or malformed, and prints a bare number with no currency', async () => {
+    for (const cardAspect of [undefined, 'wide', '0:3']) {
+      const wrapper = mount({ items: CARDS, modelValue: 0, cardAspect });
+      await nextTick();
+      const img = panel(wrapper, 0).querySelector('img')!;
+      expect(img.style.aspectRatio).toBe('4 / 3');
+      expect(panel(wrapper, 0).querySelector('[data-part="cardPrice"]')!.textContent).toBe('2,800');
+      wrapper.unmount();
+    }
+  });
+
+  it('starts the heading link, the cards and the plain links of a cards column at the same edge', async () => {
+    const items: NavMenuItem[] = [
+      {
+        label: 'Shop',
+        sections: [
+          {
+            heading: 'Featured',
+            headingLink: { label: 'Featured', href: '/featured' },
+            links: [
+              {
+                label: 'Tall mug',
+                href: '/tall',
+                display: 'card',
+                card: { image: '/tall.jpg', title: 'Tall mug' },
+              },
+              { label: 'Glaze guide', href: '/glaze' },
+            ],
+            seeAll: { label: 'See all featured', href: '/all' },
+          },
+          { heading: 'Care', links: [{ label: 'Care guides', href: '/care' }] },
+        ],
+      },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    const [cards, plain] = [...panel(wrapper, 0).querySelectorAll('[data-part="group"]')];
+    expect(cards!.hasAttribute('data-cards')).toBe(true);
+    expect(plain!.hasAttribute('data-cards')).toBe(false);
+    expect(
+      panel(wrapper, 0).querySelector('[data-part="columns"]')!.hasAttribute('data-cards')
+    ).toBe(true);
+    const edge = (element: Element | null) => element!.className.includes('eldra:px-3');
+    expect(edge(cards!.querySelector('[data-part="groupHeading"]'))).toBe(false);
+    for (const link of cards!.querySelectorAll('[data-part="panelLink"]')) {
+      expect(edge(link)).toBe(false);
+    }
+    expect(cards!.querySelector('[data-see-all]')).not.toBeNull();
+    expect(cards!.querySelector('[data-part="groupLink"]')!.getAttribute('href')).toBe('/featured');
+    // A column without cards keeps its indent, heading and links alike.
+    expect(edge(plain!.querySelector('[data-part="groupHeading"]'))).toBe(true);
+    expect(edge(plain!.querySelector('[data-part="panelLink"]'))).toBe(true);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('draws the cards in the drawer under drawer part names', async () => {
+    const wrapper = mount({ items: CARDS, drawerOpen: true, drawerLayout: 'sections' });
+    await nextTick();
+    const dialog = wrapper.get('dialog').element as HTMLDialogElement;
+    expect(dialog.querySelectorAll('[data-part="drawerCard"] img')).toHaveLength(2);
+    expect(dialog.querySelector('[data-part="drawerCardPrice"]')).not.toBeNull();
+    expect(await axe(dialog)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('has no axe violations on an open panel with cards', async () => {
+    const wrapper = mount({ items: CARDS, modelValue: 0 });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('draws sections in the drawer, in both layouts, with no axe violations', async () => {
+    for (const drawerLayout of ['accordion', 'sections']) {
+      const wrapper = mount({ items: sectioned, drawerOpen: true, drawerLayout });
+      await nextTick();
+      const dialog = wrapper.get('dialog').element as HTMLDialogElement;
+      if (drawerLayout === 'accordion') dialog.querySelector('details')!.open = true;
+      const headings = [...dialog.querySelectorAll('[data-part="drawerGroupHeading"]')];
+      expect(headings.map((h) => h.textContent!.trim())).toEqual(['Knitwear', 'Knitwear']);
+      expect(dialog.querySelector('[data-part="drawerGroupLink"]')!.getAttribute('href')).toBe(
+        '/knitwear'
+      );
+      expect(dialog.querySelector('[data-see-all]')!.textContent).toContain('See all knitwear');
+      expect(await axe(dialog)).toHaveNoViolations();
+      wrapper.unmount();
+    }
+  });
+
+  it('has no axe violations on an open sectioned panel', async () => {
+    const wrapper = mount({ items: sectioned, modelValue: 0 });
+    await nextTick();
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
   });
 });

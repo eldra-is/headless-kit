@@ -418,6 +418,274 @@ describe('resolveLink — label, group, new tab and children', () => {
   });
 });
 
+describe('resolveLink — sections resolve', () => {
+  const heading = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
+  const sectioned = {
+    kind: 'none',
+    label: 'Shop',
+    sections: [
+      {
+        heading: 'Knitwear',
+        headingLink: heading,
+        links: [
+          { kind: 'product', target: { _type: 'product', id: PRODUCT_ID } },
+          { kind: 'url', url: '/sale', label: 'Sale', openInNewTab: true },
+          'not a link',
+        ],
+        seeAll: { label: 'See all knitwear', link: heading },
+      },
+      { links: [{ kind: 'url', url: '/journal' }] },
+    ],
+  };
+
+  it('resolves a section to its heading, heading link, links and see-all link', () => {
+    const resolved = resolveLink(sectioned, context());
+    expect(resolved?.children).toEqual([]);
+    expect(resolved?.sections).toEqual([
+      {
+        heading: 'Knitwear',
+        headingLink: {
+          href: '/collections/knitwear',
+          label: 'Knitwear',
+          newTab: false,
+          group: null,
+          children: [],
+        },
+        links: [
+          {
+            href: '/products/ash-glaze-mug',
+            label: 'Ash glaze mug',
+            newTab: false,
+            group: null,
+            children: [],
+          },
+          { href: '/sale', label: 'Sale', newTab: true, group: null, children: [] },
+        ],
+        seeAll: {
+          href: '/collections/knitwear',
+          label: 'See all knitwear',
+          newTab: false,
+          group: null,
+          children: [],
+        },
+      },
+      {
+        heading: null,
+        headingLink: null,
+        links: [{ href: '/journal', label: null, newTab: false, group: null, children: [] }],
+        seeAll: null,
+      },
+    ]);
+  });
+
+  it('leaves sections off a link that has none, and never resolves a section inside a section link', () => {
+    expect(resolveLink({ kind: 'url', url: '/a' }, context())).not.toHaveProperty('sections');
+    const nested = resolveLink(
+      {
+        kind: 'none',
+        sections: [
+          {
+            links: [
+              {
+                kind: 'url',
+                url: '/a',
+                sections: [{ links: [] }],
+                children: [{ kind: 'url', url: '/b' }],
+              },
+            ],
+          },
+        ],
+      },
+      context()
+    );
+    expect(nested?.sections?.[0]?.links[0]).not.toHaveProperty('sections');
+    expect(nested?.sections?.[0]?.links[0]?.children).toEqual([]);
+  });
+
+  it("keeps a card link's display and imageUrl, and a section's display", () => {
+    const resolved = resolveLink(
+      {
+        kind: 'none',
+        sections: [
+          {
+            display: 'card',
+            links: [
+              {
+                kind: 'url',
+                url: '/a',
+                label: 'A',
+                display: 'card',
+                imageUrl: 'https://media.test/a.jpg',
+              },
+            ],
+          },
+        ],
+      },
+      context()
+    );
+    expect(resolved?.sections?.[0]?.display).toBe('card');
+    expect(resolved?.sections?.[0]?.links[0]).toMatchObject({
+      display: 'card',
+      imageUrl: 'https://media.test/a.jpg',
+    });
+  });
+
+  it('drops a see-all with neither a link nor a label, and a non-string heading', () => {
+    const resolved = resolveLink(
+      { kind: 'none', sections: [{ heading: { is: 'Peysur' }, links: [], seeAll: {} }] },
+      context()
+    );
+    expect(resolved?.sections?.[0]).toMatchObject({ heading: null, seeAll: null });
+  });
+
+  it("heads a section that has only a heading link with that link's label", () => {
+    const headingLink = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
+    const section = (extra: object) =>
+      resolveLink({ kind: 'none', sections: [{ links: [], headingLink, ...extra }] }, context())
+        ?.sections?.[0];
+    expect(section({})?.heading).toBe('Knitwear');
+    expect(section({ heading: '   ' })?.heading).toBe('Knitwear');
+    expect(section({ heading: 'Own' })?.heading).toBe('Own');
+    expect(section({ headingLink: { kind: 'url', url: '/x' } })?.heading).toBeNull();
+  });
+
+  it('keeps the heading as authored for inline editing', () => {
+    const heading = encodeStega('Knitwear', META);
+    expect(
+      resolveLink({ kind: 'none', sections: [{ heading, links: [] }] }, context())?.sections?.[0]
+        ?.heading
+    ).toBe(heading);
+  });
+});
+
+describe('resolveLink — cards', () => {
+  const product = { kind: 'product', target: { _type: 'product', id: PRODUCT_ID } };
+  const collection = { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } };
+  const cardContext = () =>
+    context({
+      targets: new Map([
+        [
+          `product:${PRODUCT_ID}`,
+          {
+            slug: 'ash-glaze-mug',
+            title: 'Ash glaze mug',
+            image: 'https://m.test/p.jpg',
+            price: 28,
+          },
+        ],
+        [
+          `collection:${COLLECTION_ID}`,
+          { slug: 'knitwear', title: 'Knitwear', image: 'https://m.test/c.jpg' },
+        ],
+        [`category:${CATEGORY_ID}`, { slug: 'tableware', title: 'Tableware' }],
+      ]),
+    });
+  const child = (link: object, ctx = cardContext()) =>
+    resolveLink({ kind: 'none', children: [link] }, ctx)?.children[0];
+
+  it("a product card takes the product's thumbnail, its title and its price", () => {
+    expect(child({ ...product, display: 'card' })?.card).toEqual({
+      image: 'https://m.test/p.jpg',
+      title: 'Ash glaze mug',
+      price: 28,
+    });
+  });
+
+  it("a collection card takes the collection's image and has no price", () => {
+    expect(child({ ...collection, display: 'card' })?.card).toEqual({
+      image: 'https://m.test/c.jpg',
+      title: 'Knitwear',
+    });
+  });
+
+  it("an override image wins over the target's, and an own label over its title", () => {
+    expect(
+      child({ ...product, display: 'card', imageUrl: 'https://m.test/own.jpg', label: 'Mug' })?.card
+    ).toMatchObject({ image: 'https://m.test/own.jpg', title: 'Mug' });
+  });
+
+  it('a url card carries its override image', () => {
+    expect(
+      child({
+        kind: 'url',
+        url: '/x',
+        label: 'Sale',
+        display: 'card',
+        imageUrl: 'https://m.test/s.jpg',
+      })?.card
+    ).toEqual({ image: 'https://m.test/s.jpg', title: 'Sale' });
+  });
+
+  it('card falls back when image lost', () => {
+    // A category has no picture of its own and the override is gone: a plain link.
+    const lost = child({
+      kind: 'category',
+      target: { _type: 'category', id: CATEGORY_ID },
+      display: 'card',
+    });
+    expect(lost).not.toHaveProperty('card');
+    expect(lost?.display).toBe('link');
+    expect(lost?.href).toBeNull();
+    // A product whose target is unknown and has no override falls back the same way.
+    const unknown = child({ ...product, display: 'card' }, context({ targets: new Map() }));
+    expect(unknown).not.toHaveProperty('card');
+    expect(unknown?.display).toBe('link');
+  });
+
+  it('a card with no title falls back to a link', () => {
+    expect(
+      child({ kind: 'url', url: '/x', display: 'card', imageUrl: 'https://m.test/s.jpg' })
+    ).not.toHaveProperty('card');
+  });
+
+  it("a section's display is inherited, and a link's own display overrides it", () => {
+    const resolved = resolveLink(
+      {
+        kind: 'none',
+        sections: [{ display: 'card', links: [product, { ...collection, display: 'link' }] }],
+      },
+      cardContext()
+    );
+    const [inherited, own] = resolved?.sections?.[0]?.links ?? [];
+    expect(inherited?.display).toBe('card');
+    expect(inherited?.card?.title).toBe('Ash glaze mug');
+    expect(own?.display).toBe('link');
+    expect(own).not.toHaveProperty('card');
+  });
+
+  it('a heading link, a see-all link and a top-level link are never cards', () => {
+    const resolved = resolveLink(
+      {
+        ...collection,
+        display: 'card',
+        sections: [
+          {
+            display: 'card',
+            headingLink: { ...collection, display: 'card' },
+            links: [],
+            seeAll: { link: { ...collection, display: 'card' } },
+          },
+        ],
+      },
+      cardContext()
+    );
+    for (const link of [
+      resolved,
+      resolved?.sections?.[0]?.headingLink,
+      resolved?.sections?.[0]?.seeAll,
+    ]) {
+      expect(link).not.toHaveProperty('card');
+      expect(link).not.toHaveProperty('display');
+    }
+  });
+
+  it('a legacy link has no display and no card', () => {
+    const resolved = child(product);
+    expect(resolved).not.toHaveProperty('display');
+    expect(resolved).not.toHaveProperty('card');
+  });
+});
+
 describe('linkTargetKeys', () => {
   it("collects a value's own target and its children's, deduplicated and in order", () => {
     expect(
@@ -431,6 +699,28 @@ describe('linkTargetKeys', () => {
         ],
       })
     ).toEqual([`collection:${COLLECTION_ID}`, `product:${PRODUCT_ID}`]);
+  });
+
+  it('walks sections: heading link, links and see-all link, in order and deduplicated', () => {
+    expect(
+      linkTargetKeys({
+        kind: 'none',
+        sections: [
+          {
+            headingLink: { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } },
+            links: [
+              { kind: 'product', target: { _type: 'product', id: PRODUCT_ID } },
+              { kind: 'url', url: '/x' },
+            ],
+            seeAll: {
+              link: { kind: 'collection', target: { _type: 'collection', id: COLLECTION_ID } },
+            },
+          },
+          { links: [{ kind: 'page', target: { _type: 'page', id: 'p-about' } }] },
+          'not a section',
+        ],
+      })
+    ).toEqual([`collection:${COLLECTION_ID}`, `product:${PRODUCT_ID}`, 'page:p-about']);
   });
 
   it('keys a product and a collection sharing an id as two lookups', () => {

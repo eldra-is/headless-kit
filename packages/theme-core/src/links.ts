@@ -30,8 +30,23 @@ export interface LinkValue {
   openInNewTab?: boolean;
   /** A column heading; meaningful on a child of a mega-menu item. */
   group?: string;
-  /** One level deep, never two. */
+  /** One level deep, never two. Served to a theme that declares no `sections`. */
   children?: LinkValue[];
+  /** The second level in columns, served to a theme that declares `sections`; never together with `children`. */
+  sections?: LinkSectionValue[];
+  /** A promotional card or a plain link; a link's own value overrides its section's. */
+  display?: 'card' | 'link';
+  /** The media URL of a card's own image. */
+  imageUrl?: string;
+}
+
+/** One column of a link's `sections`, as a public read serves it. */
+export interface LinkSectionValue {
+  heading?: string;
+  headingLink?: LinkValue;
+  display?: 'card' | 'link';
+  links?: LinkValue[];
+  seeAll?: { label?: string; link?: LinkValue };
 }
 
 /** What a site knows about one link target, keyed by `${_type}:${id}`. The
@@ -53,6 +68,10 @@ export interface LinkTargetInfo {
    * path, which on a canonical-only route is a 404 dressed as a link.
    */
   path?: string;
+  /** The target's own picture URL: a product's `thumbnail`, a collection's `image`. A card's fallback when its own image is absent. */
+  image?: string;
+  /** A product's lowest price as the catalog read serves it (major units, no currency: the store's own). Shown on a product card. */
+  price?: number;
 }
 
 export interface LinkRouteContext {
@@ -71,6 +90,34 @@ export interface ResolvedLink {
   newTab: boolean;
   group: string | null;
   children: ResolvedLink[];
+  /** Present only on a link the read served sections for; `children` is empty then. */
+  sections?: ResolvedSection[];
+  /** How the link is presented: its own `display`, else its section's. `link` when a card could not be resolved. */
+  display?: 'card' | 'link';
+  /** The link's own card image, as served. */
+  imageUrl?: string;
+  /** Present only when `display` is `card` and the card has a picture and a title; without it the link is a plain link. */
+  card?: ResolvedCard;
+}
+
+/** A resolved card: the picture (the override, else the target's own), the title and, for a product, its price. */
+export interface ResolvedCard {
+  image: string;
+  title: string;
+  /** A product's lowest price in **major units** (the /web product list's `minPrice`, `28` for 28 kr.), with no currency: format it with the store's. */
+  price?: number;
+}
+
+/** One resolved column of a link's `sections`. */
+export interface ResolvedSection {
+  /** Unstripped, like every label, so a preview can edit it inline. Falls back to the heading link's label; null when both are blank. */
+  heading: string | null;
+  /** The heading as a link, when the author made it one. */
+  headingLink: ResolvedLink | null;
+  display?: 'card' | 'link';
+  links: ResolvedLink[];
+  /** The trailing "see all" link: its own label when set, else its target's. Null when it has neither. */
+  seeAll: ResolvedLink | null;
 }
 
 /** The route template `schemaApiId` that serves each catalog kind. The three
@@ -175,9 +222,21 @@ function collectTargetKeys(value: unknown, keys: string[], seen: Set<string>, de
     seen.add(key);
     keys.push(key);
   }
-  // Depth 2, never 3: a child's own children are not part of the value.
-  if (depth > 0 || !Array.isArray(link.children)) return;
-  for (const child of link.children) collectTargetKeys(child, keys, seen, depth + 1);
+  // Depth 2, never 3: a child's own children and sections are not part of the value.
+  if (depth > 0) return;
+  if (Array.isArray(link.children)) {
+    for (const child of link.children) collectTargetKeys(child, keys, seen, depth + 1);
+  }
+  if (!Array.isArray(link.sections)) return;
+  for (const section of link.sections) {
+    const record = asRecord(section);
+    if (record === null) continue;
+    collectTargetKeys(record.headingLink, keys, seen, depth + 1);
+    if (Array.isArray(record.links)) {
+      for (const child of record.links) collectTargetKeys(child, keys, seen, depth + 1);
+    }
+    collectTargetKeys(asRecord(record.seeAll)?.link, keys, seen, depth + 1);
+  }
 }
 
 function targetKey(target: unknown): string | null {
@@ -201,13 +260,20 @@ function targetKey(target: unknown): string | null {
  * simply is not a link until the page is published.
  *
  * Children resolve one level; a child's own `children` are ignored, matching
- * the depth the grammar allows.
+ * the depth the grammar allows. `sections` (a theme that declares them is served
+ * those instead of `children`) resolve the same way: each section's links, its
+ * heading link and its see-all link are links of that one level.
  */
 export function resolveLink(value: unknown, context: LinkRouteContext): ResolvedLink | null {
   return resolveOne(value, context, 0);
 }
 
-function resolveOne(value: unknown, context: LinkRouteContext, depth: number): ResolvedLink | null {
+function resolveOne(
+  value: unknown,
+  context: LinkRouteContext,
+  depth: number,
+  card?: CardSlot
+): ResolvedLink | null {
   const link = asLinkValue(value);
   if (link === null) return null;
   const info = targetInfo(link.target, context);
@@ -219,7 +285,7 @@ function resolveOne(value: unknown, context: LinkRouteContext, depth: number): R
   const ownLabel = typeof link.label === 'string' ? link.label : '';
   const targetTitle = typeof info?.title === 'string' ? info.title : '';
   const group = typeof link.group === 'string' ? link.group : '';
-  return {
+  const resolved: ResolvedLink = {
     // Every string the *route* is derived from is read stega-stripped, `kind`
     // included: in a preview the gateway encodes all string leaves of an
     // entry's data, so a raw `kind` would match no branch at all.
@@ -231,9 +297,93 @@ function resolveOne(value: unknown, context: LinkRouteContext, depth: number): R
       depth > 0 || !Array.isArray(link.children)
         ? []
         : link.children
-            .map((child) => resolveOne(child, context, depth + 1))
+            .map((child) => resolveOne(child, context, depth + 1, {}))
             .filter((child): child is ResolvedLink => child !== null),
   };
+  if (depth === 0 && Array.isArray(link.sections)) {
+    resolved.sections = link.sections
+      .map((section) => resolveSection(section, context))
+      .filter((section): section is ResolvedSection => section !== null);
+  }
+  if (typeof link.imageUrl === 'string' && plain(link.imageUrl) !== '') {
+    resolved.imageUrl = link.imageUrl;
+  }
+  // Only a child or a section link may be a card; a link's own display overrides the section's.
+  // Any other link (top level, heading link, see-all) never carries a `display`.
+  if (card !== undefined) {
+    const display = cardDisplay(link.display) ?? card.display;
+    if (display !== undefined) resolved.display = display;
+  }
+  if (card !== undefined && resolved.display === 'card') {
+    const resolvedCard = resolveCard(plain(link.kind), link, info, resolved.label);
+    if (resolvedCard === null) resolved.display = 'link';
+    else resolved.card = resolvedCard;
+  }
+  return resolved;
+}
+
+/** What a link may inherit from the section it sits in; its presence marks a link that may be a card. */
+interface CardSlot {
+  display?: 'card' | 'link';
+}
+
+/** A card needs a picture and a title, else it is a plain link. A product or collection card falls back to the target's own picture. */
+function resolveCard(
+  kind: string,
+  link: LinkValue,
+  info: LinkTargetInfo | undefined,
+  title: string | null
+): ResolvedCard | null {
+  const own = typeof link.imageUrl === 'string' && plain(link.imageUrl) !== '' ? link.imageUrl : '';
+  const targetImage =
+    (kind === 'product' || kind === 'collection') && typeof info?.image === 'string'
+      ? info.image
+      : '';
+  const image = own !== '' ? own : targetImage;
+  if (plain(image) === '' || title === null) return null;
+  const card: ResolvedCard = { image, title };
+  if (kind === 'product' && typeof info?.price === 'number' && Number.isFinite(info.price)) {
+    card.price = info.price;
+  }
+  return card;
+}
+
+function resolveSection(value: unknown, context: LinkRouteContext): ResolvedSection | null {
+  const section = asRecord(value);
+  if (section === null) return null;
+  const heading = typeof section.heading === 'string' ? section.heading : '';
+  const headingLink = resolveOne(section.headingLink, context, 1);
+  const sectionDisplay = cardDisplay(section.display);
+  // A section with only a heading link is headed by that link's label, as Core's own
+  // flattening of sections into `children` does.
+  const resolved: ResolvedSection = {
+    heading: plain(heading) !== '' ? heading : (headingLink?.label ?? null),
+    headingLink,
+    links: (Array.isArray(section.links) ? section.links : [])
+      .map((link) => resolveOne(link, context, 1, { display: sectionDisplay }))
+      .filter((link): link is ResolvedLink => link !== null),
+    seeAll: resolveSeeAll(section.seeAll, context),
+  };
+  if (sectionDisplay !== undefined) resolved.display = sectionDisplay;
+  return resolved;
+}
+
+function resolveSeeAll(value: unknown, context: LinkRouteContext): ResolvedLink | null {
+  const seeAll = asRecord(value);
+  if (seeAll === null) return null;
+  const link = resolveOne(seeAll.link, context, 1);
+  const label = typeof seeAll.label === 'string' ? seeAll.label : '';
+  if (plain(label) !== '') {
+    return link === null
+      ? { href: null, label, newTab: false, group: null, children: [] }
+      : { ...link, label };
+  }
+  return link !== null && link.label !== null ? link : null;
+}
+
+function cardDisplay(value: unknown): 'card' | 'link' | undefined {
+  const display = plain(value);
+  return display === 'card' || display === 'link' ? display : undefined;
 }
 
 function resolveHref(
@@ -296,6 +446,12 @@ function pagePath(target: unknown, context: LinkRouteContext): string | null {
 function targetInfo(target: unknown, context: LinkRouteContext): LinkTargetInfo | undefined {
   const key = targetKey(target);
   return key === null ? undefined : context.targets.get(key);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function asLinkValue(value: unknown): LinkValue | null {

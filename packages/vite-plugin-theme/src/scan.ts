@@ -629,9 +629,9 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   checkFieldSetVisibility(file, fields, 'fields', errors);
 
   // `link` metadata is checked over the same nesting, because a link is most
-  // often a list's item rather than a top-level field, and `tree` is only
-  // legal there.
-  checkLinkFieldSet(file, fields, 'fields', false, errors);
+  // often a list's item rather than a top-level field, and a `cards`
+  // declaration is legal only on a top-level link or a top-level list's item.
+  checkLinkFieldSet(file, fields, 'fields', 'top', errors);
 
   const slots = Array.isArray(block.slots) ? (block.slots as Array<Record<string, unknown>>) : [];
   const slotIds = new Set<string>();
@@ -658,30 +658,35 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   }
 }
 
+/** Where a link field sits, which is what decides whether it may declare
+ *  `tree.cards`: a public read projects a top-level link field and the link
+ *  item of a top-level list (a header menu), and nothing deeper. */
+type LinkPlacement = 'top' | 'topListItem' | 'nested';
+
 /**
  * The `link` half of the field grammar, over one field set and everything
  * nested under it.
  *
  * Three metadata keys belong to `link` and to nothing else, so a block that
  * puts `kinds` on a string field learns that here rather than from Core's
- * ingest. `tree` additionally demands that the link *is* a list's item: it
- * asks the editor to author a list of links as a tree, and a `list` cannot
- * carry the flag itself because Core's list field declares only
- * `allowedSchemas` and `item` and refuses every other metadata key.
+ * ingest. `tree` is declared on the link itself (a `list` can carry only
+ * `allowedSchemas` and `item`), as `true` or as a declaration object; see
+ * `checkLinkTree`.
  */
 function checkLinkFieldSet(
   file: string,
   fields: Array<Record<string, unknown>>,
   path: string,
-  isListItem: boolean,
+  placement: LinkPlacement,
   errors: string[],
-  depth = 1
+  depth = 1,
+  isListItem = false
 ): void {
   if (depth > MAX_COMPOSITE_DEPTH + 1) return;
   fields.forEach((field, index) => {
     if (!isRecord(field)) return;
-    const at = fields.length === 1 && isListItem ? path : `${path}[${index}]`;
-    checkLinkField(file, field, at, isListItem, errors);
+    const at = isListItem ? path : `${path}[${index}]`;
+    checkLinkField(file, field, at, placement, errors);
     const metadata = isRecord(field.metadata) ? field.metadata : null;
     if (metadata === null) return;
     if (Array.isArray(metadata.fields)) {
@@ -689,13 +694,23 @@ function checkLinkFieldSet(
         file,
         metadata.fields.filter(isRecord),
         `${at}.metadata.fields`,
-        false,
+        'nested',
         errors,
         depth + 1
       );
     }
     if (isRecord(metadata.item)) {
-      checkLinkFieldSet(file, [metadata.item], `${at}.metadata.item`, true, errors, depth + 1);
+      // Only a top-level list's own item is a header menu; the item of a list
+      // inside a composite or another list is nested.
+      checkLinkFieldSet(
+        file,
+        [metadata.item],
+        `${at}.metadata.item`,
+        placement === 'top' ? 'topListItem' : 'nested',
+        errors,
+        depth + 1,
+        true
+      );
     }
   });
 }
@@ -704,7 +719,7 @@ function checkLinkField(
   file: string,
   field: Record<string, unknown>,
   at: string,
-  isListItem: boolean,
+  placement: LinkPlacement,
   errors: string[]
 ): void {
   const metadata = isRecord(field.metadata) ? field.metadata : {};
@@ -744,12 +759,136 @@ function checkLinkField(
       );
     }
   }
-  if ('tree' in metadata) {
-    if (typeof metadata.tree !== 'boolean') {
-      errors.push(`${file}: ${at}.metadata.tree — must be a boolean`);
-    } else if (metadata.tree === true && !isListItem) {
-      errors.push(`${file}: ${at} — metadata.tree is only allowed on a link that is a list's item`);
+  if ('tree' in metadata) checkLinkTree(file, metadata.tree, kinds, at, placement, errors);
+}
+
+const LINK_ASPECT_PATTERN = /^\d+:\d+$/;
+const LINK_TREE_DEFAULT_DEPTH = 2;
+/** Card kinds that carry no picture of their own: a card of one needs an image
+ *  the author uploads, so the declaration must allow `customImage`. */
+const LINK_CARD_KINDS_NEEDING_IMAGE = new Set(['page', 'entry', 'url', 'category']);
+
+/**
+ * `metadata.tree`, held to what Core's `ValidateLinkMetadata` accepts. `true`
+ * means depth 2 with legacy groups, `{}` means the same, `false` and `null`
+ * mean off; an object may declare `depth`, `sections` and `cards`. Keys the
+ * grammar does not know are ignored, as Core ignores them.
+ */
+function checkLinkTree(
+  file: string,
+  tree: unknown,
+  kinds: string[] | null,
+  at: string,
+  placement: LinkPlacement,
+  errors: string[]
+): void {
+  const where = `${file}: ${at}.metadata.tree`;
+  if (tree === null || typeof tree === 'boolean') return;
+  if (!isRecord(tree)) {
+    errors.push(`${where} — must be a boolean or an object`);
+    return;
+  }
+  if (isPresent(tree.enabled) && typeof tree.enabled !== 'boolean') {
+    errors.push(`${where}.enabled — must be a boolean`);
+  }
+  let depth = LINK_TREE_DEFAULT_DEPTH;
+  if (tree.depth !== undefined && tree.depth !== null) {
+    if (typeof tree.depth !== 'number' || !Number.isInteger(tree.depth)) {
+      errors.push(`${where}.depth — must be 1 or 2`);
+      return;
     }
+    // Core reads a depth of 0 as the default, 2.
+    if (tree.depth !== 0) depth = tree.depth;
+  }
+  if (depth !== 1 && depth !== LINK_TREE_DEFAULT_DEPTH) {
+    errors.push(`${where}.depth — must be 1 or 2 (got ${depth})`);
+    return;
+  }
+  const sections = tree.sections ?? null;
+  const cards = tree.cards ?? null;
+  if ((sections !== null || cards !== null) && depth !== LINK_TREE_DEFAULT_DEPTH) {
+    errors.push(`${where} — sections and cards require depth 2`);
+  }
+  if (sections !== null) checkLinkTreeSections(where, sections, errors);
+  if (cards !== null) {
+    if (placement === 'nested') {
+      errors.push(
+        `${where}.cards — only allowed on a top-level link field or the link item of a top-level list`
+      );
+    }
+    checkLinkTreeCards(where, cards, kinds, errors);
+  }
+}
+
+function checkLinkTreeSections(where: string, sections: unknown, errors: string[]): void {
+  if (!isRecord(sections)) {
+    errors.push(`${where}.sections — must be an object`);
+    return;
+  }
+  checkTreeMax(`${where}.sections.max`, sections.max, errors);
+  for (const key of ['headingLink', 'seeAll']) {
+    if (isPresent(sections[key]) && typeof sections[key] !== 'boolean') {
+      errors.push(`${where}.sections.${key} — must be a boolean`);
+    }
+  }
+}
+
+function checkLinkTreeCards(
+  where: string,
+  cards: unknown,
+  kinds: string[] | null,
+  errors: string[]
+): void {
+  if (!isRecord(cards)) {
+    errors.push(`${where}.cards — must be an object`);
+    return;
+  }
+  checkTreeMax(`${where}.cards.max`, cards.max, errors);
+  const allowed: readonly string[] = kinds ?? LINK_KINDS;
+  let cardKinds = allowed;
+  if (cards.kinds !== undefined && cards.kinds !== null) {
+    if (!Array.isArray(cards.kinds) || cards.kinds.some((kind) => typeof kind !== 'string')) {
+      errors.push(`${where}.cards.kinds — must be an array of link kinds`);
+    } else {
+      const declared = cards.kinds as string[];
+      for (const kind of declared) {
+        if (!allowed.includes(kind)) {
+          errors.push(
+            `${where}.cards.kinds — "${kind}" is not one of the field's metadata.kinds (cards.kinds must be a subset of it)`
+          );
+        }
+      }
+      if (declared.length > 0) cardKinds = declared;
+    }
+  }
+  if (cards.aspect !== undefined && cards.aspect !== null) {
+    if (typeof cards.aspect !== 'string') {
+      errors.push(`${where}.cards.aspect — must be a string like "4:5"`);
+    } else if (cards.aspect !== '' && !LINK_ASPECT_PATTERN.test(cards.aspect)) {
+      errors.push(`${where}.cards.aspect — must look like 4:5 (got "${cards.aspect}")`);
+    }
+  }
+  if (isPresent(cards.customImage) && typeof cards.customImage !== 'boolean') {
+    errors.push(`${where}.cards.customImage — must be a boolean`);
+  } else if (
+    cards.customImage !== true &&
+    cardKinds.some((kind) => LINK_CARD_KINDS_NEEDING_IMAGE.has(kind))
+  ) {
+    errors.push(
+      `${where}.cards.customImage — required when cards may be a page, entry, url or category (declare cards.kinds, or customImage: true)`
+    );
+  }
+}
+
+/** Core decodes an explicit `null` into a Go bool as a no-op, so it means the
+ *  same as an absent key. */
+function isPresent(value: unknown): boolean {
+  return value !== undefined && value !== null;
+}
+
+function checkTreeMax(at: string, value: unknown, errors: string[]): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    errors.push(`${at} — must be an integer of at least 1`);
   }
 }
 
