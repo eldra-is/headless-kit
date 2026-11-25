@@ -201,11 +201,13 @@ module.exports = [
   // the select panel's classes, so adds only its own SFC and one message: measured at 173.71 kB.
   // Raised 175 kB -> 176 kB for `Lightbox`'s `zoom` (its geometry module, the zoom button and two
   // messages): measured at 175.28 kB.
+  // Raised 176 kB -> 178 kB for `NavMenu`'s sections and cards (WS-1321, WS-1362): its section
+  // columns, card tiles and their messages: measured at 176.69 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '176 kB',
+    limit: '178 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
