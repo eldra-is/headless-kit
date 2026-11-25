@@ -567,19 +567,7 @@ function capture(origin: string, path: string, width: number, session: boolean):
   });
 }
 
-/**
- * A full-page screenshot, after the same normalisation as the DOM, of a page rastered afresh.
- *
- * The same paint does not always raster to the same pixels. Chromium rasters content it has
- * rastered before, and that changed, a little differently from content it rasters from scratch —
- * the last bit of a blurred gradient's dither, a rounded border's anti-aliasing — and it does not
- * always come back to the from-scratch raster on its own. The session changes late (the pinned
- * build's prerender first, the draft after hydration: an image at zoom 1, then at `scale(2)`; a
- * field focused once the veil drops) and the live page does not, so on CI the session's /framing
- * image was 5925 pixels of dither off the live page's while the DOM, the layers and the paint were
- * the same, and its search popover on / was 65 pixels of anti-aliasing off. So both pages are
- * rastered from scratch before the screenshot (`rasterAfresh`), the way a first load rasters them.
- */
+/** A full-page screenshot, after the same normalisation as the DOM. */
 function screenshot(
   origin: string,
   path: string,
@@ -589,41 +577,8 @@ function screenshot(
   return open(origin, path, width, session, async (page) => {
     await normalise(page, session);
     await settle(page, true);
-    await rasterAfresh(page, width);
     return page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
   });
-}
-
-/**
- * Rasters the whole page from scratch: draws it once at another device scale factor, which drops
- * every layer's tiles, and once back at the context's own (`setViewportSize` restores Playwright's
- * emulation as it was). The DOM, the layout, focus and scroll are untouched.
- */
-async function rasterAfresh(page: Page, width: number): Promise<void> {
-  const frames = (): Promise<void> =>
-    page.evaluate(
-      () =>
-        new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        )
-    );
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    await cdp.send('Emulation.setDeviceMetricsOverride', {
-      width,
-      height: 900,
-      deviceScaleFactor: 2,
-      mobile: false,
-      screenWidth: width,
-      screenHeight: 900,
-    });
-    await frames();
-  } finally {
-    await cdp.detach();
-  }
-  await page.setViewportSize({ width, height: 900 });
-  await frames();
-  expect(await page.evaluate(() => window.devicePixelRatio)).toBe(1);
 }
 
 /** Where a pixel test that fails leaves both screenshots and their difference, for CI to upload. */
