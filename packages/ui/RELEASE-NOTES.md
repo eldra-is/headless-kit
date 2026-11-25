@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.19](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.18...ui-v0.3.19) (2026-11-25)
+
+
+### Features
+
+* **theme-core:** menus with sections and product or collection cards (WS-1277) ([#170](https://github.com/eldra-is/headless-kit/issues/170)) ([b6fed54](https://github.com/eldra-is/headless-kit/commit/b6fed54c467cb5e1972c674f0dc7958d0635c968))
+
 ## [0.3.18](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.17...ui-v0.3.18) (2026-11-23)
 
 
