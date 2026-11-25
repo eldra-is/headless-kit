@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ref, type Ref } from 'vue';
+import { createSSRApp, h, ref, type Ref } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
@@ -210,6 +211,81 @@ describe('collection-header block', () => {
 
       expect(button.attributes('aria-expanded')).toBe('false');
       expect(document.activeElement).toBe(button.element);
+    });
+  });
+
+  describe('layout shift (WS-1451)', () => {
+    /** The server-rendered markup of the header, as a detached DOM. jsdom has no layout, so the
+     *  box is compared by what decides it: the reserved row's element, its tag, and every class
+     *  except `invisible` (visibility never changes a box). */
+    async function serverMarkup(data: Record<string, unknown>): Promise<HTMLElement> {
+      const base = mountOptions({ entry: { id: 'e1', data } });
+      const app = createSSRApp({ render: () => h(Block, base.props) });
+      for (const plugin of base.global.plugins) app.use(plugin as never);
+      for (const key of Object.getOwnPropertySymbols(base.global.provide)) {
+        app.provide(key, base.global.provide[key as unknown as symbol]);
+      }
+      for (const [name, component] of Object.entries(base.global.components)) {
+        app.component(name, component as never);
+      }
+      const host = document.createElement('div');
+      host.innerHTML = await renderToString(app);
+      return host;
+    }
+
+    function readMoreBox(root: Element) {
+      const button = root.querySelector('button[id^="collection-header-readmore-"]')!;
+      return {
+        tag: button.tagName,
+        classes: button
+          .getAttribute('class')!
+          .split(/\s+/)
+          .filter((c) => c !== 'invisible')
+          .sort(),
+        text: button.textContent!.trim(),
+        // Every sibling the button has in its row, so a collapse or an insert would show here.
+        siblings: button.parentElement!.children.length,
+        descriptionClass: root.querySelector('[id^="collection-header-description-"]')!.className,
+      };
+    }
+
+    it.each([
+      ['a long description (overflows)', true],
+      ['a short description (does not overflow)', false],
+    ])('keeps the same layout box from server render to mounted with %s', async (_label, long) => {
+      if (long) stubOverflow(200, 60);
+      const server = await serverMarkup(mock);
+      const before = readMoreBox(server);
+      const serverButton = server.querySelector('button[id^="collection-header-readmore-"]')!;
+      // Reserved on the server, whether or not it will ever show.
+      expect(serverButton.classList.contains('invisible')).toBe(true);
+
+      const wrapper = await mountHeader(mock);
+      const after = readMoreBox(wrapper.element);
+      expect(after).toEqual(before);
+
+      const button = wrapper.get('button[id^="collection-header-readmore-"]');
+      expect(button.classes('invisible')).toBe(!long);
+    });
+
+    it('hides the reserved button from keyboard and assistive tech until the text overflows', async () => {
+      const wrapper = await mountHeader(mock);
+      const button = wrapper.get('button[id^="collection-header-readmore-"]');
+      expect(button.attributes('aria-hidden')).toBe('true');
+      expect(button.attributes('tabindex')).toBe('-1');
+      expect(button.attributes('inert')).toBeDefined();
+      expect(button.attributes('aria-expanded')).toBeUndefined();
+      expect(button.attributes('aria-controls')).toBeUndefined();
+    });
+
+    it('shows the button as a normal, named, focusable button once the text overflows', async () => {
+      stubOverflow(200, 60);
+      const wrapper = await mountHeader(mock);
+      const button = wrapper.get('button[id^="collection-header-readmore-"]');
+      expect(button.attributes('aria-hidden')).toBeUndefined();
+      expect(button.attributes('tabindex')).toBeUndefined();
+      expect(button.attributes('inert')).toBeUndefined();
+      expect(button.text()).toContain(enUS.collection.readMore);
     });
   });
 
