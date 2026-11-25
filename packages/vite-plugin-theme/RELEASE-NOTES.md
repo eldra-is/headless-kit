@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/eldra-is/headless-kit/compare/vite-plugin-theme-v0.3.6...vite-plugin-theme-v0.4.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **theme-nuxt:** @eldrajs/theme-nuxt needs Nuxt 4.7.0 or later. On an older Nuxt the module is disabled (Nuxt logs "Module `@eldrajs/theme-nuxt` is disabled due to incompatibility issues"); `nuxt >=4.7.0` is a peer dependency.
+
+### Features
+
+* **theme-core:** menus with sections and product or collection cards (WS-1277) ([#170](https://github.com/eldra-is/headless-kit/issues/170)) ([b6fed54](https://github.com/eldra-is/headless-kit/commit/b6fed54c467cb5e1972c674f0dc7958d0635c968))
+* **theme-nuxt:** draft preview sessions and preview parity, needs Nuxt 4.7.0 (WS-1277) ([#168](https://github.com/eldra-is/headless-kit/issues/168)) ([332d35a](https://github.com/eldra-is/headless-kit/commit/332d35a20378b0bd43e50c7e91d9bbb0e2be22d3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.4.0
+
 ## [0.3.6](https://github.com/eldra-is/headless-kit/compare/vite-plugin-theme-v0.3.5...vite-plugin-theme-v0.3.6) (2026-11-23)
 
 

@@ -2,11 +2,11 @@
   "packages/sdk": "0.5.4",
   "packages/rich-text": "0.1.1",
   "packages/vue": "0.1.16",
-  "packages/theme-core": "0.3.6",
-  "packages/theme-vue": "0.2.7",
-  "packages/vite-plugin-theme": "0.3.6",
-  "packages/theme-cli": "0.2.7",
-  "packages/theme-nuxt": "0.4.8",
-  "packages/ui": "0.3.18",
-  "packages/nuxt": "0.1.0"
+  "packages/theme-core": "0.4.0",
+  "packages/theme-vue": "0.2.8",
+  "packages/vite-plugin-theme": "0.4.0",
+  "packages/theme-cli": "0.2.8",
+  "packages/theme-nuxt": "0.5.0",
+  "packages/ui": "0.3.19",
+  "packages/nuxt": "0.2.0"
 }

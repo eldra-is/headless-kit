@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.8](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.7...theme-cli-v0.2.8) (2026-11-25)
+
+
+### Features
+
+* **theme-core:** menus with sections and product or collection cards (WS-1277) ([#170](https://github.com/eldra-is/headless-kit/issues/170)) ([b6fed54](https://github.com/eldra-is/headless-kit/commit/b6fed54c467cb5e1972c674f0dc7958d0635c968))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.4.0
+    * @eldrajs/vite-plugin-theme bumped to 0.4.0
+
 ## [0.2.7](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.6...theme-cli-v0.2.7) (2026-11-23)
 
 

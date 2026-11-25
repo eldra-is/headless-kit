@@ -1,6 +1,6 @@
 {
   "name": "@eldrajs/nuxt",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Nuxt module for Eldra storefronts on Cloudflare: serves the pages the build wrote and answers 404 for the rest without rendering or reading the API.",
   "keywords": [
     "cloudflare",
