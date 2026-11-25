@@ -46,3 +46,14 @@ jobs:
       # it. Add new gates to the root `check` script, not to this file.
       - name: Lint, format, build, types, tests, package checks, Storybook builds
         run: pnpm check
+
+      # The draft preview parity gate's pixel tests leave both screenshots and their difference
+      # here when one fails (WS-1277): a difference only this runner draws is otherwise unseen.
+      - name: Preview parity screenshots
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: preview-parity-screenshots
+          path: examples/starter-nuxt/test-results/preview-parity/
+          if-no-files-found: ignore
+          retention-days: 14
