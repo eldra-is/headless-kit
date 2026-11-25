@@ -1,7 +1,7 @@
 import { chromium, type Browser, type Page } from '@playwright/test';
 import { normalizeThemeDesignTokens } from '@eldrajs/theme-core';
 import { execa } from 'execa';
-import { cpSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -581,11 +581,23 @@ function screenshot(
   });
 }
 
+/** Where a pixel test that fails leaves both screenshots and their difference, for CI to upload. */
+const PIXEL_FAILURES = join(templateDir, 'test-results', 'preview-parity');
+
+interface PixelDifference {
+  differing: number;
+  size: string;
+  /** The smallest rectangle holding every differing pixel, `x,y wxh`; none when nothing differs. */
+  region?: string;
+  /** A PNG of the session's screenshot with every differing pixel painted magenta. */
+  diff?: string;
+}
+
 /**
  * How many pixels of `a` and `b` differ, decoded and compared by Chromium itself — a canvas reads
  * both PNGs back as RGBA, so no image library is needed. Different sizes count every pixel.
  */
-async function differingPixels(a: Buffer, b: Buffer): Promise<{ differing: number; size: string }> {
+async function differingPixels(a: Buffer, b: Buffer): Promise<PixelDifference> {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
@@ -605,6 +617,8 @@ async function differingPixels(a: Buffer, b: Buffer): Promise<{ differing: numbe
           return { differing: Math.max(one.width * one.height, two.width * two.height), size };
         }
         let differing = 0;
+        let [minX, minY, maxX, maxY] = [one.width, one.height, -1, -1];
+        const marked = new ImageData(new Uint8ClampedArray(one.data), one.width, one.height);
         for (let i = 0; i < one.data.length; i += 4) {
           if (
             one.data[i] !== two.data[i] ||
@@ -613,15 +627,56 @@ async function differingPixels(a: Buffer, b: Buffer): Promise<{ differing: numbe
             one.data[i + 3] !== two.data[i + 3]
           ) {
             differing += 1;
+            const x = (i / 4) % one.width;
+            const y = Math.floor(i / 4 / one.width);
+            [minX, minY] = [Math.min(minX, x), Math.min(minY, y)];
+            [maxX, maxY] = [Math.max(maxX, x), Math.max(maxY, y)];
+            marked.data.set([255, 0, 255, 255], i);
           }
         }
-        return { differing, size };
+        if (differing === 0) return { differing, size };
+        const canvas = new OffscreenCanvas(one.width, one.height);
+        canvas.getContext('2d')!.putImageData(marked, 0, 0);
+        const png = new Uint8Array(await (await canvas.convertToBlob()).arrayBuffer());
+        let binary = '';
+        for (const byte of png) binary += String.fromCharCode(byte);
+        return {
+          differing,
+          size,
+          region: `${minX},${minY} ${maxX - minX + 1}x${maxY - minY + 1}`,
+          diff: btoa(binary),
+        };
       },
       [a.toString('base64'), b.toString('base64')] as const
     );
   } finally {
     await context.close();
   }
+}
+
+/**
+ * Not one pixel differs. When one does, both screenshots and the difference are written to
+ * `PIXEL_FAILURES` (CI uploads the folder when the job fails), and the failure names where on the
+ * page the differing pixels are.
+ */
+async function expectSamePixels(
+  path: string,
+  width: number,
+  session: Buffer,
+  published: Buffer
+): Promise<void> {
+  const { diff, ...result } = await differingPixels(session, published);
+  if (result.differing !== 0) {
+    const folder = join(PIXEL_FAILURES, `${path.replace(/[^a-z0-9-]+/gi, '_')}-${width}`);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, 'session.png'), session);
+    writeFileSync(join(folder, 'live.png'), published);
+    if (diff !== undefined) writeFileSync(join(folder, 'diff.png'), Buffer.from(diff, 'base64'));
+  }
+  expect(
+    result,
+    `the session's pixels against the live page's: ${JSON.stringify(result)}`
+  ).toMatchObject({ differing: 0 });
 }
 
 /**
@@ -885,7 +940,7 @@ describe('a draft preview renders exactly what Publish puts live', () => {
       it(`${path} at ${width}: 0 pixels differ`, async () => {
         const published = await screenshot(live.origin, path, width, false);
         const session = await screenshot(router.origin, path, width, true);
-        expect(await differingPixels(session, published)).toMatchObject({ differing: 0 });
+        await expectSamePixels(path, width, session, published);
       });
     }
   }
@@ -969,7 +1024,7 @@ describe('a draft preview renders exactly what Publish puts live', () => {
       it(`${path} at ${width}: 0 pixels differ`, async () => {
         const published = await screenshot(live.origin, path, width, false);
         const session = await screenshot(router.origin, path, width, true);
-        expect(await differingPixels(session, published)).toMatchObject({ differing: 0 });
+        await expectSamePixels(path, width, session, published);
       });
     }
   }

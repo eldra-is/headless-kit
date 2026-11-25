@@ -21,3 +21,6 @@ eldra-starter-spec 2/
 
 # Screenshot baselines are per-machine renderings; each developer keeps their own.
 packages/ui/__screenshots__/
+
+# The draft preview parity spec's screenshots of a failed pixel test.
+test-results/

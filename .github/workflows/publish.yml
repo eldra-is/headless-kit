@@ -103,6 +103,16 @@ jobs:
         if: steps.gate.outputs.present == 'true'
         run: pnpm test:parity
 
+      # Both screenshots and their difference, from a pixel test that failed (WS-1277).
+      - name: Preview parity screenshots
+        if: failure() && steps.gate.outputs.present == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: preview-parity-screenshots
+          path: examples/starter-nuxt/test-results/preview-parity/
+          if-no-files-found: ignore
+          retention-days: 14
+
   npm:
     # Trusted publishing: npm exchanges this job's OIDC token for publish rights, so no NPM_TOKEN
     # exists anywhere. Provenance requires a GitHub-hosted runner and a public repository.

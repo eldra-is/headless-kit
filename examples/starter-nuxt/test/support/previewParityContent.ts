@@ -294,7 +294,25 @@ function pageSources(version: ContentVersion): PageSource[] {
     ],
   };
 
-  const image = sampleData('image').image as Record<string, unknown>;
+  /**
+   * The framed image is a photo, not the block's demo SVG. A blurred-gradient SVG is drawn with a
+   * dither that Chromium rasters differently depending on the image's paint history — a session
+   * draws it at zoom 1 from the pinned prerender, then at `scale(2)` from the draft; the live page
+   * draws it once — which no capture can normalise: on CI it differed in 5925 pixels of dither
+   * while the DOM, the layers and the paint were the same. A photo has no such dither. The framing
+   * values are the point of the page and stay as they are.
+   *
+   * `public/images/bowl.webp` is "Bowl of Eggs" by Cory Seward (Unsplash, via Wikimedia Commons),
+   * CC0; 1120×1400.
+   */
+  const image = {
+    ...(sampleData('image').image as Record<string, unknown>),
+    assetId: 'demo-bowl',
+    url: '/images/bowl.webp',
+    altText: 'White eggs, one cracked open, in a wooden bowl on a bamboo mat',
+    width: 1120,
+    height: 1400,
+  };
   const heroImage = sampleData('hero').image as Record<string, unknown>;
   const framing: PageSource = {
     id: 'page-framing',
