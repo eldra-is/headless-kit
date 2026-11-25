@@ -568,15 +568,17 @@ function capture(origin: string, path: string, width: number, session: boolean):
 }
 
 /**
- * A full-page screenshot, after the same normalisation as the DOM, of a page drawn afresh.
+ * A full-page screenshot, after the same normalisation as the DOM, of every image drawn afresh and
+ * finished drawing.
  *
- * The same paint does not always raster to the same pixels: Chromium re-rasters only the part of a
- * tile a change invalidated, and a gradient's dither (the demo images' blurred gradients) follows
- * where that raster started. The two pages reach the same paint by different histories: the session
- * changes late (its draft renders after hydration, and `normalise` removes its additions and the
- * ready attribute on `<html>`), the live page does not. So both pages are invalidated whole, the
- * same way, before the screenshot (`repaintEverything`): every tile is rastered from scratch, and
- * what is compared is what the page paints, not the order it was painted in.
+ * An image Chromium draws anew is first rastered one way and, a frame or a few hundred milliseconds
+ * later, rastered again for good; the two differ in the last bit of a blurred gradient's dither. A
+ * page that is not drawing produces no frames, so an image changed late can stay in its first
+ * raster: on CI the session's /framing image (drawn at zoom 1 from the pinned prerender, then at
+ * `scale(2)` from the draft) was captured that way, 5925 pixels of dither off the live page's, while
+ * the DOM, the layers and the paint were the same on both pages. So on both pages every image is
+ * replaced with a fresh copy of itself (`redrawImages`), the same start for both, and the screenshot
+ * is the one the page keeps drawing (`finishedScreenshot`).
  */
 function screenshot(
   origin: string,
@@ -587,27 +589,49 @@ function screenshot(
   return open(origin, path, width, session, async (page) => {
     await normalise(page, session);
     await settle(page, true);
-    await repaintEverything(page);
-    return page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
+    await redrawImages(page);
+    return finishedScreenshot(page);
   });
 }
 
 /**
- * Invalidates the whole page and lets it paint again: the root's background is changed for two
- * frames, then put back exactly as it was (no `style` attribute when there was none).
+ * Replaces every image with a copy of itself (its attributes, eager loading included) and waits for
+ * the copies to decode: a new element is drawn from scratch, whatever the old one was drawn as.
  */
-async function repaintEverything(page: Page): Promise<void> {
+async function redrawImages(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    const frames = (): Promise<void> =>
-      new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    const root = document.documentElement;
-    const style = root.getAttribute('style');
-    root.style.setProperty('background-color', 'rgb(1, 2, 3)', 'important');
-    await frames();
-    if (style === null) root.removeAttribute('style');
-    else root.setAttribute('style', style);
-    await frames();
+    const copies = [...document.images].map((image) => {
+      const copy = image.cloneNode(true) as HTMLImageElement;
+      image.replaceWith(copy);
+      return copy;
+    });
+    await Promise.all(copies.map((copy) => copy.decode().catch(() => undefined)));
   });
+  await page.waitForLoadState('networkidle');
+}
+
+/** How far apart the screenshots `finishedScreenshot` compares are taken. */
+const DRAWN_GAP_MS = 400;
+/** How many screenshots in a row must be the same. */
+const DRAWN_SAME = 3;
+
+/**
+ * Full-page screenshots, `DRAWN_GAP_MS` apart, until `DRAWN_SAME` in a row are the same (each one
+ * makes the page draw a frame, so a raster still to come comes); that screenshot is the page's.
+ */
+async function finishedScreenshot(page: Page): Promise<Buffer> {
+  const take = (): Promise<Buffer> =>
+    page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
+  let last = await take();
+  let same = 1;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, DRAWN_GAP_MS));
+    const next = await take();
+    same = next.equals(last) ? same + 1 : 1;
+    last = next;
+    if (same >= DRAWN_SAME) return last;
+  }
+  throw new Error(`the page was still drawing after ${30 * DRAWN_GAP_MS} ms of screenshots`);
 }
 
 /** Where a pixel test that fails leaves both screenshots and their difference, for CI to upload. */
