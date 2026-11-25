@@ -16,8 +16,7 @@ jobs:
   check:
     name: Lint, types, tests, build, package checks
     runs-on: ubuntu-latest
-    # 40, not 25: the draft preview parity spec (WS-1358) adds two starter generates.
-    timeout-minutes: 40
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,25 +31,82 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # `pnpm test` runs the browser specs (theme-nuxt's, and the starter's —
-      # the draft preview parity gate, WS-1358, among them), which need a real
+      # `pnpm test:fast` runs the browser specs (theme-nuxt's and the starter's;
+      # the draft preview parity gate is in `slow` below), which need a real
       # browser; the screenshot harness (`pnpm --filter @eldrajs/ui
       # screenshots`) is deliberately *not* part of `check` and does not run
       # here — its baselines are macOS renderings, see packages/ui/README.md.
       - name: Chromium, for the theme-nuxt browser tests
         run: pnpm exec playwright install --with-deps chromium
 
-      # One step, on purpose: `check` is the same command a contributor runs
-      # locally, so CI and it cannot drift. Enumerating its steps here is how
-      # the @eldrajs/ui Storybook build went unbuilt in CI while `check` built
-      # it. Add new gates to the root `check` script, not to this file.
+      # One step, on purpose: `check:core` is the same command a contributor runs locally (`check` is
+      # it plus `test:slow`), so CI and it cannot drift. Enumerating its steps here is how the
+      # @eldrajs/ui Storybook build went unbuilt in CI while `check` built it. Add new gates to the
+      # root `check:core` script, not to this file. The two slowest specs run in `slow` below.
       - name: Lint, format, build, types, tests, package checks, Storybook builds
-        run: pnpm check
+        run: pnpm check:core
+
+  # `test:slow`: the draft preview parity gate (WS-1358, two real generates of the starter, about 8
+  # minutes) and theme-nuxt's static generate spec (about 4). Beside `check`, not after it, and on a
+  # pull request only when it changes something those specs render through: a theme package, the
+  # ui, vue, rich-text or sdk packages, the starter, the lockfile, or this workflow. Otherwise the
+  # job still runs and passes in seconds, so it can stay a required check. Every push to main runs
+  # it, and publish.yml runs the parity gate again on the tag before anything is published.
+  slow:
+    name: Preview parity and generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Whether this change reaches the slow specs
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE...$HEAD")"
+          if printf '%s\n' "$changed" | grep -qE '^(packages/(theme-core|theme-nuxt|theme-vue|ui|vue|rich-text|sdk)/|examples/starter-nuxt/|pnpm-lock\.yaml$|package\.json$|vitest\.config\.ts$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no change to a package or file the preview parity and generate specs render through; skipped"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - if: steps.scope.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - if: steps.scope.outputs.run == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - if: steps.scope.outputs.run == 'true'
+        run: pnpm build
+
+      - name: Preview parity and generate
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm test:slow
 
       # The draft preview parity gate's pixel tests leave both screenshots and their difference
       # here when one fails (WS-1277): a difference only this runner draws is otherwise unseen.
       - name: Preview parity screenshots
-        if: failure()
+        if: failure() && steps.scope.outputs.run == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: preview-parity-screenshots
