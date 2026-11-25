@@ -99,6 +99,12 @@ jobs:
       - if: steps.scope.outputs.run == 'true'
         run: pnpm build
 
+      # The parity spec loads the starter's .nuxt/tsconfig.json, which `check` makes as a side effect
+      # of `nuxi typecheck`; this job runs no typecheck, so it prepares the starter itself.
+      - name: Prepare the starter's Nuxt types
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm --filter starter-nuxt exec nuxi prepare
+
       - name: Preview parity and generate
         if: steps.scope.outputs.run == 'true'
         run: pnpm test:slow
