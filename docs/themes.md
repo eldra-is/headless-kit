@@ -129,7 +129,11 @@ renders the organisation's drafts there, client-side.
   submit, a cart create) is never run by the session. The veil stays up until they have settled,
   for at most 15 s counted from the session's start (so it runs even when the app never finishes
   hydrating: a theme awaiting a read that hangs, so suspense never resolves); after that the
-  session ends in the unavailable notice, never the published page. So these are drafts:
+  session ends in the unavailable notice, never the published page. A read the draft's own render
+  starts outside async data (the starter's storefront loads a collection the pinned build never
+  read) is invisible to that wait, so a theme hands it over with `holdPreviewSession(promise)`
+  (auto-imported, a no-op outside a covered session): the veil stays up until it has settled and
+  the page has rendered again, under the same bound. So these are drafts:
   - `useEldraPage()`, and every `useEldraPage()` mounted later (they share the route's async data);
   - every `useAsyncData` / `useFetch` whose handler reads through the kit's client
     (`useEldra().client.getEntries(...)`, `getEntry`, `getEntryByUniqueField`,

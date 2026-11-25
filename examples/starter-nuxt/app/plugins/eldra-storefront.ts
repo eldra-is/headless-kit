@@ -265,6 +265,9 @@ export default defineNuxtPlugin({
       },
       // Only the browser refreshes: on the server the read that just ran *is* the live value.
       register: import.meta.client ? (entry) => refresher.register(entry) : undefined,
+      // A draft preview session's veil waits for the loads a draft's render starts
+      // (`@eldrajs/theme-nuxt`'s `holdPreviewSession`, a no-op outside a covered session).
+      hold: import.meta.client ? (load) => holdPreviewSession(load) : undefined,
     };
 
     source = createGatewayStorefront(client, {

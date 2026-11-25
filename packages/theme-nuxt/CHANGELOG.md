@@ -5,6 +5,12 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **A theme can keep a draft preview session's veil up for its own reads (WS-1277).** New
+  auto-import `holdPreviewSession(work)`: work started while a session is covered (a read outside
+  Nuxt's async data that the draft's own render started, such as a block whose draft names a
+  collection the pinned build never read) keeps the veil up until it settles, and the session
+  renders once more before the draft is shown, within the same 15 s bound. A no-op outside a
+  covered session. A focus the session replays now lands on the settled page.
 - **Link targets carry a card's picture and price (WS-1326).** `collectLinkTargets` fills
   `LinkTargetInfo.image` from a product's `thumbnail` or a collection's `image` and
   `LinkTargetInfo.price` from a product's `minPrice`, out of the reads it already makes.
