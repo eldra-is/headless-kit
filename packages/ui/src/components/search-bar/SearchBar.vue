@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useUiId } from '../../utils/id';
@@ -161,7 +161,11 @@ function rememberSearch(text: string): void {
 
 onMounted(() => {
   if (props.recent === undefined) storedRecent.value = readStoredRecent();
-  if (props.autofocus) fieldRef.value?.focus();
+  // Once the updates the page's other mounted hooks queued have rendered, not mid-mount: the
+  // focus scrolls the field into view, and a scroll taken against a layout about to change (a block
+  // above that measures itself on mount) is carried by scroll anchoring in whole pixels, so it can
+  // end a pixel away from where the settled page would put the field.
+  if (props.autofocus) void nextTick(() => fieldRef.value?.focus());
 });
 
 const recentList = computed(() => {
