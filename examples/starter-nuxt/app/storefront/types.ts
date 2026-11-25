@@ -4,6 +4,7 @@ import type { EldraClient } from '@eldrajs/sdk';
 // `node:fs`) can reach an app bundle or a Storybook story through this import.
 import type { StoreCommerce } from '@eldrajs/theme-nuxt/commerce';
 import type { CartStore } from './cart';
+import type { CurrencyStore } from './currency';
 
 /**
  * The theme's own view types for commerce data. `@eldrajs/sdk`'s
@@ -56,6 +57,10 @@ export interface StorefrontPrice {
   compareAt?: number | null;
   /** "From $X" for a product whose variants span more than one price. */
   from?: boolean;
+  /** The currency `amount` is in. Absent: the store's own (`StorefrontCommerce.currency`). */
+  currency?: string;
+  /** `false`: no price in the visitor's currency; `amount` is then the price in `currency`. */
+  soldInCurrency?: boolean;
 }
 
 export interface StorefrontProductListItem {
@@ -194,6 +199,9 @@ export interface StorefrontProductVariant {
   /** Major units, like every amount in this file. */
   price: number;
   compareAt: number | null;
+  /** As on `StorefrontPrice`. */
+  currency?: string;
+  soldInCurrency?: boolean;
   /** `variantStock`'s four states for this variant: `out` for an unpublished one. */
   stock: 'in' | 'low' | 'out' | 'preorder';
 }
@@ -479,6 +487,8 @@ export interface StorefrontCartLine {
   lineTotal: number;
   image?: StorefrontMedia | null;
   max: number | null;
+  /** `false`: no price in the cart's currency; the line is left out of the totals until removed. */
+  soldInCurrency?: boolean;
 }
 
 export interface StorefrontCartTotals {
@@ -522,6 +532,8 @@ export interface StorefrontOrder {
   totals: StorefrontCartTotals;
   shippingAddress: string[];
   payment: { brand: string; last4: string };
+  /** The order's own currency; every amount on it is in this. */
+  currency?: string;
 }
 
 export interface StorefrontSearchResponse {
@@ -892,6 +904,7 @@ export interface StorefrontSource {
   route: StorefrontRoute;
   catalog: StorefrontCatalog;
   cart: CartStore;
+  currency: CurrencyStore;
   search: StorefrontSearch;
   orders: StorefrontOrders;
   forms: StorefrontForms;

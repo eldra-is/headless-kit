@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.4](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.3...sdk-v0.5.4) (2026-11-23)
+
+
+### Features
+
+* **commerce:** build and start in the store's default currency when its own is off (WS-1399) ([#166](https://github.com/eldra-is/headless-kit/issues/166)) ([d42d718](https://github.com/eldra-is/headless-kit/commit/d42d71821260229645197265c9a21191b3ea54d1))
+
+## [0.5.3](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.2...sdk-v0.5.3) (2026-11-23)
+
+
+### Features
+
+* **commerce:** currency picker and prices in the chosen currency (WS-1391) ([#162](https://github.com/eldra-is/headless-kit/issues/162)) ([a6111b1](https://github.com/eldra-is/headless-kit/commit/a6111b10940e5929d03043aeabffb3daadcaa3f6))
+
 ## [0.5.2](https://github.com/eldra-is/headless-kit/compare/sdk-v0.5.1...sdk-v0.5.2) (2026-11-21)
 
 

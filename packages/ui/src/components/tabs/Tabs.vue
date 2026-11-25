@@ -13,6 +13,8 @@ const eldra = useEldraScope();
 const props = withDefaults(defineProps<TabsProps>(), {
   modelValue: undefined,
   variant: 'underline',
+  size: 'md',
+  fill: false,
   activation: 'auto',
   items: undefined,
   classes: undefined,
@@ -94,6 +96,8 @@ const context: TabsContext = {
   selectedValue,
   activation: computed(() => props.activation),
   variant: computed(() => props.variant),
+  size: computed(() => props.size),
+  fill: computed(() => props.fill),
   isSelected,
   select,
   register,
@@ -175,8 +179,9 @@ const PILLS_RING_RESERVE =
 const listClass = computed(() => [
   'eldra:flex eldra:items-center eldra:overflow-x-auto eldra:eldra-scrollbar-hide',
   props.variant === 'underline'
-    ? 'eldra:gap-1 eldra:border-b eldra:border-border'
+    ? [props.size === 'sm' ? 'eldra:gap-0' : 'eldra:gap-1', 'eldra:border-b eldra:border-border']
     : ['eldra:gap-2', PILLS_RING_RESERVE],
+  props.fill && 'eldra:w-full',
   props.classes?.list,
 ]);
 

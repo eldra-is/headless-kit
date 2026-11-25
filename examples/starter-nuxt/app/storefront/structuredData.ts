@@ -81,9 +81,16 @@ const AVAILABILITY: Record<StorefrontProduct['stock'], LdAvailability> = {
 };
 
 /** One offer per variant; a source without variants gets one from the product's own price. */
-function variantsOf(product: StorefrontProduct, url: string): ProductLdVariant[] {
-  if (product.variants !== undefined && product.variants.length > 0) {
-    return product.variants.map((variant) => ({
+function variantsOf(
+  product: StorefrontProduct,
+  url: string,
+  currency: string | undefined
+): ProductLdVariant[] {
+  const shown = product.variants?.filter(
+    (variant) => (variant.currency ?? currency) === (product.price.currency ?? currency)
+  );
+  if (shown !== undefined && shown.length > 0) {
+    return shown.map((variant) => ({
       sku: variant.sku,
       gtin: variant.barcode,
       price: variant.price,
@@ -161,8 +168,12 @@ export function pageStructuredData(parts: PageLdParts): StructuredDataEntry[] {
         images: product.images.map((image) => image.src),
         // Products carry no brand of their own: they are sold under the shop's name.
         brand: parts.profile.name,
-        variants: variantsOf(product, parts.currentUrl),
-        currency: parts.currency,
+        variants: variantsOf(product, parts.currentUrl, parts.currency),
+        // An offer needs a price the page shows; a product not sold in this currency shows none.
+        currency:
+          product.price.soldInCurrency === false
+            ? undefined
+            : (product.price.currency ?? parts.currency),
         ratings: product.rating,
       }),
     });

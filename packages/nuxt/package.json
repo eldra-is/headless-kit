@@ -1,0 +1,56 @@
+{
+  "name": "@eldrajs/nuxt",
+  "version": "0.1.0",
+  "description": "Nuxt module for Eldra storefronts on Cloudflare: serves the pages the build wrote and answers 404 for the rest without rendering or reading the API.",
+  "keywords": [
+    "cloudflare",
+    "eldra",
+    "headless",
+    "nuxt",
+    "nuxt-module",
+    "storefront"
+  ],
+  "homepage": "https://github.com/eldra-is/headless-kit/tree/main/packages/nuxt#readme",
+  "bugs": "https://github.com/eldra-is/headless-kit/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eldra-is/headless-kit.git",
+    "directory": "packages/nuxt"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^4.0.0",
+    "h3": "^1.15.0",
+    "radix3": "^1.1.2"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^0.8.4",
+    "@nuxt/schema": "^4.7.0",
+    "nuxt": "^4.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -59,8 +59,8 @@ would be empty, which they are when every commit is a hidden type (`chore`, `doc
 Publishing happens on the GitHub release event, one package per release, by packing that package and
 `npm publish --provenance`.
 
-Five more components release the same way: `theme-core`, `theme-vue`, `vite-plugin-theme`,
-`theme-cli`, `theme-nuxt` (tags `theme-core-v0.1.0`, etc.) — the `publish.yml` tag→directory rule
+Six more components release the same way: `theme-core`, `theme-vue`, `vite-plugin-theme`,
+`theme-cli`, `theme-nuxt`, `nuxt` (tags `theme-core-v0.1.0`, etc.) — the `publish.yml` tag→directory rule
 already covers them since each component name equals its `packages/` directory.
 
 Each package keeps a hand-maintained `CHANGELOG.md` for what a consumer can see; add the line in the
@@ -188,6 +188,14 @@ which is not shipped in the tarball; the GitHub release carries the same text.
 - `packages/theme-nuxt` — `@eldrajs/theme-nuxt`. Nuxt module wiring `vite-plugin-theme`,
   `theme-vue`, the gateway client and the Studio bridge into a Nuxt 4 site. Built by
   `nuxt-module-build`, not tsdown. Must never contain editing UI, TipTap, or `@eldra-is/*`.
+- `packages/nuxt` — `@eldrajs/nuxt`. Nuxt module for prerendered storefronts on Cloudflare
+  Workers: answers from the built files and 404s every other path before a render or an API read
+  (WS-1236). The decision is the pure `src/runtime/server/built.ts`, unit-tested with a fake asset
+  store; live routes are the Nitro server routes plus `prerender: false` route rules, read when the
+  server is bundled (after prerendering) through `#eldra-built-pages`. Nuxt renders an error page as
+  a second, internal `/__nuxt_error` request, so the 404's flag rides in the error's `data` and the
+  server middleware sets it again there. Built by `nuxt-module-build`. Imports only Nuxt, h3 and
+  radix3.
 - `examples/` — real projects on the workspace packages, type-checked by `pnpm typecheck`. A
   documented snippet lives here first and is referenced by path, so it cannot stop compiling
   silently.

@@ -235,8 +235,9 @@ const PAGES: Record<string, { id: string; data: { slug: string } }> = {
 
 /**
  * What Core's draft perspective answers instead of `PAGES`, to a request carrying `X-Preview-Token`
- * (`startMockGateway({ drafts: true })`): the home page with an unpublished hero heading, and a page
- * that has never been published. A published build must contain neither.
+ * or a draft preview session's `X-Preview-Session` (`startMockGateway({ drafts: true })`): the home
+ * page with an unpublished hero heading, and a page that has never been published. A published
+ * build must contain neither.
  */
 export const DRAFT_MARKER = 'Unpublished draft heading';
 const DRAFT_ONLY_PAGE = {
@@ -421,9 +422,13 @@ const listResponse = (data: unknown[]) => ({
 export function startMockGateway(
   options: {
     missingRouteTemplateSchema?: boolean;
-    /** Answer a request carrying `X-Preview-Token` from `DRAFT_PAGES`, the way Core serves the
-     *  draft perspective only to a preview token. Without it every request reads `PAGES`. */
+    /** Answer a request carrying `X-Preview-Token` or `X-Preview-Session` from `DRAFT_PAGES`, the
+     *  way Core serves the draft perspective only to a preview credential; a session's CMS answers
+     *  also carry `Eldra-Preview: draft`, as Core's do. Without it every request reads `PAGES`. */
     drafts?: boolean;
+    /** Answer a browser's cross-origin reads (CORS, `*`), for a browser test whose page reads the
+     *  gateway directly. Off by default: a build reads from Node. */
+    cors?: boolean;
     /** The SEO setting `/site/v1/seo` answers with, in the public shape. Absent, the route 404s
      *  like a Core that predates the setting (the build's fail-soft default pattern). */
     seo?: Record<string, unknown>;
@@ -464,12 +469,15 @@ export function startMockGateway(
   buildTokens: Array<string | null>;
   /** The `X-Preview-Token` header of every request, `null` where absent. */
   previewTokens: Array<string | null>;
+  /** The `X-Preview-Session` header of every request, `null` where absent. */
+  previewSessions: Array<string | null>;
   servedEntryIds: Set<string>;
 }> {
   return new Promise((resolve) => {
     const requests: string[] = [];
     const buildTokens: Array<string | null> = [];
     const previewTokens: Array<string | null> = [];
+    const previewSessions: Array<string | null> = [];
     const servedEntryIds = new Set<string>();
 
     function recordServedEntryIds(doc: unknown): void {
@@ -495,9 +503,24 @@ export function startMockGateway(
       buildTokens.push(req.headers['x-eldra-build-token']?.toString() ?? null);
       const previewToken = req.headers['x-preview-token']?.toString() ?? null;
       previewTokens.push(previewToken);
-      const pages = options.drafts === true && previewToken !== null ? DRAFT_PAGES : PAGES;
+      const previewSession = req.headers['x-preview-session']?.toString() ?? null;
+      previewSessions.push(previewSession);
+      const draftRead =
+        options.drafts === true && (previewToken !== null || previewSession !== null);
+      const pages = draftRead ? DRAFT_PAGES : PAGES;
       res.setHeader('content-type', 'application/json');
-      if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
+      if (draftRead && previewSession !== null && url.pathname.startsWith('/cms/')) {
+        res.setHeader('eldra-preview', 'draft');
+        res.setHeader('cache-control', 'no-store');
+      }
+      if (options.cors === true) {
+        res.setHeader('access-control-allow-origin', '*');
+        res.setHeader('access-control-allow-headers', 'X-Org-Id, X-Preview-Token, Content-Type');
+      }
+      if (options.cors === true && req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.end();
+      } else if (req.headers['x-org-id'] !== '3fa85f64-5717-4562-b3fc-2c963f66afa6') {
         res.statusCode = 400;
         res.end(JSON.stringify({ error: 'missing org id' }));
       } else if (url.pathname === '/cms/v1/schema/page/entry') {
@@ -679,6 +702,7 @@ export function startMockGateway(
           requests,
           buildTokens,
           previewTokens,
+          previewSessions,
           servedEntryIds,
         });
       }

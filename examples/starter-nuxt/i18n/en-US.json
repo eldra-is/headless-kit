@@ -95,6 +95,7 @@
     "outOfStock": "This item is out of stock.",
     "unavailable": "This item is no longer available.",
     "cartOutOfDate": "Your cart is out of date. Reload the page and try again.",
+    "businessOwnCurrency": "Business customers shop in ISK.",
     "unresolvedCollectionLabel": "Publish to load products",
     "unresolvedCollectionHelp": "The collection is picked. Its products appear here once this page is published.",
     "orderStatus": {
@@ -124,7 +125,8 @@
     "wishlistOne": "Wishlist, 1 item",
     "wishlistMany": "Wishlist, {count} items",
     "viewAll": "View all",
-    "viewAllOf": "View all {label}"
+    "viewAllOf": "View all {label}",
+    "cart": "Cart"
   },
   "editor": {
     "addLink": "Add a link"
@@ -502,7 +504,9 @@
     "emptyFallbackTitle": "Your cart is empty",
     "drawerHintLabel": "The cart drawer opens from the header",
     "drawerHintHelp": "Shoppers open it with the bag button; nothing shows here until they do.",
-    "drawerHintHosted": "The theme already opens one on every page, so this block adds nothing and can be removed."
+    "drawerHintHosted": "The theme already opens one on every page, so this block adds nothing and can be removed.",
+    "loadFailed": "We couldn't load your cart.",
+    "tryAgain": "Try again"
   },
   "wishlist": {
     "saved": "Saved to wishlist",
@@ -546,6 +550,18 @@
     "needHelp": "Need help?",
     "trackingNumber": "Tracking number",
     "carrierEta": "Estimated delivery {eta} with {carrier}."
+  },
+  "currency": {
+    "label": "Currency",
+    "notSoldIn": "Not available in {currency}",
+    "notSoldInLong": "Not available in {currency}.",
+    "shopIn": "Shop in {currency}",
+    "cartNotSold": "{items} can't be bought in {currency}.",
+    "checkoutWithout": "Remove and check out",
+    "cartWillSwitch": "Your cart will switch to {currency}.",
+    "notIncludedOne": "1 item not included",
+    "notIncludedMany": "{count} items not included",
+    "movedTo": "Prices are now in {currency}."
   },
   "ui": {
     "clear": "Clear",
@@ -628,6 +644,7 @@
     "filterPanelMin": "Min",
     "filterPanelMax": "Max",
     "filterPanelOrMore": " or more",
-    "filterPanelShowProducts": "Show products"
+    "filterPanelShowProducts": "Show products",
+    "currencyPickerLabel": "Currency"
   }
 }

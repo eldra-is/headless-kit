@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toMinorUnits } from '../../app/storefront/money';
+import { toMinorUnits } from '@eldrajs/ui';
 import { toProductCard, toProductCardEntries } from '../../app/storefront/toProductCard';
 import type { StorefrontProductListItem } from '../../app/storefront/types';
 

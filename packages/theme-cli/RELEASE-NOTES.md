@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.7](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.6...theme-cli-v0.2.7) (2026-11-23)
+
+
+### Features
+
+* **commerce:** build and start in the store's default currency when its own is off (WS-1399) ([#166](https://github.com/eldra-is/headless-kit/issues/166)) ([d42d718](https://github.com/eldra-is/headless-kit/commit/d42d71821260229645197265c9a21191b3ea54d1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.6
+    * @eldrajs/vite-plugin-theme bumped to 0.3.6
+
+## [0.2.6](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.5...theme-cli-v0.2.6) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.3.5
+    * @eldrajs/vite-plugin-theme bumped to 0.3.5
+
 ## [0.2.5](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.4...theme-cli-v0.2.5) (2026-11-10)
 
 

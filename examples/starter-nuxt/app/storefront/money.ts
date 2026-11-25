@@ -4,6 +4,7 @@ import {
   currencyFractionDigits,
   currencySymbol,
   formatCurrency,
+  toMinorUnits,
   useEldraUiCurrency,
   useEldraUiLocale,
 } from '@eldrajs/ui';
@@ -165,20 +166,6 @@ export function currencyLabel(code: string, locale: string = DEFAULT_LOCALE): st
 }
 
 /**
- * Major units → the minor units `@eldrajs/ui`'s `Price`/`ProductCard` expect, using the currency's
- * own minor-unit count rather than a hard-coded ×100 (`ISK` has none: 28 krónur stays 28). With no
- * currency it uses `DEFAULT_FRACTION_DIGITS`, which is what the `<Price>` reading the result falls
- * back to as well.
- */
-export function toMinorUnits(
-  amount: number,
-  currency: string | undefined,
-  locale: string = DEFAULT_LOCALE
-): number {
-  return Math.round(amount * 10 ** resolveFormat(currency, locale).digits);
-}
-
-/**
  * The minor units the **platform's own facets** count in, back to the major units every money field
  * in `types.ts` carries — the exact inverse of `toMinorUnits`, over the same currency's own
  * minor-unit count (`ISK` has none: 2800 krónur stays 2800, `USD` 2800 is $28).
@@ -234,15 +221,16 @@ export function useStoreCurrency(): ComputedRef<string | undefined> {
  * pure result mapper takes a formatter built from it).
  */
 export function useMoney(): {
-  format: (amount: number) => string;
-  minor: (amount: number) => number;
+  /** `currency` is the amount's own (`StorefrontPrice.currency`, a cart's or an order's); absent, the store's. */
+  format: (amount: number, currency?: string) => string;
+  minor: (amount: number, currency?: string) => number;
   currency: ComputedRef<string | undefined>;
 } {
   const currency = useStoreCurrency();
   const locale = useEldraUiLocale();
   return {
-    format: (amount) => formatMoney(amount, currency.value, locale.value),
-    minor: (amount) => toMinorUnits(amount, currency.value, locale.value),
+    format: (amount, own) => formatMoney(amount, own ?? currency.value, locale.value),
+    minor: (amount, own) => toMinorUnits(amount, own ?? currency.value, locale.value),
     currency,
   };
 }

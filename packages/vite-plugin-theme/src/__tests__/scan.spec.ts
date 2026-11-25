@@ -1545,3 +1545,30 @@ describe('link field tree declaration (WS-1312)', () => {
     });
   });
 });
+
+describe('scanTheme capabilities', () => {
+  const scan = (capabilities?: Record<string, unknown>) =>
+    scanTheme({
+      themeDir: fixture('valid-theme'),
+      framework: 'nuxt',
+      capabilities: capabilities as Parameters<typeof scanTheme>[0]['capabilities'],
+    });
+
+  it('leaves the key out when the runtime declares none, so the manifest shape is unchanged', () => {
+    expect(scan().manifest).not.toHaveProperty('capabilities');
+    expect(scan({}).manifest).not.toHaveProperty('capabilities');
+  });
+
+  it('carries a declared draftPreview capability', () => {
+    const { manifest, errors } = scan({ draftPreview: 1 });
+    expect(errors).toEqual([]);
+    expect(manifest?.capabilities).toEqual({ draftPreview: 1 });
+  });
+
+  it('refuses a capability or a version it does not know', () => {
+    expect(scan({ draftPreview: 2 }).errors).toContain(
+      'capabilities.draftPreview: unsupported version 2'
+    );
+    expect(scan({ teleport: 1 }).errors).toContain('capabilities: unknown capability "teleport"');
+  });
+});

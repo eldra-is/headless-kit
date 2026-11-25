@@ -25,6 +25,7 @@ import type {
   ScanOptions,
   ScanResult,
   ThemeManifest,
+  ThemeManifestCapabilities,
   ThemeMessages,
 } from './types';
 
@@ -74,6 +75,35 @@ const LOCALE_TAG_PATTERN = /^[a-z]{2}-[A-Z]{2}$/;
 
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
 const validateBlockJson = ajv.compile(blockJsonSchema);
+
+/** Every capability this version knows, at the version it knows. */
+const THEME_MANIFEST_CAPABILITIES: Readonly<Record<keyof ThemeManifestCapabilities, 1>> = {
+  draftPreview: 1,
+};
+
+/**
+ * The runtime's declared capabilities, as the manifest carries them: absent when there are none,
+ * and only the ones this version knows, at the version it knows. Anything else is an error rather
+ * than something Studio would be told the theme can do.
+ */
+function validateCapabilities(
+  capabilities: ScanOptions['capabilities'],
+  errors: string[]
+): { capabilities?: ThemeManifestCapabilities } {
+  if (capabilities === undefined) return {};
+  const declared: ThemeManifestCapabilities = {};
+  for (const [name, version] of Object.entries(capabilities as Record<string, unknown>)) {
+    if (version === undefined) continue;
+    if (!Object.hasOwn(THEME_MANIFEST_CAPABILITIES, name)) {
+      errors.push(`capabilities: unknown capability "${name}"`);
+    } else if (version !== THEME_MANIFEST_CAPABILITIES[name as keyof ThemeManifestCapabilities]) {
+      errors.push(`capabilities.${name}: unsupported version ${JSON.stringify(version)}`);
+    } else {
+      declared[name as keyof ThemeManifestCapabilities] = 1;
+    }
+  }
+  return Object.keys(declared).length === 0 ? {} : { capabilities: declared };
+}
 
 export function scanTheme(opts: ScanOptions): ScanResult {
   const themeDir = opts.themeDir;
@@ -246,6 +276,7 @@ export function scanTheme(opts: ScanOptions): ScanResult {
     // theme that declares no texts keeps emitting the manifest shape an
     // older Core already accepts (and today's manifests stay byte-identical).
     ...(messages === undefined ? {} : { messages }),
+    ...validateCapabilities(opts.capabilities, errors),
   };
   // Resolved independently of the manifest object above: it must never be
   // serialized into `.eldra/manifest.json` (Core's ingest rejects an

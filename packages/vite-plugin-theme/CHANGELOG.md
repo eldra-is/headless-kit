@@ -23,6 +23,9 @@ Release-please writes the generated notes from commit messages and does not repl
   `tree.sections`, or is converted twice, and a step now has to declare `renames`, `convertToLink`
   or `groupsToSections`. New type `BlockMigrationGroupsToSections`. Needs a Core that accepts the
   step; `convertToLink` in the same deploy runs first. See `docs/theme-field-migrations.md`.
+- **`capabilities` (WS-1303).** `EldraThemeOptions.capabilities` (set by a framework wrapper) puts
+  `capabilities: { draftPreview: 1 }` in the manifest; an unknown capability or version is an error.
+  Absent when none is declared, so today's manifests are unchanged.
 
 - **`formSeeds[].actions.subscribe.consentText` (WS-386).** A subscribe action may carry its consent
   sentence per locale (`{ 'en-US': '… {shop} …' }`), validated like Core: locale tags, at most 500

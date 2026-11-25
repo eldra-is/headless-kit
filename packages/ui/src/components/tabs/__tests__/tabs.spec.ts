@@ -574,3 +574,115 @@ describe('Tabs — a registered entry without `disabled`', () => {
     expect(document.activeElement).toBe(tabs[1]!.element);
   });
 });
+
+describe('Tabs — size="sm" and fill', () => {
+  const tabClasses = (wrapper: MountedWrapper) => tabsOf(wrapper)[0]!.classes();
+  const indicatorOf = (wrapper: MountedWrapper) =>
+    tabsOf(wrapper)[0]!.get('[data-part="indicator"]');
+
+  it('md classes are unchanged by the new props existing', async () => {
+    const wrapper = await mount();
+    const classes = tabClasses(wrapper);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'eldra:target-touch',
+        'eldra:px-4',
+        'eldra:text-variant-pill',
+        'eldra:font-semibold',
+      ])
+    );
+    expect(classes).not.toContain('eldra:h-9');
+    expect(classes).not.toContain('eldra:flex-1');
+    expect(indicatorOf(wrapper).classes()).toEqual(
+      expect.arrayContaining(['eldra:inset-x-2', 'eldra:h-[0.1875rem]', 'eldra:rounded-t-full'])
+    );
+    expect(wrapper.get('[role="tablist"]').classes()).not.toContain('eldra:w-full');
+  });
+
+  it('sm draws a 36px tab with 13px text at weight 500 and a 6px icon gap', async () => {
+    const wrapper = await mount({ size: 'sm' });
+    const classes = tabClasses(wrapper);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        'eldra:h-9',
+        'eldra:gap-1.5',
+        'eldra:text-tab-sm',
+        'eldra:font-medium',
+      ])
+    );
+    expect(classes).not.toContain('eldra:target-touch');
+    expect(classes).not.toContain('eldra:text-variant-pill');
+    expect(classes).not.toContain('eldra:font-semibold');
+  });
+
+  it('sm keeps weight 500 on the selected tab', async () => {
+    const wrapper = await mount({ size: 'sm' });
+    const selected = tabsOf(wrapper).find((tab) => tab.attributes('aria-selected') === 'true')!;
+    expect(selected.classes()).toContain('eldra:font-medium');
+    expect(selected.classes()).not.toContain('eldra:font-semibold');
+  });
+
+  it('sm draws a 2px indicator across the full width of the tab', async () => {
+    const wrapper = await mount({ size: 'sm' });
+    const classes = indicatorOf(wrapper).classes();
+    expect(classes).toEqual(expect.arrayContaining(['eldra:inset-x-0', 'eldra:h-0.5']));
+    expect(classes).not.toContain('eldra:inset-x-2');
+    expect(classes).not.toContain('eldra:h-[0.1875rem]');
+  });
+
+  it('sm lays the list out without a gap, so the indicators meet', async () => {
+    const wrapper = await mount({ size: 'sm' });
+    expect(wrapper.get('[role="tablist"]').classes()).toContain('eldra:gap-0');
+    expect(wrapper.get('[role="tablist"]').classes()).not.toContain('eldra:gap-1');
+  });
+
+  it('sm applies to a standalone slots-API Tab too, through the context', async () => {
+    const wrapper = mountWith(Tabs, {
+      props: { ariaLabel: 'Panel', size: 'sm' },
+      slots: { tabs: () => [h(Tab, { value: 'a', title: 'A' })] },
+    });
+    mounted.push(wrapper as unknown as VueWrapper);
+    await nextTick();
+    expect(wrapper.get('[role="tab"]').classes()).toContain('eldra:h-9');
+  });
+
+  it('fill shares the width: the list is full width and every tab grows equally', async () => {
+    const wrapper = await mount({ fill: true });
+    expect(wrapper.get('[role="tablist"]').classes()).toContain('eldra:w-full');
+    for (const tab of tabsOf(wrapper)) {
+      expect(tab.classes()).toEqual(expect.arrayContaining(['eldra:flex-1', 'eldra:min-w-0']));
+    }
+  });
+
+  it('without fill the tabs keep their own width', async () => {
+    const wrapper = await mount({ size: 'sm' });
+    for (const tab of tabsOf(wrapper)) expect(tab.classes()).not.toContain('eldra:flex-1');
+  });
+
+  it('sm applies to pills as well, and the disabled state', async () => {
+    const wrapper = await mount({
+      size: 'sm',
+      variant: 'pills',
+      items: [...ITEMS.slice(0, 2), { value: 'x', title: 'X', disabled: true }],
+    });
+    const tabs = tabsOf(wrapper);
+    expect(tabs[0]!.classes()).toContain('eldra:h-9');
+    expect(tabs[2]!.classes()).toEqual(
+      expect.arrayContaining(['eldra:h-9', 'eldra:text-tab-sm', 'eldra:cursor-not-allowed'])
+    );
+  });
+
+  it.each([
+    ['sm underline', { size: 'sm' }],
+    ['sm fill underline', { size: 'sm', fill: true }],
+    ['sm pills', { size: 'sm', variant: 'pills' }],
+    ['md fill', { fill: true }],
+    [
+      'sm with a disabled tab',
+      { size: 'sm', items: [ITEMS[0]!, { ...ITEMS[1]!, disabled: true }, ITEMS[2]!] },
+    ],
+  ])('has no axe violations (%s)', async (_label, props) => {
+    const wrapper = await mount(props);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});

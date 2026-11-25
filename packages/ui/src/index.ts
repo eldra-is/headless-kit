@@ -23,6 +23,7 @@ export { default as ChipGroup } from './components/chip/ChipGroup.vue';
 export { default as Container } from './components/container/Container.vue';
 export { default as ContentCard } from './components/card/ContentCard.vue';
 export { default as CurrencyInput } from './components/currency-input/CurrencyInput.vue';
+export { default as CurrencyPicker } from './components/currency-picker/CurrencyPicker.vue';
 export { default as Dialog } from './components/dialog/Dialog.vue';
 export { default as Drawer } from './components/drawer/Drawer.vue';
 export { default as EditorPlaceholder } from './components/empty-state/EditorPlaceholder.vue';
@@ -167,6 +168,7 @@ export type {
   FeatureCardVariant,
 } from './components/card/types';
 export type { CurrencyInputPart, CurrencyInputProps } from './components/currency-input/types';
+export type { CurrencyPickerPart, CurrencyPickerProps } from './components/currency-picker/types';
 export type { DialogPart, DialogProps, DialogSize } from './components/dialog/types';
 export type { DrawerPart, DrawerProps, DrawerSide } from './components/drawer/types';
 export type {
@@ -312,6 +314,7 @@ export type {
   TabsItem,
   TabsPart,
   TabsProps,
+  TabsSize,
   TabsVariant,
 } from './components/tabs/types';
 export type { TablerIconProps } from './components/tabler-icon/types';
@@ -566,6 +569,7 @@ export {
   formatUnit,
   localeSeparators,
   parseLocaleNumber,
+  toMinorUnits,
   type NumberFormatOptions,
   type UnitFormatOptions,
 } from './utils/number-format';

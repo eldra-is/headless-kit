@@ -325,6 +325,8 @@ const filterFields = computed(() =>
   ((data.value.filters ?? []) as FilterField[]).filter(
     (row): row is FilterField & { source: FilterFieldSource } => {
       if (!isFilterFieldSource(row.source)) return false;
+      // Price filters work in the store's own currency only; in another one there is no price row.
+      if (row.source === 'price' && storefront.currency.requested.value !== undefined) return false;
       const key = optionKeyOf(row.source);
       return key === null || usableOptionKey(key) !== null;
     }
@@ -627,6 +629,7 @@ const products = storeWideScope.value
 
 const items = computed(() => products.data.value?.items ?? []);
 const money = useMoney();
+const shopperCurrency = useStorefront().currency.active;
 const total = computed(() => products.data.value?.total ?? 0);
 /** The storefront's own description of the scope it answered from — values, labels, swatches and
  *  counts for every group (`CatalogFacets`). `undefined` from a source that cannot describe it. */
@@ -731,7 +734,8 @@ const showSkeletons = computed(() => pending.value && !hasData.value);
  */
 const { any: cardsRevalidating, refreshing } = useRevalidating({
   keys: () => products.revalidating.value,
-  refreshing: () => loading.value && hasData.value && !loadingMore.value,
+  refreshing: () =>
+    (loading.value && hasData.value && !loadingMore.value) || storefront.currency.pending.value,
 });
 /**
  * The grid's own "this is about to change" flag: armed the moment a sidebar change is typed or
@@ -798,6 +802,7 @@ const cards = computed(() =>
   toProductCardEntries(items.value, {
     ratio: '4x5',
     minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
     revalidating: showCardRefresh.value,
   })
 );
@@ -1173,7 +1178,14 @@ onMounted(() => {
   // has a `fabric` option, which is the first read answering.
   watch(() => [route.filters, route.sort, route.columns, facets.value], adoptRouteState, {
     deep: true,
-  });
+  }); // Price filters are in the store's own currency; in another one the range would be a wrong number.
+  watch(
+    () => storefront.currency.requested.value !== undefined && route.filters.price !== undefined,
+    (stale) => {
+      if (stale) route.setQuery({ price: null });
+    },
+    { immediate: true }
+  );
 });
 
 function publishState(): void {
@@ -1775,6 +1787,7 @@ function hrefForPage(page: number): string {
                        cards to Load more, and a cart action is `product-detail`'s own. -->
                   <ProductCard
                     :product="entry.product"
+                    :currency="entry.currency"
                     ratio="4x5"
                     :heading-level="3"
                     :class="CARD_CLASS"

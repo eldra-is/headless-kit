@@ -44,6 +44,7 @@ const messages = useMessages();
 /** Spec "Product card" → Variants, "Sold out" row. Drives the media opacity, the badge-stack
  * outline "Sold out" badge, and the quick-add area's disabled state. */
 const isSoldOut = computed(() => props.product.available === false);
+const notSoldIn = computed(() => props.product.notSoldIn || null);
 
 /**
  * The caller's own sale/new decision (spec anatomy part 2), per `ProductCardProduct.badge`'s own
@@ -86,7 +87,9 @@ const ratingCount = computed(() => props.product.rating?.count ?? 0);
  * most storefront cards. Suppressed while sold out, where the disabled quick-add button already
  * carries the same "unavailable" meaning and a second line would repeat it.
  */
-const showStockLine = computed(() => props.product.stock != null && !isSoldOut.value);
+const showStockLine = computed(
+  () => props.product.stock != null && !isSoldOut.value && notSoldIn.value === null
+);
 const stockLevel = computed(() => props.product.stock ?? 'in');
 
 const swatches = computed(() => props.product.colours ?? []);
@@ -233,6 +236,10 @@ const linkClass = computed(() => [
  * the parent's own part name on the wrapper, the child's full part tree intact inside it.
  */
 const priceClass = computed(() => props.classes?.price);
+const notSoldClass = computed(() => [
+  'eldra:text-body-sm eldra:text-muted',
+  props.classes?.notSold,
+]);
 const ratingClass = computed(() => props.classes?.rating);
 const stockLineClass = computed(() => props.classes?.stockLine);
 
@@ -345,7 +352,11 @@ const skeletonClass = computed(() => [
         }}</component>
       </component>
       <div data-part="price" :class="priceClass">
+        <span v-if="notSoldIn" data-part="notSold" :class="notSoldClass">{{
+          messages.notSoldInCurrency(notSoldIn)
+        }}</span>
         <Price
+          v-else
           :amount="product.price.amount"
           :compare-at="product.price.compareAt"
           :from="product.price.from"
@@ -380,7 +391,7 @@ const skeletonClass = computed(() => [
     </div>
 
     <Button
-      v-if="quickAdd && !isSoldOut"
+      v-if="quickAdd && !isSoldOut && !notSoldIn"
       data-part="quickAdd"
       variant="outline"
       size="md"
@@ -392,7 +403,7 @@ const skeletonClass = computed(() => [
       >{{ messages.quickAddLabel }}</Button
     >
     <Button
-      v-else-if="quickAdd && isSoldOut"
+      v-else-if="quickAdd"
       data-part="quickAdd"
       variant="outline"
       size="md"
@@ -400,7 +411,7 @@ const skeletonClass = computed(() => [
       disabled
       type="button"
       :class="quickAddClass"
-      >{{ messages.soldOut }}</Button
+      >{{ notSoldIn ? messages.notSoldInCurrency(notSoldIn) : messages.soldOut }}</Button
     >
   </article>
 </template>

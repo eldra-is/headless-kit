@@ -56,18 +56,20 @@ export function cartIdFromCheckoutUrl(url: string | null): string | undefined {
 }
 
 export function withAnalytics(source: StorefrontSource, track: Track): StorefrontSource {
-  const currency = (): string | undefined => source.commerce?.currency;
+  const currency = (): string | undefined =>
+    source.cart.currency.value ?? source.commerce?.currency;
 
   function lineProps(
     line: Pick<StorefrontCartLine, 'productId' | 'variantId' | 'unitPrice'>,
-    quantity: number
+    quantity: number,
+    pricedIn: string | undefined = currency()
   ): Record<string, string | number | undefined> {
     return {
       product_id: line.productId,
       variant_id: line.variantId,
       quantity,
       value: formatValue(line.unitPrice * quantity),
-      currency: currency(),
+      currency: pricedIn,
     };
   }
 
@@ -98,7 +100,7 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
             handle: product.handle,
             variant_id: product.variantId,
             value: formatValue(product.price.amount),
-            currency: currency(),
+            currency: product.price.currency ?? source.commerce?.currency,
           });
         },
         { immediate: true }
@@ -126,21 +128,26 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
     },
     async remove(lineId) {
       const line = source.cart.lines.value.find((l) => l.id === lineId);
+      const pricedIn = currency();
       const failure = await source.cart.remove(lineId);
       if (failure === null && line !== undefined) {
-        track('remove_from_cart', lineProps(line, line.quantity));
+        track('remove_from_cart', lineProps(line, line.quantity, pricedIn));
       }
       return failure;
     },
     async setQuantity(lineId, quantity) {
       const before = source.cart.lines.value.find((l) => l.id === lineId);
+      const pricedIn = currency();
       const failure = await source.cart.setQuantity(lineId, quantity);
       if (failure === null && before !== undefined) {
         // The cart's own answer, not the request: the backend may clamp to stock.
         const after = source.cart.lines.value.find((l) => l.id === lineId);
         const diff = (after?.quantity ?? 0) - before.quantity;
         if (diff !== 0) {
-          track(diff > 0 ? 'add_to_cart' : 'remove_from_cart', lineProps(before, Math.abs(diff)));
+          track(
+            diff > 0 ? 'add_to_cart' : 'remove_from_cart',
+            lineProps(before, Math.abs(diff), pricedIn)
+          );
         }
       }
       return failure;
@@ -148,9 +155,10 @@ export function withAnalytics(source: StorefrontSource, track: Track): Storefron
     async undoRemove() {
       // Undo puts a line back that `remove` already counted as removed, so it is an add.
       const restored = source.cart.lastRemoved.value?.line;
+      const pricedIn = currency();
       const failure = await source.cart.undoRemove();
       if (failure === null && restored !== undefined) {
-        track('add_to_cart', lineProps(restored, restored.quantity));
+        track('add_to_cart', lineProps(restored, restored.quantity, pricedIn));
       }
       return failure;
     },

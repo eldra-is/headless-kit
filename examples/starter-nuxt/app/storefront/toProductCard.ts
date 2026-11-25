@@ -1,6 +1,6 @@
 import type { ProductCardProduct } from '@eldrajs/ui';
 import { isInternalHref, safeHref } from '../utils/links';
-import { toMinorUnits } from './money';
+import { toMinorUnits } from '@eldrajs/ui';
 import type { StorefrontProductListItem, StorefrontSearchProduct } from './types';
 
 /**
@@ -8,13 +8,6 @@ import type { StorefrontProductListItem, StorefrontSearchProduct } from './types
  * search result, whose price may be unknown (`StorefrontSearchProduct`).
  */
 export type ProductCardSource = StorefrontProductListItem | StorefrontSearchProduct;
-
-/**
- * The conversion a caller outside a component gets: no currency, so ISO 4217's default two digits —
- * the same scale the `<ProductCard>` reading the value falls back to. Module level, so the fallback
- * path allocates nothing per call and the case has a name.
- */
-const NO_CURRENCY_MINOR_UNITS = (amount: number): number => toMinorUnits(amount, undefined);
 
 /**
  * `StorefrontProductListItem` → `@eldrajs/ui`'s `ProductCardProduct` — the one mapping
@@ -74,18 +67,20 @@ export function toProductCard(
   // — never one reading the store's own "$0.00". The suggestion panel is the other half of that
   // decision: `SearchResultItem.price` *is* optional, so a row there keeps the product.
   if (item.price === null) return null;
-  const minor = opts?.minorUnits ?? NO_CURRENCY_MINOR_UNITS;
-  const { amount, compareAt, from } = item.price;
+  const minor = opts?.minorUnits ?? toMinorUnits;
+  const { amount, compareAt, from, currency } = item.price;
+  const notSoldIn = item.price.soldInCurrency === false ? (opts?.shopperCurrency ?? null) : null;
   const isSale = compareAt != null && compareAt > amount;
   return {
     title: item.title,
     url,
     featuredImage: item.featuredImage ?? null,
     price: {
-      amount: minor(amount),
-      compareAt: compareAt == null ? compareAt : minor(compareAt),
+      amount: minor(amount, currency),
+      compareAt: compareAt == null ? compareAt : minor(compareAt, currency),
       from,
     },
+    ...(notSoldIn === null ? {} : { notSoldIn }),
     rating: item.rating,
     colours: item.colours,
     badge: isSale ? { variant: 'sale' } : null,
@@ -97,8 +92,10 @@ export function toProductCard(
 /** What a block can tell the card builder beyond the item itself. */
 export interface ToProductCardOptions {
   ratio?: '4x5' | '1x1' | '3x4';
-  /** Major → minor units, bound to the block's own currency/locale. Defaults to `toMinorUnits`. */
-  minorUnits?: (amount: number) => number;
+  /** Major → minor units in the amount's own currency (absent: the block's). Defaults to `toMinorUnits`. */
+  minorUnits?: (amount: number, currency?: string) => number;
+  /** The currency the shopper picked, named on a card with no price in it. */
+  shopperCurrency?: string;
   /**
    * The card's price and stock line are on screen but fresher ones are on their way — the
    * prerendered page's volatile refresh (`StorefrontResult.revalidating`), or a reload of the list
@@ -116,6 +113,8 @@ export interface ProductCardEntry {
   product: ProductCardProduct;
   /** `opts.revalidating`, per card — `<ProductCard :revalidating="entry.revalidating">`. */
   revalidating: boolean;
+  /** The price's own currency, for `<ProductCard :currency>`; absent, the store's. */
+  currency?: string;
   /**
    * `true` when the destination is same-site, i.e. when the card's link should be routed by
    * passing `app/components/EldraRouterLink.vue` as `link-as`. An off-site product URL (a gateway
@@ -147,6 +146,7 @@ export function toProductCardEntries(
       item: item.url === product.url ? item : { ...item, url: product.url },
       product,
       revalidating,
+      ...(item.price?.currency === undefined ? {} : { currency: item.price.currency }),
       internal: isInternalHref(product.url),
     });
   }

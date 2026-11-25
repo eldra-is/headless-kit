@@ -154,6 +154,51 @@ describe('pageStructuredData', () => {
     expect(offers.offers[1].availability).toBe('https://schema.org/OutOfStock');
   });
 
+  it('sends the priceCurrency of the price the page shows, never the store currency over it', () => {
+    const entries = pageStructuredData(
+      parts({
+        kind: 'product',
+        currency: 'ISK',
+        product: product({
+          price: { amount: 19.9, compareAt: null, currency: 'EUR' },
+          variants: [
+            { sku: 'S', barcode: null, price: 19.9, compareAt: null, currency: 'EUR', stock: 'in' },
+            {
+              sku: 'L',
+              barcode: null,
+              price: 3400,
+              compareAt: null,
+              currency: 'ISK',
+              soldInCurrency: false,
+              stock: 'in',
+            },
+          ],
+        }),
+      })
+    );
+    const offers = entries[1]!.node.offers as Record<string, any>;
+    expect(offers).toMatchObject({ '@type': 'Offer', price: 19.9, priceCurrency: 'EUR', sku: 'S' });
+  });
+
+  it('4662896736: writes no offer for a product not sold in the shown currency', () => {
+    const node = pageStructuredData(
+      parts({
+        kind: 'product',
+        product: product({
+          price: { amount: 2800, compareAt: null, currency: 'ISK', soldInCurrency: false },
+        }),
+      })
+    )[1]!.node as Record<string, unknown>;
+    expect(node.offers).toBeUndefined();
+  });
+
+  it('keeps the store currency for a price that carries none', () => {
+    const offers = pageStructuredData(
+      parts({ kind: 'product', currency: 'ISK', product: product() })
+    )[1]!.node.offers as Record<string, any>;
+    expect(offers.priceCurrency).toBe('ISK');
+  });
+
   it('writes an ItemList on a listing page only when it shows products', () => {
     const listing = (items: PageLdParts['items']) =>
       types(pageStructuredData(parts({ kind: 'collection', items })));

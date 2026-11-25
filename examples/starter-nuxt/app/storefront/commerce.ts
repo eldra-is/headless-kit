@@ -26,11 +26,21 @@ export function toStorefrontCommerce(value: unknown): StorefrontCommerce | null 
   // report.
   if (value === null || value === undefined || value === '') return null;
   if (typeof value !== 'object') return discard(value, 'commerce is not an object');
-  const { currency, taxInclusivePricing, defaultTaxRate } = value as Record<string, unknown>;
+  const { currency, taxInclusivePricing, defaultTaxRate, currencies, defaultCurrency } =
+    value as Record<string, unknown>;
   if (typeof currency !== 'string' || currency === '') return discard(value, 'currency');
   if (typeof taxInclusivePricing !== 'boolean') return discard(value, 'taxInclusivePricing');
   if (typeof defaultTaxRate !== 'number') return discard(value, 'defaultTaxRate');
-  return { currency, taxInclusivePricing, defaultTaxRate };
+  // Both were cleaned at build (`@eldrajs/theme-nuxt`); here they are only checked for type.
+  return {
+    currency,
+    taxInclusivePricing,
+    defaultTaxRate,
+    ...(Array.isArray(currencies) && currencies.every((code) => typeof code === 'string')
+      ? { currencies: currencies as string[] }
+      : {}),
+    ...(typeof defaultCurrency === 'string' && defaultCurrency !== '' ? { defaultCurrency } : {}),
+  };
 }
 
 /**

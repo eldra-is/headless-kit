@@ -111,10 +111,11 @@ describe('a prerendered route whose resolution failed', () => {
   it('fails the build over it, rather than exiting 0 with the page missing', () => {
     // `nitro.prerender.failOnError` (`nuxt.config.ts`) is the half that makes the *absence* loud:
     // without it the generate still exits 0 and an artifact with a hole in its catalogue is
-    // deployable. The route itself is named in the prerender list Nitro prints, which is on the
-    // build's console rather than in what `nuxi generate` hands back here.
+    // deployable. Nitro 2.14 (Nuxt 4.7) names each failed route in the output, with its status.
     expect(generated.exitCode).not.toBe(0);
-    expect(`${generated.stdout}\n${generated.stderr}`).toContain('prerender errors');
+    const printed = `${generated.stdout}\n${generated.stderr}`;
+    expect(printed).toMatch(/Failed to prerender \d+ routes?/);
+    expect(printed).toContain('/collections/the-winter-edit (500 Eldra route resolution failed)');
   });
 
   it('still writes every route the gateway could answer', () => {

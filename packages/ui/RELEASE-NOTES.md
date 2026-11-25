@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.3.18](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.17...ui-v0.3.18) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.4
+
+## [0.3.17](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.16...ui-v0.3.17) (2026-11-23)
+
+
+### Features
+
+* **commerce:** currency picker and prices in the chosen currency (WS-1391) ([#162](https://github.com/eldra-is/headless-kit/issues/162)) ([a6111b1](https://github.com/eldra-is/headless-kit/commit/a6111b10940e5929d03043aeabffb3daadcaa3f6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.3
+
+## [0.3.16](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.15...ui-v0.3.16) (2026-11-22)
+
+
+### Features
+
+* **ui:** sm and fill Tabs for compact panels (WS-1328) ([#158](https://github.com/eldra-is/headless-kit/issues/158)) ([1e9fd35](https://github.com/eldra-is/headless-kit/commit/1e9fd35229fb05f0a4c3691443a7c2425c847548))
+
 ## [0.3.15](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.14...ui-v0.3.15) (2026-11-21)
 
 

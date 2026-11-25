@@ -1,0 +1,157 @@
+{
+  "case": "get-page-layout-v3-slots-changed",
+  "differences": [
+    "status: kept on every entry of a preview answer, dropped from the published answer",
+    "publishedAt, updatedAt: the record's own metadata, which Publish sets",
+    "layout: shared-component placements kept with reusableComponentProjection; expanded by the kit's expandReusableLayout",
+    "linkId: asset-service's link row, one per owner (draft or published snapshot)",
+    "headers: Cache-Control: no-store and Eldra-Preview: draft on a preview answer only"
+  ],
+  "preview": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "blocks": [
+          {
+            "_type": "entry_button",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Kaupa"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "button",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "status": "PUBLISHED",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_badge",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Nýtt"
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "badge",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "status": "PUBLISHED",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "layout": {
+          "root": {
+            "children": [
+              {
+                "entryId": "00000000-0000-4000-8000-000000000001",
+                "id": "Host",
+                "slots": {
+                  "actions": [
+                    {
+                      "entryId": "00000000-0000-4000-8000-000000000003",
+                      "id": "Action",
+                      "type": "block"
+                    }
+                  ]
+                },
+                "type": "block"
+              }
+            ],
+            "id": "Root",
+            "layout": {
+              "direction": {
+                "normal": "column"
+              }
+            },
+            "type": "flex"
+          },
+          "version": 3
+        },
+        "slug": "slots",
+        "title": "Raufar"
+      },
+      "id": "00000000-0000-4000-8000-000000000005",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "00000000-0000-4000-8000-000000000006",
+      "status": "PUBLISHED",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "no-store",
+    "eldraPreview": "draft",
+    "status": 200
+  },
+  "public": {
+    "body": {
+      "createdAt": "2026-01-01T00:00:00Z",
+      "data": {
+        "blocks": [
+          {
+            "_type": "entry_button",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Kaupa"
+            },
+            "id": "00000000-0000-4000-8000-000000000001",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "button",
+            "schemaId": "00000000-0000-4000-8000-000000000002",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "_type": "entry_badge",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "data": {
+              "label": "Nýtt"
+            },
+            "id": "00000000-0000-4000-8000-000000000003",
+            "publishedAt": "2026-01-01T00:00:00Z",
+            "schemaApiId": "badge",
+            "schemaId": "00000000-0000-4000-8000-000000000004",
+            "updatedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "layout": {
+          "root": {
+            "children": [
+              {
+                "entryId": "00000000-0000-4000-8000-000000000001",
+                "id": "Host",
+                "slots": {
+                  "actions": [
+                    {
+                      "entryId": "00000000-0000-4000-8000-000000000003",
+                      "id": "Action",
+                      "type": "block"
+                    }
+                  ]
+                },
+                "type": "block"
+              }
+            ],
+            "id": "Root",
+            "layout": {
+              "direction": {
+                "normal": "column"
+              }
+            },
+            "type": "flex"
+          },
+          "version": 3
+        },
+        "slug": "slots",
+        "title": "Raufar"
+      },
+      "id": "00000000-0000-4000-8000-000000000005",
+      "publishedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "00000000-0000-4000-8000-000000000006",
+      "updatedAt": "2026-01-01T00:00:00Z"
+    },
+    "cacheControl": "",
+    "status": 200
+  },
+  "read": {
+    "method": "GET",
+    "operation": "webGetEntry",
+    "path": "/v1/schema/00000000-0000-4000-8000-000000000006/entry/00000000-0000-4000-8000-000000000005?locale=is-IS"
+  }
+}

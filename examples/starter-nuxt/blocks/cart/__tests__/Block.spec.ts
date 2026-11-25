@@ -451,9 +451,8 @@ describe('cart block', () => {
 
       expect(alertToast()?.textContent).toContain('This item is out of stock.');
       expect(toastRoot()?.textContent ?? '').not.toContain('removed');
-      // The line is back on screen — the restore is local and deliberate — which is exactly why the
-      // shopper has to be told the shop could not take it back.
-      expect(storefront.cart.lines.value.map((line) => line.title)).toContain(
+      // The cart shows what the shop holds: the line it could not take back stays out.
+      expect(storefront.cart.lines.value.map((line) => line.title)).not.toContain(
         'Merino crew sweater'
       );
       expect(await axe(wrapper.element)).toHaveNoViolations();

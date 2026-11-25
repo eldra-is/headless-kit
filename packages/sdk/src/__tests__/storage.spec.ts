@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCartSession, createOrderAccessTokens } from '../storage';
+import { createCartSession, createCurrencyPreference, createOrderAccessTokens } from '../storage';
 import type { EldraKeyValueStorage } from '../storage';
 
 function memoryStorage(): EldraKeyValueStorage & { data: Map<string, string> } {
@@ -23,6 +23,18 @@ describe('eldra sdk storage', () => {
     expect(session.read()).toBe('cart-1');
     session.forget();
     expect(session.read()).toBeNull();
+  });
+
+  it('remembers the currency a visitor picked under eldra.currency', () => {
+    const storage = memoryStorage();
+    const preference = createCurrencyPreference({ storage });
+
+    expect(preference.read()).toBeNull();
+    preference.remember('EUR');
+    expect(storage.data.get('eldra.currency')).toBe('EUR');
+    expect(preference.read()).toBe('EUR');
+    preference.forget();
+    expect(preference.read()).toBeNull();
   });
 
   it('degrades to no storage without throwing', () => {

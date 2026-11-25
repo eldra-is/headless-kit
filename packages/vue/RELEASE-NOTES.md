@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.16](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.15...vue-v0.1.16) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.4
+
+## [0.1.15](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.14...vue-v0.1.15) (2026-11-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.3
+
 ## [0.1.14](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.13...vue-v0.1.14) (2026-11-21)
 
 

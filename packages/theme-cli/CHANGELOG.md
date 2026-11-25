@@ -6,6 +6,7 @@ Release-please writes the generated notes from commit messages and does not repl
 ## Unreleased
 
 - The scaffolded starter's header declares menu sections and product/collection cards on its `links` field and draws them (WS-1362): a mega panel column of cards, each a picture at 4:3, a title and a price. Its `navigation` block is version 5 with a `groupsToSections` migration, and its mock is sections; deploying it needs a cms-service that has `groupsToSections`, so deploy the platform first.
+- The starter template builds its pages in the store's default currency (`commerce.defaultCurrency`), and never offers the store's own currency once the store turned it off; a cart left in that currency moves to the default, and a business customer's cart stays in ISK (`currency.keepOwnCurrency()` for a theme with business sign-in) (WS-1399).
 - `eldra-theme types` asks the gateway for the `declare module '@eldrajs/sdk'` augmentation and
   writes it with the CMS types, so `product.extensions` is typed through the SDK's
   `EldraProductExtensions` registry (WS-434, contract 6.1.0). It is on by default;

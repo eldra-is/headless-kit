@@ -171,7 +171,9 @@ storefront should treat all three as "no Check out to show" rather than somethin
 shopper.
 
 `features.getCommerce()` answers what the store sells in — `{ currency, taxInclusivePricing,
-defaultTaxRate }` — or `null` when the organisation publishes no commerce settings, which is the
+defaultTaxRate, currencies?, defaultCurrency? }`, where `currency` is the store's own and
+`defaultCurrency` (contract 6.22.0) what pages are built in, which differs once the store turns its
+own off — or `null` when the organisation publishes no commerce settings, which is the
 honest answer for a store that has not configured any: a storefront can then render a price as a
 number rather than under a currency symbol nobody chose. It reads the same organisation document the
 rest of the group reads, so a caller already holding an `EldraOrganizationDetails` should take
@@ -276,5 +278,5 @@ Every failed request throws `EldraHttpError` with `status`, the problem's catego
 that says more carries it in `errors`, the problem's `errors` object: a discount code refused with
 `CART_DISCOUNT_NOT_COMBINABLE` names the code on the cart that blocks it in `errors.blockingCode`,
 and `CART_DISCOUNT_CODES_LIMIT_REACHED` the limit (6) in `errors.limit`.
-`createCartSession` and `createOrderAccessTokens` persist the cart id and order tokens without
-throwing where storage is unavailable.
+`createCartSession`, `createCurrencyPreference` and `createOrderAccessTokens` persist the cart id,
+the visitor's chosen currency and order tokens without throwing where storage is unavailable.

@@ -44,9 +44,8 @@ import { useStorefrontFeedback } from '../../../app/composables/useStorefrontFee
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../../app/composables/useUiId';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
-import EldraRouterLink from '../../../app/components/EldraRouterLink.vue';
-import { isInternalHref, safeHref } from '../../../app/utils/links';
 import { useMoney } from '../../../app/storefront/money';
+import CheckoutButton from './CheckoutButton.vue';
 import type { ThemeIconName } from '../../../app/icons';
 
 const props = withDefaults(
@@ -149,11 +148,6 @@ async function onRemoveCode(): Promise<void> {
   const failure = await cart.removeDiscount(applied);
   if (failure !== null) feedback.report(failure, { id: 'cart-discount' });
 }
-
-const checkoutHref = computed(() => safeHref(cart.checkoutUrl.value));
-const checkoutAs = computed(() =>
-  checkoutHref.value !== null && isInternalHref(checkoutHref.value) ? EldraRouterLink : undefined
-);
 
 /** Spec Accessibility: "The payment icons are one image labelled 'We accept Visa, Mastercard,
  *  PayPal and Apple Pay'" — one `role="img"`, not four named marks. Tabler ships no
@@ -258,21 +252,15 @@ const VALUE_CLASS = 'text-text text-body-sm font-medium tabular-nums';
         </dd>
       </div>
     </dl>
+    <p v-if="cart.notSold.value.length > 0" class="text-muted text-body-sm" data-eldra-not-included>
+      {{
+        cart.notSold.value.length === 1
+          ? t('currency.notIncludedOne')
+          : t('currency.notIncludedMany', { count: cart.notSold.value.length })
+      }}
+    </p>
 
-    <Button
-      v-if="checkoutHref"
-      variant="primary"
-      size="lg"
-      block
-      :href="checkoutHref"
-      :as="checkoutAs"
-      @click="cart.beginCheckout()"
-    >
-      <template #leadingIcon>
-        <EldraIcon name="lock" size="sm" />
-      </template>
-      {{ t('cart.checkout') }}
-    </Button>
+    <CheckoutButton />
 
     <p v-if="props.note" class="text-muted text-body-sm text-center">{{ props.note }}</p>
 

@@ -275,6 +275,7 @@ const isLoading = computed(() => response.value === null && searchResult.loading
 /** The store's currency and the page's locale, for the suggestion prices below and the
  *  `<ProductCard>`s the no-results state renders (`money.minor`). */
 const money = useMoney();
+const shopperCurrency = useStorefront().currency.active;
 
 const barResults = computed(() =>
   toSearchBarResults(response.value, suggestionsPerGroup.value, money.format)
@@ -289,7 +290,11 @@ const barResults = computed(() =>
  * would head a tab "Products (3)" over a grid showing fewer, or, when the pricing read failed, none.
  */
 const productCards = computed(() =>
-  toProductCardEntries(response.value?.products ?? [], { ratio: '4x5', minorUnits: money.minor })
+  toProductCardEntries(response.value?.products ?? [], {
+    ratio: '4x5',
+    minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
+  })
 );
 
 function countFor(type: ResultTypeId): number {
@@ -380,6 +385,7 @@ const noResultsProducts = computed(() =>
   toProductCardEntries((noResultsCollection.data.value?.items ?? []).slice(0, 4), {
     ratio: '4x5',
     minorUnits: money.minor,
+    shopperCurrency: shopperCurrency.value,
   })
 );
 const hasNoResultsProducts = computed(() => noResultsProducts.value.length > 0);
@@ -500,7 +506,7 @@ const headingClass =
               ratio="4x5"
               :heading-level="2"
               :link-as="entry.internal ? EldraRouterLink : undefined"
-              :currency="currency"
+              :currency="entry.currency ?? currency"
               :locale="locale"
             />
           </div>

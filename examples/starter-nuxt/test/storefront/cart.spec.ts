@@ -172,13 +172,14 @@ describe('createCartStore', () => {
         },
         add: async (input) => {
           addInputs.push(input);
-          return { lines: [a, c], totals: totalsFor([a, b, c]) };
+          return { lines: [a, c, b], totals: totalsFor([a, b, c]) };
         },
       })
     );
     await settle();
     await store.remove('b');
     await store.undoRemove();
+    // The server's answer, with the restored line put back where it was.
     expect(store.lines.value).toEqual([a, b, c]);
     expect(store.lastRemoved.value).toBeNull();
     // The re-add is the removed line's own pair — a line id is not something `ops.add` can take.
@@ -374,9 +375,8 @@ describe('createCartStore', () => {
       await store.undoRemove();
 
       expect(store.lastFailure.value?.errorId).toBe('CART_INSUFFICIENT_STOCK');
-      // The line is still back on screen — the restore is local and deliberate (see `undoRemove`),
-      // which is exactly why a shopper has to be told the shop could not take it back.
-      expect(store.lines.value).toEqual([a]);
+      // The cart shows what the shop holds: the line it could not take back stays out.
+      expect(store.lines.value).toEqual([]);
     });
 
     it('records the failure of an applyDiscount that threw, and still answers an ack', async () => {

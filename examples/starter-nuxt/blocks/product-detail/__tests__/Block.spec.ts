@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { computed, defineComponent, h, nextTick, ref } from 'vue';
+import { computed, defineComponent, h, nextTick, ref, watch } from 'vue';
 import { ELDRA_KEY, type EldraLocaleState } from '@eldrajs/theme-vue';
 import { EldraHttpError } from '@eldrajs/sdk';
 import { useToast, type ToastAction } from '@eldrajs/ui';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
 import { createDemoStorefront } from '../../../app/storefront/demo';
@@ -1046,6 +1046,83 @@ describe('product-detail block', () => {
     expect(storefront.cart.lines.value[0]!.quantity).toBe(2);
   });
 
+  it('offers the store currency in place of adding a product with no price in the chosen one', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    storefront.currency.started.value = true;
+    storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(wrapper.get('[data-eldra-not-sold]').text()).toBe('Not available in EUR.');
+    expect(addToCart(wrapper).attributes('disabled')).toBeUndefined();
+    expect(addToCart(wrapper).text()).toBe('Shop in USD');
+    expect(wrapper.find('[data-part="quantity"]').exists()).toBe(false);
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.cart.lines.value).toHaveLength(0);
+    expect(storefront.currency.active.value).toBe('USD');
+  });
+
+  it('4662896775: reads the product again when it is already in the store currency', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    const refreshes: number[] = [];
+    const product = storefront.catalog.product;
+    storefront.catalog.product = (handle) => {
+      const result = product(handle);
+      return {
+        ...result,
+        refresh: async () => {
+          refreshes.push(1);
+        },
+      };
+    };
+    storefront.currency.started.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+    expect(storefront.currency.active.value).toBe('USD');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(refreshes).toHaveLength(1);
+  });
+
+  it('says the cart will switch when there is one', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+    });
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    storefront.currency.started.value = true;
+    storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
+    await storefront.cart.add({ productId: 'p', variantId: 'v', quantity: 1 });
+    const wrapper = await mountReady(mock, { storefront });
+    expect(wrapper.text()).toContain('Your cart will switch to USD.');
+  });
+
+  it("holds Add to cart while the visitor's currency is still being applied", async () => {
+    const storefront = storefrontWith();
+    storefront.currency.offered.value = ['USD', 'EUR'];
+    const wrapper = await mountReady(mock, { storefront });
+    expect(storefront.currency.pending.value).toBe(true);
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.cart.lines.value).toHaveLength(0);
+    expect(addToCart(wrapper).attributes('aria-busy')).toBe('true');
+  });
+
+  it('formats the price in the currency it carries', async () => {
+    const storefront = storefrontWith({
+      price: { amount: 19.9, compareAt: null, currency: 'EUR' },
+    });
+    const wrapper = await mountReady(mock, { storefront });
+    expect(addToCart(wrapper).text()).toContain('€19.90');
+  });
+
   it('toggles the wishlist button aria-pressed', async () => {
     const wrapper = await mountReady(mock);
     const button = wrapper.get('button[aria-pressed]');
@@ -1488,5 +1565,116 @@ describe('product-detail block', () => {
       expect(wrapper.text()).toContain(enUS.storefront.loading);
       expect(wrapper.text()).not.toContain(enUS.storefront.notFound);
     });
+  });
+});
+
+describe('with the store currency turned off (WS-1399)', () => {
+  function storefrontOffering(patch: Partial<StorefrontProduct>) {
+    const source = createDemoStorefront({
+      commerce: {
+        currency: 'USD',
+        taxInclusivePricing: false,
+        defaultTaxRate: 0,
+        currencies: ['EUR', 'GBP'],
+        defaultCurrency: 'EUR',
+      },
+    });
+    return {
+      ...source,
+      catalog: {
+        ...source.catalog,
+        product: (handle: Parameters<typeof source.catalog.product>[0]) => {
+          const result = source.catalog.product(handle);
+          return {
+            ...result,
+            data: computed(() => (result.data.value ? { ...result.data.value, ...patch } : null)),
+          };
+        },
+      },
+    } as ReturnType<typeof storefrontWith>;
+  }
+  const notSoldPrice = { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false };
+
+  it('offers the default currency, not the store currency, as the way out', async () => {
+    const storefront = storefrontOffering({ price: notSoldPrice });
+    storefront.currency.started.value = true;
+    storefront.currency.choose('GBP');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('GBP'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(addToCart(wrapper).text()).toBe('Shop in EUR');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(storefront.currency.active.value).toBe('EUR');
+  });
+
+  it('shows no way out in the default currency, and holds the button', async () => {
+    const storefront = storefrontOffering({ price: notSoldPrice });
+    storefront.currency.started.value = true;
+    const wrapper = await mountReady(mock, { storefront });
+
+    expect(storefront.currency.active.value).toBe('EUR');
+    expect(wrapper.get('[data-eldra-not-sold]').text()).toBe('Not available in EUR.');
+    expect(addToCart(wrapper).text()).toBe('Not available in EUR');
+    expect(addToCart(wrapper).attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).not.toContain('Shop in');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+});
+
+describe('a product read that failed after a currency change (WS-1399)', () => {
+  it("does not take the last currency's availability for the new one", async () => {
+    const source = createDemoStorefront({
+      commerce: {
+        currency: 'USD',
+        taxInclusivePricing: false,
+        defaultTaxRate: 0,
+        currencies: ['EUR', 'GBP'],
+        defaultCurrency: 'EUR',
+      },
+    });
+    const refreshes: number[] = [];
+    const storefront = {
+      ...source,
+      catalog: {
+        ...source.catalog,
+        product: (handle: Parameters<typeof source.catalog.product>[0]) => {
+          const result = source.catalog.product(handle);
+          const kept = ref<StorefrontProduct | null>(null);
+          // The read in GBP answered; the one in EUR failed and left it on screen.
+          watch(
+            result.data,
+            (loaded) => {
+              if (loaded !== null && kept.value === null) {
+                kept.value = {
+                  ...loaded,
+                  price: { amount: 96, compareAt: null, currency: 'USD', soldInCurrency: false },
+                };
+              }
+            },
+            { immediate: true }
+          );
+          return {
+            ...result,
+            data: kept,
+            refresh: async () => {
+              refreshes.push(1);
+            },
+          };
+        },
+      },
+    } as ReturnType<typeof storefrontWith>;
+    storefront.currency.started.value = true;
+    storefront.currency.choose('GBP');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('GBP'));
+    const wrapper = await mountReady(mock, { storefront });
+
+    storefront.currency.choose('EUR');
+    await flushPromises();
+    expect(storefront.currency.active.value).toBe('EUR');
+    expect(addToCart(wrapper).attributes('disabled')).toBeUndefined();
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(refreshes).toHaveLength(1);
   });
 });

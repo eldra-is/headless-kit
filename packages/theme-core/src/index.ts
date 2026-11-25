@@ -72,3 +72,4 @@ export {
 export * from './seo';
 export * from './sitemap';
 export * from './structuredData';
+export * from './currency';

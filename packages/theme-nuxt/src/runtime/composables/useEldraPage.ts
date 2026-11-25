@@ -22,6 +22,8 @@ import {
   stripLocalePrefix,
 } from '../locales';
 import { isStudioPreviewFrame } from '../origins';
+import { isPreviewSessionRefused, usePreviewSession } from '../previewSession';
+import { PAGE_KEY_PREFIX } from '../previewSessionReads';
 import { EMPTY_ELDRA_ROUTE, resolveEldraRoute, type ResolvedEldraRoute } from '../resolveRoute';
 import { canonicalRoutePath } from '../routePath';
 import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
@@ -32,9 +34,13 @@ import { knownPrerenderedRoutes, prerenderedRoutes } from '../staticRoutes';
  * that answers `/products/x` with a 308 to `/products/x/` must not make the build's answer
  * unreachable under the spelling it served.
  */
-const PAGE_KEY_PREFIX = 'eldra-page:';
-
 const routeDataKey = (path: string): string => `${PAGE_KEY_PREFIX}${path}`;
+
+/** What a session the router refused renders: nothing of the page, and never the published one. */
+const SESSION_REFUSED_ROUTE: ResolvedEldraRoute = {
+  ...EMPTY_ELDRA_ROUTE,
+  error: '[eldra] the draft preview session was refused',
+};
 
 export function useEldraPage(): {
   page: Ref<EntryDoc | null>;
@@ -62,6 +68,8 @@ export function useEldraPage(): {
    */
   const requestEvent = useRequestEvent();
   const ctx = useEldra();
+  /** A draft preview session, when this page is one; `off` on the server and on every storefront. */
+  const session = usePreviewSession();
   const cfg = useRuntimeConfig().public.eldra as {
     pageSchema: string;
     routeTemplateSchema: string;
@@ -112,7 +120,7 @@ export function useEldraPage(): {
    * dynamic too.
    */
   const buildAnswersRoutes = (): boolean =>
-    !ctx.preview.active && !isStudioPreviewFrame(cfg.studioOrigins);
+    !session.active && !ctx.preview.active && !isStudioPreviewFrame(cfg.studioOrigins);
 
   /**
    * What the **build** already knows about a route, with no round trip of any kind.
@@ -140,6 +148,16 @@ export function useEldraPage(): {
     nuxtApp: NuxtApp,
     context: { cause: string }
   ): ResolvedEldraRoute | undefined => {
+    // A session takes nothing from the build but the prerender it hydrates: the published payload
+    // is what the server-rendered DOM was made from, and hydrating anything else would rebuild the
+    // page under the veil. It is never shown — right after hydration the plugin refreshes every
+    // async data entry, and a refresh lands here not hydrating — and after hydration no payload
+    // and no "not in the build" answers a route, so a draft-only page resolves and every route,
+    // the first one included, is read from the session each time it is opened.
+    if (session.active) {
+      if (!nuxtApp.isHydrating) return undefined;
+      return nuxtApp.payload.data[key] as ResolvedEldraRoute | undefined;
+    }
     if (context.cause !== 'refresh:manual' && context.cause !== 'refresh:hook') {
       const fromBuild = (
         nuxtApp.isHydrating ? nuxtApp.payload.data[key] : nuxtApp.static.data[key]
@@ -247,6 +265,8 @@ export function useEldraPage(): {
         runtimeLocale(path)
       );
       heldPreviewAuthFailure = null;
+      // A session's drafts already arrive in the public read's shape: `@eldrajs/theme-core`'s
+      // client reshapes every session answer (`asPublicRead`).
       return { route, holdPrevious: false };
     } catch (cause) {
       if (holdPreviewAuthFailure(cause)) return { route: EMPTY_ELDRA_ROUTE, holdPrevious: true };
@@ -317,9 +337,17 @@ export function useEldraPage(): {
     }
   );
 
-  const active = computed(
-    () => previewResolvedRoute.value ?? resolvedRoute.value ?? EMPTY_ELDRA_ROUTE
-  );
+  const active = computed(() => {
+    if (session.active) {
+      // Once hydrated, a refused session shows nothing of the page: the notice is the answer, and
+      // the published prerender under it must not stay in the document.
+      if (session.hydrated && isPreviewSessionRefused(session.status)) return SESSION_REFUSED_ROUTE;
+      // The shared async data: after the refresh it holds the draft, so a `useEldraPage()`
+      // mounted later for this route is handed the draft too, never the published payload.
+      return resolvedRoute.value ?? EMPTY_ELDRA_ROUTE;
+    }
+    return previewResolvedRoute.value ?? resolvedRoute.value ?? EMPTY_ELDRA_ROUTE;
+  });
   /**
    * Why the resolution on screen has no document, read off the resolution itself rather than
    * remembered by this call — see `ResolvedEldraRoute.error`. `null` for a route that honestly
@@ -378,6 +406,19 @@ export function useEldraPage(): {
     () => page.value?.reusableComponentProjection ?? template.value?.reusableComponentProjection
   );
 
+  /**
+   * Whether the route is being read. Never while a session re-reads the route it has just hydrated:
+   * that read replaces content already on screen (under the veil), and a theme that draws a loading
+   * state for `pending` — the starter does, in place of the page — would otherwise tear the whole
+   * block tree down and build it again for the draft. Rebuilt in the browser, it is not the tree the
+   * published page hydrates: every `useId()` takes a new number and every bound style is
+   * re-serialised (WS-1358). Patched in place, it is the same tree with the draft's content.
+   * A navigation in a session is read as on any site, with `pending` as it is.
+   */
+  const reading = computed(() =>
+    session.active && session.status === 'pending' ? false : pending.value
+  );
+
   return {
     page: page as Ref<EntryDoc | null>,
     template: template as Ref<EntryDoc | null>,
@@ -387,7 +428,7 @@ export function useEldraPage(): {
     blocks,
     reusableComponentProjection,
     links: linkState,
-    pending,
+    pending: reading as Ref<boolean>,
     error,
   };
 }
