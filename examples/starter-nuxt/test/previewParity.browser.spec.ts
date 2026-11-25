@@ -568,17 +568,17 @@ function capture(origin: string, path: string, width: number, session: boolean):
 }
 
 /**
- * A full-page screenshot, after the same normalisation as the DOM, of every image drawn afresh and
- * finished drawing.
+ * A full-page screenshot, after the same normalisation as the DOM, of a page rastered afresh.
  *
- * An image Chromium draws anew is first rastered one way and, a frame or a few hundred milliseconds
- * later, rastered again for good; the two differ in the last bit of a blurred gradient's dither. A
- * page that is not drawing produces no frames, so an image changed late can stay in its first
- * raster: on CI the session's /framing image (drawn at zoom 1 from the pinned prerender, then at
- * `scale(2)` from the draft) was captured that way, 5925 pixels of dither off the live page's, while
- * the DOM, the layers and the paint were the same on both pages. So on both pages every image is
- * replaced with a fresh copy of itself (`redrawImages`), the same start for both, and the screenshot
- * is the one the page keeps drawing (`finishedScreenshot`).
+ * The same paint does not always raster to the same pixels. Chromium rasters content it has
+ * rastered before, and that changed, a little differently from content it rasters from scratch —
+ * the last bit of a blurred gradient's dither, a rounded border's anti-aliasing — and it does not
+ * always come back to the from-scratch raster on its own. The session changes late (the pinned
+ * build's prerender first, the draft after hydration: an image at zoom 1, then at `scale(2)`; a
+ * field focused once the veil drops) and the live page does not, so on CI the session's /framing
+ * image was 5925 pixels of dither off the live page's while the DOM, the layers and the paint were
+ * the same, and its search popover on / was 65 pixels of anti-aliasing off. So both pages are
+ * rastered from scratch before the screenshot (`rasterAfresh`), the way a first load rasters them.
  */
 function screenshot(
   origin: string,
@@ -589,49 +589,41 @@ function screenshot(
   return open(origin, path, width, session, async (page) => {
     await normalise(page, session);
     await settle(page, true);
-    await redrawImages(page);
-    return finishedScreenshot(page);
+    await rasterAfresh(page, width);
+    return page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
   });
 }
 
 /**
- * Replaces every image with a copy of itself (its attributes, eager loading included) and waits for
- * the copies to decode: a new element is drawn from scratch, whatever the old one was drawn as.
+ * Rasters the whole page from scratch: draws it once at another device scale factor, which drops
+ * every layer's tiles, and once back at the context's own (`setViewportSize` restores Playwright's
+ * emulation as it was). The DOM, the layout, focus and scroll are untouched.
  */
-async function redrawImages(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const copies = [...document.images].map((image) => {
-      const copy = image.cloneNode(true) as HTMLImageElement;
-      image.replaceWith(copy);
-      return copy;
+async function rasterAfresh(page: Page, width: number): Promise<void> {
+  const frames = (): Promise<void> =>
+    page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        )
+    );
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width,
+      height: 900,
+      deviceScaleFactor: 2,
+      mobile: false,
+      screenWidth: width,
+      screenHeight: 900,
     });
-    await Promise.all(copies.map((copy) => copy.decode().catch(() => undefined)));
-  });
-  await page.waitForLoadState('networkidle');
-}
-
-/** How far apart the screenshots `finishedScreenshot` compares are taken. */
-const DRAWN_GAP_MS = 400;
-/** How many screenshots in a row must be the same. */
-const DRAWN_SAME = 3;
-
-/**
- * Full-page screenshots, `DRAWN_GAP_MS` apart, until `DRAWN_SAME` in a row are the same (each one
- * makes the page draw a frame, so a raster still to come comes); that screenshot is the page's.
- */
-async function finishedScreenshot(page: Page): Promise<Buffer> {
-  const take = (): Promise<Buffer> =>
-    page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
-  let last = await take();
-  let same = 1;
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, DRAWN_GAP_MS));
-    const next = await take();
-    same = next.equals(last) ? same + 1 : 1;
-    last = next;
-    if (same >= DRAWN_SAME) return last;
+    await frames();
+  } finally {
+    await cdp.detach();
   }
-  throw new Error(`the page was still drawing after ${30 * DRAWN_GAP_MS} ms of screenshots`);
+  await page.setViewportSize({ width, height: 900 });
+  await frames();
+  expect(await page.evaluate(() => window.devicePixelRatio)).toBe(1);
 }
 
 /** Where a pixel test that fails leaves both screenshots and their difference, for CI to upload. */
