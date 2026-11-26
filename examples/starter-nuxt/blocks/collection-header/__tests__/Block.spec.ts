@@ -302,7 +302,7 @@ describe('collection-header block', () => {
   });
 
   describe('sub-collection pills', () => {
-    it('renders each as a link, marking the current one with aria-current and the weight class', async () => {
+    it('renders each as a link, marking the current one with aria-current and the filled pill', async () => {
       const wrapper = await mountHeader(mock);
       const list = wrapper.get(`ul[aria-label="${enUS.collection.subcollections}"]`);
       const links = list.findAll('a');
@@ -310,11 +310,11 @@ describe('collection-header block', () => {
 
       const current = links.find((link) => link.attributes('aria-current') === 'page')!;
       expect(current.text()).toBe('All');
-      expect(current.classes()).toContain('font-semibold');
+      expect(current.classes()).toContain('bg-text');
 
       const notCurrent = links.find((link) => link.text() === 'Sweaters')!;
       expect(notCurrent.attributes('aria-current')).toBeUndefined();
-      expect(notCurrent.classes()).not.toContain('font-semibold');
+      expect(notCurrent.classes()).not.toContain('bg-text');
     });
   });
 

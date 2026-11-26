@@ -80,7 +80,7 @@ interface Subcollection {
 const props = defineProps<{ entry: EldraBlockEntry<'collection-header'> }>();
 const { data, entryId } = useBlockData(props, 'collection-header');
 const editing = useEditing();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const storefront = useStorefront();
 
 const uid = useUiId();
@@ -347,15 +347,19 @@ interface ResolvedPill {
  * The two are different lists with different meanings — curated collections against levels of the
  * catalogue's own tree — so the category strip is the tree's and the authored list is ignored there
  * rather than merged into it: a merged strip would put a collection chip beside a category chip with
- * nothing to tell them apart. None of the category chips is ever `current`: the current category is
- * the page's own `h1`, and its children are all somewhere else.
+ * nothing to tell them apart. The category strip leads with an **All <title>** chip linking to the
+ * page itself — the one `current` chip, filled, exactly as the design's "All ceramics" — so the
+ * strip reads as a choice between the whole category and one of its parts rather than as a list of
+ * elsewheres; every child after it is somewhere else and never current.
  *
  * It renders only when there are children, which is the whole of the rule: a leaf category shows no
- * strip at all rather than an empty row (the `v-if="hasPills"` the authored list already had).
+ * strip at all rather than an empty row, and no lone "All" chip either (the `v-if="hasPills"` the
+ * authored list already had).
  */
 const pills = computed<ResolvedPill[]>(() => {
   if (categoryMode.value) {
-    return (categoryInfo.value?.children ?? []).flatMap((child) => {
+    const info = categoryInfo.value;
+    const children = (info?.children ?? []).flatMap((child) => {
       const href = safeHref(categoryHref(child.path));
       if (href === null) return [];
       return [
@@ -367,6 +371,19 @@ const pills = computed<ResolvedPill[]>(() => {
         },
       ];
     });
+    const selfHref = info ? safeHref(categoryHref(info.path)) : null;
+    if (children.length === 0 || selfHref === null || resolvedTitle.value === '') return children;
+    return [
+      {
+        label: t('collection.allInCategory', {
+          category: resolvedTitle.value.toLocaleLowerCase(locale.value),
+        }),
+        href: selfHref,
+        current: true,
+        as: isInternalHref(selfHref) ? EldraRouterLink : undefined,
+      },
+      ...children,
+    ];
   }
   return (data.value.subcollections ?? []).flatMap((item: Subcollection) => {
     const href = safeHref(item.href);
@@ -390,15 +407,16 @@ const pillsLabel = computed(() =>
 
 /**
  * The Northwind chip: a 2.5rem outlined pill, the current one filled with `text` on `background`
- * (marked by `aria-current` and a heavier weight as well, so it never rests on colour alone).
- * Exclusive branches, never a base class a variant overrides.
+ * (marked by `aria-current` too; the fill is a full light/dark inversion, never a hue alone).
+ * The same 500 weight on both, as the design draws them. Exclusive branches, never a base class a
+ * variant overrides.
  */
 const PILL_BASE =
   'inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border px-4 ' +
   'text-[0.9375rem] motion-safe:transition-colors motion-safe:duration-fast';
 function pillClass(pill: ResolvedPill): string {
   if (pill.current) {
-    return `${PILL_BASE} bg-text text-background border-text font-semibold`;
+    return `${PILL_BASE} bg-text text-background border-text font-medium`;
   }
   return `${PILL_BASE} border-border-strong text-text font-medium hover:bg-surface`;
 }
@@ -415,7 +433,11 @@ function pillClass(pill: ResolvedPill): string {
  * so `spacing="none"` and the padding is written here, the same pattern `footer` uses.
  */
 const sectionClass = computed(() =>
-  isImageVariant.value || hasPills.value ? 'pt-6 pb-6' : 'pt-6 pb-8 border-border border-b'
+  hasPills.value
+    ? 'pt-6 pb-5'
+    : isImageVariant.value
+      ? 'pt-6 pb-6'
+      : 'pt-6 pb-8 border-border border-b'
 );
 
 const rootClass = computed(() =>
@@ -534,11 +556,12 @@ const IMAGE_FRAME_CLASS = 'relative aspect-[21/9] w-full @min-[60rem]:aspect-[16
 
       <!-- The chip strip scrolls sideways on a narrow screen rather than wrapping into a block of
            pills; `py-1`/`px-1` with the matching negative margin keeps each link's focus ring
-           inside the scroll container, which would otherwise clip it. -->
+           inside the scroll container, which would otherwise clip it. With that 0.25rem, `mt-7`
+           and the section's `pb-5` are the design's 2rem above the strip and 1.5rem below. -->
       <ul
         v-if="hasPills"
         :aria-label="pillsLabel"
-        class="scrollbar-hidden -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 py-1"
+        class="scrollbar-hidden -mx-1 mt-7 flex gap-2 overflow-x-auto px-1 py-1"
       >
         <li v-for="pill in pills" :key="pill.href" class="shrink-0">
           <Link

@@ -2,7 +2,7 @@
 import { mount, type DOMWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState } from '@eldrajs/theme-vue';
-import { Badge } from '@eldrajs/ui';
+import { Badge, CurrencyPicker } from '@eldrajs/ui';
 import { enUS as uiEnUS } from '@eldrajs/ui';
 import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
@@ -364,7 +364,9 @@ describe('header block (navigation apiId)', () => {
     expect(cards).toHaveLength(2);
     const image = cards[0]!.get('img');
     expect(image.attributes('src')).toBe('https://media.test/mug-md.jpg');
-    expect((image.element as HTMLImageElement).style.aspectRatio).toBe('4 / 5');
+    expect(
+      (image.element as HTMLImageElement).style.getPropertyValue('--eldra-nav-menu-card-aspect')
+    ).toBe('4 / 5');
     expect(cards[0]!.get('[data-part="cardTitle"]').text()).toBe('Ash glaze mug');
     expect(cards[0]!.get('[data-part="cardPrice"]').text()).toMatch(/28/);
     expect(cards[1]!.get('img').attributes('src')).toBe('https://media.test/winter-md.jpg');
@@ -424,13 +426,17 @@ describe('header block (navigation apiId)', () => {
   });
 
   it('labels the primary navigation landmark', () => {
-    // One landmark in the bar; the drawer's copy stays out of the page inside the closed `<dialog>`.
+    // One landmark in the bar; the drawer's copy stays out of the page while the menu is closed
+    // (`display: none` on the inline drawer), and the bar's is hidden below 68.8125rem where the
+    // drawer's shows, so a browser never exposes both.
     const wrapper = mountBlock(resolved.data);
     const navs = wrapper.findAll('nav[aria-label="Primary navigation"]');
-    expect(navs.filter((nav) => nav.element.closest('dialog') === null)).toHaveLength(1);
-    for (const nav of navs.filter((nav) => nav.element.closest('dialog') !== null)) {
-      expect((nav.element.closest('dialog') as HTMLDialogElement).open).toBe(false);
-    }
+    expect(navs).toHaveLength(2);
+    const [bar, drawer] = navs;
+    expect(bar!.classes()).toContain('@max-[68.8125rem]:hidden');
+    expect((drawer!.element.closest('[data-part="drawer"]') as HTMLElement).style.display).toBe(
+      'none'
+    );
   });
 
   it('establishes its own @container context on the root, so @tablet:/@content: classes measure the block’s own width', () => {
@@ -785,8 +791,8 @@ describe('header block (navigation apiId)', () => {
 
         expect(knitwear.attributes('aria-expanded')).toBe('true');
         const links = panelLinks(wrapper, knitwear);
-        // The panel's own reading order ends on the "View all" row.
-        expect(links[links.length - 1]!.attributes('data-eldra-mega-view-all')).toBe('');
+        // A panel of sections has no "View all" row: its reading order ends on its last column.
+        expect(links[links.length - 1]!.attributes('data-eldra-mega-view-all')).toBeUndefined();
         expect(document.activeElement).toBe(links[links.length - 1]!.element);
         wrapper.unmount();
       });
@@ -1164,38 +1170,95 @@ describe('header block (navigation apiId)', () => {
     });
   });
 
+  /**
+   * The phone menu is the design's inline drawer: the header stays, the menu opens directly under
+   * it and the Menu tool becomes Close. A disclosure, not a dialog — so nothing behind it goes
+   * inert, and it closes on Escape, on a press outside it and when focus leaves it.
+   */
   describe('drawer keyboard', () => {
-    it('opens as a dialog with the first focusable row focused', async () => {
-      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-      const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
-      await menuButton.trigger('click');
+    const menuButton = (wrapper: ReturnType<typeof mountBlock>) =>
+      wrapper.get('[data-part="toggle"]');
+    const drawer = (wrapper: ReturnType<typeof mountBlock>) =>
+      wrapper.get('[data-part="drawer"]').element as HTMLElement;
 
-      const dialog = wrapper.get('dialog');
-      expect(dialog.attributes('open')).toBe('');
-      // The first row of the drawer's own list — an accordion row (Knitwear has a mega-menu).
-      const firstRow = wrapper.get(
-        'dialog ul li:first-child summary, dialog ul li:first-child button, dialog ul li:first-child a'
-      );
-      expect(document.activeElement).toBe(firstRow.element);
+    it('opens under the bar as a disclosure, its button reading Close, its rows next in the tab order', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const button = menuButton(wrapper);
+      expect(button.attributes('aria-haspopup')).toBeUndefined();
+      expect(button.attributes('aria-controls')).toBe(drawer(wrapper).id);
+      expect(button.text()).toBe('Menu');
+      button.element.focus();
+      await button.trigger('click');
+
+      expect(button.attributes('aria-expanded')).toBe('true');
+      expect(drawer(wrapper).style.display).toBe('');
+      // The visible label and the name change together (2.5.3), with an × for the icon.
+      expect(button.text()).toBe('Close');
+      expect(button.attributes('aria-label')).toBe('Close');
+      expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
+      // Focus stays on the button; the drawer's first row is the very next tab stop.
+      expect(document.activeElement).toBe(button.element);
+      expect(button.element.nextElementSibling).toBe(drawer(wrapper));
+      const firstRow = drawer(wrapper).querySelector('summary, a')!;
+      expect(firstRow.textContent).toContain('Knitwear');
+      // It hangs from the whole header, under the bar.
+      for (const token of ['eldra:absolute', 'eldra:top-full', 'eldra:inset-x-0']) {
+        expect(drawer(wrapper).className).toContain(token);
+      }
+      wrapper.unmount();
+    });
+
+    it('Close closes it again', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      await menuButton(wrapper).trigger('click');
+      await menuButton(wrapper).trigger('click');
+      expect(menuButton(wrapper).attributes('aria-expanded')).toBe('false');
+      expect(drawer(wrapper).style.display).toBe('none');
+      expect(menuButton(wrapper).text()).toBe('Menu');
       wrapper.unmount();
     });
 
     it('Esc closes the drawer and returns focus to the menu button', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-      const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
-      // A real click focuses the button before it fires; `trigger('click')` only dispatches the
-      // event, so the opener has to be focused explicitly for `useDialog`'s "return focus to
-      // whatever had it before the dialog opened" to have anything correct to return it to.
-      menuButton.element.focus();
-      await menuButton.trigger('click');
-      expect(wrapper.get('dialog').attributes('open')).toBe('');
-
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      await new Promise((resolve) => setTimeout(resolve));
+      const button = menuButton(wrapper);
+      button.element.focus();
+      await button.trigger('click');
+      const row = drawer(wrapper).querySelector<HTMLElement>('summary, a')!;
+      row.focus();
+      row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
-      expect(document.activeElement).toBe(menuButton.element);
+      expect(button.attributes('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(button.element);
+      wrapper.unmount();
+    });
+
+    it('closes when focus leaves it for the rest of the page, so focus never lands behind it', async () => {
+      const outside = document.createElement('a');
+      outside.href = '/elsewhere';
+      document.body.append(outside);
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      await menuButton(wrapper).trigger('click');
+      const links = drawer(wrapper).querySelectorAll<HTMLElement>('a');
+      const last = links[links.length - 1]!;
+      last.focus();
+      last.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
+      outside.focus();
+      await wrapper.vm.$nextTick();
+      expect(menuButton(wrapper).attributes('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(outside);
+      wrapper.unmount();
+      outside.remove();
+    });
+
+    it('keeps the bar in place while it is open: the bar never slides away under an open menu', async () => {
+      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      await menuButton(wrapper).trigger('click');
+      Object.defineProperty(window, 'scrollY', { value: 600, configurable: true });
+      window.dispatchEvent(new Event('scroll'));
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get('header').classes()).not.toContain('-translate-y-full');
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
       wrapper.unmount();
     });
   });
@@ -1560,10 +1623,12 @@ describe('header block (navigation apiId)', () => {
         await knitwear!.trigger('click');
       }
       await wrapper.get('[data-part="toggle"]').trigger('click');
-      const dialog = wrapper.get('dialog[open]');
-      expect(dialog.attributes('aria-label'), variant).toBe('Menu');
-      // The open drawer is modal: everything behind it is inert, so the dialog is what is checked.
-      expect(await axe(dialog.element), variant).toHaveNoViolations();
+      expect(wrapper.get('[data-part="toggle"]').attributes('aria-expanded'), variant).toBe('true');
+      // jsdom applies no stylesheet: the bar's own `nav` is `display: none` in a browser wherever
+      // the Menu tool shows, so it is hidden here by hand rather than read as a second landmark.
+      const bar = wrapper.find('[data-part="nav"]');
+      if (bar.exists()) (bar.element as HTMLElement).style.display = 'none';
+      expect(await axe(wrapper.element), variant).toHaveNoViolations();
       wrapper.unmount();
     }
   });
@@ -1626,7 +1691,13 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
       // Flush under the bar: no offset of its own.
-      for (const token of ['eldra:absolute', 'eldra:top-full', 'eldra:inset-x-0', 'pt-0']) {
+      expect(panel.attributes('data-layout')).toBe('mega');
+      for (const token of [
+        'eldra:absolute',
+        'eldra:top-full',
+        'eldra:inset-x-0',
+        'data-[layout=mega]:pt-0',
+      ]) {
         expect(panel.classes()).toContain(token);
       }
       // A width of its own is exactly what the old panel had, and what made it feel arbitrary.
@@ -1637,15 +1708,15 @@ describe('header block (navigation apiId)', () => {
       // the float shadow, square-cornered, 2rem above and below, the page's own gutters at the sides.
       const sheet = panel.get('[data-part="content"]').classes();
       for (const token of [
-        'rounded-none',
-        'border-0',
-        'border-b',
+        'data-[layout=mega]:rounded-none',
+        'data-[layout=mega]:border-0',
+        'data-[layout=mega]:border-b',
         'border-border',
-        'shadow-(--eldra-shadow-float)',
-        'py-8',
-        'px-(--eldra-gutter-mobile)',
-        '@tablet:px-(--eldra-gutter-tablet)',
-        '@content:px-(--eldra-gutter-desktop)',
+        'shadow-md',
+        'data-[layout=mega]:py-8',
+        'data-[layout=mega]:px-(--eldra-gutter-mobile)',
+        'data-[layout=mega]:@tablet:px-(--eldra-gutter-tablet)',
+        'data-[layout=mega]:@content:px-(--eldra-gutter-desktop)',
       ]) {
         expect(sheet).toContain(token);
       }
@@ -1679,8 +1750,40 @@ describe('header block (navigation apiId)', () => {
       wrapper.unmount();
     });
 
-    it("offers the parent's own destination as a View all row, and a heading none", async () => {
+    it('ends a panel of sections on its columns, with no View all row', async () => {
+      // The design's Shop and Ceramics panels: the department's own page is reached through a
+      // column heading or a column's "see all", never a footer row under the columns.
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
+      await knitwear.trigger('click');
+      const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
+      expect(panel.find('[data-eldra-mega-view-all]').exists()).toBe(false);
+      // Nothing follows the columns: the footer row is empty, and `:empty` hides it.
+      const footer = panel.find('[data-part="footer"]');
+      expect(footer.exists() ? footer.element.children.length : 0).toBe(0);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    });
+
+    it("offers the parent's own destination as a View all row under a panel of plain children", async () => {
+      // A menu stored before sections existed has no headings to link from, so the parent's page
+      // is offered under its columns.
+      const wrapper = mountBlock(
+        {
+          ...resolved.data,
+          links: [
+            {
+              kind: 'url',
+              url: '/collections/knitwear',
+              label: 'Knitwear',
+              children: [
+                { kind: 'url', url: '/collections/sweaters', label: 'Sweaters', group: 'Women' },
+              ],
+            },
+          ],
+        },
+        { attachTo: document.body }
+      );
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       await knitwear.trigger('click');
       const panel = wrapper.get(`#${knitwear.attributes('aria-controls')}`);
@@ -1690,14 +1793,11 @@ describe('header block (navigation apiId)', () => {
       expect(viewAll.text()).toBe('View all');
       // Self-descriptive out of context (2.4.4), opening with the visible text (2.5.3).
       expect(viewAll.attributes('aria-label')).toBe('View all Knitwear');
-      // Right-aligned under a rule across the content width: it follows the columns, outside their grid.
       const row = viewAll.element.parentElement!;
       for (const token of ['justify-end', 'eldra:border-t', 'eldra:border-border', 'eldra:pt-4']) {
         expect([...row.classList]).toContain(token);
       }
       expect(row.previousElementSibling?.getAttribute('data-part')).toBe('columns');
-      // The trailing arrow the theme's other "view all" links carry, drawn outside the label so
-      // the underline runs under the words only.
       expect(viewAll.find('[data-part="arrow"]').exists()).toBe(true);
       expect(await axe(wrapper.element)).toHaveNoViolations();
       wrapper.unmount();
@@ -2078,10 +2178,8 @@ describe('header block (navigation apiId)', () => {
       // and a Menu button that opens an empty sheet is a control that does nothing.
       const wrapper = mountBlock(SEEDED);
       expect(wrapper.find('button[aria-label="Menu"]').exists()).toBe(false);
-      // `dialog[aria-label="Menu"]` is the drawer itself; the search overlay's own `<dialog>`
-      // renders either way, so the drawer has to be named rather than counted.
-      expect(wrapper.find('dialog[aria-label="Menu"]').exists()).toBe(false);
-      expect(mountBlock(resolved.data).find('dialog[aria-label="Menu"]').exists()).toBe(true);
+      expect(wrapper.find('[data-part="drawer"]').exists()).toBe(false);
+      expect(mountBlock(resolved.data).find('[data-part="drawer"]').exists()).toBe(true);
     });
 
     it('keeps the Menu button as soon as the drawer has something to show', () => {
@@ -2252,6 +2350,52 @@ describe('header block (navigation apiId)', () => {
         wrapper.unmount();
       } finally {
         stub.restore();
+      }
+    });
+
+    /**
+     * WS-1277: the variable is the bar's **visible** height. Readers offset a sticky box by it (the
+     * collection grid's filter rail and filter bar), so while the bar is slid away it must be 0 —
+     * the full height left those boxes hanging a header's height below the top over nothing.
+     */
+    it('publishes 0px while the bar is slid away on scroll-down, and the height again when it returns', async () => {
+      const stub = stubResizeObserver();
+      try {
+        const wrapper = mountBlock({ ...resolved.data, sticky: true }, { attachTo: document.body });
+        const header = wrapper.get('header').element as HTMLElement;
+        stubHeaderHeight(header, 72);
+        Object.defineProperty(header, 'offsetHeight', { value: 72, configurable: true });
+        await nextTick();
+        stub.trigger();
+        const value = () =>
+          document.documentElement.style.getPropertyValue('--eldra-header-height');
+        const scrollTo = async (y: number) => {
+          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          window.dispatchEvent(new Event('scroll'));
+          await nextTick();
+        };
+        expect(value()).toBe('72px');
+
+        await scrollTo(400); // down past the bar: it slides away
+        expect(wrapper.get('header').classes()).toContain('-translate-y-full');
+        expect(value()).toBe('0px');
+
+        // A resize while hidden is measured (the spacer keeps the bar's room) but not published.
+        stubHeaderHeight(header, 96);
+        stub.trigger();
+        expect(value()).toBe('0px');
+        await nextTick();
+        expect(wrapper.get('[data-eldra-header-spacer]').attributes('style')).toBe('height: 96px;');
+
+        await scrollTo(300); // up: it returns, and so does its height
+        expect(wrapper.get('header').classes()).not.toContain('-translate-y-full');
+        expect(value()).toBe('96px');
+
+        wrapper.unmount();
+        expect(value()).toBe('');
+      } finally {
+        stub.restore();
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
       }
     });
 
@@ -2558,5 +2702,233 @@ describe('the Northwind menu (the seed’s own)', () => {
     expect(mountSeed({ sticky: false }).get('header').classes()).not.toContain(
       'pr-(--eldra-scrollbar-width,0px)'
     );
+  });
+});
+
+/**
+ * WS-1277, the design boards `Currency-strip`, `Currency-strip-open`, `Currency-tablet` and
+ * `Currency-phone`: with an info strip the currency is a setting at the strip's end, "Prices in
+ * ISK", from 47.625rem; the bar has no picker of its own then; the phone menu's foot keeps it as a
+ * labelled select; and with no strip the bar keeps the boxed picker.
+ */
+describe('the currency', () => {
+  const COMMERCE = {
+    currency: 'ISK',
+    currencies: ['ISK', 'EUR', 'USD'],
+    taxInclusivePricing: true,
+    defaultTaxRate: 0.24,
+  };
+  function mountWithCurrencies(data: Record<string, unknown> = {}) {
+    return mount(Block, {
+      ...mountOptions(
+        { entry: { id: 'e1', data: { ...resolved.data, ...data } } },
+        { links: resolved.links, commerce: COMMERCE }
+      ),
+      attachTo: document.body,
+    });
+  }
+  type Wrapper = ReturnType<typeof mountWithCurrencies>;
+  const pickers = (wrapper: Wrapper) => wrapper.findAll('button[role="combobox"]');
+  const stripPicker = (wrapper: Wrapper) => wrapper.find('[data-eldra-header-currency]');
+  const barPicker = (wrapper: Wrapper) =>
+    wrapper
+      .findAllComponents(CurrencyPicker)
+      .find((picker) => picker.element.closest?.('[data-eldra-header-actions]') != null)!;
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('reads "Prices in ISK" at the end of the strip, from 47.625rem, after a rule', async () => {
+    const wrapper = mountWithCurrencies();
+    const strip = stripPicker(wrapper);
+    expect(strip.exists()).toBe(true);
+    expect(strip.element.closest('[data-eldra-header-info]')).not.toBeNull();
+    // Phones have no room for it in the strip: it is in the menu's foot there.
+    expect(strip.classes()).toContain('@max-[47.5625rem]:hidden');
+    // The rule before it, where Help and Order status show beside it.
+    expect(strip.classes()).toContain('@min-[68.8125rem]:border-l');
+    const button = strip.get('button[role="combobox"]');
+    expect(button.text().replace(/\s+/g, ' ').trim()).toBe('Prices in ISK');
+    expect(button.get('b').text()).toBe('ISK');
+    // Named by its own label, which starts with the visible words (2.5.3).
+    const name = document.getElementById(button.attributes('aria-labelledby')!.split(' ')[0]!);
+    expect(name?.textContent).toContain('Prices in');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('lists each currency by name with its code beside it, and chooses one', async () => {
+    const wrapper = mountWithCurrencies();
+    const button = stripPicker(wrapper).get('button[role="combobox"]');
+    (button.element as HTMLElement).focus();
+    await button.trigger('keydown', { key: 'ArrowDown' });
+    await flushIcons();
+    const rows = [...document.querySelectorAll('[role="option"]')];
+    expect(rows.map((row) => row.querySelector('small')?.textContent)).toEqual([
+      'ISK',
+      'EUR',
+      'USD',
+    ]);
+    expect(rows[1]!.textContent).toContain('Euro');
+    // Lifted over the fixed bar it is teleported out from under.
+    expect(rows[0]!.closest('[data-part="panel"]')!.className).toContain('z-41');
+    (rows[1] as HTMLElement).click();
+    await flushIcons();
+    expect(wrapper.findAllComponents(CurrencyPicker)[0]!.emitted('update:modelValue')).toEqual([
+      ['EUR'],
+    ]);
+  });
+
+  it('puts no picker in the bar while the strip has one', () => {
+    const wrapper = mountWithCurrencies();
+    expect(barPicker(wrapper).classes()).toContain('hidden');
+  });
+
+  it('keeps a labelled select in the phone menu’s foot, the full name showing', async () => {
+    const wrapper = mountWithCurrencies();
+    await wrapper.get('[data-part="toggle"]').trigger('click');
+    const foot = wrapper.get('[data-part="drawer"] [data-eldra-header-drawer-currency]');
+    const label = foot.get('label');
+    expect(label.text()).toBe('Prices in');
+    expect(label.find('svg').exists()).toBe(true);
+    expect(label.classes()).not.toContain('eldra:sr-only');
+    const select = foot.get('button[role="combobox"]');
+    expect(select.text()).toContain('(ISK)');
+    // A rule above it, after Account, Saved items and the strip's own links.
+    expect(foot.classes()).toContain('border-t');
+    const bar = wrapper.find('[data-part="nav"]');
+    if (bar.exists()) (bar.element as HTMLElement).style.display = 'none';
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('falls back to the bar with no info strip', () => {
+    const withMenu = mountWithCurrencies({ infoItems: [] });
+    expect(stripPicker(withMenu).exists()).toBe(false);
+    // Where the links are inline; the drawer's foot holds it below 68.8125rem.
+    expect(barPicker(withMenu).classes()).toContain('@min-[68.8125rem]:block');
+    expect(barPicker(withMenu).classes()).toContain('hidden');
+    const noMenu = mountWithCurrencies({
+      infoItems: [],
+      links: [],
+      ctaLabel: undefined,
+      cta: undefined,
+    });
+    expect(barPicker(noMenu).classes()).toContain('ml-1');
+    expect(barPicker(noMenu).classes()).not.toContain('hidden');
+  });
+
+  it('keeps the bar picker for a phone with a strip but no menu to hold it', () => {
+    const wrapper = mountWithCurrencies({ links: [], ctaLabel: undefined, cta: undefined });
+    expect(stripPicker(wrapper).exists()).toBe(true);
+    expect(barPicker(wrapper).classes()).toContain('@min-[47.625rem]:hidden');
+    expect(barPicker(wrapper).classes()).not.toContain('hidden');
+  });
+
+  it('draws nothing at all with one currency', () => {
+    const wrapper = mount(Block, {
+      ...mountOptions({ entry: { id: 'e1', data: resolved.data } }, { links: resolved.links }),
+      attachTo: document.body,
+    });
+    expect(stripPicker(wrapper).exists()).toBe(false);
+    expect(pickers(wrapper)).toHaveLength(0);
+  });
+});
+
+/** WS-1277: the rest of the design's header — Sale in the accent, Account in the bar, the Journal
+ *  dropdown's card, and the phone menu's foot. */
+describe('the Northwind header details', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('draws a link the merchant marked tone: "accent" in the accent colour, in the bar and the menu', async () => {
+    const wrapper = mountBlock(
+      {
+        ...resolved.data,
+        links: [
+          { kind: 'url', url: '/journal', label: 'Journal' },
+          { kind: 'url', url: '/sale', label: 'Sale', tone: 'accent' },
+        ],
+      },
+      { attachTo: document.body }
+    );
+    const [journal, sale] = wrapper.findAll('[data-part="link"]');
+    expect(sale!.attributes('data-tone')).toBe('accent');
+    expect(sale!.classes()).toContain('eldra:text-accent');
+    expect(journal!.attributes('data-tone')).toBeUndefined();
+    const row = wrapper.findAll('[data-part="drawerLink"]').find((r) => r.text() === 'Sale')!;
+    expect(row.attributes('data-tone')).toBe('accent');
+    // The seed's own Sale carries it.
+    expect(seed.links.find((link) => link.label === 'Sale')).toMatchObject({ tone: 'accent' });
+    wrapper.unmount();
+  });
+
+  it('shows Account between the links and Saved from 68.8125rem, and in the menu’s foot below', async () => {
+    const wrapper = mountBlock(
+      { ...resolved.data, account: { kind: 'url', url: '/pages/account', label: 'Account' } },
+      { attachTo: document.body }
+    );
+    const actions = wrapper.get('[data-eldra-header-actions]');
+    const tools = actions.findAll('a, button').map((tool) => tool.text().trim());
+    expect(tools.slice(0, 3)).toEqual(['Account', 'Saved', 'Cart']);
+    const account = actions.findAll('a').find((a) => a.text().trim() === 'Account')!;
+    expect(account.attributes('href')).toBe('/pages/account');
+    expect(account.classes()).toContain('@max-[68.8125rem]:hidden');
+    const foot = wrapper.get('[data-part="drawer"] [data-eldra-header-drawer-links]');
+    expect(foot.findAll('a').map((a) => a.text().trim())).toContain('Account');
+    wrapper.unmount();
+  });
+
+  it('draws the Journal dropdown as a 21rem card of titled rows, its "see all" lined up with them', async () => {
+    const wrapper = mount(Block, {
+      ...mountOptions(
+        { entry: { id: 'e1', data: resolveTargets(seed).data } },
+        {
+          links: resolveTargets(seed).links,
+        }
+      ),
+      attachTo: document.body,
+    });
+    const journal = wrapper.findAll('button').find((b) => b.text().includes('Journal'))!;
+    await journal.trigger('click');
+    const panel = wrapper.get(`#${journal.attributes('aria-controls')}`);
+    expect(panel.attributes('data-layout')).toBe('dropdown');
+    const card = panel.get('[data-part="content"]');
+    expect(card.attributes('data-layout')).toBe('dropdown');
+    for (const token of [
+      'data-[layout=dropdown]:w-[21rem]',
+      'data-[layout=dropdown]:rounded-lg',
+      'data-[layout=dropdown]:border',
+      'shadow-md',
+    ]) {
+      expect(card.classes()).toContain(token);
+    }
+    const rows = panel.findAll('[data-part="panelLink"]');
+    // Every row, the "see all" too, starts its text 0.75rem in.
+    for (const row of rows) expect(row.classes()).toContain('in-data-[layout=dropdown]:px-3');
+    expect(rows[0]!.classes()).toContain('in-data-[layout=dropdown]:hover:bg-surface');
+    expect(rows[0]!.get('[data-part="description"]').text()).toBe(
+      'Washing linen, seasoning boards, storing wool'
+    );
+    expect(rows[0]!.get('[data-part="panelLabel"]').classes()).toContain(
+      'in-data-[layout=dropdown]:font-semibold'
+    );
+    expect(rows.at(-1)!.attributes('data-see-all')).toBe('');
+    expect(rows.at(-1)!.text()).toBe('All articles');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('gives the menu’s foot a phone icon for the strip’s phone number', async () => {
+    const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+    await wrapper.get('[data-part="toggle"]').trigger('click');
+    await flushIcons();
+    const foot = wrapper.get('[data-part="drawer"] [data-eldra-header-drawer-links]');
+    const phone = foot.findAll('a').find((a) => a.attributes('href') === 'tel:+15550142290')!;
+    expect(phone.find('svg').exists()).toBe(true);
+    // Help has no icon of its own and is given none.
+    const help = foot.findAll('a').find((a) => a.text().trim() === 'Help')!;
+    expect(help.find('svg').exists()).toBe(false);
+    wrapper.unmount();
   });
 });

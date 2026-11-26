@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Site footer (spec `eldra-starter-spec/02-blocks.md` lines 440–597, restyled to the Northwind
- * design: a dark `primary` ground by default). `variant`:
+ * design: a near-black `dark` ground in the seeds and the mock). `variant`:
  *  - `default`: brand (wordmark, optional description, the store's address, phone · email and
  *    opening hours, social), link groups as columns, an optional newsletter sign-up on a light card.
  *    Bottom bar below a hairline: the legal line and links, and the locale/currency selectors.
@@ -29,10 +29,11 @@
  * platform knows, or an external URL — resolved once through `useEldraLink()`. A row whose target
  * has been deleted, or that the site has no route for, keeps its label and renders as plain text
  * rather than a dead anchor; a row with no label renders nothing. A same-site path routes through
- * `EldraRouterLink` (see `app/utils/links.ts`). Column and flat links are `:underline="false"`
- * (a list of links, not links in running text), underlined on hover; the phone and email links sit
- * in a line of text and the legal links keep the package's own underline-at-rest default (spec:
- * "always underlined").
+ * `EldraRouterLink` (see `app/utils/links.ts`). Every footer link is `:underline="false"` and
+ * underlined on hover, the design's `.nw-foot a`: the columns, the legal row and the phone · email
+ * line are each a run of links on their own (the line's only other text is its `·` separator), not
+ * links inside running text, so nothing needs an underline at rest to be told apart. Links are the
+ * ground's own light tone at regular weight, a step brighter than the body text around them.
  *
  * The locale selector is **not** CMS content, and it is not a theme constant either: its options are
  * the organisation's own content locales (`useEldraLocale().supported`, read once at build onto the
@@ -110,7 +111,8 @@ const NEWSLETTER_FORM_KEY = 'newsletter';
 
 const props = defineProps<{ entry: EldraBlockEntry<'footer'> }>();
 const { data } = useBlockData(props, 'footer');
-const { t } = useI18n();
+/** Currency names are words in the page's language; prices follow the regional format instead. */
+const { t, locale: contentLocale } = useI18n();
 /**
  * The spec's three Footer "States" hints (`eldra-starter-spec/02-blocks.md`): a freshly inserted
  * footer has no description, no link groups and — on a page that already carries a Newsletter
@@ -131,22 +133,50 @@ const headingId = `footer-heading-${useUiId()}`;
 
 const variant = computed(() => data.value.variant ?? 'default');
 /**
- * The Northwind design is a dark footer: the `primary` ground with light text. That is the look an
- * unset field gets; `surface-strong` stays available for a theme that wants a light footer.
+ * Three grounds. `dark` is the Northwind design's (`.nw-foot`): the `text` colour role as the
+ * ground, near-black, with the `background` role for its light text — no token of its own, so a
+ * site that restyles its text colour restyles this footer with it. `primary` is the brand colour
+ * (the look an unset field keeps, so an existing footer does not change under its author), and
+ * `surface-strong` a light footer.
+ *
+ * `Section` knows five grounds, not `dark`, so a dark footer is a `primary` section painted
+ * `bg-text`: the app's utility outranks the package's `@layer components` fill, and the section
+ * keeps `data-section="primary"`, which is what makes `@eldrajs/ui`'s `Link`/`Button` draw their
+ * light-on-dark colours (`section-primary:`) inside it. Every colour this block writes itself on the
+ * dark ground is in `TONES.dark` below.
  */
 const background = computed(() => data.value.background ?? 'primary');
+const sectionBackground = computed(() =>
+  background.value === 'surface-strong' ? 'surface-strong' : 'primary'
+);
+const groundClass = computed(() => (background.value === 'dark' ? 'bg-text text-background' : ''));
 
 /**
  * The colours this block writes itself, per ground. `@eldrajs/ui`'s `Link` and `Button` invert on a
  * primary `Section` on their own (`section-primary:`); plain text, rules and the select trigger do
  * not, so each one is picked here. Every pair clears WCAG AA: on primary, 85% of
  * `primary-contrast` is about 8:1 and 75% about 6:1 against the ground; on `surface-strong` the
- * `muted` role is about 5.6:1.
+ * `muted` role is about 5.6:1. On `dark` the design's own steps are mixes of `background` over
+ * `text` (body `#d9d2c6` ≈ 85%, links `#f2ede4` ≈ 95%, column headings `#bfb6a8` ≈ 75%, the rule
+ * `#3a3631` ≈ 15%), the lowest of them about 9:1; the social rings are `muted` (`#5a5248`) and the
+ * select's box is `border-strong` (`#776c5c`), both exactly the design's.
  */
 const TONES = {
+  dark: {
+    body: 'text-background/85',
+    strong: 'text-background',
+    link: 'text-background/95 font-normal hover:text-background',
+    heading: 'text-background/75',
+    rule: 'border-background/15',
+    ring: 'border-muted text-background hover:border-background',
+    trigger: 'bg-transparent text-background border-border-strong hover:border-background',
+    chevron: 'text-background/75',
+    pickerLabel: '[&>[data-part=label]]:text-background/85',
+  },
   primary: {
     body: 'text-primary-contrast/85',
     strong: 'text-primary-contrast',
+    link: 'font-normal',
     heading: 'text-primary-contrast/75',
     rule: 'border-primary-contrast/20',
     ring: 'border-primary-contrast/40 hover:border-primary-contrast',
@@ -158,6 +188,7 @@ const TONES = {
   'surface-strong': {
     body: 'text-muted',
     strong: 'text-text',
+    link: 'font-normal',
     heading: 'text-muted',
     rule: 'border-border',
     ring: 'border-border-strong hover:border-text',
@@ -466,11 +497,11 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
 <template>
   <Section
     as="footer"
-    :background="background"
+    :background="sectionBackground"
     spacing="none"
     :labelled-by="variant === 'default' ? headingId : undefined"
     :aria-label="variant === 'minimal' ? t('footer.title') : undefined"
-    :class="paddingClass"
+    :class="[paddingClass, groundClass]"
   >
     <Container width="wide">
       <VisuallyHidden v-if="variant === 'default'" :id="headingId" as="h2">{{
@@ -490,7 +521,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             :as="EldraRouterLink"
             variant="standalone"
             :underline="false"
-            class="mb-4 inline-flex max-w-full items-center hover:no-underline active:no-underline"
+            class="mb-1 inline-flex max-w-full items-center hover:no-underline active:no-underline"
             :classes="{
               label: ['font-heading text-[2.5rem] leading-none font-medium', tone.strong].join(' '),
             }"
@@ -520,14 +551,20 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
               <p v-if="address">{{ address }}</p>
               <p v-if="hasContactLine" class="flex flex-wrap items-baseline gap-x-2">
                 <template v-if="phone">
-                  <Link v-if="telHref" :href="telHref">{{ phone }}</Link>
+                  <Link v-if="telHref" :href="telHref" :underline="false" :class="tone.link">{{
+                    phone
+                  }}</Link>
                   <span v-else>{{ phone }}</span>
                 </template>
                 <span v-if="phone && storeEmail" aria-hidden="true">·</span>
                 <template v-if="storeEmail">
-                  <Link v-if="mailtoHref" :href="mailtoHref" class="break-all">{{
-                    storeEmail
-                  }}</Link>
+                  <Link
+                    v-if="mailtoHref"
+                    :href="mailtoHref"
+                    :underline="false"
+                    :class="['break-all', tone.link]"
+                    >{{ storeEmail }}</Link
+                  >
                   <span v-else class="break-all">{{ storeEmail }}</span>
                 </template>
               </p>
@@ -583,7 +620,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                   :href="link.href"
                   :as="link.as"
                   :underline="false"
-                  class="text-base leading-relaxed"
+                  :class="['text-base leading-relaxed', tone.link]"
                   >{{ link.label }}</Link
                 >
                 <span v-else :class="['text-base leading-relaxed', tone.body]">{{
@@ -701,7 +738,7 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 :href="link.href"
                 :as="link.as"
                 :underline="false"
-                class="inline-flex min-h-9 items-center text-base"
+                :class="['inline-flex min-h-9 items-center text-base', tone.link]"
                 >{{ link.label }}</Link
               >
               <span v-else :class="['inline-flex min-h-9 items-center text-base', tone.body]">{{
@@ -748,7 +785,8 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
                 v-if="link.href"
                 :href="link.href"
                 :as="link.as"
-                class="inline-flex min-h-6 items-center"
+                :underline="false"
+                :class="['inline-flex min-h-6 items-center', tone.link]"
                 >{{ link.label }}</Link
               >
               <span v-else class="inline-flex min-h-6 items-center">{{ link.label }}</span>
@@ -783,18 +821,23 @@ async function onNewsletterSubmit(payload: FormLayoutSubmitPayload): Promise<voi
             }}</span>
           </p>
           <CurrencyPicker
+            :locale="contentLocale"
             v-else-if="showCurrencySelector"
             :currencies="currencyCodes"
             :model-value="currencyStore.active.value"
             :busy="currencyStore.busy.value"
             :label="t('footer.currencyLabel')"
             show-label
-            size="sm"
+            size="md"
             placement="above"
             :class="['flex items-center gap-2', tone.pickerLabel]"
             :classes="selectClasses"
             @update:model-value="currencyStore.choose"
-          />
+          >
+            <!-- The design's "Prices in  Icelandic króna (ISK)": the closed box names the currency in
+                 full, as its options do, rather than the bare code the header's compact picker shows. -->
+            <template #value="{ label }">{{ label }}</template>
+          </CurrencyPicker>
         </div>
       </div>
     </Container>

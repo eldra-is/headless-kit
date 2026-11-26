@@ -131,6 +131,19 @@ describe('breadcrumbs block', () => {
     expect(nav.get('ol').exists()).toBe(true);
   });
 
+  /** The Northwind trail (design `.nw-crumbs`): a "/" drawn by CSS between crumbs, in place of the
+   *  primitive's chevron, still inside the `aria-hidden` separator so it is never read out. */
+  it('separates the crumbs with a CSS "/" in place of the chevron, hidden from assistive tech', () => {
+    const wrapper = mountBlock(mock);
+    const separators = wrapper.findAll('[data-part="separator"]');
+    expect(separators.length).toBeGreaterThan(0);
+    for (const separator of separators) {
+      expect(separator.attributes('aria-hidden')).toBe('true');
+      expect(separator.classes()).toContain("before:content-['/']");
+      expect(separator.classes()).toContain('[&>svg]:hidden');
+    }
+  });
+
   it('marks the current page as a span[aria-current=page], never a link', () => {
     const wrapper = mountBlock(mock);
     const current = wrapper.get('[data-part="current"]');

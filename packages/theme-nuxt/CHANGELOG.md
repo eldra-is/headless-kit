@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **The organisation's regional format (WS-1277).** The build reads it once beside the commerce settings and locales (`features.getRegion()`, fail-soft with its own warning, `REGION_READ_FAILED_WARNING`) and bakes it into `runtimeConfig.public.eldra.region`: `{ countryCode, formatLocale, timeZone }` or `null`. New subpath `@eldrajs/theme-nuxt/region` (`StoreRegion`, `resolveStoreRegion`, `readStoreRegion`) and auto-import `useEldraRegion()`. Format money, numbers and dates with `formatLocale` and keep strings on the content locale.
 - **A theme can keep a draft preview session's veil up for its own reads (WS-1277).** New
   auto-import `holdPreviewSession(work)`: work started while a session is covered (a read outside
   Nuxt's async data that the draft's own render started, such as a block whose draft names a

@@ -60,9 +60,7 @@
           {
             "icon": "arrow-back-up",
             "title": "30 days to change your mind",
-            "text": "Unused items back for a full refund.",
-            "linkLabel": "30 days to change your mind: our returns policy",
-            "href": "/pages/returns"
+            "text": "Unused items back for a full refund."
           }
         ],
         "mobileLayout": "grid",
@@ -150,7 +148,6 @@
       "data": {
         "eyebrow": "Just in",
         "heading": "New arrivals",
-        "viewAllLabel": "View all",
         "variant": "collection",
         "layout": "grid",
         "limit": "8",
@@ -254,7 +251,6 @@
             "href": "/journal/slower-morning-coffee",
             "categoryLabel": "At home",
             "categoryHref": "/journal/home",
-            "publishedAt": "2026-10-02",
             "readingTime": "4 min read",
             "image": {
               "assetId": "demo-journal-1",
@@ -270,7 +266,6 @@
             "href": "/journal/harbour-pottery",
             "categoryLabel": "Workshop visit",
             "categoryHref": "/journal/makers",
-            "publishedAt": "2026-09-24",
             "readingTime": "6 min read",
             "image": {
               "assetId": "demo-journal-2",
@@ -286,7 +281,6 @@
             "href": "/journal/layering-throws",
             "categoryLabel": "Knitting",
             "categoryHref": "/journal/care",
-            "publishedAt": "2026-09-12",
             "readingTime": "3 min read",
             "image": {
               "assetId": "demo-journal-3",
@@ -305,7 +299,7 @@
       "data": {
         "variant": "split",
         "heading": "Letters from the workshop",
-        "text": "New pieces and small-batch restocks, once a month. Take 10% off your first order when you join.",
+        "text": "New pieces and small-batch restocks, once a month.",
         "fieldLabel": "Email address",
         "placeholder": "you@example.com",
         "buttonLabel": "Subscribe",
@@ -341,7 +335,7 @@
         },
         "requireConsentCheckbox": false,
         "successTitle": "You're on the list",
-        "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
+        "successText": "Check your inbox to confirm your address. The first letter arrives next month.",
         "helpHeading": "Questions before you buy?",
         "helpText": "Sizes, glazes, gift ideas: we know every piece in the shop.",
         "contacts": [
@@ -369,9 +363,8 @@
       "id": "home-footer",
       "data": {
         "variant": "default",
-        "background": "primary",
+        "background": "dark",
         "brandText": "Northwind Goods",
-        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
         "showNewsletter": false,

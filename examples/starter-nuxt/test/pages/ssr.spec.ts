@@ -377,7 +377,9 @@ describe('server rendering', () => {
 
       expect(html).toContain('Fisherman rib cardigan');
       expect(html).toContain('$164.00');
-      expect(html).toContain('In stock, ships in 1–2 days');
+      // The maker line, not a stock line: the theme's card draws none (`toProductCard`).
+      expect(html).toContain('Fell &amp; Fleece');
+      expect(html).not.toContain('In stock, ships in 1–2 days');
       expect(html).not.toContain('eldra-skeleton');
       expect(html).not.toContain('eldra-revalidating');
       expect(html).not.toContain('aria-busy="true"');

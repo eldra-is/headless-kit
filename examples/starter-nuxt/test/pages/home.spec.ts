@@ -127,17 +127,15 @@ describe('home page (pages/home.page.json)', () => {
     // `winter-knitwear`/`the-winter-edit` — a slug the demo catalogue doesn't recognise resolves
     // to no products at all and the whole block renders nothing live, so the fixture names a real
     // collection rather than a placeholder. Real product cards render, capped at the `limit: "8"`
-    // override, and "View all" points at the collection the block is sourced from — the
-    // `collection` variant derives its own link (`/collections/<slug>`) and has no `viewAllHref`
-    // field to override it with.
+    // override.
     const carouselRoot = roots[4];
     expect(carouselRoot.querySelectorAll('h3')).toHaveLength(8);
-    // The carousel's heading is its "view all" link: the label lives in the anchor's accessible
-    // name, not its visible text.
-    const viewAllLink = [...main.element.querySelectorAll('a')].find((a) =>
-      a.getAttribute('aria-label')?.includes('View all')
-    );
-    expect(viewAllLink?.getAttribute('href')).toBe('/collections/the-winter-edit');
+    // "Just in / New arrivals" is a plain heading with the filter chips beside it, as the design
+    // draws it: the fixture sets no `viewAllLabel`, so the heading is not a "view all" link.
+    const carouselHeading = carouselRoot.querySelector('h2')!;
+    expect(carouselHeading.textContent).toBe('New arrivals');
+    expect(carouselHeading.querySelector('a')).toBeNull();
+    expect(carouselRoot.querySelector('[aria-pressed]')).not.toBeNull();
     // The slug came out of the reference, not out of a handle field: the fixture carries no
     // `sourceHandle`, and there is no field left that could have supplied it.
     const carouselData = homeFixture.blocks.find((block) => block.apiId === 'product-carousel')!
@@ -152,8 +150,14 @@ describe('home page (pages/home.page.json)', () => {
     expect(splitRows[0]!.children[0]?.className).not.toContain('order-2');
     expect(roots[5].textContent).toContain('Harbour Pottery');
 
-    // article-list: the three journal stories the fixture names.
+    // article-list: the three journal stories the fixture names, each with its "category · reading
+    // time" line above the title and no date under it (the stories carry no `publishedAt`).
     expect(roots[6].querySelectorAll('h3')).toHaveLength(3);
+    expect(roots[6].textContent).toContain('At home · 4 min read');
+    expect(roots[6].querySelector('time')).toBeNull();
+
+    // trust-strip: the three promises are plain titles, none of them a link.
+    expect(roots[2].querySelectorAll('a')).toHaveLength(0);
 
     // footer `showNewsletter: false`: its own newsletter copy never renders.
     expect(roots[8].textContent).not.toContain('New pieces, maker stories');
@@ -212,7 +216,7 @@ describe('home page (pages/home.page.json)', () => {
     expect(newsletterForms).toHaveLength(1);
   });
 
-  it('opens the mobile menu as a dialog from the menu button, and Esc returns focus to it', async () => {
+  it('opens the mobile menu under the header from the menu button, and Esc returns focus to it', async () => {
     // `withAuthoredHeaderLink`: the seeded header ships no links and no call to action, so it
     // draws no Menu button and no drawer — see that helper's own comment. The mobile
     // menu is what a header a merchant *has* filled in offers, which is the state under test here.
@@ -221,18 +225,21 @@ describe('home page (pages/home.page.json)', () => {
     });
     // The menu button lives in the header, which is a sibling of `<main>` now — so this reads off
     // the whole page rather than `main`.
-    const menuButton = wrapper.get('button[aria-haspopup="dialog"][aria-controls]');
+    // The menu is the design's inline drawer: a disclosure under the bar, not a dialog.
+    const menuButton = wrapper.get('[data-part="toggle"]');
     menuButton.element.focus();
     await menuButton.trigger('click');
 
-    const dialog = wrapper.get('dialog');
-    expect(dialog.attributes('open')).toBe('');
+    const drawer = wrapper.get(`#${menuButton.attributes('aria-controls')}`);
+    expect(menuButton.attributes('aria-expanded')).toBe('true');
+    expect((drawer.element as HTMLElement).style.display).toBe('');
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await new Promise((resolve) => setTimeout(resolve));
     await wrapper.vm.$nextTick();
 
-    expect(wrapper.get('dialog').attributes('open')).toBeUndefined();
+    expect(menuButton.attributes('aria-expanded')).toBe('false');
+    expect((drawer.element as HTMLElement).style.display).toBe('none');
     expect(document.activeElement).toBe(menuButton.element);
 
     wrapper.unmount();
@@ -279,10 +286,10 @@ describe('home page (pages/home.page.json)', () => {
     const wrapper = await mountPage(homeFixture);
     const text = wrapper.text();
 
-    expect(text).toContain('Portland');
+    // The design's home page names the delivery threshold and the returns window; the studio's
+    // city and the welcome discount live on other pages (the footer carries no description here).
     expect(text).toContain('$80');
     expect(text).toMatch(/30[- ]day/);
-    expect(text).toContain('10%');
 
     expect(text).not.toContain('Leeds');
     expect(text).not.toContain('Bergen');

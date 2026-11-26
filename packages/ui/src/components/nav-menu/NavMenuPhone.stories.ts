@@ -104,3 +104,30 @@ export const RestyledThroughVariables: Story = {
     }),
   ],
 };
+
+/**
+ * `drawerMode: 'inline'`: the header stays and the menu opens under it, filling the window below;
+ * the menu button reads Close while it is open. The root is `static` so the drawer hangs from the
+ * whole header, as a mega panel does; there is no drawer header, and the footer follows the entries.
+ */
+export const Inline: Story = {
+  args: {
+    drawerMode: 'inline',
+    items: [...ITEMS, { label: 'Sale', href: '#sale', tone: 'accent' }],
+  },
+  render: (args) => ({
+    components: { NavMenu },
+    setup: () => ({ args }),
+    template: `
+      <header class="relative flex h-16 items-center gap-4 border-b border-border bg-background px-4">
+        <a href="#top" class="me-auto text-h4 text-text">Northwind</a>
+        <NavMenu v-bind="args" class="static">
+          <template #drawerFooter>
+            <a href="#account" class="font-medium text-text">Account</a>
+            <a href="#saved" class="font-medium text-text">Saved items</a>
+          </template>
+        </NavMenu>
+      </header>
+    `,
+  }),
+};

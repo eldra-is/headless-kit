@@ -303,9 +303,15 @@
     {
       "kind": "url",
       "url": "/collections/the-winter-edit",
-      "label": "Sale"
+      "label": "Sale",
+      "tone": "accent"
     }
   ],
+  "account": {
+    "kind": "url",
+    "url": "/pages/account",
+    "label": "Account"
+  },
   "ctaLabel": null,
   "cta": null
 }

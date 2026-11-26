@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useControllableModel } from '../../composables/useControllableModel';
 import { ACCORDION_KEY } from './context';
 import { supportsExclusiveDetailsGroups } from './detailsExclusivity';
@@ -62,6 +62,24 @@ function heightAnimatorFor(panel: HTMLDivElement | undefined): PanelHeightAnimat
  */
 let closing = false;
 
+/**
+ * The open state the panel was last **shown** in: what the `<details>` had at mount, then whatever
+ * each `toggle` reported. `onToggle` animates an open only when this says the panel was closed.
+ *
+ * A browser fires `toggle` for a `<details>` that is *already* open when it is created or parsed —
+ * an item rendered with `modelValue: true`, or a prerendered `<details open>` being hydrated — one
+ * task after mount, with nothing having changed. Animating that event played the panel from `0` on
+ * every page load (a layout shift on a page whose HTML already showed it open), and held it at
+ * `height: 0; overflow: hidden` for as long as the document timeline did not advance: in a
+ * background tab, a throttled preview iframe or a screenshot taken before the first frame, the
+ * product page's open Details row stayed clipped to its padding with the rows below drawn over it.
+ * `null` until mount, which no `toggle` before mount can reach (the listener is not attached yet).
+ */
+let shownOpen: boolean | null = null;
+onMounted(() => {
+  shownOpen = detailsRef.value?.open ?? null;
+});
+
 const isLinkRow = computed(() => props.href !== undefined);
 
 /** No default: plain text unless the page outline needs a heading (spec "Accordion" →
@@ -120,7 +138,11 @@ function onToggle(event: Event): void {
    * for exactly when this is skipped in favour of an instant reveal (reduced motion, no
    * `Element.prototype.animate`, or no stylesheet to read the duration/easing tokens from).
    */
-  if (open) {
+  const wasOpen = shownOpen;
+  shownOpen = open;
+  // An open the panel was already showing (the initial-open `toggle`, see `shownOpen`) is not a
+  // change, so there is nothing to animate.
+  if (open && wasOpen !== true) {
     void heightAnimatorFor(panelRef.value)?.open();
   }
   if (open && detailsName.value !== undefined && !supportsExclusiveDetailsGroups()) {

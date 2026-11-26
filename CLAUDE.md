@@ -341,15 +341,17 @@ iframe; `@eldrajs/theme-vue`'s `useEldraPreview`/`startEldraPreview` wire a Vue 
 
 ### Build-time platform reads
 
-`@eldrajs/theme-nuxt`'s module makes four reads of the organisation's platform state, once, at
+`@eldrajs/theme-nuxt`'s module makes five reads of the organisation's platform state, once, at
 `nuxi generate` time, in parallel (`packages/theme-nuxt/src/module.ts:360`): commerce settings
-(currency), content locales, theme-message overrides (`GET /site/v1/theme-messages`) and resolved
+(currency), content locales, the regional format (`region`: the locale money, numbers and dates are
+written in and their time zone — not the content locale; `runtimeConfig.public.eldra.region`,
+`useEldraRegion()`), theme-message overrides (`GET /site/v1/theme-messages`) and resolved
 design tokens (`GET /site/v1/design-tokens`). **Each is independently fail-soft** — a gateway that
 cannot be reached, a response that fails its own shape check, or a credential-less build all answer
 `null` with one `console.warn` line, never a failed build, and never let one read's failure take
 another down (a currency the gateway will not give up must not cost the site its locales). A theme
 with no `ELDRA_GATEWAY_URL`/`ELDRA_ORG_ID` configured still produces the static shell a scaffold
-build is for. See `readStoreCommerce`/`readStoreLocales`/`readThemeMessages`/`readDesignTokens` and
+build is for. See `readStoreCommerce`/`readStoreLocales`/`readStoreRegion`/`readThemeMessages`/`readDesignTokens` and
 their own `*_WARNING` constants for the exact wording each prints.
 
 Form definitions follow the same rule: every key in `eldra.formSeeds` and `eldra.forms` is read

@@ -50,12 +50,11 @@
  * products" floor is about whether the block is worth showing at all, not about a shopper's own
  * narrowing.
  *
- * Cards are restyled through `ProductCard`'s `classes`, never forked: the title is not underlined
- * until hover, the price sits beside the title from 761px, and the quick-add pill shares the
- * photo's grid cell (the card root becomes a one-column grid so the pill can sit on the media
- * without knowing its height).
+ * Cards are drawn the theme's one way, `productCardLook()` (`app/storefront/productCardLook.ts`),
+ * shared with `collection-grid` and `search`: the maker under the title, plain colour dots, "New"/
+ * "Sale" chips and a "+ Add" pill on the photo.
  */
-import { computed, inject, nextTick, ref, toValue, watch } from 'vue';
+import { computed, inject, ref, toValue, watch } from 'vue';
 import {
   Button,
   Carousel,
@@ -67,13 +66,10 @@ import {
   ProductCard,
   Section,
   Skeleton,
-  useToast,
   VisuallyHidden,
 } from '@eldrajs/ui';
-import type { CarouselPart, ProductCardPart, SectionBackground } from '@eldrajs/ui';
-import { useEldraLocale } from '@eldrajs/theme-vue';
-import { useStorefrontFeedback } from '../../app/composables/useStorefrontFeedback';
-import { CART_ADD_TOAST_ID } from '../../app/storefront/feedback';
+import type { CarouselPart, SectionBackground } from '@eldrajs/ui';
+import { useQuickAdd } from '../../app/composables/useQuickAdd';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRevalidating } from '../../app/composables/useRevalidating';
@@ -84,7 +80,6 @@ import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import type {
   StorefrontCollectionSelector,
-  StorefrontProduct,
   StorefrontProductListItem,
 } from '../../app/storefront/types';
 import {
@@ -93,6 +88,7 @@ import {
   selectorSlug,
 } from '../../app/storefront/collectionSelector';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { productCardLook } from '../../app/storefront/productCardLook';
 import { useMoney } from '../../app/storefront/money';
 
 const props = defineProps<{ entry: EldraBlockEntry<'product-carousel'> }>();
@@ -417,100 +413,13 @@ const showFilteredEmpty = computed(
 /* ---------------------------------------------------------------------------------------------- */
 
 const showQuickAdd = computed(() => (data.value.quickAdd ?? false) && !isRecentlyViewed.value);
-/** `null` until a pill is pressed, so the read asks for nothing on the server or on load. */
-const quickAddHandle = ref<string | null>(null);
-const quickAddResult = storefront.catalog.product(quickAddHandle);
-const quickAddBusy = ref(false);
-const toast = useToast();
-const feedback = useStorefrontFeedback();
-const activeLocale = useEldraLocale();
-
-/** Resolves once the product read for `handle` has settled: the product, or `null` when the read
- *  failed or answered nothing. */
-async function readProduct(handle: string): Promise<StorefrontProduct | null> {
-  quickAddHandle.value = handle;
-  await nextTick();
-  const settled = (): boolean =>
-    !quickAddResult.loading.value &&
-    (quickAddResult.data.value?.handle === handle || quickAddResult.error.value !== null);
-  if (!settled()) {
-    await new Promise<void>((resolve) => {
-      const stop = watch(
-        () => [quickAddResult.loading.value, quickAddResult.data.value, quickAddResult.error.value],
-        () => {
-          if (!settled()) return;
-          stop();
-          resolve();
-        }
-      );
-    });
-  }
-  const product = quickAddResult.data.value;
-  return product !== null && product.handle === handle ? product : null;
-}
-
-async function onQuickAdd(item: { handle: string }): Promise<void> {
-  if (quickAddBusy.value) return;
-  quickAddBusy.value = true;
-  try {
-    const product = await readProduct(item.handle);
-    if (product === null || product.variantId === '') {
-      feedback.report(null, { id: CART_ADD_TOAST_ID });
-      return;
-    }
-    const cart = storefront.cart;
-    const failure = await cart.add({
-      productId: product.productId,
-      variantId: product.variantId,
-      quantity: 1,
-    });
-    if (failure !== null) {
-      feedback.report(failure, { id: CART_ADD_TOAST_ID });
-      return;
-    }
-    toast.show({
-      id: CART_ADD_TOAST_ID,
-      title: t('cart.added'),
-      action: cart.drawerAvailable.value
-        ? {
-            label: t('cart.viewCart'),
-            onActivate: () => {
-              cart.drawerOpen.value = true;
-            },
-          }
-        : { label: t('cart.viewCart'), href: activeLocale.path('/cart') },
-    });
-  } finally {
-    quickAddBusy.value = false;
-  }
-}
+/** The shared "+ Add" (`app/composables/useQuickAdd.ts`): read, add one, toast. */
+const quickAdd = useQuickAdd();
+const onQuickAdd = quickAdd.add;
 
 /* ---------------------------------------------------------------------------------------------- */
 /* Card and grid styling                                                                          */
 /* ---------------------------------------------------------------------------------------------- */
-
-/** The card's own parts, restyled to the theme (see the module doc comment). The root is a
- *  one-column grid so the quick-add pill can share the photo's cell; from 761px of block width
- *  the price moves beside the title. */
-const CARD_ROOT_CLASS = 'grid grid-cols-1 grid-rows-[auto_1fr] content-start';
-const cardClasses = computed<Partial<Record<ProductCardPart, string>>>(() => ({
-  media: '[grid-area:1/1]',
-  body:
-    '[grid-area:2/1] @min-[47.5625rem]:grid @min-[47.5625rem]:grid-cols-[minmax(0,1fr)_auto] ' +
-    '@min-[47.5625rem]:items-baseline @min-[47.5625rem]:content-start @min-[47.5625rem]:gap-x-3',
-  title: 'leading-[1.35]',
-  link:
-    'no-underline hover:underline hover:decoration-1 hover:decoration-current ' +
-    'hover:underline-offset-[0.2em]',
-  price: 'whitespace-nowrap',
-  rating: '@min-[47.5625rem]:col-span-2',
-  stockLine: '@min-[47.5625rem]:col-span-2',
-  swatches: 'mt-1 @min-[47.5625rem]:col-span-2',
-  quickAdd:
-    '[grid-area:1/1] z-10 m-3 mt-0 self-end justify-self-end w-auto h-10 min-h-10 rounded-full ' +
-    'border-0 bg-background px-3.5 text-sm font-semibold text-text shadow-sm ' +
-    'hover:bg-text hover:text-background disabled:opacity-90',
-}));
 
 const GRID_CLASS =
   'grid grid-cols-2 gap-x-3 gap-y-8 @min-[47.5625rem]:grid-cols-3 @min-[47.5625rem]:gap-x-5 ' +
@@ -571,20 +480,7 @@ const showBlock = computed(() =>
         <div class="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
           <div>
             <p v-if="data.eyebrow" class="text-overline text-accent mb-2">{{ data.eyebrow }}</p>
-            <h2 :id="headingId" :class="HEADING_CLASSES">
-              <Link
-                v-if="hasViewAll"
-                :href="viewAllHref!"
-                :as="viewAllLinkAs"
-                variant="standalone"
-                arrow
-                :aria-label="`${heading} — ${data.viewAllLabel}${t('productCarousel.viewAllContext')}`"
-                :class="`${HEADING_CLASSES} text-inherit`"
-              >
-                {{ heading }}
-              </Link>
-              <template v-else>{{ heading }}</template>
-            </h2>
+            <h2 :id="headingId" :class="HEADING_CLASSES">{{ heading }}</h2>
           </div>
           <ul
             v-if="hasFilterChips"
@@ -606,6 +502,22 @@ const showBlock = computed(() =>
               </button>
             </li>
           </ul>
+          <!-- The grid's head row is the design's section head: a plain heading on the left and
+               the "view all" link on its own at the right ("Shop all knitwear →"), named by its
+               own text, underlined on hover only (the design's standalone shape, the opt-out `Link` keeps for
+               it). The carousel keeps the heading-as-link below, where a separate link beside
+               the arrows read as a third control; the grid has no arrows. -->
+          <Link
+            v-if="hasViewAll"
+            :href="viewAllHref!"
+            :as="viewAllLinkAs"
+            variant="standalone"
+            arrow
+            :underline="false"
+            data-view-all
+          >
+            {{ data.viewAllLabel }}
+          </Link>
         </div>
 
         <ul v-if="showSkeletons" role="list" :class="GRID_CLASS">
@@ -616,10 +528,9 @@ const showBlock = computed(() =>
             <ProductCard
               :product="entry.product"
               :ratio="cardRatio"
-              :class="[CARD_CLASS, CARD_ROOT_CLASS]"
-              :classes="cardClasses"
+              v-bind="productCardLook(t, entry.product.title)"
+              :class="CARD_CLASS"
               :show-swatches="showSwatchesField"
-              :show-rating="true"
               :quick-add="showQuickAdd"
               :heading-level="3"
               :revalidating="entry.revalidating"
@@ -687,10 +598,9 @@ const showBlock = computed(() =>
             <ProductCard
               :product="entry.product"
               :ratio="cardRatio"
-              :class="[CARD_CLASS, CARD_ROOT_CLASS]"
-              :classes="cardClasses"
+              v-bind="productCardLook(t, entry.product.title)"
+              :class="CARD_CLASS"
               :show-swatches="!isRecentlyViewed && showSwatchesField"
-              :show-rating="!isRecentlyViewed"
               :quick-add="showQuickAdd"
               :heading-level="3"
               :revalidating="entry.revalidating"

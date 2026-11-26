@@ -104,6 +104,21 @@ interface RawProductListItem {
    * here; see its own comment for why the dots are gated on the option's `kind`.
    */
   options?: RawProductOption[] | null;
+  /** The product's brand; absent for a product without one. */
+  brand?: RawProductBrand | null;
+}
+
+/** `catalogweb_WebProductBrand`: only the name is read, as the product's `vendor`. */
+interface RawProductBrand {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/** `vendor` from a raw brand: the trimmed name, or nothing at all. */
+function vendorField(brand: RawProductBrand | null | undefined): { vendor?: string } {
+  const name = brand?.name?.trim() ?? '';
+  return name === '' ? {} : { vendor: name };
 }
 
 /**
@@ -250,6 +265,8 @@ interface RawProductDetails {
   mediaLinks?: RawMediaItem[] | null;
   options?: RawProductOption[] | null;
   variants?: RawProductVariant[] | null;
+  /** The product's brand; absent for a product without one. */
+  brand?: RawProductBrand | null;
 }
 
 /** One row of `POST /inventory/v1/stock/availability`'s answer. */
@@ -439,6 +456,7 @@ function mapProductListItem(raw: RawProductListItem): StorefrontProductListItem 
       ...currencyFields(raw),
     },
     ...(colours === undefined ? {} : { colours }),
+    ...vendorField(raw.brand),
     // A card stays on the product's published status, not on inventory: the availability read is
     // per *variant*, and a list row carries no variant at all (see `StorefrontProductListItem`), so
     // answering a grid from inventory would mean one product detail read per card. The product page
@@ -560,6 +578,7 @@ function mapProductDetails(
     url: `/products/${raw.slug}`,
     featuredImage: images[0] ?? null,
     images,
+    ...vendorField(raw.brand),
     price: {
       amount: firstAvailable?.price ?? minPrice,
       compareAt: firstAvailable?.compareAtPrice ?? null,

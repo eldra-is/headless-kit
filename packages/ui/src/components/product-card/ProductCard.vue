@@ -18,6 +18,12 @@ const eldra = useEldraScope();
 
 const props = withDefaults(defineProps<ProductCardProps>(), {
   showVendor: false,
+  vendorPlacement: 'above',
+  maxSwatches: 3,
+  saleBadgeLabel: undefined,
+  quickAddLabel: undefined,
+  quickAddName: undefined,
+  quickAddIcon: undefined,
   showRating: true,
   showSwatches: true,
   quickAdd: true,
@@ -94,9 +100,11 @@ const stockLevel = computed(() => props.product.stock ?? 'in');
 
 const swatches = computed(() => props.product.colours ?? []);
 const showSwatchesResolved = computed(() => props.showSwatches && swatches.value.length > 0);
-/** Spec "Product card" → Anatomy, part 7: "up to three dots + '+N'". */
-const visibleSwatches = computed(() => swatches.value.slice(0, 3));
-const overflowCount = computed(() => Math.max(0, swatches.value.length - 3));
+/** Spec "Product card" → Anatomy, part 7: "up to three dots + '+N'" — three by default;
+ * `maxSwatches` raises (or lowers) the cap for a theme that draws a longer plain row. */
+const swatchCap = computed(() => Math.max(1, Math.floor(props.maxSwatches)));
+const visibleSwatches = computed(() => swatches.value.slice(0, swatchCap.value));
+const overflowCount = computed(() => Math.max(0, swatches.value.length - swatchCap.value));
 
 /** `linkAs` follows `Link`/`Rating`'s own `as` contract: a string tag still takes `href`, a
  * component takes the destination as `to`. Named `linkAs`, not `as`: this card's own root is a
@@ -127,7 +135,16 @@ const headingTag = useHeadingTag(() => props.headingLevel);
  * splicing (visible text + a trailing hidden run) cannot express for every locale, only English's
  * own word order.
  */
-const quickAddName = computed(() => messages.value.quickAdd(props.product.title));
+const quickAddName = computed(
+  () => props.quickAddName ?? messages.value.quickAdd(props.product.title)
+);
+/** The visible text: `quickAddLabel` when the caller words it its own way ("Add"). */
+const quickAddText = computed(() => props.quickAddLabel ?? messages.value.quickAddLabel);
+/** `Button`'s own `label` part, so a theme can hide the visible word (an icon-only round button on
+ * phones) while the `aria-label` above keeps naming the product. */
+const quickAddButtonClasses = computed(() =>
+  props.classes?.quickAddLabel ? { label: props.classes.quickAddLabel } : undefined
+);
 
 function onQuickAdd(): void {
   emit('quickAdd', props.product);
@@ -190,6 +207,11 @@ const bodyClass = computed(() => [
 ]);
 
 const vendorClass = computed(() => ['eldra:text-caption eldra:text-muted', props.classes?.vendor]);
+/** Where the vendor line sits: above the title (the spec's anatomy, the default) or after the
+ * price — a maker line under the name. In DOM order either way, so reading order follows what is
+ * seen. */
+const vendorAbove = computed(() => props.vendorPlacement !== 'below');
+const showVendorLine = computed(() => props.showVendor && Boolean(props.product.vendor));
 
 /** Spec "Product card" → Sizes, "Title" row: "1rem, line-height 1.4, weight 600, clamp 2 lines" —
  * exactly `text-card-title` (`tailwind.css`), reused rather than a near-duplicate utility. */
@@ -332,18 +354,30 @@ const skeletonClass = computed(() => [
       />
       <div v-if="badgeKind || isSoldOut" data-part="badges" :class="badgesClass">
         <Badge
-          v-if="badgeKind === 'sale' && discountPercent > 0"
+          v-if="badgeKind === 'sale' && discountPercent > 0 && saleBadgeLabel"
           variant="sale"
+          :class="classes?.saleBadge"
+          :label="saleBadgeLabel"
+        />
+        <Badge
+          v-else-if="badgeKind === 'sale' && discountPercent > 0"
+          variant="sale"
+          :class="classes?.saleBadge"
           :label="`−${discountPercent}%`"
           hidden-suffix=" off"
         />
-        <Badge v-else-if="badgeKind === 'new'" variant="new" :label="messages.newBadge" />
-        <Badge v-if="isSoldOut" outline :label="messages.soldOut" />
+        <Badge
+          v-else-if="badgeKind === 'new'"
+          variant="new"
+          :class="classes?.newBadge"
+          :label="messages.newBadge"
+        />
+        <Badge v-if="isSoldOut" outline :class="classes?.soldOutBadge" :label="messages.soldOut" />
       </div>
     </div>
 
     <div data-part="body" :class="bodyClass">
-      <p v-if="showVendor && product.vendor" data-part="vendor" :class="vendorClass">
+      <p v-if="showVendorLine && vendorAbove" data-part="vendor" :class="vendorClass">
         {{ product.vendor }}
       </p>
       <component :is="headingTag" data-part="title" :class="titleClass">
@@ -367,6 +401,9 @@ const skeletonClass = computed(() => [
           :announce="announce"
         />
       </div>
+      <p v-if="showVendorLine && !vendorAbove" data-part="vendor" :class="vendorClass">
+        {{ product.vendor }}
+      </p>
       <div v-if="showRatingResolved" data-part="rating" :class="ratingClass">
         <Rating :value="ratingValue" :count="ratingCount" />
       </div>
@@ -398,9 +435,11 @@ const skeletonClass = computed(() => [
       block
       type="button"
       :class="quickAddClass"
+      :classes="quickAddButtonClasses"
+      :icon-left="quickAddIcon"
       :aria-label="quickAddName"
       @click="onQuickAdd"
-      >{{ messages.quickAddLabel }}</Button
+      >{{ quickAddText }}</Button
     >
     <Button
       v-else-if="quickAdd"

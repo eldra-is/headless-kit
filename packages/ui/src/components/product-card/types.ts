@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 import type { HeadingLevel } from '../../composables/useHeadingTag';
 import type { ImageMedia } from '../image/types';
 import type { StockLevel } from '../badge/types';
+import type { IconComponent } from '../icon/types';
 
 /**
  * The media ratios `ProductCard` itself offers (spec "Product card" → Properties, `ratio` row):
@@ -27,7 +28,8 @@ export interface ProductCardProduct {
   title: string;
   /** The product page. Also what `quickAdd` events identify the product by, alongside `title`. */
   url: string;
-  /** Shown above the title when `showVendor` is on. */
+  /** Shown when `showVendor` is on: above the title, or after the price with
+   * `vendorPlacement: 'below'`. */
   vendor?: string;
   /** `null`/omitted renders `Image`'s own live "No image" placeholder at the same ratio. */
   featuredImage?: ImageMedia | null;
@@ -61,6 +63,9 @@ export interface ProductCardProduct {
 export type ProductCardPart =
   | 'media'
   | 'badges'
+  | 'saleBadge'
+  | 'newBadge'
+  | 'soldOutBadge'
   | 'body'
   | 'vendor'
   | 'title'
@@ -73,6 +78,7 @@ export type ProductCardPart =
   | 'swatch'
   | 'swatchOverflow'
   | 'quickAdd'
+  | 'quickAddLabel'
   | 'skeleton';
 
 export interface ProductCardProps {
@@ -80,11 +86,32 @@ export interface ProductCardProps {
   product: ProductCardProduct;
   /** Shows the vendor line. Defaults to `false` (spec "Product card" → Properties). */
   showVendor?: boolean;
+  /**
+   * Where the vendor line sits: `'above'` the title (the default, the spec's anatomy) or
+   * `'below'`, after the price — a maker line under the product name.
+   */
+  vendorPlacement?: 'above' | 'below';
   /** Shows `Rating`, when the product has one. Defaults to `true` — turn it off store-wide when
    * the shop has no reviews at all. */
   showRating?: boolean;
   /** Shows the colour dots, when the product has any. Defaults to `true`. */
   showSwatches?: boolean;
+  /** The most colour dots drawn before the rest collapse into "+N". Defaults to `3`. */
+  maxSwatches?: number;
+  /**
+   * The sale badge's text in place of the rounded percentage ("Sale" rather than "−25%"). Unset,
+   * the badge reads the percentage with a hidden " off".
+   */
+  saleBadgeLabel?: string;
+  /** The quick-add button's visible text. Defaults to the `quickAddLabel` message ("Quick add"). */
+  quickAddLabel?: string;
+  /**
+   * The quick-add button's full accessible name, product included ("Add Merino crew sweater to
+   * cart"). Defaults to the `quickAdd` message for the product's title.
+   */
+  quickAddName?: string;
+  /** A leading icon on the quick-add button (a plus, say). None by default. */
+  quickAddIcon?: IconComponent;
   /** Shows the quick-add control (the live button when available, the disabled "Sold out"
    * button when not). Defaults to `true`. */
   quickAdd?: boolean;

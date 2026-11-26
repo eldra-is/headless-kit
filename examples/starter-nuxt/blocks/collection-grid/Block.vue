@@ -83,11 +83,13 @@ import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useRevalidating } from '../../app/composables/useRevalidating';
 import { useStorefront } from '../../app/composables/useStorefront';
-import { useI18n } from 'vue-i18n';
+import { useQuickAdd } from '../../app/composables/useQuickAdd';
+import { I18nT, useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { productCardLook } from '../../app/storefront/productCardLook';
 import { useMoney } from '../../app/storefront/money';
 import {
   collectionSelector,
@@ -159,6 +161,8 @@ const { data } = useBlockData(props, 'collection-grid');
 const editing = useEditing();
 const { t } = useI18n();
 const storefront = useStorefront();
+/** "+ Add" on each card: the shared quick add (`app/composables/useQuickAdd.ts`). */
+const quickAdd = useQuickAdd();
 const route = storefront.route;
 
 const uid = useUiId();
@@ -1251,6 +1255,18 @@ function publishState(): void {
   route.setQuery(patch);
 }
 
+/** The count's number on its own, for the filter bar's bold "**N** products" — `null` whenever
+ *  `countText` says something else (updating, or the singular, which has no number slot). */
+const barCountNumber = computed<string | null>(() =>
+  showSkeletons.value || updating.value || total.value === 1 ? null : String(total.value)
+);
+/** The design's paging row (`.nw-loadmore`): the status at body size, and its large outline
+ *  button — 3rem tall, as the design draws it, not the theme's 3.25rem `control-h-lg`. */
+const LOAD_MORE_CLASSES = {
+  status: 'text-body',
+  button: 'h-12 px-6 text-button-lg',
+};
+
 const countText = computed(() => {
   if (showSkeletons.value || updating.value) return t('grid.updating');
   if (total.value === 1) return t('grid.oneProduct');
@@ -1677,6 +1693,30 @@ const gridClass: ComputedRef<string> = computed(
  *  Filter button — the "empty optional parts render nothing" rule, so the grid simply gets the
  *  whole width. */
 const showSidebar = computed(() => hasSidebar.value && filterFacets.value.length > 0);
+
+/**
+ * The sticky filter rail, from 64rem. Two things make it usable on a real screen, and both broke
+ * once (WS-1277): it was a sticky box as tall as its content, so a rail longer than the viewport
+ * could never show its lower groups — a sticky element taller than the viewport only reveals its
+ * bottom once the grid beside it has scrolled out — and it sat `--eldra-header-height` below the
+ * top even with the header slid away.
+ *
+ * - **It scrolls itself.** Capped at the viewport less its own top offset and the same 1.5rem at
+ *   the bottom (`dvh`, so a phone-sized browser's toolbar is accounted for), with its own
+ *   `overflow-y: auto`; `overscroll-contain` keeps a wheel at its end from scrolling the page. The
+ *   `-m-1 p-1` pair gives every control's focus ring room inside the scroll box, which would
+ *   otherwise clip it at the rail's edges.
+ * - **It follows the header.** `--eldra-header-height` is the header's *visible* height —
+ *   `navigation` publishes 0 while its bar is slid out of view — so the rail settles 1.5rem from the
+ *   viewport's top then and 1.5rem under the bar when it is back; `top` and `max-height`
+ *   transition on the same `duration-base` the bar slides with, so the two move together.
+ */
+const SIDEBAR_CLASS =
+  'hidden @content:block @content:sticky @content:-m-1 @content:p-1 ' +
+  '@content:top-[calc(1.5rem_+_var(--eldra-header-height,0px))] ' +
+  '@content:max-h-[calc(100dvh_-_3rem_-_var(--eldra-header-height,0px))] ' +
+  '@content:overflow-y-auto @content:overscroll-contain ' +
+  'motion-safe:transition-[top,max-height] motion-safe:duration-base';
 const hasFilters = computed(() => filterFacets.value.length > 0);
 const hasSort = computed(() => sortOptions.value.length > 0);
 const showTopBar = computed(() => hasFilters.value || hasSort.value);
@@ -1753,11 +1793,7 @@ function hrefForPage(page: number): string {
 
       <template v-else>
         <div :class="layoutClass">
-          <aside
-            v-if="showSidebar"
-            :aria-label="t('grid.filters')"
-            class="@content:block @content:sticky @content:top-[calc(1.5rem_+_var(--eldra-header-height,0px))] hidden"
-          >
+          <aside v-if="showSidebar" :aria-label="t('grid.filters')" :class="SIDEBAR_CLASS">
             <!-- The panel's own head (`show-head`, the default) draws a visible "Filters" `h2`
                  right before its `h3` group triggers, which is what keeps a whole-page axe run's
                  `heading-order` rule happy under the page's own `h1` — no hidden heading to add
@@ -1780,13 +1816,15 @@ function hrefForPage(page: number): string {
           <div class="min-w-0">
             <!-- The filter bar (`filter-bar`): a chip per group, the pressed on/off chips and the
                  sort, one row that wraps on a narrow screen and stays in view while the grid
-                 scrolls from 48rem. -->
+                 scrolls from 48rem — right under the header while it shows, at the viewport's top
+                 while it is slid away (`--eldra-header-height` is the visible height), moving
+                 with the bar's own slide. -->
             <template v-if="isBar">
               <div
                 v-if="showTopBar"
                 role="group"
                 :aria-label="t('grid.filterAndSort')"
-                class="border-border bg-background @tablet:sticky @tablet:top-[var(--eldra-header-height,0px)] @tablet:z-10 flex flex-wrap items-center gap-2 border-y py-3.5"
+                class="border-border bg-background @tablet:sticky @tablet:top-[var(--eldra-header-height,0px)] @tablet:z-10 motion-safe:duration-base flex flex-wrap items-center gap-2 border-y py-3.5 motion-safe:transition-[top]"
               >
                 <Popover
                   v-for="facet in barPopoverFacets"
@@ -1858,11 +1896,13 @@ function hrefForPage(page: number): string {
                     class="flex min-w-0 flex-1 items-center gap-3"
                     :classes="{ label: 'mb-0 shrink-0 font-semibold', control: 'min-w-0 flex-1' }"
                   >
+                    <!-- Full width beside its label on a phone; from 48rem as wide as the longest
+                         option and no wider, as the design's own select is. -->
                     <Select
                       :model-value="sort"
                       size="md"
                       :options="sortOptions"
-                      class="@tablet:min-w-48 w-full"
+                      class="@tablet:w-auto w-full"
                       @update:model-value="onSort"
                     />
                   </FieldWrapper>
@@ -1882,7 +1922,9 @@ function hrefForPage(page: number): string {
                 </div>
               </div>
 
-              <!-- The count and the applied filters as removable tags, then Clear all. -->
+              <!-- The count and the applied filters as removable tags, then Clear all. The count's
+                   number is bold, as the design's "**8** products" (`barCountNumber` — the same
+                   words `countText` reads, with the number in a `strong`). -->
               <div class="flex flex-wrap items-center gap-2 pt-4">
                 <p
                   ref="countEl"
@@ -1891,7 +1933,12 @@ function hrefForPage(page: number): string {
                   aria-live="polite"
                   class="text-muted me-2 tabular-nums"
                 >
-                  {{ countText }}
+                  <I18nT v-if="barCountNumber !== null" keypath="grid.nProducts" scope="global">
+                    <template #count>
+                      <strong class="font-bold">{{ barCountNumber }}</strong>
+                    </template>
+                  </I18nT>
+                  <template v-else>{{ countText }}</template>
                 </p>
                 <ul
                   v-if="barTags.length > 0"
@@ -1900,12 +1947,12 @@ function hrefForPage(page: number): string {
                   class="flex flex-wrap gap-2"
                 >
                   <li v-for="tag in barTags" :key="`${tag.facetId}:${tag.value}`">
+                    <!-- The design's `.nw-tag`: a 2rem filled pill, medium weight, a 1rem ×. -->
                     <Chip
-                      size="sm"
                       removable
                       :label="tag.label"
                       :messages="barTagMessages(tag)"
-                      class="bg-surface-strong border-transparent"
+                      class="bg-surface-strong min-h-8 border-transparent font-medium"
                       @remove="removeBarTag(tag)"
                     />
                   </li>
@@ -2000,8 +2047,9 @@ function hrefForPage(page: number): string {
               </div>
             </div>
 
-            <!-- Results. -->
-            <div class="mt-6">
+            <!-- Results: 2rem under the filter bar's count row (the design's own gap), 1.5rem
+                 under the sidebar layout's toolbar rule. -->
+            <div :class="isBar ? 'mt-8' : 'mt-6'">
               <VisuallyHidden as="h2" :id="productsHeadingId">{{
                 t('grid.products')
               }}</VisuallyHidden>
@@ -2037,12 +2085,13 @@ function hrefForPage(page: number): string {
                   <!-- No quick add: the spec's tab order for this block runs straight from the
                        cards to Load more, and a cart action is `product-detail`'s own. -->
                   <ProductCard
+                    v-bind="productCardLook(t, entry.product.title)"
                     :product="entry.product"
                     :currency="entry.currency"
                     ratio="4x5"
                     :heading-level="3"
                     :class="CARD_CLASS"
-                    :quick-add="false"
+                    @quick-add="quickAdd.add(entry.item)"
                     :revalidating="entry.revalidating"
                     :announce="false"
                     :link-as="entry.internal ? EldraRouterLink : undefined"
@@ -2067,13 +2116,15 @@ function hrefForPage(page: number): string {
             </div>
 
             <!-- Paging. -->
-            <div v-if="showPaging" class="mt-12">
+            <div v-if="showPaging" class="mt-14">
               <LoadMore
                 v-if="isLoadMore"
                 :shown="cards.length"
                 :total="total"
                 :noun="t('grid.productsNoun')"
                 :pending="loadingMore"
+                :classes="LOAD_MORE_CLASSES"
+                class="gap-3.5"
                 @load="onLoadMore"
               />
               <Pagination

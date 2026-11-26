@@ -29,6 +29,8 @@ import {
 } from '@eldrajs/theme-vue';
 import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, enUS as uiEnUS } from '@eldrajs/ui';
 import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
+import type { StoreRegion } from '@eldrajs/theme-nuxt/region';
+import { REGION_KEY, regionalFormatLocale } from '../../app/composables/useRegionalFormat';
 import { createDemoStorefront } from '../../app/storefront/demo';
 import { STOREFRONT_KEY, type StorefrontCommerce } from '../../app/storefront/types';
 import enUSMessages from '../../i18n/en-US.json';
@@ -82,6 +84,12 @@ export function mountOptions(
      * same way the two plugins take both from one runtime-config read on a real page.
      */
     commerce?: StorefrontCommerce | null;
+    /**
+     * The organisation's regional format, for a spec about how numbers and dates are written:
+     * none by default (the content locale formats), as on a site whose build learned none. Wired
+     * the way `app/plugins/eldra-ui-messages.ts` wires it: `LOCALE_KEY` and `REGION_KEY`.
+     */
+    region?: StoreRegion | null;
   } = {}
 ): {
   props: { entry: { id: string; data: Record<string, unknown> } };
@@ -118,7 +126,8 @@ export function mountOptions(
         // platform's answer there, the demo source's own here — never from the
         // locale.
         [MESSAGES_KEY]: uiMessagesFor(effectiveLocale),
-        [LOCALE_KEY]: effectiveLocale,
+        [LOCALE_KEY]: regionalFormatLocale(options.region ?? null, effectiveLocale),
+        [REGION_KEY]: options.region ?? null,
         [CURRENCY_KEY]: storefront.commerce?.currency,
         // The same wiring `app/plugins/eldra-storefront.ts` does on a real page: a commerce block
         // reads `useStorefront()`, never the client directly, so every block test sees the

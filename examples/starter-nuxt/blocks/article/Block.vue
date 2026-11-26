@@ -33,9 +33,10 @@
  * `mock.json`'s body doc; this block does not compensate for either.
  */
 import { computed, ref } from 'vue';
-import { Avatar, Container, EditorPlaceholder, Link, Section, formatDate } from '@eldrajs/ui';
-import { DEFAULT_IMAGE_FRAMING, EldraRichText, useEldra } from '@eldrajs/theme-vue';
+import { Avatar, Container, EditorPlaceholder, Link, Section } from '@eldrajs/ui';
+import { DEFAULT_IMAGE_FRAMING, EldraRichText } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useFormatDate } from '../../app/composables/useRegionalFormat';
 import { useEditing } from '../../app/composables/useEditing';
 import { useRichTextScrollRegions } from '../../app/composables/useRichTextScrollRegions';
 import { useI18n } from 'vue-i18n';
@@ -50,18 +51,9 @@ const editing = useEditing();
 const { t } = useI18n();
 const titleId = `article-title-${useUiId()}`;
 
-/** Same "no provider, fall back" shape as `useT.ts`/`useEditing.ts`'s own local helpers — a plain
- *  `mount()` outside a themed page throws with no `provideEldra()` ancestor. */
-function tryUseEldra(): ReturnType<typeof useEldra> | undefined {
-  try {
-    return useEldra();
-  } catch {
-    return undefined;
-  }
-}
-/** The content locale `formatDate` renders the date in — the same source `useT()` reads for its
- *  own locale lookup, exposed here because `formatDate` needs the raw string, not a translation. */
-const locale = computed(() => tryUseEldra()?.preview.locale ?? 'en-US');
+/** `@eldrajs/ui`'s `formatDate` in the organisation's regional format and time zone — not the
+ *  content locale: an Icelandic store's English page still prints an Icelandic date. */
+const formatRegionalDate = useFormatDate();
 
 const title = computed(() => (data.value.title ?? '').trim());
 const hasTitle = computed(() => title.value !== '');
@@ -81,12 +73,10 @@ const categoryLinkAs = computed(() =>
  *  style; the long form asks for `month: 'long'` — see the module doc comment for how the two
  *  are toggled. */
 const formattedDateShort = computed(() =>
-  data.value.publishedAt ? formatDate(data.value.publishedAt, locale.value) : null
+  data.value.publishedAt ? formatRegionalDate(data.value.publishedAt) : null
 );
 const formattedDateLong = computed(() =>
-  data.value.publishedAt
-    ? formatDate(data.value.publishedAt, locale.value, { month: 'long' })
-    : null
+  data.value.publishedAt ? formatRegionalDate(data.value.publishedAt, { month: 'long' }) : null
 );
 const hasDate = computed(() => formattedDateShort.value !== null);
 

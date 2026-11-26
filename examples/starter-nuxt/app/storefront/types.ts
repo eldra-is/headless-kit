@@ -71,6 +71,11 @@ export interface StorefrontProductListItem {
   price: StorefrontPrice;
   rating?: { value: number; count: number } | null;
   /**
+   * The product is new in: the card's "New" badge. The platform's list read carries no such flag
+   * today, so only the demo source sets it; absent reads as not new. A sale badge wins over it.
+   */
+  isNew?: boolean;
+  /**
    * The dots a card shows under its image, in the store's own order.
    *
    * **A source fills it from the product's `color`-kind option** — its values' `swatch` colours,
@@ -83,6 +88,12 @@ export interface StorefrontProductListItem {
   colours?: Array<{ name: string; swatch: string }>;
   stock: 'in' | 'low' | 'out' | 'preorder';
   available: boolean;
+  /**
+   * **Who made it** — the product's brand as the catalogue names it (the maker line above a product
+   * page's title, and under a card's). Absent when the product has no brand; never the shop's own
+   * name standing in for one.
+   */
+  vendor?: string;
   /**
    * The **catalog product's** id — what a volatile refresh addresses this row by
    * (`app/storefront/volatile.ts`) and what a cart add has to send as its `productId`.

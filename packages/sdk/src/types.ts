@@ -238,6 +238,24 @@ export interface EldraOrganizationLocales {
   supported: string[];
 }
 
+/**
+ * The organisation's **regional format**, as the public organisation read publishes it under
+ * `region` (the gateway's `dto_OrganizationRegion`): how money, numbers and dates are written and
+ * which clock they are read on. It is the merchant's choice in Studio and is independent of the
+ * content locale — an English-language Icelandic store writes `4.790 kr.` and `26. nóvember 2026`.
+ *
+ * Hand-written for the same reason `EldraOrganizationCommerce` is — the organisation read backs
+ * every `features.*` method and has to resolve without the Vite plugin's generated `contract.ts`.
+ */
+export interface EldraOrganizationRegion {
+  /** ISO 3166-1 alpha-2, upper case, e.g. `IS`; `''` until the merchant sets a country. */
+  countryCode: string;
+  /** BCP 47 tag, canonicalised, to format with (`Intl.NumberFormat`, `Intl.DateTimeFormat`), e.g. `is-IS`. */
+  formatLocale: string;
+  /** IANA time zone to show the organisation's dates and times in, e.g. `Atlantic/Reykjavik`. */
+  timeZone: string;
+}
+
 export interface EldraOrganizationDetails {
   id: string;
   name: string;
@@ -247,6 +265,8 @@ export interface EldraOrganizationDetails {
   commerce?: EldraOrganizationCommerce | null;
   /** See `EldraOrganizationLocales`: absent, or `null`, until the organisation configures any. */
   locales?: EldraOrganizationLocales | null;
+  /** See `EldraOrganizationRegion`: read it through `features.getRegion()`, which validates it. */
+  region?: EldraOrganizationRegion | null;
   paymentProviders?: EldraOrganizationPaymentProvider[];
   createdAt?: string;
   updatedAt?: string;
@@ -402,6 +422,20 @@ export interface EldraFeatureClient {
     options?: EldraOrganizationOptions,
     context?: EldraRequestContext
   ): Promise<EldraOrganizationLocales | null>;
+  /**
+   * The organisation's regional format: `{ countryCode, formatLocale, timeZone }`, or `null` when
+   * it publishes none. Reads the same organisation document the other `features` methods read.
+   *
+   * Validated rather than passed through: a `formatLocale` that is not a well-formed BCP 47 tag, a
+   * `timeZone` this runtime's `Intl` does not know, or a `countryCode` that is neither empty nor two
+   * letters makes the whole record `null` — the same answer as "none published", so a consumer
+   * falls back to its own locale instead of throwing a `RangeError` from `Intl` on every price.
+   * `formatLocale` is canonicalised (`is-is` → `is-IS`) and `countryCode` upper-cased.
+   */
+  getRegion(
+    options?: EldraOrganizationOptions,
+    context?: EldraRequestContext
+  ): Promise<EldraOrganizationRegion | null>;
 }
 
 export interface EldraClient {

@@ -64,7 +64,7 @@
     "emailError": "Eitthvað fór úrskeiðis. Reyndu aftur.",
     "subscribed": "Skráning tókst.",
     "localeLabel": "Tungumál",
-    "currencyLabel": "Gjaldmiðill",
+    "currencyLabel": "Verð í",
     "social": {
       "instagram": "Instagram",
       "facebook": "Facebook",
@@ -130,7 +130,9 @@
     "savedItems": "Vistaðar vörur",
     "account": "Aðgangur",
     "home": "{brand}, forsíða",
-    "info": "Upplýsingar um verslunina"
+    "info": "Upplýsingar um verslunina",
+    "pricesIn": "Verð í",
+    "close": "Loka"
   },
   "editor": {
     "addLink": "Bæta við tengli"
@@ -350,8 +352,14 @@
     "countMany": "{count} vörur",
     "subcollections": "Undirflokkar",
     "subcategories": "Vöruflokkar undir þessum",
+    "allInCategory": "Allt í {category}",
     "titleHintLabel": "Bættu við titli",
     "titleHintHelp": "Fellur sjálfgefið til baka í titil safnsins"
+  },
+  "productCard": {
+    "add": "Bæta við",
+    "addName": "Setja {title} í körfu",
+    "sale": "Tilboð"
   },
   "productCarousel": {
     "viewAllContext": " vörur",
@@ -409,7 +417,7 @@
     "openImage": "Opna mynd {index} af {count}: {alt}",
     "saleBadge": "Tilboð",
     "saving": "Sparar {amount}",
-    "taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast í greiðslu.",
+    "taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast við greiðslu.",
     "sizeGuide": "Stærðartafla",
     "quantity": "Magn",
     "addToCart": "Setja í körfu · {price}",

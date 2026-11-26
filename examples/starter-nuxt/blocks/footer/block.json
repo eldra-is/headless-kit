@@ -68,9 +68,9 @@
       "fieldId": "background",
       "name": "Background",
       "type": "select",
-      "helpText": "Defaults to \"primary\" when unset.",
+      "helpText": "\"dark\" is the text colour as the ground; \"primary\" the brand colour; \"surface-strong\" a light footer. Defaults to \"primary\" when unset.",
       "metadata": {
-        "options": ["primary", "surface-strong"]
+        "options": ["dark", "primary", "surface-strong"]
       }
     },
     {

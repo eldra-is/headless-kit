@@ -39,7 +39,16 @@
                     "content": [
                       {
                         "type": "text",
-                        "text": "100% extra-fine Merino wool, 17.5 micron"
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Material"
+                      },
+                      {
+                        "type": "text",
+                        "text": " 100% extra-fine Merino wool, 17.5 micron"
                       }
                     ]
                   }
@@ -53,7 +62,16 @@
                     "content": [
                       {
                         "type": "text",
-                        "text": "Knitted in a family mill in Biella, Italy"
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Fit"
+                      },
+                      {
+                        "type": "text",
+                        "text": " Relaxed; the model is 180 cm and wears M"
                       }
                     ]
                   }
@@ -67,7 +85,39 @@
                     "content": [
                       {
                         "type": "text",
-                        "text": "Relaxed fit; the model is 180 cm and wears size M"
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Weight"
+                      },
+                      {
+                        "type": "text",
+                        "text": " Midweight, 12-gauge knit"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Made in"
+                      },
+                      {
+                        "type": "text",
+                        "text": " Biella, Italy, in a family mill"
                       }
                     ]
                   }

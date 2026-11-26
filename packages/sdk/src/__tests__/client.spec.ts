@@ -9,6 +9,7 @@ import type {
   EldraHttpRequest,
   EldraOrganizationCommerce,
   EldraOrganizationLocales,
+  EldraOrganizationRegion,
 } from '../types';
 import { stubHttpClient } from './support';
 
@@ -502,6 +503,87 @@ describe('eldra sdk client', () => {
         httpClient: stubHttpClient(async () => organization),
       });
       await expect(client.features.getLocales()).resolves.toBeNull();
+    }
+  });
+
+  it('reads the organisation\u2019s regional format, canonicalised', async () => {
+    let capturedRequest: EldraHttpRequest | undefined;
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async (request) => {
+        capturedRequest = request;
+        return {
+          id: 'org-123',
+          name: 'Acme',
+          features: [],
+          region: { countryCode: 'is', formatLocale: 'is-is', timeZone: 'Atlantic/Reykjavik' },
+        };
+      }),
+    });
+
+    const region = await client.features.getRegion();
+
+    expectTypeOf(region).toEqualTypeOf<EldraOrganizationRegion | null>();
+    expect(region).toEqual({
+      countryCode: 'IS',
+      formatLocale: 'is-IS',
+      timeZone: 'Atlantic/Reykjavik',
+    });
+    expect(capturedRequest?.url).toBe('https://api.example.test/api/organization/v1/org-123');
+  });
+
+  it('keeps a region whose country is not set yet', async () => {
+    // The contract documents `countryCode` as empty until the merchant sets it; the format locale
+    // (the country's own, else the merchant's choice) is still usable.
+    const client = createEldraClient({
+      apiBaseUrl: 'https://api.example.test/api',
+      orgId: 'org-123',
+      httpClient: stubHttpClient(async () => ({
+        id: 'org-123',
+        name: 'Acme',
+        features: [],
+        region: { countryCode: '', formatLocale: 'en-GB', timeZone: 'Europe/London' },
+      })),
+    });
+
+    await expect(client.features.getRegion()).resolves.toEqual({
+      countryCode: '',
+      formatLocale: 'en-GB',
+      timeZone: 'Europe/London',
+    });
+  });
+
+  it('answers null for no region, and for any field Intl would throw on', async () => {
+    // A storefront hands these straight to `Intl.NumberFormat` / `Intl.DateTimeFormat`, which
+    // throw a RangeError on a malformed tag or an unknown zone — so each of these must read as
+    // "none published" and leave the consumer on its own locale.
+    const region = { countryCode: 'IS', formatLocale: 'is-IS', timeZone: 'Atlantic/Reykjavik' };
+    const regions: unknown[] = [
+      undefined,
+      null,
+      'is-IS',
+      { ...region, formatLocale: '' },
+      { ...region, formatLocale: 'not a locale!' },
+      { ...region, formatLocale: 42 },
+      { ...region, timeZone: '' },
+      { ...region, timeZone: 'Mars/Olympus_Mons' },
+      { ...region, countryCode: 'ISL' },
+      { ...region, countryCode: 7 },
+    ];
+
+    for (const value of regions) {
+      const client = createEldraClient({
+        apiBaseUrl: 'https://api.example.test/api',
+        orgId: 'org-123',
+        httpClient: stubHttpClient(async () => ({
+          id: 'org-123',
+          name: 'Acme',
+          features: [],
+          ...(value === undefined ? {} : { region: value }),
+        })),
+      });
+      await expect(client.features.getRegion(), JSON.stringify(value)).resolves.toBeNull();
     }
   });
 

@@ -326,11 +326,11 @@ const showPaymentsRow = computed(() => showPayments.value && paymentMarks.value.
               :href="itemHref(item)!"
               :as="itemLinkAs(item)"
               :aria-label="item.linkLabel || undefined"
-              class="justify-self-start text-base leading-[1.5] font-semibold"
+              class="justify-self-start text-base leading-[1.6] font-semibold"
             >
               {{ item.title }}
             </Link>
-            <p v-else class="text-base leading-[1.5] font-semibold">{{ item.title }}</p>
+            <p v-else class="text-base leading-[1.6] font-semibold">{{ item.title }}</p>
             <p v-if="item.text" class="text-muted col-start-2 text-[0.9375rem] leading-[1.6]">
               {{ item.text }}
             </p>

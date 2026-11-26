@@ -1319,7 +1319,10 @@ describe('NavMenu — sections', () => {
     expect(img.getAttribute('alt')).toBe('');
     expect(cards[0]!.closest('a')!.textContent).toContain('Tall mug');
     expect(img.getAttribute('src')).toBe('/tall.jpg');
-    expect(img.style.aspectRatio).toBe('4 / 5');
+    // Through a variable the picture's own class reads, so a theme's class can still replace it.
+    expect(img.style.getPropertyValue('--eldra-nav-menu-card-aspect')).toBe('4 / 5');
+    expect(img.className).toContain('eldra:aspect-(--eldra-nav-menu-card-aspect)');
+    expect(img.style.aspectRatio).toBe('');
     expect(cards[0]!.querySelector('[data-part="cardTitle"]')!.textContent).toBe('Tall mug');
     expect(cards[0]!.querySelector('[data-part="cardPrice"]')!.textContent).toBe(
       formatPrice(2800, 'ISK', 'is-IS')
@@ -1346,7 +1349,7 @@ describe('NavMenu — sections', () => {
       const wrapper = mount({ items: CARDS, modelValue: 0, cardAspect });
       await nextTick();
       const img = panel(wrapper, 0).querySelector('img')!;
-      expect(img.style.aspectRatio).toBe('4 / 3');
+      expect(img.style.getPropertyValue('--eldra-nav-menu-card-aspect')).toBe('4 / 3');
       expect(panel(wrapper, 0).querySelector('[data-part="cardPrice"]')!.textContent).toBe('2,800');
       wrapper.unmount();
     }
@@ -1435,6 +1438,218 @@ describe('NavMenu — sections', () => {
     const wrapper = mount({ items: sectioned, modelValue: 0 });
     await nextTick();
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});
+
+describe('NavMenu — panel layout and tone', () => {
+  it('names each panel and its content by layout, so a theme can style a dropdown apart', async () => {
+    const items: NavMenuItem[] = [
+      ITEMS[0]!,
+      { label: 'Journal', layout: 'dropdown', children: [{ label: 'Care', href: '/care' }] },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    expect(panel(wrapper, 0).dataset.layout).toBe('mega');
+    expect(
+      panel(wrapper, 0).querySelector('[data-part="content"]')!.getAttribute('data-layout')
+    ).toBe('mega');
+    expect(panel(wrapper, 1).dataset.layout).toBe('dropdown');
+    expect(
+      panel(wrapper, 1).querySelector('[data-part="content"]')!.getAttribute('data-layout')
+    ).toBe('dropdown');
+    wrapper.unmount();
+  });
+
+  it('draws an accent entry in the accent colour, in the bar and in the drawer', async () => {
+    const items: NavMenuItem[] = [
+      { label: 'About', href: '/about' },
+      { label: 'Sale', href: '/sale', tone: 'accent' },
+    ];
+    const wrapper = mount({ items, drawerOpen: true });
+    await nextTick();
+    const [about, sale] = wrapper.findAll('[data-part="link"]');
+    expect(sale!.attributes('data-tone')).toBe('accent');
+    expect(sale!.classes()).toContain('eldra:text-accent');
+    // One colour per element: the accent replaces the entry's own text colour.
+    expect(sale!.classes()).not.toContain('eldra:text-text');
+    expect(about!.classes()).toContain('eldra:text-text');
+    expect(about!.attributes('data-tone')).toBeUndefined();
+    const drawerSale = wrapper.findAll('dialog [data-part="drawerLink"]')[1]!;
+    expect(drawerSale.attributes('data-tone')).toBe('accent');
+    expect(drawerSale.classes()).toContain('eldra:text-accent');
+    expect(drawerSale.classes()).not.toContain('eldra:text-text');
+    wrapper.unmount();
+  });
+});
+
+describe('NavMenu — inline drawer', () => {
+  function mountInline(
+    props: Record<string, unknown> = {},
+    slots: Record<string, unknown> = {}
+  ): Wrapper {
+    return mountWith(NavMenu, {
+      props: { items: ITEMS, drawerMode: 'inline', ...props },
+      slots: slots as never,
+      attachTo: document.body,
+    }) as Wrapper;
+  }
+  const inlineDrawer = (wrapper: Wrapper): HTMLElement =>
+    wrapper.get('[data-part="drawer"]').element as HTMLElement;
+
+  it('is a disclosure under the bar, not a dialog', async () => {
+    // `always`: jsdom applies no stylesheet, so the bar's own `nav` (hidden by its breakpoint class
+    // in a browser whenever the menu button shows) would read as a second "Main" landmark.
+    const wrapper = mountInline(
+      { collapseBelow: 'always' },
+      { drawerFooter: () => h('a', { href: '/contact' }, 'Contact') }
+    );
+    expect(wrapper.find('dialog').exists()).toBe(false);
+    const toggle = wrapper.get('[data-part="toggle"]');
+    const drawer = inlineDrawer(wrapper);
+    expect(toggle.attributes('aria-haspopup')).toBeUndefined();
+    expect(toggle.attributes('aria-controls')).toBe(drawer.id);
+    expect(toggle.attributes('aria-expanded')).toBe('false');
+    expect(drawer.style.display).toBe('none');
+    for (const token of [
+      'eldra:absolute',
+      'eldra:top-full',
+      'eldra:inset-x-0',
+      'eldra:overflow-y-auto',
+    ]) {
+      expect(drawer.className).toContain(token);
+    }
+
+    await toggle.trigger('click');
+    expect(toggle.attributes('aria-expanded')).toBe('true');
+    expect(drawer.style.display).toBe('');
+    expect(drawer.querySelector('nav')!.getAttribute('aria-label')).toBe('Main');
+    expect(drawer.querySelectorAll('details')).toHaveLength(2);
+    expect(drawer.querySelector('[data-part="drawerFooter"]')!.textContent).toContain('Contact');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('turns its button into Close while open, and the button closes it again', async () => {
+    const wrapper = mountInline();
+    const toggle = wrapper.get('[data-part="toggle"]');
+    expect(toggle.attributes('aria-label')).toBe('Menu');
+    await toggle.trigger('click');
+    // The visible label changes to Close, so the name does too (2.5.3).
+    expect(toggle.attributes('aria-label')).toBe('Close');
+    expect(toggle.find('path[d="M18 6l-12 12"]').exists()).toBe(true);
+    await toggle.trigger('click');
+    expect(toggle.attributes('aria-expanded')).toBe('false');
+    expect(toggle.attributes('aria-label')).toBe('Menu');
+    expect(wrapper.emitted('update:drawerOpen')).toEqual([[true], [false]]);
+    wrapper.unmount();
+  });
+
+  it('hands the toggle slot its open state', async () => {
+    const wrapper = mountInline(
+      {},
+      { toggle: ({ open }: { open: boolean }) => (open ? 'Close' : 'Menu') }
+    );
+    const toggle = wrapper.get('[data-part="toggle"]');
+    expect(toggle.text()).toBe('Menu');
+    await toggle.trigger('click');
+    expect(toggle.text()).toBe('Close');
+    wrapper.unmount();
+  });
+
+  it('closes on Escape and puts focus back on its button', async () => {
+    const wrapper = mountInline();
+    const toggle = wrapper.get('[data-part="toggle"]');
+    await toggle.trigger('click');
+    const link = inlineDrawer(wrapper).querySelector<HTMLElement>('[data-part="drawerLink"]')!;
+    link.focus();
+    link.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+    expect(toggle.attributes('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(toggle.element);
+    wrapper.unmount();
+  });
+
+  it('follows its button in the tab order, and closes once focus leaves it', async () => {
+    const wrapper = mountWith(
+      defineComponent({
+        render: () =>
+          h('div', [
+            h(NavMenu, { items: ITEMS, drawerMode: 'inline' }),
+            h('a', { id: 'after', href: '/after' }, 'After'),
+          ]),
+      }),
+      { attachTo: document.body }
+    );
+    const toggle = wrapper.get('[data-part="toggle"]');
+    await toggle.trigger('click');
+    const drawer = wrapper.get('[data-part="drawer"]').element;
+    // A disclosure's content comes right after its button.
+    expect(toggle.element.nextElementSibling).toBe(drawer);
+    const last = [...drawer.querySelectorAll<HTMLElement>('a, summary')].at(-1)!;
+    last.focus();
+    const after = document.getElementById('after')!;
+    last.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: after }));
+    after.focus();
+    await nextTick();
+    expect(toggle.attributes('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(after);
+    wrapper.unmount();
+  });
+
+  it('closes when a pointer presses outside it, and when one of its links is followed', async () => {
+    const wrapper = mountInline({ drawerOpen: true });
+    await nextTick();
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(wrapper.emitted('update:drawerOpen')?.at(-1)).toEqual([false]);
+
+    const followed = mountInline({ drawerOpen: true });
+    await nextTick();
+    const link = inlineDrawer(followed).querySelector<HTMLAnchorElement>(
+      '[data-part="drawerLink"]'
+    )!;
+    link.addEventListener('click', (event) => event.preventDefault());
+    link.click();
+    expect(followed.emitted('update:drawerOpen')?.at(-1)).toEqual([false]);
+    wrapper.unmount();
+    followed.unmount();
+  });
+
+  it('lists panels as sections in the sections layout, and restyles through the drawer parts', async () => {
+    const wrapper = mountInline({
+      drawerOpen: true,
+      collapseBelow: 'always',
+      drawerLayout: 'sections',
+      classes: { drawer: 'inline-sheet', drawerBody: 'inline-body', drawerLink: 'inline-row' },
+    });
+    await nextTick();
+    const drawer = inlineDrawer(wrapper);
+    expect(drawer.className).toContain('inline-sheet');
+    expect(drawer.querySelector('[data-part="drawerBody"]')!.className).toContain('inline-body');
+    expect(drawer.querySelectorAll('[data-part="drawerSectionHeading"]')).toHaveLength(2);
+    expect(drawer.querySelector('[data-part="drawerLink"]')!.className).toContain('inline-row');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('fills the window below its own top edge', async () => {
+    const wrapper = mountInline();
+    const drawer = inlineDrawer(wrapper);
+    drawer.getBoundingClientRect = () => ({ top: 96 }) as DOMRect;
+    await wrapper.get('[data-part="toggle"]').trigger('click');
+    await nextTick();
+    expect(drawer.style.getPropertyValue('--eldra-nav-menu-drawer-top')).toBe('96px');
+    expect(drawer.className).toContain(
+      'eldra:h-[calc(100dvh-var(--eldra-nav-menu-drawer-top,0px))]'
+    );
+    wrapper.unmount();
+  });
+
+  it('keeps the sheet as the default', () => {
+    const wrapper = mount();
+    expect(wrapper.find('dialog').exists()).toBe(true);
+    expect(wrapper.find('[data-part="drawer"]').exists()).toBe(false);
+    expect(wrapper.get('[data-part="toggle"]').attributes('aria-haspopup')).toBe('dialog');
     wrapper.unmount();
   });
 });

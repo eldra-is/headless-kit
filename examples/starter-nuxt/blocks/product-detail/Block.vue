@@ -79,6 +79,7 @@ import { isInternalHref, safeHref } from '../../app/utils/links';
 import Gallery from './parts/Gallery.vue';
 import StickyBuyBar from './parts/StickyBuyBar.vue';
 import { deriveStockLine, type LowStockThreshold } from './stock';
+import { specsFromBody, type TabSpec } from './specs';
 
 interface PerkItem {
   icon?: string;
@@ -212,6 +213,16 @@ const tabs = computed<TabItem[]>(() =>
   (data.value.tabs ?? []).filter((tab: TabItem) => Boolean(tab.label))
 );
 
+/**
+ * A tab whose body is a list of facts ("**Material** Merino wool", one per bullet) as label/value
+ * pairs, for the design's two-column definition list — `null` for any other body, which renders as
+ * the rich text it is (`specs.ts` has the rule). In the editor the body is always the rich text, so
+ * the author edits the list in place; the published page and every preview draw the `<dl>`.
+ */
+function tabSpecs(tab: TabItem): TabSpec[] | null {
+  return editing.value ? null : specsFromBody(tab.body);
+}
+
 const sizeGuideHref = computed(() => safeHref(data.value.sizeGuideHref));
 const sizeGuideLabel = computed(() => data.value.sizeGuideLabel?.trim() || t('product.sizeGuide'));
 const sizeGuideAs = computed(() =>
@@ -233,6 +244,17 @@ const sizeGuideAs = computed(() =>
  * through the same `safeHref` gate every author-supplied destination in this theme passes; a
  * destination that does not survive it drops the label rather than rendering a broken link.
  */
+/**
+ * **The maker line above the title** — the product's brand (`vendor`), linked to a search for it:
+ * the one page this theme has that lists a maker's other products. Absent when the catalogue names
+ * no brand, never the shop's own name in its place.
+ */
+const maker = computed<{ label: string; href: string } | null>(() => {
+  const vendor = product.value?.vendor?.trim() ?? '';
+  if (vendor === '') return null;
+  return { label: vendor, href: `/search?q=${encodeURIComponent(vendor)}` };
+});
+
 const categoryLeaf = computed<{ label: string; href: string } | null>(() => {
   const leaf = (product.value?.categoryTrail ?? []).at(-1);
   if (leaf === undefined || !leaf.label) return null;
@@ -414,8 +436,13 @@ const isBackorder = computed(() => stockLine.value.state === 'backorder');
  *  draws the clock in `muted` (it serves a quieter product-card context too), so the block asks for
  *  the spec's colour through its `class`, never by patching it. */
 const stockClass = computed(() =>
-  isBackorder.value ? 'text-warning font-semibold' : 'font-semibold'
+  isBackorder.value ? 'text-warning text-[1rem] font-semibold' : 'text-[1rem] font-semibold'
 );
+/** The design's stock line is body-sized (1rem, the 1.25rem icon), not the card lists' caption. */
+const STOCK_ICON_CLASS = 'size-5';
+/** Through a constant, so `test/themeIcons.spec.ts` (which reads `icon: '…'` as an icon name)
+ *  does not take the class for one. */
+const STOCK_CLASSES = { icon: STOCK_ICON_CLASS };
 
 /* ------------------------------------------------------------------------- */
 /* Quantity, cart, wishlist                                                  */
@@ -663,13 +690,15 @@ const QUANTITY_STEPPER_CLASS = '[--eldra-stepper-radius:var(--eldra-radius-full)
  */
 const SWATCH_PILL_CLASSES = {
   radio:
-    'size-auto h-11 justify-start gap-2 ps-1.5 pe-4 ' +
+    'size-auto h-11 justify-start gap-2 ps-[calc(0.5rem-1px)] pe-[calc(1rem-1px)] ' +
     'not-has-checked:[--eldra-variant-swatch-ring-width:1px] not-has-checked:border-border-strong ' +
-    'not-has-checked:ps-[calc(0.375rem+1px)] not-has-checked:pe-[calc(1rem+1px)]',
+    'not-has-checked:ps-2 not-has-checked:pe-4',
   swatch: 'size-7 shrink-0',
   // The sold-out stroke crosses the disc only, never the name beside it.
-  soldOutLine: 'inset-auto start-[calc(0.375rem+1px)] top-1/2 size-7 -translate-y-1/2',
-  label: 'not-sr-only text-[0.9375rem] font-medium whitespace-nowrap',
+  soldOutLine: 'inset-auto start-2 top-1/2 size-7 -translate-y-1/2',
+  // Regular at rest, semibold once chosen — the design's own weight step for the checked pill.
+  label:
+    'not-sr-only text-[0.9375rem] font-normal whitespace-nowrap [:has(>input:checked)>&]:font-semibold',
 };
 const PILL_CLASSES = { radio: 'rounded-full min-h-11 px-5' };
 
@@ -715,6 +744,14 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
           <p v-if="showCategory && categoryLeaf !== null" class="-mb-3 text-[0.875rem]">
             <Link :href="categoryLeaf.href" :as="EldraRouterLink" tone="muted">
               {{ categoryLeaf.label }}
+            </Link>
+          </p>
+
+          <!-- The maker, muted and underlined, set tight above the title (the title's own
+               negative top margin in the design, here the line's). -->
+          <p v-if="maker !== null" class="-mb-3 text-[0.875rem]" data-product-maker>
+            <Link :href="maker.href" :as="EldraRouterLink" tone="muted" class="underline">
+              {{ maker.label }}
             </Link>
           </p>
 
@@ -806,10 +843,13 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
                 :message="t(stockLine.key, stockLine.params)"
                 :revalidating="stockRevalidating"
                 :class="stockClass"
+                :classes="STOCK_CLASSES"
               />
-              <span v-if="stockLine.noteKey" class="text-muted mt-1 block pl-6 text-[0.875rem]">{{
-                t(stockLine.noteKey)
-              }}</span>
+              <span
+                v-if="stockLine.noteKey"
+                class="text-muted mt-1 block pl-[1.625rem] text-[0.875rem]"
+                >{{ t(stockLine.noteKey) }}</span
+              >
             </p>
 
             <!-- Stepper, Add to cart and the heart on one row; below 48rem the button takes a row
@@ -905,13 +945,26 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
                 :title="tab.label!"
                 :heading-level="2"
                 :classes="{
-                  summary: 'min-h-13 px-0',
+                  summary: 'min-h-13 px-0 py-0',
                   title: 'text-body font-semibold font-body',
+                  chevron: 'size-4',
                   panel: 'px-0 pb-5 text-muted',
                 }"
               >
+                <!-- Label/value facts as a two-column definition list: the term in `text`,
+                     semibold, the value muted beside it. -->
+                <dl
+                  v-if="tabSpecs(tab) !== null"
+                  class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5"
+                >
+                  <template v-for="(spec, specIndex) in tabSpecs(tab)" :key="specIndex">
+                    <dt class="text-text font-semibold">{{ spec.label }}</dt>
+                    <dd>{{ spec.value }}</dd>
+                  </template>
+                </dl>
                 <!-- Under this row's own `h2`, so the body's headings start at `h3`. -->
                 <EldraRichText
+                  v-else
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"

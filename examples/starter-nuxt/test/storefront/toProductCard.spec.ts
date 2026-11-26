@@ -28,15 +28,30 @@ function expectCard(...args: Parameters<typeof toProductCard>) {
 }
 
 describe('toProductCard', () => {
-  it('maps title, url, featuredImage, rating, colours, stock and available straight through', () => {
+  it('maps title, url, featuredImage, rating, colours and available straight through', () => {
     const card = expectCard(baseItem());
     expect(card.title).toBe('Merino crew sweater');
     expect(card.url).toBe('/products/merino-crew-sweater');
     expect(card.featuredImage).toEqual({ src: '/demo/product-1.svg', alt: 'Merino crew sweater' });
     expect(card.rating).toEqual({ value: 4.5, count: 126 });
     expect(card.colours).toEqual([{ name: 'Oat', swatch: '#d8cbb0' }]);
-    expect(card.stock).toBe('in');
     expect(card.available).toBe(true);
+  });
+
+  it('carries no stock level: the theme card draws no stock line', () => {
+    expect(expectCard(baseItem({ stock: 'low' }))).not.toHaveProperty('stock');
+  });
+
+  it('maps the vendor through as the maker line, and leaves it out when there is none', () => {
+    expect(expectCard(baseItem({ vendor: 'Fell & Fleece' })).vendor).toBe('Fell & Fleece');
+    expect(expectCard(baseItem())).not.toHaveProperty('vendor');
+  });
+
+  it('derives badge: { variant: "new" } for an isNew item, and the sale badge wins over it', () => {
+    expect(expectCard(baseItem({ isNew: true })).badge).toEqual({ variant: 'new' });
+    expect(
+      expectCard(baseItem({ isNew: true, price: { amount: 96, compareAt: 128 } })).badge
+    ).toEqual({ variant: 'sale' });
   });
 
   it('converts price.amount and compareAt into the minor units the card reads', () => {

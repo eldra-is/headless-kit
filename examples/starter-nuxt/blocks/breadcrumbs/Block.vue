@@ -223,8 +223,20 @@ const linkAs = computed(() =>
  * width, matching the spec's "the breadcrumb responds to its own width" rule). Below that width
  * the trail keeps the primitive's own default wrapping behaviour, per the spec's "may wrap to a
  * second line" note for narrow widths.
+ *
+ * The rest is the Northwind trail (design `.nw-crumbs`): a "/" between crumbs in the
+ * `border-strong` tone, 0.5rem either side of it, underlined muted links, and the current title in
+ * the same muted, regular weight as the links rather than the primitive's emphasised one. All through `classes`, the
+ * primitive's own extension point: the separator span keeps its 1.5rem frame and `aria-hidden`, its
+ * chevron is hidden and a `::before` "/" drawn in its place (CSS-generated, so never read out —
+ * the same silence the hidden chevron had). The margins add up to the design's gaps: the list's own
+ * 0.25rem column gap plus `ms-1` before the slash, the item's 0.5rem gap after it.
  */
-const currentClasses = { current: '@content:truncate @content:max-w-[40ch]' };
+const trailClasses = {
+  separator: "ms-1 me-0 text-border-strong [&>svg]:hidden before:content-['/']",
+  link: 'decoration-current',
+  current: 'text-muted font-normal @content:truncate @content:max-w-[40ch]',
+};
 
 /**
  * 40ch CSS truncation only ever *visually* clips text — the full string stays in the DOM and in
@@ -258,14 +270,14 @@ watchEffect(() => {
 
 <template>
   <div v-if="hasTrail" class="bg-background text-text @container">
-    <Container :width="containerWidth" class="py-3">
+    <Container :width="containerWidth" class="pt-5">
       <div ref="breadcrumbRoot" class="contents">
         <Breadcrumb
           :items="items"
           :collapse-after="1"
           :keep-last="2"
           :link-as="linkAs"
-          :classes="currentClasses"
+          :classes="trailClasses"
           :structured-data="false"
         />
       </div>

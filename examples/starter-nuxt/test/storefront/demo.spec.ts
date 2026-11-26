@@ -32,7 +32,7 @@ async function settle(): Promise<void> {
 describe('createDemoStorefront', () => {
   it('the catalogue satisfies StorefrontProductListItem — real under pnpm typecheck', () => {
     expectTypeOf(PRODUCTS).toEqualTypeOf<StorefrontProductListItem[]>();
-    expect(PRODUCTS).toHaveLength(12);
+    expect(PRODUCTS).toHaveLength(16);
   });
 
   it('contains the spec Northwind products with their prices, in major units', () => {
@@ -52,7 +52,7 @@ describe('createDemoStorefront', () => {
     expect(byTitle.get('Stonewashed linen throw')?.price.amount).toBe(118);
   });
 
-  it('"Linen tea towels, pair" is sold out; everything else defaults to in stock', () => {
+  it('"Linen tea towels, pair" and the enamel camp cups are sold out; everything else defaults to in stock', () => {
     const byTitle = new Map(PRODUCTS.map((product) => [product.title, product]));
     const soldOut = byTitle.get('Linen tea towels, pair')!;
     expect(soldOut.stock).toBe('out');
@@ -298,10 +298,10 @@ describe('createDemoStorefront', () => {
     });
 
     it('narrows both the items and the total for a category filter', async () => {
-      // 5 of the 12 products are knitwear, each appearing 4 times in the 48-item collection.
+      // 5 of the 16 products are knitwear, each appearing 3 times in the 48-item collection.
       const response = await collection({ filters: { category: ['knitwear'] } });
-      expect(response.items).toHaveLength(20);
-      expect(response.total).toBe(20);
+      expect(response.items).toHaveLength(15);
+      expect(response.total).toBe(15);
     });
 
     it('ORs values inside one source and ANDs across sources', async () => {
@@ -313,16 +313,16 @@ describe('createDemoStorefront', () => {
       const andACross = await collection({
         filters: { category: ['knitwear'], 'option:size': ['m'] },
       });
-      // Only the three apparel products are made in M, and all three are knitwear.
-      expect(andACross.total).toBe(12);
+      // Only the three apparel products are made in M, and all three are knitwear: 3 × 3 copies.
+      expect(andACross.total).toBe(9);
     });
 
     it('filters by size, colour and availability', async () => {
-      expect((await collection({ filters: { 'option:size': ['m'] } })).total).toBe(12);
-      // Oat is only the merino crew sweater's colour, four times over.
-      expect((await collection({ filters: { 'option:colour': ['oat'] } })).total).toBe(4);
-      // Everything but the sold-out linen tea towels.
-      expect((await collection({ filters: { availability: ['in-stock'] } })).total).toBe(44);
+      expect((await collection({ filters: { 'option:size': ['m'] } })).total).toBe(9);
+      // Oat is only the merino crew sweater's colour, three times over.
+      expect((await collection({ filters: { 'option:colour': ['oat'] } })).total).toBe(3);
+      // Everything but the sold-out linen tea towels and enamel camp cups, three copies of each.
+      expect((await collection({ filters: { availability: ['in-stock'] } })).total).toBe(42);
     });
 
     it('filters by a price range in whole dollars, with either end open', async () => {
@@ -367,11 +367,11 @@ describe('createDemoStorefront', () => {
 
     it('leads `best-selling` with the best-seller list, clones included', async () => {
       const response = await collection({ sort: 'best-selling' });
-      // The demo's best-seller list names 6 products; each appears 4 times in the 48-item
-      // collection, so the first 24 items are exactly those six (identified by title — a clone
+      // The demo's best-seller list names 6 products; each appears 3 times in the 48-item
+      // collection, so the first 18 items are exactly those six (identified by title — a clone
       // carries a suffixed handle but the same title), and the merino crew sweater leads.
       expect(response.items[0]!.title).toBe('Merino crew sweater');
-      const leading = new Set(response.items.slice(0, 24).map((item) => item.title));
+      const leading = new Set(response.items.slice(0, 18).map((item) => item.title));
       expect([...leading].sort()).toEqual(
         [
           'Hand-thrown serving bowl',
@@ -391,8 +391,9 @@ describe('createDemoStorefront', () => {
         sort: 'price-asc',
         filters: { category: ['knitwear'] },
       });
-      expect(response.total).toBe(20);
-      expect(response.items).toHaveLength(8);
+      // 15 knitwear items, so page 2 of 8 holds the last 7.
+      expect(response.total).toBe(15);
+      expect(response.items).toHaveLength(7);
       const prices = response.items.map((item) => item.price.amount);
       expect(prices).toEqual([...prices].sort((a, b) => a - b));
     });
@@ -443,7 +444,7 @@ describe('createDemoStorefront', () => {
       const facets = (await collection({})).facets!;
       const bySlug = new Map(facets.collections.map((term) => [term.slug, term]));
       expect(bySlug.get('the-winter-edit')?.count).toBe(48);
-      expect(bySlug.get('best-sellers')?.count).toBe(24);
+      expect(bySlug.get('best-sellers')?.count).toBe(18);
       expect(bySlug.get('the-winter-edit')?.title).toBe('The winter edit');
       // The id is the one a `reference` field carries, so a filter value and a picked collection
       // describe the same object.

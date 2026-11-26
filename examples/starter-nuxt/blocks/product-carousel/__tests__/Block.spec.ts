@@ -577,6 +577,10 @@ describe('product-carousel block', () => {
         'stoneware-dinner-plates-set-of-4',
         'hand-thrown-serving-bowl',
         'glazed-milk-jug',
+        'tall-bud-vase',
+        'celadon-tea-cup',
+        'terracotta-planters',
+        'enamel-camp-cups-set-of-6',
       ]);
       const ceramicTitles = PRODUCTS.filter((p) => ceramicHandles.has(p.handle)).map(
         (p) => p.title
@@ -621,6 +625,70 @@ describe('product-carousel block', () => {
       const off = mountBlock({ ...design, quickAdd: false });
       await flushPromises();
       expect(off.find('[data-part="quickAdd"]').exists()).toBe(false);
+    });
+  });
+
+  /** The theme's card (`app/storefront/productCardLook.ts`), as the design draws it. */
+  describe('the theme card', () => {
+    const design = { ...mock, ...preview };
+
+    async function cardFor(handle: string) {
+      const wrapper = mountBlock({ ...design, layout: 'carousel' });
+      await flushPromises();
+      const product = PRODUCTS.find((item) => item.handle === handle)!;
+      const card = wrapper
+        .findAllComponents(ProductCard)
+        .find((c) => (c.props('product') as { title: string }).title === product.title);
+      expect(card, handle).toBeDefined();
+      return { wrapper, card: card!, product };
+    }
+
+    it('reads title, price, then the maker under them, with no rating and no stock line', async () => {
+      const { card, product } = await cardFor('merino-crew-sweater');
+      const parts = card
+        .findAll('[data-part="body"] > [data-part]')
+        .map((node) => node.attributes('data-part'));
+      // (The swatch count's visually hidden line follows the dots.)
+      expect(parts.slice(0, 4)).toEqual(['title', 'price', 'vendor', 'swatches']);
+      expect(card.get('[data-part="vendor"]').text()).toBe(product.vendor);
+      expect(card.find('[data-part="rating"]').exists()).toBe(false);
+      expect(card.find('[data-part="stockLine"]').exists()).toBe(false);
+    });
+
+    it('draws every colour as a plain dot, no "+N"', async () => {
+      const { card, product } = await cardFor('merino-crew-sweater');
+      expect(card.findAll('[data-part="swatch"]')).toHaveLength(product.colours!.length);
+      expect(card.find('[data-part="swatchOverflow"]').exists()).toBe(false);
+    });
+
+    it('labels a sale "Sale" and a new product "New"', async () => {
+      const sale = await cardFor('merino-crew-sweater');
+      expect(sale.card.get('[data-part="badges"]').text()).toBe(enUS.productCard.sale);
+      const fresh = await cardFor('fisherman-rib-cardigan');
+      const badge = fresh.card.get('[data-part="badges"] [data-part="root"]');
+      expect(badge.text()).toBe('New');
+      expect(badge.classes()).toContain('bg-background');
+    });
+
+    it('words quick add "Add" with a plus, named "Add <title> to cart", the word hidden on phones', async () => {
+      const { card, product } = await cardFor('fisherman-rib-cardigan');
+      const button = card.get('button[data-part="quickAdd"]');
+      expect(button.attributes('aria-label')).toBe(`Add ${product.title} to cart`);
+      expect(button.get('[data-part="label"]').text()).toBe(enUS.productCard.add);
+      expect(button.get('[data-part="label"]').classes()).toContain('@max-[47.5rem]:hidden');
+      expect(button.find('[data-part="leadingIcon"] svg').exists()).toBe(true);
+    });
+
+    it('leaves the title un-underlined until hover', async () => {
+      const { card } = await cardFor('fisherman-rib-cardigan');
+      const link = card.get('[data-part="link"]');
+      expect(link.classes()).toContain('no-underline');
+      expect(link.classes()).toContain('hover:underline');
+    });
+
+    it('has no axe violations', async () => {
+      const { wrapper } = await cardFor('fisherman-rib-cardigan');
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
 
@@ -797,6 +865,26 @@ describe('product-carousel block', () => {
     it('renders no link at all in recently-viewed', async () => {
       const wrapper = await mountVariant({ variant: 'recently-viewed' });
       expect(wrapper.find('h2 a').exists()).toBe(false);
+    });
+
+    it('in the grid layout, keeps the heading plain and draws the link on its own, by its label', async () => {
+      const wrapper = await mountVariant({
+        variant: 'related',
+        layout: 'grid',
+        viewAllLabel: 'Shop all knitwear',
+        viewAllHref: '/collections/knitwear',
+      });
+      expect(wrapper.find('h2 a').exists()).toBe(false);
+      expect(wrapper.get('h2').text()).toBe(mock.heading);
+      const link = wrapper.get('a[data-view-all]');
+      expect(link.text()).toBe('Shop all knitwear');
+      expect(link.attributes('href')).toBe('/collections/knitwear');
+      // After the heading in reading order, as it sits after it on the row.
+      expect(
+        wrapper.get('h2').element.compareDocumentPosition(link.element) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
 

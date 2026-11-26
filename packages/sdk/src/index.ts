@@ -168,6 +168,7 @@ export type {
   EldraOrganizationFeature,
   EldraOrganizationLocales,
   EldraOrganizationOptions,
+  EldraOrganizationRegion,
   EldraPageMeta,
   EldraPaginated,
   EldraRequestContext,

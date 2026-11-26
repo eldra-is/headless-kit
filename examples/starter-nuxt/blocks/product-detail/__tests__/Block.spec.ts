@@ -608,6 +608,21 @@ describe('product-detail block', () => {
       });
     });
 
+    it('fills each tile with its photo: 5:4 for the wide one, 4:5 for the halves', async () => {
+      const wrapper = await mountReady(mock);
+      const [wide, half] = tiles(wrapper);
+      expect(wide!.classes()).toContain('aspect-[5/4]');
+      expect(half!.classes()).toContain('aspect-[4/5]');
+      // The tile owns the ratio and the picture is stretched over it — never a picture at its own
+      // intrinsic ratio inside a box of another one (the 3:2 photo in a 5:4 tile, with a band of
+      // empty surface under it).
+      for (const tile of [wide!, half!]) {
+        const root = tile.element.firstElementChild!;
+        expect(root.className).toMatch(/\babsolute\b/);
+        expect(root.className).toMatch(/\binset-0\b/);
+      }
+    });
+
     it('lays two images side by side, and leads with a wide one from three', async () => {
       const spans = async (count: number) => {
         const images = Array.from({ length: count }, (_, index) => ({
@@ -1302,6 +1317,23 @@ describe('product-detail block', () => {
 
   /** The `tabs` entries render as an accordion now (the design's Details / Care / Delivery and
    *  returns rows), the first one open — each row a native disclosure. */
+  describe('maker line', () => {
+    it('names the maker above the title, linked to a search for them', async () => {
+      const wrapper = await mountReady(mock);
+      const link = wrapper.get('[data-product-maker] a');
+      expect(link.text()).toBe('Fell & Fleece');
+      expect(link.attributes('href')).toBe('/search?q=Fell%20%26%20Fleece');
+      const maker = wrapper.get('[data-product-maker]').element;
+      const title = wrapper.get('h1').element;
+      expect(maker.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('draws no maker line for a product without one', async () => {
+      const wrapper = await mountReady(mock, { storefront: storefrontWith({ vendor: undefined }) });
+      expect(wrapper.find('[data-product-maker]').exists()).toBe(false);
+    });
+  });
+
   describe('details accordion', () => {
     const rows = (wrapper: Wrapper) => wrapper.findAll('details');
     const summaries = (wrapper: Wrapper) => wrapper.findAll('details > summary');
@@ -1324,6 +1356,38 @@ describe('product-detail block', () => {
         'Delivery and returns',
       ]);
       expect(wrapper.text()).toContain('100% extra-fine Merino wool');
+    });
+
+    it('draws a body of bold-labelled facts as a two-column definition list', async () => {
+      const wrapper = await mountReady(mock);
+      const row = rows(wrapper)[0]!;
+      const list = row.get('dl');
+      expect(list.classes()).toEqual(expect.arrayContaining(['grid', 'grid-cols-[auto_1fr]']));
+      expect(list.findAll('dt').map((term) => term.text())).toEqual([
+        'Material',
+        'Fit',
+        'Weight',
+        'Made in',
+      ]);
+      expect(list.findAll('dd')[0]!.text()).toBe('100% extra-fine Merino wool, 17.5 micron');
+      // The facts replace the list, never sit beside a second copy of it.
+      expect(row.find('ul').exists()).toBe(false);
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+    });
+
+    it('renders any other body as its rich text', async () => {
+      const wrapper = await mountReady(mock);
+      // Care is a plain bullet list (no bold labels): it stays a list.
+      const care = rows(wrapper)[1]!;
+      expect(care.find('dl').exists()).toBe(false);
+      expect(care.find('ul').exists()).toBe(true);
+    });
+
+    it('keeps the facts as editable rich text in the editor', async () => {
+      const wrapper = await mountReady(mock, { editing: true });
+      const row = rows(wrapper)[0]!;
+      expect(row.find('dl').exists()).toBe(false);
+      expect(row.find('ul').exists()).toBe(true);
     });
 
     it('opens and closes a row from the keyboard, its summary being the one tab stop', async () => {

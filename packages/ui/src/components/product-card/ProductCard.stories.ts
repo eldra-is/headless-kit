@@ -179,6 +179,21 @@ export const NoRating: Story = cardStory({ product: { ...SWEATER, rating: null }
 /** `showVendor`, on: the vendor line above the title. */
 export const WithVendor: Story = cardStory({ product: SWEATER, showVendor: true });
 
+/** A theme's own wording and order: the maker after the price (`vendorPlacement: 'below'`), a
+ * plain row of up to five dots (`maxSwatches`), "Sale" in place of the percentage
+ * (`saleBadgeLabel`), and quick add worded "Add" with its own accessible name (`quickAddLabel`,
+ * `quickAddName`). */
+export const ThemeWording: Story = cardStory({
+  product: SWEATER,
+  showVendor: true,
+  vendorPlacement: 'below',
+  maxSwatches: 5,
+  showRating: false,
+  saleBadgeLabel: 'Sale',
+  quickAddLabel: 'Add',
+  quickAddName: 'Add Merino crew sweater to cart',
+});
+
 /** Two-, three- and six-colour products side by side: two and three dots render with no
  * overflow; six clamps to three dots plus "+3". */
 export const Swatches: Story = {

@@ -99,6 +99,22 @@ describe('hero block', () => {
       expect(caption!.attributes('href')).toBe(withImage.captionHref);
     });
 
+    it('draws the caption as a pill whose words are never underlined, at rest, hovered or pressed', () => {
+      // The design's shoppable pill (`.nw-shoppable`): the pill is the affordance. `Link`'s
+      // `underline: false` still underlines on hover and press, so the caption turns both off.
+      const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: card } }));
+      const caption = wrapper.get('[data-eldra-hero-caption]');
+      for (const token of [
+        'no-underline',
+        'hover:no-underline',
+        'active:no-underline',
+        'rounded-full',
+      ]) {
+        expect(caption.classes()).toContain(token);
+      }
+      expect(caption.classes()).toContain('eldra:hover:underline');
+    });
+
     it('renders no caption without a link, and none in the other variants', () => {
       const noHref = mount(
         Block,

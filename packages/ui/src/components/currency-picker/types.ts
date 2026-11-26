@@ -1,6 +1,7 @@
 import type { SelectPart } from '../select/types';
 
-export type CurrencyPickerPart = 'root' | SelectPart;
+/** `label` is the visible label's, with `showLabel`. */
+export type CurrencyPickerPart = 'root' | 'label' | SelectPart;
 
 export interface CurrencyPickerProps {
   /** ISO 4217 codes to offer, the store's own first. With fewer than two the picker renders nothing. */

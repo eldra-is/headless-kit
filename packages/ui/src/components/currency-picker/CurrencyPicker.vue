@@ -54,12 +54,24 @@ const selected = computed<string>({
   set: (code) => emit('update:modelValue', code),
 });
 
-const { root: rootClass, trigger: triggerClass, ...otherClasses } = props.classes ?? {};
+const {
+  root: rootClass,
+  label: labelClass,
+  trigger: triggerClass,
+  ...otherClasses
+} = props.classes ?? {};
 const selectClasses = computed(() => ({
   ...otherClasses,
   trigger: [props.busy ? 'eldra:opacity-60' : '', triggerClass ?? ''].join(' ').trim() || undefined,
 }));
-const labelClasses = computed(() => (props.showLabel ? undefined : { label: 'eldra:sr-only' }));
+const labelClasses = computed(() =>
+  props.showLabel ? { label: labelClass } : { label: 'eldra:sr-only' }
+);
+
+/** A row's currency name alone, for an `optionContent` slot that prints the code apart from it. */
+function nameOf(option: SelectOption): string {
+  return currencyName(option.value);
+}
 </script>
 
 <template>
@@ -73,6 +85,8 @@ const labelClasses = computed(() => (props.showLabel ? undefined : { label: 'eld
     :class="rootClass"
     :aria-busy="busy ? 'true' : undefined"
   >
+    <!-- The label's own content, with `showLabel`: an icon beside the words. -->
+    <template v-if="$slots.label" #label><slot name="label" /></template>
     <Select
       v-model="selected"
       :options="options"
@@ -81,7 +95,23 @@ const labelClasses = computed(() => (props.showLabel ? undefined : { label: 'eld
       :size="size"
       :classes="selectClasses"
     >
-      <template #value="{ option }">{{ option.value }}</template>
+      <!-- `leading` and `value` are `Select`'s own, so a header can draw "Prices in ISK" with an
+           icon; `value` gets the code and the full label, and defaults to the code. -->
+      <template v-if="$slots.leading" #leading><slot name="leading" /></template>
+      <!-- `optionContent` gets the code, the currency's name alone (`currencyName`; a slot prop
+           cannot be called `name`) and the full label, so a row can print the code apart. -->
+      <template v-if="$slots.optionContent" #optionContent="{ option, selected: chosen }">
+        <slot
+          name="optionContent"
+          :code="option.value"
+          :currency-name="nameOf(option)"
+          :label="option.label"
+          :selected="chosen"
+        />
+      </template>
+      <template #value="{ option }">
+        <slot name="value" :code="option.value" :label="option.label">{{ option.value }}</slot>
+      </template>
     </Select>
   </FieldWrapper>
 </template>

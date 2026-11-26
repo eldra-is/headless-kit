@@ -83,6 +83,12 @@ function isWide(index: number): boolean {
   return index === count.value - 1 && (count.value - 1) % 2 === 1;
 }
 
+/**
+ * The tile owns the shape (`aspect-*` on the button) and the photo fills it (`UiImage`'s `fill`).
+ * Handing the ratio to `UiImage` instead drew the wide tile's photo at its own intrinsic ratio: 5:4
+ * is not one of `Image`'s named ratios, so the box was 5:4 and the photo inside it 3:2, with a band
+ * of empty `surface` under it.
+ */
 const TILE = 'group relative block w-full cursor-zoom-in overflow-hidden rounded-lg bg-surface';
 </script>
 
@@ -98,13 +104,13 @@ const TILE = 'group relative block w-full cursor-zoom-in overflow-hidden rounded
           type="button"
           aria-haspopup="dialog"
           :aria-label="tileLabel(image, index)"
-          :class="[focusRing, TILE]"
+          :class="[focusRing, TILE, isWide(index) ? 'aspect-[5/4]' : 'aspect-[4/5]']"
           @click="open(index)"
         >
           <UiImage
             :src="image.src"
             alt=""
-            :aspect="isWide(index) ? '5/4' : '4/5'"
+            fill
             :priority="index === 0"
             class="motion-safe:duration-base w-full group-hover:scale-[1.02] motion-safe:transition-transform"
           />

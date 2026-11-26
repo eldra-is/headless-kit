@@ -54,7 +54,10 @@ defineSlots<{
 
 const locale = useEldraUiLocale();
 const currency = useEldraUiCurrency();
-const aspectStyle = computed(() => ({ aspectRatio: cardAspectRatio(props.cardAspect) }));
+/** The crop rides on a variable the picture's own class reads, so a theme's class can still replace it. */
+const aspectStyle = computed(() => ({
+  '--eldra-nav-menu-card-aspect': cardAspectRatio(props.cardAspect),
+}));
 
 /** A card's price in the store currency, or a plain number when the store has none the runtime knows. */
 function priceText(amount: number): string {
@@ -209,7 +212,7 @@ const cardClass = computed(() =>
 );
 const cardImageClass = computed(() =>
   panelPartClass(
-    'eldra:block eldra:w-full eldra:rounded-md eldra:bg-surface eldra:object-cover',
+    'eldra:block eldra:w-full eldra:rounded-md eldra:bg-surface eldra:object-cover eldra:aspect-(--eldra-nav-menu-card-aspect)',
     'cardImage'
   )
 );

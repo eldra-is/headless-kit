@@ -71,7 +71,7 @@
         "scope": "category",
         "variant": "filter-bar",
         "columns": "4",
-        "pageSize": "24",
+        "pageSize": "12",
         "paginationStyle": "load-more",
         "sortOptions": [
           {
@@ -122,9 +122,8 @@
       "id": "category-footer",
       "data": {
         "variant": "default",
-        "background": "primary",
+        "background": "dark",
         "brandText": "Northwind Goods",
-        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
         "showNewsletter": false,

@@ -404,7 +404,8 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
               :as="captionLinkAs"
               :underline="false"
               :classes="{ label: 'inline-flex min-w-0 items-center gap-2' }"
-              class="bg-background/90 text-text hover:bg-background absolute top-5 right-5 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold @min-[68.8125rem]:top-auto @min-[68.8125rem]:bottom-5"
+              data-eldra-hero-caption
+              class="bg-background/90 text-text hover:bg-background hover:text-text absolute top-5 right-5 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold no-underline hover:no-underline active:no-underline @min-[68.8125rem]:top-auto @min-[68.8125rem]:bottom-5"
             >
               <span class="truncate">{{ captionLabel }}</span>
               <span v-if="captionDetail" class="text-muted font-normal">{{ captionDetail }}</span>

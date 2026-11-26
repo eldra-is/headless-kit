@@ -64,7 +64,7 @@
     "emailError": "Something went wrong. Try again.",
     "subscribed": "You're on the list.",
     "localeLabel": "Language",
-    "currencyLabel": "Currency",
+    "currencyLabel": "Prices in",
     "social": {
       "instagram": "Instagram",
       "facebook": "Facebook",
@@ -130,7 +130,9 @@
     "savedItems": "Saved items",
     "account": "Account",
     "home": "{brand}, home",
-    "info": "Store information"
+    "info": "Store information",
+    "pricesIn": "Prices in",
+    "close": "Close"
   },
   "editor": {
     "addLink": "Add a link"
@@ -350,8 +352,14 @@
     "countMany": "{count} products",
     "subcollections": "Sub-collections",
     "subcategories": "Categories in this one",
+    "allInCategory": "All {category}",
     "titleHintLabel": "Add a title",
     "titleHintHelp": "Falls back to the collection title from the store"
+  },
+  "productCard": {
+    "add": "Add",
+    "addName": "Add {title} to cart",
+    "sale": "Sale"
   },
   "productCarousel": {
     "viewAllContext": " products",
@@ -409,7 +417,7 @@
     "openImage": "Open image {index} of {count}: {alt}",
     "saleBadge": "Sale",
     "saving": "Save {amount}",
-    "taxNote": "Taxes included. Shipping calculated at checkout.",
+    "taxNote": "Tax included. Delivery calculated at checkout.",
     "sizeGuide": "Size guide",
     "quantity": "Quantity",
     "addToCart": "Add to cart · {price}",
@@ -640,7 +648,7 @@
     "pagination": "Pagination",
     "previousPage": "Previous page",
     "nextPage": "Next page",
-    "loadMore": "Load more",
+    "loadMore": "Show more",
     "filterPanelTitle": "Filters",
     "filterPanelLabel": "Product filters",
     "filterPanelClearAll": "Clear all",

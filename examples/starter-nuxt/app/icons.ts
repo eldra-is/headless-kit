@@ -71,6 +71,7 @@ import packageIcon from '@tabler/icons/outline/package.svg?raw';
 import phoneIcon from '@tabler/icons/outline/phone.svg?raw';
 import photoIcon from '@tabler/icons/outline/photo.svg?raw';
 import playerPlayIcon from '@tabler/icons/outline/player-play.svg?raw';
+import plusIcon from '@tabler/icons/outline/plus.svg?raw';
 import quoteIcon from '@tabler/icons/outline/quote.svg?raw';
 import receiptIcon from '@tabler/icons/outline/receipt.svg?raw';
 import searchIcon from '@tabler/icons/outline/search.svg?raw';
@@ -156,6 +157,7 @@ const RAW = {
   phone: phoneIcon,
   photo: photoIcon,
   'player-play': playerPlayIcon,
+  plus: plusIcon,
   quote: quoteIcon,
   receipt: receiptIcon,
   search: searchIcon,

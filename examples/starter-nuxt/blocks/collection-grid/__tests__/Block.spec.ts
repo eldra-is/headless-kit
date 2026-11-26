@@ -103,9 +103,9 @@ interface Stub {
 }
 
 /**
- * A storefront whose catalogue actually answers the request: the twelve Northwind products when
+ * A storefront whose catalogue actually answers the request: the sixteen Northwind products when
  * nothing is filtered, and nothing at all as soon as any filter is applied. That is what makes
- * "the count reads 12 products, then 0 products", "the empty state names the active filters" and
+ * "the count reads 16 products, then 0 products", "the empty state names the active filters" and
  * "the drawer changes nothing until Show N products" real assertions rather than restatements of a
  * fixture — the demo source (`app/storefront/demo.ts`) ignores `filters` by design.
  */
@@ -375,6 +375,25 @@ describe('collection-grid block', () => {
     });
   });
 
+  describe('"+ Add" on a card', () => {
+    it('reads the product and puts one of its variant in the cart', async () => {
+      const source = createDemoStorefront();
+      const add = vi.spyOn(source.cart, 'add');
+      const wrapper = mountGrid(mock, { source });
+      await flushPromises();
+      const first = wrapper.findAllComponents(ProductCard)[0]!;
+      const button = first.get('button[data-part="quickAdd"]');
+      const title = (first.props('product') as { title: string }).title;
+      expect(button.attributes('aria-label')).toContain(title);
+      await button.trigger('click');
+      await flushPromises();
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(add.mock.calls[0]![0].quantity).toBe(1);
+      expect(add.mock.calls[0]![0].variantId).not.toBe('');
+      expect(source.cart.lines.value.length).toBe(1);
+    });
+  });
+
   describe('structure', () => {
     it('names the section with the collection and puts the grid under a hidden h2 with h3 titles', async () => {
       const wrapper = mountGrid(mock);
@@ -400,6 +419,22 @@ describe('collection-grid block', () => {
       const aside = wrapper.get('aside');
       expect(aside.attributes('aria-label')).toBe(enUS.grid.filters);
       expect(aside.classes().join(' ')).toContain('var(--eldra-header-height,0px)');
+    });
+
+    /**
+     * WS-1277: the sticky rail was as tall as its groups, so on a viewport shorter than the panel the
+     * lower groups were unreachable until the grid beside it had scrolled away. It is capped at the
+     * viewport less its offsets and scrolls itself.
+     */
+    it('caps the sticky rail at the viewport under the header and lets it scroll its own groups', async () => {
+      const wrapper = mountGrid(mock);
+      await wrapper.vm.$nextTick();
+      const classes = wrapper.get('aside').classes();
+      expect(classes).toContain(
+        '@content:max-h-[calc(100dvh_-_3rem_-_var(--eldra-header-height,0px))]'
+      );
+      expect(classes).toContain('@content:overflow-y-auto');
+      expect(classes).toContain('@content:overscroll-contain');
     });
 
     /**
@@ -539,12 +574,12 @@ describe('collection-grid block', () => {
   });
 
   describe('the result count', () => {
-    it('is a polite status that reads "12 products" and "0 products" after a filter change', async () => {
+    it('is a polite status that reads "16 products" and "0 products" after a filter change', async () => {
       useFilterTimers();
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
 
       const { panel } = panelFor(wrapper, enUS.grid.legendCategory);
       await panel.get('input[type="checkbox"]').setValue(true);
@@ -646,7 +681,7 @@ describe('collection-grid block', () => {
       const html = await renderBlockHtml(Block, entry, {
         [STOREFRONT_KEY]: createStub().source,
       });
-      expect(html).toContain('data-part="stars"'); // the cards really are in the server's markup
+      expect(html).toContain('data-part="swatches"'); // the cards really are in the server's markup
       expect(html).not.toContain('animate-eldra-pulse-soft');
       expect(html).not.toContain(enUS.grid.updating);
 
@@ -948,7 +983,7 @@ describe('collection-grid block', () => {
 
       expect(countReads()).toBe(before + 1);
       // And the page itself is untouched until "Show N products" is pressed.
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
     });
   });
 
@@ -1223,7 +1258,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       expect(cards(wrapper).length).toBeGreaterThan(0);
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
     });
   });
 
@@ -1363,7 +1398,7 @@ describe('collection-grid block', () => {
       const stub = createStub();
       const wrapper = mountGrid(mock, { source: stub.source, attachTo: document.body });
       await wrapper.vm.$nextTick();
-      expect(cards(wrapper)).toHaveLength(12);
+      expect(cards(wrapper)).toHaveLength(16);
 
       await filterButton(wrapper).trigger('click');
       const dialog = wrapper.get('dialog');
@@ -1375,8 +1410,8 @@ describe('collection-grid block', () => {
       // Nothing on the page has moved: same cards, same count, and the sidebar's own (applied)
       // panel shows no chip — the drawer's own pending copy shows the tick it is still holding,
       // which is exactly the "changes nothing until applied" contract for the page, not the drawer.
-      expect(cards(wrapper)).toHaveLength(12);
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(cards(wrapper)).toHaveLength(16);
+      expect(countLine(wrapper).text()).toBe('16 products');
       expect(
         wrapper.get('aside').find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()
       ).toBe(false);
@@ -1466,9 +1501,9 @@ describe('collection-grid block', () => {
     it('puts the panel’s own Clear all and chips before its group triggers, then the toolbar, then the cards', async () => {
       const wrapper = mountGrid(mock, { attachTo: document.body });
       await wrapper.vm.$nextTick();
-      // Availability → In stock, not Size → M: the demo source honours `filters` now, and 44 of the
+      // Availability → In stock, not Size → M: the demo source honours `filters` now, and 42 of the
       // 48 demo items are in stock, so this leaves more than one page and keeps a real Load more
-      // button in the tab order (Size → M leaves 12, i.e. everything already shown).
+      // button in the tab order (Size → M leaves 9, i.e. everything already shown).
       const availability = panelFor(wrapper, enUS.grid.legendAvailability).panel;
       await availability.get('[role="switch"]').trigger('click');
       await flushPromises();
@@ -1779,13 +1814,13 @@ describe('collection-grid block', () => {
       // A package string the block never writes itself: `LoadMore`'s own "Showing N of M" line.
       const loadMoreLine = () => wrapper.get('[data-part="status"]').text();
 
-      // 12 of the demo collection's 48 items are made in size M (the three apparel products, each
-      // appearing four times — `app/storefront/demo.ts`), and the demo source honours `filters`
+      // 9 of the demo collection's 48 items are made in size M (the three apparel products, each
+      // appearing three times — `app/storefront/demo.ts`), and the demo source honours `filters`
       // now, so both the package's "Showing N of M" line and the block's own count read the
       // *filtered* set. Before that, ticking a filter left these at 24 of 48 / 48 products.
       expect(removeLabel()).toBe('Remove filter Size: M');
-      expect(loadMoreLine()).toContain('Showing 12 of 12');
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(loadMoreLine()).toContain('Showing 9 of 9');
+      expect(countLine(wrapper).text()).toBe('9 products');
 
       context.preview.locale = 'is-IS';
       await wrapper.vm.$nextTick();
@@ -1797,8 +1832,8 @@ describe('collection-grid block', () => {
       // into an explicit `option:size` row gets that label in both locales, since a string a
       // merchant wrote is not the theme's to translate.)
       expect(removeLabel()).toBe(`Fjarlægja síu ${isIS.grid.legendSize}: M`);
-      expect(loadMoreLine()).toContain('12 af 12');
-      expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '12'));
+      expect(loadMoreLine()).toContain('9 af 9');
+      expect(countLine(wrapper).text()).toBe(isIS.grid.nProducts.replace('{count}', '9'));
     });
   });
 
@@ -1952,7 +1987,7 @@ describe('collection-grid block', () => {
 
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
       expect(filterButton(wrapper).find('[data-part="hiddenSuffix"]').exists()).toBe(false);
-      // Still sent — this stub answers a filtered request with four of the twelve — because the
+      // Still sent — this stub answers a filtered request with four of the sixteen — because the
       // storefront that declared the source unfilterable is the one already ignoring it, and the
       // key is meaningful in a scope that can honour it.
       expect(cards(wrapper)).toHaveLength(4);
@@ -2404,7 +2439,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
       expect(stub.requests.at(-1)?.filters).toBeUndefined();
     });
 
@@ -2426,7 +2461,7 @@ describe('collection-grid block', () => {
       await wrapper.vm.$nextTick();
 
       expect(wrapper.find(`ul[aria-label="${enUS.grid.activeFilters}"]`).exists()).toBe(false);
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
       // Clear all moves focus to the panel's own title (see "focuses the panel's own title" above).
       expect(document.activeElement).toBe(wrapper.get('aside [data-part="title"]').element);
     });
@@ -2993,7 +3028,9 @@ describe('collection-grid block', () => {
       expect(chips).not.toContain('$50');
 
       // And the grid itself is filtered — the demo source applies the same pass the gateway does.
-      expect(countLine(wrapper).text()).toBe('4 products');
+      // Knitwear in Oat, in stock, between $50 and $150 is the merino crew sweater ($96) alone,
+      // once per pass of the 48-item collection through the sixteen products: three.
+      expect(countLine(wrapper).text()).toBe('3 products');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
   });
@@ -3091,7 +3128,7 @@ describe('collection-grid block', () => {
       const stub = createStub(PRODUCTS, { filteredCount: 4 });
       const wrapper = mountGrid(mock, { source: stub.source });
       await wrapper.vm.$nextTick();
-      expect(countLine(wrapper).text()).toBe('12 products');
+      expect(countLine(wrapper).text()).toBe('16 products');
       expect(stub.requests.at(-1)?.filters).toBeUndefined();
 
       stub.source.route.filters = { price: ['50-150'] };
@@ -3218,6 +3255,8 @@ describe('collection-grid — the filter-bar variant', () => {
     expect(pressed.attributes('aria-pressed')).toBe('false');
     expect(comboboxes(wrapper)).toHaveLength(2); // Sort, and Columns from 64rem
     expect(countLine(wrapper).text()).toBe('48 products');
+    // The design's "**48** products": the number alone in a `strong`, the words around it plain.
+    expect(countLine(wrapper).get('strong').text()).toBe('48');
   });
 
   it('is axe-clean closed, with a group open, and with filters applied', async () => {
