@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.5.0...theme-nuxt-v0.5.1) (2026-11-25)
+
+
+### Features
+
+* **starter-nuxt:** redesign the starter as Northwind Goods (WS-1277) ([#173](https://github.com/eldra-is/headless-kit/issues/173)) ([217c820](https://github.com/eldra-is/headless-kit/commit/217c8201c62fa81de33712655b8b31d8403e903c))
+
 ## [0.5.0](https://github.com/eldra-is/headless-kit/compare/theme-nuxt-v0.4.8...theme-nuxt-v0.5.0) (2026-11-25)
 
 

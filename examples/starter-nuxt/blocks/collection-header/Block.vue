@@ -32,8 +32,11 @@
  * States, "No image"; Acceptance: "With no image and no collection image, the block renders as
  * text-only").
  *
- * The description clamps to 3 lines; **Read more** (`@eldrajs/ui`'s `Button variant="link"`) shows
- * only when the clamped box actually overflows, measured on mount (and on resize, while collapsed)
+ * The description clamps to 3 lines; **Read more** (`@eldrajs/ui`'s `Button variant="link"`) is
+ * *usable* only when the clamped box actually overflows, but its row is **reserved from the first
+ * server render** whenever there is a description (it always clamps), as an invisible, inert,
+ * `aria-hidden` button, so measuring on mount never shifts the content below (CLS, WS-1451).
+ * Overflow is measured on mount (and on resize, while collapsed)
  * by comparing `scrollHeight` to `clientHeight` on the clamped element — the same
  * `typeof ResizeObserver !== 'undefined'` guard `packages/ui`'s own `useCarousel` uses, since jsdom
  * has no `ResizeObserver`. `Esc` — on the button itself, or from inside the expanded text — collapses
@@ -479,14 +482,22 @@ const IMAGE_FRAME_CLASS = 'relative aspect-[21/9] w-full @min-[60rem]:aspect-[16
               <p v-else>{{ storeDescription }}</p>
             </div>
 
+            <!-- Always rendered (the description always clamps), so its row exists from the first
+                 server render and nothing below it moves when the overflow measurement lands on
+                 mount. Until the text is known to overflow it is `invisible` (visibility: hidden
+                 keeps its box and removes it from the tab order and the accessibility tree),
+                 `aria-hidden`, `inert` and `tabindex="-1"`, and it carries no aria-expanded or
+                 aria-controls. -->
             <Button
-              v-if="isOverflowing"
               :id="readMoreId"
               variant="link"
               size="sm"
-              :aria-expanded="expanded ? 'true' : 'false'"
-              :aria-controls="descriptionId"
-              class="self-start"
+              :aria-expanded="isOverflowing ? (expanded ? 'true' : 'false') : undefined"
+              :aria-controls="isOverflowing ? descriptionId : undefined"
+              :aria-hidden="isOverflowing ? undefined : 'true'"
+              :inert="isOverflowing ? undefined : true"
+              :tabindex="isOverflowing ? undefined : -1"
+              :class="['self-start', isOverflowing ? '' : 'invisible']"
               @click="toggleExpanded"
               @keydown="onReadMoreKeydown"
             >
