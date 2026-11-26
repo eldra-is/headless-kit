@@ -279,6 +279,12 @@ export interface BlockField {
   groupId?: string;
   isTitle?: boolean;
   localized?: boolean;
+  /**
+   * Whether a merchant may insert price tokens here (WS-1474). Core allows them in every
+   * `string`/`text`/`rich-text` field of a theme block; `false` opts one out — a URL, a code, an
+   * id, anything a written price would break. Only on those three types.
+   */
+  allowPrices?: boolean;
   default?: unknown;
   description?: string;
   helpText?: string;

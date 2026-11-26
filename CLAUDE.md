@@ -370,7 +370,7 @@ sitemap; a file of the same name in the theme's own `public/` is never replaced.
 One more follows it too: the store amounts behind `⟦store …⟧` price tokens (`GET
 /delivery/v1/provider-account`, `readStoreAmounts`): the lowest free-shipping threshold per
 currency among the active delivery methods, minor units, into `runtimeConfig.public.eldra.storeAmounts`.
-Price tokens themselves (`⟦price#a3f EUR=10000⟧` in any string, a `price` node in rich text) are
+Price tokens themselves (`⟦price#a3f EUR=10000⟧` in a string, a `price` node in rich text; every theme text field allows them unless `block.json` says `"allowPrices": false`, as the starter does for its URL fields) are
 `@eldrajs/sdk/tokens`; the starter resolves every block's data in `useBlockData`, and a sentence
 whose price has no amount in the shopper's currency is left out, never converted. See
 [Price tokens](docs/themes.md#price-tokens-prices-inside-any-text-field).

@@ -80,6 +80,7 @@
       "fieldId": "returnLinkHref",
       "name": "Return link URL",
       "type": "string",
+      "allowPrices": false,
       "default": "/pages/returns"
     },
     {
@@ -94,6 +95,7 @@
       "fieldId": "shopAgainLinkHref",
       "name": "Shop again link URL",
       "type": "string",
+      "allowPrices": false,
       "default": "/collections/all"
     },
     {
@@ -119,6 +121,7 @@
                 "fieldId": "href",
                 "name": "Link URL",
                 "type": "string",
+                "allowPrices": false,
                 "validators": { "required": true }
               },
               {

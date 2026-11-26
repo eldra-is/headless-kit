@@ -710,6 +710,11 @@ other price on the page (WS-1474, WS-1473):
   text the **paragraph**. It never shows a raw token, another currency's amount or a converted one.
 - A field's `maxLength` counts each token as `TOKEN_TEXT_LENGTH` (10) characters, about the
   length of a written price, not its bracket text (`lengthText`).
+- **Which fields.** Every `string`, `text` and `rich-text` field of a theme block allows prices: Core
+  turns its `allowPrices` setting on when the theme deploys. Opt a field out with `"allowPrices":
+false` beside `localized` in `block.json` wherever a written price would break the value — a URL,
+  an email, a code, a value matched against something else. `eldra-theme validate` refuses it on any
+  other type. A merchant's own CMS fields are the other way round: off until they switch it on.
 
 The pieces: `@eldrajs/sdk/tokens` parses, serialises and resolves (`resolveTokens(text, { currency,
 locale, storeAmounts, format })`, `resolvePriceNode`); `@eldrajs/rich-text`'s `toHtml(doc, {

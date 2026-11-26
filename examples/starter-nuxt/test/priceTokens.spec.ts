@@ -161,3 +161,79 @@ describe('resolveBlockTokens', () => {
     expect(resolveBlockTokens(plain, options)).toBe(plain);
   });
 });
+
+describe('price opt-outs (allowPrices: false)', () => {
+  interface FieldDef {
+    fieldId: string;
+    type: string;
+    allowPrices?: boolean;
+    metadata?: { item?: FieldDef; fields?: FieldDef[] };
+  }
+  const definitions = import.meta.glob<{ default: { apiId: string; fields: FieldDef[] } }>(
+    '../blocks/*/block.json',
+    { eager: true }
+  );
+  const seeds = import.meta.glob<{ default: Record<string, unknown> }>(
+    ['../blocks/*/mock.json', '../blocks/*/preview.json'],
+    { eager: true }
+  );
+  const pages = import.meta.glob<{
+    default: { blocks: { apiId: string; data: Record<string, unknown> }[] };
+  }>('../pages/*.page.json', { eager: true });
+
+  /** A field's own children: a list's item (or the item composite's fields), a composite's fields. */
+  const childrenOf = (field: FieldDef): FieldDef[] => {
+    const item = field.metadata?.item;
+    if (item !== undefined)
+      return item.type === 'composite' ? (item.metadata?.fields ?? []) : [item];
+    return field.metadata?.fields ?? [];
+  };
+  const isUrlLike = (id: string): boolean => id === 'href' || /(Href|Url)$/.test(id);
+
+  it('opts out every URL field: a written price there would break the link', () => {
+    const missing: string[] = [];
+    const walk = (fields: FieldDef[], at: string): void => {
+      for (const field of fields) {
+        const where = `${at}.${field.fieldId}`;
+        if ((field.type === 'string' || field.type === 'text') && isUrlLike(field.fieldId)) {
+          if (field.allowPrices !== false) missing.push(where);
+        }
+        walk(childrenOf(field), where);
+      }
+    };
+    for (const d of Object.values(definitions)) walk(d.default.fields, d.default.apiId);
+    expect(missing).toEqual([]);
+  });
+
+  it('never seeds a price into a field that opted out, which Core would refuse', () => {
+    const found: string[] = [];
+    const walk = (value: unknown, field: FieldDef | null, at: string): void => {
+      if (typeof value === 'string') {
+        if (value.includes('⟦') && field?.allowPrices === false) found.push(at);
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((v, i) => walk(v, field, `${at}.${i}`));
+        return;
+      }
+      if (value === null || typeof value !== 'object' || field?.type === 'rich-text') return;
+      for (const [key, v] of Object.entries(value)) {
+        const children = field === null ? [] : childrenOf(field);
+        walk(v, children.find((f) => f.fieldId === key) ?? null, `${at}.${key}`);
+      }
+    };
+    const check = (apiId: string, data: Record<string, unknown>, where: string): void => {
+      const fields = Object.values(definitions).find((d) => d.default.apiId === apiId)!.default
+        .fields;
+      for (const [key, value] of Object.entries(data)) {
+        walk(value, fields.find((f) => f.fieldId === key) ?? null, `${where}:${key}`);
+      }
+    };
+    for (const [path, seed] of Object.entries(seeds))
+      check(path.split('/')[2]!, seed.default, path);
+    for (const [path, page] of Object.entries(pages)) {
+      for (const block of page.default.blocks) check(block.apiId, block.data, path);
+    }
+    expect(found).toEqual([]);
+  });
+});

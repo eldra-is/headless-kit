@@ -181,6 +181,27 @@ describe('createOverlayRuntime', () => {
     );
   });
 
+  it("never copies a draft's raw text over a field whose page text is not its stored text", () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = encodeStega('Free shipping over €100.00', {
+      entryId: 'block-1',
+      fieldPath: 'note',
+      locale: 'en-US',
+      inline: false,
+    });
+    document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+    runtime.rescan();
+    runtime.setMode('edit');
+    // Studio's draft holds the token; the theme renders it written out.
+    runtime.reconcileExternalDrafts(
+      { 'block-1': { note: 'Free shipping over ⟦price#a3f EUR=10000⟧' } },
+      ['block-1']
+    );
+    expect(document.querySelector('[data-eldra-field="note"]')?.textContent).toBe(
+      'Free shipping over €100.00'
+    );
+  });
+
   it('restores inline focus and caret when a renderer replaces the decorated field', () => {
     runtime.setMode('edit');
     const original = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;

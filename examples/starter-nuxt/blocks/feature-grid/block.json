@@ -39,7 +39,8 @@
     {
       "fieldId": "headLinkHref",
       "name": "Head link URL",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "columns",
@@ -96,7 +97,7 @@
                 "type": "string",
                 "localized": true
               },
-              { "fieldId": "href", "name": "Link URL", "type": "string" }
+              { "fieldId": "href", "name": "Link URL", "type": "string", "allowPrices": false }
             ]
           }
         }

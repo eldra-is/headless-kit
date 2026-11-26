@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- A block field may say `"allowPrices": false` (WS-1474): Core allows price tokens in every `string`, `text` and `rich-text` field of a theme block, and this opts one out — a URL, an email, a code. The scan refuses it unless it is a boolean on one of those types, at any depth, and it reaches the manifest. Changing it never needs a version bump.
 - **A theme can declare its menu as an object: `metadata.tree` takes depth, sections and cards
   (WS-1312).** `tree` on a `link` field is now `boolean | EldraLinkTree` (new types `EldraLinkTree`,
   `EldraLinkTreeSections`, `EldraLinkTreeCards`, Core's own JSON keys). The scanner refuses exactly

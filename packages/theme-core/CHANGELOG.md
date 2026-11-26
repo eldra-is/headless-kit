@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The preview overlay no longer copies a draft's raw text over a field marked `inline: false` on `editor:content-update`: a field whose price tokens the theme wrote out showed the raw `⟦price#…⟧` in the builder after every edit (WS-1474).
 - **Price tokens (WS-1474).** `buildRichTextTree` takes `resolvePrice`: a `price` node renders its written price as a leaf (one position, like a hard break), and a paragraph holding one that cannot be written stays in the tree, `hidden`, so the builder's positions still count it. `StegaMeta.inline: false` marks a field whose page text is not its stored text: the overlay keeps it selectable (`theme:field-clicked`) but never makes it editable in place.
 - **`resolveLink` resolves cards (WS-1326).** A child or section link whose `display` is `card` (its
   own, else its section's) carries `card: { image, title, price? }`: the image is the link's own

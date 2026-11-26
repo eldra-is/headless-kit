@@ -41,6 +41,7 @@ const STORED_FIELD_KEYS = [
   'description',
   'default',
   'localized',
+  'allowPrices',
   'helpText',
   'validators',
   'metadata',
@@ -477,6 +478,7 @@ function storedMigrationField(raw: unknown, depth = 1): BlockField | null {
     typeof value.type !== 'string' ||
     !STORED_FIELD_TYPES.has(value.type) ||
     (value.localized != null && typeof value.localized !== 'boolean') ||
+    (value.allowPrices != null && typeof value.allowPrices !== 'boolean') ||
     depth > 5
   )
     return null;

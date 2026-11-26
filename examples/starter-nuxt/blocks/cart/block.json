@@ -20,6 +20,7 @@
       "fieldId": "freeShippingThreshold",
       "name": "Free shipping threshold",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Major units, e.g. 80.00. Empty hides the shipping bar. Must match the backend rules."
     },
     {
@@ -68,6 +69,7 @@
       "fieldId": "emptyLinkHref",
       "name": "Empty link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Where the empty state's button goes, e.g. /collections/all."
     }
   ]

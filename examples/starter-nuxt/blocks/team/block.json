@@ -32,7 +32,8 @@
     {
       "fieldId": "linkHref",
       "name": "Link",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "people",
@@ -102,6 +103,7 @@
                           "fieldId": "href",
                           "name": "URL",
                           "type": "string",
+                          "allowPrices": false,
                           "validators": { "required": true }
                         }
                       ]

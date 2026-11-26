@@ -56,7 +56,7 @@
                 "localized": true,
                 "helpText": "Makes the title a link. Used as its accessible name."
               },
-              { "fieldId": "href", "name": "Link URL", "type": "string" }
+              { "fieldId": "href", "name": "Link URL", "type": "string", "allowPrices": false }
             ]
           }
         }

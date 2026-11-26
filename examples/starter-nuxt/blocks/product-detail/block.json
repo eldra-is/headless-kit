@@ -10,6 +10,7 @@
       "fieldId": "productHandle",
       "name": "Product",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Leave empty on a product template — the route supplies it.",
       "description": "Pick one by hand for a featured-product landing section."
     },
@@ -142,7 +143,8 @@
     {
       "fieldId": "sizeGuideHref",
       "name": "Size guide URL",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "stickyBar",

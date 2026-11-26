@@ -92,6 +92,7 @@
                 "fieldId": "href",
                 "name": "Link",
                 "type": "string",
+                "allowPrices": false,
                 "validators": { "required": true }
               }
             ]
@@ -122,6 +123,7 @@
                 "fieldId": "href",
                 "name": "Link",
                 "type": "string",
+                "allowPrices": false,
                 "validators": { "required": true }
               },
               {

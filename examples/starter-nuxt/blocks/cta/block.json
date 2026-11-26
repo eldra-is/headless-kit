@@ -48,6 +48,7 @@
       "fieldId": "primaryCtaHref",
       "name": "Primary button link",
       "type": "string",
+      "allowPrices": false,
       "validators": { "required": true }
     },
     {
@@ -61,6 +62,7 @@
       "fieldId": "secondaryCtaHref",
       "name": "Secondary button link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Not shown in banner."
     },
     {

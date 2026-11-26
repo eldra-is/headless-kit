@@ -56,7 +56,8 @@
         {
           "fieldId": "linkHref",
           "name": "Link URL",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "dismissable",
@@ -113,6 +114,7 @@
           "fieldId": "categoryHref",
           "name": "Category link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "URL of the filtered Article list."
         },
         {
@@ -217,7 +219,8 @@
         {
           "fieldId": "authorLinkHref",
           "name": "Author link",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "showByline",
@@ -799,6 +802,7 @@
           "fieldId": "viewAllHref",
           "name": "View all URL",
           "type": "string",
+          "allowPrices": false,
           "helpText": "The journal index."
         },
         {
@@ -821,6 +825,7 @@
           "fieldId": "categoryHref",
           "name": "Category URL",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Used when source is category. Also matched against each chip to mark the active one."
         },
         {
@@ -854,6 +859,7 @@
                     "fieldId": "href",
                     "name": "Link URL",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -867,7 +873,8 @@
                   {
                     "fieldId": "categoryHref",
                     "name": "Category URL",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   },
                   {
                     "fieldId": "publishedAt",
@@ -941,6 +948,7 @@
                     "fieldId": "href",
                     "name": "Link URL",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -1113,6 +1121,7 @@
                     "fieldId": "href",
                     "name": "Link",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -1209,6 +1218,7 @@
           "fieldId": "freeShippingThreshold",
           "name": "Free shipping threshold",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Major units, e.g. 80.00. Empty hides the shipping bar. Must match the backend rules."
         },
         {
@@ -1257,6 +1267,7 @@
           "fieldId": "emptyLinkHref",
           "name": "Empty link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Where the empty state's button goes, e.g. /collections/all."
         }
       ],
@@ -1687,6 +1698,7 @@
                     "fieldId": "href",
                     "name": "Link",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -1721,6 +1733,7 @@
                     "fieldId": "href",
                     "name": "Link",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -1883,12 +1896,14 @@
           "fieldId": "phone",
           "name": "Phone",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Rendered as a tel: link."
         },
         {
           "fieldId": "email",
           "name": "Email",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Rendered as a mailto: link."
         },
         {
@@ -1902,12 +1917,14 @@
           "fieldId": "mapLinkHref",
           "name": "Map link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Google, Apple or OpenStreetMap URL."
         },
         {
           "fieldId": "mapEmbed",
           "name": "Map embed",
           "type": "string",
+          "allowPrices": false,
           "helpText": "An embed URL, not HTML."
         },
         {
@@ -2086,6 +2103,7 @@
           "fieldId": "primaryCtaHref",
           "name": "Primary button link",
           "type": "string",
+          "allowPrices": false,
           "validators": {
             "required": true
           }
@@ -2101,6 +2119,7 @@
           "fieldId": "secondaryCtaHref",
           "name": "Secondary button link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Not shown in banner."
         },
         {
@@ -2271,7 +2290,8 @@
         {
           "fieldId": "contactLinkHref",
           "name": "Contact link",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "sectionBackground",
@@ -2479,7 +2499,8 @@
         {
           "fieldId": "headLinkHref",
           "name": "Head link URL",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "columns",
@@ -2565,7 +2586,8 @@
                   {
                     "fieldId": "href",
                     "name": "Link URL",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -2730,6 +2752,7 @@
           "fieldId": "phone",
           "name": "Phone",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Rendered as a tel: link. Shown on the default variant only.",
           "validators": {
             "maxLength": 40
@@ -2739,6 +2762,7 @@
           "fieldId": "email",
           "name": "Email",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Rendered as a mailto: link. Shown on the default variant only.",
           "validators": {
             "maxLength": 120
@@ -2846,6 +2870,7 @@
                     "fieldId": "href",
                     "name": "URL",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -3088,6 +3113,7 @@
           "fieldId": "formKey",
           "name": "Form",
           "type": "string",
+          "allowPrices": false,
           "helpText": "The key of the form on the Forms page, for example \"contact\" or \"newsletter\".",
           "validators": {
             "required": true
@@ -3481,7 +3507,8 @@
                   {
                     "fieldId": "href",
                     "name": "Link",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -3545,6 +3572,7 @@
           "fieldId": "primaryCtaHref",
           "name": "Button link",
           "type": "string",
+          "allowPrices": false,
           "groupId": "action"
         },
         {
@@ -3558,6 +3586,7 @@
           "fieldId": "secondaryCtaHref",
           "name": "Secondary button link",
           "type": "string",
+          "allowPrices": false,
           "groupId": "action"
         }
       ],
@@ -3678,7 +3707,8 @@
         {
           "fieldId": "linkHref",
           "name": "Link",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         }
       ],
       "mock": {
@@ -3768,6 +3798,7 @@
                     "fieldId": "href",
                     "name": "Link",
                     "type": "string",
+                    "allowPrices": false,
                     "helpText": "Stockist page or article. When set, the logo becomes a link."
                   }
                 ]
@@ -4116,6 +4147,7 @@
                     "fieldId": "href",
                     "name": "Link URL",
                     "type": "string",
+                    "allowPrices": false,
                     "helpText": "Optional. A page path, a full URL or tel:/mailto:."
                   },
                   {
@@ -4674,6 +4706,7 @@
           "fieldId": "formKey",
           "name": "Form",
           "type": "string",
+          "allowPrices": false,
           "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
         },
         {
@@ -4738,6 +4771,7 @@
                     "fieldId": "href",
                     "name": "Link",
                     "type": "string",
+                    "allowPrices": false,
                     "helpText": "tel:, mailto: or a page. Optional."
                   },
                   {
@@ -4910,6 +4944,7 @@
           "fieldId": "returnLinkHref",
           "name": "Return link URL",
           "type": "string",
+          "allowPrices": false,
           "default": "/pages/returns"
         },
         {
@@ -4924,6 +4959,7 @@
           "fieldId": "shopAgainLinkHref",
           "name": "Shop again link URL",
           "type": "string",
+          "allowPrices": false,
           "default": "/collections/all"
         },
         {
@@ -4951,6 +4987,7 @@
                     "fieldId": "href",
                     "name": "Link URL",
                     "type": "string",
+                    "allowPrices": false,
                     "validators": {
                       "required": true
                     }
@@ -5129,6 +5166,7 @@
                     "fieldId": "ctaHref",
                     "name": "Button link",
                     "type": "string",
+                    "allowPrices": false,
                     "helpText": "Selling plan or cart permalink.",
                     "validators": {
                       "required": true
@@ -5156,6 +5194,7 @@
           "fieldId": "highlightedPlan",
           "name": "Highlighted plan",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Must match a plan name exactly; leave empty for no highlight."
         },
         {
@@ -5351,6 +5390,7 @@
           "fieldId": "viewAllHref",
           "name": "View all link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Where the heading links to. The collection variant links to the collection you picked instead.",
           "showWhen": {
             "field": "variant",
@@ -5475,6 +5515,7 @@
           "fieldId": "productHandle",
           "name": "Product",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Leave empty on a product template — the route supplies it.",
           "description": "Pick one by hand for a featured-product landing section."
         },
@@ -5638,7 +5679,8 @@
         {
           "fieldId": "sizeGuideHref",
           "name": "Size guide URL",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "stickyBar",
@@ -5933,6 +5975,7 @@
           "fieldId": "sourceLinkHref",
           "name": "Source link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "The article or page the role line links to."
         },
         {
@@ -6273,6 +6316,7 @@
           "fieldId": "noResultsCollection",
           "name": "No-results collection",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Collection handle shown under \"Customers love these\"."
         }
       ],
@@ -6396,7 +6440,8 @@
                   {
                     "fieldId": "href",
                     "name": "Button link",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -6440,7 +6485,8 @@
                   {
                     "fieldId": "href",
                     "name": "Link",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -6726,7 +6772,8 @@
                   {
                     "fieldId": "href",
                     "name": "Link",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -6954,7 +7001,8 @@
         {
           "fieldId": "linkHref",
           "name": "Link",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "people",
@@ -7042,6 +7090,7 @@
                               "fieldId": "href",
                               "name": "URL",
                               "type": "string",
+                              "allowPrices": false,
                               "validators": {
                                 "required": true
                               }
@@ -7186,6 +7235,7 @@
           "fieldId": "linkHref",
           "name": "Link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "Not shown in single-large."
         },
         {
@@ -7264,6 +7314,7 @@
                     "fieldId": "productHref",
                     "name": "Product link",
                     "type": "string",
+                    "allowPrices": false,
                     "helpText": "Links the meta line to the product."
                   }
                 ]
@@ -7385,7 +7436,8 @@
         {
           "fieldId": "linkHref",
           "name": "Link URL",
-          "type": "string"
+          "type": "string",
+          "allowPrices": false
         },
         {
           "fieldId": "items",
@@ -7560,7 +7612,8 @@
                   {
                     "fieldId": "href",
                     "name": "Link URL",
-                    "type": "string"
+                    "type": "string",
+                    "allowPrices": false
                   }
                 ]
               }
@@ -7726,6 +7779,7 @@
           "fieldId": "videoUrl",
           "name": "Video URL",
           "type": "string",
+          "allowPrices": false,
           "helpText": "YouTube (loaded from youtube-nocookie.com), Vimeo, or an MP4 from the media library.",
           "validators": {
             "required": true
@@ -7775,6 +7829,7 @@
           "fieldId": "transcriptHref",
           "name": "Transcript link",
           "type": "string",
+          "allowPrices": false,
           "helpText": "A page or PDF. Strongly recommended when the video has speech."
         },
         {
@@ -7914,7 +7969,7 @@
               {
                 "icon": "truck",
                 "title": "Free delivery",
-                "text": "on orders over $80"
+                "text": "on orders over ⟦store freeShippingThreshold⟧"
               },
               {
                 "icon": "building-store",
@@ -8340,10 +8395,7 @@
             "primaryCtaHref": "/collections/the-winter-edit",
             "secondaryCtaLabel": "Meet the makers",
             "secondaryCtaHref": "/pages/makers",
-            "spacing": "md",
-            "captionLabel": "Glazed milk jug",
-            "captionDetail": "$34",
-            "captionHref": "/products/glazed-milk-jug"
+            "spacing": "md"
           }
         },
         {
@@ -8359,7 +8411,7 @@
               },
               {
                 "icon": "truck",
-                "title": "Free delivery over $80",
+                "title": "Free delivery over ⟦store freeShippingThreshold⟧",
                 "text": "Dispatched in 1 to 3 days, or collect from the shop."
               },
               {

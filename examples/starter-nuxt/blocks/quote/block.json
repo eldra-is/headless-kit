@@ -63,6 +63,7 @@
       "fieldId": "sourceLinkHref",
       "name": "Source link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "The article or page the role line links to."
     },
     {

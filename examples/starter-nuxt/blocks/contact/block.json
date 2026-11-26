@@ -78,12 +78,14 @@
       "fieldId": "phone",
       "name": "Phone",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Rendered as a tel: link."
     },
     {
       "fieldId": "email",
       "name": "Email",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Rendered as a mailto: link."
     },
     {
@@ -97,12 +99,14 @@
       "fieldId": "mapLinkHref",
       "name": "Map link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Google, Apple or OpenStreetMap URL."
     },
     {
       "fieldId": "mapEmbed",
       "name": "Map embed",
       "type": "string",
+      "allowPrices": false,
       "helpText": "An embed URL, not HTML."
     },
     {

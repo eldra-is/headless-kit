@@ -73,7 +73,7 @@
                 "type": "string",
                 "localized": true
               },
-              { "fieldId": "href", "name": "Link", "type": "string" }
+              { "fieldId": "href", "name": "Link", "type": "string", "allowPrices": false }
             ]
           }
         }

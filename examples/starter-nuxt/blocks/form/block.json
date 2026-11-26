@@ -18,6 +18,7 @@
       "fieldId": "formKey",
       "name": "Form",
       "type": "string",
+      "allowPrices": false,
       "helpText": "The key of the form on the Forms page, for example \"contact\" or \"newsletter\".",
       "validators": { "required": true }
     },

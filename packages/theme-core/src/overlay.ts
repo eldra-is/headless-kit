@@ -2413,6 +2413,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // §4.2: a rich-text root's document is not a plain scalar string;
       // leave it to the theme component's own editor/read-render sync.
       if (field.closest('[data-eldra-rich-text]') !== null) return;
+      // A field whose page text is not its stored text (`StegaMeta.inline`:
+      // the theme wrote price tokens out) is the renderer's alone: copying the
+      // raw draft over it would print "⟦price#…⟧" in place of "€100.00".
+      if (field.getAttribute('data-eldra-inline') === 'false') return;
       const meta = metadataOf(field);
       if (!accepted.has(meta.entryId)) return;
       if (!Object.prototype.hasOwnProperty.call(drafts, meta.entryId)) return;

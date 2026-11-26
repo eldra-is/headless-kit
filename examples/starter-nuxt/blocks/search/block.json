@@ -96,6 +96,7 @@
       "fieldId": "noResultsCollection",
       "name": "No-results collection",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Collection handle shown under \"Customers love these\"."
     }
   ]

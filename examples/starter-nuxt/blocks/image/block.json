@@ -61,7 +61,8 @@
     {
       "fieldId": "linkHref",
       "name": "Link",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     }
   ]
 }
