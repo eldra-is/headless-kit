@@ -132,7 +132,10 @@ describe('NavMenu — structure', () => {
   });
 
   it('marks the trigger whose panel holds the current page', () => {
-    const wrapper = mount();
+    // Only Journal's "Stories" is the page here; the fixture's own "About" also says current.
+    const wrapper = mount({
+      items: ITEMS.map((item) => (item.label === 'About' ? { ...item, current: false } : item)),
+    });
     const [shop, journal] = triggers(wrapper);
     expect(shop!.hasAttribute('data-current')).toBe(false);
     expect(journal!.hasAttribute('data-current')).toBe(true);
@@ -307,6 +310,48 @@ describe('NavMenu — panel content', () => {
       'Merino and wool'
     );
     expect(groups[0]!.querySelectorAll('a')[1]!.textContent).toContain('New');
+    wrapper.unmount();
+  });
+
+  it('names a described link by its label and describes it by the description', () => {
+    const wrapper = mount({ modelValue: 0 });
+    const [sweaters, cardigans] = panel(wrapper, 0).querySelectorAll<HTMLElement>(
+      '[data-part="panelLink"]'
+    );
+    const desc = sweaters!.querySelector('[data-part="description"]')!;
+    const label = sweaters!.querySelector('[data-part="panelLabel"]')!;
+    expect(desc.id).not.toBe('');
+    expect(sweaters!.getAttribute('aria-describedby')).toBe(desc.id);
+    expect(sweaters!.getAttribute('aria-labelledby')).toBe(label.id);
+    expect(document.getElementById(label.id)!.textContent?.trim()).toBe('Sweaters');
+    // No description: no element, no extra attributes, the name comes from the content.
+    expect(cardigans!.querySelector('[data-part="description"]')).toBeNull();
+    expect(cardigans!.hasAttribute('aria-describedby')).toBe(false);
+    expect(cardigans!.hasAttribute('aria-labelledby')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps the new-tab text in the name of a described link that opens one', () => {
+    const wrapper = mount({
+      modelValue: 0,
+      items: [
+        {
+          label: 'Journal',
+          children: [
+            { label: 'Makers', href: 'https://m.test', newTab: true, description: 'Who we are' },
+          ],
+        },
+      ],
+    });
+    const link = panel(wrapper, 0).querySelector<HTMLElement>('[data-part="panelLink"]')!;
+    const names = link.getAttribute('aria-labelledby')!.split(' ');
+    expect(names).toHaveLength(2);
+    expect(names.map((id) => document.getElementById(id)!.textContent?.trim()).join(' ')).toBe(
+      'Makers (opens in a new tab)'
+    );
+    expect(document.getElementById(link.getAttribute('aria-describedby')!)!.textContent).toContain(
+      'Who we are'
+    );
     wrapper.unmount();
   });
 
@@ -1461,6 +1506,78 @@ describe('NavMenu — panel layout and tone', () => {
     wrapper.unmount();
   });
 
+  /**
+   * WS-1277: a mega sheet played the popover entrance, which grows from the top-left corner; on a
+   * sheet as wide as the window that read as the whole sheet sliding in from the left. It unrolls
+   * from the bar instead; a dropdown still opens out of its trigger's corner.
+   */
+  /**
+   * WS-1277: a page that is both its own entry ("Ceramics") and a link inside another entry's panel
+   * ("Shop") marked both entries, which reads as two places at once.
+   */
+  it('marks one entry as current: the one whose own link is the page, else the first holding it', async () => {
+    const shop: NavMenuItem = {
+      label: 'Shop',
+      children: [
+        { label: 'Ceramics', href: '/ceramics', current: true },
+        { label: 'Knitwear', href: '/knitwear' },
+      ],
+    };
+    const marked = async (items: NavMenuItem[]) => {
+      const wrapper = mount({ items });
+      await nextTick();
+      // One entry per element: a marked trigger carries both `data-current` and `aria-current`.
+      const elements = new Set([
+        ...wrapper.findAll('[data-part="trigger"][data-current]').map((el) => el.element),
+        ...wrapper
+          .findAll('[aria-current="page"]')
+          .filter((el) => !el.element.closest('[data-part="panel"]'))
+          .map((el) => el.element),
+      ]);
+      const labels = [...elements].map((el) => el.textContent!.trim());
+      wrapper.unmount();
+      return labels;
+    };
+    // Its own entry wins, whether it is a dropdown of its own or a plain link.
+    expect(
+      await marked([
+        shop,
+        {
+          label: 'Ceramics',
+          href: '/ceramics',
+          current: true,
+          children: [{ label: 'Mugs', href: '/mugs' }],
+        },
+      ])
+    ).toEqual(['Ceramics']);
+    expect(await marked([shop, { label: 'Ceramics', href: '/ceramics', current: true }])).toEqual([
+      'Ceramics',
+    ]);
+    // Held only inside panels: the first entry holding it.
+    expect(
+      await marked([
+        shop,
+        { label: 'More', children: [{ label: 'Ceramics', href: '/ceramics', current: true }] },
+      ])
+    ).toEqual(['Shop']);
+  });
+
+  it('unrolls a mega sheet from the bar and opens a dropdown out of its corner', async () => {
+    const items: NavMenuItem[] = [
+      ITEMS[0]!,
+      { label: 'Journal', layout: 'dropdown', children: [{ label: 'Care', href: '/care' }] },
+    ];
+    const wrapper = mount({ items, modelValue: 0 });
+    await nextTick();
+    const content = (index: number) =>
+      panel(wrapper, index).querySelector('[data-part="content"]')!.className.split(' ');
+    expect(content(0)).toContain('eldra:animate-eldra-sheet-in');
+    expect(content(0)).not.toContain('eldra:animate-eldra-popover-in');
+    expect(content(1)).toContain('eldra:animate-eldra-popover-in');
+    expect(content(1)).not.toContain('eldra:animate-eldra-sheet-in');
+    wrapper.unmount();
+  });
+
   it('draws an accent entry in the accent colour, in the bar and in the drawer', async () => {
     const items: NavMenuItem[] = [
       { label: 'About', href: '/about' },
@@ -1492,6 +1609,9 @@ describe('NavMenu — inline drawer', () => {
       props: { items: ITEMS, drawerMode: 'inline', ...props },
       slots: slots as never,
       attachTo: document.body,
+      // The real `Transition`, which renders no element of its own, so the drawer keeps its place
+      // in the tab order (the default stub wraps it).
+      global: { stubs: { transition: false } },
     }) as Wrapper;
   }
   const inlineDrawer = (wrapper: Wrapper): HTMLElement =>
@@ -1527,6 +1647,24 @@ describe('NavMenu — inline drawer', () => {
     expect(drawer.querySelectorAll('details')).toHaveLength(2);
     expect(drawer.querySelector('[data-part="drawerFooter"]')!.textContent).toContain('Contact');
     expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+
+  it('keeps its foot at the bottom of the window, above the safe area', () => {
+    const wrapper = mountInline(
+      {},
+      { drawerFooter: () => h('a', { href: '/contact' }, 'Contact') }
+    );
+    const drawer = inlineDrawer(wrapper);
+    expect(drawer.className).toContain(
+      'eldra:h-[calc(100dvh-var(--eldra-nav-menu-drawer-top,0px))]'
+    );
+    expect(drawer.className).toContain('eldra:flex-col');
+    const foot = drawer.querySelector('[data-part="drawerFooter"]')!.className.split(' ');
+    expect(foot).toContain('eldra:mt-auto');
+    expect(foot).toContain('eldra:shrink-0');
+    expect(foot).toContain('eldra:eldra-drawer-footer-bottom');
+    expect(drawer.querySelector('[data-part="drawerBody"]')!.className).toContain('eldra:shrink-0');
     wrapper.unmount();
   });
 
@@ -1579,7 +1717,7 @@ describe('NavMenu — inline drawer', () => {
             h('a', { id: 'after', href: '/after' }, 'After'),
           ]),
       }),
-      { attachTo: document.body }
+      { attachTo: document.body, global: { stubs: { transition: false } } }
     );
     const toggle = wrapper.get('[data-part="toggle"]');
     await toggle.trigger('click');

@@ -31,10 +31,11 @@ import { useWishlist } from '../../app/composables/useWishlist';
 import { useI18n } from 'vue-i18n';
 import EldraIcon from '../../app/components/EldraIcon.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
-import { isInternalHref, safeHref, SEARCH_PATH } from '../../app/utils/links';
+import { categoryHref, isInternalHref, safeHref, SEARCH_PATH } from '../../app/utils/links';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontSearchResponse } from '../../app/storefront/types';
 import MenuLink from './parts/MenuLink.vue';
+import { markCurrent } from './parts/currentItem';
 
 import blockJson from './block.json';
 
@@ -206,13 +207,13 @@ const cardAspect = (
 )?.metadata?.item?.metadata?.tree?.cards?.aspect;
 
 /** A resolved link as the menu draws it, `display` and `card` (child and section links only) kept. */
-function toNavLink(link: ResolvedLink, extras: LinkExtras = {}): NavMenuLink {
+function toNavLink(link: ResolvedLink, extras: LinkExtras = {}, held = true): NavMenuLink {
   return {
     label: link.label,
     href: link.href,
     newTab: link.newTab,
     group: link.group,
-    current: isCurrent(link.href),
+    current: held && isCurrent(link.href),
     display: link.display,
     card: link.card,
     badge: extras.badge,
@@ -220,13 +221,17 @@ function toNavLink(link: ResolvedLink, extras: LinkExtras = {}): NavMenuLink {
   };
 }
 
-function toNavSection(section: ResolvedSection, extras: LinkExtras[] = []): NavMenuSection {
+function toNavSection(
+  section: ResolvedSection,
+  extras: LinkExtras[] = [],
+  held = true
+): NavMenuSection {
   return {
     heading: section.heading,
-    headingLink: section.headingLink === null ? null : toNavLink(section.headingLink),
+    headingLink: section.headingLink === null ? null : toNavLink(section.headingLink, {}, held),
     display: section.display,
-    links: section.links.map((link, index) => toNavLink(link, extras[index])),
-    seeAll: section.seeAll === null ? null : toNavLink(section.seeAll),
+    links: section.links.map((link, index) => toNavLink(link, extras[index], held)),
+    seeAll: section.seeAll === null ? null : toNavLink(section.seeAll, {}, held),
   };
 }
 
@@ -251,7 +256,11 @@ function isDropdown(sections: ResolvedSection[]): boolean {
  * grouped by their `group`, which is what a menu stored before sections existed still is.
  */
 const navItems = computed<NavMenuItem[]>(() =>
-  linkEntries.value.map(({ resolved: link, raw }) => {
+  linkEntries.value.map(({ resolved: link, raw }, at) => {
+    // Only the one marked entry holds the current page; a link inside another entry's panel is not
+    // marked even when its path is the page's, so at most one entry is ever current.
+    const mark = currentMarks.value[at];
+    const held = mark !== undefined;
     const sections = link.sections ?? [];
     const children = link.children.filter((child) => child.label !== null);
     const tone = linkTone(raw);
@@ -260,7 +269,7 @@ const navItems = computed<NavMenuItem[]>(() =>
         label: link.label,
         href: link.href,
         newTab: link.newTab,
-        current: isCurrent(link.href),
+        current: mark,
         tone,
       };
     }
@@ -269,7 +278,8 @@ const navItems = computed<NavMenuItem[]>(() =>
         label: link.label,
         layout: 'mega',
         tone,
-        children: children.map((c) => toNavLink(c)),
+        current: mark,
+        children: children.map((c) => toNavLink(c, {}, held)),
       };
     }
     const extras = sectionExtras(raw, sections);
@@ -277,7 +287,8 @@ const navItems = computed<NavMenuItem[]>(() =>
       label: link.label,
       tone,
       layout: isDropdown(sections) ? 'dropdown' : 'mega',
-      sections: sections.map((section, index) => toNavSection(section, extras[index])),
+      current: mark,
+      sections: sections.map((section, index) => toNavSection(section, extras[index], held)),
     };
   })
 );
@@ -598,12 +609,10 @@ const wishlistBadgeLabel = computed(() =>
 // --- current page ------------------------------------------------------------------------------
 
 /**
- * `window.location` (a plain browser API, not a Nuxt global — `useRoute()` is what the starter's
- * "no Nuxt globals in blocks" rule forbids) is the only way a block can tell which link is
- * "current" without reading the router. `popstate` catches back/forward navigation; a same-site
- * `Link`/`Button` click elsewhere on the page (pushed via the router, not a full reload) does not
- * fire it, so the highlighted link can go stale until the next popstate/reload — a known
- * limitation of staying router-free, not something this block can close without one.
+ * The path comes from `storefront.route.path`, which the storefront plugin keeps equal to the
+ * router's committed route, so the mark moves on every client-side navigation (a block may not call
+ * `useRoute()` itself). Only where there is no router — Storybook, a block spec — is that path empty,
+ * and `window.location` with a `popstate` listener stands in.
  *
  * Every `watchEffect` below opens with `if (typeof window === 'undefined') return;`. That is not
  * defensive padding: a `flush: 'pre'` effect with no callback runs its body *immediately*, during
@@ -622,9 +631,56 @@ watchEffect((onCleanup) => {
   window.addEventListener('popstate', onPopState);
   onCleanup(() => window.removeEventListener('popstate', onPopState));
 });
+/**
+ * The page's path: the storefront's route (the router's committed route, reactive on every
+ * client-side navigation), and `window.location` only where there is no router (Storybook, a spec).
+ */
+const pagePath = computed(() => storefront.route.path || currentPath.value);
 function isCurrent(href: string | null | undefined): boolean {
-  return typeof href === 'string' && href === currentPath.value;
+  return typeof href === 'string' && href === pagePath.value;
 }
+
+/**
+ * The page's main category, for the header's one "current" entry. A product page names it through
+ * the product's `categoryTrail`, which the storefront walks from the product's primary category
+ * (`primaryCategoryId`), so the first-category fallback is not needed; a category page names it by
+ * its route, which follows the router; the product is the one this page resolved at setup.
+ */
+// The product handle is captured at setup, as `breadcrumbs` does: this block's page is created
+// fresh against the committed route, and a live handle would make the departing page's header read
+// the product a clicked card points at (a second read the destination already has).
+const routeProductHandle = storefront.route.productHandle;
+const navProduct = storefront.catalog.product(computed(() => routeProductHandle));
+const mainCategoryTrail = computed<string[]>(() => {
+  const categoryPath = storefront.route.categoryPath;
+  if (categoryPath !== null) {
+    const segments = categoryPath.split('/').filter((segment) => segment !== '');
+    return segments.map((_, depth) => categoryHref(segments.slice(0, depth + 1).join('/')));
+  }
+  // Only while the route is still that product's page: once it moves on, its category no longer counts.
+  if (routeProductHandle === null || storefront.route.productHandle !== routeProductHandle)
+    return [];
+  return (navProduct.data.value?.categoryTrail ?? []).map((level) => level.href);
+});
+
+function menuHrefs(link: ResolvedLink): (string | null)[] {
+  return [
+    ...link.children.map((child) => child.href),
+    ...(link.sections ?? []).flatMap((section) => [
+      section.headingLink?.href ?? null,
+      section.seeAll?.href ?? null,
+      ...section.links.map((child) => child.href),
+    ]),
+  ];
+}
+
+/** One mark per top-level entry; at most one is not `undefined`. */
+const currentMarks = computed(() =>
+  markCurrent(
+    linkEntries.value.map(({ resolved }) => ({ href: resolved.href, menu: menuHrefs(resolved) })),
+    { path: pagePath.value, trail: mainCategoryTrail.value }
+  )
+);
 
 // --- sticky, scroll padding and scrolled shadow -----------------------------------------------
 
@@ -1050,8 +1106,9 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
       : 'h-full flex-nowrap gap-0.5',
   // The design's pill entries: 2.75rem tall, full radius, `surface` on hover and while open, the
   // current page on `surface-strong`. The pill marks the current page, so the package's underline
-  // for it is turned off here, as on `trigger`. An accent entry (`tone`) keeps its colour.
-  link: 'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-[current=page]:no-underline aria-[current=page]:bg-surface-strong',
+  // for it is turned off here, as on `trigger`. An entry that only holds the page (`aria-current=true`)
+  // gets the same pill. An accent entry (`tone`) keeps its colour.
+  link: 'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-[current=page]:no-underline aria-[current=page]:bg-surface-strong aria-[current=true]:no-underline aria-[current=true]:bg-surface-strong',
   trigger:
     'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-expanded:bg-surface data-current:no-underline data-current:bg-surface-strong',
   // The Menu tool: shown below 68.8125rem (the package hides it from `@content`), a labelled tool
@@ -1092,7 +1149,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
     `in-data-[layout=dropdown]:data-see-all:mt-1 in-data-[layout=dropdown]:data-see-all:min-h-9 in-data-[layout=dropdown]:data-see-all:justify-center in-data-[layout=dropdown]:data-see-all:py-0`,
     `in-data-[layout=dropdown]:data-see-all:hover:bg-transparent in-data-[layout=dropdown]:data-see-all:hover:underline`,
   ].join(' '),
-  panelLabel: `gap-x-2 text-base font-normal in-data-[layout=dropdown]:font-semibold in-data-see-all:text-[0.9375rem] in-data-see-all:font-semibold in-data-see-all:after:content-['→']`,
+  panelLabel: `gap-x-2 text-base font-normal in-data-[layout=dropdown]:font-semibold in-data-see-all:text-[0.9375rem] in-data-see-all:font-semibold in-data-see-all:relative in-data-see-all:w-fit in-data-see-all:after:absolute in-data-see-all:after:start-full in-data-see-all:after:ms-2 in-data-see-all:after:content-['→']`,
   description: 'text-sm leading-[1.4]',
   badge:
     'min-h-0 rounded-sm bg-accent px-1.5 py-0 text-[0.6875rem] leading-[1.4] font-bold tracking-[0.04em] text-accent-contrast',
@@ -1123,14 +1180,14 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
   drawerPanelList: '[[data-cards]>&]:gap-3 @min-[37.5rem]:[[data-cards]>&]:grid-cols-4',
   // Links at 1.0625rem with 0.5rem above and below; the "see all" smaller, tucked under them.
   drawerPanelLink: 'py-2 data-see-all:mt-0 data-see-all:py-1 data-see-all:text-primary',
-  drawerPanelLabel: `text-[1.0625rem] font-normal in-data-see-all:text-[0.9375rem] in-data-see-all:font-semibold in-data-see-all:after:content-['→']`,
+  drawerPanelLabel: `text-[1.0625rem] font-normal in-data-see-all:text-[0.9375rem] in-data-see-all:font-semibold in-data-see-all:relative in-data-see-all:w-fit in-data-see-all:after:absolute in-data-see-all:after:start-full in-data-see-all:after:ms-2 in-data-see-all:after:content-['→']`,
   drawerBadge:
     'min-h-0 rounded-sm bg-accent px-1.5 py-0 text-[0.6875rem] leading-[1.4] font-bold tracking-[0.04em] text-accent-contrast',
   // Square pictures in the drawer, whatever the bar's crop.
   drawerCardImage: 'rounded-lg aspect-square',
   drawerCardTitle: 'font-semibold',
   // The foot, on `surface`: account, saved items, the strip's own links and the currency.
-  drawerFooter: 'gap-3 px-4 py-5 text-[0.9375rem]',
+  drawerFooter: 'gap-3 px-4 pt-5 text-[0.9375rem]',
 }));
 </script>
 

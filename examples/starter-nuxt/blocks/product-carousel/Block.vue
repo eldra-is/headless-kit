@@ -477,11 +477,11 @@ const showBlock = computed(() =>
       />
 
       <template v-else-if="showCarousel && isGrid">
-        <div class="mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-          <div>
-            <p v-if="data.eyebrow" class="text-overline text-accent mb-2">{{ data.eyebrow }}</p>
-            <h2 :id="headingId" :class="HEADING_CLASSES">{{ heading }}</h2>
-          </div>
+        <!-- The eyebrow sits above the row, so the chips and the link centre on the heading
+             itself, not on the eyebrow and heading together. -->
+        <p v-if="data.eyebrow" class="text-overline text-accent mb-2">{{ data.eyebrow }}</p>
+        <div class="mb-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+          <h2 :id="headingId" :class="HEADING_CLASSES">{{ heading }}</h2>
           <ul
             v-if="hasFilterChips"
             class="eldra-scrollbar-hide flex max-w-full gap-2 overflow-x-auto px-0.5 py-1"

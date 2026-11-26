@@ -25,8 +25,12 @@ export interface NavMenuLink {
   badge?: string | null;
   /** The column heading this entry sits under; entries sharing one form a column. */
   group?: string | null;
-  /** Marks the page the visitor is on (`aria-current="page"`). */
-  current?: boolean;
+  /**
+   * Marks the page the visitor is on: `true` or `'page'` is `aria-current="page"`, `'true'` is
+   * `aria-current="true"` for an entry that holds the page without being it (a section's entry on
+   * one of its pages), anything else is no mark.
+   */
+  current?: boolean | 'page' | 'true';
   /** `card` when the author made the entry a promotional card. With a resolved `card` the panel draws a picture, title and price; without one it is a plain link. */
   display?: 'card' | 'link';
   /** Set only on a resolved card; without it the entry is a plain link whatever `display` says. */

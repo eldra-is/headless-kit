@@ -426,6 +426,18 @@ describe('collection-grid block', () => {
      * lower groups were unreachable until the grid beside it had scrolled away. It is capped at the
      * viewport less its offsets and scrolls itself.
      */
+    /**
+     * WS-1277: a card's "+ Add" and badges are `z-10`, the same as the sticky filter bar, and come
+     * later in the page, so they drew over the bar as the grid scrolled under it. The grid is its
+     * own stacking context, which keeps everything a card lifts below the bar.
+     */
+    it('keeps what a card lifts inside the grid, below the sticky filter bar', async () => {
+      const wrapper = mountGrid(mock);
+      await flushPromises();
+      const list = wrapper.findAll('ul[role="list"]').find((ul) => ul.find('li h3').exists())!;
+      expect(list.classes()).toContain('isolate');
+    });
+
     it('caps the sticky rail at the viewport under the header and lets it scroll its own groups', async () => {
       const wrapper = mountGrid(mock);
       await wrapper.vm.$nextTick();

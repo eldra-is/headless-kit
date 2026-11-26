@@ -143,6 +143,12 @@ const SortIcon = iconComponent('arrows-sort');
  * would push the second column off the edge. The track decides the width here, as in the carousel.
  */
 const CARD_CLASS = 'min-w-0';
+/**
+ * The grid is its own stacking context, so nothing a card lifts — its badges, its "+ Add" (both
+ * `z-10`) — can rise above the sticky filter bar (also `z-10`, but earlier in the page) as the
+ * grid scrolls under it (WS-1277).
+ */
+const GRID_LAYER_CLASS = 'isolate';
 /** The freshly-inserted editor hint's box icon (spec States, "Empty (freshly inserted)"). */
 const BoxIcon = iconComponent('box');
 
@@ -2078,12 +2084,10 @@ function hrefForPage(page: number): string {
                 role="list"
                 :aria-labelledby="productsHeadingId"
                 :aria-busy="updating ? 'true' : undefined"
-                :class="[gridClass, updating ? UPDATING_PULSE : '']"
+                :class="[GRID_LAYER_CLASS, gridClass, updating ? UPDATING_PULSE : '']"
                 :inert="updating || undefined"
               >
                 <li v-for="entry in cards" :key="entry.item.handle">
-                  <!-- No quick add: the spec's tab order for this block runs straight from the
-                       cards to Load more, and a cart action is `product-detail`'s own. -->
                   <ProductCard
                     v-bind="productCardLook(t, entry.product.title)"
                     :product="entry.product"

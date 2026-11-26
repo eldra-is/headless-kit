@@ -643,6 +643,12 @@ export interface StorefrontResult<T> {
 
 /** A `reactive()` object: a block reads it, only the app layer writes it. */
 export interface StorefrontRoute {
+  /**
+   * The committed route's path, reactive across client-side navigations (the header marks its
+   * current entry from it). Absent or empty where there is no router (Storybook, a block spec); the
+   * header then reads `window.location`.
+   */
+  path?: string;
   productHandle: string | null;
   collectionHandle: string | null;
   /**

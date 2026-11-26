@@ -1290,6 +1290,8 @@ export interface DemoStorefrontOptions {
    * mode and `breadcrumbs`' `fromCategory` each draw nothing, exactly as they do on a product page.
    */
   categoryPath?: string;
+  /** Seeds `route.path`, which a spec then changes to navigate; empty (the default) is no router. */
+  path?: string;
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
@@ -1299,6 +1301,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
 
   const categoryPath = options.categoryPath ?? null;
   const route: StorefrontRoute = reactive({
+    path: options.path ?? '',
     productHandle: options.productHandle ?? 'merino-crew-sweater',
     collectionHandle: options.collectionHandle ?? 'winter-knitwear',
     categorySlug: categoryPath === null ? null : (categoryPath.split('/').at(-1) ?? null) || null,

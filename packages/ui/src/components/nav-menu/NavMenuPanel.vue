@@ -47,7 +47,7 @@ const props = defineProps<{
   omitOverview?: boolean;
 }>();
 
-defineSlots<{
+const slots = defineSlots<{
   panelItem?: (props: NavMenuPanelItemSlotProps) => unknown;
   groupHeading?: (props: NavMenuGroupHeadingSlotProps) => unknown;
 }>();
@@ -236,6 +236,26 @@ const descriptionClass = computed(() =>
 
 const badgeClass = computed(() => props.classes?.[part('badge')]);
 
+/**
+ * A linked entry with a description is named by its label alone (and the hidden "opens in a new tab"
+ * text) and described by the description, so a screen reader reads the title as the name. The ids are
+ * only set when the default entry is drawn: the `panelItem` slot replaces the label and description.
+ */
+function describes(link: NavMenuLink): boolean {
+  return !slots.panelItem && !isCard(link) && !!link.description && hasHref(link);
+}
+function entryId(kind: 'label' | 'desc' | 'new', index: number, at: number): string {
+  return `${props.idPrefix}-${kind}-${index}-${at}`;
+}
+function entryA11y(link: NavMenuLink, index: number, at: number) {
+  if (!describes(link)) return {};
+  const label = entryId('label', index, at);
+  return {
+    'aria-labelledby': link.newTab ? `${label} ${entryId('new', index, at)}` : label,
+    'aria-describedby': entryId('desc', index, at),
+  };
+}
+
 function listLabel(group: string | null, index: number): string | undefined {
   return group !== null ? headingId(index) : props.labelledBy;
 }
@@ -315,7 +335,7 @@ function listLabel(group: string | null, index: number): string | undefined {
             :data-part="part('panelLink')"
             :data-see-all="link === group.seeAll ? '' : undefined"
             :class="panelLinkClass(link, group)"
-            v-bind="navLinkAttrs(link, linkAs)"
+            v-bind="{ ...navLinkAttrs(link, linkAs), ...entryA11y(link, index, at) }"
           >
             <slot
               name="panelItem"
@@ -346,19 +366,28 @@ function listLabel(group: string | null, index: number): string | undefined {
                   >
                 </span>
               </span>
-              <span v-else :data-part="part('panelLabel')" :class="panelLabelClass">
+              <span
+                v-else
+                :id="describes(link) ? entryId('label', index, at) : undefined"
+                :data-part="part('panelLabel')"
+                :class="panelLabelClass"
+              >
                 {{ link.label }}
                 <Badge v-if="link.badge" :label="link.badge" :class="badgeClass" />
               </span>
               <span
                 v-if="link.description && !isCard(link)"
+                :id="describes(link) ? entryId('desc', index, at) : undefined"
                 :data-part="part('description')"
                 :class="descriptionClass"
               >
                 {{ link.description }}
               </span>
             </slot>
-            <VisuallyHidden v-if="link.newTab && hasHref(link)">
+            <VisuallyHidden
+              v-if="link.newTab && hasHref(link)"
+              :id="describes(link) ? entryId('new', index, at) : undefined"
+            >
               {{ messages.opensInNewTab }}
             </VisuallyHidden>
           </component>

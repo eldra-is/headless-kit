@@ -1182,7 +1182,17 @@ describe('header block (navigation apiId)', () => {
       wrapper.get('[data-part="drawer"]').element as HTMLElement;
 
     it('opens under the bar as a disclosure, its button reading Close, its rows next in the tab order', async () => {
-      const wrapper = mountBlock(resolved.data, { attachTo: document.body });
+      const base = mountOptions(
+        { entry: { id: 'e1', data: resolved.data } },
+        { links: resolved.links }
+      );
+      // The real `Transition` around the inline drawer: the default stub wraps it in an element of
+      // its own, which would sit between the button and the rows in the tab order.
+      const wrapper = mount(Block, {
+        ...base,
+        attachTo: document.body,
+        global: { ...base.global, stubs: { ...base.global.stubs, transition: false } },
+      });
       const button = menuButton(wrapper);
       expect(button.attributes('aria-haspopup')).toBeUndefined();
       expect(button.attributes('aria-controls')).toBe(drawer(wrapper).id);
@@ -1554,6 +1564,97 @@ describe('header block (navigation apiId)', () => {
     expect(current.classes()).toContain('aria-[current=page]:no-underline');
   });
 
+  describe('one current entry', () => {
+    const SHOP_AND_CERAMICS = {
+      ...resolved.data,
+      links: [
+        {
+          kind: 'url',
+          url: '/shop',
+          label: 'Shop',
+          children: [
+            { kind: 'url', url: '/categories/home/ceramics', label: 'Ceramics' },
+            { kind: 'url', url: '/categories/home/knitwear', label: 'Knitwear' },
+          ],
+        },
+        { kind: 'url', url: '/categories/home/ceramics', label: 'Ceramics' },
+        { kind: 'url', url: '/journal', label: 'Journal' },
+      ],
+    };
+
+    function mountAt(
+      path: string,
+      storefrontOptions: Record<string, string>,
+      storefront = createDemoStorefront(storefrontOptions)
+    ) {
+      window.history.pushState({}, '', path);
+      const base = mountOptions({ entry: { id: 'e1', data: SHOP_AND_CERAMICS } });
+      return mount(Block, {
+        ...base,
+        attachTo: document.body,
+        global: {
+          ...base.global,
+          provide: {
+            ...base.global.provide,
+            [STOREFRONT_KEY]: storefront,
+          },
+        },
+      });
+    }
+    const marked = (wrapper: ReturnType<typeof mountAt>) =>
+      wrapper
+        .findAll('[data-part="trigger"], [data-part="link"]')
+        .filter(
+          (el) =>
+            el.attributes('aria-current') !== undefined ||
+            el.attributes('data-current') !== undefined
+        )
+        .map((el) => `${el.text().trim()}:${el.attributes('aria-current') ?? 'trigger'}`);
+
+    it('marks Ceramics, not the Shop menu holding it, on a ceramics product', async () => {
+      const wrapper = mountAt('/products/speckled-latte-mug', {
+        productHandle: 'speckled-latte-mug',
+      });
+      await flushIcons();
+      expect(marked(wrapper)).toEqual(['Ceramics:true']);
+      wrapper.unmount();
+    });
+
+    it('marks only the Shop menu for a category that has no entry of its own', async () => {
+      const wrapper = mountAt('/categories/home/knitwear', { categoryPath: 'home/knitwear' });
+      await flushIcons();
+      expect(marked(wrapper).map((mark) => mark.split(':')[0])).toEqual(['Shop']);
+      wrapper.unmount();
+    });
+
+    it('moves the mark on a client-side navigation, with no popstate', async () => {
+      const storefront = createDemoStorefront({
+        productHandle: 'speckled-latte-mug',
+        path: '/products/speckled-latte-mug',
+      });
+      const wrapper = mountAt('/products/speckled-latte-mug', {}, storefront);
+      await flushIcons();
+      expect(marked(wrapper)).toEqual(['Ceramics:true']);
+      // The router commits /journal: the route changes, `window.location` is never read again.
+      storefront.route.productHandle = null;
+      storefront.route.path = '/journal';
+      await flushIcons();
+      expect(marked(wrapper)).toEqual(['Journal:page']);
+      wrapper.unmount();
+    });
+
+    it('marks Journal as the page itself, and nothing for an unknown page', async () => {
+      const journal = mountAt('/journal', { productHandle: 'no-such-product' });
+      await flushIcons();
+      expect(marked(journal)).toEqual(['Journal:page']);
+      journal.unmount();
+      const none = mountAt('/nowhere', { productHandle: 'no-such-product' });
+      await flushIcons();
+      expect(marked(none)).toEqual([]);
+      none.unmount();
+    });
+  });
+
   it('marks a current page inside a mega-menu on its link and on the trigger that holds it', async () => {
     window.history.pushState({}, '', '/collections/womens-sweaters');
     const wrapper = mountBlock(resolved.data, { attachTo: document.body });
@@ -1844,7 +1945,7 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
       expect(panel().get('[data-part="content"]').classes(), 'enter').toContain(
-        'eldra:animate-eldra-popover-in'
+        'eldra:animate-eldra-sheet-in'
       );
 
       await knitwear.trigger('click');
@@ -2666,6 +2767,12 @@ describe('the Northwind menu (the seed’s own)', () => {
         'Mornings with the people who make our goods',
         'Small rituals and slow mornings',
       ]);
+      const first = journal.get('a').element;
+      expect(first.getAttribute('aria-describedby')).toBe(
+        journal.get('[data-part="description"]').attributes('id')
+      );
+      const nameId = first.getAttribute('aria-labelledby')!;
+      expect(document.getElementById(nameId)!.textContent).not.toContain('Washing linen');
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 

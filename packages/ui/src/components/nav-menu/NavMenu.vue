@@ -20,7 +20,8 @@ import NavMenuPanel from './NavMenuPanel.vue';
 import { useNavMenuKeys } from './navMenuKeys';
 import {
   CURRENT_PAGE,
-  containsCurrent,
+  currentEntry,
+  currentMark,
   hasHref,
   hasPanel,
   isRenderableLink,
@@ -103,6 +104,8 @@ function renderableEntries(items: readonly NavMenuItem[]): { item: NavMenuItem; 
 }
 
 const entries = computed(() => renderableEntries(props.items));
+/** The single top-level entry marked as holding the current page (`currentEntry`). */
+const markedEntry = computed(() => currentEntry(entries.value.map(({ item }) => item)));
 const drawerEntries = computed(() => renderableEntries(props.drawerItems ?? props.items));
 
 function panelId(index: number): string {
@@ -325,6 +328,24 @@ const PANEL_TRANSITION = {
   leaveToClass: 'eldra:opacity-0',
 };
 
+/**
+ * The inline drawer unrolls downward from the bar as it fades in, and fades back up faster as it
+ * closes. A clip rather than a translate, so its top edge (which sets its height) never moves while
+ * it is measured. The durations are tokens, which the reduced-motion rule zeroes.
+ */
+const INLINE_TRANSITION = {
+  // Its resting state is fully shown, so only the hidden end carries classes: a class for the
+  // shown end as well would sit beside the hidden one for a frame, and whichever the stylesheet
+  // orders last would win.
+  enterFromClass: 'eldra:opacity-0 eldra:[clip-path:inset(0_0_100%_0)]',
+  enterActiveClass: 'eldra:transition-[opacity,clip-path] eldra:duration-slow eldra:ease-out',
+  enterToClass: '',
+  leaveFromClass: '',
+  leaveActiveClass:
+    'eldra:pointer-events-none eldra:transition-[opacity,clip-path] eldra:duration-base eldra:ease-in',
+  leaveToClass: 'eldra:opacity-0 eldra:[clip-path:inset(0_0_100%_0)]',
+};
+
 const HOVER_FILL = 'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 
 /** A top-level entry's colours at rest, hovered, open (`aria-expanded`) and current. */
@@ -411,8 +432,11 @@ function panelClass(item: NavMenuItem) {
 function contentClass(item: NavMenuItem) {
   return [
     [
-      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-popover-in',
-      panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2',
+      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md',
+      // A mega sheet unrolls from the bar; a dropdown opens out of its trigger's corner.
+      panelLayout(item) === 'mega'
+        ? 'eldra:animate-eldra-sheet-in eldra:p-6'
+        : 'eldra:animate-eldra-popover-in eldra:eldra-nav-menu-dropdown eldra:p-2',
     ],
     props.classes?.content,
   ];
@@ -445,13 +469,22 @@ const inlineClass = computed(() => [
     'eldra:absolute eldra:inset-x-0 eldra:top-full eldra:z-popover eldra:flex eldra:flex-col',
     'eldra:h-[calc(100dvh-var(--eldra-nav-menu-drawer-top,0px))] eldra:overflow-y-auto eldra:overscroll-contain',
     'eldra:border-t eldra:border-border eldra:bg-background eldra:text-text',
+    // Its resting clip, which the open and close transitions unroll from and to: a browser does not
+    // interpolate between `none` and an inset, so without it the clip would jump.
+    'eldra:[clip-path:inset(0)]',
   ],
   props.classes?.drawer,
 ]);
 const inlineStyle = computed(() => ({ '--eldra-nav-menu-drawer-top': `${inlineTop.value}px` }));
-const inlineBodyClass = computed(() => props.classes?.drawerBody);
+const inlineBodyClass = computed(() => ['eldra:shrink-0', props.classes?.drawerBody]);
+/**
+ * The foot sits at the bottom of the window when the entries are shorter than it (`mt-auto` in the
+ * drawer's column, which is `100dvh` tall, so it rises with a phone's browser toolbars), and after
+ * the last entry once they are longer. Its bottom padding adds the device's safe area, as the sheet's
+ * footer does.
+ */
 const inlineFooterClass = computed(() => [
-  'eldra:flex eldra:flex-col eldra:gap-3 eldra:bg-surface eldra:p-4',
+  'eldra:mt-auto eldra:flex eldra:shrink-0 eldra:flex-col eldra:gap-3 eldra:bg-surface eldra:px-4 eldra:pt-4 eldra:eldra-drawer-footer-bottom',
   props.classes?.drawerFooter,
 ]);
 
@@ -496,7 +529,8 @@ const drawerClasses = computed(() => ({
               :class="triggerClass(item)"
               :aria-expanded="openIndex === index ? 'true' : 'false'"
               :aria-controls="panelId(index)"
-              :data-current="containsCurrent(item) ? '' : undefined"
+              :data-current="item === markedEntry ? '' : undefined"
+              :aria-current="currentMark(item.current)"
               @click="onTriggerClick(index)"
               @pointerenter="onTriggerPointerEnter(index, $event)"
               @pointerleave="onTriggerPointerLeave"
@@ -638,45 +672,46 @@ const drawerClasses = computed(() => ({
         </slot>
       </button>
 
-      <div
-        v-if="inline"
-        v-show="drawerOpen"
-        :id="drawerId"
-        ref="inlineEl"
-        data-part="drawer"
-        :class="inlineClass"
-        :style="inlineStyle"
-      >
-        <div data-part="drawerBody" :class="inlineBodyClass">
-          <NavMenuDrawerList
-            :entries="drawerEntries"
-            :layout="drawerLayout"
-            :panel-id="panelId"
-            :nav-label="navLabel"
-            :variant="variant"
-            :messages="m"
-            :link-as="linkAs"
-            :card-aspect="cardAspect"
-            :classes="classes"
-            @follow="closeDrawer"
-          >
-            <template v-if="slots.panelItem" #panelItem="scope">
-              <slot name="panelItem" v-bind="scope" />
-            </template>
-            <template v-if="slots.groupHeading" #groupHeading="scope">
-              <slot name="groupHeading" v-bind="scope" />
-            </template>
-          </NavMenuDrawerList>
-        </div>
+      <Transition v-if="inline" v-bind="INLINE_TRANSITION">
         <div
-          v-if="slots.drawerFooter"
-          :data-eldra-slot="eldra.slotHost('drawerFooter')"
-          data-part="drawerFooter"
-          :class="inlineFooterClass"
+          v-show="drawerOpen"
+          :id="drawerId"
+          ref="inlineEl"
+          data-part="drawer"
+          :class="inlineClass"
+          :style="inlineStyle"
         >
-          <slot name="drawerFooter" :close="closeDrawer" />
+          <div data-part="drawerBody" :class="inlineBodyClass">
+            <NavMenuDrawerList
+              :entries="drawerEntries"
+              :layout="drawerLayout"
+              :panel-id="panelId"
+              :nav-label="navLabel"
+              :variant="variant"
+              :messages="m"
+              :link-as="linkAs"
+              :card-aspect="cardAspect"
+              :classes="classes"
+              @follow="closeDrawer"
+            >
+              <template v-if="slots.panelItem" #panelItem="scope">
+                <slot name="panelItem" v-bind="scope" />
+              </template>
+              <template v-if="slots.groupHeading" #groupHeading="scope">
+                <slot name="groupHeading" v-bind="scope" />
+              </template>
+            </NavMenuDrawerList>
+          </div>
+          <div
+            v-if="slots.drawerFooter"
+            :data-eldra-slot="eldra.slotHost('drawerFooter')"
+            data-part="drawerFooter"
+            :class="inlineFooterClass"
+          >
+            <slot name="drawerFooter" :close="closeDrawer" />
+          </div>
         </div>
-      </div>
+      </Transition>
 
       <Drawer
         v-else

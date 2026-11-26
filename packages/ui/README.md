@@ -1908,6 +1908,14 @@ children?, layout?, groups? }`, one level of children. Children sharing a `group
   nothing for a panel takes no room in it (`empty:hidden`), and a menu with no entry to show draws
   no empty `<nav>`.
 
+  **Descriptions.** An entry's `description` is a muted second line under its label in a panel
+  (`description` part, none when it is empty). A linked entry that has one is named by its label alone
+  (`aria-labelledby` on the label and the hidden "opens in a new tab" text) and described by the
+  description (`aria-describedby`), so a screen reader reads the title as the link's name. The
+  drawer draws the same panel content, so the phone menu shows the descriptions too (deliberate: a
+  link's one-line context is as useful on a phone, and the rows have the room). A `panelItem` slot
+  replaces the entry and its ids; it is then up to the slot.
+
   **Narrow screens.** Below `collapseBelow` the bar is hidden and a menu button
   (`aria-controls` the drawer) opens a left `Drawer`. `md`, `lg` (default) and `xl` are **viewport**
   breakpoints, since the menu's own width says nothing about how crowded the header is; `@tablet`,
