@@ -205,11 +205,14 @@ module.exports = [
   // messages): measured at 175.28 kB.
   // Raised 176 kB -> 178 kB for `NavMenu`'s sections and cards (WS-1321, WS-1362): its section
   // columns, card tiles and their messages: measured at 176.69 kB.
+  // Raised 178 kB -> 179 kB for `NavMenu`'s inline drawer motion and safe-area foot, its one current
+  // entry, `currentMark` and the described links' names (WS-1277, WS-1464, WS-1468): measured at
+  // 177.93 kB, which a CI build had already put 40 B over.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '178 kB',
+    limit: '179 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

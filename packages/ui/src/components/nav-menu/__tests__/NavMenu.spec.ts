@@ -1509,7 +1509,7 @@ describe('NavMenu — panel layout and tone', () => {
   /**
    * WS-1277: a mega sheet played the popover entrance, which grows from the top-left corner; on a
    * sheet as wide as the window that read as the whole sheet sliding in from the left, and on a
-   * dropdown much the same. Every panel fades in and settles about its top centre instead.
+   * dropdown much the same. Every panel shows its top at once and unrolls the rest instead.
    */
   /**
    * WS-1277: a page that is both its own entry ("Ceramics") and a link inside another entry's panel
@@ -1562,7 +1562,7 @@ describe('NavMenu — panel layout and tone', () => {
     ).toEqual(['Shop']);
   });
 
-  it('fades every panel in about its top centre, a mega sheet and a dropdown alike', async () => {
+  it('opens every panel from the bar, a mega sheet and a dropdown alike', async () => {
     const items: NavMenuItem[] = [
       ITEMS[0]!,
       { label: 'Journal', layout: 'dropdown', children: [{ label: 'Care', href: '/care' }] },

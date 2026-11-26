@@ -338,19 +338,21 @@ const PANEL_TRANSITION = {
 };
 
 /**
- * The inline drawer fades in as it settles 0.25rem down into place, and fades back up a little
- * faster as it closes. Its resting state is fully shown, so only the hidden end carries classes: a
- * class for the shown end as well would sit beside the hidden one for a frame, and whichever the
- * stylesheet orders last would win. The durations are tokens, which the reduced-motion rule zeroes.
+ * The inline drawer opens as the bar's panels do: its top third shows at once and the rest unrolls
+ * as it fades in and drops 0.25rem into place; it closes the same way back, a little faster. Its
+ * resting state is fully shown, so only the hidden end carries classes: a class for the shown end as
+ * well would sit beside the hidden one for a frame, and whichever the stylesheet orders last would
+ * win. The durations are tokens, which the reduced-motion rule zeroes.
  */
 const INLINE_TRANSITION = {
-  enterFromClass: 'eldra:opacity-0 eldra:-translate-y-1',
-  enterActiveClass: 'eldra:transition-[opacity,translate] eldra:duration-base eldra:ease-out',
+  enterFromClass: 'eldra:opacity-0 eldra:-translate-y-1 eldra:[clip-path:inset(0_0_65%_0)]',
+  enterActiveClass:
+    'eldra:transition-[opacity,translate,clip-path] eldra:duration-base eldra:ease-out',
   enterToClass: '',
   leaveFromClass: '',
   leaveActiveClass:
-    'eldra:pointer-events-none eldra:transition-[opacity,translate] eldra:duration-fast eldra:ease-in',
-  leaveToClass: 'eldra:opacity-0 eldra:-translate-y-1',
+    'eldra:pointer-events-none eldra:transition-[opacity,translate,clip-path] eldra:duration-fast eldra:ease-in',
+  leaveToClass: 'eldra:opacity-0 eldra:-translate-y-1 eldra:[clip-path:inset(0_0_65%_0)]',
 };
 
 const HOVER_FILL = 'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
@@ -439,7 +441,7 @@ function panelClass(item: NavMenuItem) {
 function contentClass(item: NavMenuItem) {
   return [
     [
-      // Every panel fades in and settles into place, a mega sheet and a dropdown alike.
+      // Every panel shows its top at once and unrolls the rest (`animate-eldra-menu-in`).
       'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-menu-in',
       panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2',
     ],
@@ -474,6 +476,9 @@ const inlineClass = computed(() => [
     'eldra:absolute eldra:inset-x-0 eldra:top-full eldra:z-popover eldra:flex eldra:flex-col',
     'eldra:h-[calc(100dvh-var(--eldra-nav-menu-drawer-top,0px))] eldra:overflow-y-auto eldra:overscroll-contain',
     'eldra:border-t eldra:border-border eldra:bg-background eldra:text-text',
+    // Its resting clip, which the open and close transitions unroll from and to: a browser does not
+    // interpolate between `none` and an inset, so without it the clip would jump.
+    'eldra:[clip-path:inset(0)]',
   ],
   props.classes?.drawer,
 ]);
