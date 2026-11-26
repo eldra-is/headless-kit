@@ -14,7 +14,7 @@
  *   it **closes** (+1) after them;
  * - a text node occupies `text.length` — UTF-16 code units, which is what
  *   ProseMirror counts, so an astral-plane character (an emoji) is 2;
- * - a leaf node (`image`, `hardBreak`, `horizontalRule`, `embed`) occupies 1.
+ * - a leaf node (`image`, `hardBreak`, `horizontalRule`, `embed`, `price`) occupies 1.
  *
  * `packages/theme-core/test/fixtures/rich-text-positions.fixture.json` pins
  * the numbering for a set of documents and is copied byte-for-byte into
@@ -38,6 +38,7 @@ export const RICH_TEXT_LEAF_TYPES: readonly string[] = [
   'hardBreak',
   'horizontalRule',
   'embed',
+  'price',
 ];
 
 const LEAF_TYPES = new Set(RICH_TEXT_LEAF_TYPES);
@@ -434,7 +435,12 @@ export function resolveDomPoint(root: Element, pos: number): RichTextDomPoint | 
  */
 export function domRangeToPositions(
   root: Element,
-  range: { startContainer: Node; startOffset: number; endContainer: Node; endOffset: number }
+  range: {
+    startContainer: Node;
+    startOffset: number;
+    endContainer: Node;
+    endOffset: number;
+  }
 ): { from: number; to: number } | null {
   const from = resolveDomPosition(root, range.startContainer, range.startOffset);
   if (from === null) return null;
@@ -531,7 +537,10 @@ export function richTextMarkNameOf(element: Element): string | null {
  * the toolbar needs and the DOM actually preserves: a heading's level and a
  * code block's language. Everything else is omitted rather than guessed.
  */
-function blockOf(element: Element): { type: string; attrs?: Record<string, unknown> } {
+function blockOf(element: Element): {
+  type: string;
+  attrs?: Record<string, unknown>;
+} {
   const type = element.getAttribute(NODE_ATTR) ?? '';
   if (type === 'heading') {
     const level = Number(element.tagName.slice(1));

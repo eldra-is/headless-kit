@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide, watchEffect } from 'vue';
+import { resolvePrices, type PriceResolver } from '@eldrajs/rich-text';
 import RenderNode from './RenderNode.vue';
 import { defaultMarkComponents, defaultNodeComponents } from './defaults';
 import {
@@ -21,14 +22,23 @@ const props = withDefaults(
     marks?: RichTextMarkOverrides;
     as?: string;
     scrollTransitions?: RevealDirectiveValue;
+    /**
+     * Writes a `price` node (a price token, WS-1474) in the shopper's currency: bind
+     * `@eldrajs/sdk/tokens`' `resolvePriceNode` to it. Without one no price resolves, and the
+     * paragraph or heading holding it is left out (`resolvePrices`).
+     */
+    resolvePrice?: PriceResolver | null;
   }>(),
   {
     nodes: () => ({}),
     marks: () => ({}),
     as: 'div',
     scrollTransitions: false,
+    resolvePrice: null,
   }
 );
+
+const resolvedContent = computed(() => resolvePrices(props.content, props.resolvePrice));
 
 const resolvedNodes = computed<RichTextNodeOverrides>(() => ({
   ...defaultNodeComponents,
@@ -65,13 +75,13 @@ if (import.meta.env?.DEV) {
       }
       node.content?.forEach(walk);
     };
-    walk(props.content);
+    walk(resolvedContent.value);
   });
 }
 </script>
 
 <template>
   <component :is="as" class="rich-text">
-    <RenderNode v-if="content" :node="content" />
+    <RenderNode v-if="resolvedContent" :node="resolvedContent" />
   </component>
 </template>

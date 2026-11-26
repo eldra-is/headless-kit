@@ -88,6 +88,18 @@ export interface BuildRichTextTreeOptions {
    * an `<h0>`/`<h7>` whatever a caller passes.
    */
   minHeadingLevel?: number;
+  /**
+   * Writes a `price` node (a price token in rich text, WS-1474) in the shopper's currency, or
+   * answers `null` when it cannot be: no amount in that currency, an unknown store setting,
+   * malformed attributes. The theme supplies it (`@eldrajs/sdk/tokens`' `resolvePriceNode`, bound to
+   * its currency, regional locale and formatter); without one no price resolves.
+   *
+   * A paragraph or heading holding a price that does not resolve is rendered `hidden` rather than
+   * left out, so it still occupies its positions and native editing maps exactly as before: a
+   * missing amount reads as a shorter text, never as a sentence with a hole in it, and never as
+   * another currency's amount.
+   */
+  resolvePrice?: (attrs: unknown) => string | null;
 }
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
@@ -190,7 +202,11 @@ function buildNode(
   const children = (): RichTextRenderChild[] => buildChildren(node.content, options, cursor);
   const stamp = (attrs: Record<string, string>): Record<string, string> =>
     typeof node.type === 'string' && node.type !== ''
-      ? { ...attrs, 'data-eldra-node': node.type, 'data-eldra-pos': String(pos) }
+      ? {
+          ...attrs,
+          'data-eldra-node': node.type,
+          'data-eldra-pos': String(pos),
+        }
       : attrs;
   const element = (tag: string, attrs: Record<string, string> = {}): RichTextRenderChild[] => [
     { tag, attrs: stamp(attrs), children: children() },
@@ -235,7 +251,13 @@ function buildNode(
   const textblockElement = (
     tag: string,
     attrs: Record<string, string> = {}
-  ): RichTextRenderChild[] => [{ tag, attrs: stamp(attrs), children: padIfEmpty(children()) }];
+  ): RichTextRenderChild[] => [
+    {
+      tag,
+      attrs: stamp(holdsUnresolvedPrice(node.content, options) ? { ...attrs, hidden: '' } : attrs),
+      children: padIfEmpty(children()),
+    },
+  ];
 
   switch (node.type) {
     case 'paragraph':
@@ -274,6 +296,18 @@ function buildNode(
       return element('th', tableCellAttrs(node));
     case 'tableCell':
       return element('td', tableCellAttrs(node));
+    // A price token (WS-1474): a leaf, like an image, so it occupies one position whatever it
+    // renders, and the text inside is never walked as document text (`richTextPositions.ts`).
+    case 'price': {
+      const written = options.resolvePrice?.(node.attrs) ?? null;
+      return [
+        {
+          tag: 'span',
+          attrs: stamp({}),
+          children: written === null ? [] : [written],
+        },
+      ];
+    }
     case 'image':
       return buildImage(node, options, stamp);
     case 'embed':
@@ -293,6 +327,17 @@ function buildNode(
     default:
       return element('span');
   }
+}
+
+/** Whether a textblock holds a `price` node its theme cannot write: the block is then hidden. */
+function holdsUnresolvedPrice(content: unknown, options: BuildRichTextTreeOptions): boolean {
+  if (!Array.isArray(content)) return false;
+  return content.some(
+    (child) =>
+      isNode(child) &&
+      child.type === 'price' &&
+      (options.resolvePrice?.(child.attrs) ?? null) === null
+  );
 }
 
 function buildCodeBlock(
@@ -345,7 +390,10 @@ function buildEmbed(
 ): RichTextRenderChild[] {
   const src = options.safeHref(node.attrs?.src);
   if (src === null) return [];
-  const attrs: Record<string, string> = { class: 'eldra-embed', 'data-src': src };
+  const attrs: Record<string, string> = {
+    class: 'eldra-embed',
+    'data-src': src,
+  };
   if (typeof node.attrs?.provider === 'string') attrs['data-provider'] = node.attrs.provider;
   if (typeof node.attrs?.title === 'string') attrs.title = node.attrs.title;
   return [{ tag: 'div', attrs: stamp(attrs), children: [] }];

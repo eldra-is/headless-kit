@@ -45,6 +45,10 @@
       "types": "./dist/runtime/region.d.ts",
       "import": "./dist/runtime/region.js"
     },
+    "./store-amounts": {
+      "types": "./dist/runtime/storeAmounts.d.ts",
+      "import": "./dist/runtime/storeAmounts.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

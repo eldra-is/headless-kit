@@ -35,3 +35,4 @@ export type {
   NormalizedEmbedAttributes,
   SupportedEmbedProvider,
 } from './embed';
+export { resolvePrices, type PriceResolver } from './prices';

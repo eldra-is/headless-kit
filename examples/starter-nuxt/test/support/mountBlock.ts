@@ -31,7 +31,9 @@ import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY, enUS as uiEnUS } from '@eldrajs
 import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
 import type { StoreRegion } from '@eldrajs/theme-nuxt/region';
 import { REGION_KEY, regionalFormatLocale } from '../../app/composables/useRegionalFormat';
-import { createDemoStorefront } from '../../app/storefront/demo';
+import { createDemoStorefront, DEMO_STORE_AMOUNTS } from '../../app/storefront/demo';
+import { STORE_AMOUNTS_KEY } from '../../app/composables/usePriceTokens';
+import type { StoreAmounts } from '@eldrajs/sdk/tokens';
 import { STOREFRONT_KEY, type StorefrontCommerce } from '../../app/storefront/types';
 import enUSMessages from '../../i18n/en-US.json';
 import isISMessages from '../../i18n/is-IS.json';
@@ -90,6 +92,9 @@ export function mountOptions(
      * the way `app/plugins/eldra-ui-messages.ts` wires it: `LOCALE_KEY` and `REGION_KEY`.
      */
     region?: StoreRegion | null;
+    /** The store's amounts for `⟦store …⟧` price tokens; the demo store's by default, `null` for a
+     * store whose thresholds could not be read. */
+    storeAmounts?: StoreAmounts | null;
   } = {}
 ): {
   props: { entry: { id: string; data: Record<string, unknown> } };
@@ -129,6 +134,8 @@ export function mountOptions(
         [LOCALE_KEY]: regionalFormatLocale(options.region ?? null, effectiveLocale),
         [REGION_KEY]: options.region ?? null,
         [CURRENCY_KEY]: storefront.commerce?.currency,
+        [STORE_AMOUNTS_KEY]:
+          options.storeAmounts === undefined ? DEMO_STORE_AMOUNTS : options.storeAmounts,
         // The same wiring `app/plugins/eldra-storefront.ts` does on a real page: a commerce block
         // reads `useStorefront()`, never the client directly, so every block test sees the
         // Northwind demo catalogue (`app/storefront/demo.ts`) instead of a live gateway.
@@ -178,7 +185,10 @@ function createTestEldraContext(
 }
 
 function createTestEldraClient(): EldraClient {
-  return createEldraClient({ gatewayUrl: 'https://vitest.invalid', orgId: 'vitest' });
+  return createEldraClient({
+    gatewayUrl: 'https://vitest.invalid',
+    orgId: 'vitest',
+  });
 }
 
 /**
@@ -196,7 +206,9 @@ const NuxtLinkStub = defineComponent({
     return () =>
       h(
         'a',
-        { href: typeof props.to === 'string' ? props.to : JSON.stringify(props.to) },
+        {
+          href: typeof props.to === 'string' ? props.to : JSON.stringify(props.to),
+        },
         slots.default?.()
       );
   },

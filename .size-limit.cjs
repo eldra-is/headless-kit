@@ -17,8 +17,10 @@ module.exports = [
     // refusal's `errors`. With the business-customer calls on top (B2B: customer.me and locations,
     // the sales-order calls, the idempotency-key check, typed problem `errors`) it measures
     // 4.53 kB. `features.getRegion()` (the organisation's regional format, WS-1277) takes it to
-    // 4.73 kB.
-    limit: '4.8 kB',
+    // 4.73 kB. `features.getStoreAmounts()` (the delivery read behind `⟦store …⟧` price tokens and
+    // its threshold mapping, WS-1473) takes it to 5.01 kB; the mapping uses the runtime's own `Intl`
+    // for a currency's decimals, so the client still carries no bundled formatter.
+    limit: '5.1 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -44,8 +46,9 @@ module.exports = [
     // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget: 5.5 kB. With the
     // B2B work on top (business login: OIDC with PKCE, `customerHeaders`; the sales-order calls and
     // `isEldraError`) it measures 6.49 kB. `cart.setCurrency` (WS-1391) takes it to 6.56 kB,
-    // and `features.getRegion()` (WS-1277) to 6.73 kB.
-    limit: '6.8 kB',
+    // and `features.getRegion()` (WS-1277) to 6.73 kB. `features.getStoreAmounts()` and
+    // `storeAmountsFromDelivery` (price tokens, WS-1473) take it to 7 kB.
+    limit: '7.1 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
@@ -70,6 +73,14 @@ module.exports = [
     path: 'packages/sdk/dist/format.js',
     import: '{ formatPrice }',
     limit: '38 kB',
+  },
+  // Price tokens (WS-1474) format through `formatPrice`, so the entry is its CLDR data plus the
+  // grammar and resolver (about 1.5 kB of its own).
+  {
+    name: '@eldrajs/sdk/tokens — resolveTokens',
+    path: 'packages/sdk/dist/tokens.js',
+    import: '{ resolveTokens }',
+    limit: '40 kB',
   },
   {
     name: '@eldrajs/sdk/format — compareIcelandic',

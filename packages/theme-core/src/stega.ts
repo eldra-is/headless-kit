@@ -20,6 +20,13 @@ export interface StegaMeta {
   /** Dot path within entry data, e.g. "title" or "cta.label". List indices numeric: "items.2.title". */
   fieldPath: string;
   locale: string | null; // null for non-localized fields
+  /**
+   * `false` when the text on the page is not the text the field stores — a theme wrote out price
+   * tokens (`@eldrajs/sdk/tokens`) in it — so the overlay must not make it editable in place:
+   * typing there would save the written-out price over the token. A click still selects the
+   * field, for the inspector to edit. Absent means editable, as before.
+   */
+  inline?: false;
 }
 
 /** value + zero-width payload suffix. Bits are emitted MSB-first per UTF-8 byte. */
@@ -41,7 +48,10 @@ export function stripStega(value: string): string {
   return value.replace(STEGA_RUN, '');
 }
 
-export function decodeStega(value: string): { cleaned: string; meta: StegaMeta | null } {
+export function decodeStega(value: string): {
+  cleaned: string;
+  meta: StegaMeta | null;
+} {
   STEGA_RUN.lastIndex = 0;
   const match = STEGA_RUN.exec(value);
   if (match === null) return { cleaned: value, meta: null };
@@ -72,6 +82,7 @@ function isStegaMeta(v: unknown): v is StegaMeta {
   return (
     typeof m.entryId === 'string' &&
     typeof m.fieldPath === 'string' &&
-    (m.locale === null || typeof m.locale === 'string')
+    (m.locale === null || typeof m.locale === 'string') &&
+    (m.inline === undefined || m.inline === false)
   );
 }

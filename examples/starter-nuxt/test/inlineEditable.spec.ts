@@ -10,6 +10,7 @@ import {
   type BlockFieldsMap,
 } from '@eldrajs/theme-core';
 import manifest from '../.eldra/manifest.json';
+import { shown } from './support/priceTokens';
 import { mountOptions } from './support/mountBlock';
 
 /**
@@ -106,7 +107,10 @@ function isRichTextRoot(value: unknown): boolean {
 function encodedTextFields(value: unknown, out: TextField[] = []): TextField[] {
   if (typeof value === 'string') {
     const { cleaned, meta } = decodeStega(value);
-    if (meta !== null && cleaned.trim() !== '') out.push({ path: meta.fieldPath, value: cleaned });
+    // A value holding a price token reaches the page written out (`useBlockData`), in the demo
+    // store's currency: that written text is what has to keep the payload.
+    const text = shown(cleaned);
+    if (meta !== null && text.trim() !== '') out.push({ path: meta.fieldPath, value: text });
     return out;
   }
   if (Array.isArray(value)) {
@@ -218,7 +222,11 @@ function fragmentsOf(value: string): Fragment[] {
     { text: head, startsWord: true, endsWord: head.length === value.length },
   ];
   if (value.length > 8)
-    fragments.push({ text: value.slice(-8), startsWord: false, endsWord: true });
+    fragments.push({
+      text: value.slice(-8),
+      startsWord: false,
+      endsWord: true,
+    });
   const firstWord = value.split(/\s+/)[0] ?? '';
   if (firstWord.length >= 4 && firstWord !== head) {
     fragments.push({ text: firstWord, startsWord: true, endsWord: true });

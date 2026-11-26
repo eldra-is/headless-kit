@@ -135,7 +135,12 @@ function nodeElementOf(root: Element, node: Node): Element | null {
 function isNativeTextRange(
   root: Element,
   inputType: string,
-  range: { startContainer: Node; startOffset: number; endContainer: Node; endOffset: number }
+  range: {
+    startContainer: Node;
+    startOffset: number;
+    endContainer: Node;
+    endOffset: number;
+  }
 ): boolean {
   const host = nodeElementOf(root, range.startContainer);
   if (host === null || host !== nodeElementOf(root, range.endContainer)) return false;
@@ -571,7 +576,12 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   } | null = null;
   /** §18 v3: the range a composition replaces, captured on `compositionstart`;
    * the whole composition is posted once, on `compositionend`. */
-  let composition: { key: string; root: HTMLElement; from: number; to: number } | null = null;
+  let composition: {
+    key: string;
+    root: HTMLElement;
+    from: number;
+    to: number;
+  } | null = null;
   /**
    * §18 v3 (the floating-toolbar follow-up, generalized and then serialized):
    * an ordered, per-field buffer of the commands a `beforeinput`
@@ -610,7 +620,11 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
    */
   let pendingRichTextIntents: {
     key: string;
-    entries: Array<{ name: RichTextCommandName; text?: string; coalescable: boolean }>;
+    entries: Array<{
+      name: RichTextCommandName;
+      text?: string;
+      coalescable: boolean;
+    }>;
     awaitingRevision: number | null;
   } | null = null;
   /** §18 v3: the field the last selection report named, so leaving it can post
@@ -1349,7 +1363,12 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // started from — never one message per intermediate keystroke.
       if (event.isComposing === true || event.inputType === 'insertCompositionText') {
         pendingNativeInput = null;
-        composition ??= { key, root: element, from: verdict.from, to: verdict.to };
+        composition ??= {
+          key,
+          root: element,
+          from: verdict.from,
+          to: verdict.to,
+        };
         return;
       }
       pendingNativeInput = {
@@ -1915,7 +1934,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
 
   function attachFramingListeners(image: HTMLElement): void {
     image.addEventListener('pointerdown', onFramingPointerDown, true);
-    image.addEventListener('wheel', onFramingWheel, { passive: false, capture: true });
+    image.addEventListener('wheel', onFramingWheel, {
+      passive: false,
+      capture: true,
+    });
     document.addEventListener('keydown', onFramingKeyDown, true);
   }
 
@@ -2035,6 +2057,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
         existing.setAttribute('data-eldra-entry', meta.entryId);
         if (meta.locale !== null) existing.setAttribute('data-eldra-locale', meta.locale);
         else existing.removeAttribute('data-eldra-locale');
+        markInline(existing, meta);
         text.data = cleaned;
         applyEditable(existing);
         continue;
@@ -2044,6 +2067,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
         parent.setAttribute('data-eldra-field', meta.fieldPath);
         parent.setAttribute('data-eldra-entry', meta.entryId);
         if (meta.locale !== null) parent.setAttribute('data-eldra-locale', meta.locale);
+        markInline(parent, meta);
         text.data = cleaned;
         applyEditable(parent);
         continue;
@@ -2052,6 +2076,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       span.setAttribute('data-eldra-field', meta.fieldPath);
       span.setAttribute('data-eldra-entry', meta.entryId);
       if (meta.locale !== null) span.setAttribute('data-eldra-locale', meta.locale);
+      markInline(span, meta);
       // Mixed-content parents still need a leaf wrapper. Preserve the
       // renderer-owned Text node inside it so reactive text updates continue
       // to target the live DOM node.
@@ -2061,6 +2086,13 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       applyEditable(span);
     }
     restoreEditingFocus();
+  }
+
+  /** A field whose page text is not its stored text (`StegaMeta.inline`) is selectable, never
+   * editable in place: `applyEditable` reads the mark. */
+  function markInline(element: HTMLElement, meta: StegaMeta): void {
+    if (meta.inline === false) element.setAttribute('data-eldra-inline', 'false');
+    else element.removeAttribute('data-eldra-inline');
   }
 
   function metadataOf(span: HTMLElement): StegaMeta {
@@ -2275,7 +2307,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     // it must never gain contenteditable from the overlay — its own
     // TipTap editor (mounted separately by the theme component) owns that.
     if (span.hasAttribute('data-eldra-rich-text')) return;
-    if (mode === 'edit') {
+    if (mode === 'edit' && span.getAttribute('data-eldra-inline') !== 'false') {
       span.setAttribute('contenteditable', 'true');
       guardRendererText(span);
     } else {
@@ -2591,7 +2623,12 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       const layoutNodeId = marker.getAttribute('data-eldra-layout-node-id') ?? '';
       const slotId = marker.getAttribute('data-eldra-slot-id') ?? '';
       if (layoutNodeId === '' || slotId === '') continue;
-      return { layoutNodeId, placement: 'inside', rect: rectOf(marker), slotId };
+      return {
+        layoutNodeId,
+        placement: 'inside',
+        rect: rectOf(marker),
+        slotId,
+      };
     }
     return null;
   }
@@ -3014,7 +3051,11 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       window.addEventListener('scroll', reposition, true);
       window.addEventListener('resize', reposition);
       observer = new MutationObserver(onMutations);
-      observer.observe(scanRoot(), { childList: true, characterData: true, subtree: true });
+      observer.observe(scanRoot(), {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
     },
     stop() {
       if (!started) return;

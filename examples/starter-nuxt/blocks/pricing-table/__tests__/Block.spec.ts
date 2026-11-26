@@ -7,6 +7,7 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 
 /** No media fields, so — like `stats` — there is no `preview.json` to merge onto `mock.json`.
  *  `mock.json` is the block's one full content fixture; `bare` below is the genuinely minimal one,
@@ -36,7 +37,10 @@ const DEMO_CTA_HREFS = [
 ];
 const mockWithCta = {
   ...mock,
-  plans: mock.plans.map((plan, index) => ({ ...plan, ctaHref: DEMO_CTA_HREFS[index] })),
+  plans: mock.plans.map((plan, index) => ({
+    ...plan,
+    ctaHref: DEMO_CTA_HREFS[index],
+  })),
 };
 
 function mountBlock(data: Record<string, unknown>, options: { editing?: boolean } = {}) {
@@ -70,10 +74,10 @@ describe('pricing-table block', () => {
     await flush();
     expect(wrapper.text()).toContain(mock.heading);
     expect(wrapper.text()).toContain(mock.intro);
-    expect(wrapper.text()).toContain(mock.footnote);
+    expect(wrapper.text()).toContain(shown(mock.footnote));
     for (const plan of mock.plans) {
       expect(wrapper.text()).toContain(plan.name);
-      expect(wrapper.text()).toContain(plan.price);
+      expect(wrapper.text()).toContain(shown(plan.price));
       expect(wrapper.text()).toContain(plan.ctaLabel);
     }
     expect(await axe(wrapper.element)).toHaveNoViolations();
@@ -302,7 +306,11 @@ describe('pricing-table block', () => {
         .element as HTMLAnchorElement;
       link.focus();
       expect(document.activeElement).toBe(link);
-      const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      const enter = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true,
+      });
       link.dispatchEvent(enter);
       expect(enter.defaultPrevented).toBe(false);
       wrapper.unmount();

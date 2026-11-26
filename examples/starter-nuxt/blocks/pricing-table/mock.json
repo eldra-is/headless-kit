@@ -12,7 +12,7 @@
     {
       "name": "Monthly",
       "description": "Coffee, preserves and one small kitchen piece, delivered on the first Friday.",
-      "price": "$38",
+      "price": "⟦price#month EUR=3500 ISK=5400 USD=3800⟧",
       "period": "/ month",
       "note": "Billed monthly. Skip or cancel any time.",
       "ctaLabel": "Start monthly",
@@ -22,9 +22,9 @@
     {
       "name": "Seasonal",
       "description": "Three boxes a season, timed to what our makers are harvesting and firing.",
-      "price": "$105",
+      "price": "⟦price#season EUR=9600 ISK=15000 USD=10500⟧",
       "period": "/ 3 months",
-      "note": "$35 a box, billed each season.",
+      "note": "⟦price#sbox EUR=3200 ISK=5000 USD=3500⟧ a box, billed each season.",
       "ctaLabel": "Start seasonal",
       "ctaHref": "",
       "included": [true, true, true, true, false]
@@ -32,9 +32,9 @@
     {
       "name": "Annual",
       "description": "Twelve boxes and a thank-you from the workshop at the start of winter.",
-      "price": "$396",
+      "price": "⟦price#year EUR=36000 ISK=55000 USD=39600⟧",
       "period": "/ year",
-      "note": "$33 a box, billed once a year.",
+      "note": "⟦price#ybox EUR=3000 ISK=4600 USD=3300⟧ a box, billed once a year.",
       "ctaLabel": "Start annual",
       "ctaHref": "",
       "included": [true, true, true, true, true]
@@ -42,6 +42,6 @@
   ],
   "highlightedPlan": "Seasonal",
   "highlightLabel": "Most popular",
-  "footnote": "Prices include tax. Delivery to Canada and the EU is $6 a box.",
+  "footnote": "Prices include tax. Delivery to Canada and the EU is ⟦price#intl EUR=600 ISK=900 USD=600⟧ a box.",
   "sectionBackground": "none"
 }

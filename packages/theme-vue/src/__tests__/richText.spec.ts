@@ -3,10 +3,14 @@ import { reactive } from 'vue';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, createEldraPreviewState, type EldraContext } from '../context';
 import { EldraRichText } from '../EldraRichText';
+import { ELDRA_PRICE_KEY } from '../prices';
 import { renderRichTextDoc, type RichTextNode } from '../richTextRender';
 import { registerBlockFields, safeHref } from '@eldrajs/theme-core';
 
-function doc(content: RichTextNode[]): { type: 'doc'; content: RichTextNode[] } {
+function doc(content: RichTextNode[]): {
+  type: 'doc';
+  content: RichTextNode[];
+} {
   return { type: 'doc', content };
 }
 
@@ -105,7 +109,10 @@ describe('renderRichTextDoc maps the theme-core tree onto h()', () => {
         textNode('bold', [{ type: 'bold' }]),
         textNode(' plain '),
         textNode('link', [
-          { type: 'link', attrs: { href: 'https://example.com', target: '_blank' } },
+          {
+            type: 'link',
+            attrs: { href: 'https://example.com', target: '_blank' },
+          },
         ]),
         { type: 'hardBreak' },
         textNode('hi', [{ type: 'highlight', attrs: { color: 'yellow' } }]),
@@ -113,20 +120,41 @@ describe('renderRichTextDoc maps the theme-core tree onto h()', () => {
     },
     {
       type: 'bulletList',
-      content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [textNode('One')] }] }],
+      content: [
+        {
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [textNode('One')] }],
+        },
+      ],
     },
-    { type: 'codeBlock', attrs: { language: 'ts' }, content: [textNode('const x = 1;')] },
+    {
+      type: 'codeBlock',
+      attrs: { language: 'ts' },
+      content: [textNode('const x = 1;')],
+    },
     {
       type: 'table',
       content: [
         {
           type: 'tableRow',
-          content: [{ type: 'tableCell', attrs: { colspan: 2 }, content: [textNode('Cell')] }],
+          content: [
+            {
+              type: 'tableCell',
+              attrs: { colspan: 2 },
+              content: [textNode('Cell')],
+            },
+          ],
         },
       ],
     },
-    { type: 'image', attrs: { src: '/media/a.png', alt: 'Alt', assetId: 'asset-1' } },
-    { type: 'embed', attrs: { src: 'https://example.com/v', provider: 'vimeo' } },
+    {
+      type: 'image',
+      attrs: { src: '/media/a.png', alt: 'Alt', assetId: 'asset-1' },
+    },
+    {
+      type: 'embed',
+      attrs: { src: 'https://example.com/v', provider: 'vimeo' },
+    },
     { type: 'horizontalRule' },
   ]);
 
@@ -181,7 +209,10 @@ describe('EldraRichText deferred rendering (§18 v3)', () => {
   /** A preview context whose deferral answer the test controls, standing in
    * for the predicate startEldraPreview installs from the overlay runtime. */
   function deferrableContext(): EldraContext & { defer(value: boolean): void } {
-    const preview = Object.assign(createEldraPreviewState(), { active: true, mode: 'edit' });
+    const preview = Object.assign(createEldraPreviewState(), {
+      active: true,
+      mode: 'edit',
+    });
     let deferred = false;
     preview.isRichTextRenderDeferred = () => deferred;
     const context = {
@@ -394,5 +425,43 @@ describe('EldraRichText — minHeadingLevel', () => {
       for (const tag of rendered) expect(tag).toMatch(/^h[1-6]$/);
       expect(mountDoc(headings, { minHeadingLevel }).text()).toContain('One');
     }
+  });
+});
+
+/** WS-1474: a price token in rich text is written by the theme's provided resolver. */
+describe('EldraRichText — price nodes', () => {
+  const body = doc([
+    {
+      type: 'paragraph',
+      content: [
+        textNode('Over '),
+        { type: 'price', attrs: { id: 'a3f', amounts: { ISK: 500 } } },
+        textNode('!'),
+      ],
+    },
+  ]);
+
+  it("writes a price with the theme's resolver, and re-renders when the resolver's state changes", async () => {
+    const currency = reactive({ code: 'ISK' });
+    const wrapper = mount(EldraRichText, {
+      props: { entryId: 'entry-1', field: 'body', doc: body },
+      global: {
+        provide: {
+          [ELDRA_PRICE_KEY as symbol]: (attrs: unknown) => {
+            const amount = (attrs as { amounts: Record<string, number> }).amounts[currency.code];
+            return amount === undefined ? null : `${amount} kr.`;
+          },
+        },
+      },
+    });
+    expect(wrapper.get('p').text()).toBe('Over 500 kr.!');
+    expect(wrapper.get('p').attributes('hidden')).toBeUndefined();
+    currency.code = 'EUR';
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('p').attributes('hidden')).toBe('');
+  });
+
+  it('hides the paragraph when no theme provides a resolver', () => {
+    expect(mountDoc(body).get('p').attributes('hidden')).toBe('');
   });
 });

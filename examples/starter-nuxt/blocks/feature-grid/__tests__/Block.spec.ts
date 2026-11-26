@@ -8,6 +8,7 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 
 /**
  * `mock.json` is the seed Studio writes on insert — its items carry no `image` (Core's write-side
@@ -42,7 +43,12 @@ function mountBlock(data: Record<string, unknown>, options: { editing?: boolean 
 /** A minimal item, extended per test — every test that only cares about link/image behaviour
  * builds on this rather than repeating the full mock shape. */
 function item(overrides: Record<string, unknown> = {}) {
-  return { icon: 'bolt', title: 'Fast checkout', text: 'Pay in one click.', ...overrides };
+  return {
+    icon: 'bolt',
+    title: 'Fast checkout',
+    text: 'Pay in one click.',
+    ...overrides,
+  };
 }
 
 describe('feature-grid block', () => {
@@ -81,7 +87,8 @@ describe('feature-grid block', () => {
   it('renders the bare mock.json content (freshly-inserted regression net) with no axe violations', async () => {
     const wrapper = mountBlock(mock);
     expect(wrapper.text()).toContain(mock.heading);
-    for (const featureItem of mock.items) expect(wrapper.text()).toContain(featureItem.title);
+    for (const featureItem of mock.items)
+      expect(wrapper.text()).toContain(shown(featureItem.title));
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
@@ -166,7 +173,7 @@ describe('feature-grid block', () => {
     const items = list.findAll('li');
     expect(items).toHaveLength(mock.items.length);
     const titles = wrapper.findAll('h3').map((h) => h.text());
-    expect(titles).toEqual(mock.items.map((i) => i.title));
+    expect(titles).toEqual(mock.items.map((i) => shown(i.title)));
   });
 
   it('renders 12 items as 12 list items', () => {
@@ -187,13 +194,21 @@ describe('feature-grid block', () => {
   });
 
   it('suppresses the icon tile entirely when mediaType is image', () => {
-    const wrapper = mountBlock({ ...mock, mediaType: 'image', items: [item()] });
+    const wrapper = mountBlock({
+      ...mock,
+      mediaType: 'image',
+      items: [item()],
+    });
     const iconTile = wrapper.get('[data-part="iconTile"]');
     expect(iconTile.classes()).toContain('hidden');
   });
 
   it('a mediaType: image item with no image renders no <img> live', () => {
-    const wrapper = mountBlock({ ...mock, mediaType: 'image', items: [item({ icon: undefined })] });
+    const wrapper = mountBlock({
+      ...mock,
+      mediaType: 'image',
+      items: [item({ icon: undefined })],
+    });
     expect(wrapper.find('img').exists()).toBe(false);
     // Mutation check (manual): dropping the `v-else-if="isImageMedia && !item.hasImage && isEditing"`
     // guard's `isEditing` condition — always showing the hint — would still pass a bare "no img"
@@ -201,7 +216,11 @@ describe('feature-grid block', () => {
   });
 
   it('shows the image placeholder hint only in the editor, never live, for a missing image', async () => {
-    const data = { ...mock, mediaType: 'image', items: [item({ icon: undefined })] };
+    const data = {
+      ...mock,
+      mediaType: 'image',
+      items: [item({ icon: undefined })],
+    };
     const live = mountBlock(data);
     expect(live.text()).not.toContain('Choose an image');
 
@@ -218,7 +237,11 @@ describe('feature-grid block', () => {
       items: [
         item({
           icon: undefined,
-          image: { assetId: 'a1', url: '/demo/feature-1.svg', altText: 'A demo image' },
+          image: {
+            assetId: 'a1',
+            url: '/demo/feature-1.svg',
+            altText: 'A demo image',
+          },
         }),
       ],
     };

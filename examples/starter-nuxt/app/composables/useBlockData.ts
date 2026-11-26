@@ -1,5 +1,6 @@
 import { computed, type ComputedRef } from 'vue';
-import { useEldraBlockField } from '@eldrajs/theme-vue';
+import { provideEldraPrices, useEldraBlockField } from '@eldrajs/theme-vue';
+import { priceNodeResolver, resolveBlockTokens, usePriceTokenOptions } from './usePriceTokens';
 
 /**
  * Typed access to a block's CMS data. `EldraBlockData`/`EldraBlockEntry` are
@@ -13,6 +14,10 @@ import { useEldraBlockField } from '@eldrajs/theme-vue';
  * passes `api-id="article"` to `EldraRichText` as a literal — `apiId` here
  * is the same idea: a `Block.vue` always knows its own apiId statically, so
  * it passes it once as the second argument.
+ *
+ * `data` has every **price token** already written in the shopper's currency, in every string at
+ * any depth, and the block's rich text gets the resolver for its `price` nodes
+ * (`usePriceTokens.ts`): this is the one place prices resolve, so no block handles them itself.
  */
 export function useBlockData<K extends keyof EldraBlockData>(
   props: { entry: EldraBlockEntry<K> },
@@ -22,8 +27,10 @@ export function useBlockData<K extends keyof EldraBlockData>(
   entryId: string;
   field: (fieldId: string) => ReturnType<typeof useEldraBlockField>;
 } {
+  const tokens = usePriceTokenOptions();
+  provideEldraPrices(priceNodeResolver(tokens));
   return {
-    data: computed(() => props.entry.data),
+    data: computed(() => resolveBlockTokens(props.entry.data, tokens.value)),
     entryId: props.entry.id,
     field: (fieldId: string) => useEldraBlockField(apiId, fieldId),
   };

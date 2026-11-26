@@ -10,8 +10,10 @@ import {
 import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { resolveStoreRegion } from '@eldrajs/theme-nuxt/region';
+import { toStoreAmounts } from '@eldrajs/theme-nuxt/store-amounts';
 import { toStorefrontCommerce } from '../storefront/commerce';
 import { REGION_KEY, regionalFormatLocale } from '../composables/useRegionalFormat';
+import { STORE_AMOUNTS_KEY } from '../composables/usePriceTokens';
 
 /** The package's own default message set for a content locale — `is-IS` takes its Icelandic entry
  * point, anything else (including `undefined`) keeps the English defaults. Only this plugin's own
@@ -79,7 +81,7 @@ export default defineNuxtPlugin({
       inject<EldraContext | undefined>(ELDRA_KEY, undefined)
     );
     const publicConfig = useRuntimeConfig().public as unknown as {
-      eldra?: { commerce?: unknown; region?: unknown };
+      eldra?: { commerce?: unknown; region?: unknown; storeAmounts?: unknown };
     };
     // The organisation's regional format (`@eldrajs/theme-nuxt`'s build-time read): the locale
     // numbers, money and dates are written in and the zone dates are shown in. Read once, like the
@@ -117,5 +119,8 @@ export default defineNuxtPlugin({
     nuxtApp.vueApp.provide(LOCALE_KEY, () => regionalFormatLocale(region, activeLocale()));
     nuxtApp.vueApp.provide(REGION_KEY, region);
     nuxtApp.vueApp.provide(CURRENCY_KEY, currency);
+    // The store's own amounts for `⟦store …⟧` price tokens (the free-shipping threshold per
+    // currency), read once at build like the currency: `app/composables/usePriceTokens.ts`.
+    nuxtApp.vueApp.provide(STORE_AMOUNTS_KEY, toStoreAmounts(publicConfig.eldra?.storeAmounts));
   },
 });

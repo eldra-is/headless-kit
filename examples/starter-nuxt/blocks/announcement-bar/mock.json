@@ -1,6 +1,6 @@
 {
   "variant": "primary",
-  "message": "Free shipping on orders over $80",
+  "message": "Free shipping on orders over ⟦store freeShippingThreshold⟧",
   "linkLabel": "Details",
   "linkHref": "",
   "dismissable": true

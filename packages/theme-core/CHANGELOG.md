@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Price tokens (WS-1474).** `buildRichTextTree` takes `resolvePrice`: a `price` node renders its written price as a leaf (one position, like a hard break), and a paragraph holding one that cannot be written stays in the tree, `hidden`, so the builder's positions still count it. `StegaMeta.inline: false` marks a field whose page text is not its stored text: the overlay keeps it selectable (`theme:field-clicked`) but never makes it editable in place.
 - **`resolveLink` resolves cards (WS-1326).** A child or section link whose `display` is `card` (its
   own, else its section's) carries `card: { image, title, price? }`: the image is the link's own
   `imageUrl`, else the target's (`LinkTargetInfo.image`: a product's thumbnail, a collection's
@@ -96,16 +97,16 @@ Release-please writes the generated notes from commit messages and does not repl
   `catalog:product` and another theme's `starter:hero` pass through) and
   `themeSchemaApiId(blockApiId, themeId)` (the reverse, idempotent), plus `THEME_ID_PATTERN`,
   `RESERVED_THEME_IDS`, `registerThemeId`/`getRegisteredThemeId`. **Breaking:** `registerBlockFields(fields,
-  themeId)` now requires the theme's own id and registers it, so `isBlockFieldLocalized`,
+themeId)` now requires the theme's own id and registers it, so `isBlockFieldLocalized`,
   `isBlockFieldSelect` (and the select unwrap and stega skip that use it) and a template block's
   entry/placement match resolve a block entry whose `schemaApiId` is `<themeId>:<apiId>`. Bare ids
   keep working. The bridge's `theme:ready` reports `manifestVersion: 2`.
 
 - New subpath, `@eldrajs/theme-core/i18n`, framework-free: `flattenMessages`/`unflattenMessages`
   (nested vue-i18n JSON ↔ the manifest's own flat dotted keys), `mergeMessageCatalogues(themeDefaults,
-  platform)` (the platform's theme-message overrides win per key; a locale the theme never shipped
+platform)` (the platform's theme-message overrides win per key; a locale the theme never shipped
   is added whole), and `resolveMessageCatalogue(themeDefaults, platform, orgLocales,
-  orgDefaultLocale)`, implementing the contract's five-tier per-key fallback to the letter — tier 5
+orgDefaultLocale)`, implementing the contract's five-tier per-key fallback to the letter — tier 5
   (`theme(themeDefault)`) always reads the theme's own unmerged default-locale text, never an
   override of it, which is why `themeDefaults` and `platform` are taken separately rather than only
   a pre-merged catalogue — so a build with **no** gateway still produces a full key set for every
@@ -121,7 +122,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **A `link` field's untranslated sub-fields fall back to the default locale's node, field by
   field.** A `link` field's value is a per-locale record (`{ "en-US": {kind,label,group,children…},
-  "is-IS": {…} }`), and `createEldraClient` used to take the active locale's node whole (exact
+"is-IS": {…} }`), and `createEldraClient` used to take the active locale's node whole (exact
   locale, then language, then the first key) — a column heading set only on the English node
   rendered as no heading at all on every other locale. `createEldraClient` now takes
   `defaultLocale?: string | null` (the organisation's default content locale); when set and the
@@ -159,7 +160,7 @@ Release-please writes the generated notes from commit messages and does not repl
 - **A route template's trailing parameter may be a catch-all: `/categories/:path*`.** It must be the
   last segment, it matches **one or more** segments, and the parameter's value is the remainder
   joined with `/` and no leading slash (`/categories/billinn/bilstolar` → `path:
-  "billinn/bilstolar"`). `parseDynamicRoutePattern` reports it as `catchAll: true` and keeps the star
+"billinn/bilstolar"`). `parseDynamicRoutePattern` reports it as `catchAll: true` and keeps the star
   out of `paramName`, so a template's own `slugField` is still compared against `path`;
   `matchDynamicRoutePattern`/`resolveRoute` match it, and `buildDynamicRoutePath` encodes each
   segment of such a value while keeping the separators (and refuses an empty one — a leading,
@@ -203,7 +204,7 @@ Release-please writes the generated notes from commit messages and does not repl
 - Inline canvas editing no longer depends on when the overlay's own `input` handler runs relative
   to the MutationObserver that sees the keystroke land, nor on how long the editor's round trip
   takes. `restoreEditingFocus` answers every characterData mutation in the document, so it can run
-  *before* `onInput` — a single `input` listener anywhere on the page registered ahead of the
+  _before_ `onInput` — a single `input` listener anywhere on the page registered ahead of the
   overlay's own puts a microtask checkpoint between the two, and a checkpoint is where queued
   observer records are delivered. It used to re-place the caret from the remembered offset on every
   such pass, which put the caret back in front of the character just typed and, because the next
@@ -281,7 +282,7 @@ Release-please writes the generated notes from commit messages and does not repl
 - Feat: a new theme → editor bridge message, `theme:block-hovered`, reports the block the pointer
   is over — `{ entryId, rect, layoutNodeId?, reusablePlacementId? }`, or `null` once it leaves — so
   the editor can anchor an affordance (an "add block" control on the block's bottom edge) to the
-  same geometry the theme already outlines. It is posted when the hovered *block* changes, not on
+  same geometry the theme already outlines. It is posted when the hovered _block_ changes, not on
   every pointer move inside it, and re-posted whenever the theme's geometry may have moved, so a
   re-post can repeat the rect it last sent. Edit mode only, and gated on the new `block-hover`
   capability: an editor that does not advertise it receives nothing. The theme's own hover outline

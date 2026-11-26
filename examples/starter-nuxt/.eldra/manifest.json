@@ -68,7 +68,7 @@
       ],
       "mock": {
         "variant": "primary",
-        "message": "Free shipping on orders over $80",
+        "message": "Free shipping on orders over ⟦store freeShippingThreshold⟧",
         "linkLabel": "Details",
         "linkHref": "",
         "dismissable": true
@@ -1267,7 +1267,7 @@
         "showPaymentIcons": true,
         "note": "Taxes and shipping calculated at checkout.",
         "emptyTitle": "Your cart is empty",
-        "emptyText": "Winter knitwear is back in stock, and orders over $80 ship free.",
+        "emptyText": "Winter knitwear is back in stock. Orders over ⟦store freeShippingThreshold⟧ ship free.",
         "emptyLinkLabel": "Continue shopping",
         "emptyLinkHref": "/collections/all"
       },
@@ -2400,7 +2400,22 @@
                   "content": [
                     {
                       "type": "text",
-                      "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
+                      "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for "
+                    },
+                    {
+                      "type": "price",
+                      "attrs": {
+                        "id": "card",
+                        "amounts": {
+                          "EUR": 400,
+                          "ISK": 600,
+                          "USD": 400
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": ", and we leave prices off the packing slip."
                     }
                   ]
                 }
@@ -2567,7 +2582,7 @@
         "items": [
           {
             "icon": "truck",
-            "title": "Free shipping over $80",
+            "title": "Free shipping over ⟦store freeShippingThreshold⟧",
             "text": "Carbon-neutral delivery across the US in 2 to 4 business days."
           },
           {
@@ -4514,7 +4529,7 @@
         "transparentOverHero": false,
         "infoItems": [
           {
-            "text": "Free delivery over $80",
+            "text": "Free delivery over ⟦store freeShippingThreshold⟧",
             "icon": "truck",
             "placement": "start"
           },
@@ -5195,7 +5210,7 @@
           {
             "name": "Monthly",
             "description": "Coffee, preserves and one small kitchen piece, delivered on the first Friday.",
-            "price": "$38",
+            "price": "⟦price#month EUR=3500 ISK=5400 USD=3800⟧",
             "period": "/ month",
             "note": "Billed monthly. Skip or cancel any time.",
             "ctaLabel": "Start monthly",
@@ -5211,9 +5226,9 @@
           {
             "name": "Seasonal",
             "description": "Three boxes a season, timed to what our makers are harvesting and firing.",
-            "price": "$105",
+            "price": "⟦price#season EUR=9600 ISK=15000 USD=10500⟧",
             "period": "/ 3 months",
-            "note": "$35 a box, billed each season.",
+            "note": "⟦price#sbox EUR=3200 ISK=5000 USD=3500⟧ a box, billed each season.",
             "ctaLabel": "Start seasonal",
             "ctaHref": "",
             "included": [
@@ -5227,9 +5242,9 @@
           {
             "name": "Annual",
             "description": "Twelve boxes and a thank-you from the workshop at the start of winter.",
-            "price": "$396",
+            "price": "⟦price#year EUR=36000 ISK=55000 USD=39600⟧",
             "period": "/ year",
-            "note": "$33 a box, billed once a year.",
+            "note": "⟦price#ybox EUR=3000 ISK=4600 USD=3300⟧ a box, billed once a year.",
             "ctaLabel": "Start annual",
             "ctaHref": "",
             "included": [
@@ -5243,7 +5258,7 @@
         ],
         "highlightedPlan": "Seasonal",
         "highlightLabel": "Most popular",
-        "footnote": "Prices include tax. Delivery to Canada and the EU is $6 a box.",
+        "footnote": "Prices include tax. Delivery to Canada and the EU is ⟦price#intl EUR=600 ISK=900 USD=600⟧ a box.",
         "sectionBackground": "none"
       },
       "previewImage": ".eldra/previews/pricing-table.png"
@@ -5651,7 +5666,7 @@
           {
             "icon": "truck",
             "title": "Free delivery",
-            "text": "on orders over $80"
+            "text": "on orders over ⟦store freeShippingThreshold⟧"
           },
           {
             "icon": "building-store",
@@ -7628,7 +7643,7 @@
         "items": [
           {
             "icon": "truck",
-            "title": "Free shipping over $80",
+            "title": "Free shipping over ⟦store freeShippingThreshold⟧",
             "text": "Delivered in 2–4 business days, carbon-neutral."
           },
           {

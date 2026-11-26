@@ -7,6 +7,7 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 import { EldraHttpError } from '@eldrajs/sdk';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
 import { createCartStore, type CartSnapshot } from '../../../app/storefront/cart';
@@ -88,7 +89,11 @@ async function mountCart(
       // `transition-group-stub` element between the `<ul>` and its `<li>`s and break the list
       // semantics axe checks — in a browser it renders a fragment and there is no wrapper at all.
       // Rendering the real thing is both what the page does and what the axe gate has to see.
-      stubs: { ...base.global.stubs, transition: false, 'transition-group': false },
+      stubs: {
+        ...base.global.stubs,
+        transition: false,
+        'transition-group': false,
+      },
       provide: {
         ...base.global.provide,
         [STOREFRONT_KEY]: storefront,
@@ -132,7 +137,13 @@ function refusingStorefront(
   let held = lines.map((line) => ({ ...line }));
   const snapshot = (): CartSnapshot => ({
     lines: held.map((line) => ({ ...line })),
-    totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+    totals: {
+      subtotal: 0,
+      discount: null,
+      shipping: null,
+      tax: null,
+      total: 0,
+    },
   });
   const refuse = async (): Promise<never> => {
     throw thrown;
@@ -459,7 +470,9 @@ describe('cart block', () => {
     });
 
     it('moves focus to the empty-state heading when the last line goes', async () => {
-      const { wrapper } = await mountCart(mock, { cartLines: [DEMO_CART_LINES[0]!] });
+      const { wrapper } = await mountCart(mock, {
+        cartLines: [DEMO_CART_LINES[0]!],
+      });
       await openDrawer(wrapper);
 
       await wrapper
@@ -532,7 +545,7 @@ describe('cart block', () => {
       expect(wrapper.get(`a[href="${mock.emptyLinkHref}"]`).text()).toContain('Continue shopping');
 
       const empty = await mountCart({ ...mock, variant: 'page' }, { cartLines: [] });
-      expect(empty.wrapper.text()).toContain(mock.emptyText);
+      expect(empty.wrapper.text()).toContain(shown(mock.emptyText));
       expect(empty.wrapper.findAll(`a[href="${mock.emptyLinkHref}"]`).length).toBe(2);
       expect(empty.wrapper.find('aside').exists()).toBe(false);
     });

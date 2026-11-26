@@ -1,3 +1,4 @@
+import type { StoreAmounts } from './tokens';
 import type { EldraCampaignAttributionOptions } from './attribution';
 import type {
   EldraContractBody,
@@ -436,6 +437,12 @@ export interface EldraFeatureClient {
     options?: EldraOrganizationOptions,
     context?: EldraRequestContext
   ): Promise<EldraOrganizationRegion | null>;
+  /**
+   * The store's amounts for `⟦store …⟧` price tokens (WS-1473), in minor units per currency:
+   * `freeShippingThreshold` is the lowest free-shipping threshold among the active delivery
+   * methods selling in each currency (`storeAmountsFromDelivery`). Read it once at build time.
+   */
+  getStoreAmounts(context?: EldraRequestContext): Promise<StoreAmounts>;
 }
 
 export interface EldraClient {

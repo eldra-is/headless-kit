@@ -51,7 +51,7 @@
           },
           {
             "icon": "truck",
-            "title": "Free delivery over $80",
+            "title": "Free delivery over ⟦store freeShippingThreshold⟧",
             "text": "Dispatched in 1 to 3 days, or collect from the shop."
           },
           {

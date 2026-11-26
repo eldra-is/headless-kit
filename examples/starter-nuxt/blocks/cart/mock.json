@@ -5,7 +5,7 @@
   "showPaymentIcons": true,
   "note": "Taxes and shipping calculated at checkout.",
   "emptyTitle": "Your cart is empty",
-  "emptyText": "Winter knitwear is back in stock, and orders over $80 ship free.",
+  "emptyText": "Winter knitwear is back in stock. Orders over ⟦store freeShippingThreshold⟧ ship free.",
   "emptyLinkLabel": "Continue shopping",
   "emptyLinkHref": "/collections/all"
 }
