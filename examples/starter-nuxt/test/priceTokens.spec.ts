@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { decodeStega, encodeStega } from '@eldrajs/theme-core/stega';
 import { resolveBlockTokens } from '../app/composables/usePriceTokens';
 import { formatMoney } from '../app/storefront/money';
 import AnnouncementBar from '../blocks/announcement-bar/Block.vue';
 import Faq from '../blocks/faq/Block.vue';
 import PricingTable from '../blocks/pricing-table/Block.vue';
+import Navigation from '../blocks/navigation/Block.vue';
 import announcementMock from '../blocks/announcement-bar/mock.json';
 import faqMock from '../blocks/faq/mock.json';
 import pricingMock from '../blocks/pricing-table/mock.json';
 import { mountOptions } from './support/mountBlock';
+import { STOREFRONT_KEY, type StorefrontSource } from '../app/storefront/types';
 
 /**
  * Price tokens (WS-1474, WS-1473) resolve in one place, `useBlockData`, for every block: these specs
@@ -59,6 +61,53 @@ describe('price tokens in block data', () => {
       `Free shipping on orders over ${formatMoney(15000, 'ISK', 'is-IS')}`
     );
     expect(formatMoney(15000, 'ISK', 'is-IS')).toMatch(/^15\.000\skr\.$/);
+  });
+
+  it('drops a header info item whose only sentence names a missing amount, icon and all', async () => {
+    const data = {
+      infoItems: [
+        {
+          text: encodeStega('Free delivery over ⟦store freeShippingThreshold⟧', {
+            entryId: 'n1',
+            fieldPath: 'infoItems.0.text',
+            locale: 'en-US',
+          }),
+          icon: 'truck',
+          placement: 'start',
+        },
+        { text: '30-day returns', icon: 'arrow-back-up', placement: 'start' },
+      ],
+    };
+    // The preview carries the editing payload; a store with no thresholds leaves the item empty.
+    const wrapper = mount(
+      Navigation,
+      mountOptions({ entry: { id: 'n1', data } }, { storeAmounts: null })
+    );
+    await flushPromises();
+    const strip = wrapper.get('[aria-label="Store information"]');
+    expect(strip.findAll('li')).toHaveLength(1);
+    expect(strip.text()).toContain('30-day returns');
+  });
+
+  it("follows the shopper's chosen currency, not the store's base one", async () => {
+    const options = mountOptions(
+      { entry: { id: 'a1', data: { ...announcementMock } } },
+      {
+        commerce: { ...ISK, currencies: ['ISK', 'EUR', 'USD'] },
+        region: { countryCode: 'IS', formatLocale: 'is-IS', timeZone: 'Atlantic/Reykjavik' },
+      }
+    );
+    const storefront = options.global.provide[STOREFRONT_KEY] as StorefrontSource;
+    storefront.currency.started.value = true;
+    const wrapper = mount(AnnouncementBar, options);
+    await flushPromises();
+    expect(wrapper.text()).toContain(formatMoney(15000, 'ISK', 'is-IS'));
+    // The shopper picks euros: the store's own euro threshold (€75), never 15.000 kr. converted.
+    storefront.currency.choose('EUR');
+    await vi.waitFor(() => expect(storefront.currency.active.value).toBe('EUR'));
+    await flushPromises();
+    expect(wrapper.text()).toContain(formatMoney(75, 'EUR', 'is-IS'));
+    expect(wrapper.text()).not.toContain('kr.');
   });
 
   it('leaves the sentence out when the store has no amount for the currency', async () => {
@@ -156,6 +205,13 @@ describe('resolveBlockTokens', () => {
       cleaned: 'Card $4.00.',
       meta: { ...meta, inline: false },
     });
+    // Every sentence left out: empty, with no payload, so a block's own `trim() === ''` sees it.
+    expect(
+      resolveBlockTokens(
+        encodeStega('Free delivery over ⟦store freeShippingThreshold⟧', meta),
+        options
+      )
+    ).toBe('');
     // A field without a token keeps its payload exactly as Studio sent it.
     const plain = encodeStega('Hello', meta);
     expect(resolveBlockTokens(plain, options)).toBe(plain);

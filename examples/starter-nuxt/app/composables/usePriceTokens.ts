@@ -10,6 +10,7 @@ import {
 } from '@eldrajs/sdk/tokens';
 import { decodeStega, encodeStega } from '@eldrajs/theme-core/stega';
 import { formatMoney } from '../storefront/money';
+import { STOREFRONT_KEY } from '../storefront/types';
 
 /**
  * **Price tokens** (WS-1474, WS-1473): a merchant can put a price in any text field of any block —
@@ -57,13 +58,16 @@ export function storeAmountIn(
     : null;
 }
 
-/** How this page writes a token: the store currency, the regional format, the theme's money. */
+/** How this page writes a token: the shopper's currency, the regional format, the theme's money. */
 export function usePriceTokenOptions(): ComputedRef<ResolveTokensOptions> {
-  const currency = useEldraUiCurrency();
+  // The **shopper's** currency — what the picker chose, the one product cards price in — not the
+  // store's base currency `CURRENCY_KEY` carries: a shopper in euros reads the euro amount.
+  const shopperCurrency = inject(STOREFRONT_KEY, null)?.currency.active;
+  const storeCurrency = useEldraUiCurrency();
   const locale = useEldraUiLocale();
   const storeAmounts = inject(STORE_AMOUNTS_KEY, null);
   return computed(() => ({
-    currency: currency.value,
+    currency: shopperCurrency?.value ?? storeCurrency.value,
     locale: locale.value,
     storeAmounts,
     format: formatMoney,
@@ -86,6 +90,10 @@ function resolveString(value: string, options: ResolveTokensOptions): string {
   // token.
   const { cleaned, meta } = decodeStega(value);
   const written = resolveTokens(cleaned, options);
+  // Every sentence left out (no amount in this currency): the value is empty, and must read as
+  // empty to the block — a payload alone is invisible but not blank to `trim()`, so an info item
+  // or a heading would still draw its icon or its wrapper around nothing.
+  if (written.trim() === '') return '';
   return meta === null ? written : encodeStega(written, { ...meta, inline: false });
 }
 
