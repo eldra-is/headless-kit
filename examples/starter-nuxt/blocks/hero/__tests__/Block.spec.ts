@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils';
 import { h, nextTick } from 'vue';
+import { flushPromises } from '@vue/test-utils';
 import { axe } from '../../../test/support/axe';
 import { describe, expect, it } from 'vitest';
 import Block from '../Block.vue';
@@ -89,20 +90,58 @@ describe('hero block', () => {
       expect(frame.classes()).toContain('@min-[68.8125rem]:aspect-[21/9]!');
     });
 
-    it('renders the caption as one same-site link naming the item and its detail', () => {
+    /**
+     * WS-1277: the caption was three typed fields, its price a string ("ISK 4,790") that ignored the
+     * regional format and the shopper's currency and went stale with the catalog. It is the picked
+     * product now, its name, price and link all read from the storefront.
+     */
+    it('names the picked product and its price from the catalog, and links to it', async () => {
       const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: card } }));
-      const caption = wrapper
-        .findAll('a')
-        .find((link) => link.text().includes(withImage.captionLabel));
-      expect(caption).toBeDefined();
-      expect(caption!.text()).toContain(withImage.captionDetail);
-      expect(caption!.attributes('href')).toBe(withImage.captionHref);
+      await flushPromises();
+      const caption = wrapper.get('[data-eldra-hero-caption]');
+      expect(caption.text()).toContain('Glazed milk jug');
+      expect(caption.attributes('href')).toBe('/products/glazed-milk-jug');
+      expect(caption.text()).toContain('$34');
     });
 
-    it('draws the caption as a pill whose words are never underlined, at rest, hovered or pressed', () => {
+    it('writes the price in the regional format and the store currency', async () => {
+      const wrapper = mount(
+        Block,
+        mountOptions(
+          { entry: { id: 'e1', data: card } },
+          {
+            locale: 'en-US',
+            commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
+            region: { countryCode: 'IS', formatLocale: 'is-IS', timeZone: 'Atlantic/Reykjavik' },
+          }
+        )
+      );
+      await flushPromises();
+      const caption = wrapper.get('[data-eldra-hero-caption]');
+      // `is-IS` writes a no-break space before the currency.
+      expect(caption.text()).toMatch(/34\u00a0kr\./);
+      expect(caption.text()).not.toContain('ISK');
+    });
+
+    it('takes its own text in place of the product name, keeping the price and link', async () => {
+      const wrapper = mount(
+        Block,
+        mountOptions({
+          entry: { id: 'e1', data: { ...card, captionLabel: 'Our bestselling jug' } },
+        })
+      );
+      await flushPromises();
+      const caption = wrapper.get('[data-eldra-hero-caption]');
+      expect(caption.text()).toContain('Our bestselling jug');
+      expect(caption.text()).not.toContain('Glazed milk jug');
+      expect(caption.attributes('href')).toBe('/products/glazed-milk-jug');
+    });
+
+    it('draws the caption as a pill whose words are never underlined, at rest, hovered or pressed', async () => {
       // The design's shoppable pill (`.nw-shoppable`): the pill is the affordance. `Link`'s
       // `underline: false` still underlines on hover and press, so the caption turns both off.
       const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: card } }));
+      await flushPromises();
       const caption = wrapper.get('[data-eldra-hero-caption]');
       for (const token of [
         'no-underline',
@@ -115,27 +154,24 @@ describe('hero block', () => {
       expect(caption.classes()).toContain('eldra:hover:underline');
     });
 
-    it('renders no caption without a link, and none in the other variants', () => {
-      const noHref = mount(
-        Block,
-        mountOptions({ entry: { id: 'e1', data: { ...card, captionHref: '' } } })
-      );
-      expect(noHref.text()).not.toContain(withImage.captionLabel);
-      const imageRight = mount(
-        Block,
-        mountOptions({ entry: { id: 'e1', data: { ...card, variant: 'image-right' } } })
-      );
-      expect(imageRight.text()).not.toContain(withImage.captionLabel);
-    });
-
-    it('drops an unsafe caption link', () => {
-      const wrapper = mount(
-        Block,
-        mountOptions({
-          entry: { id: 'e1', data: { ...card, captionHref: 'javascript:alert(1)' } },
+    it('shows no caption without a product, for a sold-out one, or outside the card variant', async () => {
+      const caption = async (data: Record<string, unknown>) => {
+        const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data } }));
+        await flushPromises();
+        return wrapper.find('[data-eldra-hero-caption]').exists();
+      };
+      expect(await caption({ ...card, captionProduct: null })).toBe(false);
+      expect(
+        await caption({
+          ...card,
+          captionProduct: { _type: 'product', slug: 'enamel-camp-cups-set-of-6' },
         })
+      ).toBe(false);
+      // A draft's bare stub names no slug yet: nothing to look up until it is published.
+      expect(await caption({ ...card, captionProduct: { _type: 'product', id: 'abc' } })).toBe(
+        false
       );
-      expect(wrapper.text()).not.toContain(withImage.captionLabel);
+      expect(await caption({ ...card, variant: 'image-right' })).toBe(false);
     });
   });
 

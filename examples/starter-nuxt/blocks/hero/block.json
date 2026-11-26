@@ -4,7 +4,7 @@
   "description": "Top-of-page banner with heading, supporting text, image and calls to action.",
   "icon": "layout-dashboard",
   "category": "marketing",
-  "version": 2,
+  "version": 3,
   "migrations": [
     {
       "version": 2,
@@ -12,7 +12,8 @@
         { "from": "ctaLabel", "to": "primaryCtaLabel" },
         { "from": "ctaHref", "to": "primaryCtaHref" }
       ]
-    }
+    },
+    { "version": 3, "renames": [] }
   ],
   "groups": [
     { "groupId": "content", "name": "Content", "defaultOpen": true },
@@ -108,32 +109,23 @@
       }
     },
     {
+      "fieldId": "captionProduct",
+      "name": "Image caption product",
+      "type": "reference",
+      "groupId": "content",
+      "relation": { "allowProducts": true },
+      "helpText": "The product in the photo. The caption shows its name and price and links to it, and hides while it is sold out. Card variant only.",
+      "showWhen": { "field": "variant", "in": ["card"] }
+    },
+    {
       "fieldId": "captionLabel",
-      "name": "Image caption",
+      "name": "Image caption text",
       "type": "string",
       "groupId": "content",
       "localized": true,
-      "helpText": "A small link on the photo naming what is in it, e.g. \"Glazed milk jug\". Card variant only.",
+      "helpText": "Leave empty to use the product's name.",
       "showWhen": { "field": "variant", "in": ["card"] },
       "validators": { "maxLength": 60 }
-    },
-    {
-      "fieldId": "captionDetail",
-      "name": "Image caption detail",
-      "type": "string",
-      "groupId": "content",
-      "localized": true,
-      "helpText": "Shown after the caption in a lighter weight, e.g. the price.",
-      "showWhen": { "field": "variant", "in": ["card"] },
-      "validators": { "maxLength": 30 }
-    },
-    {
-      "fieldId": "captionHref",
-      "name": "Image caption link",
-      "type": "string",
-      "groupId": "content",
-      "helpText": "Where the caption goes, usually the product in the photo. No link, no caption.",
-      "showWhen": { "field": "variant", "in": ["card"] }
     },
     {
       "fieldId": "spacing",

@@ -229,9 +229,8 @@ declare global {
       subheading?: string;
       image?: EldraMedia;
       slides?: Array<{ image: EldraMedia; alt: string; linkLabel?: string; href?: string }>;
+      captionProduct?: Record<string, unknown>;
       captionLabel?: string;
-      captionDetail?: string;
-      captionHref?: string;
       spacing?: 'md' | 'sm' | 'lg';
       primaryCtaLabel?: string;
       primaryCtaHref?: string;
