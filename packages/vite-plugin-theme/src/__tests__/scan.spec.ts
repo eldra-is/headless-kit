@@ -613,7 +613,10 @@ describe('scanTheme price opt-out (allowPrices)', () => {
       const { manifest, errors } = scanTheme({ themeDir: dir, framework: 'nuxt' });
       expect(errors).toEqual([]);
       // It reaches the manifest, which is what Core's ingest reads.
-      expect(manifest?.blocks.find((b) => b.apiId === 'hero')?.fields[0]).toMatchObject({
+      const fields = manifest?.blocks.find((b) => b.apiId === 'hero')?.fields as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(fields?.[0]).toMatchObject({
         allowPrices: false,
       });
     }
