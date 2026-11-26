@@ -431,6 +431,16 @@ describe('collection-grid block', () => {
      * later in the page, so they drew over the bar as the grid scrolled under it. The grid is its
      * own stacking context, which keeps everything a card lifts below the bar.
      */
+    /** WS-1277: two cards side by side on a phone under 372px wide are too narrow to read. */
+    it('shows one column below 23.25rem (372px) and two from there', async () => {
+      const wrapper = mountGrid(mock);
+      await flushPromises();
+      const list = wrapper.findAll('ul[role="list"]').find((ul) => ul.find('li h3').exists())!;
+      expect(list.classes()).toContain('grid-cols-1');
+      expect(list.classes()).toContain('@min-[23.25rem]:grid-cols-2');
+      expect(list.classes()).not.toContain('grid-cols-2');
+    });
+
     it('keeps what a card lifts inside the grid, below the sticky filter bar', async () => {
       const wrapper = mountGrid(mock);
       await flushPromises();

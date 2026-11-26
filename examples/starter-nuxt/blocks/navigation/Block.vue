@@ -1360,7 +1360,6 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           :collapse-below="variant === 'minimal' ? 'always' : '@content'"
           :drawer-layout="drawerLayout"
           drawer-mode="inline"
-          open-on-hover
           :link-as="MenuLink"
           :card-aspect="cardAspect"
           :messages="navMenuMessages"

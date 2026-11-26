@@ -1681,14 +1681,15 @@ onUnmounted(() => {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The shared product grid (spec "Product grid", 3040): 2 columns below 48rem with 2rem × 1rem
+ * The shared product grid (spec "Product grid", 3040): 1 column below 23.25rem (372px) (a card half of a
+ * phone that narrow is too small to read, WS-1277), 2 columns up to 48rem with 2rem × 1rem
  * gaps; from 48rem 3 (or 2), gaps 3rem × 1.5rem — the 4-column setting shows 3 here; `columns` from
  * 64rem. Static strings from a lookup, so Tailwind emits every one of them.
  */
 const GRID_COLUMNS: Record<string, string> = {
-  '2': 'grid-cols-2',
-  '3': 'grid-cols-2 @tablet:grid-cols-3',
-  '4': 'grid-cols-2 @tablet:grid-cols-3 @content:grid-cols-4',
+  '2': 'grid-cols-1 @min-[23.25rem]:grid-cols-2',
+  '3': 'grid-cols-1 @min-[23.25rem]:grid-cols-2 @tablet:grid-cols-3',
+  '4': 'grid-cols-1 @min-[23.25rem]:grid-cols-2 @tablet:grid-cols-3 @content:grid-cols-4',
 };
 const gridClass: ComputedRef<string> = computed(
   () =>

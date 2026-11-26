@@ -501,7 +501,7 @@ const headingClass =
 
         <template v-if="hasNoResultsProducts">
           <p class="text-body-sm text-text font-semibold">{{ t('search.customersLove') }}</p>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 @min-[23.25rem]:grid-cols-2">
             <ProductCard
               v-for="entry in noResultsProducts"
               :key="entry.item.handle"

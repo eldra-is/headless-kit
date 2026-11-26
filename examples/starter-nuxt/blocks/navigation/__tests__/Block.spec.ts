@@ -501,43 +501,22 @@ describe('header block (navigation apiId)', () => {
       wrapper.unmount();
     });
 
-    it('hover opens a panel after 150ms, leaving it closes it after 150ms, and a click-opened panel stays', async () => {
+    /**
+     * The design's header opens a panel on activation only (click, Enter or Space): a pointer resting
+     * on a trigger opens nothing, so crossing the bar never springs a panel open over the page
+     * (WS-1277; WCAG 1.4.13's hover rules then never apply).
+     */
+    it('opens nothing when a mouse pointer rests on a trigger, however long', async () => {
       vi.useFakeTimers();
       try {
         const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
-        const panel = () => wrapper.find(`#${knitwear.attributes('aria-controls')}`);
-
         mouse(knitwear.element, 'pointerenter');
-        vi.advanceTimersByTime(160);
-        await nextTick();
-        expect(knitwear.attributes('aria-expanded')).toBe('true');
-
-        // Trigger to panel never leaves the menu; straying out and back within the grace keeps it open.
-        mouse(knitwear.element, 'pointerleave');
-        mouse(menuRoot(wrapper), 'pointerleave');
-        vi.advanceTimersByTime(100);
-        mouse(menuRoot(wrapper), 'pointerenter');
-        vi.advanceTimersByTime(300);
-        await nextTick();
-        expect(panel().isVisible()).toBe(true);
-        expect(knitwear.attributes('aria-expanded')).toBe('true');
-
-        // Leaving the menu closes what hover opened.
-        mouse(menuRoot(wrapper), 'pointerleave');
-        vi.advanceTimersByTime(160);
+        vi.advanceTimersByTime(1000);
         await nextTick();
         expect(knitwear.attributes('aria-expanded')).toBe('false');
-
-        // A panel opened by a click is not hover-owned: the pointer leaving does not close it.
         await knitwear.trigger('click');
         expect(knitwear.attributes('aria-expanded')).toBe('true');
-        mouse(knitwear.element, 'pointerenter');
-        mouse(menuRoot(wrapper), 'pointerleave');
-        vi.advanceTimersByTime(300);
-        await nextTick();
-        expect(knitwear.attributes('aria-expanded')).toBe('true');
-
         wrapper.unmount();
       } finally {
         vi.useRealTimers();
@@ -1096,61 +1075,6 @@ describe('header block (navigation apiId)', () => {
         // The travel keys it does take still work.
         expect(press(kitchen, 'ArrowRight')).toBe(true);
         wrapper.unmount();
-      });
-
-      it('drops a pending hover-open when focus leaves the menus', async () => {
-        vi.useFakeTimers();
-        try {
-          const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-          const knitwear = triggerFor(wrapper, 'Knitwear');
-          const ceramics = triggerFor(wrapper, 'Ceramics');
-          await knitwear.trigger('click');
-          panelLinks(wrapper, knitwear)[0]!.element.focus();
-
-          // The pointer has come to rest on the next trigger: its 150ms open is armed, not fired.
-          mouse(ceramics.element, 'pointerenter');
-          // Focus leaves the header's menus, which closes the open panel…
-          wrapper.get('a[data-eldra-header-focus]').element.focus();
-          await nextTick();
-          expect(knitwear.attributes('aria-expanded')).toBe('false');
-
-          // …and takes the pending hover-open with it, so nothing springs open behind the keyboard.
-          vi.advanceTimersByTime(300);
-          await nextTick();
-          expect(ceramics.attributes('aria-expanded')).toBe('false');
-          wrapper.unmount();
-        } finally {
-          vi.useRealTimers();
-        }
-      });
-
-      it('hands a hover-opened panel over to the keyboard once focus is inside it', async () => {
-        vi.useFakeTimers();
-        try {
-          const wrapper = mountBlock(resolved.data, { attachTo: document.body });
-          const knitwear = triggerFor(wrapper, 'Knitwear');
-
-          mouse(knitwear.element, 'pointerenter');
-          vi.advanceTimersByTime(160);
-          await nextTick();
-          expect(knitwear.attributes('aria-expanded')).toBe('true');
-
-          // Focus has arrived inside what hover opened, so the pointer no longer owns it: closing
-          // on the way out would strand that focus on a link the panel has just hidden.
-          panelLinks(wrapper, knitwear)[0]!.element.focus();
-          mouse(menuRoot(wrapper), 'pointerleave');
-          vi.advanceTimersByTime(300);
-          await nextTick();
-          expect(knitwear.attributes('aria-expanded')).toBe('true');
-
-          // Focus leaving is what closes it now.
-          wrapper.get('a[data-eldra-header-focus]').element.focus();
-          await nextTick();
-          expect(knitwear.attributes('aria-expanded')).toBe('false');
-          wrapper.unmount();
-        } finally {
-          vi.useRealTimers();
-        }
       });
 
       it("keeps the panel's links in the tab sequence, in DOM order right after the trigger", async () => {
@@ -1945,7 +1869,7 @@ describe('header block (navigation apiId)', () => {
       await knitwear.trigger('click');
       expect(knitwear.attributes('aria-expanded')).toBe('true');
       expect(panel().get('[data-part="content"]').classes(), 'enter').toContain(
-        'eldra:animate-eldra-sheet-in'
+        'eldra:animate-eldra-menu-in'
       );
 
       await knitwear.trigger('click');

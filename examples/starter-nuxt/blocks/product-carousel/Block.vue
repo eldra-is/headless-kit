@@ -422,7 +422,7 @@ const onQuickAdd = quickAdd.add;
 /* ---------------------------------------------------------------------------------------------- */
 
 const GRID_CLASS =
-  'grid grid-cols-2 gap-x-3 gap-y-8 @min-[47.5625rem]:grid-cols-3 @min-[47.5625rem]:gap-x-5 ' +
+  'grid grid-cols-1 @min-[23.25rem]:grid-cols-2 gap-x-3 gap-y-8 @min-[47.5625rem]:grid-cols-3 @min-[47.5625rem]:gap-x-5 ' +
   '@min-[47.5625rem]:gap-y-10 @min-[68.8125rem]:grid-cols-4';
 
 function chipClass(active: boolean): string {

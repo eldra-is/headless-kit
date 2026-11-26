@@ -84,7 +84,7 @@ const pageRows = computed(() =>
 );
 
 const PRODUCTS_GRID_CLASS =
-  'grid grid-cols-2 gap-x-4 gap-y-8 @tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-10 ' +
+  'grid grid-cols-1 @min-[23.25rem]:grid-cols-2 gap-x-4 gap-y-8 @tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-10 ' +
   '@content:grid-cols-4 @content:gap-x-8';
 const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:gap-8';
 </script>

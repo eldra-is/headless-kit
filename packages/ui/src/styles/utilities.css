@@ -1292,24 +1292,24 @@
   transform-origin: var(--eldra-popover-origin, top left);
 }
 
-/* A `NavMenu` panel's entrance, a full-width mega sheet and a dropdown alike: it unrolls downward
-   from the bar as it fades in, over `duration-slow` with `ease-out` — the phone menu's own inline
-   drawer does the same. The popover entrance above grows out of a corner, which on a menu panel
-   read as the panel sliding in from the left (WS-1277). The clip reaches 3rem past the sides and
-   the bottom so the shadow is never cut off; after the animation the panel is unclipped. Reduced
-   motion is the duration token's, as everywhere else. */
-@keyframes eldra-sheet-in {
+/* A `NavMenu` panel's entrance, a full-width mega sheet and a dropdown alike: it fades in while
+   it settles from a hair smaller (0.98) and 0.25rem higher, over `duration-base` with `ease-out`,
+   scaling about its top centre. The popover entrance above grows out of a corner, which on a menu
+   panel read as the panel sliding in from the left; an unroll (a clip opening downward) was tried
+   next and read as heavy (WS-1277). Reduced motion is the duration token's, as everywhere else. */
+@keyframes eldra-menu-in {
   from {
     opacity: 0;
-    clip-path: inset(0 -3rem 100% -3rem);
+    transform: translateY(-0.25rem) scale(0.98);
   }
   to {
     opacity: 1;
-    clip-path: inset(0 -3rem -3rem -3rem);
+    transform: none;
   }
 }
-@utility animate-eldra-sheet-in {
-  animation: eldra-sheet-in var(--eldra-duration-slow) var(--eldra-ease-out);
+@utility animate-eldra-menu-in {
+  animation: eldra-menu-in var(--eldra-duration-base) var(--eldra-ease-out);
+  transform-origin: top center;
 }
 
 /* --- Tooltip ---------------------------------------------------------------------------------- */

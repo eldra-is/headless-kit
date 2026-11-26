@@ -1509,7 +1509,7 @@ describe('NavMenu — panel layout and tone', () => {
   /**
    * WS-1277: a mega sheet played the popover entrance, which grows from the top-left corner; on a
    * sheet as wide as the window that read as the whole sheet sliding in from the left, and on a
-   * dropdown much the same. Every panel unrolls from the bar instead.
+   * dropdown much the same. Every panel fades in and settles about its top centre instead.
    */
   /**
    * WS-1277: a page that is both its own entry ("Ceramics") and a link inside another entry's panel
@@ -1562,7 +1562,7 @@ describe('NavMenu — panel layout and tone', () => {
     ).toEqual(['Shop']);
   });
 
-  it('unrolls every panel from the bar, a mega sheet and a dropdown alike', async () => {
+  it('fades every panel in about its top centre, a mega sheet and a dropdown alike', async () => {
     const items: NavMenuItem[] = [
       ITEMS[0]!,
       { label: 'Journal', layout: 'dropdown', children: [{ label: 'Care', href: '/care' }] },
@@ -1571,9 +1571,9 @@ describe('NavMenu — panel layout and tone', () => {
     await nextTick();
     const content = (index: number) =>
       panel(wrapper, index).querySelector('[data-part="content"]')!.className.split(' ');
-    expect(content(0)).toContain('eldra:animate-eldra-sheet-in');
+    expect(content(0)).toContain('eldra:animate-eldra-menu-in');
     expect(content(0)).not.toContain('eldra:animate-eldra-popover-in');
-    expect(content(1)).toContain('eldra:animate-eldra-sheet-in');
+    expect(content(1)).toContain('eldra:animate-eldra-menu-in');
     expect(content(1)).not.toContain('eldra:animate-eldra-popover-in');
     wrapper.unmount();
   });
@@ -1773,7 +1773,13 @@ describe('NavMenu — inline drawer', () => {
   it('fills the window below its own top edge', async () => {
     const wrapper = mountInline();
     const drawer = inlineDrawer(wrapper);
-    drawer.getBoundingClientRect = () => ({ top: 96 }) as DOMRect;
+    // Its own box is shifted 4px up by its entrance while it is measured; the layout position (its
+    // positioning box's top plus its offset) is what counts, so it is not left 4px too tall.
+    drawer.getBoundingClientRect = () => ({ top: 92 }) as DOMRect;
+    const box = document.createElement('div');
+    box.getBoundingClientRect = () => ({ top: 24 }) as DOMRect;
+    Object.defineProperty(drawer, 'offsetParent', { configurable: true, get: () => box });
+    Object.defineProperty(drawer, 'offsetTop', { configurable: true, get: () => 72 });
     await wrapper.get('[data-part="toggle"]').trigger('click');
     await nextTick();
     expect(drawer.style.getPropertyValue('--eldra-nav-menu-drawer-top')).toBe('96px');

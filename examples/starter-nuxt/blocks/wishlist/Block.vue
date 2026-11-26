@@ -287,7 +287,7 @@ async function removeCard(handle: string): Promise<void> {
         v-if="showSkeletons"
         role="list"
         aria-hidden="true"
-        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-2 gap-x-4 gap-y-8"
+        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-1 gap-x-4 gap-y-8 @min-[23.25rem]:grid-cols-2"
       >
         <li v-for="index in savedCount" :key="index" class="flex flex-col gap-3">
           <Skeleton variant="media" ratio="4x5" />
@@ -301,7 +301,7 @@ async function removeCard(handle: string): Promise<void> {
         role="list"
         :aria-label="t('wishlist.items')"
         :aria-busy="refreshing ? 'true' : undefined"
-        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-2 gap-x-4 gap-y-8"
+        class="@tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-12 @desktop:grid-cols-4 grid grid-cols-1 gap-x-4 gap-y-8 @min-[23.25rem]:grid-cols-2"
       >
         <li v-for="entry in cards" :key="entry.item.handle" class="relative">
           <!-- No quick add, the same decision `collection-grid` makes: a cart action belongs to
