@@ -954,8 +954,9 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
       ? 'h-full flex-nowrap justify-center gap-0.5'
       : 'h-full flex-nowrap gap-0.5',
   // The design's pill entries: 2.75rem tall, full radius, `surface` on hover and while open, the
-  // current page on `surface-strong`.
-  link: 'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-[current=page]:bg-surface-strong',
+  // current page on `surface-strong`. The pill marks the current page, so the package's underline
+  // for it is turned off here, as on `trigger`.
+  link: 'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-[current=page]:no-underline aria-[current=page]:bg-surface-strong',
   trigger:
     'min-h-11 rounded-full px-3 text-base font-medium hover:bg-surface aria-expanded:bg-surface data-current:no-underline data-current:bg-surface-strong',
   // The Menu tool: shown below 68.8125rem (the package hides it from `@content`), a labelled tool

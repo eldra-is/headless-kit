@@ -1481,6 +1481,16 @@ describe('header block (navigation apiId)', () => {
     expect(other.attributes('aria-current')).toBeUndefined();
   });
 
+  it("marks the current bar link with the pill alone, turning off the package's underline", () => {
+    window.history.pushState({}, '', '/collections/kitchen');
+    const wrapper = mountBlock(resolved.data);
+    const current = wrapper
+      .findAll('a')
+      .find((a) => a.attributes('href') === '/collections/kitchen')!;
+    expect(current.classes()).toContain('aria-[current=page]:bg-surface-strong');
+    expect(current.classes()).toContain('aria-[current=page]:no-underline');
+  });
+
   it('marks a current page inside a mega-menu on its link and on the trigger that holds it', async () => {
     window.history.pushState({}, '', '/collections/womens-sweaters');
     const wrapper = mountBlock(resolved.data, { attachTo: document.body });
