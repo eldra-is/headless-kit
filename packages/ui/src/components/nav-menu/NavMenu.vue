@@ -432,11 +432,9 @@ function panelClass(item: NavMenuItem) {
 function contentClass(item: NavMenuItem) {
   return [
     [
-      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md',
-      // A mega sheet unrolls from the bar; a dropdown opens out of its trigger's corner.
-      panelLayout(item) === 'mega'
-        ? 'eldra:animate-eldra-sheet-in eldra:p-6'
-        : 'eldra:animate-eldra-popover-in eldra:eldra-nav-menu-dropdown eldra:p-2',
+      // Every panel unrolls downward from the bar, a mega sheet and a dropdown alike.
+      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-sheet-in',
+      panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2',
     ],
     props.classes?.content,
   ];

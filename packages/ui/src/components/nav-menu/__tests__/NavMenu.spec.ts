@@ -1508,8 +1508,8 @@ describe('NavMenu — panel layout and tone', () => {
 
   /**
    * WS-1277: a mega sheet played the popover entrance, which grows from the top-left corner; on a
-   * sheet as wide as the window that read as the whole sheet sliding in from the left. It unrolls
-   * from the bar instead; a dropdown still opens out of its trigger's corner.
+   * sheet as wide as the window that read as the whole sheet sliding in from the left, and on a
+   * dropdown much the same. Every panel unrolls from the bar instead.
    */
   /**
    * WS-1277: a page that is both its own entry ("Ceramics") and a link inside another entry's panel
@@ -1562,7 +1562,7 @@ describe('NavMenu — panel layout and tone', () => {
     ).toEqual(['Shop']);
   });
 
-  it('unrolls a mega sheet from the bar and opens a dropdown out of its corner', async () => {
+  it('unrolls every panel from the bar, a mega sheet and a dropdown alike', async () => {
     const items: NavMenuItem[] = [
       ITEMS[0]!,
       { label: 'Journal', layout: 'dropdown', children: [{ label: 'Care', href: '/care' }] },
@@ -1573,8 +1573,8 @@ describe('NavMenu — panel layout and tone', () => {
       panel(wrapper, index).querySelector('[data-part="content"]')!.className.split(' ');
     expect(content(0)).toContain('eldra:animate-eldra-sheet-in');
     expect(content(0)).not.toContain('eldra:animate-eldra-popover-in');
-    expect(content(1)).toContain('eldra:animate-eldra-popover-in');
-    expect(content(1)).not.toContain('eldra:animate-eldra-sheet-in');
+    expect(content(1)).toContain('eldra:animate-eldra-sheet-in');
+    expect(content(1)).not.toContain('eldra:animate-eldra-popover-in');
     wrapper.unmount();
   });
 

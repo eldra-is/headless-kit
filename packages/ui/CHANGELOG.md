@@ -103,7 +103,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ### Changed
 
-- **`NavMenu` mega panels unroll from the bar (WS-1277).** A full-width mega panel now fades in while unrolling downward (`animate-eldra-sheet-in`, `duration-slow`) instead of playing the popover entrance, whose growth from the top-left corner read as the whole sheet sliding in from the left. Dropdowns keep the popover entrance.
+- **`NavMenu` panels unroll from the bar (WS-1277).** Mega panels and dropdowns now fade in while unrolling downward (`animate-eldra-sheet-in`, `duration-slow`) instead of playing the popover entrance, whose growth from the top-left corner read as the panel sliding in from the left.
 
 - **`NavMenu` card pictures take their crop from `--eldra-nav-menu-card-aspect`** (set inline from `cardAspect`) through their own class, rather than an inline `aspect-ratio`, so a theme's class on `cardImage`/`drawerCardImage` can crop them differently (WS-1277).
 - **`Autocomplete` shows a single suggestion whose label is exactly the text.** It kept the panel closed for it; shown, the row confirms what was typed, and the panel is there again when the field is focused again.
