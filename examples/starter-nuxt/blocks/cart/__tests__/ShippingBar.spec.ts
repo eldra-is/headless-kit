@@ -12,7 +12,7 @@ afterEach(() => {
 
 /** `mountOptions` supplies the same currency/locale/messages provides a real page does, which is
  *  what the `<Price>` inside the sentence reads. */
-function mountBar(props: { threshold?: string; subtotal: number; panel?: 'edge' | 'card' }) {
+function mountBar(props: { threshold?: number | null; subtotal: number; panel?: 'edge' | 'card' }) {
   const base = mountOptions({ entry: { id: 'cart', data: {} } });
   const wrapper = mount(ShippingBar, {
     props,
@@ -29,7 +29,7 @@ function barWidth(wrapper: ReturnType<typeof mountBar>): string | undefined {
 describe('cart shipping bar', () => {
   it('says how much is left in words, with the amount as a formatted price', async () => {
     // $80.00 threshold, $68.00 subtotal — the spec's own drawer example.
-    const wrapper = mountBar({ threshold: '80.00', subtotal: 68 });
+    const wrapper = mountBar({ threshold: 80, subtotal: 68 });
     const status = wrapper.get('[role="status"]');
     expect(status.text()).toContain("You're");
     expect(status.text()).toContain('$12.00');
@@ -38,7 +38,7 @@ describe('cart shipping bar', () => {
   });
 
   it('fills the bar to the share of the threshold already reached, and hides it from assistive tech', () => {
-    const wrapper = mountBar({ threshold: '80.00', subtotal: 68 });
+    const wrapper = mountBar({ threshold: 80, subtotal: 68 });
     const track = wrapper.get('[aria-hidden="true"]');
     expect(track.exists()).toBe(true);
     expect(barWidth(wrapper)).toContain('width: 85%');
@@ -47,7 +47,7 @@ describe('cart shipping bar', () => {
   });
 
   it('switches to the unlocked message once the subtotal reaches the threshold', () => {
-    const wrapper = mountBar({ threshold: '80.00', subtotal: 210 });
+    const wrapper = mountBar({ threshold: 80, subtotal: 210 });
     const status = wrapper.get('[role="status"]');
     expect(status.text()).toBe('Free shipping unlocked');
     expect(status.classes()).toContain('text-success');
@@ -55,12 +55,12 @@ describe('cart shipping bar', () => {
   });
 
   it('treats the threshold as reached exactly at the threshold', () => {
-    const wrapper = mountBar({ threshold: '80.00', subtotal: 80 });
+    const wrapper = mountBar({ threshold: 80, subtotal: 80 });
     expect(wrapper.get('[role="status"]').text()).toBe('Free shipping unlocked');
   });
 
   it('renders nothing at all without a usable threshold', () => {
-    for (const threshold of [undefined, '', '   ', 'free', '0', '-10']) {
+    for (const threshold of [undefined, null, 0, -10, Number.NaN]) {
       const wrapper = mountBar({ threshold, subtotal: 68 });
       expect(wrapper.find('[role="status"]').exists(), `threshold: ${String(threshold)}`).toBe(
         false
@@ -70,9 +70,9 @@ describe('cart shipping bar', () => {
   });
 
   it('reads the threshold in the same major units the cart’s own amounts use', () => {
-    // "80" and a $68.00 subtotal are both major units, so the shopper is $12.00 short — the
+    // 80 and a $68.00 subtotal are both major units, so the shopper is $12.00 short — the
     // amount itself is a `<Price>`, which takes minor units, so it is converted on the way in.
-    const wrapper = mountBar({ threshold: '80', subtotal: 68 });
+    const wrapper = mountBar({ threshold: 80, subtotal: 68 });
     expect(wrapper.get('[role="status"]').text()).toContain('$12.00');
   });
 });

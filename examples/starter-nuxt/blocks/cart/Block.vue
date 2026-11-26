@@ -66,6 +66,7 @@ import {
   Section,
 } from '@eldrajs/ui';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { storeAmountIn, useStoreAmounts } from '../../app/composables/usePriceTokens';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
@@ -100,9 +101,6 @@ const storefront = useStorefront();
 const cart = storefront.cart;
 // Every price under the cart is in the cart's own currency, which can differ from the store's.
 provide(CURRENCY_KEY, () => cart.currency.value ?? money.currency.value);
-const cartInStoreCurrency = computed(
-  () => cart.currency.value === undefined || cart.currency.value === storefront.currency.base
-);
 const hasNotSold = computed(() => cart.notSold.value.length > 0);
 
 const uid = useUiId();
@@ -172,9 +170,21 @@ const hasContinueLink = computed(() => emptyLinkHref.value !== null);
 
 const showDiscountField = computed(() => data.value.showDiscountField ?? true);
 const showPaymentIcons = computed(() => data.value.showPaymentIcons ?? true);
-/** Typed in the store's own currency, so it says nothing about a cart in another. */
+const storeAmounts = useStoreAmounts();
+/**
+ * The store's own free-shipping threshold in the cart's currency — the lowest among its delivery
+ * methods there, the same amount a `⟦store freeShippingThreshold⟧` sentence writes — so the bar and
+ * the copy can never disagree, and a cart in another currency gets that currency's threshold, never
+ * a converted one. None in that currency, or the bar switched off: no bar.
+ */
 const threshold = computed(() =>
-  cartInStoreCurrency.value ? (data.value.freeShippingThreshold ?? '').trim() : ''
+  (data.value.showShippingBar ?? true)
+    ? storeAmountIn(
+        storeAmounts,
+        'freeShippingThreshold',
+        cart.currency.value ?? money.currency.value
+      )
+    : null
 );
 
 /** The theme's own cart page path — the same one `blocks/navigation/Block.vue` sends the bag to

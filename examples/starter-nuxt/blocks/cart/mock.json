@@ -1,6 +1,6 @@
 {
   "variant": "drawer",
-  "freeShippingThreshold": "80.00",
+  "showShippingBar": true,
   "showDiscountField": true,
   "showPaymentIcons": true,
   "note": "Taxes and shipping calculated at checkout.",

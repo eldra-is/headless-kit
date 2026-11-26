@@ -4,7 +4,8 @@
   "description": "The shopper's cart as a slide-in drawer or a full page: editable line items, a free-shipping progress note, discount codes, totals and checkout.",
   "icon": "shopping-bag",
   "category": "commerce",
-  "version": 1,
+  "version": 2,
+  "migrations": [{ "version": 2, "renames": [] }],
   "fields": [
     {
       "fieldId": "variant",
@@ -17,11 +18,11 @@
       "validators": { "required": true }
     },
     {
-      "fieldId": "freeShippingThreshold",
-      "name": "Free shipping threshold",
-      "type": "string",
-      "allowPrices": false,
-      "helpText": "Major units, e.g. 80.00. Empty hides the shipping bar. Must match the backend rules."
+      "fieldId": "showShippingBar",
+      "name": "Show free-shipping progress",
+      "type": "bool",
+      "default": true,
+      "helpText": "How far the cart is from free shipping. The threshold is your delivery settings' own, in the shopper's currency; a currency with none shows no bar."
     },
     {
       "fieldId": "showDiscountField",

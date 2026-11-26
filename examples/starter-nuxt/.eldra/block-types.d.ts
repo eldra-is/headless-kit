@@ -93,7 +93,7 @@ declare global {
     };
     cart: {
       variant: 'drawer' | 'page';
-      freeShippingThreshold?: string;
+      showShippingBar?: boolean;
       showDiscountField?: boolean;
       showPaymentIcons?: boolean;
       note?: string;

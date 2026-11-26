@@ -3,6 +3,7 @@ import { useEldraUiCurrency, useEldraUiLocale } from '@eldrajs/ui';
 import {
   hasTokens,
   resolvePriceNode,
+  toMajorUnits,
   resolveTokens,
   type ResolveTokensOptions,
   type StoreAmounts,
@@ -32,6 +33,29 @@ import { formatMoney } from '../storefront/money';
 export const STORE_AMOUNTS_KEY: InjectionKey<StoreAmounts | null> = Symbol.for(
   'eldra.starter.store-amounts'
 ) as InjectionKey<StoreAmounts | null>;
+
+/** The store's own amounts for its settings, as `app/plugins/eldra-ui-messages.ts` provides them. */
+export function useStoreAmounts(): StoreAmounts | null {
+  return inject(STORE_AMOUNTS_KEY, null);
+}
+
+/**
+ * One store setting's amount in one currency, in **major units** like every storefront amount
+ * (`app/storefront/types.ts`): `freeShippingThreshold` in ISK is the lowest free-shipping threshold
+ * among the store's delivery methods in ISK. `null` when the store has none in that currency —
+ * never another currency's amount, never converted.
+ */
+export function storeAmountIn(
+  amounts: StoreAmounts | null,
+  name: string,
+  currency: string | null | undefined
+): number | null {
+  if (currency === null || currency === undefined || currency === '') return null;
+  const minor = amounts?.[name]?.[currency];
+  return typeof minor === 'number' && Number.isFinite(minor) && minor > 0
+    ? toMajorUnits(minor, currency)
+    : null;
+}
 
 /** How this page writes a token: the store currency, the regional format, the theme's money. */
 export function usePriceTokenOptions(): ComputedRef<ResolveTokensOptions> {

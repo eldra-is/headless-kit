@@ -703,6 +703,9 @@ other price on the page (WS-1474, WS-1473):
 /delivery/v1/provider-account`). `@eldrajs/theme-nuxt` reads it once at build, fail-soft, into
   `runtimeConfig.public.eldra.storeAmounts` (`toStoreAmounts` from
   `@eldrajs/theme-nuxt/store-amounts`).
+  The starter's cart reads the same amount for its free-shipping progress bar (`storeAmountIn` in
+  `app/composables/usePriceTokens.ts`), in the cart's currency, so the bar and a sentence naming the
+  threshold can never disagree.
 - Rich text carries the same price as an inline `price` node: `{ "type": "price", "attrs": { "id",
 "amounts" } }` or `{ "attrs": { "setting": "freeShippingThreshold" } }`.
 - **A price that cannot be written** (no amount in the shopper's currency, a store whose

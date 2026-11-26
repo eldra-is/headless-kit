@@ -4,12 +4,12 @@
  * `02-blocks.md` "Cart" → States, "Free shipping pending"/"Free shipping unlocked"; Accessibility:
  * "The shipping message is `role="status"` … The bar is `aria-hidden`").
  *
- * The threshold is a CMS string in major units ("80.00") and so is every cart amount
+ * The threshold is the store's own (`freeShippingThreshold` from its delivery methods, in the
+ * cart's currency; `blocks/cart/Block.vue`), in major units like every cart amount
  * (`app/storefront/types.ts`), so the two compare directly and only the `<Price>` below converts
- * (`money.minor`, because `@eldrajs/ui` money inputs read minor units).
- * An empty, non-numeric or non-positive threshold renders nothing at all (spec Fields table:
- * "Empty hides the shipping bar"), which is also what keeps a mistyped field from drawing a bar
- * that would claim the shopper is 0 away from anything.
+ * (`money.minor`, because `@eldrajs/ui` money inputs read minor units). No threshold, or a
+ * non-positive one, renders nothing at all, which also keeps the bar from claiming the shopper is
+ * 0 away from anything.
  *
  * The remaining amount is a real `<Price>` inside the sentence, not a formatted string spliced into
  * the translation: `awayParts` interpolates the message once against a sentinel and splits the
@@ -26,25 +26,22 @@ import EldraIcon from '../../../app/components/EldraIcon.vue';
 
 const props = withDefaults(
   defineProps<{
-    /** The `freeShippingThreshold` field, in major units. Empty/invalid renders nothing. */
-    threshold?: string;
+    /** The store's free-shipping threshold in the cart's currency, major units. `null` renders nothing. */
+    threshold?: number | null;
     /** The cart subtotal, in major units. */
     subtotal: number;
     /** `edge` spans the drawer edge to edge on `surface`; `card` is the page's rounded panel. */
     panel?: 'edge' | 'card';
   }>(),
-  { threshold: undefined, panel: 'card' }
+  { threshold: null, panel: 'card' }
 );
 
 const { t } = useI18n();
 const money = useMoney();
 
 const thresholdAmount = computed<number | null>(() => {
-  const raw = (props.threshold ?? '').trim();
-  if (raw === '') return null;
-  const amount = Number(raw);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  return amount;
+  const amount = props.threshold;
+  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0 ? amount : null;
 });
 
 const remaining = computed(() =>
