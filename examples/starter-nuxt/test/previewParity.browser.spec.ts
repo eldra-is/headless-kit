@@ -567,7 +567,22 @@ function capture(origin: string, path: string, width: number, session: boolean):
   });
 }
 
-/** A full-page screenshot, after the same normalisation as the DOM. */
+/**
+ * A full-page screenshot, after the same normalisation as the DOM.
+ *
+ * Captured beyond the viewport, as `fullPage: true` does, but only once the viewport already is the
+ * document's height and the page has settled at that size. A capture beyond the viewport draws the
+ * page afresh, which is what keeps a session's paint history (a block re-rendered from the draft)
+ * out of the pixels. But Playwright's `fullPage: true` grows the view in that same capture, and the
+ * taller view changes the layer tree: on `/` at 1280 the open search popover needed its own layer
+ * only because the page scrolled under it. The frame is drawn before or after that change lands, a
+ * race decided on every load, and the popover's suggestion chips sit on a fractional pixel, so
+ * their rounded borders came out a step of anti-aliasing apart, about 60 pixels, on whichever page
+ * lost the race (WS-1450). Grown first, the capture changes nothing about the page it draws.
+ *
+ * What `animations: 'disabled'` and `caret: 'hide'` did is done here: a finite animation is
+ * finished, an infinite one cancelled, and the caret made transparent, the same on both pages.
+ */
 function screenshot(
   origin: string,
   path: string,
@@ -577,7 +592,26 @@ function screenshot(
   return open(origin, path, width, session, async (page) => {
     await normalise(page, session);
     await settle(page, true);
-    return page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+    await page.setViewportSize({ width, height });
+    await settle(page, true);
+    await page.addStyleTag({
+      content: '*, *::before, *::after { caret-color: transparent !important; }',
+    });
+    await page.evaluate(async () => {
+      for (const animation of document.getAnimations()) {
+        if (animation.effect?.getComputedTiming().endTime === Infinity) animation.cancel();
+        else animation.finish();
+      }
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    const cdp = await page.context().newCDPSession(page);
+    const { data } = await cdp.send('Page.captureScreenshot', {
+      format: 'png',
+      clip: { x: 0, y: 0, width, height, scale: 1 },
+      captureBeyondViewport: true,
+    });
+    return Buffer.from(data, 'base64');
   });
 }
 
