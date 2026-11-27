@@ -38,7 +38,8 @@ export function registerBlockFields(fields: BlockFieldsMap, themeId: string): vo
 }
 
 /**
- * Whether the manifest marks this block field `localized`. A rich-text
+ * Whether the manifest marks this block field `localized`: a top-level field id, or a data path
+ * into a `list`'s item (`items.0.answer`, see `resolveBlockField`). A rich-text
  * renderer uses it to default an omitted `locale` to the preview's active
  * content locale — a localized field's draft is keyed per locale, so the
  * marking attributes (and therefore every §18 v3 rich-text report) must carry
@@ -52,13 +53,13 @@ export function registerBlockFields(fields: BlockFieldsMap, themeId: string): vo
 export function isBlockFieldLocalized(apiId: string | undefined, fieldId: string): boolean {
   if (apiId === undefined) return false;
   return (
-    registeredBlockFields[registeredBlockApiId(apiId)]?.find((field) => field.fieldId === fieldId)
+    resolveBlockField(registeredBlockFields[registeredBlockApiId(apiId)], fieldId.split('.'))
       ?.localized === true
   );
 }
 
 /**
- * Resolves the manifest `type` of a block field from its dot-separated data
+ * Resolves the manifest definition of a block field from its dot-separated data
  * path, descending into `list` (via `metadata.item`, projected verbatim by
  * `blockFieldsModuleSource`) and `composite` (via `metadata.fields`) field
  * definitions as the path requires. A path segment that is purely digits
@@ -74,31 +75,31 @@ export function isBlockFieldLocalized(apiId: string | undefined, fieldId: string
  * type other than `list`/`composite`, resolves to `undefined` — never a
  * guess.
  */
-function resolveBlockFieldType(
+function resolveBlockField(
   fields: BlockFieldDefinition[] | undefined,
   segments: string[]
-): string | undefined {
+): BlockFieldDefinition | undefined {
   const [head, ...rest] = segments;
   if (head === undefined) return undefined;
   const field = fields?.find((f) => f.fieldId === head);
   if (field === undefined) return undefined;
-  if (rest.length === 0) return field.type;
+  if (rest.length === 0) return field;
 
   if (field.type === 'list') {
     const item = field.metadata?.item;
     if (item === null || typeof item !== 'object' || Array.isArray(item)) return undefined;
-    const itemDef = item as { type?: unknown; metadata?: { fields?: unknown } };
+    const itemDef = item as BlockFieldDefinition;
     // The array-index segment (e.g. "0") belongs to the data shape, not the
     // field-definition tree, so it is consumed here without being matched.
     const afterIndex = /^\d+$/.test(rest[0] ?? '') ? rest.slice(1) : rest;
     if (afterIndex.length === 0) {
-      return typeof itemDef.type === 'string' ? itemDef.type : undefined;
+      return typeof itemDef.type === 'string' ? itemDef : undefined;
     }
     if (itemDef.type !== 'composite') return undefined;
     const itemFields = Array.isArray(itemDef.metadata?.fields)
       ? (itemDef.metadata.fields as BlockFieldDefinition[])
       : undefined;
-    return resolveBlockFieldType(itemFields, afterIndex);
+    return resolveBlockField(itemFields, afterIndex);
   }
 
   if (field.type === 'composite') {
@@ -106,7 +107,7 @@ function resolveBlockFieldType(
     const compositeFields = Array.isArray(metaFields)
       ? (metaFields as BlockFieldDefinition[])
       : undefined;
-    return resolveBlockFieldType(compositeFields, rest);
+    return resolveBlockField(compositeFields, rest);
   }
 
   // Any other field type — notably a `select` with `metadata.multiple`,
@@ -114,7 +115,7 @@ function resolveBlockFieldType(
   // nested `list` item schema — repeats its own leaf type across
   // purely-numeric trailing segments: those are selected-value indices, not
   // a nested field, so e.g. "tags.0" still resolves to "select".
-  if (rest.every((segment) => /^\d+$/.test(segment))) return field.type;
+  if (rest.every((segment) => /^\d+$/.test(segment))) return field;
 
   return undefined;
 }
@@ -122,7 +123,7 @@ function resolveBlockFieldType(
 /**
  * Whether the manifest marks the block field at `path` (a top-level field
  * id, or a dot-separated data path reaching into a `list`'s composite item —
- * see `resolveBlockFieldType`) `type: "select"`. `encodeEntryDataStega` and
+ * see `resolveBlockField`) `type: "select"`. `encodeEntryDataStega` and
  * the public/preview read path's `{value,label}` unwrap both use this to
  * recognize a select field's resolved value (a plain string like
  * `"primary"`/`"subtle"`, or `{value,label}` before unwrapping): a
@@ -139,7 +140,7 @@ function resolveBlockFieldType(
 export function isBlockFieldSelect(apiId: string | undefined, path: string): boolean {
   if (apiId === undefined) return false;
   return (
-    resolveBlockFieldType(registeredBlockFields[registeredBlockApiId(apiId)], path.split('.')) ===
+    resolveBlockField(registeredBlockFields[registeredBlockApiId(apiId)], path.split('.'))?.type ===
     'select'
   );
 }

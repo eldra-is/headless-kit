@@ -28,10 +28,8 @@
  * the value its own `selectedValue` getter reads, so a one-way bind would freeze the display on the
  * initial tab forever the moment a real click or arrow key fired `select()`.
  *
- * `tabs[].body` is full rich text rendered through `EldraRichText` with no `api-id`, for the same
- * reason `faq`'s `items[].answer` and `split-content`'s `rows[].text` have none —
- * `useEldraBlockField`/`isBlockFieldLocalized` only resolve a flat, top-level `fieldId`, and
- * `tabs[].body` lives one level inside a `list` item.
+ * `tabs[].body` is full rich text one level inside a `list` item, rendered through `EldraRichText`
+ * with `api-id` so its `localized` flag is read by that path (`tabs.0.body`).
  *
  * "Live site renders nothing without tabs" (spec → States, "Empty (freshly inserted)"): the whole
  * `<Section>` gates on `hasTabs || editing`. The editor's own empty-state hint is a single,
@@ -240,6 +238,7 @@ useRichTextScrollRegions(panelsRoot, (caption) => caption ?? t('tabsBlock.richTe
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"
+                  api-id="tabs"
                   :doc="tab.body"
                   :min-heading-level="4"
                 />

@@ -532,8 +532,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     saved: Node[];
     pendingRender: string | null;
   } | null = null;
-  /** The written-out price a pointer went down on, before focus swapped the field for chips. */
-  let pressedPrice: { element: HTMLElement; index: number } | null = null;
   /** `block-hover` capability gate: set via setBlockHoverEnabled, negotiated
    * from the editor's editor:hello capabilities. Defaults closed. */
   let blockHoverEnabled = false;
@@ -2253,56 +2251,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     }
   }
 
-  /** The text nodes' range from `start` to `end`, offsets counted over the element's text. */
-  function textRange(element: HTMLElement, start: number, end: number): Range | null {
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-    const range = document.createRange();
-    let at = 0;
-    let started = false;
-    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      const length = (node as Text).data.length;
-      if (!started && start <= at + length) {
-        range.setStart(node, start - at);
-        started = true;
-      }
-      if (started && end <= at + length) {
-        range.setEnd(node, end - at);
-        return range;
-      }
-      at += length;
-    }
-    return null;
-  }
-
-  /**
-   * Which price of a priced field's written-out text lies under the point (its index among the
-   * field's prices), or null. Each price is found by its label, in order, in the page text; a
-   * renderer that wrote something else has no place to point at.
-   */
-  function pricePartAt(element: HTMLElement, x: number, y: number): number | null {
-    const parts = pricedParts.get(element);
-    if (parts === undefined) return null;
-    const text = (element.textContent ?? '').replace(/\u00a0/g, ' ');
-    let from = 0;
-    let index = 0;
-    for (const part of parts) {
-      if (typeof part === 'string') continue;
-      const start = text.indexOf(part.label.replace(/\u00a0/g, ' '), from);
-      if (start < 0) return null;
-      from = start + part.label.length;
-      const range = textRange(element, start, from);
-      const rects =
-        range === null || typeof range.getClientRects !== 'function'
-          ? []
-          : Array.from(range.getClientRects());
-      if (rects.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) {
-        return index;
-      }
-      index += 1;
-    }
-    return null;
-  }
-
   /** A token's identity across amount edits: `price#a3f`, or `store freeShippingThreshold`. */
   function tokenIdentity(token: string): string {
     const body = token.slice(1, -1);
@@ -2774,21 +2722,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     event.preventDefault();
   }
 
-  /**
-   * A price in a priced field is written out until the field takes focus, and focus (on this same
-   * press) swaps the text for chips, so the click never lands on one. Note which price is under
-   * the pointer now; the click opens it.
-   */
-  function onPointerDown(event: Event): void {
-    pressedPrice = null;
-    if (mode !== 'edit' || !priceTokensEnabled || !(event instanceof MouseEvent)) return;
-    const target = event.target instanceof Element ? event.target : null;
-    const field = target?.closest<HTMLElement>('[data-eldra-field]') ?? null;
-    if (field === null || !isPriced(field) || priceSurface?.element === field) return;
-    const index = pricePartAt(field, event.clientX, event.clientY);
-    if (index !== null) pressedPrice = { element: field, index };
-  }
-
   function postPriceClicked(field: HTMLElement, chip: HTMLElement): void {
     opts.post('theme:price-clicked', {
       ...metadataOf(field),
@@ -2799,8 +2732,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   }
 
   function onClick(event: Event): void {
-    const pressed = pressedPrice;
-    pressedPrice = null;
     const target = event.target instanceof Element ? event.target : null;
     if (target === null) return;
     const chip =
@@ -2813,13 +2744,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       event.preventDefault();
       event.stopPropagation();
       return;
-    }
-    // The first click on a written-out price: open it, and let the click select as any other.
-    if (chip === null && pressed !== null && priceSurface?.element === pressed.element) {
-      const pressedChip = pressed.element.querySelectorAll<HTMLElement>('[data-eldra-price-token]')[
-        pressed.index
-      ];
-      if (pressedChip !== undefined) postPriceClicked(pressed.element, pressedChip);
     }
     if (mode === 'edit') {
       const framed = framingEnabled ? framingImageFor(target) : null;
@@ -3364,7 +3288,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       document.addEventListener('auxclick', onNavigationClick, true);
       document.addEventListener('submit', onNavigationSubmit, true);
       eventTarget.addEventListener('click', onClick, true);
-      eventTarget.addEventListener('pointerdown', onPointerDown, true);
       eventTarget.addEventListener('pointerover', onPointerOver, true);
       eventTarget.addEventListener('pointerout', onPointerOut, true);
       eventTarget.addEventListener('input', onInput, true);
@@ -3422,7 +3345,6 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       document.removeEventListener('auxclick', onNavigationClick, true);
       document.removeEventListener('submit', onNavigationSubmit, true);
       eventTarget.removeEventListener('click', onClick, true);
-      eventTarget.removeEventListener('pointerdown', onPointerDown, true);
       eventTarget.removeEventListener('pointerover', onPointerOver, true);
       eventTarget.removeEventListener('pointerout', onPointerOut, true);
       eventTarget.removeEventListener('input', onInput, true);

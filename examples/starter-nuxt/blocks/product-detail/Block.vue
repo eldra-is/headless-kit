@@ -968,6 +968,7 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
                   class="prose-eldra [&>*+*]:mt-3"
                   :entry-id="entryId"
                   :field="`tabs.${index}.body`"
+                  api-id="product-detail"
                   :doc="tab.body"
                   :min-heading-level="3"
                 />

@@ -732,9 +732,9 @@ preview a field whose text held a token carries its **stored** text in its stega
 (`StegaMeta.parts`). With Studio speaking `price-tokens-inline`, focusing it on the canvas shows that
 text with each price as a chip: the words around it are edited in place, a chip click asks Studio to
 open its price editor (`theme:price-clicked`), `editor:insert-price` drops a new price at the caret,
-and a first click straight on a written-out price opens it too: the overlay notes which price's text
-was under the pointer before focus swapped it for chips (only while the page text is exactly the
-`parts`' text), and every edit is posted as stored text, tokens intact. Without the capability the
+and every edit is posted as stored text, tokens intact. The first click on the field, even straight
+on a written-out price, only focuses it: a price opens from its chip, so selecting a block never
+opens the editor by accident. Without the capability the
 field is selectable but never typed into, where typing would save "€100.00" over the token.
 
 ## Seeding default templates and pages

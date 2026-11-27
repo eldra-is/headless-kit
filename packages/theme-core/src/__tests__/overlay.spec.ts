@@ -267,11 +267,11 @@ describe('createOverlayRuntime', () => {
       );
     });
 
-    it('opens a written-out price on the first click: the press lands on the text, focus makes the chip', () => {
+    it('only focuses a priced field on a first click on its written-out price; the chip opens it', () => {
       const field = priced();
       runtime.setPriceTokensEnabled(true);
       runtime.setMode('edit');
-      // The price's text is at 200…260 × 10…30, the words before it elsewhere.
+      // The price's text is at 200…260 × 10…30, and both presses land on it.
       layOut((range) =>
         range.toString() === '€100.00'
           ? { left: 200, right: 260, top: 10, bottom: 30 }
@@ -286,59 +286,14 @@ describe('createOverlayRuntime', () => {
       } finally {
         delete (Range.prototype as Partial<Range>).getClientRects;
       }
-      expect(post).toHaveBeenCalledWith(
-        'theme:price-clicked',
-        expect.objectContaining({ ...meta, token: TOKEN })
-      );
-    });
-
-    it('finds a written-out price the renderer spaced its own way', () => {
-      const paragraph = document.createElement('p');
-      const lead = 'Free shipping over ';
-      paragraph.textContent = encodeStega(`${lead}100 kr. `, {
-        ...meta,
-        parts: [lead, { token: TOKEN, label: '100 kr.' }],
-      });
-      document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
-      runtime.rescan();
-      const field = document.querySelector('[data-eldra-field="note"]') as HTMLElement;
-      runtime.setPriceTokensEnabled(true);
-      runtime.setMode('edit');
-      layOut((range) =>
-        range.toString() === '100 kr.'
-          ? { left: 200, right: 260, top: 10, bottom: 30 }
-          : { left: 0, right: 0, top: 0, bottom: 0 }
-      );
-      try {
-        field.dispatchEvent(
-          new MouseEvent('pointerdown', { bubbles: true, clientX: 230, clientY: 20 })
-        );
-        focus(field);
-        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 230, clientY: 20 }));
-      } finally {
-        delete (Range.prototype as Partial<Range>).getClientRects;
-      }
-      expect(post).toHaveBeenCalledWith(
-        'theme:price-clicked',
-        expect.objectContaining({ ...meta, token: TOKEN })
-      );
-    });
-
-    it('opens nothing for a first click on the words beside a price', () => {
-      const field = priced();
-      runtime.setPriceTokensEnabled(true);
-      runtime.setMode('edit');
-      layOut(() => ({ left: 200, right: 260, top: 10, bottom: 30 }));
-      try {
-        field.dispatchEvent(
-          new MouseEvent('pointerdown', { bubbles: true, clientX: 40, clientY: 20 })
-        );
-        focus(field);
-        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 40, clientY: 20 }));
-      } finally {
-        delete (Range.prototype as Partial<Range>).getClientRects;
-      }
       expect(post).not.toHaveBeenCalledWith('theme:price-clicked', expect.anything());
+      field
+        .querySelector('[data-eldra-price-token]')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
     });
 
     it("keeps the operator's text while the renderer re-states it, but takes new amounts", () => {
