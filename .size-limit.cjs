@@ -203,11 +203,13 @@ module.exports = [
   // messages): measured at 175.28 kB.
   // Raised 176 kB -> 178 kB for `NavMenu`'s sections and cards (WS-1321, WS-1362): its section
   // columns, card tiles and their messages: measured at 176.69 kB.
+  // Raised 178 kB -> 179 kB for the amount parser and editor `UnitInput` reads every edit with
+  // (WS-1390), less the keydown handling it replaced: measured at 178.35 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '178 kB',
+    limit: '179 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

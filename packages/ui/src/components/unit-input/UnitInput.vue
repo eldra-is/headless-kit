@@ -1,31 +1,16 @@
 <script setup lang="ts">
 /**
- * A unit field: a number on one side, and an `Intl`-formatted string in the field at all times.
+ * A unit field: a number on one side, and an `Intl`-formatted string in the field at all times,
+ * formatted as it is typed (`$1,234.5`, `1.234 kr.`, `1,234 km`) with the caret kept where it was.
  *
- * **A port, not a design.** This component and `CurrencyInput` are one-to-one ports of Eldra's
- * private component library, kept behaviour-for-behaviour so a store that knows those fields knows
- * these. They are **additions beyond design spec 1**, which has no editable numeric field at all —
- * recorded in the README's "Additions beyond the spec", where the handful of deliberate departures
- * from the private behaviour are listed too.
- *
- * **The field is always formatted.** There is no editing mode and no focus-dependent text: focused
- * or not, the field shows `$1,234.5`, `1.234 kr.` or `1,234 km`, reformatted on every keystroke
- * with the caret mapped through the new text by *numeric content* (`mapCursorByNumericContent`) —
- * count the digits before the caret, then walk the reformatted string until as many have gone by.
- * That is what lets a group separator appear to the left of the caret without the caret moving.
+ * Every `input` event, however the text arrived (a keystroke, a paste into a selection, a drop,
+ * autofill, a virtual keyboard, dictation, the end of an IME composition), goes through one
+ * function, `createAmountEditor().edit` in `src/utils/amount.ts`: it finds what changed against
+ * the text the field showed, reads the result with one parser and formats it back. Keydown never
+ * inserts or moves anything. The rules are in the README, under `UnitInput` and `CurrencyInput`.
  *
  * It is an `Input` in every respect a customer can see: the same box, sizes, paddings, focus ring
  * and error boundary, imported from `../input/classes.ts` rather than copied.
- *
- * **Typing is not filtered, it is stripped.** Unlike `QuantityStepper`, a non-numeric keystroke is
- * not refused at `beforeinput`; it lands, and the reformat that follows removes it. That is the
- * private behaviour, and it is the one that can survive a field whose own text is full of
- * non-numeric characters (a symbol, a group separator, a unit) — a filter that judged the
- * *resulting value* would have to understand the formatted string it is judging.
- *
- * **`preserveEmptyUntilBlur`.** Clearing the text while editing leaves the field empty and emits
- * nothing, so a customer can retype an amount from scratch; leaving the field falls back to the
- * formatted `clamp(0)` — `min` — and emits that.
  */
 import {
   computed,
@@ -33,15 +18,22 @@ import {
   inject,
   nextTick,
   onBeforeUnmount,
+  onMounted,
   ref,
+  shallowRef,
   useSlots,
   watch,
 } from 'vue';
 import { useEldraUiLocale } from '../../composables/useLocale';
 import { useMessages } from '../../composables/useMessages';
+import { createAmountEditor, type AmountInvalidReason, type AmountText } from '../../utils/amount';
 import { joinIds, useUiId } from '../../utils/id';
 import { mergeClass } from '../../utils/mergeClass';
-import { createNumberFormat } from '../../utils/number-format';
+import {
+  createNumberFormat,
+  currencyFractionDigits,
+  localeSeparators,
+} from '../../utils/number-format';
 import { FIELD_KEY } from '../field-wrapper/context';
 import { ICON_STROKE_WIDTH } from '../icon/sizes';
 import {
@@ -90,6 +82,9 @@ const props = withDefaults(defineProps<UnitInputProps>(), {
   isCurrency: false,
   currency: 'USD',
   narrowSymbol: false,
+  fixedFraction: false,
+  nullable: false,
+  placeholder: undefined,
   size: 'md',
   id: undefined,
   name: undefined,
@@ -108,6 +103,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: number | null];
   /** The text in the field, on every local change and on the first formatting. */
   'update:formattedValue': [value: string];
+  /** Whether the text can be read, on every change and once on mount. */
+  'update:valid': [valid: boolean];
   clear: [];
   blur: [event: FocusEvent];
   focus: [event: FocusEvent];
@@ -127,17 +124,10 @@ const controlId = useUiId(
 );
 /** Own ids first, then the wrapper's — the one `describedBy` rule (see the README's Fields). */
 const describedBy = computed(() => joinIds(props.describedBy, field?.value.describedBy));
-const isInvalid = computed(() => props.invalid ?? field?.value.invalid ?? false);
 const isRequired = computed(() => props.required ?? field?.value.required ?? false);
 
 const controlRef = ref<HTMLInputElement | null>(null);
 const dragHandleRef = ref<HTMLButtonElement | null>(null);
-
-/** The text in the field, and the same text with everything but digits and a `.` taken out. */
-const localValue = ref('');
-const localUnformattedValue = ref('');
-/** Set while an emptied field is being retyped: the field stays empty and emits nothing. */
-const preserveEmptyUntilBlur = ref(false);
 
 /**
  * Whether the parent actually **binds** `modelValue` — read off the vnode rather than from the
@@ -154,18 +144,25 @@ const hasModelValueProp = computed(() => {
   );
 });
 
-const formattedValue = computed<string>({
-  get: () => localValue.value,
-  set: (value: string) => updateLocalFormattedValue(value),
-});
-const { onKeydown: onUndoRedoKeydown } = useUndoRedo(formattedValue);
-
 const resolvedLocale = computed(() => props.locale ?? ambientLocale.value);
 
-/** Whether this field may be edited at all — a read-only field plays none of the caret games. */
+/** Whether this field may be edited at all. */
 const isEditable = computed(() => !props.readonly && !props.disabled);
 
 // --- formatting ----------------------------------------------------------------------------------
+
+/** A currency's own decimals (ISK 0, EUR 2); `null` for a unit. */
+const currencyDigits = computed(() =>
+  props.isCurrency ? currencyFractionDigits(props.currency) : null
+);
+const fixedDigits = computed(() =>
+  props.isCurrency && props.fixedFraction ? currencyDigits.value : null
+);
+/** How many fraction digits the field takes: none in a currency that has none. */
+const fractionDigits = computed(() =>
+  currencyDigits.value === 0 ? 0 : (fixedDigits.value ?? props.maxFraction)
+);
+const restingFraction = computed(() => fixedDigits.value ?? 0);
 
 function numberFormat(maxFraction: number, minFraction: number): Intl.NumberFormat {
   return createNumberFormat({
@@ -181,43 +178,24 @@ function numberFormat(maxFraction: number, minFraction: number): Intl.NumberForm
   });
 }
 
-/** What the placeholder shows: the same format at zero, with both fraction digits spelled out. */
-const emptyValuePlaceholder = computed(() => numberFormat(2, 2).format(0));
+const editor = computed(() =>
+  createAmountEditor({
+    format: (minFraction) => numberFormat(Math.max(fractionDigits.value, minFraction), minFraction),
+    decimal: localeSeparators(resolvedLocale.value).decimal,
+    digits: fractionDigits.value,
+    max: props.max,
+  })
+);
 
-/**
- * The shape of the formatted string, read from `Intl` rather than assumed: which characters group
- * and separate the decimal, and whether the symbol leads (`$1,234`) or trails (`1,234 km`) — with
- * the literal that goes with it counted into its length, because the caret has to clear both.
- */
-type NumberParts = {
-  symbolBefore: boolean;
-  symbolAfter: boolean;
-  symbolLength: number;
-} & Record<Intl.NumberFormatPartTypes, string>;
-
-const formParts = computed<NumberParts>(() => {
-  const format = numberFormat(2, 2);
-  const parts = format.formatToParts(1000).reduce((accumulator, part) => {
-    accumulator[part.type] = part.value;
-    return accumulator;
-  }, {} as NumberParts);
-
-  const formatted = format.format(1000);
-  const symbol = parts.unit || parts.currency;
-  if (symbol) {
-    const symbolIndex = formatted.indexOf(symbol);
-    parts.symbolBefore = symbolIndex === 0;
-    parts.symbolAfter = symbolIndex > 0;
-    parts.symbolLength = symbol.length;
-  }
-  if (parts.literal) {
-    parts.symbolLength = (parts.symbolLength ?? 0) + parts.literal.length;
-  }
-  return parts;
+/** What the placeholder shows: the same format at zero, with up to two fraction digits spelled out. */
+const emptyValuePlaceholder = computed(() => {
+  if (props.placeholder !== undefined) return props.placeholder;
+  const digits = Math.min(2, fractionDigits.value);
+  return numberFormat(digits, digits).format(0);
 });
 
 function formatValue(value: number): string {
-  return numberFormat(props.maxFraction, 0).format(value);
+  return editor.value.fromValue(value, restingFraction.value).text;
 }
 
 function clampValue(value: number): number {
@@ -231,225 +209,193 @@ function normalizeNumericValue(value: number | string | null | undefined): numbe
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
-function formatModelValue(value: number | string | null | undefined): string {
-  const numberValue = normalizeNumericValue(value);
-  return numberValue === null ? '' : formatValue(numberValue);
-}
-
 const normalizedStep = computed(() => {
   const next = Number(props.step);
   return Number.isFinite(next) && next > 0 ? next : 1;
 });
-/** What an emptied field falls back to on blur, and what a step starts from while it is empty. */
-const fallbackBlurValue = computed(() => clampValue(0));
+/** What an emptied field means when it is not `nullable`, and what a step starts from. */
+const fallbackValue = computed(() => clampValue(0));
 
-function normalizedClampedValue(value: number): number {
-  return Number(clampValue(value).toFixed(props.maxFraction));
+// --- the text and the value ----------------------------------------------------------------------
+
+const state = shallowRef<AmountText>(editor.value.fromValue(null));
+const localValue = computed(() => state.value.text);
+const ownValue = ref<number | null>(null);
+const focused = ref(false);
+const composing = ref(false);
+/** Whether the text was edited since focus, so leaving an untouched empty field changes nothing. */
+const edited = ref(false);
+/** The value the field had when editing began: the model while the text cannot be read. */
+const editStart = ref<number | null>(null);
+
+const reading = computed(() => state.value.reading);
+const unreadable = computed(
+  () => reading.value.kind === 'invalid' || reading.value.kind === 'pending'
+);
+/** Unreadable text says why at once; a text still being typed only once the field is left. */
+const invalidReason = computed<AmountInvalidReason | null>(() => {
+  if (reading.value.kind === 'invalid') return reading.value.reason;
+  if (reading.value.kind === 'pending' && !focused.value) return 'notANumber';
+  return null;
+});
+const isInvalid = computed(
+  () => (props.invalid ?? field?.value.invalid ?? false) || invalidReason.value !== null
+);
+
+function currentValue(): number | null {
+  return hasModelValueProp.value ? normalizeNumericValue(props.modelValue) : ownValue.value;
 }
 
-function currentNumericValue(): number {
-  if (preserveEmptyUntilBlur.value) return fallbackBlurValue.value;
-  return (
-    normalizeNumericValue(localUnformattedValue.value) ??
-    normalizeNumericValue(props.modelValue) ??
-    fallbackBlurValue.value
-  );
+/** The number the text stands for: what the form posts and what a step starts from. */
+const numericModel = computed<number | null>(() => {
+  const now = reading.value;
+  if (now.kind === 'number') return now.value;
+  if (now.kind === 'empty')
+    return props.nullable ? null : edited.value ? fallbackValue.value : null;
+  return editStart.value;
+});
+
+function setState(next: AmountText, emitFormatted = true): void {
+  state.value = next;
+  if (emitFormatted) emit('update:formattedValue', next.text);
 }
 
-function steppedValue(direction: 1 | -1): number {
-  return normalizedClampedValue(currentNumericValue() + normalizedStep.value * direction);
+function emitModel(value: number | null): void {
+  ownValue.value = value;
+  emit('update:modelValue', value);
 }
 
-/**
- * The formatted text back to a plain number string. Every character the format put there comes
- * out — symbol, group separators, the literal between them — and so does anything else that is
- * not a digit or a decimal point, which is what makes typing a letter a no-op rather than an
- * error.
- */
-function unformatValue(value: string): string {
-  const parts = formParts.value;
-  let next = String(value);
-  if (parts.unit) next = next.replaceAll(parts.unit, '');
-  if (parts.group) next = next.replaceAll(parts.group, '');
-  if (parts.literal) next = next.replaceAll(parts.literal, '');
-  if (parts.decimal === ',') next = next.replaceAll(parts.decimal, '.');
-  // Everything that is not a digit or a decimal point.
-  next = next.replace(/[^0-9.]/g, '');
-  // Only the first decimal point survives, and nothing after a second one.
-  next = next.replace(/\.(?=.*\.)/g, '');
-  next = next.replace(/(\d*\.\d*)\./g, '$1');
-  return next;
+/** Whether the text already says `value`, so a parent echoing it never rewrites "12," or "34,0". */
+function textAgreesWith(value: number | null): boolean {
+  const now = reading.value;
+  if (now.kind === 'empty')
+    return value === null || (edited.value && !props.nullable && value === fallbackValue.value);
+  if (now.kind === 'number') return now.value === value;
+  return true;
 }
 
-function isEditableNumberCharacter(character: string): boolean {
-  return /\d/.test(character) || character === formParts.value.decimal;
+function setCaret(target: HTMLInputElement, caret: number): void {
+  if (typeof document === 'undefined' || document.activeElement !== target) return;
+  target.setSelectionRange(caret, caret);
 }
 
-function editableStartIndex(value: string): number {
-  const index = [...value].findIndex((character) => isEditableNumberCharacter(character));
-  return index === -1 ? 0 : index;
+/** The caret at the end of the amount, before a trailing symbol. */
+function endOfAmount(): number {
+  return editor.value.textIndex(state.value, state.value.raw.length);
 }
 
-function editableEndIndex(value: string): number {
-  for (let index = value.length - 1; index >= 0; index -= 1) {
-    if (isEditableNumberCharacter(value[index] ?? '')) return index + 1;
-  }
-  return value.length;
-}
-
-/**
- * Where the caret goes in the reformatted text: after as many editable characters as there were
- * before it in what the customer typed. Group separators inserted to the left of the caret
- * therefore move the caret with them, and none of it depends on how many characters the format
- * added or removed.
- */
-function mapCursorByNumericContent(
-  sourceValue: string,
-  sourceCursor: number,
-  formatted: string
-): number {
-  const normalizedBeforeCursor = unformatValue(sourceValue.slice(0, sourceCursor));
-  if (normalizedBeforeCursor === '') return editableStartIndex(formatted);
-
-  let seen = '';
-  for (let index = 0; index < formatted.length; index += 1) {
-    const character = formatted[index] ?? '';
-    if (!isEditableNumberCharacter(character)) continue;
-    seen += character === formParts.value.decimal ? '.' : character;
-    if (seen.length >= normalizedBeforeCursor.length) return index + 1;
-  }
-  return editableEndIndex(formatted);
-}
-
-// --- the value -----------------------------------------------------------------------------------
-
-const numericModel = computed(() => normalizeNumericValue(localUnformattedValue.value));
-
-function updateLocalFormattedValue(
-  value: string,
-  options: { emitModel?: boolean; emitFormatted?: boolean } = {}
-): void {
-  const { emitModel = true, emitFormatted = true } = options;
-  localValue.value = value;
-  localUnformattedValue.value = unformatValue(value);
-  if (emitModel) emit('update:modelValue', normalizeNumericValue(localUnformattedValue.value));
-  if (emitFormatted) emit('update:formattedValue', value);
-}
-
-/**
- * After an edit, wait a tick and take the parent's answer. A controlled parent may clamp the value
- * or refuse it outright, and the field has to show what the parent holds rather than what was
- * typed — with the caret put back where the mapping said it goes.
- */
-async function reconcileControlledValue(
-  target: HTMLInputElement,
-  cursor: number,
-  inputValue: string
-): Promise<void> {
-  if (preserveEmptyUntilBlur.value) return;
-
-  let nextValue = inputValue;
+/** Shows what a bound parent holds, when it wrote back something other than the text says. */
+async function reconcile(target: HTMLInputElement, emitted: number): Promise<void> {
   await nextTick();
-
-  if (hasModelValueProp.value) {
-    nextValue = formatModelValue(props.modelValue);
-    if (
-      nextValue !== inputValue ||
-      nextValue !== formattedValue.value ||
-      target.value !== nextValue
-    ) {
-      updateLocalFormattedValue(nextValue, { emitModel: false });
-      target.value = nextValue;
-    }
-  }
-
-  if (typeof document !== 'undefined' && document.activeElement === target) {
-    const nextCursor = Math.min(cursor, nextValue.length);
-    target.setSelectionRange(nextCursor, nextCursor);
-  }
+  if (!hasModelValueProp.value) return;
+  const held = normalizeNumericValue(props.modelValue);
+  if (held === emitted || textAgreesWith(held)) return;
+  setState(editor.value.fromValue(held, restingFraction.value));
+  target.value = state.value.text;
+  setCaret(target, endOfAmount());
 }
+
+/** One change of the field's text, from an `input` event or an undo. */
+function applyText(target: HTMLInputElement, text: string, caret: number, inputType: string): void {
+  if (!focused.value && !unreadable.value) editStart.value = currentValue();
+  const result = editor.value.edit(state.value, text, caret, inputType);
+  if (result.refused) {
+    target.value = state.value.text;
+    setCaret(target, result.caret);
+    return;
+  }
+  const wasUnreadable = unreadable.value;
+  edited.value = true;
+  setState(result.next);
+  target.value = result.next.text;
+  setCaret(target, result.caret);
+
+  const now = result.next.reading;
+  if (now.kind === 'number') {
+    emitModel(now.value);
+    void reconcile(target, now.value);
+  } else if (now.kind === 'empty') {
+    emitModel(props.nullable ? null : fallbackValue.value);
+  } else if (!wasUnreadable) {
+    emitModel(editStart.value);
+  }
+  if (!focused.value) void nextTick(settle);
+}
+
+/** The text at rest: grouped, a fixed currency's decimals padded, a bare mark or zero tail gone. */
+function settle(): void {
+  const now = reading.value;
+  if (now.kind === 'number') {
+    const next = editor.value.fromValue(now.value, restingFraction.value);
+    if (next.text !== state.value.text) setState(next);
+  } else if (now.kind === 'empty' && edited.value && !props.nullable) {
+    setState(editor.value.fromValue(fallbackValue.value, restingFraction.value));
+  }
+  const target = controlRef.value;
+  if (target && target.value !== state.value.text) target.value = state.value.text;
+}
+
+const formattedValue = computed<string>({
+  get: () => state.value.text,
+  set: (value: string) => {
+    const target = controlRef.value;
+    if (target) applyText(target, value, value.length, 'historyUndo');
+  },
+});
+const { onKeydown: onUndoRedoKeydown } = useUndoRedo(formattedValue);
 
 // --- the caret -----------------------------------------------------------------------------------
 
-/**
- * Put the caret inside the number when it lands on a symbol: before a trailing one, after a
- * leading one. Returns whether it moved, which is what tells the arrow keys they have nothing
- * left to do.
- */
-function setCursorToValue(): boolean {
+/** Put a collapsed caret inside the amount when it lands on a symbol. */
+function setCursorToValue(): void {
   const target = controlRef.value;
-  if (!target) return false;
-
-  const parts = formParts.value;
-  const cursorStart = target.selectionStart || 0;
-  const cursorEnd = target.selectionEnd || 0;
-  if (cursorStart !== cursorEnd) return false;
-
-  const cursorIndex = parts.symbolBefore
-    ? formattedValue.value.search(/\d/)
-    : formattedValue.value.search(/\d(?=\D*$)/) + 1;
-  const valueLength = formattedValue.value.length - parts.symbolLength;
-  const isCursorBefore = parts.symbolBefore && cursorStart <= parts.symbolLength;
-  const isCursorAfter = parts.symbolAfter && cursorStart > valueLength;
-  if (isCursorBefore || isCursorAfter) {
-    target.setSelectionRange(cursorIndex, cursorIndex);
-    return true;
-  }
-  return false;
+  if (!target || state.value.raw === '') return;
+  const start = target.selectionStart ?? 0;
+  if (start !== (target.selectionEnd ?? 0)) return;
+  const first = editor.value.textIndex(state.value, 0);
+  const last = endOfAmount();
+  if (start < first) target.setSelectionRange(first, first);
+  else if (start > last) target.setSelectionRange(last, last);
 }
 
-/** Select the digits only, never the symbol — what a double-click and Ctrl/Cmd+A both mean here. */
+/** Select the amount only, never the symbol — what a double-click and Ctrl/Cmd+A both mean here. */
 function selectOnlyNumbers(): void {
   const target = controlRef.value;
-  if (!target) return;
-  const firstIndex = formattedValue.value.search(/\d/);
-  const lastIndex = formattedValue.value.search(/\d(?=\D*$)/) + 1;
-  target.setSelectionRange(firstIndex, lastIndex);
+  if (!target || state.value.raw === '') return;
+  target.setSelectionRange(editor.value.textIndex(state.value, 0), endOfAmount());
 }
 
 // --- events --------------------------------------------------------------------------------------
 
-async function applyNumericValue(value: number, cursor?: number): Promise<void> {
+function applyNumericValue(value: number): void {
   const input = controlRef.value;
   if (!input) return;
-
-  const nextFormattedValue = formatValue(normalizedClampedValue(value));
-  const nextCursor = Math.min(
-    cursor ?? input.selectionStart ?? nextFormattedValue.length,
-    nextFormattedValue.length
-  );
-
-  preserveEmptyUntilBlur.value = false;
-  updateLocalFormattedValue(nextFormattedValue);
-  input.value = nextFormattedValue;
-
-  await reconcileControlledValue(input, nextCursor, nextFormattedValue);
+  const next = Number(clampValue(value).toFixed(fractionDigits.value));
+  edited.value = true;
+  setState(editor.value.fromValue(next, restingFraction.value));
+  input.value = state.value.text;
+  emitModel(next);
+  setCaret(input, endOfAmount());
+  void reconcile(input, next);
 }
 
-async function updateSteppedValue(direction: 1 | -1): Promise<void> {
-  const input = controlRef.value;
-  if (!input) return;
-  await applyNumericValue(steppedValue(direction), input.selectionStart ?? input.value.length);
-  setCursorToValue();
+function steppedFrom(): number {
+  return numericModel.value ?? fallbackValue.value;
 }
 
 function onFocus(event: FocusEvent): void {
+  focused.value = true;
+  edited.value = false;
+  if (!unreadable.value) editStart.value = currentValue();
   // After the browser has placed its own caret, which happens after this event.
   if (isEditable.value) setTimeout(() => setCursorToValue());
   emit('focus', event);
 }
 
 function onBlur(event: FocusEvent): void {
+  focused.value = false;
+  settle();
   emit('blur', event);
-  if (!preserveEmptyUntilBlur.value) return;
-
-  preserveEmptyUntilBlur.value = false;
-  if (localUnformattedValue.value !== '') return;
-
-  const fallbackFormatted = formatValue(fallbackBlurValue.value);
-  updateLocalFormattedValue(fallbackFormatted);
-  const target = controlRef.value;
-  if (target) target.value = fallbackFormatted;
 }
 
 function onClick(): void {
@@ -461,130 +407,68 @@ function onDoubleClick(): void {
 }
 
 function onClear(): void {
-  preserveEmptyUntilBlur.value = false;
-  updateLocalFormattedValue('');
+  setState(editor.value.fromValue(null));
   const target = controlRef.value;
   if (target) target.value = '';
+  emitModel(null);
   emit('clear');
   target?.focus();
 }
 
-async function onKeydown(event: KeyboardEvent): Promise<void> {
+function onKeydown(event: KeyboardEvent): void {
   if (!isEditable.value) return;
-
-  const input = controlRef.value;
-  const key = event.key;
-  const isDelete = key === 'Del' || key === 'Delete';
-  const isBackspace = key === 'Backspace';
-  const isArrowLeft = key === 'ArrowLeft';
-  const isArrowRight = key === 'ArrowRight';
-  const isArrowUp = key === 'ArrowUp';
-  const isArrowDown = key === 'ArrowDown';
-  const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-  const isCtrlA = isCtrlOrCmd && (key === 'a' || key === 'A');
-  const cursorStart = input?.selectionStart || 0;
-  const cursorEnd = input?.selectionEnd || 0;
-  const part = formParts.value;
-
   onUndoRedoKeydown(event);
-
-  if (isArrowUp || isArrowDown) {
+  const key = event.key;
+  if (key === 'ArrowUp' || key === 'ArrowDown') {
     event.preventDefault();
-    await updateSteppedValue(isArrowUp ? 1 : -1);
+    if (!unreadable.value)
+      applyNumericValue(steppedFrom() + normalizedStep.value * (key === 'ArrowUp' ? 1 : -1));
     return;
   }
-
-  if (isArrowLeft || isArrowRight) {
-    // After the browser has moved the caret: skip whatever non-digit it landed on.
-    setTimeout(() => {
-      if (setCursorToValue()) return;
-      if (isArrowLeft) {
-        const previous = formattedValue.value[cursorStart - 2] || '';
-        if (!previous.match(/\d/)) input?.setSelectionRange(cursorStart - 2, cursorStart - 2);
-      } else {
-        const next = formattedValue.value[cursorStart + 1] || '';
-        if (!next.match(/\d/)) input?.setSelectionRange(cursorStart + 2, cursorStart + 2);
-      }
-    });
-  } else if (isCtrlA) {
+  if ((event.ctrlKey || event.metaKey) && (key === 'a' || key === 'A')) {
     selectOnlyNumbers();
-    event.preventDefault();
-    return;
-  } else if (isDelete && cursorStart === cursorEnd) {
-    const nextChar = formattedValue.value[cursorStart] || '';
-    if (!nextChar.match(/\d/)) {
-      if (part.symbolAfter && cursorStart === formattedValue.value.length - part.symbolLength) {
-        // Nothing but the symbol is left to the right: the symbol is not the customer's to delete.
-        input?.setSelectionRange(cursorStart, cursorStart);
-        event.preventDefault();
-        return;
-      }
-      input?.setSelectionRange(cursorStart + 1, cursorStart + 1);
-      setTimeout(() => input?.setSelectionRange(cursorStart, cursorStart));
-    }
-  } else if (isBackspace && cursorStart === cursorEnd) {
-    const previousChar = formattedValue.value[cursorStart - 1] || '';
-    if (!previousChar.match(/\d/)) {
-      if (part.symbolBefore && cursorStart === part.symbolLength) {
-        input?.setSelectionRange(cursorStart, cursorStart);
-        event.preventDefault();
-        return;
-      }
-      input?.setSelectionRange(cursorStart - 1, cursorStart - 1);
-    }
-  }
-
-  // The decimal separator: whichever of `,` and `.` was pressed inserts the locale's own, and a
-  // second one is refused rather than dropped later by the reformat.
-  if (part.decimal && formattedValue.value.includes(part.decimal) && (key === ',' || key === '.')) {
-    event.preventDefault();
-    return;
-  }
-  if ((key === ',' && part.decimal === '.') || (key === '.' && part.decimal === ',')) {
-    const valueBefore = input?.value.slice(0, cursorStart) ?? '';
-    const valueAfter = input?.value.slice(cursorStart) ?? '';
-    formattedValue.value = valueBefore + part.decimal + valueAfter;
     event.preventDefault();
   }
 }
 
-async function onInput(event: Event): Promise<void> {
+const CARET_KEYS = new Set(['Home', 'End', 'ArrowLeft', 'ArrowRight']);
+
+/** After the browser moved the caret: Home and End stop at the amount, never in a symbol. */
+function onKeyup(event: KeyboardEvent): void {
+  if (isEditable.value && !event.shiftKey && CARET_KEYS.has(event.key)) setCursorToValue();
+}
+
+function onInput(event: Event): void {
   const target = event.target as HTMLInputElement | null;
+  if (!target) return;
+  if (!isEditable.value) {
+    target.value = state.value.text;
+    return;
+  }
+  const inputEvent = event as InputEvent;
+  if (composing.value || inputEvent.isComposing) return;
+  applyText(
+    target,
+    target.value,
+    target.selectionStart ?? target.value.length,
+    inputEvent.inputType ?? ''
+  );
+}
+
+function onCompositionStart(): void {
+  composing.value = true;
+}
+
+function onCompositionEnd(): void {
+  composing.value = false;
+  const target = controlRef.value;
   if (!target || !isEditable.value) return;
-
-  const value = target.value;
-  const inputCursor = target.selectionStart || 0;
-  const unformatted = unformatValue(value);
-
-  if (unformatted === '') {
-    // An emptied field stays empty until it is left; the model is not told the value is gone.
-    preserveEmptyUntilBlur.value = true;
-    target.value = '';
-    updateLocalFormattedValue('', { emitModel: false });
-    return;
-  }
-
-  preserveEmptyUntilBlur.value = false;
-  if (Number(unformatted) > props.max) {
-    // Refused: the field keeps the text it had.
-    target.value = formattedValue.value;
-    return;
-  }
-
-  let formatted = formatValue(Number(unformatted));
-  if (unformatted.endsWith('.')) {
-    // A decimal separator that has just been typed has no digits after it yet, so `Intl` drops it.
-    // It goes back **inside** the number rather than at the end of the string, which is the same
-    // place for a leading symbol (`$1,234.`) and the only right one for a trailing one
-    // (`1,234. km`, not `1,234 km.`).
-    const end = editableEndIndex(formatted);
-    formatted = formatted.slice(0, end) + formParts.value.decimal + formatted.slice(end);
-  }
-
-  const cursor = mapCursorByNumericContent(value, inputCursor, formatted);
-  formattedValue.value = formatted;
-  target.value = formatted;
-  await reconcileControlledValue(target, cursor, formatted);
+  applyText(
+    target,
+    target.value,
+    target.selectionStart ?? target.value.length,
+    'insertCompositionText'
+  );
 }
 
 // --- drag to adjust ------------------------------------------------------------------------------
@@ -609,24 +493,18 @@ function stopDrag(pointerId?: number): void {
   if (activePointerId !== null) dragHandleRef.value?.releasePointerCapture?.(activePointerId);
 }
 
-async function onDragAdjust(direction: 'up' | 'down', steps: number): Promise<void> {
-  if (!isEditable.value) return;
+function onDragAdjust(direction: 'up' | 'down', steps: number): void {
+  if (!isEditable.value || unreadable.value) return;
   const delta = direction === 'up' ? steps : -steps;
-  const input = controlRef.value;
-  await applyNumericValue(
-    currentNumericValue() + normalizedStep.value * delta,
-    input?.selectionStart ?? input?.value.length
-  );
-  setCursorToValue();
+  applyNumericValue(steppedFrom() + normalizedStep.value * delta);
 }
-
 function onDragPointerMove(event: PointerEvent): void {
   if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
   const nextDragSteps = Math.trunc((dragStartY - event.clientY) / VALUE_DRAG_PIXELS_PER_STEP);
   const stepDelta = nextDragSteps - dragAppliedSteps;
   if (stepDelta === 0) return;
   dragAppliedSteps = nextDragSteps;
-  void onDragAdjust(stepDelta > 0 ? 'up' : 'down', Math.abs(stepDelta));
+  onDragAdjust(stepDelta > 0 ? 'up' : 'down', Math.abs(stepDelta));
 }
 
 function onDragPointerEnd(event: PointerEvent): void {
@@ -656,40 +534,23 @@ onBeforeUnmount(() => stopDrag());
 watch(
   () => props.modelValue,
   (value) => {
-    if (preserveEmptyUntilBlur.value) return;
-    const nextFormattedValue = hasModelValueProp.value ? formatModelValue(value) : '';
-    if (nextFormattedValue === localValue.value) return;
-    updateLocalFormattedValue(nextFormattedValue, {
-      emitModel: false,
-      emitFormatted: hasModelValueProp.value,
-    });
-  },
-  { immediate: true }
-);
-
-watch(
-  hasModelValueProp,
-  (bound) => {
-    if (preserveEmptyUntilBlur.value) return;
-    if (!bound) {
-      if (localValue.value === '') return;
-      updateLocalFormattedValue('', { emitModel: false, emitFormatted: false });
-      return;
-    }
-    const nextFormattedValue = formatModelValue(props.modelValue);
-    if (nextFormattedValue === localValue.value) return;
-    updateLocalFormattedValue(nextFormattedValue, { emitModel: false });
+    if (!hasModelValueProp.value) return;
+    const next = normalizeNumericValue(value);
+    if (textAgreesWith(next)) return;
+    setState(editor.value.fromValue(next, restingFraction.value));
   },
   { immediate: true }
 );
 
 /** The locale, the currency or the unit changing reformats what is in the field. */
-watch([resolvedLocale, () => props.currency, () => props.unit, () => props.isCurrency], () => {
-  if (preserveEmptyUntilBlur.value) return;
-  const numeric = normalizeNumericValue(localUnformattedValue.value);
-  if (numeric === null) return;
-  updateLocalFormattedValue(formatValue(numeric), { emitModel: false });
+watch(editor, () => {
+  const now = reading.value;
+  if (now.kind !== 'number') return;
+  setState(editor.value.fromValue(now.value, restingFraction.value), hasModelValueProp.value);
 });
+
+watch(unreadable, (value) => emit('update:valid', !value));
+onMounted(() => emit('update:valid', !unreadable.value));
 
 // --- classes -------------------------------------------------------------------------------------
 
@@ -763,9 +624,13 @@ const dragHandleClass = computed(() => [
   props.classes?.dragHandle,
 ]);
 
-/** `formatValue` is the private library's own exposed method: a caller formats one number the
- *  way this field would. */
-defineExpose({ formatValue });
+/** `formatValue` formats one number the way this field would at rest; `isValid` is whether the
+ *  text can be read, and `invalidReason` why not. */
+defineExpose({
+  formatValue,
+  isValid: computed(() => !unreadable.value),
+  invalidReason,
+});
 </script>
 
 <template>
@@ -813,14 +678,17 @@ defineExpose({ formatValue });
         :required="isRequired || undefined"
         :readonly="readonly || undefined"
         :disabled="disabled || undefined"
-        :aria-invalid="isInvalid ? 'true' : undefined"
+        :aria-invalid="isInvalid ? 'true' : ($attrs['aria-invalid'] as 'false' | undefined)"
         :aria-describedby="describedBy"
         @input="onInput"
         @keydown="onKeydown"
+        @keyup="onKeyup"
         @click="onClick"
         @dblclick="onDoubleClick"
         @focus="onFocus"
         @blur="onBlur"
+        @compositionstart="onCompositionStart"
+        @compositionend="onCompositionEnd"
       />
 
       <!-- The form's value is the raw number, never the locale string the customer read: a form

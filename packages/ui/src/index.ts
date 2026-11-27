@@ -573,6 +573,19 @@ export {
   type NumberFormatOptions,
   type UnitFormatOptions,
 } from './utils/number-format';
+// The one amount parser and the format-while-typing editor behind `UnitInput` and `CurrencyInput`,
+// for a consumer reading a typed or pasted amount the same way.
+export {
+  createAmountEditor,
+  parseAmount,
+  readAmount,
+  type AmountEdit,
+  type AmountEditor,
+  type AmountEditorOptions,
+  type AmountInvalidReason,
+  type AmountReading,
+  type AmountText,
+} from './utils/amount';
 // The `beforeinput` filter that keeps a numeric text field numeric, used by `QuantityStepper` —
 // exported for a consumer building a numeric control of their own.
 export { filterNumericBeforeInput, type NumericInputFilterOptions } from './utils/numeric-input';
