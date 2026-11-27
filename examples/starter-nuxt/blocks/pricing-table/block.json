@@ -107,6 +107,7 @@
                 "fieldId": "ctaHref",
                 "name": "Button link",
                 "type": "string",
+                "allowPrices": false,
                 "helpText": "Selling plan or cart permalink.",
                 "validators": { "required": true }
               },
@@ -128,6 +129,7 @@
       "fieldId": "highlightedPlan",
       "name": "Highlighted plan",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Must match a plan name exactly; leave empty for no highlight."
     },
     {

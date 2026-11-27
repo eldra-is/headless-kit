@@ -30,6 +30,12 @@ export { EldraBlockZone, getBlockSchemaApiId } from './EldraBlockZone';
 export { EldraLayout } from './EldraLayout';
 export { EldraRichText } from './EldraRichText';
 export {
+  ELDRA_PRICE_KEY,
+  provideEldraPrices,
+  useEldraPrices,
+  type EldraPriceResolver,
+} from './prices';
+export {
   renderRichTextDoc,
   type RenderRichTextOptions,
   type RichTextMark,

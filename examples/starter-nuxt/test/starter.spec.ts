@@ -433,7 +433,7 @@ describe('starter theme', () => {
       ],
       cart: [
         'variant',
-        'freeShippingThreshold',
+        'showShippingBar',
         'showDiscountField',
         'showPaymentIcons',
         'note',

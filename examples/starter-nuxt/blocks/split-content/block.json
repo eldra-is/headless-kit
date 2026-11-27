@@ -72,7 +72,8 @@
               {
                 "fieldId": "href",
                 "name": "Button link",
-                "type": "string"
+                "type": "string",
+                "allowPrices": false
               }
             ]
           }
@@ -116,7 +117,8 @@
               {
                 "fieldId": "href",
                 "name": "Link",
-                "type": "string"
+                "type": "string",
+                "allowPrices": false
               }
             ]
           }

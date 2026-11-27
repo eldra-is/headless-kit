@@ -32,7 +32,8 @@
     {
       "fieldId": "linkHref",
       "name": "Link URL",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "dismissable",

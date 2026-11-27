@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **Store amounts for price tokens (WS-1473).** The build reads the free-shipping threshold per currency once, beside the other reads (`features.getStoreAmounts()`, fail-soft, `STORE_AMOUNTS_READ_FAILED_WARNING`), into `runtimeConfig.public.eldra.storeAmounts`: `{ freeShippingThreshold: { ISK: 1500000 } }` in minor units, or `null`. New subpath `@eldrajs/theme-nuxt/store-amounts` (`toStoreAmounts`, `readStoreAmounts`).
 - **The organisation's regional format (WS-1277).** The build reads it once beside the commerce settings and locales (`features.getRegion()`, fail-soft with its own warning, `REGION_READ_FAILED_WARNING`) and bakes it into `runtimeConfig.public.eldra.region`: `{ countryCode, formatLocale, timeZone }` or `null`. New subpath `@eldrajs/theme-nuxt/region` (`StoreRegion`, `resolveStoreRegion`, `readStoreRegion`) and auto-import `useEldraRegion()`. Format money, numbers and dates with `formatLocale` and keep strings on the content locale.
 - **A theme can keep a draft preview session's veil up for its own reads (WS-1277).** New
   auto-import `holdPreviewSession(work)`: work started while a session is covered (a read outside
@@ -113,7 +114,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 - **The site profile carries the registered company.** `readSiteProfile`, `resolveSiteProfile` and
   `useSiteProfile()` gain `legal` (`{name, kennitala, streetAddress, postalCode, city,
-  countryCode}` or `null`), from `GET /site/v1/site-profile` since public contract 5.1.0; a
+countryCode}` or `null`), from `GET /site/v1/site-profile` since public contract 5.1.0; a
   platform before that reads as `null`. The starter writes it on the home `Organization` as
   `legalName`, `taxID` and `address`.
 
@@ -185,7 +186,7 @@ Release-please writes the generated notes from commit messages and does not repl
   `!seo.noindex`). New module option `structuredData: { disable }` (`true`, or the node kinds
   `product`, `breadcrumb`, `itemList`, `organization`, `website`) on `runtimeConfig.public.eldra`;
   editing a node at runtime is `provideStructuredData((type, node, { path, locale }) => node |
-  null)`. The build reads the shop's profile from `GET /site/v1/site-profile` (`readSiteProfile`,
+null)`. The build reads the shop's profile from `GET /site/v1/site-profile` (`readSiteProfile`,
   `./runtime/siteProfile.ts`; fail-soft like the other platform reads, build-only) and carries it,
   with the site name and the site icon's 512 px rendering filling its gaps, on
   `runtimeConfig.public.eldra.siteProfile`; `useSiteProfile()` returns it with the site origin.
@@ -201,7 +202,7 @@ Release-please writes the generated notes from commit messages and does not repl
   production URL from a seventh fail-soft read, `GET /site/v1/crawl` (`readCrawlSettings`,
   `./runtime/crawl.ts`, production builds only); with neither, nothing is written and one line says
   why. A theme's own `public/robots.txt` or `public/sitemap.xml` is never replaced (one line, `[eldra]
-  <file> generation skipped: theme ships its own`). New module option `sitemap` (`false`, or
+<file> generation skipped: theme ships its own`). New module option `sitemap` (`false`, or
   `{ maxUrls, maxBytes }`). The head's hreflang `<link>`s are absolute when the origin is known. The
   runtime `eldraSeo.siteUrl` now follows the same origin. Documented in `docs/theme-seo.md`.
 
@@ -223,13 +224,13 @@ Release-please writes the generated notes from commit messages and does not repl
   `@eldrajs/vite-plugin-theme` changelog).
 
 - **Site icons, set in Studio and rendered by the media worker.** A fifth fail-soft read, `GET
-  /site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon (a
+/site/v1/site-icons` (`readSiteIcons`, `./runtime/siteIcons.ts`), answers the site's icon (a
   media-library raster, square, at least 512 px), background colour, theme colour, short name and
   `icons`, the URLs of the variants the media worker renders (`null` when no icon is set). When an
   icon is set, `nuxi generate` writes only `site.webmanifest` into the static output (on both
   nitro `compiled` and `prerender:done`) and adds `<link rel="icon" type="image/png"
-  sizes="32x32">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` and `<meta
-  name="theme-color">` to every page; the icon tags point at the media URLs. No image is fetched or
+sizes="32x32">`, `<link rel="apple-touch-icon">`, `<link rel="manifest">` and `<meta
+name="theme-color">` to every page; the icon tags point at the media URLs. No image is fetched or
   processed at build time and no `favicon.ico` is generated (the theme's own `public/favicon.ico`
   stays the root fallback). The theme colour defaults to the primary design token and the short name
   to the site name. With no icon set or a failed read, nothing is written or tagged and the theme's
@@ -309,7 +310,7 @@ Release-please writes the generated notes from commit messages and does not repl
   for the catalog route beside the page component — which the starter does) saw the failure in one
   of them and an ordinary empty resolution in the other. That is indistinguishable from "there is
   no such page", so a transient gateway failure drew the theme's not-found shell, and `nuxi
-  generate` wrote it to disk under a path a visitor can reach, with exit code 0. On the server such
+generate` wrote it to disk under a path a visitor can reach, with exit code 0. On the server such
   a route is now answered `500` as well, so Nitro writes no file for it and names it in the
   prerender list (pair it with `nitro.prerender.failOnError` to stop the build — its real exposure is
   about twice the route count, because each page's `_payload.json` is prerendered too and resolves
@@ -354,7 +355,7 @@ Release-please writes the generated notes from commit messages and does not repl
   page for exactly that second — and, because every keystroke re-reads the drafts, produced one
   alert per keystroke with the page gone. The first failure is held back (what is on screen stays,
   rather than collapsing to the not-found shell) and the error is reported once a 401 arrives on a
-  *newer* token — the retry failed too — or after a 10s grace window, so a preview nobody is going
+  _newer_ token — the retry failed too — or after a 10s grace window, so a preview nobody is going
   to recover still says so.
 
 - `runtimeConfig.public.eldra` now carries `commerce` — `{ currency, taxInclusivePricing,

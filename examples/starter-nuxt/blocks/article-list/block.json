@@ -33,6 +33,7 @@
       "fieldId": "viewAllHref",
       "name": "View all URL",
       "type": "string",
+      "allowPrices": false,
       "helpText": "The journal index."
     },
     {
@@ -47,6 +48,7 @@
       "fieldId": "categoryHref",
       "name": "Category URL",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Used when source is category. Also matched against each chip to mark the active one."
     },
     {
@@ -73,6 +75,7 @@
                 "fieldId": "href",
                 "name": "Link URL",
                 "type": "string",
+                "allowPrices": false,
                 "validators": { "required": true }
               },
               {
@@ -81,7 +84,12 @@
                 "type": "string",
                 "localized": true
               },
-              { "fieldId": "categoryHref", "name": "Category URL", "type": "string" },
+              {
+                "fieldId": "categoryHref",
+                "name": "Category URL",
+                "type": "string",
+                "allowPrices": false
+              },
               {
                 "fieldId": "publishedAt",
                 "name": "Published at",
@@ -143,6 +151,7 @@
                 "fieldId": "href",
                 "name": "Link URL",
                 "type": "string",
+                "allowPrices": false,
                 "validators": { "required": true }
               }
             ]

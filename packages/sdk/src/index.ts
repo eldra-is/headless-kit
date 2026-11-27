@@ -193,3 +193,5 @@ export type {
   EldraResponsiveImageOptions,
   EldraSizedImageVariant,
 } from './image';
+export { storeAmountsFromDelivery } from './storeAmounts';
+export type { StoreAmounts } from './tokens';

@@ -8,7 +8,11 @@ import type { RichTextDocument } from '../types';
 const defaultContent: RichTextDocument = {
   type: 'doc',
   content: [
-    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Renderer heading' }] },
+    {
+      type: 'heading',
+      attrs: { level: 2 },
+      content: [{ type: 'text', text: 'Renderer heading' }],
+    },
     {
       type: 'paragraph',
       content: [
@@ -33,11 +37,21 @@ const tableContent: RichTextDocument = {
           content: [
             {
               type: 'tableHeader',
-              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Name' }] }],
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Name' }],
+                },
+              ],
             },
             {
               type: 'tableHeader',
-              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Role' }] }],
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Role' }],
+                },
+              ],
             },
           ],
         },
@@ -50,7 +64,12 @@ const tableContent: RichTextDocument = {
             },
             {
               type: 'tableCell',
-              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Engineer' }] }],
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Engineer' }],
+                },
+              ],
             },
           ],
         },
@@ -64,7 +83,11 @@ const imageAndEmbedContent: RichTextDocument = {
   content: [
     {
       type: 'image',
-      attrs: { src: 'https://example.com/image.jpg', alt: 'Example image', assetId: 'asset-123' },
+      attrs: {
+        src: 'https://example.com/image.jpg',
+        alt: 'Example image',
+        assetId: 'asset-123',
+      },
     },
     {
       type: 'embed',
@@ -122,7 +145,10 @@ const unknownNodeContent: RichTextDocument = {
     {
       type: 'productEmbed',
       content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Unknown node child content' }] },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Unknown node child content' }],
+        },
       ],
     },
   ],
@@ -182,7 +208,10 @@ describe('RichText', () => {
     });
 
     it('renders string tag overrides', () => {
-      const wrapper = mountRichText({ nodes: { paragraph: 'div' }, marks: { bold: 'b' } });
+      const wrapper = mountRichText({
+        nodes: { paragraph: 'div' },
+        marks: { bold: 'b' },
+      });
 
       expect(wrapper.find('div').text()).toContain('Hello world and friends.');
       expect(wrapper.find('b').text()).toBe('world');
@@ -213,7 +242,10 @@ describe('RichText', () => {
     });
 
     it('renders children only when node or mark override is null', () => {
-      const wrapper = mountRichText({ nodes: { paragraph: null }, marks: { bold: null } });
+      const wrapper = mountRichText({
+        nodes: { paragraph: null },
+        marks: { bold: null },
+      });
 
       expect(wrapper.find('p').exists()).toBe(false);
       expect(wrapper.find('strong').exists()).toBe(false);
@@ -227,7 +259,11 @@ describe('RichText', () => {
 
       const wrapper = mountRichText(
         {},
-        { global: { directives: { reveal: { beforeMount: revealBeforeMount } } } }
+        {
+          global: {
+            directives: { reveal: { beforeMount: revealBeforeMount } },
+          },
+        }
       );
 
       expect(revealBeforeMount).not.toHaveBeenCalled();
@@ -244,7 +280,12 @@ describe('RichText', () => {
         { scrollTransitions },
         {
           global: {
-            directives: { reveal: { beforeMount: revealBeforeMount, mounted: revealMounted } },
+            directives: {
+              reveal: {
+                beforeMount: revealBeforeMount,
+                mounted: revealMounted,
+              },
+            },
           },
         }
       );
@@ -287,7 +328,10 @@ describe('RichText', () => {
       const asset =
         'https://media.eldra.app/public/6ace9a70-fb78-43f3-87a8-c8adffadcf36/assets/52a99a52-50a2-4e0f-ba14-d0a769e7eede';
       const wrapper = mountRichText({
-        content: { type: 'doc', content: [{ type: 'image', attrs: { src: asset, alt: 'Mat' } }] },
+        content: {
+          type: 'doc',
+          content: [{ type: 'image', attrs: { src: asset, alt: 'Mat' } }],
+        },
       });
 
       const image = wrapper.find('img');
@@ -437,13 +481,21 @@ describe('RichText', () => {
       content: [
         {
           type: 'paragraph',
-          content: [{ type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href } }] }],
+          content: [
+            {
+              type: 'text',
+              text: 'x',
+              marks: [{ type: 'link', attrs: { href } }],
+            },
+          ],
         },
       ],
     });
 
     it('drops a javascript: href from a stored link', () => {
-      const wrapper = mountRichText({ content: paragraphWithLink('javascript:alert(1)') });
+      const wrapper = mountRichText({
+        content: paragraphWithLink('javascript:alert(1)'),
+      });
 
       const link = wrapper.find('a');
       expect(link.exists()).toBe(true);
@@ -453,7 +505,9 @@ describe('RichText', () => {
     });
 
     it('keeps an https href and adds noopener', () => {
-      const wrapper = mountRichText({ content: paragraphWithLink('https://tiptap.dev') });
+      const wrapper = mountRichText({
+        content: paragraphWithLink('https://tiptap.dev'),
+      });
 
       expect(wrapper.find('a').attributes('href')).toBe('https://tiptap.dev');
       expect(wrapper.find('a').attributes('rel')).toBe('noopener noreferrer');
@@ -500,5 +554,45 @@ describe('RichText', () => {
 
       wrapper.unmount();
     });
+  });
+});
+
+/** WS-1474: a price token in rich text is an inline `price` node the theme writes. */
+describe('RichText price nodes', () => {
+  const content = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Over ' },
+          { type: 'price', attrs: { id: 'a3f', amounts: { ISK: 500 } } },
+          { type: 'text', text: '!' },
+        ],
+      },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Returns are free.' }],
+      },
+    ],
+  };
+
+  it("writes a price with the theme's resolver", () => {
+    const wrapper = mount(RichText, {
+      props: {
+        content,
+        resolvePrice: (attrs: unknown) =>
+          `${(attrs as { amounts: Record<string, number> }).amounts.ISK} kr.`,
+      },
+    });
+    expect(wrapper.findAll('p').map((p) => p.text())).toEqual([
+      'Over 500 kr.!',
+      'Returns are free.',
+    ]);
+  });
+
+  it('leaves out the paragraph holding a price it cannot write', () => {
+    const wrapper = mount(RichText, { props: { content } });
+    expect(wrapper.findAll('p').map((p) => p.text())).toEqual(['Returns are free.']);
   });
 });

@@ -29,7 +29,11 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 // rather than whichever demo menu the seed happens to ship; everything else is the real seed, info
 // strip included. The redesigned seed's own menu (sections with cards, a badge, a dropdown) has its
 // own specs under "the Northwind menu".
-const mock = { ...seed, links: menuFixture.links, searchStyle: 'icon' as const };
+const mock = {
+  ...seed,
+  links: menuFixture.links,
+  searchStyle: 'icon' as const,
+};
 
 const COLLECTION_TEMPLATE = {
   id: 'rt-collection',
@@ -65,7 +69,10 @@ function resolveTargets<T extends Record<string, unknown>>(
   data: T
 ): {
   data: T;
-  links: { templates: (typeof COLLECTION_TEMPLATE)[]; targets: Map<string, unknown> };
+  links: {
+    templates: (typeof COLLECTION_TEMPLATE)[];
+    targets: Map<string, unknown>;
+  };
 } {
   const targets = new Map<string, unknown>();
   const rewrite = (link: SeedLink): SeedLink => {
@@ -90,7 +97,10 @@ function resolveTargets<T extends Record<string, unknown>>(
   const next = { ...data } as Record<string, unknown>;
   if (Array.isArray(next.links)) next.links = (next.links as SeedLink[]).map(rewrite);
   if (next.cta !== undefined) next.cta = rewrite(next.cta as SeedLink);
-  return { data: next as T, links: { templates: [COLLECTION_TEMPLATE], targets } };
+  return {
+    data: next as T,
+    links: { templates: [COLLECTION_TEMPLATE], targets },
+  };
 }
 
 const resolved = resolveTargets(mock);
@@ -192,10 +202,16 @@ function mountWithDrawer(data: Record<string, unknown>, opts: { editing?: boolea
       client: {},
       designTokens: { colors: {} },
       links: resolved.links,
-      preview: Object.assign(createEldraPreviewState(), { active: true, mode: 'edit' }),
+      preview: Object.assign(createEldraPreviewState(), {
+        active: true,
+        mode: 'edit',
+      }),
     };
   }
-  const wrapper = mount(Block, { ...base, global: { ...base.global, provide } });
+  const wrapper = mount(Block, {
+    ...base,
+    global: { ...base.global, provide },
+  });
   return { wrapper, storefront };
 }
 
@@ -277,7 +293,11 @@ describe('header block (navigation apiId)', () => {
     const wrapper = mountBlock({
       ...resolved.data,
       links: [
-        { kind: 'collection', target: { _type: 'collection', id: 'id-gone' }, label: 'Gone' },
+        {
+          kind: 'collection',
+          target: { _type: 'collection', id: 'id-gone' },
+          label: 'Gone',
+        },
       ],
     });
     expect(wrapper.text()).toContain('Gone');
@@ -339,8 +359,14 @@ describe('header block (navigation apiId)', () => {
                       heading: 'Featured',
                       display: 'card',
                       links: [
-                        { kind: 'product', target: { _type: 'product', id: 'p-1' } },
-                        { kind: 'collection', target: { _type: 'collection', id: 'c-1' } },
+                        {
+                          kind: 'product',
+                          target: { _type: 'product', id: 'p-1' },
+                        },
+                        {
+                          kind: 'collection',
+                          target: { _type: 'collection', id: 'c-1' },
+                        },
                       ],
                     },
                     {
@@ -577,9 +603,15 @@ describe('header block (navigation apiId)', () => {
     it('a sticky bar hides on scroll-down, returns on scroll-up or at the top, and never hides while in use', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       const header = wrapper.get('header');
-      Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+      Object.defineProperty(header.element, 'offsetHeight', {
+        value: 72,
+        configurable: true,
+      });
       const scrollTo = async (y: number) => {
-        Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+        Object.defineProperty(window, 'scrollY', {
+          value: y,
+          configurable: true,
+        });
         window.dispatchEvent(new Event('scroll'));
         await nextTick();
       };
@@ -624,9 +656,15 @@ describe('header block (navigation apiId)', () => {
       try {
         const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const header = wrapper.get('header');
-        Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+        Object.defineProperty(header.element, 'offsetHeight', {
+          value: 72,
+          configurable: true,
+        });
         const scrollTo = async (y: number) => {
-          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          Object.defineProperty(window, 'scrollY', {
+            value: y,
+            configurable: true,
+          });
           window.dispatchEvent(new Event('scroll'));
           await nextTick();
         };
@@ -653,9 +691,15 @@ describe('header block (navigation apiId)', () => {
       try {
         const wrapper = mountBlock(resolved.data, { attachTo: document.body });
         const header = wrapper.get('header');
-        Object.defineProperty(header.element, 'offsetHeight', { value: 72, configurable: true });
+        Object.defineProperty(header.element, 'offsetHeight', {
+          value: 72,
+          configurable: true,
+        });
         const scrollTo = async (y: number) => {
-          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          Object.defineProperty(window, 'scrollY', {
+            value: y,
+            configurable: true,
+          });
           window.dispatchEvent(new Event('scroll'));
           await nextTick();
         };
@@ -665,7 +709,9 @@ describe('header block (navigation apiId)', () => {
         await scrollTo(300);
         expect(header.classes()).not.toContain('-translate-y-full');
 
-        await searchButton.trigger('focusout', { relatedTarget: document.body });
+        await searchButton.trigger('focusout', {
+          relatedTarget: document.body,
+        });
         await scrollTo(600);
         expect(header.classes()).toContain('-translate-y-full');
 
@@ -679,13 +725,19 @@ describe('header block (navigation apiId)', () => {
     it('a non-sticky bar scrolls away with the page and never hides itself', async () => {
       const wrapper = mountBlock({ ...resolved.data, sticky: false }, { attachTo: document.body });
       const header = wrapper.get('header');
-      Object.defineProperty(window, 'scrollY', { value: 800, configurable: true });
+      Object.defineProperty(window, 'scrollY', {
+        value: 800,
+        configurable: true,
+      });
       window.dispatchEvent(new Event('scroll'));
       await nextTick();
       expect(header.classes()).not.toContain('sticky');
       expect(header.classes()).not.toContain('fixed');
       expect(header.classes()).not.toContain('-translate-y-full');
-      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      Object.defineProperty(window, 'scrollY', {
+        value: 0,
+        configurable: true,
+      });
       wrapper.unmount();
     });
 
@@ -812,7 +864,9 @@ describe('header block (navigation apiId)', () => {
         const links = panelLinks(wrapper, knitwear);
         wrapper.get('a[data-eldra-header-focus]').element.focus();
 
-        await panelFor(wrapper, knitwear).trigger('keydown', { key: 'ArrowUp' });
+        await panelFor(wrapper, knitwear).trigger('keydown', {
+          key: 'ArrowUp',
+        });
         await nextTick();
         expect(document.activeElement).toBe(links[links.length - 1]!.element);
         wrapper.unmount();
@@ -902,7 +956,9 @@ describe('header block (navigation apiId)', () => {
 
         // Kitchen has no groups, so it is an ordinary link: it takes focus and the panel closes
         // behind it rather than one opening that does not exist.
-        await panelLinks(wrapper, ceramics)[0]!.trigger('keydown', { key: 'ArrowRight' });
+        await panelLinks(wrapper, ceramics)[0]!.trigger('keydown', {
+          key: 'ArrowRight',
+        });
         await nextTick();
         expect(ceramics.attributes('aria-expanded')).toBe('false');
         expect(document.activeElement).toBe(items[2]);
@@ -1013,7 +1069,11 @@ describe('header block (navigation apiId)', () => {
        * `defaultPrevented` is the whole assertion here.
        */
       const press = (el: Element, key: string): boolean => {
-        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        const event = new KeyboardEvent('keydown', {
+          key,
+          bubbles: true,
+          cancelable: true,
+        });
         el.dispatchEvent(event);
         return event.defaultPrevented;
       };
@@ -1115,7 +1175,10 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mount(Block, {
         ...base,
         attachTo: document.body,
-        global: { ...base.global, stubs: { ...base.global.stubs, transition: false } },
+        global: {
+          ...base.global,
+          stubs: { ...base.global.stubs, transition: false },
+        },
       });
       const button = menuButton(wrapper);
       expect(button.attributes('aria-haspopup')).toBeUndefined();
@@ -1188,11 +1251,17 @@ describe('header block (navigation apiId)', () => {
     it('keeps the bar in place while it is open: the bar never slides away under an open menu', async () => {
       const wrapper = mountBlock(resolved.data, { attachTo: document.body });
       await menuButton(wrapper).trigger('click');
-      Object.defineProperty(window, 'scrollY', { value: 600, configurable: true });
+      Object.defineProperty(window, 'scrollY', {
+        value: 600,
+        configurable: true,
+      });
       window.dispatchEvent(new Event('scroll'));
       await wrapper.vm.$nextTick();
       expect(wrapper.get('header').classes()).not.toContain('-translate-y-full');
-      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      Object.defineProperty(window, 'scrollY', {
+        value: 0,
+        configurable: true,
+      });
       wrapper.unmount();
     });
   });
@@ -1322,7 +1391,9 @@ describe('header block (navigation apiId)', () => {
      * the header is not shopping.
      */
     it('does nothing when the bag is clicked in the editor', async () => {
-      const { wrapper, storefront } = mountWithDrawer(resolved.data, { editing: true });
+      const { wrapper, storefront } = mountWithDrawer(resolved.data, {
+        editing: true,
+      });
 
       const bag = findCartButton(wrapper);
       expect(bag.element.tagName).toBe('BUTTON');
@@ -1497,8 +1568,16 @@ describe('header block (navigation apiId)', () => {
           url: '/shop',
           label: 'Shop',
           children: [
-            { kind: 'url', url: '/categories/home/ceramics', label: 'Ceramics' },
-            { kind: 'url', url: '/categories/home/knitwear', label: 'Knitwear' },
+            {
+              kind: 'url',
+              url: '/categories/home/ceramics',
+              label: 'Ceramics',
+            },
+            {
+              kind: 'url',
+              url: '/categories/home/knitwear',
+              label: 'Knitwear',
+            },
           ],
         },
         { kind: 'url', url: '/categories/home/ceramics', label: 'Ceramics' },
@@ -1512,7 +1591,9 @@ describe('header block (navigation apiId)', () => {
       storefront = createDemoStorefront(storefrontOptions)
     ) {
       window.history.pushState({}, '', path);
-      const base = mountOptions({ entry: { id: 'e1', data: SHOP_AND_CERAMICS } });
+      const base = mountOptions({
+        entry: { id: 'e1', data: SHOP_AND_CERAMICS },
+      });
       return mount(Block, {
         ...base,
         attachTo: document.body,
@@ -1545,7 +1626,9 @@ describe('header block (navigation apiId)', () => {
     });
 
     it('marks only the Shop menu for a category that has no entry of its own', async () => {
-      const wrapper = mountAt('/categories/home/knitwear', { categoryPath: 'home/knitwear' });
+      const wrapper = mountAt('/categories/home/knitwear', {
+        categoryPath: 'home/knitwear',
+      });
       await flushIcons();
       expect(marked(wrapper).map((mark) => mark.split(':')[0])).toEqual(['Shop']);
       wrapper.unmount();
@@ -1802,7 +1885,12 @@ describe('header block (navigation apiId)', () => {
               url: '/collections/knitwear',
               label: 'Knitwear',
               children: [
-                { kind: 'url', url: '/collections/sweaters', label: 'Sweaters', group: 'Women' },
+                {
+                  kind: 'url',
+                  url: '/collections/sweaters',
+                  label: 'Sweaters',
+                  group: 'Women',
+                },
               ],
             },
           ],
@@ -1860,7 +1948,10 @@ describe('header block (navigation apiId)', () => {
       const wrapper = mount(Block, {
         ...base,
         attachTo: document.body,
-        global: { ...base.global, stubs: { ...base.global.stubs, transition: false } },
+        global: {
+          ...base.global,
+          stubs: { ...base.global.stubs, transition: false },
+        },
       });
       const knitwear = wrapper.findAll('button').find((b) => b.text().includes('Knitwear'))!;
       const panel = (): DOMWrapper<Element> =>
@@ -2209,8 +2300,15 @@ describe('header block (navigation apiId)', () => {
 
     it('keeps the Menu button as soon as the drawer has something to show', () => {
       for (const data of [
-        { ...SEEDED, links: [{ kind: 'url', url: '/journal', label: 'Journal' }] },
-        { ...SEEDED, ctaLabel: 'Shop', cta: { kind: 'url', url: '/collections/all' } },
+        {
+          ...SEEDED,
+          links: [{ kind: 'url', url: '/journal', label: 'Journal' }],
+        },
+        {
+          ...SEEDED,
+          ctaLabel: 'Shop',
+          cta: { kind: 'url', url: '/collections/all' },
+        },
       ]) {
         const wrapper = mountBlock(data);
         expect(wrapper.find('button[aria-label="Menu"]').exists()).toBe(true);
@@ -2248,12 +2346,18 @@ describe('header block (navigation apiId)', () => {
 
   describe('transparentOverHero', () => {
     it('field off renders solid, with no data-eldra-transparent attribute', () => {
-      const wrapper = mountBlock({ ...resolved.data, transparentOverHero: false });
+      const wrapper = mountBlock({
+        ...resolved.data,
+        transparentOverHero: false,
+      });
       expect(wrapper.find('header').attributes('data-eldra-transparent')).toBeUndefined();
     });
 
     it('field on sets the transparent attribute (the block only reads its own field)', () => {
-      const wrapper = mountBlock({ ...resolved.data, transparentOverHero: true });
+      const wrapper = mountBlock({
+        ...resolved.data,
+        transparentOverHero: true,
+      });
       expect(wrapper.find('header').attributes('data-eldra-transparent')).toBe('true');
     });
   });
@@ -2291,7 +2395,10 @@ describe('header block (navigation apiId)', () => {
     /** Mirrors `trust-strip`'s own `ResizeObserver` stub: jsdom has none at all, so this replaces
      *  `globalThis.ResizeObserver` with a fake that only captures the callback the block passes,
      *  letting a test call `trigger()` after changing the header's measured height. */
-    function stubResizeObserver(): { trigger: () => void; restore: () => void } {
+    function stubResizeObserver(): {
+      trigger: () => void;
+      restore: () => void;
+    } {
       let captured: ResizeObserverCallback | null = null;
       class FakeResizeObserver {
         constructor(callback: ResizeObserverCallback) {
@@ -2389,13 +2496,19 @@ describe('header block (navigation apiId)', () => {
         const wrapper = mountBlock({ ...resolved.data, sticky: true }, { attachTo: document.body });
         const header = wrapper.get('header').element as HTMLElement;
         stubHeaderHeight(header, 72);
-        Object.defineProperty(header, 'offsetHeight', { value: 72, configurable: true });
+        Object.defineProperty(header, 'offsetHeight', {
+          value: 72,
+          configurable: true,
+        });
         await nextTick();
         stub.trigger();
         const value = () =>
           document.documentElement.style.getPropertyValue('--eldra-header-height');
         const scrollTo = async (y: number) => {
-          Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+          Object.defineProperty(window, 'scrollY', {
+            value: y,
+            configurable: true,
+          });
           window.dispatchEvent(new Event('scroll'));
           await nextTick();
         };
@@ -2420,7 +2533,10 @@ describe('header block (navigation apiId)', () => {
         expect(value()).toBe('');
       } finally {
         stub.restore();
-        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+        Object.defineProperty(window, 'scrollY', {
+          value: 0,
+          configurable: true,
+        });
       }
     });
 
@@ -2448,7 +2564,11 @@ describe('header block (navigation apiId)', () => {
 describe('the Northwind menu (the seed’s own)', () => {
   const PRODUCT_TEMPLATE = {
     id: 'rt-product',
-    data: { schemaApiId: 'catalog:product', routePattern: '/products/:slug', slugField: 'slug' },
+    data: {
+      schemaApiId: 'catalog:product',
+      routePattern: '/products/:slug',
+      slugField: 'slug',
+    },
   };
   const PRODUCT_TARGETS: Record<string, { image: string; price: number }> = {
     'speckled-latte-mug': { image: '/images/mug.webp', price: 28 },
@@ -2498,7 +2618,7 @@ describe('the Northwind menu (the seed’s own)', () => {
       expect(strip.attributes('aria-label')).toBe('Store information');
       const [start, end] = strip.findAll('ul');
       expect(start!.findAll('li').map((li) => li.text())).toEqual([
-        'Free delivery over $80',
+        'Free delivery over $80.00',
         '30-day returns',
         'Shop open today 10–18',
       ]);
@@ -2583,7 +2703,13 @@ describe('the Northwind menu (the seed’s own)', () => {
       width,
       height,
     });
-    const mark = { assetId: 'mark', url: '/mark.svg', altText: '', width: 64, height: 64 };
+    const mark = {
+      assetId: 'mark',
+      url: '/mark.svg',
+      altText: '',
+      width: 64,
+      height: 64,
+    };
     const brand = (wrapper: Wrapper) => wrapper.get('[data-eldra-header-brand]');
 
     it('names the link once, so whichever picture a width shows, it reads the same', async () => {
@@ -2849,7 +2975,11 @@ describe('the currency', () => {
   });
 
   it('keeps the bar picker for a phone with a strip but no menu to hold it', () => {
-    const wrapper = mountWithCurrencies({ links: [], ctaLabel: undefined, cta: undefined });
+    const wrapper = mountWithCurrencies({
+      links: [],
+      ctaLabel: undefined,
+      cta: undefined,
+    });
     expect(stripPicker(wrapper).exists()).toBe(true);
     expect(barPicker(wrapper).classes()).toContain('@min-[47.625rem]:hidden');
     expect(barPicker(wrapper).classes()).not.toContain('hidden');
@@ -2890,13 +3020,18 @@ describe('the Northwind header details', () => {
     const row = wrapper.findAll('[data-part="drawerLink"]').find((r) => r.text() === 'Sale')!;
     expect(row.attributes('data-tone')).toBe('accent');
     // The seed's own Sale carries it.
-    expect(seed.links.find((link) => link.label === 'Sale')).toMatchObject({ tone: 'accent' });
+    expect(seed.links.find((link) => link.label === 'Sale')).toMatchObject({
+      tone: 'accent',
+    });
     wrapper.unmount();
   });
 
   it('shows Account between the links and Saved from 68.8125rem, and in the menu’s foot below', async () => {
     const wrapper = mountBlock(
-      { ...resolved.data, account: { kind: 'url', url: '/pages/account', label: 'Account' } },
+      {
+        ...resolved.data,
+        account: { kind: 'url', url: '/pages/account', label: 'Account' },
+      },
       { attachTo: document.body }
     );
     const actions = wrapper.get('[data-eldra-header-actions]');

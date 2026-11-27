@@ -91,6 +91,7 @@
       "fieldId": "formKey",
       "name": "Form",
       "type": "string",
+      "allowPrices": false,
       "helpText": "The key of the sign-up form on the Forms page. Defaults to \"newsletter\" when unset."
     },
     {
@@ -138,6 +139,7 @@
                 "fieldId": "href",
                 "name": "Link",
                 "type": "string",
+                "allowPrices": false,
                 "helpText": "tel:, mailto: or a page. Optional."
               },
               {

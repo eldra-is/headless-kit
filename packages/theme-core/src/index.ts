@@ -1,5 +1,5 @@
 // @eldrajs/theme-core
-export { encodeStega, decodeStega, stripStega, type StegaMeta } from './stega';
+export { encodeStega, decodeStega, stripStega, type StegaMeta, type StegaPricePart } from './stega';
 export { createEldraClient } from './client';
 export * from './analytics';
 export * from './clientTypes';

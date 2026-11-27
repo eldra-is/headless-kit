@@ -522,6 +522,7 @@ function semanticChecks(file: string, block: Record<string, unknown>, errors: st
   const fields = Array.isArray(block.fields)
     ? (block.fields as Array<Record<string, unknown>>)
     : [];
+  priceFieldChecks(file, fields, 'fields', errors);
   const seen = new Set<string>();
   let titleCount = 0;
   const groups = Array.isArray(block.groups)
@@ -1053,6 +1054,41 @@ function checkFieldVisibility(
     }
   }
   field.showWhen = { field: siblingId, in: values };
+}
+
+/** The field types that hold price tokens (WS-1474), and so the only ones `allowPrices` may name. */
+const PRICE_FIELD_TYPES = new Set(['string', 'text', 'rich-text']);
+
+/**
+ * `allowPrices` is a text field's own setting: Core allows price tokens in every text field of a
+ * theme block, and `false` opts one out. At any depth (a list item's or composite's fields too) it
+ * must be a boolean on `string`, `text` or `rich-text`.
+ */
+function priceFieldChecks(
+  file: string,
+  fields: Array<Record<string, unknown>>,
+  at: string,
+  errors: string[]
+): void {
+  fields.forEach((field, index) => {
+    const where = `${at}[${index}]`;
+    if ('allowPrices' in field) {
+      if (typeof field.allowPrices !== 'boolean') {
+        errors.push(`${file}: ${where}.allowPrices — must be a boolean`);
+      } else if (!PRICE_FIELD_TYPES.has(String(field.type))) {
+        errors.push(
+          `${file}: ${where}.allowPrices — only allowed on type "string", "text" or "rich-text" (got "${String(field.type)}")`
+        );
+      }
+    }
+    const metadata = isRecord(field.metadata) ? field.metadata : {};
+    if (Array.isArray(metadata.fields)) {
+      priceFieldChecks(file, metadata.fields.filter(isRecord), `${where}.metadata.fields`, errors);
+    }
+    if (isRecord(metadata.item)) {
+      priceFieldChecks(file, [metadata.item], `${where}.metadata.item`, errors);
+    }
+  });
 }
 
 function compositeDepth(field: Record<string, unknown>, depth = 1): number {

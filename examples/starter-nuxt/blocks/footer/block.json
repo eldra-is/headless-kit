@@ -117,6 +117,7 @@
       "fieldId": "phone",
       "name": "Phone",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Rendered as a tel: link. Shown on the default variant only.",
       "validators": {
         "maxLength": 40
@@ -126,6 +127,7 @@
       "fieldId": "email",
       "name": "Email",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Rendered as a mailto: link. Shown on the default variant only.",
       "validators": {
         "maxLength": 120
@@ -227,6 +229,7 @@
                 "fieldId": "href",
                 "name": "URL",
                 "type": "string",
+                "allowPrices": false,
                 "validators": {
                   "required": true
                 }

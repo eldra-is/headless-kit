@@ -92,7 +92,10 @@ describe('createOverlayRuntime', () => {
         entryId: 'block-1',
         schemaApiId: 'hero',
         layoutNodeId: 'placement-1',
-        rect: expect.objectContaining({ x: expect.any(Number), width: expect.any(Number) }),
+        rect: expect.objectContaining({
+          x: expect.any(Number),
+          width: expect.any(Number),
+        }),
       })
     );
 
@@ -139,7 +142,258 @@ describe('createOverlayRuntime', () => {
     runtime.rescan();
     expect(document.querySelector('[data-eldra-field="body"]')?.textContent).toBe('New text');
     expect(post).toHaveBeenCalledWith('theme:blocks-rendered', {
-      blocks: [expect.objectContaining({ entryId: 'block-1', layoutNodeId: 'placement-1' })],
+      blocks: [
+        expect.objectContaining({
+          entryId: 'block-1',
+          layoutNodeId: 'placement-1',
+        }),
+      ],
+    });
+  });
+
+  it('keeps a field whose page text is not its stored text selectable but never editable in place', () => {
+    const paragraph = document.createElement('p');
+    // A theme wrote a price token out as "€100.00": typing here would save that over the token.
+    paragraph.textContent = encodeStega('Free shipping over €100.00', {
+      entryId: 'block-1',
+      fieldPath: 'note',
+      locale: 'en-US',
+      inline: false,
+    });
+    document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+    runtime.rescan();
+    runtime.setMode('edit');
+    const field = document.querySelector('[data-eldra-field="note"]') as HTMLElement;
+    expect(field.textContent).toBe('Free shipping over €100.00');
+    expect(field.getAttribute('contenteditable')).toBeNull();
+    // The heading beside it, an ordinary field, still is.
+    expect(
+      document.querySelector('[data-eldra-field="heading"]')?.getAttribute('contenteditable')
+    ).toBe('true');
+    field.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(post).toHaveBeenCalledWith(
+      'theme:field-clicked',
+      expect.objectContaining({
+        entryId: 'block-1',
+        fieldPath: 'note',
+        locale: 'en-US',
+      })
+    );
+  });
+
+  it("never copies a draft's raw text over a field whose page text is not its stored text", () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = encodeStega('Free shipping over €100.00', {
+      entryId: 'block-1',
+      fieldPath: 'note',
+      locale: 'en-US',
+      inline: false,
+    });
+    document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+    runtime.rescan();
+    runtime.setMode('edit');
+    // Studio's draft holds the token; the theme renders it written out.
+    runtime.reconcileExternalDrafts(
+      { 'block-1': { note: 'Free shipping over ⟦price#a3f EUR=10000⟧' } },
+      ['block-1']
+    );
+    expect(document.querySelector('[data-eldra-field="note"]')?.textContent).toBe(
+      'Free shipping over €100.00'
+    );
+  });
+
+  describe('price-tokens-inline: a priced field edited on the canvas', () => {
+    const TOKEN = '⟦price#a3f EUR=10000⟧';
+    const meta = { entryId: 'block-1', fieldPath: 'note', locale: 'en-US' };
+    const rendered = (label: string, token = TOKEN, lead = 'Free shipping over ') =>
+      encodeStega(`${lead}${label}`, { ...meta, parts: [lead, { token, label }] });
+
+    function priced(): HTMLElement {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = rendered('€100.00');
+      document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+      runtime.rescan();
+      return document.querySelector('[data-eldra-field="note"]') as HTMLElement;
+    }
+    const focus = (field: HTMLElement) =>
+      field.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    /** jsdom lays nothing out and has no `Range.getClientRects`: a box per text range, by its text. */
+    const layOut = (box: (range: Range) => Record<'left' | 'right' | 'top' | 'bottom', number>) =>
+      Object.defineProperty(Range.prototype, 'getClientRects', {
+        configurable: true,
+        value(this: Range) {
+          return [box(this)];
+        },
+      });
+
+    it('is not editable in place until both sides speak price-tokens-inline', () => {
+      const field = priced();
+      runtime.setMode('edit');
+      expect(field.getAttribute('contenteditable')).toBeNull();
+      runtime.setPriceTokensEnabled(true);
+      expect(field.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('shows each price as a chip and posts every edit as stored text, token intact', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      const chip = field.querySelector('[data-eldra-price-token]') as HTMLElement;
+      expect(chip.getAttribute('data-eldra-price-token')).toBe(TOKEN);
+      expect(chip.textContent).toBe('€100.00');
+      expect(chip.getAttribute('contenteditable')).toBe('false');
+      // The operator rewrites the words before the price.
+      (field.firstChild as Text).data = 'Free delivery over ';
+      field.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      vi.advanceTimersByTime(300);
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ ...meta, value: `Free delivery over ${TOKEN}` })
+      );
+    });
+
+    it('posts theme:price-clicked for a chip, so Studio opens its price editor', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      field
+        .querySelector('[data-eldra-price-token]')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('opens a written-out price on the first click: the press lands on the text, focus makes the chip', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      // The price's text is at 200…260 × 10…30, the words before it elsewhere.
+      layOut((range) =>
+        range.toString() === '€100.00'
+          ? { left: 200, right: 260, top: 10, bottom: 30 }
+          : { left: 0, right: 0, top: 0, bottom: 0 }
+      );
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 230, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 230, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('finds a written-out price the renderer spaced its own way', () => {
+      const paragraph = document.createElement('p');
+      const lead = 'Free shipping over ';
+      paragraph.textContent = encodeStega(`${lead}100 kr. `, {
+        ...meta,
+        parts: [lead, { token: TOKEN, label: '100 kr.' }],
+      });
+      document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+      runtime.rescan();
+      const field = document.querySelector('[data-eldra-field="note"]') as HTMLElement;
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      layOut((range) =>
+        range.toString() === '100 kr.'
+          ? { left: 200, right: 260, top: 10, bottom: 30 }
+          : { left: 0, right: 0, top: 0, bottom: 0 }
+      );
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 230, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 230, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('opens nothing for a first click on the words beside a price', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      layOut(() => ({ left: 200, right: 260, top: 10, bottom: 30 }));
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 40, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 40, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).not.toHaveBeenCalledWith('theme:price-clicked', expect.anything());
+    });
+
+    it("keeps the operator's text while the renderer re-states it, but takes new amounts", () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      (field.firstChild as Text).data = 'Ships free over ';
+      field.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      // Studio's price editor changed the amount: the renderer writes the field out again.
+      field.textContent = rendered('€120.00', '⟦price#a3f EUR=12000⟧');
+      expect(field.firstChild?.textContent).toBe('Ships free over ');
+      const chip = field.querySelector('[data-eldra-price-token]') as HTMLElement;
+      expect(chip.getAttribute('data-eldra-price-token')).toBe('⟦price#a3f EUR=12000⟧');
+      expect(chip.textContent).toBe('€120.00');
+      // Leaving the field posts what was typed and hands the renderer its newest text.
+      field.dispatchEvent(
+        new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })
+      );
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ value: 'Ships free over ⟦price#a3f EUR=12000⟧' })
+      );
+      expect(field.querySelector('[data-eldra-price-token]')).toBeNull();
+      expect(field.textContent).toContain('Free shipping over €120.00');
+    });
+
+    it('inserts a price at the caret for editor:insert-price', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      const text = field.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(text, 'Free '.length);
+      range.collapse(true);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+      runtime.insertPriceToken(meta, '⟦store freeShippingThreshold⟧', '$80.00');
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({
+          value: `Free ⟦store freeShippingThreshold⟧shipping over ${TOKEN}`,
+        })
+      );
+    });
+
+    it("never copies a draft's stored text over the written price", () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      runtime.reconcileExternalDrafts({ 'block-1': { note: `Free shipping over ${TOKEN}` } }, [
+        'block-1',
+      ]);
+      expect(field.textContent).toBe('Free shipping over €100.00');
     });
   });
 
@@ -238,7 +492,11 @@ describe('createOverlayRuntime', () => {
   it('keeps every keystroke and the caret when the editor echoes a draft one key behind', () => {
     runtime.setMode('edit');
     const stega = (value: string): string =>
-      encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+      encodeStega(value, {
+        entryId: 'block-1',
+        fieldPath: 'heading',
+        locale: 'en-US',
+      });
     const field = (): HTMLElement =>
       document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
     const placeCaret = (offset: number): void => {
@@ -403,7 +661,11 @@ describe('createOverlayRuntime', () => {
 
     it('survives an echo that arrives only after the next keystroke was posted', () => {
       const stega = (value: string): string =>
-        encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+        encodeStega(value, {
+          entryId: 'block-1',
+          fieldPath: 'heading',
+          locale: 'en-US',
+        });
       typeAhead('!');
       vi.advanceTimersByTime(300); // posts 'Hello!'
       typeAhead('?');
@@ -432,7 +694,11 @@ describe('createOverlayRuntime', () => {
     const fieldOf = (): HTMLElement =>
       document.querySelector('[data-eldra-field="heading"]') as HTMLElement;
     const stega = (value: string): string =>
-      encodeStega(value, { entryId: 'block-1', fieldPath: 'heading', locale: 'en-US' });
+      encodeStega(value, {
+        entryId: 'block-1',
+        fieldPath: 'heading',
+        locale: 'en-US',
+      });
     /** The browser's half of one typed character. */
     const type = (char: string): void => {
       const element = fieldOf();
@@ -459,7 +725,11 @@ describe('createOverlayRuntime', () => {
       const node = fieldOf().firstChild;
       const records: MutationRecord[] = [];
       const observer = new MutationObserver((batch) => records.push(...batch));
-      observer.observe(fieldOf(), { childList: true, characterData: true, subtree: true });
+      observer.observe(fieldOf(), {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
 
       // Three echoes of the operator's own text — three autosaves. The
       // renderer's string differs from the live text by the stega payload
@@ -482,7 +752,11 @@ describe('createOverlayRuntime', () => {
       const node = fieldOf().firstChild;
       const records: MutationRecord[] = [];
       const observer = new MutationObserver((batch) => records.push(...batch));
-      observer.observe(fieldOf(), { childList: true, characterData: true, subtree: true });
+      observer.observe(fieldOf(), {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
 
       // The echo carries the draft from before that keystroke. It used to land
       // and be undone a pass later by `restoreEditingFocus`; the repair cost
@@ -760,7 +1034,10 @@ describe('createOverlayRuntime', () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(post).toHaveBeenCalledWith('theme:blocks-rendered', {
       blocks: [
-        expect.objectContaining({ entryId: 'block-1', rect: expect.objectContaining({ y: 240 }) }),
+        expect.objectContaining({
+          entryId: 'block-1',
+          rect: expect.objectContaining({ y: 240 }),
+        }),
       ],
     });
   });
@@ -867,15 +1144,27 @@ describe('createOverlayRuntime', () => {
     nav.href = '/about';
     document.body.appendChild(nav);
 
-    const middleClick = new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 });
+    const middleClick = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      button: 1,
+    });
     nav.dispatchEvent(middleClick);
     expect(middleClick.defaultPrevented).toBe(true);
 
-    const ctrlClick = new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true });
+    const ctrlClick = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+    });
     nav.dispatchEvent(ctrlClick);
     expect(ctrlClick.defaultPrevented).toBe(true);
 
-    const metaClick = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+    const metaClick = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      metaKey: true,
+    });
     nav.dispatchEvent(metaClick);
     expect(metaClick.defaultPrevented).toBe(true);
   });
@@ -885,7 +1174,11 @@ describe('createOverlayRuntime', () => {
     nav.href = '/about';
     document.body.appendChild(nav);
 
-    const auxClick = new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 });
+    const auxClick = new MouseEvent('auxclick', {
+      bubbles: true,
+      cancelable: true,
+      button: 1,
+    });
     nav.dispatchEvent(auxClick);
 
     expect(auxClick.defaultPrevented).toBe(true);
@@ -977,7 +1270,10 @@ describe('createOverlayRuntime', () => {
     nav.href = '/about';
     document.body.appendChild(nav);
 
-    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    });
     nav.dispatchEvent(clickEvent);
     expect(clickEvent.defaultPrevented).toBe(false);
 
@@ -991,7 +1287,10 @@ describe('createOverlayRuntime', () => {
 
     const form = document.createElement('form');
     document.body.appendChild(form);
-    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+    const submitEvent = new Event('submit', {
+      bubbles: true,
+      cancelable: true,
+    });
     form.dispatchEvent(submitEvent);
     expect(submitEvent.defaultPrevented).toBe(false);
   });
@@ -1246,7 +1545,11 @@ describe('native rich-text editing (§18 v3)', () => {
   const BODY_DOC = {
     type: 'doc',
     content: [
-      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Rich heading' }] },
+      {
+        type: 'heading',
+        attrs: { level: 2 },
+        content: [{ type: 'text', text: 'Rich heading' }],
+      },
       {
         type: 'paragraph',
         content: [
@@ -1332,11 +1635,15 @@ describe('native rich-text editing (§18 v3)', () => {
       data: options.data ?? null,
     });
     if (options.ranges !== undefined) {
-      Object.defineProperty(event, 'getTargetRanges', { value: () => options.ranges });
+      Object.defineProperty(event, 'getTargetRanges', {
+        value: () => options.ranges,
+      });
     }
     if (options.pasted !== undefined) {
       Object.defineProperty(event, 'dataTransfer', {
-        value: { getData: (type: string) => (type === 'text/plain' ? options.pasted : '') },
+        value: {
+          getData: (type: string) => (type === 'text/plain' ? options.pasted : ''),
+        },
       });
     }
     (options.target ?? richTextRoot).dispatchEvent(event);
@@ -1358,7 +1665,12 @@ describe('native rich-text editing (§18 v3)', () => {
     endContainer: Node;
     endOffset: number;
   } {
-    return { startContainer: node, startOffset: offset, endContainer: node, endOffset: offset };
+    return {
+      startContainer: node,
+      startOffset: offset,
+      endContainer: node,
+      endOffset: offset,
+    };
   }
 
   beforeEach(() => {
@@ -1544,7 +1856,10 @@ describe('native rich-text editing (§18 v3)', () => {
   it('leaves selection position reporting unaffected by the inline whitespace style', () => {
     select(textNodeFor('Rich '), 2);
     flushSelection();
-    expect(posted('theme:rich-text-selection')[0]).toMatchObject({ anchor: 17, head: 17 });
+    expect(posted('theme:rich-text-selection')[0]).toMatchObject({
+      anchor: 17,
+      head: 17,
+    });
   });
 
   // --- selection reporting -------------------------------------------------
@@ -1615,7 +1930,10 @@ describe('native rich-text editing (§18 v3)', () => {
 
     flushSelection();
 
-    expect(posted('theme:rich-text-selection')[0]).toMatchObject({ anchor: 16, head: 24 });
+    expect(posted('theme:rich-text-selection')[0]).toMatchObject({
+      anchor: 16,
+      head: 24,
+    });
   });
 
   it('coalesces a burst of selection changes into one report per frame', () => {
@@ -1629,7 +1947,9 @@ describe('native rich-text editing (§18 v3)', () => {
 
     // One report, carrying the selection as it settled.
     expect(posted('theme:rich-text-selection')).toHaveLength(1);
-    expect(posted('theme:rich-text-selection')[0]).toMatchObject({ anchor: 18 });
+    expect(posted('theme:rich-text-selection')[0]).toMatchObject({
+      anchor: 18,
+    });
   });
 
   it('posts exactly one blur when the selection leaves the root', () => {
@@ -1881,16 +2201,27 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('classifies a keystroke inside one text run as native', () => {
     const text = textNodeFor('Rich ');
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'a' });
-    Object.defineProperty(event, 'getTargetRanges', { value: () => [at(text, 2)] });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'a',
+    });
+    Object.defineProperty(event, 'getTargetRanges', {
+      value: () => [at(text, 2)],
+    });
 
-    expect(classifyBeforeInput(event, richTextRoot)).toEqual({ kind: 'native', from: 17, to: 17 });
+    expect(classifyBeforeInput(event, richTextRoot)).toEqual({
+      kind: 'native',
+      from: 17,
+      to: 17,
+    });
   });
 
   it('classifies a deletion that crosses a block boundary as a command', () => {
     // Backspace at the start of the paragraph: the browser reports a target
     // range reaching back into the heading, which is a join, not a text edit.
-    const event = new InputEvent('beforeinput', { inputType: 'deleteContentBackward' });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'deleteContentBackward',
+    });
     Object.defineProperty(event, 'getTargetRanges', {
       value: () => [
         {
@@ -1911,7 +2242,10 @@ describe('native rich-text editing (§18 v3)', () => {
   });
 
   it('classifies a selection spanning a mark boundary as a command, not a text edit', () => {
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+    });
     Object.defineProperty(event, 'getTargetRanges', {
       value: () => [
         {
@@ -1965,17 +2299,30 @@ describe('native rich-text editing (§18 v3)', () => {
     const outside = document.createElement('p');
     outside.textContent = 'elsewhere';
     document.body.appendChild(outside);
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'a' });
-    Object.defineProperty(event, 'getTargetRanges', { value: () => [at(outside.firstChild!, 1)] });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'a',
+    });
+    Object.defineProperty(event, 'getTargetRanges', {
+      value: () => [at(outside.firstChild!, 1)],
+    });
 
-    expect(classifyBeforeInput(event, richTextRoot)).toEqual({ kind: 'ignore', from: 0, to: 0 });
+    expect(classifyBeforeInput(event, richTextRoot)).toEqual({
+      kind: 'ignore',
+      from: 0,
+      to: 0,
+    });
   });
 
   // --- native text ops -----------------------------------------------------
 
   it('lets a keystroke run natively and posts one input op on the following input event', () => {
     const text = textNodeFor('Rich ');
-    const event = beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    const event = beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
 
     // The caret stays in the theme: nothing is prevented.
     expect(event.defaultPrevented).toBe(false);
@@ -2000,7 +2347,14 @@ describe('native rich-text editing (§18 v3)', () => {
     const text = textNodeFor('Rich ');
     beforeInput('deleteContentBackward', {
       target: text,
-      ranges: [{ startContainer: text, startOffset: 1, endContainer: text, endOffset: 2 }],
+      ranges: [
+        {
+          startContainer: text,
+          startOffset: 1,
+          endContainer: text,
+          endOffset: 2,
+        },
+      ],
     });
     input('deleteContentBackward', null, text);
 
@@ -2017,9 +2371,17 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('increments the revision once per op', () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'b' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'b',
+    });
     input('insertText', 'b', text);
 
     expect(posted('theme:rich-text-input').map((op) => op.revision)).toEqual([1, 2]);
@@ -2036,7 +2398,11 @@ describe('native rich-text editing (§18 v3)', () => {
     select(text, 2);
     text.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
     // Intermediate composition keystrokes must stay silent.
-    beforeInput('insertCompositionText', { target: text, ranges: [at(text, 2)], data: 'に' });
+    beforeInput('insertCompositionText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'に',
+    });
     input('insertCompositionText', 'に', text);
     expect(posted('theme:rich-text-input')).toHaveLength(0);
 
@@ -2057,7 +2423,10 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('prevents and forwards Enter as insertParagraph', () => {
     const text = textNodeFor('Rich ');
-    const event = beforeInput('insertParagraph', { target: text, ranges: [at(text, 2)] });
+    const event = beforeInput('insertParagraph', {
+      target: text,
+      ranges: [at(text, 2)],
+    });
 
     expect(event.defaultPrevented).toBe(true);
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2077,7 +2446,14 @@ describe('native rich-text editing (§18 v3)', () => {
     const text = textNodeFor('Rich ');
     const event = beforeInput('formatBold', {
       target: text,
-      ranges: [{ startContainer: text, startOffset: 0, endContainer: text, endOffset: 4 }],
+      ranges: [
+        {
+          startContainer: text,
+          startOffset: 0,
+          endContainer: text,
+          endOffset: 4,
+        },
+      ],
     });
 
     expect(event.defaultPrevented).toBe(true);
@@ -2115,8 +2491,14 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('forwards undo and redo rather than letting the browser do it', () => {
     const text = textNodeFor('Rich ');
-    const undo = beforeInput('historyUndo', { target: text, ranges: [at(text, 2)] });
-    const redo = beforeInput('historyRedo', { target: text, ranges: [at(text, 2)] });
+    const undo = beforeInput('historyUndo', {
+      target: text,
+      ranges: [at(text, 2)],
+    });
+    const redo = beforeInput('historyRedo', {
+      target: text,
+      ranges: [at(text, 2)],
+    });
 
     expect(undo.defaultPrevented).toBe(true);
     expect(redo.defaultPrevented).toBe(true);
@@ -2130,7 +2512,10 @@ describe('native rich-text editing (§18 v3)', () => {
     runtime.setRichTextEnabled(false);
     const text = textNodeFor('Rich ');
 
-    const event = beforeInput('insertParagraph', { target: text, ranges: [at(text, 2)] });
+    const event = beforeInput('insertParagraph', {
+      target: text,
+      ranges: [at(text, 2)],
+    });
 
     expect(event.defaultPrevented).toBe(false);
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -2147,7 +2532,11 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('leaves the DOM and the caret alone when applied confirms its own native op', async () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
     text.data = 'Riach ';
     input('insertText', 'a', text);
     select(text, 3);
@@ -2170,7 +2559,11 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('keeps the field deferred across a confirming ack, and across the later one', () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
     expect(runtime.isRichTextRenderDeferred(target)).toBe(true);
 
@@ -2199,9 +2592,17 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('keeps the field deferred when a confirming ack lags behind a newer op', () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'b' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'b',
+    });
     input('insertText', 'b', text);
 
     runtime.acceptRichTextApplied({
@@ -2219,7 +2620,11 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('releases the field and restores the selection when applied asks for a re-render', async () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
     // A re-render replaced the nodes the caret lived in.
     select(heading.firstChild!, 0);
@@ -2241,7 +2646,11 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('releases the field when Studio acks from ahead of the theme', async () => {
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
     select(heading.firstChild!, 0);
 
@@ -2281,7 +2690,13 @@ describe('native rich-text editing (§18 v3)', () => {
   it('drops an applied whose positions are out of bounds or whose field is gone', async () => {
     select(heading.firstChild!, 0);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: -1, head: 0, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: -1,
+      head: 0,
+      rerender: true,
+    });
     runtime.acceptRichTextApplied({
       ...target,
       revision: 1,
@@ -2325,7 +2740,13 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(posted('theme:rich-text-command')).toHaveLength(0);
     expect(posted('theme:rich-text-input')).toHaveLength(0);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2348,7 +2769,13 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(posted('theme:rich-text-command')).toHaveLength(0);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2372,7 +2799,13 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(posted('theme:rich-text-command')).toHaveLength(0);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2395,7 +2828,13 @@ describe('native rich-text editing (§18 v3)', () => {
 
     expect(event.defaultPrevented).toBe(true);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -2408,7 +2847,13 @@ describe('native rich-text editing (§18 v3)', () => {
     beforeInput('insertParagraph', {});
     beforeInput('insertLineBreak', {});
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     // Only the first posts: Studio applies theme:rich-text-command literally
@@ -2421,7 +2866,13 @@ describe('native rich-text editing (§18 v3)', () => {
     // Studio's applied for the insertParagraph just posted (revision 1) —
     // the restore it triggers is what flushes the next queued entry, at the
     // positions *this* restore places the caret at.
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 21, head: 21, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 21,
+      head: 21,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2444,16 +2895,46 @@ describe('native rich-text editing (§18 v3)', () => {
     beforeInput('insertLineBreak', {});
 
     // Bootstrap: awaitingRevision is null, so any ack posts the first entry.
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
     // Exact-match acks walk the buffer down normally.
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 16, head: 16, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 16,
+      head: 16,
+      rerender: true,
+    });
     await flushRestore();
-    runtime.acceptRichTextApplied({ ...target, revision: 2, anchor: 18, head: 18, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 2,
+      anchor: 18,
+      head: 18,
+      rerender: true,
+    });
     await flushRestore();
-    runtime.acceptRichTextApplied({ ...target, revision: 3, anchor: 20, head: 20, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 3,
+      anchor: 20,
+      head: 20,
+      rerender: true,
+    });
     await flushRestore();
-    runtime.acceptRichTextApplied({ ...target, revision: 4, anchor: 22, head: 22, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 4,
+      anchor: 22,
+      head: 22,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2467,7 +2948,13 @@ describe('native rich-text editing (§18 v3)', () => {
     // Studio's self-heal path can answer with its current revision rather
     // than the one this buffer is awaiting (5): a stale ack (4, behind it)
     // must not release the sixth entry.
-    runtime.acceptRichTextApplied({ ...target, revision: 4, anchor: 24, head: 24, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 4,
+      anchor: 24,
+      head: 24,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toHaveLength(5);
@@ -2475,7 +2962,13 @@ describe('native rich-text editing (§18 v3)', () => {
     // An ack at or beyond the awaited revision (6, ahead of 5) means Studio
     // has moved past the op this buffer was waiting on — release the next
     // entry, at the positions this restore places the caret at.
-    runtime.acceptRichTextApplied({ ...target, revision: 6, anchor: 26, head: 26, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 6,
+      anchor: 26,
+      head: 26,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
@@ -2501,7 +2994,13 @@ describe('native rich-text editing (§18 v3)', () => {
       new FocusEvent('focusout', { bubbles: true, relatedTarget: outside })
     );
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -2514,7 +3013,13 @@ describe('native rich-text editing (§18 v3)', () => {
 
     runtime.setRichTextEditing(target, false);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 14, head: 14, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 14,
+      head: 14,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -2522,7 +3027,11 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('leaves ordinary typing (a resolvable selection) untouched', () => {
     const text = textNodeFor('Rich ');
-    const event = beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    const event = beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
 
     expect(event.defaultPrevented).toBe(false);
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -2581,7 +3090,14 @@ describe('native rich-text editing (§18 v3)', () => {
     // ("a","b","c" -> "cba"). Coalescing while queuing keeps a run of plain
     // typed characters as the single edit the operator actually made.
     expect(posted('theme:rich-text-command')).toEqual([
-      { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: 'abc', revision: 1 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 17,
+        to: 17,
+        text: 'abc',
+        revision: 1,
+      },
     ]);
   });
 
@@ -2600,24 +3116,64 @@ describe('native rich-text editing (§18 v3)', () => {
     runtime.setRichTextEditing(target, true);
 
     expect(posted('theme:rich-text-command')).toEqual([
-      { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: 'a', revision: 1 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 17,
+        to: 17,
+        text: 'a',
+        revision: 1,
+      },
     ]);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 18, head: 18, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 18,
+      head: 18,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
-      { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: 'a', revision: 1 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 17,
+        to: 17,
+        text: 'a',
+        revision: 1,
+      },
       { ...identity, name: 'insertParagraph', from: 18, to: 18, revision: 2 },
     ]);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 2, anchor: 21, head: 21, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 2,
+      anchor: 21,
+      head: 21,
+      rerender: true,
+    });
     await flushRestore();
 
     expect(posted('theme:rich-text-command')).toEqual([
-      { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: 'a', revision: 1 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 17,
+        to: 17,
+        text: 'a',
+        revision: 1,
+      },
       { ...identity, name: 'insertParagraph', from: 18, to: 18, revision: 2 },
-      { ...identity, name: 'insertFromPaste', from: 21, to: 21, text: 'b', revision: 3 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 21,
+        to: 21,
+        text: 'b',
+        revision: 3,
+      },
     ]);
   });
 
@@ -2691,7 +3247,14 @@ describe('native rich-text editing (§18 v3)', () => {
     // The queue flushes one at a time, not the whole buffer, so this is also
     // proof the cap kept the *order* of the 64 survivors, not just the count.
     expect(posted('theme:rich-text-command')).toEqual([
-      { ...identity, name: 'insertFromPaste', from: 17, to: 17, text: '1', revision: 1 },
+      {
+        ...identity,
+        name: 'insertFromPaste',
+        from: 17,
+        to: 17,
+        text: '1',
+        revision: 1,
+      },
     ]);
   });
 
@@ -2703,9 +3266,17 @@ describe('native rich-text editing (§18 v3)', () => {
     const text = textNodeFor('Rich ');
 
     expect(runtime.isRichTextRenderDeferred(target)).toBe(false);
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
-    beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'b' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'b',
+    });
     input('insertText', 'b', text);
 
     expect(runtime.isRichTextRenderDeferred(target)).toBe(true);
@@ -2721,7 +3292,11 @@ describe('native rich-text editing (§18 v3)', () => {
     runtime.rescan();
     const text = textNodeFor('Rich ');
 
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
 
     expect(runtime.isRichTextRenderDeferred(target)).toBe(true);
@@ -2733,7 +3308,11 @@ describe('native rich-text editing (§18 v3)', () => {
     const changes: Array<{ deferred: boolean }> = [];
     runtime.onRichTextRenderState((change) => changes.push(change));
     const text = textNodeFor('Rich ');
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
 
     // Studio performs a command, so its result must be rendered.
@@ -2782,7 +3361,11 @@ describe('native rich-text editing (§18 v3)', () => {
     const text = textNodeFor('Rich ');
     select(text, 1);
     flushSelection();
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
     expect(runtime.isRichTextRenderDeferred(target)).toBe(true);
 
@@ -2799,7 +3382,10 @@ describe('native rich-text editing (§18 v3)', () => {
     post.mockClear();
 
     // An HTML-only paste mid-typing: prevented, but nothing goes out.
-    const event = beforeInput('insertFromPaste', { ranges: [at(text, 3)], pasted: '' });
+    const event = beforeInput('insertFromPaste', {
+      ranges: [at(text, 3)],
+      pasted: '',
+    });
 
     expect(event.defaultPrevented).toBe(true);
     expect(post).not.toHaveBeenCalled();
@@ -2821,7 +3407,11 @@ describe('native rich-text editing (§18 v3)', () => {
     beforeInput('insertText', { ranges: [at(text, 2)], data: 'a' });
     input('insertText', 'a', richTextRoot);
     const otherText = secondRoot.querySelector('p')!.firstChild as Text;
-    beforeInput('insertText', { target: secondRoot, ranges: [at(otherText, 2)], data: 'b' });
+    beforeInput('insertText', {
+      target: secondRoot,
+      ranges: [at(otherText, 2)],
+      data: 'b',
+    });
     input('insertText', 'b', secondRoot);
     expect(runtime.isRichTextRenderDeferred(here)).toBe(true);
     expect(runtime.isRichTextRenderDeferred(other)).toBe(true);
@@ -2872,7 +3462,13 @@ describe('native rich-text editing (§18 v3)', () => {
     // The block navigated away; the ack arrives afterwards and names no
     // placement, so nothing is keyed to it any more.
     richTextRoot.remove();
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 2, head: 2, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 2,
+      head: 2,
+      rerender: true,
+    });
 
     expect(runtime.isRichTextRenderDeferred(target)).toBe(false);
   });
@@ -2883,7 +3479,11 @@ describe('native rich-text editing (§18 v3)', () => {
     unsubscribe();
     const text = textNodeFor('Rich ');
 
-    beforeInput('insertText', { target: text, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
 
     expect(changes).toEqual([]);
@@ -2921,8 +3521,13 @@ describe('native rich-text editing (§18 v3)', () => {
   );
 
   it('classifies an unnameable inputType as ignore, and the runtime still prevents it', () => {
-    const event = new InputEvent('beforeinput', { inputType: 'formatFontName', data: 'Comic' });
-    Object.defineProperty(event, 'getTargetRanges', { value: () => [at(textNodeFor('Rich '), 1)] });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'formatFontName',
+      data: 'Comic',
+    });
+    Object.defineProperty(event, 'getTargetRanges', {
+      value: () => [at(textNodeFor('Rich '), 1)],
+    });
 
     // The classifier reports what it is; the policy of preventing it is the
     // runtime's, so the two stay separable.
@@ -2934,7 +3539,10 @@ describe('native rich-text editing (§18 v3)', () => {
     outside.textContent = 'elsewhere';
     document.body.appendChild(outside);
 
-    const event = beforeInput('insertText', { ranges: [at(outside.firstChild!, 1)], data: 'a' });
+    const event = beforeInput('insertText', {
+      ranges: [at(outside.firstChild!, 1)],
+      data: 'a',
+    });
 
     expect(event.defaultPrevented).toBe(true);
     expect(post).not.toHaveBeenCalled();
@@ -2944,8 +3552,12 @@ describe('native rich-text editing (§18 v3)', () => {
 
   it('treats a collapsed delete as a command: backspace is a join, however small', () => {
     const text = textNodeFor('Rich ');
-    const event = new InputEvent('beforeinput', { inputType: 'deleteContentBackward' });
-    Object.defineProperty(event, 'getTargetRanges', { value: () => [at(text, 2)] });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'deleteContentBackward',
+    });
+    Object.defineProperty(event, 'getTargetRanges', {
+      value: () => [at(text, 2)],
+    });
 
     expect(classifyBeforeInput(event, richTextRoot)).toEqual({
       kind: 'command',
@@ -2961,7 +3573,10 @@ describe('native rich-text editing (§18 v3)', () => {
 
     // `Rich |<strong>paragraph` — whether the character inherits the mark is
     // the browser's guess, and its answer is not the document's.
-    const trailing = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
+    const trailing = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+    });
     Object.defineProperty(trailing, 'getTargetRanges', {
       value: () => [at(plain, plain.data.length)],
     });
@@ -2972,8 +3587,13 @@ describe('native rich-text editing (§18 v3)', () => {
       name: 'insertFromPaste',
     });
 
-    const leading = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
-    Object.defineProperty(leading, 'getTargetRanges', { value: () => [at(bold, 0)] });
+    const leading = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+    });
+    Object.defineProperty(leading, 'getTargetRanges', {
+      value: () => [at(bold, 0)],
+    });
     expect(classifyBeforeInput(leading, richTextRoot)).toEqual({
       kind: 'command',
       from: 20,
@@ -2982,9 +3602,18 @@ describe('native rich-text editing (§18 v3)', () => {
     });
 
     // One character in from either side is an ordinary text run edit again.
-    const inside = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
-    Object.defineProperty(inside, 'getTargetRanges', { value: () => [at(plain, 2)] });
-    expect(classifyBeforeInput(inside, richTextRoot)).toEqual({ kind: 'native', from: 17, to: 17 });
+    const inside = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+    });
+    Object.defineProperty(inside, 'getTargetRanges', {
+      value: () => [at(plain, 2)],
+    });
+    expect(classifyBeforeInput(inside, richTextRoot)).toEqual({
+      kind: 'native',
+      from: 17,
+      to: 17,
+    });
   });
 
   it('treats a caret that is not in a text run at all as a command', () => {
@@ -2994,8 +3623,13 @@ describe('native rich-text editing (§18 v3)', () => {
     empty.setAttribute('data-eldra-node', 'paragraph');
     empty.setAttribute('data-eldra-pos', '30');
     richTextRoot.appendChild(empty);
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'x' });
-    Object.defineProperty(event, 'getTargetRanges', { value: () => [at(empty, 0)] });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+    });
+    Object.defineProperty(event, 'getTargetRanges', {
+      value: () => [at(empty, 0)],
+    });
 
     expect(classifyBeforeInput(event, richTextRoot)).toEqual({
       kind: 'command',
@@ -3012,26 +3646,52 @@ describe('native rich-text editing (§18 v3)', () => {
     select(text, 2);
 
     // No getTargetRanges at all — older engines, and jsdom.
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'a' });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'a',
+    });
 
-    expect(classifyBeforeInput(event, richTextRoot)).toEqual({ kind: 'native', from: 17, to: 17 });
+    expect(classifyBeforeInput(event, richTextRoot)).toEqual({
+      kind: 'native',
+      from: 17,
+      to: 17,
+    });
   });
 
   it('ignores an event with neither a target range nor a selection', () => {
     document.getSelection()!.removeAllRanges();
 
-    const event = new InputEvent('beforeinput', { inputType: 'insertText', data: 'a' });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'a',
+    });
 
-    expect(classifyBeforeInput(event, richTextRoot)).toEqual({ kind: 'ignore', from: 0, to: 0 });
+    expect(classifyBeforeInput(event, richTextRoot)).toEqual({
+      kind: 'ignore',
+      from: 0,
+      to: 0,
+    });
   });
 
   it('never calls a multi-range edit native, however innocent each range looks', () => {
     const text = textNodeFor('Rich ');
-    const event = new InputEvent('beforeinput', { inputType: 'deleteContentBackward' });
+    const event = new InputEvent('beforeinput', {
+      inputType: 'deleteContentBackward',
+    });
     Object.defineProperty(event, 'getTargetRanges', {
       value: () => [
-        { startContainer: text, startOffset: 1, endContainer: text, endOffset: 2 },
-        { startContainer: text, startOffset: 3, endContainer: text, endOffset: 4 },
+        {
+          startContainer: text,
+          startOffset: 1,
+          endContainer: text,
+          endOffset: 2,
+        },
+        {
+          startContainer: text,
+          startOffset: 3,
+          endContainer: text,
+          endOffset: 4,
+        },
       ],
     });
 
@@ -3093,7 +3753,11 @@ describe('native rich-text editing (§18 v3)', () => {
     const echoed = {
       type: 'doc',
       content: [
-        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Rich heading' }] },
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: 'Rich heading' }],
+        },
         {
           type: 'paragraph',
           content: [
@@ -3110,7 +3774,10 @@ describe('native rich-text editing (§18 v3)', () => {
     flushSelection();
 
     // The bold run now starts at 22, not 20.
-    expect(posted('theme:rich-text-selection')[0]).toMatchObject({ anchor: 23, head: 23 });
+    expect(posted('theme:rich-text-selection')[0]).toMatchObject({
+      anchor: 23,
+      head: 23,
+    });
     expect(
       computeRichTextPositions(echoed).nodes.filter((node) => node.type === 'text')[2]!.pos
     ).toBe(22);
@@ -3128,15 +3795,27 @@ describe('native rich-text editing (§18 v3)', () => {
     const other = { ...target, layoutNodeId: 'OtherNode' };
 
     const text = secondRoot.querySelector('p')!.firstChild as Text;
-    beforeInput('insertText', { target: secondRoot, ranges: [at(text, 1)], data: 'a' });
+    beforeInput('insertText', {
+      target: secondRoot,
+      ranges: [at(text, 1)],
+      data: 'a',
+    });
     input('insertText', 'a', secondRoot);
 
     expect(runtime.isRichTextRenderDeferred(other)).toBe(true);
     expect(runtime.isRichTextRenderDeferred(placed)).toBe(false);
-    expect(posted('theme:rich-text-input')[0]).toMatchObject({ layoutNodeId: 'OtherNode' });
+    expect(posted('theme:rich-text-input')[0]).toMatchObject({
+      layoutNodeId: 'OtherNode',
+    });
 
     // Studio's ack names the placement it came from, and releases only it.
-    runtime.acceptRichTextApplied({ ...other, revision: 1, anchor: 2, head: 2, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...other,
+      revision: 1,
+      anchor: 2,
+      head: 2,
+      rerender: true,
+    });
     expect(runtime.isRichTextRenderDeferred(other)).toBe(false);
   });
 
@@ -3145,7 +3824,10 @@ describe('native rich-text editing (§18 v3)', () => {
   it('drops an HTML-only paste rather than sending it as an empty insertion', () => {
     const text = textNodeFor('Rich ');
 
-    const event = beforeInput('insertFromPaste', { ranges: [at(text, 2)], pasted: '' });
+    const event = beforeInput('insertFromPaste', {
+      ranges: [at(text, 2)],
+      pasted: '',
+    });
 
     // Still prevented — the browser must not paste markup the theme cannot
     // describe — but nothing is posted: an empty text would make Studio delete
@@ -3185,7 +3867,13 @@ describe('native rich-text editing (§18 v3)', () => {
     runtime.setMode('preview');
     select(heading.firstChild!, 0);
 
-    runtime.acceptRichTextApplied({ ...target, revision: 1, anchor: 17, head: 17, rerender: true });
+    runtime.acceptRichTextApplied({
+      ...target,
+      revision: 1,
+      anchor: 17,
+      head: 17,
+      rerender: true,
+    });
 
     expect(document.getSelection()!.focusNode).toBe(heading.firstChild);
   });
@@ -3234,7 +3922,11 @@ describe('native rich-text editing (§18 v3)', () => {
     flushSelection();
     post.mockClear();
 
-    const event = beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    const event = beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
 
     expect(event.defaultPrevented).toBe(true);
     expect(posted('theme:rich-text-input')).toHaveLength(0);
@@ -3261,7 +3953,14 @@ describe('native rich-text editing (§18 v3)', () => {
 
     const event = beforeInput('deleteContentBackward', {
       target: text,
-      ranges: [{ startContainer: text, startOffset: 1, endContainer: text, endOffset: 2 }],
+      ranges: [
+        {
+          startContainer: text,
+          startOffset: 1,
+          endContainer: text,
+          endOffset: 2,
+        },
+      ],
     });
 
     expect(event.defaultPrevented).toBe(true);
@@ -3273,7 +3972,11 @@ describe('native rich-text editing (§18 v3)', () => {
     // The default (marked) fixture from beforeEach, unchanged: the gate must
     // not affect a root Studio has actually activated.
     const text = textNodeFor('Rich ');
-    const event = beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    const event = beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
 
     expect(event.defaultPrevented).toBe(false);
     expect(posted('theme:rich-text-command')).toHaveLength(0);
@@ -3319,7 +4022,10 @@ describe('native rich-text editing (§18 v3)', () => {
     flushSelection();
     post.mockClear();
 
-    const event = new CompositionEvent('compositionstart', { bubbles: true, cancelable: true });
+    const event = new CompositionEvent('compositionstart', {
+      bubbles: true,
+      cancelable: true,
+    });
     text.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(true);
@@ -3476,7 +4182,11 @@ describe('native rich-text editing (§18 v3)', () => {
     expect(replacement.getAttribute('contenteditable')).toBe('true');
 
     const text = replacement.querySelector('p')!.firstChild as Text;
-    const event = beforeInput('insertText', { target: text, ranges: [at(text, 2)], data: 'a' });
+    const event = beforeInput('insertText', {
+      target: text,
+      ranges: [at(text, 2)],
+      data: 'a',
+    });
     input('insertText', 'a', text);
 
     // Not swallowed: the keystroke ran natively and was reported.
@@ -3646,7 +4356,11 @@ class PointerEventStub extends MouseEvent {
   readonly pointerId: number;
   constructor(
     type: string,
-    init: MouseEventInit & { clientX?: number; clientY?: number; pointerId?: number } = {}
+    init: MouseEventInit & {
+      clientX?: number;
+      clientY?: number;
+      pointerId?: number;
+    } = {}
   ) {
     super(type, init);
     this.clientX = init.clientX ?? 0;
@@ -3674,7 +4388,16 @@ function styleRect(element: Element): {
   const y = num(style.top);
   const width = num(style.width);
   const height = num(style.height);
-  return { x, y, left: x, top: y, right: x + width, bottom: y + height, width, height };
+  return {
+    x,
+    y,
+    left: x,
+    top: y,
+    right: x + width,
+    bottom: y + height,
+    width,
+    height,
+  };
 }
 
 describe('drop mode', () => {
@@ -3706,7 +4429,11 @@ describe('drop mode', () => {
         <div data-eldra-block="entry-1" data-eldra-layout-node="hero-1" style="position:absolute;left:10px;top:10px;width:100px;height:40px"></div>
       </div>`;
     overlay.start();
-    overlay.setDragPayload({ kind: 'palette-block', id: 'tile-hero', apiId: 'hero' });
+    overlay.setDragPayload({
+      kind: 'palette-block',
+      id: 'tile-hero',
+      apiId: 'hero',
+    });
     const block = document.querySelector('[data-eldra-block]')!;
     const rect = block.getBoundingClientRect();
     block.dispatchEvent(
@@ -3744,9 +4471,17 @@ describe('drop mode', () => {
     document.body.innerHTML =
       '<div data-eldra-layout-node="grid-1" style="width:300px;height:200px"></div>';
     overlay.start();
-    overlay.setDragPayload({ kind: 'palette-block', id: 'tile-hero', apiId: 'hero' });
+    overlay.setDragPayload({
+      kind: 'palette-block',
+      id: 'tile-hero',
+      apiId: 'hero',
+    });
     document.body.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: 9999, clientY: 9999, bubbles: true })
+      new PointerEvent('pointermove', {
+        clientX: 9999,
+        clientY: 9999,
+        bubbles: true,
+      })
     );
     expect(post).toHaveBeenCalledWith('theme:drop-candidate', null);
   });
@@ -3757,7 +4492,11 @@ describe('drop mode', () => {
     post.mockClear(); // start() reports theme:blocks-rendered; isolate the drop path
     overlay.setDragPayload(null);
     document.body.dispatchEvent(
-      new PointerEvent('pointerup', { clientX: 10, clientY: 10, bubbles: true })
+      new PointerEvent('pointerup', {
+        clientX: 10,
+        clientY: 10,
+        bubbles: true,
+      })
     );
     expect(post).not.toHaveBeenCalled();
   });
@@ -3772,7 +4511,11 @@ describe('drop mode', () => {
         </div>
       </div>`;
     overlay.start();
-    overlay.setDragPayload({ kind: 'palette-block', id: 'tile-hero', apiId: 'hero' });
+    overlay.setDragPayload({
+      kind: 'palette-block',
+      id: 'tile-hero',
+      apiId: 'hero',
+    });
     const marker = document.querySelector('[data-eldra-slot-marker]')!;
     const rect = marker.getBoundingClientRect();
     const at = { clientX: rect.left + 5, clientY: rect.top + 5, bubbles: true };
@@ -3799,9 +4542,17 @@ describe('drop mode', () => {
       <div data-eldra-slot-marker data-eldra-slot-id="hero-actions" data-eldra-layout-node-id="hero-1"
            style="position:absolute;left:400px;top:400px;width:80px;height:20px"></div>`;
     overlay.start();
-    overlay.setDragPayload({ kind: 'palette-block', id: 'tile-hero', apiId: 'hero' });
+    overlay.setDragPayload({
+      kind: 'palette-block',
+      id: 'tile-hero',
+      apiId: 'hero',
+    });
     document.body.dispatchEvent(
-      new PointerEvent('pointermove', { clientX: 405, clientY: 405, bubbles: true })
+      new PointerEvent('pointermove', {
+        clientX: 405,
+        clientY: 405,
+        bubbles: true,
+      })
     );
     expect(post).toHaveBeenCalledWith('theme:drop-candidate', {
       layoutNodeId: 'hero-1',
@@ -3818,7 +4569,11 @@ describe('drop mode', () => {
         <div data-eldra-block="entry-1" data-eldra-layout-node="hero-1" style="position:absolute;left:10px;top:10px;width:100px;height:40px"></div>
       </div>`;
     overlay.start();
-    overlay.setDragPayload({ kind: 'palette-block', id: 'tile-hero', apiId: 'hero' });
+    overlay.setDragPayload({
+      kind: 'palette-block',
+      id: 'tile-hero',
+      apiId: 'hero',
+    });
     const block = document.querySelector('[data-eldra-block]')!;
     const rect = block.getBoundingClientRect();
     block.dispatchEvent(
@@ -3976,10 +4731,20 @@ describe('framing mode', () => {
       })
     );
     image.dispatchEvent(
-      new PointerEvent('pointermove', { bubbles: true, clientX: 140, clientY: 100, pointerId: 1 })
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        clientX: 140,
+        clientY: 100,
+        pointerId: 1,
+      })
     );
     image.dispatchEvent(
-      new PointerEvent('pointermove', { bubbles: true, clientX: 180, clientY: 100, pointerId: 1 })
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        clientX: 180,
+        clientY: 100,
+        pointerId: 1,
+      })
     );
     expect(post).not.toHaveBeenCalledWith('theme:framing-changed', expect.anything());
     vi.advanceTimersByTime(16);
@@ -3991,7 +4756,12 @@ describe('framing mode', () => {
       final: false,
     });
     image.dispatchEvent(
-      new PointerEvent('pointerup', { bubbles: true, clientX: 180, clientY: 100, pointerId: 1 })
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        clientX: 180,
+        clientY: 100,
+        pointerId: 1,
+      })
     );
     expect(post).toHaveBeenLastCalledWith('theme:framing-changed', {
       entryId: 'block-1',
@@ -4031,16 +4801,22 @@ describe('framing mode', () => {
   it('leaves on Escape, on a click outside and on selection change', () => {
     click(image);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(post).toHaveBeenLastCalledWith('theme:framing-target', { entryId: null });
+    expect(post).toHaveBeenLastCalledWith('theme:framing-target', {
+      entryId: null,
+    });
     expect(runtime.chromeState().framing).toBe('none');
 
     click(image);
     click(document.body);
-    expect(post).toHaveBeenLastCalledWith('theme:framing-target', { entryId: null });
+    expect(post).toHaveBeenLastCalledWith('theme:framing-target', {
+      entryId: null,
+    });
 
     click(image);
     runtime.setSelected(null);
-    expect(post).toHaveBeenLastCalledWith('theme:framing-target', { entryId: null });
+    expect(post).toHaveBeenLastCalledWith('theme:framing-target', {
+      entryId: null,
+    });
   });
 
   it('enters and leaves through setFramingMode and stays inert in preview mode', () => {
@@ -4050,7 +4826,9 @@ describe('framing mode', () => {
       expect.objectContaining({ entryId: 'block-1' })
     );
     runtime.setFramingMode(null);
-    expect(post).toHaveBeenLastCalledWith('theme:framing-target', { entryId: null });
+    expect(post).toHaveBeenLastCalledWith('theme:framing-target', {
+      entryId: null,
+    });
 
     runtime.setMode('preview');
     post.mockClear();
@@ -4088,7 +4866,9 @@ describe('framing mode', () => {
     click(image);
     post.mockClear();
     runtime.stop();
-    expect(post).toHaveBeenLastCalledWith('theme:framing-target', { entryId: null });
+    expect(post).toHaveBeenLastCalledWith('theme:framing-target', {
+      entryId: null,
+    });
   });
 
   it('retargets directly from one framed image to another without an intervening null target', () => {
@@ -4120,7 +4900,11 @@ describe('framing mode', () => {
   it('re-asserts the in-flight gesture value when a re-render rewrites the framed image mid-gesture', () => {
     click(image);
     image.dispatchEvent(
-      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -Math.log(2) / 0.002 })
+      new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -Math.log(2) / 0.002,
+      })
     );
     vi.advanceTimersByTime(16);
     expect(image.style.getPropertyValue('transform')).toBe('scale(2)');
@@ -4167,15 +4951,29 @@ describe('framing mode', () => {
 
   it('recovers the zoom-independent frame rect from a scaled getBoundingClientRect, and hides the outline on exit', () => {
     click(image);
-    expect(runtime.chromeState().frameRect).toEqual({ x: 0, y: 0, width: 400, height: 200 });
+    expect(runtime.chromeState().frameRect).toEqual({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+    });
     image.dispatchEvent(
-      new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -Math.log(2) / 0.002 })
+      new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -Math.log(2) / 0.002,
+      })
     );
     vi.advanceTimersByTime(16);
     // The scaled getBoundingClientRect at zoom 2 (origin 50% 50%) is
     // {-200, -100, 800, 400}; unscaledFrameRect recovers the same
     // zoom-independent {0, 0, 400, 200} frame the outline and badge use.
-    expect(runtime.chromeState().frameRect).toEqual({ x: 0, y: 0, width: 400, height: 200 });
+    expect(runtime.chromeState().frameRect).toEqual({
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+    });
     expect(runtime.chromeState().framing).toBe('block');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(runtime.chromeState().framing).toBe('none');
@@ -4244,7 +5042,12 @@ describe('framing mode', () => {
         })
       );
       image.dispatchEvent(
-        new PointerEvent('pointermove', { bubbles: true, clientX: 140, clientY: 100, pointerId: 1 })
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          clientX: 140,
+          clientY: 100,
+          pointerId: 1,
+        })
       );
       post.mockClear();
       runtime.setFramingEnabled(false);
@@ -4806,7 +5609,10 @@ describe('breakpoint-hidden layout nodes', () => {
   it("resolves the viewport against the theme's own breakpoints, not the kit defaults", () => {
     runtime.stop();
     vi.stubGlobal('innerWidth', 900);
-    const themed = createOverlayRuntime({ post, breakpoints: { tablet: 950, normal: 1600 } });
+    const themed = createOverlayRuntime({
+      post,
+      breakpoints: { tablet: 950, normal: 1600 },
+    });
     themed.start();
     // 900px is `tablet` under the kit defaults (768/1024) and `mobile` under
     // this theme's own (950/1600) — the stylesheet wrote its `@media` blocks

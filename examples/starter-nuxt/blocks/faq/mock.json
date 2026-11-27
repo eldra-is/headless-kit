@@ -100,7 +100,18 @@
             "content": [
               {
                 "type": "text",
-                "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
+                "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for "
+              },
+              {
+                "type": "price",
+                "attrs": {
+                  "id": "card",
+                  "amounts": { "EUR": 400, "ISK": 600, "USD": 400 }
+                }
+              },
+              {
+                "type": "text",
+                "text": ", and we leave prices off the packing slip."
               }
             ]
           }

@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `provideEldraPrices(resolve)` / `useEldraPrices()` (`ELDRA_PRICE_KEY`): `EldraRichText` writes a rich-text `price` node with the provided resolver and hides the paragraph holding one it cannot write (WS-1474).
 - `useEldraLink()` spells the hrefs of a link's `sections` (heading links, links, see-all links) in the
   active content locale, as it does a link's children. `ResolvedSection` and `LinkSectionValue` are
   re-exported (WS-1321).

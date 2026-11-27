@@ -9,6 +9,7 @@ platform repository.
 
 ## Unreleased
 
+- **Price tokens (WS-1474, WS-1473).** New entry `@eldrajs/sdk/tokens`: a price inside any text, `⟦price#a3f EUR=10000 ISK=1500000⟧` (minor units per currency, never converted) or a store setting, `⟦store freeShippingThreshold⟧`. `resolveTokens(text, { currency, locale, storeAmounts, format })` writes each in the shopper's currency and leaves out a sentence whose price has no amount in it, keeping the builder preview's payload; `resolvePriceNode` does the same for a rich-text `price` node. Also `parseTokens`, `serializeToken`, `toMajorUnits`/`toMinorUnits`, and `lengthText`, what a `maxLength` counts (each token as `TOKEN_TEXT_LENGTH`, 10). `features.getStoreAmounts()` reads the free-shipping threshold per currency, the lowest among the active delivery methods (`GET /delivery/v1/provider-account`), as `StoreAmounts`.
 - **The organisation's regional format (WS-1277).** `features.getRegion()` answers `{ countryCode, formatLocale, timeZone }` (`EldraOrganizationRegion`, the organisation read's `region`) or `null`: the locale Studio says to format money, numbers and dates with, and the time zone to show them in, independent of the content locale. Validated: a malformed tag, an unknown time zone or a country that is not two letters answers `null`, never a value `Intl` would throw on. `formatLocale` is canonicalised and `countryCode` upper-cased. `EldraOrganizationDetails` carries `region`.
 - **A store's default currency (WS-1399; contract 6.22.0).** `EldraOrganizationCommerce` carries `defaultCurrency`, what pages are built in and a visitor starts in. A store may turn its own currency off: `currency` stays ISK, and `currencies` then leaves it out.
 - **Selling in more than one currency (WS-1391; contracts 6.19.0, 6.20.0, 6.21.0).** `createCurrencyPreference()` keeps the currency a visitor picked (`read`, `remember`, `forget`; `localStorage` `eldra.currency`); `cart.setCurrency(cartId, currency)` changes a cart's currency (`PUT /shopping-cart/v1/cart/{cartID}/currency`); `catalog.getProduct` takes `currency`; `EldraOrganizationCommerce` carries `currencies` (what the storefront may offer, the store currency first); `paymentProviders` on the organisation is typed as `EldraOrganizationPaymentProvider[]`, each with the `currencies` it takes (missing means ISK only).
@@ -25,8 +26,7 @@ platform repository.
 - **Several discount codes on one cart (contract 6.9.0).** `applyDiscount` and `applyCode` (as `DISCOUNT`) now add
   a code after the cart's codes instead of replacing it; each applies to what the codes before it left. Three new
   409 refusals leave the cart as it was: `CART_DISCOUNT_NOT_COMBINABLE` (the code and one on the cart cannot be
-  combined; `errors.blockingCode` names the one on the cart), `CART_DISCOUNT_CODES_LIMIT_REACHED` (`errors.limit`,
-  6) and `CART_DISCOUNT_ALREADY_APPLIED`. `EldraHttpError` gains `errors`, the problem's `errors` object when the
+  combined; `errors.blockingCode` names the one on the cart), `CART_DISCOUNT_CODES_LIMIT_REACHED` (`errors.limit`, 6) and `CART_DISCOUNT_ALREADY_APPLIED`. `EldraHttpError` gains `errors`, the problem's `errors` object when the
   body carries one. The cart carries `discountCodes` (`{code, amount}` in the order added; the type is
   `EldraCartDiscountCodeEntry`); `cart.removeDiscountEntry(cartId, code, options?)` removes one code and
   `removeDiscount` now removes every code. `applyDiscount`'s `applied` reads `discountCodes` (falling back to
@@ -37,7 +37,7 @@ platform repository.
 - **Several gift cards on one cart (contract 6.8.0).** A cart holds any number of gift cards beside its discount
   code: `applyGiftCard` and `applyCode` now add a card after the others instead of replacing one, and the same card
   again is 409 `CART_GIFT_CARD_ALREADY_APPLIED`. The cart carries `giftCards` (`{entryId, last4, balance, applied,
-  amountDue}` in the order applied; the type is `EldraCartGiftCardEntry`) and the cart-wide `amountDue`.
+amountDue}` in the order applied; the type is `EldraCartGiftCardEntry`) and the cart-wide `amountDue`.
   `cart.removeGiftCardEntry(cartId, entryId, options?)` removes one card; `removeGiftCard` now removes every card.
   The cart's `giftCard` and `EldraCartGiftCard` are deprecated: the contract answers them for one more
   version. The contract fixtures are regenerated from 6.8.0.
@@ -119,7 +119,7 @@ serving public contract 6.15.0 (core merged main's 6.14.0 first).
 - Sales orders and delivery locations (contract 6.15.0) for a signed-in business customer's active
   company: `customer.locations(context)` (`GET /customer/v1/locations`, answered as the `{ data }`
   envelope like every other list, the default first, `data` `[]` for none), `salesOrders.preview(input, context)`, `salesOrders.create(input, { idempotencyKey },
-  context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
+context)`, `salesOrders.list(options, context)` and `salesOrders.get(id, context)`. `create`
   requires the idempotency key (1 to 255 printable ASCII characters, no spaces) and rejects with
   `EldraIdempotencyKeyError` (a `TypeError`) without a usable one, sending nothing. Catch that class,
   not every `TypeError`: a lost connection is a `TypeError` too and is retried with the key. Keep the key across

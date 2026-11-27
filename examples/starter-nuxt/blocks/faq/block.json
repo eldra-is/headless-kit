@@ -94,7 +94,8 @@
     {
       "fieldId": "contactLinkHref",
       "name": "Contact link",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "sectionBackground",

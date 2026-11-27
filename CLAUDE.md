@@ -320,7 +320,7 @@ theme on an older protocol version ignores rather than misreads. Two owners, two
 - **`editor:*` — Studio sends, the theme receives.** `editor:hello`/`editor:init` (mode, preview
   token, locale, path), `editor:content-update` (draft entry data), `editor:design-tokens` /
   `editor:theme-messages` (live overrides), `editor:select-block`, `editor:navigate`,
-  `editor:set-mode`, `editor:set-viewport`, `editor:refresh`/`editor:ping`, `editor:drag-start`/
+  `editor:set-mode`, `editor:set-viewport`, `editor:refresh`/`editor:ping`, `editor:insert-price`, `editor:drag-start`/
   `editor:drag-end`, `editor:framing-mode` (image framing), and the §18 rich-text trio
   `editor:rich-text-editing` / `editor:rich-text-applied` / `editor:rich-text-locate`.
 - **`theme:*` — the theme sends, Studio receives.** `theme:ready` (capabilities, manifest/theme/SDK
@@ -328,12 +328,13 @@ theme on an older protocol version ignores rather than misreads. Two owners, two
   `theme:field-clicked` / `theme:text-edited`, `theme:blocks-rendered` / `theme:block-hovered` /
   `theme:slots-rendered` (editor-only geometry, gated by capability negotiation), `theme:height-changed`,
   `theme:error`, `theme:request-failed` (a gateway read's HTTP status — how a theme signals a revoked
-  preview token without Studio polling for it), `theme:drop-candidate` / `theme:node-dropped`
+  preview token without Studio polling for it), `theme:price-clicked` (a price in a plain-text
+  field edited on the canvas), `theme:drop-candidate` / `theme:node-dropped`
   (structural drag), `theme:framing-target` / `theme:framing-changed`, and the rich-text trio
   `theme:rich-text-selection` / `theme:rich-text-input` / `theme:rich-text-command`.
 
 Each side advertises what it supports in its first message — `EDITOR_CAPABILITIES` /
-`THEME_CAPABILITIES` (`protocol.ts:466`) — so a capability like `block-slots` or `rich-text-inline`
+`THEME_CAPABILITIES` (`protocol.ts:466`) — so a capability like `block-slots`, `rich-text-inline` or `price-tokens-inline`
 is only ever used once both sides have named it. `@eldrajs/theme-core/overlay` is the runtime that
 turns these messages into DOM selection, rich-text classification and drag handling inside the
 iframe; `@eldrajs/theme-vue`'s `useEldraPreview`/`startEldraPreview` wire a Vue theme up to it. See
@@ -366,6 +367,14 @@ settings feed `robots.txt` and `sitemap.xml`, which `module.ts` writes on nitro'
 `compiled` from the routes the `prerender:routes` hook collected (`./runtime/crawlOutput.ts`; pure
 builders in `@eldrajs/theme-core`'s `sitemap.ts`). A preview build writes `Disallow: /` and no
 sitemap; a file of the same name in the theme's own `public/` is never replaced.
+
+One more follows it too: the store amounts behind `⟦store …⟧` price tokens (`GET
+/delivery/v1/provider-account`, `readStoreAmounts`): the lowest free-shipping threshold per
+currency among the active delivery methods, minor units, into `runtimeConfig.public.eldra.storeAmounts`.
+Price tokens themselves (`⟦price#a3f EUR=10000⟧` in a string, a `price` node in rich text; every theme text field allows them unless `block.json` says `"allowPrices": false`, as the starter does for its URL fields) are
+`@eldrajs/sdk/tokens`; the starter resolves every block's data in `useBlockData`, and a sentence
+whose price has no amount in the shopper's currency is left out, never converted. See
+[Price tokens](docs/themes.md#price-tokens-prices-inside-any-text-field).
 
 ### Virtual modules
 

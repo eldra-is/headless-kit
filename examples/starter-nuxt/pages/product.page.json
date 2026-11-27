@@ -43,7 +43,7 @@
           {
             "icon": "truck",
             "title": "Free delivery",
-            "text": "on orders over $80"
+            "text": "on orders over ⟦store freeShippingThreshold⟧"
           },
           {
             "icon": "building-store",

@@ -66,6 +66,7 @@ describe('@eldrajs/bridge', () => {
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
     // No breakpoints option given: the field is entirely absent, not `undefined`.
     expect(Object.hasOwn(ready.payload, 'breakpoints')).toBe(false);
@@ -397,6 +398,7 @@ describe('@eldrajs/bridge', () => {
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
     expect(EDITOR_CAPABILITIES).toEqual([
       'content-update',
@@ -406,7 +408,15 @@ describe('@eldrajs/bridge', () => {
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
+  });
+
+  it('lists the price-token messages in KNOWN_MESSAGE_TYPES and advertises price-tokens-inline on both sides', () => {
+    expect(KNOWN_MESSAGE_TYPES.has('theme:price-clicked')).toBe(true);
+    expect(KNOWN_MESSAGE_TYPES.has('editor:insert-price')).toBe(true);
+    expect(THEME_CAPABILITIES).toContain('price-tokens-inline');
+    expect(EDITOR_CAPABILITIES).toContain('price-tokens-inline');
   });
 
   it('lists theme:block-hovered in KNOWN_MESSAGE_TYPES and advertises block-hover on both sides', () => {
@@ -479,6 +489,7 @@ describe('@eldrajs/bridge', () => {
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
     expect(EDITOR_CAPABILITIES).toEqual([
       'content-update',
@@ -488,6 +499,7 @@ describe('@eldrajs/bridge', () => {
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
   });
 

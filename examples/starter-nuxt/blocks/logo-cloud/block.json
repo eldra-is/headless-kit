@@ -61,6 +61,7 @@
                 "fieldId": "href",
                 "name": "Link",
                 "type": "string",
+                "allowPrices": false,
                 "helpText": "Stockist page or article. When set, the logo becomes a link."
               }
             ]

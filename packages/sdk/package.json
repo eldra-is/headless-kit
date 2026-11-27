@@ -59,6 +59,10 @@
       "types": "./dist/format/intl.d.ts",
       "import": "./dist/format/intl.js"
     },
+    "./tokens": {
+      "types": "./dist/tokens.d.ts",
+      "import": "./dist/tokens.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

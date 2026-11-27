@@ -33,6 +33,7 @@
       "fieldId": "categoryHref",
       "name": "Category link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "URL of the filtered Article list."
     },
     {
@@ -126,7 +127,8 @@
     {
       "fieldId": "authorLinkHref",
       "name": "Author link",
-      "type": "string"
+      "type": "string",
+      "allowPrices": false
     },
     {
       "fieldId": "showByline",

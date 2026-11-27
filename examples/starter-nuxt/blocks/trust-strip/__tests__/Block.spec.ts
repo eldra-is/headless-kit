@@ -8,6 +8,7 @@ import Block from '../Block.vue';
 import mock from '../mock.json';
 import preview from '../preview.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 
 /** The genuinely minimal fixture: only the fields the block requires. */
 const bare = {
@@ -69,14 +70,17 @@ function stubResizeObserver(): { trigger: () => void; restore: () => void } {
 /** jsdom's `scrollWidth`/`clientWidth` are always `0`; shadow them with own properties so the
  *  element reads as overflowing (or not) the way a real, narrower-than-its-content list would. */
 function setOverflowing(el: Element, overflowing: boolean): void {
-  Object.defineProperty(el, 'scrollWidth', { value: overflowing ? 800 : 400, configurable: true });
+  Object.defineProperty(el, 'scrollWidth', {
+    value: overflowing ? 800 : 400,
+    configurable: true,
+  });
   Object.defineProperty(el, 'clientWidth', { value: 400, configurable: true });
 }
 
 describe('trust-strip block', () => {
   it('renders the full mock content with no axe violations', async () => {
     const wrapper = mountBlock(mock);
-    for (const item of mock.items) expect(wrapper.text()).toContain(item.title);
+    for (const item of mock.items) expect(wrapper.text()).toContain(shown(item.title));
     expect(wrapper.text()).toContain(mock.paymentsLabel);
     await flushIcons();
     expect(await axe(wrapper.element)).toHaveNoViolations();
@@ -99,7 +103,12 @@ describe('trust-strip block', () => {
   );
 
   describe('numbered variant', () => {
-    const numbered = { ...mock, ...preview, variant: 'numbered', showPayments: false };
+    const numbered = {
+      ...mock,
+      ...preview,
+      variant: 'numbered',
+      showPayments: false,
+    };
 
     it('renders the preview content axe-clean, a hidden 01/02/03 in place of each icon', async () => {
       const wrapper = mountBlock(numbered);
@@ -188,7 +197,11 @@ describe('trust-strip block', () => {
   });
 
   it('caps items at four: a fifth is not rendered', () => {
-    const fifth = { icon: 'gift', title: 'Gift wrapping', text: 'Free on request.' };
+    const fifth = {
+      icon: 'gift',
+      title: 'Gift wrapping',
+      text: 'Free on request.',
+    };
     const wrapper = mountBlock({ ...mock, items: [...mock.items, fifth] });
     expect(wrapper.text()).not.toContain('Gift wrapping');
     expect(wrapper.findAll('h2').length + wrapper.findAll('p').length).toBeGreaterThan(0);
@@ -302,15 +315,31 @@ describe('trust-strip block', () => {
   });
 
   it('re-measures overflow when the rendered items change, not only when the list box resizes', async () => {
-    const wrapper = mountBlock({ ...mock, mobileLayout: 'scroll', items: mock.items.slice(0, 1) });
+    const wrapper = mountBlock({
+      ...mock,
+      mobileLayout: 'scroll',
+      items: mock.items.slice(0, 1),
+    });
     const list = wrapper.get('ul').element as HTMLUListElement;
-    Object.defineProperty(list, 'clientWidth', { configurable: true, value: 300 });
-    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 300 });
+    Object.defineProperty(list, 'clientWidth', {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(list, 'scrollWidth', {
+      configurable: true,
+      value: 300,
+    });
     expect(wrapper.get('ul').attributes('tabindex')).toBeUndefined();
 
-    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 900 });
+    Object.defineProperty(list, 'scrollWidth', {
+      configurable: true,
+      value: 900,
+    });
     await wrapper.setProps({
-      entry: { ...(wrapper.props('entry') as object), data: { ...mock, mobileLayout: 'scroll' } },
+      entry: {
+        ...(wrapper.props('entry') as object),
+        data: { ...mock, mobileLayout: 'scroll' },
+      },
     });
     await nextTick();
     await nextTick();

@@ -251,6 +251,7 @@
                 "fieldId": "href",
                 "name": "Link URL",
                 "type": "string",
+                "allowPrices": false,
                 "helpText": "Optional. A page path, a full URL or tel:/mailto:."
               },
               {

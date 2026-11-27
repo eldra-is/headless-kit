@@ -3,7 +3,7 @@
   "items": [
     {
       "icon": "truck",
-      "title": "Free shipping over $80",
+      "title": "Free shipping over ⟦store freeShippingThreshold⟧",
       "text": "Delivered in 2–4 business days, carbon-neutral."
     },
     {

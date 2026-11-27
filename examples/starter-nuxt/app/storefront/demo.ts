@@ -3,6 +3,7 @@ import { starterFormSeeds } from '../formSeeds';
 import { localizeFormDefinition } from './forms';
 import { createCartStore, type CartOps, type CartSnapshot } from './cart';
 import { createCurrencyStore } from './currency';
+import type { StoreAmounts } from '@eldrajs/sdk/tokens';
 import { createHistoryStore, createWishlistStore } from './history';
 import { roundMoney } from './money';
 import { optionDisplayType } from './options';
@@ -377,7 +378,12 @@ const DEMO_CATEGORIES: readonly CategoryRow[] = [
   // Ceramics' own children, so the category page's strip under the title has something to show
   // (the design's "All ceramics · Mugs and cups · …" row). No product is filed under them: every
   // ceramic piece sits on `ceramics` itself, so they count nothing and the facet never names them.
-  { id: 'mugs-and-cups', slug: 'mugs-and-cups', title: 'Mugs and cups', parentId: 'ceramics' },
+  {
+    id: 'mugs-and-cups',
+    slug: 'mugs-and-cups',
+    title: 'Mugs and cups',
+    parentId: 'ceramics',
+  },
   { id: 'bowls', slug: 'bowls', title: 'Bowls', parentId: 'ceramics' },
   {
     id: 'plates-and-platters',
@@ -386,7 +392,12 @@ const DEMO_CATEGORIES: readonly CategoryRow[] = [
     parentId: 'ceramics',
   },
   { id: 'vases', slug: 'vases', title: 'Vases', parentId: 'ceramics' },
-  { id: 'gift-sets', slug: 'gift-sets', title: 'Gift sets', parentId: 'ceramics' },
+  {
+    id: 'gift-sets',
+    slug: 'gift-sets',
+    title: 'Gift sets',
+    parentId: 'ceramics',
+  },
 ];
 
 /** The tree indexed both ways, for the trail and for placing the facet's own terms. */
@@ -416,9 +427,16 @@ function registerAttributes(handle: string, def: DemoProductDef): void {
   PRODUCT_ATTRIBUTES.set(handle, {
     // The `id` is what a parent clause is resolved through — `matchesClause` walks a product's own
     // category up the tree — and what `categoryTermsOf` places the facet's own terms by.
-    category: { id: def.category, slug: def.category, title: CATEGORY_TITLES[def.category] },
+    category: {
+      id: def.category,
+      slug: def.category,
+      title: CATEGORY_TITLES[def.category],
+    },
     options: {
-      size: (def.sizes ?? []).map((size) => ({ value: size, label: size.toUpperCase() })),
+      size: (def.sizes ?? []).map((size) => ({
+        value: size,
+        label: size.toUpperCase(),
+      })),
       colour: (def.colours ?? []).map((colour) => ({
         value: colour.name.toLowerCase(),
         label: colour.name,
@@ -475,7 +493,12 @@ const MERINO_OPTIONS: StorefrontProduct['options'] = [
     kind: 'color',
     values: [
       { value: 'oat', label: 'Oat', swatch: '#d8cbb0', available: true },
-      { value: 'charcoal', label: 'Charcoal', swatch: '#3a3a3a', available: true },
+      {
+        value: 'charcoal',
+        label: 'Charcoal',
+        swatch: '#3a3a3a',
+        available: true,
+      },
       { value: 'clay', label: 'Clay', swatch: '#b5651d', available: true },
       { value: 'moss', label: 'Moss', swatch: '#6b7a4f', available: false },
     ],
@@ -848,19 +871,34 @@ function buildOrderSteps(status: StorefrontOrderStatus): StorefrontOrder['steps'
         { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
         { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
         { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'done' },
-        { key: 'delivered', label: 'Delivered', date: '2026-09-24', state: 'done' },
+        {
+          key: 'delivered',
+          label: 'Delivered',
+          date: '2026-09-24',
+          state: 'done',
+        },
       ];
     case 'delayed':
       return [
         { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
         { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
         { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'done' },
-        { key: 'delivered', label: 'Delivered', date: '2026-09-30', state: 'warning' },
+        {
+          key: 'delivered',
+          label: 'Delivered',
+          date: '2026-09-30',
+          state: 'warning',
+        },
       ];
     case 'cancelled':
       return [
         { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
-        { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'warning' },
+        {
+          key: 'packed',
+          label: 'Packed',
+          date: '2026-09-19',
+          state: 'warning',
+        },
         { key: 'shipped', label: 'Shipped', date: null, state: 'upcoming' },
         { key: 'delivered', label: 'Delivered', date: null, state: 'upcoming' },
       ];
@@ -869,8 +907,18 @@ function buildOrderSteps(status: StorefrontOrderStatus): StorefrontOrder['steps'
       return [
         { key: 'ordered', label: 'Ordered', date: '2026-09-18', state: 'done' },
         { key: 'packed', label: 'Packed', date: '2026-09-19', state: 'done' },
-        { key: 'shipped', label: 'Shipped', date: '2026-09-20', state: 'current' },
-        { key: 'delivered', label: 'Delivered', date: '2026-09-26', state: 'upcoming' },
+        {
+          key: 'shipped',
+          label: 'Shipped',
+          date: '2026-09-20',
+          state: 'current',
+        },
+        {
+          key: 'delivered',
+          label: 'Delivered',
+          date: '2026-09-26',
+          state: 'upcoming',
+        },
       ];
   }
 }
@@ -1032,7 +1080,14 @@ function suggestionFor(query: string): string | null {
 function buildSearchResponse(query: string): StorefrontSearchResponse {
   const q = normalise(query);
   if (q === '') {
-    return { query, total: 0, products: [], articles: [], pages: [], suggestion: null };
+    return {
+      query,
+      total: 0,
+      products: [],
+      articles: [],
+      pages: [],
+      suggestion: null,
+    };
   }
   const products = PRODUCTS.filter((product) => includesQuery(product.title, q));
   const articles = JOURNAL_ARTICLES.filter(
@@ -1161,7 +1216,11 @@ function createDemoCartOps(seedLines: StorefrontCartLine[]): CartOps {
     async setQuantity(lineId, quantity) {
       lines = lines.map((line) =>
         line.id === lineId
-          ? { ...line, quantity, lineTotal: roundMoney(line.unitPrice * quantity) }
+          ? {
+              ...line,
+              quantity,
+              lineTotal: roundMoney(line.unitPrice * quantity),
+            }
           : line
       );
       return snapshot();
@@ -1260,6 +1319,15 @@ export const DEMO_COMMERCE: StorefrontCommerce = {
   currency: 'USD',
   taxInclusivePricing: false,
   defaultTaxRate: 0.08,
+};
+
+/**
+ * The demo store's own amounts for `⟦store …⟧` price tokens (`app/composables/usePriceTokens.ts`),
+ * minor units per currency: free shipping over $80, the threshold the Northwind copy has always
+ * quoted, with an amount of its own in each other currency a story might switch to.
+ */
+export const DEMO_STORE_AMOUNTS: StoreAmounts = {
+  freeShippingThreshold: { USD: 8000, EUR: 7500, ISK: 15000 },
 };
 
 export interface DemoStorefrontOptions {
@@ -1386,7 +1454,11 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           // than over one fetched page: the vocabulary is every value the collection holds, and
           // each family's counts leave that family's own filter out (`deriveFacets`), so ticking
           // one colour narrows the sizes and leaves the other colours countable.
-          facets: deriveFacets(all, { filters, attributesFor, categories: CATEGORY_INDEX }),
+          facets: deriveFacets(all, {
+            filters,
+            attributesFor,
+            categories: CATEGORY_INDEX,
+          }),
         };
       }),
     /**
@@ -1416,7 +1488,11 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           total: ordered.length,
           // Counted over the **scope**, not the whole catalogue: on a category page the `category`
           // group lists that category's children with the counts they have inside it.
-          facets: deriveFacets(scope, { filters, attributesFor, categories: CATEGORY_INDEX }),
+          facets: deriveFacets(scope, {
+            filters,
+            attributesFor,
+            categories: CATEGORY_INDEX,
+          }),
         };
       }),
     // The product itself is never one of its own related products — the gateway drops it before

@@ -9,7 +9,8 @@ import {
   provideEldraUiLocale,
   provideEldraUiMessages,
 } from '@eldrajs/ui';
-import { createDemoStorefront, DEMO_CART_LINES } from '../app/storefront/demo';
+import { createDemoStorefront, DEMO_CART_LINES, DEMO_STORE_AMOUNTS } from '../app/storefront/demo';
+import { STORE_AMOUNTS_KEY } from '../app/composables/usePriceTokens';
 import { STOREFRONT_KEY } from '../app/storefront/types';
 import { storybookI18n } from './i18n';
 import enUSMessages from '../i18n/en-US.json';
@@ -71,7 +72,10 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
   components: { story },
   setup() {
     const context = provideEldra({
-      client: createEldraClient({ gatewayUrl: 'https://storybook.invalid', orgId: 'storybook' }),
+      client: createEldraClient({
+        gatewayUrl: 'https://storybook.invalid',
+        orgId: 'storybook',
+      }),
       // The same catalogue `storybookI18n` (`./i18n.ts`) installs — nothing in Storybook reads
       // `context.messages` directly today, but the shape should match a real page's (the merged/
       // resolved `virtual:eldra/messages`) rather than the empty fallback `provideEldra` otherwise
@@ -116,6 +120,7 @@ export const withEldraContext: Decorator = (story, storyContext) => ({
     });
     if (isCartStory) storefront.cart.drawerOpen.value = true;
     provideEldraUiCurrency(storefront.commerce?.currency);
+    provide(STORE_AMOUNTS_KEY, DEMO_STORE_AMOUNTS);
     provide(STOREFRONT_KEY, storefront);
     return {};
   },

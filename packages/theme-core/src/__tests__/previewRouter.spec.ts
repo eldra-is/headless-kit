@@ -23,6 +23,8 @@ function overlayStub() {
     locateRichText: vi.fn(),
     setRichTextEnabled: vi.fn(),
     setBlockHoverEnabled: vi.fn(),
+    setPriceTokensEnabled: vi.fn(),
+    insertPriceToken: vi.fn(),
     chromeStyles: vi.fn(),
     chromeState: vi.fn(),
   };
@@ -41,12 +43,13 @@ function setup(capabilities: string[] = []): {
 const target = { entryId: 'e1', fieldPath: 'body', locale: 'en-US' };
 
 describe('createPreviewMessageRouter', () => {
-  it('negotiates the four capabilities and forwards the three overlay gates', () => {
+  it('negotiates the five capabilities and forwards the four overlay gates', () => {
     const { overlay, router } = setup([
       'block-slots',
       'block-hover',
       'image-framing',
       'rich-text-inline',
+      'price-tokens-inline',
     ]);
 
     expect(router.capabilities).toEqual({
@@ -54,7 +57,9 @@ describe('createPreviewMessageRouter', () => {
       framing: true,
       richText: true,
       blockHover: true,
+      priceTokens: true,
     });
+    expect(overlay.setPriceTokensEnabled).toHaveBeenLastCalledWith(true);
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(true);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(true);
     expect(overlay.setBlockHoverEnabled).toHaveBeenLastCalledWith(true);
@@ -66,7 +71,9 @@ describe('createPreviewMessageRouter', () => {
       framing: false,
       richText: false,
       blockHover: false,
+      priceTokens: false,
     });
+    expect(overlay.setPriceTokensEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setBlockHoverEnabled).toHaveBeenLastCalledWith(false);
@@ -87,6 +94,7 @@ describe('createPreviewMessageRouter', () => {
       framing: false,
       richText: false,
       blockHover: false,
+      priceTokens: false,
     });
     expect(overlay.setFramingEnabled).toHaveBeenLastCalledWith(false);
     expect(overlay.setRichTextEnabled).toHaveBeenLastCalledWith(false);
@@ -228,6 +236,26 @@ describe('createPreviewMessageRouter', () => {
     expect(overlay.setFramingMode).toHaveBeenLastCalledWith(null);
   });
 
+  it('routes editor:insert-price only once price-tokens-inline is negotiated', () => {
+    const token = '⟦price#a3f EUR=10000⟧';
+    const closed = setup(['rich-text-inline']);
+    expect(closed.router.route('editor:insert-price', { ...target, token, label: '€100' })).toBe(
+      true
+    );
+    expect(closed.overlay.insertPriceToken).not.toHaveBeenCalled();
+
+    const open = setup(['price-tokens-inline']);
+    open.router.route('editor:insert-price', { ...target, token, label: '€100' });
+    expect(open.overlay.insertPriceToken).toHaveBeenCalledWith(target, token, '€100');
+    // Untrusted wire data: a malformed payload reaches the runtime as values it refuses.
+    open.router.route('editor:insert-price', null);
+    expect(open.overlay.insertPriceToken).toHaveBeenLastCalledWith(
+      { entryId: '', fieldPath: '', locale: null },
+      '',
+      ''
+    );
+  });
+
   it('leaves messages it does not own to the caller', () => {
     const { router } = setup(['rich-text-inline']);
 
@@ -250,8 +278,9 @@ describe('createPreviewMessageRouter', () => {
     // The exported list is what an adapter reads to know what it no longer
     // has to handle; a type in the switch but not the list (or the reverse)
     // silently splits the contract.
-    const { router } = setup(['image-framing', 'rich-text-inline']);
+    const { router } = setup(['image-framing', 'rich-text-inline', 'price-tokens-inline']);
     const minimal: Record<string, unknown> = {
+      'editor:insert-price': { ...target, token: '⟦store freeShippingThreshold⟧', label: '$80' },
       'editor:select-block': { entryId: 'e1' },
       'editor:drag-start': {
         payload: { kind: 'layout-node', nodeId: 'n', parentId: 'r', index: 0 },

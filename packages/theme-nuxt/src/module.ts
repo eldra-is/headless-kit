@@ -52,6 +52,8 @@ import {
 } from './runtime/redirects';
 import { readStoreCommerce, type StoreCommerce } from './runtime/commerce';
 import { readStoreRegion, type StoreRegion } from './runtime/region';
+import { readStoreAmounts } from './runtime/storeAmounts';
+import type { StoreAmounts } from '@eldrajs/sdk';
 import { readDesignTokens } from './runtime/designTokens';
 import { readFormDefinitions, type FormDefinitions } from './runtime/forms';
 import { buildSiteIconOutput, type GeneratedIconFile } from './runtime/siteIconAssets';
@@ -262,6 +264,9 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       // and the time zone they are shown in — not the content locale), filled in below from the
       // same platform read. Written here first for the same reason. See `./runtime/region.ts`.
       region: null as StoreRegion | null,
+      // The store's amounts for `⟦store …⟧` price tokens (the free-shipping threshold per
+      // currency), filled in below from the same platform read. See `./runtime/storeAmounts.ts`.
+      storeAmounts: null as StoreAmounts | null,
       // The organisation's resolved design-token catalog (the theme's own tokens with the site's
       // overrides already applied), filled in below from the same platform read settling. Written
       // here first for the same reason `commerce`/`locales` are: the key has to exist before
@@ -307,7 +312,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     const buildToken = (process.env.ELDRA_BUILD_TOKEN ?? '').trim();
 
     // A draft preview session's route: before Nuxt's router reads the payload's path.
-    addPlugin({ src: resolver.resolve('./runtime/previewSessionRoute'), mode: 'client' });
+    addPlugin({
+      src: resolver.resolve('./runtime/previewSessionRoute'),
+      mode: 'client',
+    });
     addPlugin(resolver.resolve('./runtime/plugin'));
     addServerHandler({
       route: VISITOR_COUNTRY_PATH,
@@ -316,15 +324,24 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     });
     addPlugin(resolver.resolve('./runtime/analyticsPlugin'));
     if (options.campaignAttribution !== false) {
-      addPlugin({ src: resolver.resolve('./runtime/attributionPlugin'), mode: 'client' });
+      addPlugin({
+        src: resolver.resolve('./runtime/attributionPlugin'),
+        mode: 'client',
+      });
     }
     addImports([
       {
         name: 'useEldraBuildToken',
         from: resolver.resolve('./runtime/composables/useEldraBuildToken'),
       },
-      { name: 'useEldraPage', from: resolver.resolve('./runtime/composables/useEldraPage') },
-      { name: 'useEldraSeo', from: resolver.resolve('./runtime/composables/useEldraSeo') },
+      {
+        name: 'useEldraPage',
+        from: resolver.resolve('./runtime/composables/useEldraPage'),
+      },
+      {
+        name: 'useEldraSeo',
+        from: resolver.resolve('./runtime/composables/useEldraSeo'),
+      },
       {
         name: 'useEldraAnalytics',
         from: resolver.resolve('./runtime/composables/useEldraAnalytics'),
@@ -337,9 +354,15 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       })),
       // The route key a theme's catch-all page gives `<NuxtPage>`; see `./runtime/routePath`.
       { name: 'eldraRouteKey', from: resolver.resolve('./runtime/routePath') },
-      { name: 'useEldraForms', from: resolver.resolve('./runtime/composables/useEldraForms') },
+      {
+        name: 'useEldraForms',
+        from: resolver.resolve('./runtime/composables/useEldraForms'),
+      },
       // The regional format money, numbers and dates are written in (`./runtime/region.ts`).
-      { name: 'useEldraRegion', from: resolver.resolve('./runtime/composables/useEldraRegion') },
+      {
+        name: 'useEldraRegion',
+        from: resolver.resolve('./runtime/composables/useEldraRegion'),
+      },
       { name: 'useEldra', from: '@eldrajs/theme-vue' },
       // The active content locale and the path helpers around it. Re-exported from theme-vue
       // rather than defined here: the state lives on the theme context so a **block** can read it
@@ -350,7 +373,10 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       { name: 'useEldraPreview', from: '@eldrajs/theme-vue' },
       // A read a theme makes outside Nuxt's async data, started while a draft preview session is
       // covered, keeps the veil up until it has answered (`./runtime/previewSession.ts`).
-      { name: 'holdPreviewSession', from: resolver.resolve('./runtime/previewSession') },
+      {
+        name: 'holdPreviewSession',
+        from: resolver.resolve('./runtime/previewSession'),
+      },
     ]);
 
     /**
@@ -608,8 +634,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     nuxt.options.app.head.meta = [
       ...(nuxt.options.app.head.meta ?? []),
-      { name: 'eldra-theme-version', content: themeVersion(nuxt.options.rootDir) },
-      { name: 'eldra-sdk-version', content: packageVersion(resolver.resolve('../package.json')) },
+      {
+        name: 'eldra-theme-version',
+        content: themeVersion(nuxt.options.rootDir),
+      },
+      {
+        name: 'eldra-sdk-version',
+        content: packageVersion(resolver.resolve('../package.json')),
+      },
     ];
 
     // The store's currency and the organisation's locales, once per build — see
@@ -647,11 +679,12 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     // The SEO setting is a sixth, also build-only (`nuxi dev` writes no head a crawler reads).
     //
     // The regional format is an eleventh, on the same terms as the locales (fail-soft, warns only
-    // when the read itself failed).
+    // when the read itself failed). The store's amounts for price tokens are a twelfth, the same.
     const [
       commerce,
       locales,
       region,
+      storeAmounts,
       platformMessages,
       platformDesignTokens,
       platformSiteIcons,
@@ -664,6 +697,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       readStoreCommerce(platformClient),
       readStoreLocales(platformClient),
       readStoreRegion(platformClient),
+      readStoreAmounts(platformClient),
       readThemeMessages(platformClient),
       readDesignTokens(platformClient),
       nuxt.options.dev ? Promise.resolve(null) : readSiteIcons(platformClient),
@@ -698,6 +732,7 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       commerce: StoreCommerce | null;
       locales: StoreLocales | null;
       region: StoreRegion | null;
+      storeAmounts: StoreAmounts | null;
       designTokens: ThemeDesignTokens | null;
       siteProfile: ResolvedSiteProfile | null;
       forms: FormDefinitions;
@@ -705,10 +740,14 @@ const eldraModule: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     runtimeEldra.commerce = commerce;
     runtimeEldra.locales = locales;
     runtimeEldra.region = region;
+    runtimeEldra.storeAmounts = storeAmounts;
     runtimeEldra.designTokens = platformDesignTokens;
     runtimeEldra.forms = platformForms;
-    (nuxt.options.runtimeConfig.public.eldraSeo as { setting: SeoSetting | null }).setting =
-      platformSeo;
+    (
+      nuxt.options.runtimeConfig.public.eldraSeo as {
+        setting: SeoSetting | null;
+      }
+    ).setting = platformSeo;
     // The merchant's profile with its gaps filled: the site name, and the site icon's 512 px
     // rendering for the logo. Resolved (always an object), so a build whose read failed still
     // writes an `Organization` from what it knows.

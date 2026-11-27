@@ -534,7 +534,11 @@ children. An object declares more, with the same keys Core stores (`EldraLinkTre
         "tree": {
           "depth": 2,
           "sections": { "max": 4, "headingLink": true, "seeAll": true },
-          "cards": { "kinds": ["product", "collection"], "max": 2, "aspect": "4:5" }
+          "cards": {
+            "kinds": ["product", "collection"],
+            "max": 2,
+            "aspect": "4:5"
+          }
         }
       }
     }
@@ -676,6 +680,62 @@ The starter does it in one place: `app/plugins/eldra-ui-messages.ts` provides `@
 stays on the content locale, so every `Price`, `ContentCard` date and `useMoney()` amount follows
 it, and `app/composables/useRegionalFormat.ts` (`useFormatDate`, `useFormatLocale`) carries it to
 the blocks' own dates. A word inside a sentence — a list's "and" — stays on the content locale.
+
+## Price tokens: prices inside any text field
+
+A merchant can put a price in **any** text field of any block — "Free shipping over $80", "$38 a
+box" — without the theme declaring a price field for it. Studio's **Insert price** writes a token
+into the stored text, and the site writes it out in the shopper's currency, formatted like every
+other price on the page (WS-1474, WS-1473):
+
+```text
+⟦price#a3f EUR=10000 ISK=1500000 USD=8000⟧   a price: the merchant's amount in each currency
+⟦store freeShippingThreshold⟧                a store setting
+```
+
+- The brackets are U+27E6 `⟦` and U+27E7 `⟧`, reserved for tokens, so they never collide with
+  Studio's `{{variable}}` syntax. Merchants never type them.
+- Amounts are **minor units** per ISO 4217 code (`EUR=10000` is €100, `ISK=1500000` is
+  1.500.000 kr.), one per currency the organisation sells in, each the merchant's own. **Nothing is
+  ever converted.**
+- `freeShippingThreshold` is the lowest free-shipping threshold among the organisation's active
+  delivery methods in that currency (`features.getStoreAmounts()`, `GET
+/delivery/v1/provider-account`). `@eldrajs/theme-nuxt` reads it once at build, fail-soft, into
+  `runtimeConfig.public.eldra.storeAmounts` (`toStoreAmounts` from
+  `@eldrajs/theme-nuxt/store-amounts`).
+  The starter's cart reads the same amount for its free-shipping progress bar (`storeAmountIn` in
+  `app/composables/usePriceTokens.ts`), in the cart's currency, so the bar and a sentence naming the
+  threshold can never disagree.
+- Rich text carries the same price as an inline `price` node: `{ "type": "price", "attrs": { "id",
+"amounts" } }` or `{ "attrs": { "setting": "freeShippingThreshold" } }`.
+- **A price that cannot be written** (no amount in the shopper's currency, a store whose
+  thresholds could not be read, a malformed token) leaves out the **sentence** holding it, or in rich
+  text the **paragraph**. It never shows a raw token, another currency's amount or a converted one.
+- A field's `maxLength` counts each token as `TOKEN_TEXT_LENGTH` (10) characters, about the
+  length of a written price, not its bracket text (`lengthText`).
+- **Which fields.** Every `string`, `text` and `rich-text` field of a theme block allows prices: Core
+  turns its `allowPrices` setting on when the theme deploys. Opt a field out with `"allowPrices":
+false` beside `localized` in `block.json` wherever a written price would break the value — a URL,
+  an email, a code, a value matched against something else. `eldra-theme validate` refuses it on any
+  other type. A merchant's own CMS fields are the other way round: off until they switch it on.
+
+The pieces: `@eldrajs/sdk/tokens` parses, serialises and resolves (`resolveTokens(text, { currency,
+locale, storeAmounts, format })`, `resolvePriceNode`); `@eldrajs/rich-text`'s `toHtml(doc, {
+resolvePrice })` and `@eldrajs/vue`'s `<RichText :resolve-price>` write `price` nodes;
+`@eldrajs/theme-vue`'s `EldraRichText` reads a resolver provided with `provideEldraPrices`.
+
+The starter resolves them in one place: `app/composables/useBlockData.ts` hands every block its data
+with every string's tokens written out (`app/composables/usePriceTokens.ts`) and provides the
+rich-text resolver, in the store currency and the regional format through the same `formatMoney` as
+`useMoney()`, in the shopper's chosen currency. No block handles prices itself. In the builder
+preview a field whose text held a token carries its **stored** text in its stega payload
+(`StegaMeta.parts`). With Studio speaking `price-tokens-inline`, focusing it on the canvas shows that
+text with each price as a chip: the words around it are edited in place, a chip click asks Studio to
+open its price editor (`theme:price-clicked`), `editor:insert-price` drops a new price at the caret,
+and a first click straight on a written-out price opens it too: the overlay notes which price's text
+was under the pointer before focus swapped it for chips (only while the page text is exactly the
+`parts`' text), and every edit is posted as stored text, tokens intact. Without the capability the
+field is selectable but never typed into, where typing would save "€100.00" over the token.
 
 ## Seeding default templates and pages
 

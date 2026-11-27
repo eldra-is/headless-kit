@@ -1,3 +1,4 @@
+import { storeAmountsFromDelivery } from './storeAmounts';
 import { readCampaignAttribution } from './attribution';
 import { fetchWithRetry, resolveRetryPolicy } from './retry';
 import type {
@@ -190,7 +191,10 @@ function problemErrors(body: unknown): Readonly<Record<string, unknown>> | undef
  */
 function cartHoldsDiscountCode(cart: unknown, code: string): boolean {
   const wanted = code.toUpperCase();
-  const record = (cart ?? {}) as { discountCodes?: unknown; discountCode?: unknown };
+  const record = (cart ?? {}) as {
+    discountCodes?: unknown;
+    discountCode?: unknown;
+  };
   const same = (value: unknown) =>
     typeof value === 'string' && value.trim().toUpperCase() === wanted;
   if (Array.isArray(record.discountCodes)) {
@@ -249,7 +253,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
   const readPlatformConfig = (
     readOptions?: EldraPlatformReadOptions
   ): Promise<EldraPlatformConfig> => {
-    platformConfig ??= request<unknown>({ path: '/platform/v1/config', orgScoped: false })
+    platformConfig ??= request<unknown>({
+      path: '/platform/v1/config',
+      orgScoped: false,
+    })
       .then(toPlatformConfig)
       .catch((error: unknown) => {
         platformConfig = undefined;
@@ -385,6 +392,13 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         // formatting in its own locale rather than one nobody chose.
         return toOrganizationRegion(organization.region);
       },
+      getStoreAmounts: async (context?: EldraRequestContext) =>
+        storeAmountsFromDelivery(
+          await request<unknown>({
+            ...context,
+            path: '/delivery/v1/provider-account',
+          })
+        ),
     },
     catalog: {
       /**
@@ -726,7 +740,10 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
       me: (context?: EldraRequestContext) =>
         request<EldraCustomerMe>({ ...context, path: '/customer/v1/me' }),
       locations: (context?: EldraRequestContext) =>
-        request<EldraCustomerLocationList>({ ...context, path: '/customer/v1/locations' }),
+        request<EldraCustomerLocationList>({
+          ...context,
+          path: '/customer/v1/locations',
+        }),
     },
     salesOrders: {
       preview: (input: EldraSalesOrderPreviewInput, context?: EldraRequestContext) =>
@@ -746,7 +763,9 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
           ...context,
           method: 'POST',
           path: '/sales-order/v1',
-          headers: mergeHeaders(context?.headers, { 'Idempotency-Key': idempotencyKey }),
+          headers: mergeHeaders(context?.headers, {
+            'Idempotency-Key': idempotencyKey,
+          }),
           body: input,
         });
       },

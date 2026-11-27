@@ -605,6 +605,57 @@ describe('scanTheme media framing metadata', () => {
   });
 });
 
+describe('scanTheme price opt-out (allowPrices)', () => {
+  it.each([['string'], ['text'], ['rich-text']])(
+    'accepts allowPrices: false on a %s field',
+    (type) => {
+      const dir = withHeroField({ fieldId: 'href', name: 'Link URL', type, allowPrices: false });
+      const { manifest, errors } = scanTheme({ themeDir: dir, framework: 'nuxt' });
+      expect(errors).toEqual([]);
+      // It reaches the manifest, which is what Core's ingest reads.
+      const fields = manifest?.blocks.find((b) => b.apiId === 'hero')?.fields as
+        | Array<Record<string, unknown>>
+        | undefined;
+      expect(fields?.[0]).toMatchObject({
+        allowPrices: false,
+      });
+    }
+  );
+
+  it('refuses it on a type that cannot hold text, at any depth, and a non-boolean', () => {
+    const media = withHeroField({
+      fieldId: 'image',
+      name: 'Image',
+      type: 'media',
+      metadata: { multiple: false },
+      allowPrices: false,
+    });
+    expect(scanTheme({ themeDir: media, framework: 'nuxt' }).errors).toEqual([
+      'blocks/hero/block.json: fields[0].allowPrices — only allowed on type "string", "text" or "rich-text" (got "media")',
+    ]);
+    const nested = withHeroField({
+      fieldId: 'items',
+      name: 'Items',
+      type: 'list',
+      metadata: {
+        item: { fieldId: 'item', name: 'Item', type: 'bool', allowPrices: false },
+      },
+    });
+    expect(scanTheme({ themeDir: nested, framework: 'nuxt' }).errors).toEqual([
+      'blocks/hero/block.json: fields[0].metadata.item[0].allowPrices — only allowed on type "string", "text" or "rich-text" (got "bool")',
+    ]);
+    const notBoolean = withHeroField({
+      fieldId: 'href',
+      name: 'URL',
+      type: 'string',
+      allowPrices: 'no',
+    });
+    expect(scanTheme({ themeDir: notBoolean, framework: 'nuxt' }).errors.join('\n')).toContain(
+      'allowPrices'
+    );
+  });
+});
+
 describe('scanTheme rich-text toolbar metadata', () => {
   it('accepts a valid control list on a rich-text field', () => {
     const dir = withHeroField({

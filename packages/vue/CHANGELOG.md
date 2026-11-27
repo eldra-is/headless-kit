@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- `RichText` takes `resolvePrice` (WS-1474): a rich-text `price` node is written with it, and a paragraph holding one it cannot write is left out.
 - `EldraImage` uses the `width` and `height` the API gives an image (contract 4.14.0): the `srcset`
   stops at the original's width, or ends with the original itself when it is wider than `full`
   (2560 px), and the `<img>` gets `width`/`height` attributes with the image's own proportions, so

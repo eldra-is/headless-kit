@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
 import { axe } from '../../../test/support/axe';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 
@@ -32,7 +33,7 @@ describe('announcement-bar block', () => {
   it('renders the mock content (merged data — this block has no preview.json)', async () => {
     const wrapper = mountAnnouncement({ ...mock });
     await flushPromises();
-    expect(wrapper.text()).toContain(mock.message);
+    expect(wrapper.text()).toContain(shown(mock.message));
     // `linkHref` ships empty in the seed (no dead demo link) — `linkLabel` only renders inside
     // the link itself (see the "shows only the message with no link" test below), so it is not
     // expected in the bare-mock text either.
@@ -60,7 +61,7 @@ describe('announcement-bar block', () => {
   it('renders the bare mock.json content and passes axe', async () => {
     const wrapper = mountAnnouncement(mock);
     await flushPromises();
-    expect(wrapper.text()).toContain(mock.message);
+    expect(wrapper.text()).toContain(shown(mock.message));
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
@@ -69,7 +70,7 @@ describe('announcement-bar block', () => {
     async (variant) => {
       const wrapper = mountAnnouncement({ ...mock, variant });
       await flushPromises();
-      expect(wrapper.text()).toContain(mock.message);
+      expect(wrapper.text()).toContain(shown(mock.message));
       expect(await axe(wrapper.element)).toHaveNoViolations();
     }
   );
@@ -104,7 +105,11 @@ describe('announcement-bar block', () => {
     // behaviour (Enter/Space -> click) still runs — the same contract check
     // `packages/ui/src/components/button/__tests__/button.spec.ts` uses for every button.
     for (const key of ['Enter', ' ']) {
-      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      const event = new KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
       button.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(false);
     }
@@ -155,7 +160,10 @@ describe('announcement-bar block', () => {
     expect(second.find('section').exists()).toBe(false);
     second.unmount();
 
-    const changed = mountAnnouncement({ ...mock, message: 'A brand new announcement' });
+    const changed = mountAnnouncement({
+      ...mock,
+      message: 'A brand new announcement',
+    });
     await flushPromises();
     expect(changed.find('section').exists()).toBe(true);
     expect(changed.text()).toContain('A brand new announcement');
@@ -176,7 +184,11 @@ describe('announcement-bar block', () => {
   });
 
   it('shows only the link with no dismiss button when not dismissable', async () => {
-    const wrapper = mountAnnouncement({ ...mock, dismissable: false, linkHref: '/pages/shipping' });
+    const wrapper = mountAnnouncement({
+      ...mock,
+      dismissable: false,
+      linkHref: '/pages/shipping',
+    });
     await flushPromises();
     expect(wrapper.find('button').exists()).toBe(false);
     const focusable = wrapper.element.querySelectorAll('a[href], button');
@@ -222,6 +234,6 @@ describe('announcement-bar block', () => {
     const editingWrapper = mountAnnouncement(mock, { editing: true });
     await flushPromises();
     expect(editingWrapper.find('section').exists()).toBe(true);
-    expect(editingWrapper.text()).toContain(mock.message);
+    expect(editingWrapper.text()).toContain(shown(mock.message));
   });
 });

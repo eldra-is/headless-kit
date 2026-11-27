@@ -10,6 +10,7 @@ import {
 } from 'vue';
 import { layoutIdentityOf, restampRichTextPositions, safeHref } from '@eldrajs/theme-core';
 import { ELDRA_KEY } from './context';
+import { useEldraPrices } from './prices';
 import { renderRichTextDoc } from './richTextRender';
 import { useEldraBlockField } from './useEldraBlockField';
 
@@ -50,7 +51,11 @@ export const EldraRichText = defineComponent({
   props: {
     entryId: { type: String, required: true },
     field: { type: String, required: true },
-    locale: { type: String as PropType<string | null>, required: false, default: null },
+    locale: {
+      type: String as PropType<string | null>,
+      required: false,
+      default: null,
+    },
     doc: { type: null as unknown as PropType<unknown>, required: true },
     /** The owning block's schema id — a block component passes `getBlockSchemaApiId(entry)`.
      * Used to resolve the field's `localized` flag from the block manifest. */
@@ -91,6 +96,7 @@ export const EldraRichText = defineComponent({
   },
   setup(props, { expose }) {
     const context = inject(ELDRA_KEY, null);
+    const resolvePrice = useEldraPrices();
     // `getBlockSchemaApiId(entry)` returns `string | null`; normalize so both
     // shapes reach the lookup the same way.
     const apiId = props.apiId ?? undefined;
@@ -195,6 +201,9 @@ export const EldraRichText = defineComponent({
             safeHref,
             padEmptyBlocks: context?.preview.mode === 'edit',
             minHeadingLevel: props.minHeadingLevel,
+            // A price token's text, in the shopper's currency (WS-1474); without a provider no
+            // price resolves and the paragraph holding one is hidden.
+            resolvePrice: resolvePrice ?? undefined,
           },
           renderKey.value
         )

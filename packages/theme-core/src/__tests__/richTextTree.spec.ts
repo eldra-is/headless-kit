@@ -10,7 +10,10 @@ import { encodeStega } from '../stega';
 
 const options = { safeHref };
 
-function doc(content: RichTextNode[]): { type: 'doc'; content: RichTextNode[] } {
+function doc(content: RichTextNode[]): {
+  type: 'doc';
+  content: RichTextNode[];
+} {
   return { type: 'doc', content };
 }
 
@@ -62,17 +65,31 @@ describe('buildRichTextTree', () => {
   it('builds paragraph, blockquote, hardBreak, horizontalRule', () => {
     const tree = build([
       { type: 'paragraph', content: [textNode('Hello')] },
-      { type: 'blockquote', content: [{ type: 'paragraph', content: [textNode('Quoted')] }] },
-      { type: 'paragraph', content: [textNode('a'), { type: 'hardBreak' }, textNode('b')] },
+      {
+        type: 'blockquote',
+        content: [{ type: 'paragraph', content: [textNode('Quoted')] }],
+      },
+      {
+        type: 'paragraph',
+        content: [textNode('a'), { type: 'hardBreak' }, textNode('b')],
+      },
       { type: 'horizontalRule' },
     ]);
 
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: ['Hello'] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: ['Hello'],
+    });
     expect(textOf(find(tree, 'blockquote')!)).toBe('Quoted');
     // hardBreak is an element, not a "\n" string, so a mapper never has to
     // special-case whitespace.
     // p(7) blockquote(7..17) p(17) "a"(18) br(19) "b"(20) hr(22)
-    expect(find(tree, 'br')).toEqual({ tag: 'br', attrs: stamped('hardBreak', 19), children: [] });
+    expect(find(tree, 'br')).toEqual({
+      tag: 'br',
+      attrs: stamped('hardBreak', 19),
+      children: [],
+    });
     expect(find(tree, 'hr')).toEqual({
       tag: 'hr',
       attrs: stamped('horizontalRule', 22),
@@ -133,7 +150,14 @@ describe('buildRichTextTree', () => {
 
     it('still caps at 6, so a floor of 6 never produces an h7', () => {
       const tree = buildWith(
-        [...LEVELS, { type: 'heading', attrs: { level: 12 }, content: [textNode('Twelve')] }],
+        [
+          ...LEVELS,
+          {
+            type: 'heading',
+            attrs: { level: 12 },
+            content: [textNode('Twelve')],
+          },
+        ],
         6
       );
       expect(findAll(tree, 'h6').map(textOf)).toEqual(['One', 'Two', 'Three', 'Four', 'Twelve']);
@@ -155,7 +179,13 @@ describe('buildRichTextTree', () => {
         [
           {
             type: 'blockquote',
-            content: [{ type: 'heading', attrs: { level: 2 }, content: [textNode('Quoted')] }],
+            content: [
+              {
+                type: 'heading',
+                attrs: { level: 2 },
+                content: [textNode('Quoted')],
+              },
+            ],
           },
         ],
         4
@@ -183,14 +213,23 @@ describe('buildRichTextTree', () => {
       {
         type: 'bulletList',
         content: [
-          { type: 'listItem', content: [{ type: 'paragraph', content: [textNode('One')] }] },
-          { type: 'listItem', content: [{ type: 'paragraph', content: [textNode('Two')] }] },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [textNode('One')] }],
+          },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [textNode('Two')] }],
+          },
         ],
       },
       {
         type: 'orderedList',
         content: [
-          { type: 'listItem', content: [{ type: 'paragraph', content: [textNode('Uno')] }] },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [textNode('Uno')] }],
+          },
         ],
       },
     ]);
@@ -201,7 +240,11 @@ describe('buildRichTextTree', () => {
 
   it('builds a code block with a language class', () => {
     const tree = build([
-      { type: 'codeBlock', attrs: { language: 'ts' }, content: [textNode('const x = 1;')] },
+      {
+        type: 'codeBlock',
+        attrs: { language: 'ts' },
+        content: [textNode('const x = 1;')],
+      },
       { type: 'codeBlock', content: [textNode('plain')] },
     ]);
 
@@ -221,11 +264,23 @@ describe('buildRichTextTree', () => {
         content: [
           {
             type: 'tableRow',
-            content: [{ type: 'tableHeader', attrs: { colspan: 2 }, content: [textNode('Head')] }],
+            content: [
+              {
+                type: 'tableHeader',
+                attrs: { colspan: 2 },
+                content: [textNode('Head')],
+              },
+            ],
           },
           {
             type: 'tableRow',
-            content: [{ type: 'tableCell', attrs: { rowspan: 3 }, content: [textNode('Cell')] }],
+            content: [
+              {
+                type: 'tableCell',
+                attrs: { rowspan: 3 },
+                content: [textNode('Cell')],
+              },
+            ],
           },
         ],
       },
@@ -243,7 +298,12 @@ describe('buildRichTextTree', () => {
     const tree = build([
       {
         type: 'image',
-        attrs: { src: '/media/a.png', alt: 'Alt', title: 'Title', assetId: 'asset-1' },
+        attrs: {
+          src: '/media/a.png',
+          alt: 'Alt',
+          title: 'Title',
+          assetId: 'asset-1',
+        },
       },
     ]);
 
@@ -263,7 +323,11 @@ describe('buildRichTextTree', () => {
     const tree = build([
       {
         type: 'embed',
-        attrs: { src: 'https://example.com/video', provider: 'vimeo', title: 'A video' },
+        attrs: {
+          src: 'https://example.com/video',
+          provider: 'vimeo',
+          title: 'A video',
+        },
       },
     ]);
 
@@ -281,7 +345,10 @@ describe('buildRichTextTree', () => {
 
   it('renders an unknown node as a stamped span, so its two tokens stay countable', () => {
     const tree = build([
-      { type: 'someFutureNode', content: [{ type: 'paragraph', content: [textNode('Inside')] }] },
+      {
+        type: 'someFutureNode',
+        content: [{ type: 'paragraph', content: [textNode('Inside')] }],
+      },
     ]);
 
     // An unknown node has no markup of its own, but it is still a node: it
@@ -299,7 +366,10 @@ describe('buildRichTextTree', () => {
 
   it('renders a nested doc node the same way', () => {
     const tree = build([
-      { type: 'doc', content: [{ type: 'paragraph', content: [textNode('Inside')] }] },
+      {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [textNode('Inside')] }],
+      },
     ]);
 
     expect(tree).toEqual([
@@ -337,7 +407,11 @@ describe('buildRichTextTree', () => {
     // An unknown node already renders as its own (stamped) span, so its bare
     // text never reaches the top level as a string.
     expect(build([{ type: 'someFutureNode', content: [textNode('spliced')] }])).toEqual([
-      { tag: 'span', attrs: stamped('someFutureNode', 0), children: ['spliced'] },
+      {
+        tag: 'span',
+        attrs: stamped('someFutureNode', 0),
+        children: ['spliced'],
+      },
     ]);
     // A well-formed document is untouched: no stray spans appear.
     expect(build([{ type: 'paragraph', content: [textNode('fine')] }])).toEqual([
@@ -379,7 +453,11 @@ describe('buildRichTextTree marks', () => {
     ]);
 
     expect((tree[0] as RichTextRenderNode).children).toEqual([
-      { tag: 'em', attrs: {}, children: [{ tag: 'strong', attrs: {}, children: ['both'] }] },
+      {
+        tag: 'em',
+        attrs: {},
+        children: [{ tag: 'strong', attrs: {}, children: ['both'] }],
+      },
     ]);
   });
 
@@ -411,7 +489,10 @@ describe('buildRichTextTree marks', () => {
         content: [
           textNode('site', [{ type: 'link', attrs: { href: '/about' } }]),
           textNode('ext', [
-            { type: 'link', attrs: { href: 'https://example.com', target: '_blank' } },
+            {
+              type: 'link',
+              attrs: { href: 'https://example.com', target: '_blank' },
+            },
           ]),
           // Only "_blank" is an honored target value (spec §4.1); anything else is dropped.
           textNode('same', [{ type: 'link', attrs: { href: '/x', target: '_self' } }]),
@@ -478,7 +559,10 @@ describe('buildRichTextTree marks', () => {
 
   it('ignores an unknown mark and still keeps the text', () => {
     const tree = build([
-      { type: 'paragraph', content: [textNode('plain', [{ type: 'someFutureMark', attrs: {} }])] },
+      {
+        type: 'paragraph',
+        content: [textNode('plain', [{ type: 'someFutureMark', attrs: {} }])],
+      },
     ]);
 
     expect(tree).toEqual([{ tag: 'p', attrs: stamped('paragraph', 0), children: ['plain'] }]);
@@ -524,12 +608,19 @@ describe('buildRichTextTree stega', () => {
 
 describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
   function buildPadded(content: RichTextNode[]): RichTextRenderNode[] {
-    return buildRichTextTree(doc(content), { ...options, padEmptyBlocks: true });
+    return buildRichTextTree(doc(content), {
+      ...options,
+      padEmptyBlocks: true,
+    });
   }
 
   it('renders an empty paragraph with no children by default (padEmptyBlocks unset)', () => {
     const tree = build([{ type: 'paragraph' }]);
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: [] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: [],
+    });
   });
 
   it('pads an empty paragraph with a single unstamped <br data-eldra-pad=""> when padEmptyBlocks is true', () => {
@@ -565,12 +656,19 @@ describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
 
   it('does not pad a non-empty paragraph', () => {
     const tree = buildPadded([{ type: 'paragraph', content: [textNode('Hello')] }]);
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: ['Hello'] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: ['Hello'],
+    });
   });
 
   it('pads an empty paragraph nested inside a listItem, and one inside a tableCell', () => {
     const tree = buildPadded([
-      { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }] },
+      {
+        type: 'bulletList',
+        content: [{ type: 'listItem', content: [{ type: 'paragraph' }] }],
+      },
       {
         type: 'table',
         content: [
@@ -632,19 +730,30 @@ describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
 
   it('leaves a whitespace-only paragraph untouched without padEmptyBlocks', () => {
     const tree = build([{ type: 'paragraph', content: [textNode('  ')] }]);
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: ['  '] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: ['  '],
+    });
   });
 
   it('does not pad a paragraph with real, non-whitespace text', () => {
     const tree = buildPadded([{ type: 'paragraph', content: [textNode(' Hi ')] }]);
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: [' Hi '] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: [' Hi '],
+    });
   });
 
   // --- ProseMirror's other trailing-break rule: last child is a hardBreak --
 
   it('pads a non-empty paragraph whose last content child is a hardBreak (Shift+Enter at the end of a line)', () => {
     const tree = buildPadded([
-      { type: 'paragraph', content: [textNode('hello'), { type: 'hardBreak' }] },
+      {
+        type: 'paragraph',
+        content: [textNode('hello'), { type: 'hardBreak' }],
+      },
     ]);
     expect(tree[0]).toEqual({
       tag: 'p',
@@ -659,7 +768,10 @@ describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
 
   it('leaves a paragraph ending in a hardBreak untouched without padEmptyBlocks', () => {
     const tree = build([
-      { type: 'paragraph', content: [textNode('hello'), { type: 'hardBreak' }] },
+      {
+        type: 'paragraph',
+        content: [textNode('hello'), { type: 'hardBreak' }],
+      },
     ]);
     expect(tree[0]).toEqual({
       tag: 'p',
@@ -670,7 +782,10 @@ describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
 
   it('does not pad when a hardBreak is followed by more content', () => {
     const tree = buildPadded([
-      { type: 'paragraph', content: [textNode('a'), { type: 'hardBreak' }, textNode('b')] },
+      {
+        type: 'paragraph',
+        content: [textNode('a'), { type: 'hardBreak' }, textNode('b')],
+      },
     ]);
     expect(tree[0]).toEqual({
       tag: 'p',
@@ -681,7 +796,10 @@ describe('padEmptyBlocks (§18 v3 floating toolbar follow-up)', () => {
 
   it('does not pad when the hardBreak is first, not last', () => {
     const tree = buildPadded([
-      { type: 'paragraph', content: [{ type: 'hardBreak' }, textNode('hello')] },
+      {
+        type: 'paragraph',
+        content: [{ type: 'hardBreak' }, textNode('hello')],
+      },
     ]);
     expect(tree[0]).toEqual({
       tag: 'p',
@@ -701,6 +819,58 @@ describe('literal newline in a text leaf under edit-mode pre-wrap (§18 v3 float
   // richTextPositions.test.ts) position counting.
   it('renders a literal newline as an ordinary character, not stripped or specially escaped', () => {
     const tree = build([{ type: 'paragraph', content: [textNode('a\nb')] }]);
-    expect(tree[0]).toEqual({ tag: 'p', attrs: stamped('paragraph', 0), children: ['a\nb'] });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: ['a\nb'],
+    });
+  });
+});
+
+/** WS-1474: a price token in rich text is an inline `price` leaf the theme writes. */
+describe('price nodes', () => {
+  const price = (attrs: Record<string, unknown>): RichTextNode => ({
+    type: 'price',
+    attrs,
+  });
+  const resolvePrice = (attrs: unknown): string | null => {
+    const amount = (attrs as { amounts?: Record<string, number> }).amounts?.ISK;
+    return typeof amount === 'number' ? `${amount} kr.` : null;
+  };
+  const content = (attrs: Record<string, unknown>): RichTextNode[] => [
+    {
+      type: 'paragraph',
+      content: [textNode('Over '), price(attrs), textNode('!')],
+    },
+    { type: 'paragraph', content: [textNode('Next')] },
+  ];
+
+  it('writes the price as a stamped leaf taking one position', () => {
+    const tree = buildRichTextTree(doc(content({ id: 'a3f', amounts: { ISK: 500 } })), {
+      ...options,
+      resolvePrice,
+    });
+    expect(tree[0]).toEqual({
+      tag: 'p',
+      attrs: stamped('paragraph', 0),
+      children: ['Over ', { tag: 'span', attrs: stamped('price', 6), children: ['500 kr.'] }, '!'],
+    });
+    // "Over " (5) + the leaf (1) + "!" (1), inside the paragraph's open and close tokens: 9.
+    expect(tree[1]?.attrs['data-eldra-pos']).toBe('9');
+  });
+
+  it('hides the paragraph holding a price it cannot write, keeping every position', () => {
+    const tree = buildRichTextTree(doc(content({ id: 'a3f', amounts: { EUR: 500 } })), {
+      ...options,
+      resolvePrice,
+    });
+    expect(tree[0]?.attrs.hidden).toBe('');
+    expect(tree[1]?.attrs.hidden).toBeUndefined();
+    expect(tree[1]?.attrs['data-eldra-pos']).toBe('9');
+  });
+
+  it('resolves no price without a resolver', () => {
+    const tree = build(content({ id: 'a3f', amounts: { ISK: 500 } }));
+    expect(tree[0]?.attrs.hidden).toBe('');
   });
 });

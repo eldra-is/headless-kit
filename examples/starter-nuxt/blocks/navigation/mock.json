@@ -391,7 +391,7 @@
   "transparentOverHero": false,
   "infoItems": [
     {
-      "text": "Free delivery over $80",
+      "text": "Free delivery over ⟦store freeShippingThreshold⟧",
       "icon": "truck",
       "placement": "start"
     },

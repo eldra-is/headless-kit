@@ -7,15 +7,17 @@ import { axe } from '../../../test/support/axe';
 import Block from '../Block.vue';
 import mock from '../mock.json';
 import { mountOptions } from '../../../test/support/mountBlock';
+import { shown } from '../../../test/support/priceTokens';
 import { EldraHttpError } from '@eldrajs/sdk';
+import type { StoreAmounts } from '@eldrajs/sdk/tokens';
 import { createDemoStorefront, DEMO_CART_LINES } from '../../../app/storefront/demo';
 import { createCartStore, type CartSnapshot } from '../../../app/storefront/cart';
 import { STOREFRONT_KEY, type StorefrontSource } from '../../../app/storefront/types';
 import type { StorefrontCartLine } from '../../../app/storefront/types';
 
 /** Only `variant` is required at the schema level — the "genuinely minimal" fixture every rebuilt
- *  block spec covers alongside the full `mock.json`. With no `freeShippingThreshold` there is no
- *  shipping bar, and with no empty copy the empty state falls back to its own heading. */
+ *  block spec covers alongside the full `mock.json`. The shipping bar follows the store's own
+ *  threshold (on by default), and with no empty copy the empty state falls back to its own heading. */
 const bare = { variant: 'drawer' as const };
 
 /**
@@ -71,6 +73,8 @@ async function mountCart(
     refuseMutations?: unknown;
     /** Refuse only the re-add behind Undo, so the removal itself still succeeds. */
     refuseOnly?: 'add';
+    /** The store's own amounts (free-shipping threshold per currency); the demo store's by default. */
+    storeAmounts?: StoreAmounts | null;
   } = {}
 ): Promise<{ wrapper: VueWrapper; storefront: StorefrontSource }> {
   const lines = options.cartLines ?? DEMO_CART_LINES;
@@ -78,7 +82,10 @@ async function mountCart(
     options.refuseMutations === undefined
       ? createDemoStorefront({ cartLines: lines })
       : refusingStorefront(lines, options.refuseMutations, options.refuseOnly);
-  const base = mountOptions({ entry: { id: 'cart', data } });
+  const base = mountOptions(
+    { entry: { id: 'cart', data } },
+    options.storeAmounts === undefined ? {} : { storeAmounts: options.storeAmounts }
+  );
   const wrapper = mount(Harness, {
     props: { entry: { id: 'cart', data }, storefront },
     attachTo: document.body,
@@ -88,7 +95,11 @@ async function mountCart(
       // `transition-group-stub` element between the `<ul>` and its `<li>`s and break the list
       // semantics axe checks — in a browser it renders a fragment and there is no wrapper at all.
       // Rendering the real thing is both what the page does and what the axe gate has to see.
-      stubs: { ...base.global.stubs, transition: false, 'transition-group': false },
+      stubs: {
+        ...base.global.stubs,
+        transition: false,
+        'transition-group': false,
+      },
       provide: {
         ...base.global.provide,
         [STOREFRONT_KEY]: storefront,
@@ -132,7 +143,13 @@ function refusingStorefront(
   let held = lines.map((line) => ({ ...line }));
   const snapshot = (): CartSnapshot => ({
     lines: held.map((line) => ({ ...line })),
-    totals: { subtotal: 0, discount: null, shipping: null, tax: null, total: 0 },
+    totals: {
+      subtotal: 0,
+      discount: null,
+      shipping: null,
+      tax: null,
+      total: 0,
+    },
   });
   const refuse = async (): Promise<never> => {
     throw thrown;
@@ -459,7 +476,9 @@ describe('cart block', () => {
     });
 
     it('moves focus to the empty-state heading when the last line goes', async () => {
-      const { wrapper } = await mountCart(mock, { cartLines: [DEMO_CART_LINES[0]!] });
+      const { wrapper } = await mountCart(mock, {
+        cartLines: [DEMO_CART_LINES[0]!],
+      });
       await openDrawer(wrapper);
 
       await wrapper
@@ -482,15 +501,39 @@ describe('cart block', () => {
       const status = wrapper
         .findAll('[role="status"]')
         .find((element) => element.text().includes('Free shipping'))!;
-      // $210.00 against the mock's $80.00 threshold.
+      // $210.00 against the demo store's own $80.00 threshold (`DEMO_STORE_AMOUNTS`).
       expect(status.text()).toBe('Free shipping unlocked');
       expect(status.attributes('aria-live')).toBeUndefined(); // role="status" is already polite
       expect(wrapper.find('[aria-hidden="true"] > div').exists()).toBe(true);
       expect(wrapper.find('[role="progressbar"]').exists()).toBe(false);
     });
 
-    it('renders no bar at all without a threshold', async () => {
-      const { wrapper } = await mountCart({ ...bare, variant: 'page' });
+    it("measures against the store's own threshold in the cart's currency", async () => {
+      // The store's delivery methods say $250 in USD: $210.00 is $40.00 short.
+      const { wrapper } = await mountCart(
+        { ...bare, variant: 'page' },
+        { storeAmounts: { freeShippingThreshold: { USD: 25000, ISK: 15000 } } }
+      );
+      const status = wrapper
+        .findAll('[role="status"]')
+        .find((element) => element.text().includes('free shipping'))!;
+      expect(status.text()).toContain('$40.00');
+    });
+
+    it.each([
+      [
+        'the store has no threshold in the cart’s currency (never converted)',
+        { freeShippingThreshold: { ISK: 15000 } },
+      ],
+      ['the store’s thresholds could not be read', null],
+    ])('renders no bar at all when %s', async (_, storeAmounts) => {
+      const { wrapper } = await mountCart({ ...bare, variant: 'page' }, { storeAmounts });
+      expect(wrapper.text()).not.toContain('free shipping');
+      expect(wrapper.text()).not.toContain('Free shipping');
+    });
+
+    it('renders no bar when the merchant switches it off', async () => {
+      const { wrapper } = await mountCart({ ...bare, variant: 'page', showShippingBar: false });
       expect(wrapper.text()).not.toContain('free shipping');
       expect(wrapper.text()).not.toContain('Free shipping');
     });
@@ -532,7 +575,7 @@ describe('cart block', () => {
       expect(wrapper.get(`a[href="${mock.emptyLinkHref}"]`).text()).toContain('Continue shopping');
 
       const empty = await mountCart({ ...mock, variant: 'page' }, { cartLines: [] });
-      expect(empty.wrapper.text()).toContain(mock.emptyText);
+      expect(empty.wrapper.text()).toContain(shown(mock.emptyText));
       expect(empty.wrapper.findAll(`a[href="${mock.emptyLinkHref}"]`).length).toBe(2);
       expect(empty.wrapper.find('aside').exists()).toBe(false);
     });

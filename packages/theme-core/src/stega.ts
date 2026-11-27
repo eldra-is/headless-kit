@@ -20,7 +20,25 @@ export interface StegaMeta {
   /** Dot path within entry data, e.g. "title" or "cta.label". List indices numeric: "items.2.title". */
   fieldPath: string;
   locale: string | null; // null for non-localized fields
+  /**
+   * `false` when the text on the page is not the text the field stores — a theme wrote out price
+   * tokens (`@eldrajs/sdk/tokens`) in it — so the overlay must not make it editable in place:
+   * typing there would save the written-out price over the token. A click still selects the
+   * field, for the inspector to edit. Absent means editable, as before.
+   */
+  inline?: false;
+  /**
+   * The field's **stored** text, for a theme that writes price tokens out: plain runs as strings,
+   * each token as its stored text with the label the page shows for it (`missing` when the
+   * shopper's currency has no amount). With `price-tokens-inline` negotiated, the overlay lets
+   * the operator edit such a field in place: the text around the prices is editable, each price
+   * is a chip, and every edit is posted as stored text, tokens intact.
+   */
+  parts?: StegaPricePart[];
 }
+
+/** One run of a priced field's stored text: `StegaMeta.parts`. */
+export type StegaPricePart = string | { token: string; label: string; missing?: true };
 
 /** value + zero-width payload suffix. Bits are emitted MSB-first per UTF-8 byte. */
 export function encodeStega(value: string, meta: StegaMeta): string {
@@ -41,7 +59,10 @@ export function stripStega(value: string): string {
   return value.replace(STEGA_RUN, '');
 }
 
-export function decodeStega(value: string): { cleaned: string; meta: StegaMeta | null } {
+export function decodeStega(value: string): {
+  cleaned: string;
+  meta: StegaMeta | null;
+} {
   STEGA_RUN.lastIndex = 0;
   const match = STEGA_RUN.exec(value);
   if (match === null) return { cleaned: value, meta: null };
@@ -72,6 +93,19 @@ function isStegaMeta(v: unknown): v is StegaMeta {
   return (
     typeof m.entryId === 'string' &&
     typeof m.fieldPath === 'string' &&
-    (m.locale === null || typeof m.locale === 'string')
+    (m.locale === null || typeof m.locale === 'string') &&
+    (m.inline === undefined || m.inline === false) &&
+    (m.parts === undefined || (Array.isArray(m.parts) && m.parts.every(isPricePart)))
+  );
+}
+
+function isPricePart(v: unknown): v is StegaPricePart {
+  if (typeof v === 'string') return true;
+  if (typeof v !== 'object' || v === null) return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.token === 'string' &&
+    typeof p.label === 'string' &&
+    (p.missing === undefined || p.missing === true)
   );
 }

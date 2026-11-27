@@ -127,6 +127,10 @@ export const blockJsonSchema = {
         groupId: { type: 'string' },
         isTitle: { type: 'boolean' },
         localized: { type: 'boolean' },
+        // Price tokens (WS-1474): Core allows them in every text field of a
+        // theme block; `false` opts one out (a URL, a code). Only on text
+        // types — `semanticChecks` in scan.ts enforces that, at any depth.
+        allowPrices: { type: 'boolean' },
         default: {},
         description: { type: 'string' },
         helpText: { type: 'string' },

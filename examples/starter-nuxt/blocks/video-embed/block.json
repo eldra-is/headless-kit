@@ -32,6 +32,7 @@
       "fieldId": "videoUrl",
       "name": "Video URL",
       "type": "string",
+      "allowPrices": false,
       "helpText": "YouTube (loaded from youtube-nocookie.com), Vimeo, or an MP4 from the media library.",
       "validators": { "required": true }
     },
@@ -74,6 +75,7 @@
       "fieldId": "transcriptHref",
       "name": "Transcript link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "A page or PDF. Strongly recommended when the video has speech."
     },
     {

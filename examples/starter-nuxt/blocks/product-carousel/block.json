@@ -57,6 +57,7 @@
       "fieldId": "viewAllHref",
       "name": "View all link",
       "type": "string",
+      "allowPrices": false,
       "helpText": "Where the heading links to. The collection variant links to the collection you picked instead.",
       "showWhen": { "field": "variant", "in": ["related"] }
     },

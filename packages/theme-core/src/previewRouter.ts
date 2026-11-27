@@ -19,6 +19,7 @@ export const PREVIEW_ROUTER_MESSAGE_TYPES = [
   'editor:rich-text-editing',
   'editor:rich-text-applied',
   'editor:rich-text-locate',
+  'editor:insert-price',
 ] as const;
 
 export type PreviewRouterMessageType = (typeof PREVIEW_ROUTER_MESSAGE_TYPES)[number];
@@ -32,6 +33,8 @@ export interface NegotiatedEditorCapabilities {
   framing: boolean;
   richText: boolean;
   blockHover: boolean;
+  /** `price-tokens-inline`: price chips in plain-text fields edited on the canvas. */
+  priceTokens: boolean;
 }
 
 export interface PreviewMessageRouter {
@@ -53,6 +56,7 @@ const CLOSED: NegotiatedEditorCapabilities = {
   framing: false,
   richText: false,
   blockHover: false,
+  priceTokens: false,
 };
 
 type RichTextTarget = {
@@ -78,6 +82,7 @@ export function createPreviewMessageRouter(
     runtime.setFramingEnabled(capabilities.framing);
     runtime.setRichTextEnabled(capabilities.richText);
     runtime.setBlockHoverEnabled(capabilities.blockHover);
+    runtime.setPriceTokensEnabled(capabilities.priceTokens);
   }
 
   return {
@@ -90,6 +95,7 @@ export function createPreviewMessageRouter(
         framing: list.includes('image-framing'),
         richText: list.includes('rich-text-inline'),
         blockHover: list.includes('block-hover'),
+        priceTokens: list.includes('price-tokens-inline'),
       };
       apply();
       return capabilities;
@@ -163,6 +169,19 @@ export function createPreviewMessageRouter(
             // nobody confirmed.
             rerender: applied.rerender !== false,
           });
+          return true;
+        }
+        case 'editor:insert-price': {
+          if (!capabilities.priceTokens) return true;
+          // Untrusted wire data: anything but strings is refused by the runtime's own checks.
+          const message = (
+            payload !== null && typeof payload === 'object' ? payload : {}
+          ) as Partial<BridgePayloads['editor:insert-price']>;
+          runtime.insertPriceToken(
+            richTextTarget(payload),
+            typeof message.token === 'string' ? message.token : '',
+            typeof message.label === 'string' ? message.label : ''
+          );
           return true;
         }
         case 'editor:rich-text-locate': {

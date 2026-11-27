@@ -5,6 +5,7 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- **`price` nodes (WS-1474).** An inline `price` node holds a price token: `{ id, amounts }` (minor units per currency) or `{ setting }`. `toHtml(doc, { resolvePrice })` writes it as text with its marks, and leaves out the paragraph or heading holding one it cannot write; `resolvePrices(content, resolve)` does the same to a document. Without `resolvePrice` every such paragraph is left out, never a raw token.
 - Tree-shakes: importing only `safeImageSrc` (or another URL helper) no longer bundles the HTML
   renderer and the embed host list, 4.3 kB down to 235 B minified. No behaviour change.
 

@@ -1,3 +1,4 @@
+import { resolvePrices, type PriceResolver } from './prices';
 import { isTrustedEmbedSource } from './embed';
 import { isStringTag, isStyledOverride, type StyledTagOverride } from './overrides';
 import type { RichTextDocument, RichTextMark, RichTextNode } from './types';
@@ -26,6 +27,12 @@ export type HtmlOverride<TRenderer> = string | StyledTagOverride | TRenderer | n
 export interface ToHtmlOptions {
   nodes?: Partial<Record<string, HtmlOverride<HtmlNodeRenderer>>>;
   marks?: Partial<Record<string, HtmlOverride<HtmlMarkRenderer>>>;
+  /**
+   * Writes a `price` node (a price token, WS-1474) in the shopper's currency; see
+   * `resolvePrices`. The written text is escaped like any other text. Without one no price
+   * resolves, and the paragraph or heading holding it is left out.
+   */
+  resolvePrice?: PriceResolver | null;
 }
 
 type Attributes = Record<string, string | number | boolean | null | undefined>;
@@ -173,7 +180,9 @@ const defaultNodes: Record<string, DefaultNodeRenderer> = {
   orderedList: (node, children, _context, extra) =>
     element(
       'ol',
-      { start: typeof node.attrs?.start === 'number' ? node.attrs.start : undefined },
+      {
+        start: typeof node.attrs?.start === 'number' ? node.attrs.start : undefined,
+      },
       children,
       extra
     ),
@@ -184,7 +193,9 @@ const defaultNodes: Record<string, DefaultNodeRenderer> = {
     const language = node.attrs?.language;
     const code = element(
       'code',
-      { class: typeof language === 'string' && language ? `language-${language}` : undefined },
+      {
+        class: typeof language === 'string' && language ? `language-${language}` : undefined,
+      },
       children
     );
     return element('pre', {}, code, extra);
@@ -246,7 +257,11 @@ const defaultMarks: Record<string, DefaultMarkRenderer> = {
       typeof attrs.rel === 'string' ? attrs.rel : external ? 'noopener noreferrer' : undefined;
     return element(
       'a',
-      { href, rel, target: typeof attrs.target === 'string' ? attrs.target : undefined },
+      {
+        href,
+        rel,
+        target: typeof attrs.target === 'string' ? attrs.target : undefined,
+      },
       children,
       extra
     );
@@ -277,7 +292,8 @@ export function toHtml(
   content: RichTextDocument | null | undefined,
   options: ToHtmlOptions = {}
 ): string {
-  if (!content) return '';
+  const document = resolvePrices(content, options.resolvePrice);
+  if (!document) return '';
   const nodes = options.nodes ?? {};
   const marks = options.marks ?? {};
 
@@ -320,5 +336,5 @@ export function toHtml(
     );
   }
 
-  return renderNode(content);
+  return renderNode(document);
 }
