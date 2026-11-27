@@ -83,6 +83,22 @@ async function type(
   await nextTick();
 }
 
+/** One `input` event the way a browser sends it: the new text, the caret, the kind of edit. */
+async function edit(
+  field: { element: Element },
+  text: string,
+  caret: number,
+  inputType: string
+): Promise<void> {
+  const element = field.element as HTMLInputElement;
+  element.focus();
+  element.value = text;
+  element.setSelectionRange(caret, caret);
+  element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType }));
+  await nextTick();
+  await nextTick();
+}
+
 /** The `setTimeout(0)` a focus, a click or an arrow key schedules to run after the browser's caret. */
 function afterCaretTick(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve));
@@ -226,19 +242,31 @@ describe('UnitInput — emits (ported)', () => {
     host.unmount();
   });
 
-  it('keeps the field empty while editing and falls back to 0 on blur', async () => {
+  it('keeps the field empty while editing, emits 0 at once and shows it on blur', async () => {
     const { host, value, field } = mountModel({ unit: 'percent' }, 100);
 
     await type(field(), '');
 
     expect((field().element as HTMLInputElement).value).toBe('');
-    expect(value.value).toBe(100);
+    expect(value.value).toBe(0);
 
     await field().trigger('blur');
     await nextTick();
 
-    expect((field().element as HTMLInputElement).value).toContain('0');
+    expect((field().element as HTMLInputElement).value).toBe('0%');
     expect(value.value).toBe(0);
+    host.unmount();
+  });
+
+  it('leaves an untouched empty field empty on blur', async () => {
+    const { host, value, field } = mountModel({ unit: 'percent' }, null);
+
+    await field().trigger('focus');
+    await field().trigger('blur');
+    await nextTick();
+
+    expect((field().element as HTMLInputElement).value).toBe('');
+    expect(value.value).toBe(null);
     host.unmount();
   });
 
@@ -429,24 +457,28 @@ describe('UnitInput — live formatting', () => {
     wrapper.unmount();
   });
 
-  it('strips a non-numeric keystroke on the reformat rather than blocking it', async () => {
-    // The opposite of `QuantityStepper`, which refuses the keystroke at `beforeinput`: this field's
-    // own text is full of non-numeric characters, so the reformat is what decides.
-    const wrapper = mount({ unit: 'kilometer' });
+  it('refuses a typed keystroke that would make the text unreadable', async () => {
+    const wrapper = mount({ unit: 'kilometer', modelValue: 12 });
+    await nextTick();
 
-    await type(wrapper.find('[data-part="control"]'), '12a3');
+    await edit(wrapper.find('[data-part="control"]'), '12a km', 3, 'insertText');
 
-    expect(control(wrapper).value).toBe('123 km');
+    expect(control(wrapper).value).toBe('12 km');
+    expect(control(wrapper).selectionStart).toBe(2);
     wrapper.unmount();
   });
 
-  it('empties the field for text with no digits at all, without touching the model', async () => {
+  it('keeps unreadable pasted text as it came, marks it invalid and keeps the model', async () => {
     const { host, value, field } = mountModel({ unit: 'kilometer' }, 12);
+    const unit = host.findComponent(UnitInput);
 
-    await type(field(), 'abc');
+    await edit(field(), 'abc', 3, 'insertFromPaste');
 
-    expect((field().element as HTMLInputElement).value).toBe('');
+    expect((field().element as HTMLInputElement).value).toBe('abc km');
+    expect(field().attributes('aria-invalid')).toBe('true');
     expect(value.value).toBe(12);
+    expect(unit.emitted('update:valid')?.at(-1)).toEqual([false]);
+    expect((unit.vm as unknown as { invalidReason: string }).invalidReason).toBe('notANumber');
     host.unmount();
   });
 
@@ -455,10 +487,10 @@ describe('UnitInput — live formatting', () => {
     await nextTick();
     expect(control(wrapper).value).toBe('$1,234.5');
 
-    await wrapper.setProps({ locale: 'is-IS', currency: 'ISK' });
+    await wrapper.setProps({ locale: 'is-IS', currency: 'EUR' });
     await nextTick();
 
-    expect(control(wrapper).value).toBe(`1.234,5${NBSP}kr.`);
+    expect(control(wrapper).value).toBe(`1.234,5${NBSP}EUR`);
     wrapper.unmount();
   });
 });
@@ -507,85 +539,92 @@ describe('UnitInput — the caret', () => {
     wrapper.unmount();
   });
 
-  it('skips the group separator with ArrowLeft', async () => {
-    const wrapper = mount({ unit: 'kilometer', modelValue: 1234 });
+  it('types a digit next to a group mark where the caret is', async () => {
+    const { host, value, field } = mountModel({ unit: 'kilometer' }, 1234);
     await nextTick();
-    const element = control(wrapper);
-    element.focus();
-    // "1,234 km", caret between the 2 and the 3. `keydown` fires before the browser moves it, so
-    // the handler reads 3 and puts the caret two back — past the separator the browser would have
-    // stopped on, which is the whole point.
-    element.setSelectionRange(3, 3);
 
-    await wrapper.find('[data-part="control"]').trigger('keydown', { key: 'ArrowLeft' });
-    await afterCaretTick();
+    // "1,234 km", the caret between the 1 and the comma.
+    await edit(field(), '15,234 km', 2, 'insertText');
 
-    expect(element.selectionStart).toBe(1);
-    wrapper.unmount();
+    expect((field().element as HTMLInputElement).value).toBe('15,234 km');
+    expect((field().element as HTMLInputElement).selectionStart).toBe(2);
+    expect(value.value).toBe(15234);
+    host.unmount();
   });
 
   it('never lets Backspace delete a leading symbol', async () => {
     const wrapper = mount({ isCurrency: true, currency: 'USD', modelValue: 1234 });
     await nextTick();
-    const element = control(wrapper);
-    element.focus();
-    element.setSelectionRange(1, 1);
 
-    const event = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });
-    element.dispatchEvent(event);
+    await edit(wrapper.find('[data-part="control"]'), '1,234', 0, 'deleteContentBackward');
+
+    expect(control(wrapper).value).toBe('$1,234');
+    expect(control(wrapper).selectionStart).toBe(1);
+    wrapper.unmount();
+  });
+
+  it('Backspace after a group mark deletes the digit before it', async () => {
+    const { host, value, field } = mountModel({ isCurrency: true, currency: 'USD' }, 1234);
     await nextTick();
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(element.selectionStart).toBe(1);
-    wrapper.unmount();
+    await edit(field(), '$1234', 2, 'deleteContentBackward');
+
+    expect((field().element as HTMLInputElement).value).toBe('$234');
+    expect(value.value).toBe(234);
+    host.unmount();
   });
 
   it('never lets Delete eat a trailing symbol', async () => {
     const wrapper = mount({ unit: 'kilometer', modelValue: 1234 });
     await nextTick();
+
+    await edit(wrapper.find('[data-part="control"]'), '1,234km', 5, 'deleteContentForward');
+
+    expect(control(wrapper).value).toBe('1,234 km');
+    wrapper.unmount();
+  });
+});
+
+describe('UnitInput — Home and End', () => {
+  it('End stops after the amount, before a trailing symbol', async () => {
+    const wrapper = mount({ unit: 'kilometer', modelValue: 1234 });
+    await nextTick();
     const element = control(wrapper);
     element.focus();
-    // "1,234 km" — the caret sits after the last digit, with only " km" to its right.
-    element.setSelectionRange(5, 5);
+    element.setSelectionRange(element.value.length, element.value.length);
 
-    const event = new KeyboardEvent('keydown', { key: 'Delete', cancelable: true });
-    element.dispatchEvent(event);
-    await nextTick();
+    await wrapper.find('[data-part="control"]').trigger('keyup', { key: 'End' });
 
-    expect(event.defaultPrevented).toBe(true);
+    expect(element.selectionStart).toBe(5);
     wrapper.unmount();
   });
 });
 
 describe('UnitInput — the decimal separator', () => {
-  it('inserts the locale’s decimal separator whichever of , and . was pressed', async () => {
-    const wrapper = mount({ unit: 'kilometer', modelValue: 12 });
+  it('takes the other mark as the decimal once a digit follows, and shows the locale’s on blur', async () => {
+    const { host, value, field } = mountModel({ unit: 'kilometer' }, 12);
     await nextTick();
-    const element = control(wrapper);
-    element.focus();
-    element.setSelectionRange(2, 2);
+    const element = field().element as HTMLInputElement;
 
-    const event = new KeyboardEvent('keydown', { key: ',', cancelable: true });
-    element.dispatchEvent(event);
-    await nextTick();
+    // No keydown at all: the mark arrives only as an input event (a virtual keyboard).
+    await edit(field(), '12, km', 3, 'insertText');
+    expect(element.value).toBe('12, km');
+    await edit(field(), '12,5 km', 4, 'insertText');
+    expect(element.value).toBe('12,5 km');
+    expect(value.value).toBe(12.5);
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(wrapper.emitted('update:formattedValue')?.at(-1)).toEqual(['12. km']);
-    wrapper.unmount();
+    await field().trigger('blur');
+    expect(element.value).toBe('12.5 km');
+    host.unmount();
   });
 
   it('refuses a second decimal separator', async () => {
     const wrapper = mount({ unit: 'kilometer', modelValue: 12.5 });
     await nextTick();
-    const element = control(wrapper);
-    element.focus();
-    element.setSelectionRange(4, 4);
 
-    const event = new KeyboardEvent('keydown', { key: '.', cancelable: true });
-    element.dispatchEvent(event);
-    await nextTick();
+    await edit(wrapper.find('[data-part="control"]'), '12.5. km', 5, 'insertText');
 
-    expect(event.defaultPrevented).toBe(true);
+    expect(control(wrapper).value).toBe('12.5 km');
     wrapper.unmount();
   });
 

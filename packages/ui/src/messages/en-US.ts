@@ -598,6 +598,10 @@ export const enUS = {
   phoneInvalid: (country: string) => `Enter a valid phone number for ${country}.`,
   /** `phoneRule`: the same, when no country is known for the number. */
   phoneInvalidNumber: 'Enter a valid phone number.',
+  /** `FieldUnitInput` and `FieldCurrencyInput`: the text in the field cannot be read as a number. */
+  amountNotANumber: 'Enter a number.',
+  /** The same, for a fraction in a field that takes whole numbers (a currency without decimals). */
+  amountNoDecimals: 'Enter a whole number.',
 };
 
 /**
