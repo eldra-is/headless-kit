@@ -40,7 +40,9 @@ import { useEldraBlockField } from './useEldraBlockField';
  * Locale: an omitted `locale` prop defaults to the preview's active content
  * locale when the manifest marks the field `localized`, and to `null`
  * otherwise. That resolved locale is what `data-eldra-locale` carries, so
- * Studio edits the locale the render actually used.
+ * Studio edits the locale the render actually used. `field` may be a list
+ * row's path (`items.0.answer`); with `apiId` its flag is read there too, and
+ * without one a localized field reports `locale: null`, which Studio refuses.
  *
  * Heading outline: `minHeadingLevel` floors every heading tag at render time,
  * so one stored document fits under two different page outlines without being

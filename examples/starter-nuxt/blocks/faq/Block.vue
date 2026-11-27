@@ -21,16 +21,9 @@
  * is genuinely unset (`??`, not `||`), so an editor who explicitly sets every item's `open` to
  * `false` really does get every item closed.
  *
- * Each answer is rich text, but it lives one level inside a `list` item (`items[].answer`), not as
- * one of the block's own top-level fields. `useEldraBlockField`/`isBlockFieldLocalized`
- * (`@eldrajs/theme-vue`, `@eldrajs/theme-core`) resolve a field's `localized` flag by matching a
- * flat `fieldId` against the block's *top-level* registered fields only — there is no nested-path
- * addressing for a list item's own fields. Passing `api-id="faq"` here would silently resolve
- * `localized: false` for every answer regardless of the manifest (a wrong answer, not a missing
- * feature), so `EldraRichText` renders each answer through the same component (and gets the same
- * real markup) but with no `api-id` — read rendering only, no editing/localization binding
- * pretending to know a field path the bindings do not actually support (see `split-content`'s own
- * `rows[].text` for the identical reasoning).
+ * Each answer is rich text one level inside a `list` item (`items.0.answer`). `api-id="faq"` lets
+ * `EldraRichText` read the answer's `localized` flag by that path, so the canvas edits the locale
+ * on show.
  *
  * Answers cap at 65ch: that comes for free from `AccordionItem`'s own panel class
  * (`eldra:max-w-[65ch]`, see that component's source) — nothing here repeats it.
@@ -175,6 +168,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
                 class="prose-eldra"
                 :entry-id="entryId"
                 :field="`items.${index}.answer`"
+                api-id="faq"
                 :doc="item.answer"
                 :min-heading-level="3"
               />
@@ -219,6 +213,7 @@ useRichTextScrollRegions(accordionRoot, (caption) => caption ?? t('faq.richTextT
                 class="prose-eldra"
                 :entry-id="entryId"
                 :field="`items.${index}.answer`"
+                api-id="faq"
                 :doc="item.answer"
                 :min-heading-level="3"
               />

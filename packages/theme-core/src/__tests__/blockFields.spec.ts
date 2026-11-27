@@ -2,6 +2,24 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { isBlockFieldLocalized, isBlockFieldSelect, registerBlockFields } from '../blockFields';
 
 const FIELDS = {
+  faq: [
+    {
+      fieldId: 'items',
+      type: 'list',
+      metadata: {
+        item: {
+          fieldId: 'item',
+          type: 'composite',
+          metadata: {
+            fields: [
+              { fieldId: 'answer', type: 'rich-text', localized: true },
+              { fieldId: 'open', type: 'bool' },
+            ],
+          },
+        },
+      },
+    },
+  ],
   article: [
     { fieldId: 'title', type: 'string', localized: true },
     { fieldId: 'body', type: 'rich-text' },
@@ -55,6 +73,13 @@ describe('isBlockFieldLocalized', () => {
     registerBlockFields(FIELDS, 'shop');
     expect(isBlockFieldLocalized('article', 'title')).toBe(true);
     expect(isBlockFieldLocalized('article', 'body')).toBe(false);
+  });
+
+  it('reads the flag of a field inside a list row, by the path the theme renders it under', () => {
+    registerBlockFields(FIELDS, 'shop');
+    expect(isBlockFieldLocalized('faq', 'items.0.answer')).toBe(true);
+    expect(isBlockFieldLocalized('faq', 'items.3.open')).toBe(false);
+    expect(isBlockFieldLocalized('faq', 'items.0.missing')).toBe(false);
   });
 
   it('is false without an apiId, for an unknown block, and for an unknown field', () => {

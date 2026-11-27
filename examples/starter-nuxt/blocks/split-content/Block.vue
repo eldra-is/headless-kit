@@ -22,11 +22,7 @@
  *
  * `rows[].text` is optional rich text with a small toolbar (bold/italic/link/undo/redo only — no
  * headings or lists, per the field's own `metadata.toolbar`), rendered through `EldraRichText` with
- * no `api-id`: like `faq`'s own per-item `answer` field, `rows[].text` lives one level inside a list
- * item, and `useEldraBlockField`/`isBlockFieldLocalized` only resolve a field's `localized` flag by
- * matching a flat top-level `fieldId` — there is no nested-path addressing, so passing `api-id`
- * here would silently (and wrongly) resolve `localized: false` regardless of the manifest. See
- * `blocks/faq/Block.vue`'s own comment for the full reasoning.
+ * `api-id`, so its `localized` flag is read by its list path (`rows.0.text`).
  *
  * **The theme's look** (the "makers" story): the image takes the wider `1.15fr` track and the
  * text `1fr`, side by side from 961px of block width (stacked, image first, below that), with a
@@ -234,6 +230,7 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
               class="prose-eldra text-muted mt-4 text-[1.125rem] leading-[1.6] [&>*+*]:mt-3"
               :entry-id="entryId"
               :field="`rows.${index}.text`"
+              api-id="split-content"
               :doc="row.text"
               :min-heading-level="3"
             />
