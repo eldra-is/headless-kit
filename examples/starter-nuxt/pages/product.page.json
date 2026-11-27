@@ -35,7 +35,7 @@
       "data": {
         "productHandle": "merino-crew-sweater",
         "variant": "gallery-left",
-        "showRating": true,
+        "showRating": false,
         "showQuantity": true,
         "showWishlist": true,
         "lowStockThreshold": "3",
@@ -73,7 +73,16 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "100% extra-fine Merino wool, 17.5 micron"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Material"
+                            },
+                            {
+                              "type": "text",
+                              "text": " 100% extra-fine Merino wool, 17.5 micron"
                             }
                           ]
                         }
@@ -87,7 +96,16 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Knitted in a family mill in Biella, Italy"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Fit"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Relaxed; the model is 180 cm and wears M"
                             }
                           ]
                         }
@@ -101,7 +119,39 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Relaxed fit; the model is 180 cm and wears size M"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Weight"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Midweight, 12-gauge knit"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Made in"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Biella, Italy, in a family mill"
                             }
                           ]
                         }
@@ -181,132 +231,15 @@
       "apiId": "product-carousel",
       "id": "product-related",
       "data": {
-        "heading": "You may also like",
+        "heading": "Goes well with",
         "variant": "related",
-        "limit": "8",
-        "viewAllLabel": "View all",
+        "limit": "4",
+        "viewAllLabel": "Shop all knitwear",
         "viewAllHref": "/collections/knitwear",
         "showSwatches": true,
-        "background": "none"
-      }
-    },
-    {
-      "apiId": "faq",
-      "id": "product-faq",
-      "data": {
-        "variant": "one-column",
-        "heading": "Shipping & care",
-        "intro": "Delivery, returns and looking after the things you buy from us.",
-        "exclusive": true,
-        "items": [
-          {
-            "question": "How long does delivery take?",
-            "open": true,
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Canadian and EU orders take 5 to 9 business days. Made-to-order knitwear ships in about 3 weeks, and the product page always says so."
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "question": "Can I return something that isn't right?",
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Yes. You have 30 days to send back anything unused, in its original packaging. US returns are free with the prepaid label in your parcel. Seconds and personalised pieces can't be returned unless they arrive damaged."
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "question": "Why does my mug look different from the photo?",
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Every piece is glazed by hand and fired in small batches, so colour and speckle vary from kiln to kiln. We photograph a typical piece, and the card in your box tells you which batch yours came from."
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "question": "How should I wash wool and lambswool?",
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Air it more, wash it less. When it does need a wash, hand wash cool with a wool detergent, press out the water in a towel and dry flat away from the radiator."
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "question": "Are your ceramics dishwasher and microwave safe?",
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Our stoneware is dishwasher, microwave and oven safe up to 400°F. Pieces with a gold rim or raw clay base are hand wash only, which is noted on the product page."
-                    }
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "question": "Do you offer gift wrapping?",
-            "answer": {
-              "type": "doc",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "type": "text",
-                      "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-        ],
-        "contactText": "Still wondering about something?",
-        "contactLinkLabel": "Ask our customer care team",
-        "contactLinkHref": "/pages/contact",
-        "sectionBackground": "none"
+        "background": "surface",
+        "layout": "grid",
+        "quickAdd": true
       }
     },
     {
@@ -314,9 +247,8 @@
       "id": "product-footer",
       "data": {
         "variant": "default",
-        "background": "primary",
+        "background": "dark",
         "brandText": "Northwind Goods",
-        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
         "showNewsletter": false,

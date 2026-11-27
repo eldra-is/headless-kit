@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CURRENCY_KEY, LOCALE_KEY, MESSAGES_KEY } from '@eldrajs/ui';
+import {
+  CURRENCY_KEY,
+  LOCALE_KEY,
+  MESSAGES_KEY,
+  enUS as uiEnUS,
+  type UiMessages,
+} from '@eldrajs/ui';
+import { REGION_KEY } from '../app/composables/useRegionalFormat';
 
 /**
  * `app/plugins/eldra-ui-messages.ts` is the one place the store's currency reaches `@eldrajs/ui` —
@@ -19,6 +26,8 @@ vi.mock('nuxt/app', () => ({
 }));
 
 const { default: plugin } = await import('../app/plugins/eldra-ui-messages');
+
+const ICELAND = { countryCode: 'IS', formatLocale: 'is-IS', timeZone: 'Atlantic/Reykjavik' };
 
 const ISK = { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 };
 
@@ -100,5 +109,29 @@ describe('eldra-ui-messages', () => {
     provideWith({ commerce: '' });
 
     expect(eldraWarnings(warn)).toEqual([]);
+  });
+
+  it('formats in the organisation’s regional format, while its strings stay on the content locale', () => {
+    const provided = provideWith({ commerce: ISK, region: ICELAND });
+
+    expect((provided.get(LOCALE_KEY) as () => string | undefined)()).toBe('is-IS');
+    expect(provided.get(REGION_KEY)).toEqual(ICELAND);
+    // No content locale here (no theme context), so the strings are the English defaults — the
+    // regional format must not have pulled them to Icelandic.
+    const messages = provided.get(MESSAGES_KEY) as UiMessages;
+    const plainKey = (Object.keys(uiEnUS) as (keyof UiMessages)[]).find(
+      (key) => typeof uiEnUS[key] === 'string'
+    )!;
+    expect(messages[plainKey]).toBe(uiEnUS[plainKey]);
+  });
+
+  it('falls back to the content locale when the build learned no regional format', () => {
+    // Absent, the `''` Nuxt serialises a null as, and a record `Intl` would throw on all read the
+    // same: no regional format, so `LOCALE_KEY` answers the content locale (none here).
+    for (const region of [undefined, null, '', { ...ICELAND, timeZone: 'Mars/Olympus_Mons' }]) {
+      const provided = provideWith({ commerce: ISK, region });
+      expect((provided.get(LOCALE_KEY) as () => string | undefined)()).toBeUndefined();
+      expect(provided.get(REGION_KEY)).toBeNull();
+    }
   });
 });

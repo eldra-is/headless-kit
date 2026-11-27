@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { ProductCard } from '@eldrajs/ui';
 import { nextTick, ref, watch, type Ref } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { axe } from '../../../test/support/axe';
@@ -315,6 +316,28 @@ describe('search block', () => {
     // "li" matches 3 products (Linen tea towels/napkins, Stonewashed linen throw) plus 2 journal
     // articles and 2 pages via the real demo's own case-insensitive title/category/snippet match.
     expect(live()?.textContent).toContain('7');
+  });
+
+  describe('"+ Add" on a result card', () => {
+    it('reads the product and puts one of its variant in the cart', async () => {
+      const storefront = withSearch({
+        query: 'linen',
+        total: 2,
+        products: PRODUCTS.slice(0, 2),
+        articles: [],
+        pages: [],
+        suggestion: null,
+      });
+      const add = vi.spyOn(storefront.cart, 'add');
+      const wrapper = mountSearch(mock, { storefront });
+      await flushPromises();
+      const first = wrapper.findAllComponents(ProductCard)[0]!;
+      await first.get('button[data-part="quickAdd"]').trigger('click');
+      await flushPromises();
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(add.mock.calls[0]![0].quantity).toBe(1);
+      expect(storefront.cart.lines.value.length).toBe(1);
+    });
   });
 
   describe('result tabs', () => {

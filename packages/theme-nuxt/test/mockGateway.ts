@@ -556,6 +556,12 @@ export function startMockGateway(
             features: [{ feature: 'ECOMMERCE', enabled: true }],
             commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
             locales: { default: 'is', supported: ['is', 'en-US'] },
+            // The regional format (`src/runtime/region.ts`) — Icelandic, on both locales' pages.
+            region: {
+              countryCode: 'IS',
+              formatLocale: 'is-IS',
+              timeZone: 'Atlantic/Reykjavik',
+            },
           })
         );
       } else if (url.pathname === '/site/v1/theme-messages') {

@@ -123,6 +123,15 @@ function textOrderClass(index: number): string {
   return rowSide(index) === 'image-right' ? '@min-[60.0625rem]:order-1' : '';
 }
 
+/**
+ * The image's root reserves the 5:4 box (`aspect="5/4"` has no `Image` ratio preset, so `UiImage`
+ * puts it on the root as an inline `aspect-ratio`), but `Image`'s frame inside it is `ratio="auto"`
+ * and would size itself from the photo's own proportions — a 3:2 photo left a strip of empty root
+ * under it. `h-full` makes the frame fill the box it sits in, and the `object-cover` media fills the
+ * frame, so the image is the full 5:4 the design draws beside the text.
+ */
+const IMAGE_FILL_CLASSES = { frame: 'h-full' };
+
 /** The round initials cycle through three theme colours, all dark enough for the light letter. */
 const AVATAR_TONES = ['bg-primary', 'bg-accent', 'bg-border-strong'] as const;
 function entryTone(index: number): string {
@@ -189,6 +198,7 @@ useRichTextScrollRegions(rowsRoot, (caption) => caption ?? t('splitContent.richT
             :field-path="`rows.${index}.image`"
             aspect="5/4"
             rounded="xl"
+            :classes="IMAGE_FILL_CLASSES"
             :class="imageOrderClass(index)"
           />
           <EditorPlaceholder

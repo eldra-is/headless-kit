@@ -344,6 +344,7 @@ const MERGE_CONFIG = {
         'animate-eldra-spin',
         'animate-eldra-pulse',
         'animate-eldra-popover-in',
+        'animate-eldra-menu-in',
         'animate-eldra-dialog-in',
         'animate-eldra-dialog-in-reduced',
         'animate-eldra-drawer-in-right',

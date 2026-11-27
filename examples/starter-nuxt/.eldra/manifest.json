@@ -2662,9 +2662,10 @@
           "fieldId": "background",
           "name": "Background",
           "type": "select",
-          "helpText": "Defaults to \"primary\" when unset.",
+          "helpText": "\"dark\" is the text colour as the ground; \"primary\" the brand colour; \"surface-strong\" a light footer. Defaults to \"primary\" when unset.",
           "metadata": {
             "options": [
+              "dark",
               "primary",
               "surface-strong"
             ]
@@ -2887,7 +2888,7 @@
       ],
       "mock": {
         "variant": "default",
-        "background": "primary",
+        "background": "dark",
         "brandText": "Northwind Goods",
         "address": "14 Harbour Street, Northwind Bay",
         "phone": "(555) 014-2290",
@@ -3329,7 +3330,7 @@
       "description": "Top-of-page banner with heading, supporting text, image and calls to action.",
       "icon": "layout-dashboard",
       "category": "marketing",
-      "version": 2,
+      "version": 3,
       "migrations": [
         {
           "version": 2,
@@ -3343,6 +3344,10 @@
               "to": "primaryCtaHref"
             }
           ]
+        },
+        {
+          "version": 3,
+          "renames": []
         }
       ],
       "groups": [
@@ -3469,12 +3474,28 @@
           }
         },
         {
+          "fieldId": "captionProduct",
+          "name": "Image caption product",
+          "type": "reference",
+          "groupId": "content",
+          "relation": {
+            "allowProducts": true
+          },
+          "helpText": "The product in the photo. The caption shows its name and price and links to it, and hides while it is sold out. Card variant only.",
+          "showWhen": {
+            "field": "variant",
+            "in": [
+              "card"
+            ]
+          }
+        },
+        {
           "fieldId": "captionLabel",
-          "name": "Image caption",
+          "name": "Image caption text",
           "type": "string",
           "groupId": "content",
           "localized": true,
-          "helpText": "A small link on the photo naming what is in it, e.g. \"Glazed milk jug\". Card variant only.",
+          "helpText": "Leave empty to use the product's name.",
           "showWhen": {
             "field": "variant",
             "in": [
@@ -3483,36 +3504,6 @@
           },
           "validators": {
             "maxLength": 60
-          }
-        },
-        {
-          "fieldId": "captionDetail",
-          "name": "Image caption detail",
-          "type": "string",
-          "groupId": "content",
-          "localized": true,
-          "helpText": "Shown after the caption in a lighter weight, e.g. the price.",
-          "showWhen": {
-            "field": "variant",
-            "in": [
-              "card"
-            ]
-          },
-          "validators": {
-            "maxLength": 30
-          }
-        },
-        {
-          "fieldId": "captionHref",
-          "name": "Image caption link",
-          "type": "string",
-          "groupId": "content",
-          "helpText": "Where the caption goes, usually the product in the photo. No link, no caption.",
-          "showWhen": {
-            "field": "variant",
-            "in": [
-              "card"
-            ]
           }
         },
         {
@@ -4504,7 +4495,8 @@
               "_type": "collection",
               "slug": "sale"
             },
-            "label": "Sale"
+            "label": "Sale",
+            "tone": "accent"
           }
         ],
         "drawerLayout": "accordion",
@@ -5689,7 +5681,16 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "100% extra-fine Merino wool, 17.5 micron"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Material"
+                            },
+                            {
+                              "type": "text",
+                              "text": " 100% extra-fine Merino wool, 17.5 micron"
                             }
                           ]
                         }
@@ -5703,7 +5704,16 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Knitted in a family mill in Biella, Italy"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Fit"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Relaxed; the model is 180 cm and wears M"
                             }
                           ]
                         }
@@ -5717,7 +5727,39 @@
                           "content": [
                             {
                               "type": "text",
-                              "text": "Relaxed fit; the model is 180 cm and wears size M"
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Weight"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Midweight, 12-gauge knit"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Made in"
+                            },
+                            {
+                              "type": "text",
+                              "text": " Biella, Italy, in a family mill"
                             }
                           ]
                         }
@@ -7849,7 +7891,7 @@
           "apiId": "product-detail",
           "data": {
             "variant": "gallery-left",
-            "showRating": true,
+            "showRating": false,
             "showQuantity": true,
             "showWishlist": true,
             "lowStockThreshold": "3",
@@ -7940,131 +7982,14 @@
           "id": "product-related",
           "apiId": "product-carousel",
           "data": {
-            "heading": "You may also like",
+            "heading": "Goes well with",
             "variant": "related",
-            "limit": "8",
-            "viewAllLabel": "View all",
+            "limit": "4",
+            "viewAllLabel": "Shop all knitwear",
             "showSwatches": true,
-            "background": "none"
-          }
-        },
-        {
-          "id": "product-faq",
-          "apiId": "faq",
-          "data": {
-            "variant": "one-column",
-            "heading": "Shipping & care",
-            "intro": "Delivery, returns and looking after the things you buy from us.",
-            "exclusive": true,
-            "items": [
-              {
-                "question": "How long does delivery take?",
-                "open": true,
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "US orders leave our Portland studio within 2 business days and arrive 2 to 4 days later. Canadian and EU orders take 5 to 9 business days. Made-to-order knitwear ships in about 3 weeks, and the product page always says so."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "question": "Can I return something that isn't right?",
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Yes. You have 30 days to send back anything unused, in its original packaging. US returns are free with the prepaid label in your parcel. Seconds and personalised pieces can't be returned unless they arrive damaged."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "question": "Why does my mug look different from the photo?",
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Every piece is glazed by hand and fired in small batches, so colour and speckle vary from kiln to kiln. We photograph a typical piece, and the card in your box tells you which batch yours came from."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "question": "How should I wash wool and lambswool?",
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Air it more, wash it less. When it does need a wash, hand wash cool with a wool detergent, press out the water in a towel and dry flat away from the radiator."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "question": "Are your ceramics dishwasher and microwave safe?",
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Our stoneware is dishwasher, microwave and oven safe up to 400°F. Pieces with a gold rim or raw clay base are hand wash only, which is noted on the product page."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "question": "Do you offer gift wrapping?",
-                "answer": {
-                  "type": "doc",
-                  "content": [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "type": "text",
-                          "text": "Every order ships in recycled tissue and a plain kraft box. Add a handwritten card at checkout for $4, and we leave prices off the packing slip."
-                        }
-                      ]
-                    }
-                  ]
-                }
-              }
-            ],
-            "contactText": "Still wondering about something?",
-            "contactLinkLabel": "Ask our customer care team",
-            "contactLinkHref": "/pages/contact",
-            "sectionBackground": "none"
+            "background": "surface",
+            "layout": "grid",
+            "quickAdd": true
           }
         }
       ],
@@ -8101,11 +8026,6 @@
               "id": "product-related",
               "type": "block",
               "entryId": "product-related"
-            },
-            {
-              "id": "product-faq",
-              "type": "block",
-              "entryId": "product-faq"
             },
             {
               "id": "role-footer",
@@ -8295,7 +8215,7 @@
             "scope": "category",
             "variant": "filter-bar",
             "columns": "4",
-            "pageSize": "24",
+            "pageSize": "12",
             "paginationStyle": "load-more",
             "sortOptions": [
               {
@@ -8430,9 +8350,7 @@
               {
                 "icon": "arrow-back-up",
                 "title": "30 days to change your mind",
-                "text": "Unused items back for a full refund.",
-                "linkLabel": "30 days to change your mind: our returns policy",
-                "href": "/pages/returns"
+                "text": "Unused items back for a full refund."
               }
             ],
             "mobileLayout": "grid",
@@ -8485,7 +8403,6 @@
           "data": {
             "eyebrow": "Just in",
             "heading": "New arrivals",
-            "viewAllLabel": "View all",
             "variant": "collection",
             "layout": "grid",
             "limit": "8",
@@ -8582,7 +8499,6 @@
                 "href": "/journal/slower-morning-coffee",
                 "categoryLabel": "At home",
                 "categoryHref": "/journal/home",
-                "publishedAt": "2026-10-02",
                 "readingTime": "4 min read"
               },
               {
@@ -8591,7 +8507,6 @@
                 "href": "/journal/harbour-pottery",
                 "categoryLabel": "Workshop visit",
                 "categoryHref": "/journal/makers",
-                "publishedAt": "2026-09-24",
                 "readingTime": "6 min read"
               },
               {
@@ -8600,7 +8515,6 @@
                 "href": "/journal/layering-throws",
                 "categoryLabel": "Knitting",
                 "categoryHref": "/journal/care",
-                "publishedAt": "2026-09-12",
                 "readingTime": "3 min read"
               }
             ]
@@ -8612,7 +8526,7 @@
           "data": {
             "variant": "split",
             "heading": "Letters from the workshop",
-            "text": "New pieces and small-batch restocks, once a month. Take 10% off your first order when you join.",
+            "text": "New pieces and small-batch restocks, once a month.",
             "fieldLabel": "Email address",
             "placeholder": "you@example.com",
             "buttonLabel": "Subscribe",
@@ -8648,7 +8562,7 @@
             },
             "requireConsentCheckbox": false,
             "successTitle": "You're on the list",
-            "successText": "Check your inbox to confirm. Your 10% welcome code arrives with the first letter.",
+            "successText": "Check your inbox to confirm your address. The first letter arrives next month.",
             "helpHeading": "Questions before you buy?",
             "helpText": "Sizes, glazes, gift ideas: we know every piece in the shop.",
             "contacts": [
@@ -8751,9 +8665,8 @@
       "apiId": "footer",
       "data": {
         "variant": "default",
-        "background": "primary",
+        "background": "dark",
         "brandText": "Northwind Goods",
-        "description": "Knitwear, ceramics and kitchen goods from small workshops, made to be used every day. Studio and shop in Portland, Oregon.",
         "groups": [],
         "links": [],
         "showNewsletter": false,
@@ -9220,8 +9133,8 @@
         "label": "Content",
         "maxWidth": "64rem",
         "gutter": {
-          "normal": "2rem",
-          "tablet": "1.5rem",
+          "normal": "1rem",
+          "tablet": "1rem",
           "mobile": "1rem"
         },
         "allowSiteOverride": true
@@ -9230,8 +9143,8 @@
         "label": "Full",
         "maxWidth": "none",
         "gutter": {
-          "normal": "2rem",
-          "tablet": "1.5rem",
+          "normal": "1rem",
+          "tablet": "1rem",
           "mobile": "1rem"
         },
         "allowSiteOverride": true
@@ -9240,8 +9153,8 @@
         "label": "Narrow",
         "maxWidth": "40rem",
         "gutter": {
-          "normal": "2rem",
-          "tablet": "1.5rem",
+          "normal": "1rem",
+          "tablet": "1rem",
           "mobile": "1rem"
         },
         "allowSiteOverride": true
@@ -9250,8 +9163,8 @@
         "label": "Wide",
         "maxWidth": "78rem",
         "gutter": {
-          "normal": "2rem",
-          "tablet": "1.5rem",
+          "normal": "1rem",
+          "tablet": "1rem",
           "mobile": "1rem"
         },
         "allowSiteOverride": true
@@ -9311,7 +9224,7 @@
         "footer.emailError": "Something went wrong. Try again.",
         "footer.subscribed": "You're on the list.",
         "footer.localeLabel": "Language",
-        "footer.currencyLabel": "Currency",
+        "footer.currencyLabel": "Prices in",
         "footer.social.instagram": "Instagram",
         "footer.social.facebook": "Facebook",
         "footer.social.pinterest": "Pinterest",
@@ -9366,6 +9279,8 @@
         "header.account": "Account",
         "header.home": "{brand}, home",
         "header.info": "Store information",
+        "header.pricesIn": "Prices in",
+        "header.close": "Close",
         "editor.addLink": "Add a link",
         "splitContent.label": "Our story",
         "splitContent.imageHintLabel": "Choose an image",
@@ -9545,8 +9460,12 @@
         "collection.countMany": "{count} products",
         "collection.subcollections": "Sub-collections",
         "collection.subcategories": "Categories in this one",
+        "collection.allInCategory": "All {category}",
         "collection.titleHintLabel": "Add a title",
         "collection.titleHintHelp": "Falls back to the collection title from the store",
+        "productCard.add": "Add",
+        "productCard.addName": "Add {title} to cart",
+        "productCard.sale": "Sale",
         "productCarousel.viewAllContext": " products",
         "productCarousel.carouselLabel": "{heading} products",
         "productCarousel.clearHistory": "Clear history",
@@ -9598,7 +9517,7 @@
         "product.openImage": "Open image {index} of {count}: {alt}",
         "product.saleBadge": "Sale",
         "product.saving": "Save {amount}",
-        "product.taxNote": "Taxes included. Shipping calculated at checkout.",
+        "product.taxNote": "Tax included. Delivery calculated at checkout.",
         "product.sizeGuide": "Size guide",
         "product.quantity": "Quantity",
         "product.addToCart": "Add to cart · {price}",
@@ -9817,7 +9736,7 @@
         "ui.pagination": "Pagination",
         "ui.previousPage": "Previous page",
         "ui.nextPage": "Next page",
-        "ui.loadMore": "Load more",
+        "ui.loadMore": "Show more",
         "ui.filterPanelTitle": "Filters",
         "ui.filterPanelLabel": "Product filters",
         "ui.filterPanelClearAll": "Clear all",
@@ -9880,7 +9799,7 @@
         "footer.emailError": "Eitthvað fór úrskeiðis. Reyndu aftur.",
         "footer.subscribed": "Skráning tókst.",
         "footer.localeLabel": "Tungumál",
-        "footer.currencyLabel": "Gjaldmiðill",
+        "footer.currencyLabel": "Verð í",
         "footer.social.instagram": "Instagram",
         "footer.social.facebook": "Facebook",
         "footer.social.pinterest": "Pinterest",
@@ -9935,6 +9854,8 @@
         "header.account": "Aðgangur",
         "header.home": "{brand}, forsíða",
         "header.info": "Upplýsingar um verslunina",
+        "header.pricesIn": "Verð í",
+        "header.close": "Loka",
         "editor.addLink": "Bæta við tengli",
         "splitContent.label": "Sagan okkar",
         "splitContent.imageHintLabel": "Veldu mynd",
@@ -10114,8 +10035,12 @@
         "collection.countMany": "{count} vörur",
         "collection.subcollections": "Undirflokkar",
         "collection.subcategories": "Vöruflokkar undir þessum",
+        "collection.allInCategory": "Allt í {category}",
         "collection.titleHintLabel": "Bættu við titli",
         "collection.titleHintHelp": "Fellur sjálfgefið til baka í titil safnsins",
+        "productCard.add": "Bæta við",
+        "productCard.addName": "Setja {title} í körfu",
+        "productCard.sale": "Tilboð",
         "productCarousel.viewAllContext": " vörur",
         "productCarousel.carouselLabel": "Vörur í {heading}",
         "productCarousel.clearHistory": "Hreinsa feril",
@@ -10167,7 +10092,7 @@
         "product.openImage": "Opna mynd {index} af {count}: {alt}",
         "product.saleBadge": "Tilboð",
         "product.saving": "Sparar {amount}",
-        "product.taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast í greiðslu.",
+        "product.taxNote": "Virðisaukaskattur innifalinn. Sendingarkostnaður reiknast við greiðslu.",
         "product.sizeGuide": "Stærðartafla",
         "product.quantity": "Magn",
         "product.addToCart": "Setja í körfu · {price}",

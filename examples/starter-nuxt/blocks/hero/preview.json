@@ -52,9 +52,7 @@
       "href": "/products/dinner-plates"
     }
   ],
-  "captionLabel": "Glazed milk jug",
-  "captionDetail": "$34",
-  "captionHref": "/products/glazed-milk-jug",
+  "captionProduct": { "_type": "product", "slug": "glazed-milk-jug" },
   "primaryCtaHref": "/collections/the-winter-edit",
   "secondaryCtaLabel": "Meet the makers",
   "secondaryCtaHref": "/pages/makers",

@@ -94,6 +94,7 @@ export default defineNuxtPlugin({
     }
 
     const route: StorefrontRoute = reactive({
+      path: '',
       productHandle: null,
       collectionHandle: null,
       categorySlug: null,
@@ -136,6 +137,7 @@ export default defineNuxtPlugin({
     //    catalog template behind it — the storefront pages a site has before its first deploy
     //    seeds the templates, and the demo/Storybook routes.
     watchEffect(() => {
+      route.path = activeRoute.value.path;
       const handle = firstOf(activeRoute.value.params.handle as string | string[] | undefined);
       const match = catalog.value;
       if (match === null) {

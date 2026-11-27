@@ -13,6 +13,7 @@ import {
   DEFAULT_LOCALE,
   HOME_PAGE_PATH,
   LINKED_HEADER_LABELS,
+  MOCK_REGION,
   PREFIXED_LOCALE,
   PRODUCT_HANDLE,
   SEEDED_CART_ID,
@@ -613,13 +614,16 @@ describe('prerendered commerce data on the generated static site', () => {
       );
     }
 
-    // The store still sells in ISK; only the formatting follows the page.
+    // The store still sells in ISK, and its prices are written in the organisation's regional
+    // format (`MOCK_REGION`, Icelandic) on **both** pages — the content locale changes the words,
+    // never how money is written. The English page printing "ISK 42" was the defect.
     const product = staticHtml(`/${PREFIXED_LOCALE}/products/${PRODUCT_HANDLE}`);
-    expect(product).toContain(formatMoney(42, 'ISK', PREFIXED_LOCALE));
-    expect(staticHtml(`/products/${PRODUCT_HANDLE}`)).toContain(
-      formatMoney(42, 'ISK', DEFAULT_LOCALE)
-    );
-    expect(formatMoney(42, 'ISK', PREFIXED_LOCALE)).not.toBe(
+    const english = staticHtml(`/products/${PRODUCT_HANDLE}`);
+    expect(product).toContain(formatMoney(42, 'ISK', MOCK_REGION.formatLocale));
+    expect(english).toContain(formatMoney(42, 'ISK', MOCK_REGION.formatLocale));
+    expect(english).not.toContain(formatMoney(42, 'ISK', DEFAULT_LOCALE));
+    expect(english).toContain(`region:{countryCode:"IS",formatLocale:"is-IS"`);
+    expect(formatMoney(42, 'ISK', MOCK_REGION.formatLocale)).not.toBe(
       formatMoney(42, 'ISK', DEFAULT_LOCALE)
     );
   });
@@ -689,8 +693,8 @@ describe('prerendered commerce data on the generated static site', () => {
     // case would keep passing while quietly testing nothing.
     expect(visited.url).toBe(`${statics.origin}${productPage}/`);
     const instances = blockInstances(visited);
-    // The page's own six, plus the shell's hosted cart drawer (see the control above).
-    expect(Object.keys(instances.created).length).toBe(7);
+    // The page's own five, plus the shell's hosted cart drawer (see the control above).
+    expect(Object.keys(instances.created).length).toBe(6);
     // The page is served at `/products/ash-glaze-mug/` and prerendered at
     // `/products/ash-glaze-mug` (`startStaticServer`'s 308 is the deployed host's). Nuxt therefore
     // re-navigates between the two while the page hydrates, and unless the route key and the page
@@ -709,7 +713,7 @@ describe('prerendered commerce data on the generated static site', () => {
       // (`test/support/mockGateway.ts` publishes ISK — and says why it is not dollars). A page that
       // fell back to `@eldrajs/ui`'s ambient default would read `$42.00` here instead.
       expect(html, path).toContain('commerce:{currency:"ISK"');
-      expect(html, path).toContain(formatMoney(42, 'ISK'));
+      expect(html, path).toContain(formatMoney(42, 'ISK', MOCK_REGION.formatLocale));
       expect(html, path).not.toContain('$42.00');
       expect(html, path).toContain('Ash glaze mug');
       expect(html, path).not.toContain('eldra-skeleton');
@@ -808,9 +812,10 @@ describe('prerendered commerce data on the generated static site', () => {
       // real claim rather than a coincidence of where this item sits.
       expect(edges.trigger.left).toBeGreaterThan(edges.panel.left + 1);
       expect(edges.trigger.right).toBeLessThan(edges.panel.right - 1);
-      // And nothing inside the panel sits flush against its edges: the page's own gutters at least.
-      expect(edges.firstColumn.left).toBeGreaterThanOrEqual(edges.panel.left + 24);
-      expect(edges.viewAll.right).toBeLessThanOrEqual(edges.panel.right - 24);
+      // And nothing inside the panel sits flush against its edges: the page's own gutter at least,
+      // which is the design's 1rem (`tokens.json` containers, via `--eldra-gutter-*` in main.css).
+      expect(edges.firstColumn.left).toBeGreaterThanOrEqual(edges.panel.left + 16);
+      expect(edges.viewAll.right).toBeLessThanOrEqual(edges.panel.right - 16);
     } finally {
       await page.close();
     }
@@ -1027,12 +1032,12 @@ describe('prerendered commerce data on the generated static site', () => {
       // it, a null-sourced result makes no request and carries no data; it is in the payload
       // because it exists, and the browser computes the same key for it.
       'storefront:catalog.category:[null]',
-      'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":8}]',
+      'storefront:catalog.collectionProducts:[null,{"page":1,"pageSize":4}]',
       'storefront:catalog.product:["ash-glaze-mug"]',
-      // `product-carousel`'s quick-add read, keyed `null` until a shopper presses Quick add: no
+      // The shared quick-add read (`useQuickAdd`), keyed `null` until a shopper presses Add: no
       // request and no data, in the payload because it exists, like the category read above.
       'storefront:catalog.product:[null]',
-      'storefront:catalog.related:["ash-glaze-mug",8]',
+      'storefront:catalog.related:["ash-glaze-mug",4]',
       // The footer's sign-up spam guard (`useFormSpam`): a footer with no newsletter zone names no
       // form, so the read is keyed `""`, resolves `null` without a request and is in the payload
       // because it exists.
@@ -1045,13 +1050,12 @@ describe('prerendered commerce data on the generated static site', () => {
     const visited = await visit(productPage);
     // The **full** log, duplicates included, not a set of unique URLs. `product-detail` re-reads
     // its own product (only that read knows the variant-level inventory the products list cannot
-    // answer about), and every card on the page — the carousel's six — is one batched `id:in` read.
+    // answer about), and every card on the page — "Goes well with"'s four — is one batched `id:in` read.
     // Nothing else: no re-run of a prerendered non-volatile read, and nothing twice.
     expect(visited.requests).toEqual([
       `/catalog/v1/products/${PRODUCT_HANDLE}`,
-      '/catalog/v1/products/list?pageSize=6&filter=id:in:prod-cedar-serving-board,' +
-        'prod-flax-tea-towel,prod-stoneware-bowl,prod-brass-candle-holder,prod-linen-napkin-set,' +
-        'prod-walnut-spoon',
+      '/catalog/v1/products/list?pageSize=4&filter=id:in:prod-cedar-serving-board,' +
+        'prod-flax-tea-towel,prod-stoneware-bowl,prod-brass-candle-holder',
       // The detail read's second half: the product's own inventory, which the list read has none of.
       '/inventory/v1/stock/availability',
     ]);
@@ -1062,9 +1066,10 @@ describe('prerendered commerce data on the generated static site', () => {
   it('draws the refresh treatment on every value it is re-reading, then clears it', async () => {
     const visited = await visit(productPage);
     const peak = peakOf(visited.samples);
-    // Two values on the product itself (price, stock line) and two on each of the six cards.
-    expect(peak.spinners).toBe(14);
-    expect(peak.dimmed).toBeGreaterThanOrEqual(14);
+    // Two values on the product itself (price, stock line) and one, the price, on each of the four
+    // cards: the design's card has no stock line.
+    expect(peak.spinners).toBe(6);
+    expect(peak.dimmed).toBeGreaterThanOrEqual(6);
     expect(peak.busy).toBeGreaterThan(0);
     // Something says so out loud — the carousel's one row-level region, plus the product's own
     // price and stock line, which announce for themselves. How many regions each block owns is
@@ -1072,8 +1077,8 @@ describe('prerendered commerce data on the generated static site', () => {
     expect(peak.announced).toBeGreaterThanOrEqual(1);
     // …and it is gone once the refresh has answered, with the prerendered values still on screen.
     expect(visited.samples[visited.samples.length - 1]).toEqual(NOTHING);
-    expect(visited.prices).toContain(formatMoney(42, 'ISK'));
-    expect(visited.prices).toContain(formatMoney(68, 'ISK'));
+    expect(visited.prices).toContain(formatMoney(42, 'ISK', MOCK_REGION.formatLocale));
+    expect(visited.prices).toContain(formatMoney(68, 'ISK', MOCK_REGION.formatLocale));
   });
 
   /**
@@ -1095,7 +1100,7 @@ describe('prerendered commerce data on the generated static site', () => {
     // Both blocks still draw the treatment and both end up showing the refreshed values: the block
     // that arrived second folds in the answer the first one's read had already brought back.
     const peak = peakOf(visited.samples);
-    expect(peak.spinners).toBe(28); // seven cards in the grid, seven in the carousel, two each
+    expect(peak.spinners).toBe(14); // seven cards in the grid, seven in the carousel, a price each
     expect(peak.busy).toBeGreaterThan(0);
     expect(peak.announced).toBe(2); // one row-level region per block
     expect(visited.samples[visited.samples.length - 1]).toEqual(NOTHING);

@@ -149,7 +149,7 @@ renders the organisation's drafts there, client-side.
   - a `useAsyncData` with a custom `getCachedData` that answers a `refresh:hook` from a cache
     (only possible with Nuxt's `experimental.granularCachedData`);
   - the build-time platform reads baked into the runtime config: forms, site icons, SEO, the site
-    profile, locales and currency.
+    profile, locales, regional format and currency.
 
   Design tokens and theme texts are neither: a session shows what is **saved** (see below).
 
@@ -651,6 +651,31 @@ Both rewrites are idempotent, so the two cannot compound into `/is-IS/is-IS/…`
 Two kinds of destination need prefixing by hand, because no router is in their path: a real
 `<form action>` (a no-JavaScript submit) and an href a component renders as a plain `<a>` without
 taking an `as` (a toast action, say).
+
+## Regional format: how money, numbers and dates are written
+
+The content locale decides the **words** on a page; the organisation's **regional format**, set in
+Studio, decides how its money, numbers and dates are **written**. They are independent: an
+English-language Icelandic store prints "4.790 kr." and "26. nóvember 2026" under English copy, on
+every locale's pages alike.
+
+`@eldrajs/theme-nuxt` reads it once during the build, alongside the commerce settings and the
+locales (`GET /organization/v1/{orgId}`'s `region`, through `@eldrajs/sdk`'s
+`features.getRegion()`), and bakes it into `runtimeConfig.public.eldra.region`:
+`{ countryCode, formatLocale, timeZone }` (type `StoreRegion` from `@eldrajs/theme-nuxt/region`),
+or `null`. The read is fail-soft like the others: a gateway that cannot be reached or times out
+(10 s) prints one `[eldra] could not read the organisation's regional format …` line and the build
+goes on; a record whose tag or zone `Intl` would throw on, an organisation that publishes none and
+a build without gateway credentials all answer `null` with no line.
+
+A theme reads it with the auto-imported `useEldraRegion()` (or `resolveStoreRegion(value)` from
+the subpath, outside a component) and formats with `formatLocale`, showing a timestamp's day in
+`timeZone`. With `null`, format in the content locale, which is what every theme did before.
+The starter does it in one place: `app/plugins/eldra-ui-messages.ts` provides `@eldrajs/ui`'s
+`LOCALE_KEY` as the regional format (falling back to the content locale) while `MESSAGES_KEY`
+stays on the content locale, so every `Price`, `ContentCard` date and `useMoney()` amount follows
+it, and `app/composables/useRegionalFormat.ts` (`useFormatDate`, `useFormatLocale`) carries it to
+the blocks' own dates. A word inside a sentence — a list's "and" — stays on the content locale.
 
 ## Seeding default templates and pages
 

@@ -699,6 +699,68 @@ describe('footer block', () => {
       expect(await axe(wrapper.element)).toHaveNoViolations();
     });
 
+    it('offers several currencies in a select labelled "Prices in", showing the currency in full', async () => {
+      const options = mountOptions(
+        { entry: { id: 'e1', data: { ...mock, background: 'dark' } } },
+        {
+          links: linkContext,
+          commerce: {
+            currency: 'ISK',
+            taxInclusivePricing: true,
+            defaultTaxRate: 0.24,
+            currencies: ['ISK', 'EUR', 'USD'],
+          },
+        }
+      );
+      const storefront = options.global.provide[STOREFRONT_KEY] as StorefrontSource;
+      storefront.currency.started.value = true;
+      const wrapper = mount(Block, { ...options, attachTo: document.body });
+      await flushPromises();
+
+      const trigger = selectTriggers(wrapper)[0]!;
+      expect(trigger.exists()).toBe(true);
+      // The design's boxed select: "Prices in" beside it, and the closed box names the currency in
+      // full, not just the code.
+      expect(wrapper.text()).toContain(enUS.footer.currencyLabel);
+      expect(enUS.footer.currencyLabel).toBe('Prices in');
+      expect(trigger.text()).toContain('(ISK)');
+      expect(trigger.text().trim()).not.toBe('ISK');
+      // On the dark ground the box is the design's `border-strong` outline on a clear fill.
+      expect(trigger.classes()).toEqual(
+        expect.arrayContaining(['bg-transparent', 'border-border-strong'])
+      );
+      expect(await axe(wrapper.element)).toHaveNoViolations();
+      wrapper.unmount();
+    });
+
+    it("names the currencies in the page's language, not the regional format's", async () => {
+      const options = mountOptions(
+        { entry: { id: 'e1', data: { ...mock, background: 'dark' } } },
+        {
+          links: linkContext,
+          locale: 'en-US',
+          region: { countryCode: 'IS', formatLocale: 'is-IS', timeZone: 'Atlantic/Reykjavik' },
+          commerce: {
+            currency: 'ISK',
+            taxInclusivePricing: true,
+            defaultTaxRate: 0.24,
+            currencies: ['ISK', 'EUR'],
+          },
+        }
+      );
+      const storefront = options.global.provide[STOREFRONT_KEY] as StorefrontSource;
+      storefront.currency.started.value = true;
+      const wrapper = mount(Block, { ...options, attachTo: document.body });
+      await flushPromises();
+
+      // An Icelandic regional format writes prices as "4.790 kr.", but an English page still says
+      // "Icelandic Króna", never "Íslensk króna".
+      const trigger = selectTriggers(wrapper)[0]!;
+      expect(trigger.text()).toContain('Icelandic');
+      expect(trigger.text()).not.toContain('Íslensk');
+      wrapper.unmount();
+    });
+
     it('renders nothing for the currency when the store publishes none', async () => {
       const wrapper = mountFooter(mock, { commerce: null });
 
@@ -881,7 +943,41 @@ describe('footer block', () => {
       expect(footer.attributes('data-section')).toBe('primary');
     });
 
-    it.each(['primary', 'surface-strong'])(
+    it('is near-black on `dark`: the `text` role as the ground, and a primary section inside', () => {
+      const footer = mountFooter({ ...mock, background: 'dark' }).find('footer');
+      // `Section` has no `dark` ground: the footer is a primary section (so `@eldrajs/ui`'s own
+      // components draw their on-dark colours) painted with the theme's text colour.
+      expect(footer.attributes('data-section')).toBe('primary');
+      expect(footer.classes()).toEqual(expect.arrayContaining(['bg-text', 'text-background']));
+    });
+
+    it('draws no ground of its own on the other two', () => {
+      for (const background of ['primary', 'surface-strong']) {
+        const footer = mountFooter({ ...mock, background }).find('footer');
+        expect(footer.classes()).not.toContain('bg-text');
+      }
+    });
+
+    it('sets every link on `dark` at regular weight in the ground’s link tone, none underlined at rest', () => {
+      const wrapper = mountFooter({ ...mock, background: 'dark' });
+      // The column, legal and phone · email links — everything but the wordmark and the social
+      // buttons (`target="_blank"`), which keep their own treatment.
+      const links = wrapper
+        .findAll('footer a')
+        .filter((a) => a.attributes('href') !== '/' && a.attributes('target') !== '_blank');
+      const legal = links.filter((a) => ['Privacy', 'Terms of sale'].includes(a.text()));
+      expect(legal).toHaveLength(2);
+      expect(links.some((a) => a.attributes('href')?.startsWith('tel:'))).toBe(true);
+      for (const link of links) {
+        expect(link.classes(), link.text()).toEqual(
+          expect.arrayContaining(['text-background/95', 'font-normal'])
+        );
+        // `Link`'s underline-at-rest recipe is `eldra:underline`; `:underline="false"` drops it.
+        expect(link.classes(), link.text()).not.toContain('eldra:underline');
+      }
+    });
+
+    it.each(['dark', 'primary', 'surface-strong'])(
       '%s renders both variants, with the newsletter on, with no axe violations',
       async (background) => {
         for (const variant of ['default', 'minimal']) {

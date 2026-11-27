@@ -250,6 +250,10 @@ const submitWidthClass = computed(() =>
   isSplit.value ? '@min-[24rem]:w-auto w-full' : '@two-col:w-auto w-full'
 );
 
+/** The band's field and button are the standard 2.75rem control (the design's `.nw-nl`), a step
+ *  below the centred variant's large ones, which stand alone under their heading. */
+const controlSize = computed<'md' | 'lg'>(() => (isSplit.value ? 'md' : 'lg'));
+
 /* ---------------------------------------------------------------------- */
 /* Form state                                                              */
 /* ---------------------------------------------------------------------- */
@@ -450,7 +454,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
                     type="email"
                     name="email"
                     autocomplete="email"
-                    size="lg"
+                    :size="controlSize"
                     :placeholder="placeholderText"
                   />
                 </FieldWrapper>
@@ -493,7 +497,7 @@ async function onSubmit(payload: FormLayoutSubmitPayload): Promise<void> {
               <Button
                 type="submit"
                 variant="primary"
-                size="lg"
+                :size="controlSize"
                 :class="submitWidthClass"
                 :label="t('newsletter.subscribing')"
                 :aria-describedby="consentSentence ? consentSentenceId : undefined"

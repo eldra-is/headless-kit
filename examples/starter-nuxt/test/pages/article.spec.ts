@@ -198,7 +198,6 @@ describe('article sample page', () => {
     const wrapper = await mountPage(page);
     const roots = pageBlockRoots(wrapper);
     const articleEl = roots[2]!;
-    const footerEl = roots[5]!;
 
     expect(articleEl.textContent).toContain(
       'Bisqueware waiting for its glaze bath in the Portland studio.'
@@ -206,7 +205,6 @@ describe('article sample page', () => {
     expect(articleEl.textContent).toContain(
       'Ingrid has thrown pots in Portland for eighteen years'
     );
-    expect(footerEl.textContent).toContain('Studio and shop in Portland, Oregon.');
     expect(wrapper.text()).not.toContain('Bergen');
   });
 

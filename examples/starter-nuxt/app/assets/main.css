@@ -48,6 +48,11 @@
   --eldra-radius-xl: 1.25rem;
   --eldra-control-height: 2.75rem;
   --eldra-control-height-lg: 3.25rem;
+  /* Every block's `Container` pads by these two, not by the theme's per-container gutter tokens
+     (those reach only layout zones), so they follow the wide container's gutters from
+     `tokens.json`: the design's 1rem at every width, and a Studio override of them still lands. */
+  --eldra-gutter-tablet: var(--eldra-container-wide-gutter-tablet, 1rem);
+  --eldra-gutter-desktop: var(--eldra-container-wide-gutter-normal, 1rem);
 }
 
 /* Hides the native scrollbar on a scroll-snap carousel track while keeping

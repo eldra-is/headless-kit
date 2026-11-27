@@ -25,8 +25,8 @@ const page = fixture as unknown as PageFixture;
  * title and the strip of sibling categories from it, and `collection-grid` in `scope: 'category'`
  * lists that category's whole subtree. So the one thing this page needs that no other page spec
  * does is a demo route that *is* a category page — `home/ceramics`, the demo tree's own nested
- * branch (`Homeware › Ceramics`, with `Kitchen` as the sibling the strip never shows and the
- * children the strip would show when a category has any).
+ * branch (`Homeware › Ceramics`, with `Kitchen` as the sibling the strip never shows and its five
+ * empty children — `Mugs and cups` to `Gift sets` — as the strip under the title).
  */
 const CATEGORY_PATH = 'home/ceramics';
 const CATEGORY_TITLE = 'Ceramics';
@@ -108,23 +108,45 @@ describe('category sample page', () => {
   });
 
   /**
-   * The strip under the title is the current category's **children**, each linking to its own page —
-   * and `Ceramics` is a leaf in the demo tree, so there is no strip at all rather than an empty row.
-   * The parent's own page is what shows one.
+   * The strip under the title is the current category's **children**, each linking to its own page,
+   * led by an "All <title>" chip for the page itself — the one current chip, as the design's "All
+   * ceramics". A leaf (`Vases`, under Ceramics) has no strip at all, not a lone "All" chip.
    */
-  it('shows a strip of child categories only where the category has children', async () => {
-    const leaf = await mountCategoryPage();
-    expect(leaf.find('ul[aria-label="Categories in this one"]').exists()).toBe(false);
+  it('shows a strip of child categories, led by the category itself, only where it has children', async () => {
+    const wrapper = await mountCategoryPage();
+    const strip = wrapper.get('ul[aria-label="Categories in this one"]');
+    const links = strip.findAll('a');
+    expect(links.map((link) => link.text())).toEqual([
+      'All ceramics',
+      'Mugs and cups',
+      'Bowls',
+      'Plates and platters',
+      'Vases',
+      'Gift sets',
+    ]);
+    expect(links.map((link) => link.attributes('href'))).toEqual([
+      '/categories/home/ceramics',
+      '/categories/home/ceramics/mugs-and-cups',
+      '/categories/home/ceramics/bowls',
+      '/categories/home/ceramics/plates-and-platters',
+      '/categories/home/ceramics/vases',
+      '/categories/home/ceramics/gift-sets',
+    ]);
+    // Only the "All" chip is current: every child is somewhere else.
+    const current = strip.findAll('[aria-current="page"]');
+    expect(current).toHaveLength(1);
+    expect(current[0]!.text()).toBe('All ceramics');
 
     const parent = await mountCategoryPage('home');
-    const strip = parent.get('ul[aria-label="Categories in this one"]');
-    expect(strip.findAll('a').map((link) => link.attributes('href'))).toEqual([
+    const parentStrip = parent.get('ul[aria-label="Categories in this one"]');
+    expect(parentStrip.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '/categories/home',
       '/categories/home/ceramics',
       '/categories/home/kitchen',
     ]);
-    // Never a `current` chip: the open category is the page's own `h1`, and its children are all
-    // somewhere else.
-    expect(strip.findAll('[aria-current="page"]')).toHaveLength(0);
+
+    const leaf = await mountCategoryPage('home/ceramics/vases');
+    expect(leaf.find('ul[aria-label="Categories in this one"]').exists()).toBe(false);
   });
 
   /**

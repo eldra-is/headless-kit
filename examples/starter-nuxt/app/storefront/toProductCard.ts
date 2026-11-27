@@ -15,12 +15,16 @@ export type ProductCardSource = StorefrontProductListItem | StorefrontSearchProd
  * agree pixel for pixel — `ProductCard` is the shared cell every commerce block renders a product
  * with, always built by `toProductCard()`.
  *
- * `badge` is never read off the input — `ProductCardProduct.badge` is deliberately the caller's
- * own sale/new *decision*, not something the card re-derives, so this is the one place that
- * decision gets made for every commerce block: `{ variant: 'sale' }` exactly when
- * `compareAt > amount`, matching `Price`'s own sale rule verbatim. A future "New" tag (the spec's
- * `dto_ProductListItem` carries no such flag today) is a decision for whoever adds it, not this
- * function.
+ * `badge` is `ProductCardProduct.badge`, the caller's own sale/new *decision*, not something the
+ * card re-derives, so this is the one place that decision gets made for every commerce block:
+ * `{ variant: 'sale' }` exactly when `compareAt > amount`, matching `Price`'s own sale rule
+ * verbatim, else `{ variant: 'new' }` when the source marks the item `isNew` (the demo does; the
+ * platform's list read carries no such flag today).
+ *
+ * `vendor` (the brand) rides along for the maker line under the title. `stock` does not: the
+ * theme's card draws no stock line (the design shows none, and a list row's stock is only the
+ * published status anyway — see `gateway.ts`'s `mapProductListItem`); a sold-out product still
+ * reads as one through `available`.
  *
  * **Units.** Storefront money is major units (`types.ts`) and `ProductCardProduct.price` is minor
  * units, like every other `@eldrajs/ui` money input, so the two prices are converted on the way in.
@@ -81,10 +85,10 @@ export function toProductCard(
       from,
     },
     ...(notSoldIn === null ? {} : { notSoldIn }),
+    ...(item.vendor ? { vendor: item.vendor } : {}),
     rating: item.rating,
     colours: item.colours,
-    badge: isSale ? { variant: 'sale' } : null,
-    stock: item.stock,
+    badge: isSale ? { variant: 'sale' } : item.isNew === true ? { variant: 'new' } : null,
     available: item.available,
   };
 }

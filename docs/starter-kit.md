@@ -195,24 +195,48 @@ Studio link tree, and hands the links, their mega-menus and the narrow-screen dr
   that label (WCAG 2.5.3): Menu, Search, Account (only when `account` is set), Saved (the wishlist)
   and Cart, with the count pills on the icon's corner.
 - **Info strip.** `infoItems` (text, an optional icon, an optional link, `start` or `end`) draws a
-  named region above the bar; below 1101px the `end` items move into the drawer's footer.
+  named region above the bar; below 1101px the `end` items move into the drawer's footer (a `tel:`
+  link with no icon of its own gets a phone there).
+- **The currency.** With more than one currency on offer and an info strip, the picker is a setting
+  at the strip's end, "Prices in ISK" behind a world icon, from 47.625rem (762px): no box, the code
+  bold, a rule before it while Help and Order status show beside it, and a 17rem list of names with
+  their codes. The bar then has no picker; the phone menu's foot keeps it as a labelled select
+  showing the full name. With no strip it stays a boxed picker in the bar where the links are inline
+  (in the drawer's foot below), and a header with neither strip nor drawer keeps it in the bar at
+  every width. Every picker's list lifts itself over the fixed bar (`z-41`), since it is teleported
+  out from under it.
 - **Cells of the header's grid.** `class="static contents"` makes the menu's `<nav>` and its
   Menu button cells of the bar's grid, so the button and the brand place themselves per stage.
   `collapseBelow` stays `'@content'`; the block's own classes move the cut-off to 1100px.
   `minimal` uses `'always'`, and always the Search button, since a pill would push the brand off
   centre.
 - **Panels.** A parent opens a `mega` panel the full width of the header, its columns lined up with
-  the bar's container, painted with the bar's own `--eldra-header-surface`. The block declares
+  the bar's container, painted with the bar's own `--eldra-header-surface`, and ending on its
+  columns (a panel of sections has no "View all" row; a menu stored as plain `children` still gets
+  one for the parent's own page). `NavMenu` marks each panel with `data-layout`, and the block styles
+  the two layouts apart through `data-[layout=…]:` and `in-data-[layout=…]:`. The block declares
   **sections** (`tree.sections`: a heading, linked or plain, its links and a See all) and **cards**
   (`tree.cards`, 4:5 product or collection cards with their price, drawn by `NavMenu`). A single
-  section with no heading and no cards opens as a narrow dropdown instead (the Journal menu), with a
-  line of description under each link. A link's `badge` ("New") and `description` are read from the
+  section with no heading and no cards opens as a narrow dropdown instead (the Journal menu): a
+  21rem rounded card of padded rows, each a semibold title with a muted line of description under
+  it and `surface` on hover, its "see all" lined up with them. A link's `badge` ("New") and `description` are read from the
   stored link when present; the platform's link editor does not offer them yet. Version 5 migrates
   stored `children` + `group` into sections (`groupsToSections`); the block still draws `children`
   when a restored revision brings them back. **Deploy order:** v5's migration needs a cms-service
   that already has `groupsToSections`; deploy the platform first, then this theme.
-- **The phone menu.** `drawerLayout` picks how the drawer lists a parent's sections: `accordion`
-  (one parent open at a time) or `sections` (everything under its heading).
+- **Accent links.** A top-level link whose stored value carries `"tone": "accent"` (the seed's
+  Sale) is drawn in the accent colour in the bar and the phone menu, through `NavMenuLink.tone`. It
+  is the link's own setting rather than a rule about a label or a position, so a translation, a
+  rename or a reorder keeps it; like `badge` and `description`, Studio's link editor has no field for
+  it yet.
+- **The phone menu** is `NavMenu`'s `drawerMode: 'inline'`: the header stays, the menu opens
+  directly under it and fills the window below, and the Menu tool reads Close with an × while it is
+  open. It is a disclosure, not a dialog: `Escape`, a press outside it or focus leaving it closes it,
+  and the bar never slides away while it is open. Serif rows with chevrons; `drawerLayout` picks how
+  it lists a parent's sections: `accordion` (one parent open at a time) or `sections` (everything
+  under a heading row that links to the parent). From 37.5rem the sections sit two abreast and a
+  column of cards spans both, four across; cards are square there. Its foot, on `surface`, holds
+  Account, Saved items, the strip's end links and the currency.
 - **Routing.** `linkAs` is `parts/MenuLink.vue`: `EldraRouterLink` for a same-site destination, a
   plain anchor for anything else. A link's `openInNewTab` is honoured.
 - **A fixed bar that does not widen** when a dialog opens: it pads itself with
@@ -220,7 +244,7 @@ Studio link tree, and hands the links, their mega-menus and the narrow-screen dr
 - **The rest is `NavMenu`'s**: the 150ms hover rest, the arrow keys, `Escape`, focus leaving,
   current-page marking (from `window.location`, the router being off limits), the drawer and its
   rows. The block's texts reach it through `ariaLabel` (`header.primary`) and `messages`
-  (`header.menu` for the button and the drawer).
+  (`header.menu` for the button, `header.close` for it while the menu is open).
 
 ### The one primitive left in `app/components/ui/`: `UiImage`
 

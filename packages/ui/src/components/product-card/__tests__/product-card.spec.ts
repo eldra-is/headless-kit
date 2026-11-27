@@ -751,3 +751,106 @@ describe('ProductCard — revalidating', () => {
     wrapper.unmount();
   });
 });
+
+describe('ProductCard — theme wording and layout options', () => {
+  const PlusIcon = defineComponent({
+    name: 'PlusIcon',
+    setup: () => () => h('svg', { 'data-test': 'plus' }),
+  });
+
+  it('places the vendor after the price with vendorPlacement "below", in DOM order', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: PRODUCT, showVendor: true, vendorPlacement: 'below' },
+    });
+    const parts = wrapper
+      .findAll('[data-part="body"] > [data-part]')
+      .map((node) => node.attributes('data-part'));
+    expect(parts.slice(0, 3)).toEqual(['title', 'price', 'vendor']);
+    expect(wrapper.findAll('[data-part="vendor"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('keeps the vendor above the title by default', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, showVendor: true } });
+    const first = wrapper.get('[data-part="body"] > [data-part]');
+    expect(first.attributes('data-part')).toBe('vendor');
+    wrapper.unmount();
+  });
+
+  it('draws up to maxSwatches dots before collapsing the rest into "+N"', () => {
+    const wrapper = mountWith(ProductCard, { props: { product: PRODUCT, maxSwatches: 5 } });
+    expect(wrapper.findAll('[data-part="swatch"]')).toHaveLength(5);
+    expect(wrapper.find('[data-part="swatchOverflow"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('reads saleBadgeLabel on the sale badge instead of the percentage', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: PRODUCT, saleBadgeLabel: 'Sale', classes: { saleBadge: 'x-sale' } },
+    });
+    const badge = wrapper.get('[data-part="badges"] [data-part="root"]');
+    expect(badge.text()).toBe('Sale');
+    expect(badge.find('[data-part="hiddenSuffix"]').exists()).toBe(false);
+    expect(badge.classes()).toContain('x-sale');
+    wrapper.unmount();
+  });
+
+  it('still renders no sale badge with saleBadgeLabel when there is no discount', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, price: { amount: 3840 } }, saleBadgeLabel: 'Sale' },
+    });
+    expect(wrapper.find('[data-part="badges"] [data-part="root"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Sale');
+    wrapper.unmount();
+  });
+
+  it('appends the newBadge and soldOutBadge parts to their badges', () => {
+    const fresh = mountWith(ProductCard, {
+      props: {
+        product: { ...PRODUCT, badge: { variant: 'new' }, price: { amount: 3840 } },
+        classes: { newBadge: 'x-new' },
+      },
+    });
+    expect(fresh.get('[data-part="badges"] [data-part="root"]').classes()).toContain('x-new');
+    fresh.unmount();
+    const gone = mountWith(ProductCard, {
+      props: { product: { ...PRODUCT, available: false }, classes: { soldOutBadge: 'x-out' } },
+    });
+    expect(gone.get('[data-part="badges"] [data-part="root"]').classes()).toContain('x-out');
+    gone.unmount();
+  });
+
+  it('words quick add with quickAddLabel and quickAddName, and draws quickAddIcon', () => {
+    const wrapper = mountWith(ProductCard, {
+      props: {
+        product: PRODUCT,
+        quickAddLabel: 'Add',
+        quickAddName: 'Add Merino crew sweater to cart',
+        quickAddIcon: PlusIcon,
+        classes: { quickAddLabel: 'x-label' },
+      },
+    });
+    const button = wrapper.get('[data-part="quickAdd"]');
+    expect(button.text()).toBe('Add');
+    expect(button.attributes('aria-label')).toBe('Add Merino crew sweater to cart');
+    expect(button.find('[data-part="leadingIcon"] [data-test="plus"]').exists()).toBe(true);
+    expect(button.get('[data-part="label"]').classes()).toContain('x-label');
+    wrapper.unmount();
+  });
+
+  it('has no axe violations with every option set', async () => {
+    const wrapper = mountWith(ProductCard, {
+      props: {
+        product: PRODUCT,
+        showVendor: true,
+        vendorPlacement: 'below',
+        saleBadgeLabel: 'Sale',
+        quickAddLabel: 'Add',
+        quickAddName: 'Add Merino crew sweater to cart',
+        quickAddIcon: PlusIcon,
+      },
+    });
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+    wrapper.unmount();
+  });
+});

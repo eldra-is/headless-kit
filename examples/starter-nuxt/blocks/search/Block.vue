@@ -74,12 +74,14 @@ import { useEldraLocale } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
 import { useEditing } from '../../app/composables/useEditing';
 import { useStorefront } from '../../app/composables/useStorefront';
+import { useQuickAdd } from '../../app/composables/useQuickAdd';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { stripStega } from '@eldrajs/theme-core/stega';
 import { isInternalHref, searchQueryHref, SEARCH_PATH } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { productCardLook } from '../../app/storefront/productCardLook';
 import { useMoney } from '../../app/storefront/money';
 import type { StorefrontCollectionSelector } from '../../app/storefront/types';
 import { toSearchBarResults } from './results';
@@ -97,6 +99,7 @@ const { data } = useBlockData(props, 'search');
 const editing = useEditing();
 const { t } = useI18n();
 const storefront = useStorefront();
+const quickAdd = useQuickAdd();
 const headingId = `search-heading-${useUiId()}`;
 
 /** What the author writes in `heading` to have the shopper's query dropped into the sentence. */
@@ -498,10 +501,11 @@ const headingClass =
 
         <template v-if="hasNoResultsProducts">
           <p class="text-body-sm text-text font-semibold">{{ t('search.customersLove') }}</p>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 @min-[23.25rem]:grid-cols-2">
             <ProductCard
               v-for="entry in noResultsProducts"
               :key="entry.item.handle"
+              v-bind="productCardLook(t, entry.product.title)"
               :product="entry.product"
               ratio="4x5"
               class="min-w-0"
@@ -509,6 +513,7 @@ const headingClass =
               :link-as="entry.internal ? EldraRouterLink : undefined"
               :currency="entry.currency ?? currency"
               :locale="locale"
+              @quick-add="quickAdd.add(entry.item)"
             />
           </div>
         </template>

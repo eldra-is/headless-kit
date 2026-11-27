@@ -261,4 +261,17 @@ describe('split-content block', () => {
       expect(frame.classes()).toContain('eldra:rounded-xl');
     }
   });
+
+  it('fills the reserved 5:4 box with the image, whatever the photo’s own proportions', () => {
+    // The root carries the 5:4 `aspect-ratio`; the frame inside it would otherwise size itself from
+    // the photo (3:2 for the demo imagery) and leave the bottom of the box empty.
+    const wrapper = mount(Block, mountOptions({ entry: { id: 'e1', data: withImage } }));
+    const frames = wrapper.findAll('[data-part="frame"]');
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) {
+      const root = frame.element.parentElement!;
+      expect(root.getAttribute('style')).toContain('aspect-ratio: 5/4');
+      expect(frame.classes()).toContain('h-full');
+    }
+  });
 });

@@ -9,9 +9,12 @@
  */
 import { computed, type Component } from 'vue';
 import { ContentCard, Link, ProductCard } from '@eldrajs/ui';
+import { useI18n } from 'vue-i18n';
+import { useQuickAdd } from '../../app/composables/useQuickAdd';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { isInternalHref, safeHref } from '../../app/utils/links';
 import { toProductCardEntries } from '../../app/storefront/toProductCard';
+import { productCardLook } from '../../app/storefront/productCardLook';
 import { useMoney } from '../../app/storefront/money';
 import { useStorefront } from '../../app/composables/useStorefront';
 import type { StorefrontSearchProduct, StorefrontSearchResponse } from '../../app/storefront/types';
@@ -52,6 +55,8 @@ const props = defineProps<{
 }>();
 
 /** See the `products` prop: sanitised, unusable rows dropped, `internal` per card. */
+const { t } = useI18n();
+const quickAdd = useQuickAdd();
 const money = useMoney();
 const shopperCurrency = useStorefront().currency.active;
 const productCards = computed(() =>
@@ -79,7 +84,7 @@ const pageRows = computed(() =>
 );
 
 const PRODUCTS_GRID_CLASS =
-  'grid grid-cols-2 gap-x-4 gap-y-8 @tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-10 ' +
+  'grid grid-cols-1 @min-[23.25rem]:grid-cols-2 gap-x-4 gap-y-8 @tablet:grid-cols-3 @tablet:gap-x-6 @tablet:gap-y-10 ' +
   '@content:grid-cols-4 @content:gap-x-8';
 const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:gap-8';
 </script>
@@ -99,6 +104,7 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
       <ProductCard
         v-for="entry in productCards"
         :key="entry.item.handle"
+        v-bind="productCardLook(t, entry.product.title)"
         :product="entry.product"
         ratio="4x5"
         class="min-w-0"
@@ -106,6 +112,7 @@ const JOURNAL_GRID_CLASS = 'grid grid-cols-1 gap-6 @tablet:grid-cols-3 @tablet:g
         :link-as="entry.internal ? EldraRouterLink : undefined"
         :currency="entry.currency ?? currency"
         :locale="locale"
+        @quick-add="quickAdd.add(entry.item)"
       />
     </div>
 

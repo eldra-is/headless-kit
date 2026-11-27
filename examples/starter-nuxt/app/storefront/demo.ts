@@ -107,6 +107,10 @@ const PRODUCT_PHOTOS: Record<string, readonly [DemoPhoto, DemoPhoto, DemoPhoto]>
   'glazed-milk-jug': ['hero', 'terracotta', 'vase'],
   'linen-napkins-set-of-4': ['cup', 'enamel-cups', 'kitchen'],
   'stonewashed-linen-throw': ['reading', 'throws', 'yarn'],
+  'tall-bud-vase': ['vase', 'terracotta', 'coffee-table'],
+  'celadon-tea-cup': ['cup', 'enamel-cups', 'kitchen'],
+  'terracotta-planters': ['planters', 'terracotta', 'clay-hands'],
+  'enamel-camp-cups-set-of-6': ['enamel-cups', 'kitchen', 'cup'],
 };
 
 function productPhotos(handle: string): readonly [DemoPhoto, DemoPhoto, DemoPhoto] {
@@ -136,6 +140,10 @@ interface DemoProductDef {
   variantId: string;
   rating?: { value: number; count: number } | null;
   colours?: Array<{ name: string; swatch: string }>;
+  /** The maker, as a real catalogue's brand would name it. */
+  vendor?: string;
+  /** New in: the card's "New" badge (`StorefrontProductListItem.isNew`). */
+  isNew?: boolean;
   /**
    * Which `category` facet value this product sits under, and which `size` values it is made in
    * (apparel only). Neither is part of `StorefrontProductListItem` — a product *card* never shows
@@ -149,6 +157,7 @@ interface DemoProductDef {
 const PRODUCT_DEFS: DemoProductDef[] = [
   {
     handle: 'merino-crew-sweater',
+    vendor: 'Fell & Fleece',
     category: 'knitwear',
     sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Merino crew sweater',
@@ -167,6 +176,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'fisherman-rib-cardigan',
+    isNew: true,
+    vendor: 'Fell & Fleece',
     category: 'knitwear',
     sizes: ['xs', 's', 'm', 'l', 'xl'],
     title: 'Fisherman rib cardigan',
@@ -177,6 +188,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'lambswool-throw-blanket',
+    isNew: true,
+    vendor: 'Fell & Fleece',
     category: 'knitwear',
     title: 'Lambswool throw blanket',
     amount: 148,
@@ -186,6 +199,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'ribbed-lambswool-beanie',
+    vendor: 'Fell & Fleece',
     category: 'knitwear',
     sizes: ['s', 'm', 'l'],
     title: 'Ribbed lambswool beanie',
@@ -196,6 +210,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'linen-tea-towels-pair',
+    vendor: 'Linen Loft',
     category: 'kitchen',
     title: 'Linen tea towels, pair',
     amount: 24,
@@ -205,6 +220,8 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'speckled-latte-mug',
+    isNew: true,
+    vendor: 'Kiln Lane',
     category: 'ceramics',
     title: 'Speckled latte mug',
     amount: 28,
@@ -215,6 +232,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'stoneware-dinner-plates-set-of-4',
+    vendor: 'Studio Ash',
     category: 'ceramics',
     title: 'Stoneware dinner plates, set of 4',
     amount: 72,
@@ -224,6 +242,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'walnut-serving-board',
+    vendor: 'Alder & Oak',
     category: 'kitchen',
     title: 'Walnut serving board',
     amount: 58,
@@ -233,6 +252,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'hand-thrown-serving-bowl',
+    vendor: 'Harbour Pottery',
     category: 'ceramics',
     title: 'Hand-thrown serving bowl',
     amount: 64,
@@ -242,6 +262,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'glazed-milk-jug',
+    vendor: 'Harbour Pottery',
     category: 'ceramics',
     title: 'Glazed milk jug',
     amount: 34,
@@ -251,6 +272,7 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'linen-napkins-set-of-4',
+    vendor: 'Linen Loft',
     category: 'kitchen',
     title: 'Linen napkins, set of 4',
     amount: 40,
@@ -260,12 +282,61 @@ const PRODUCT_DEFS: DemoProductDef[] = [
   },
   {
     handle: 'stonewashed-linen-throw',
+    vendor: 'Linen Loft',
     category: 'knitwear',
     title: 'Stonewashed linen throw',
     amount: 118,
     stock: 'in',
     available: true,
     variantId: 'stonewashed-linen-throw::default',
+  },
+  // Four more ceramics, so a ceramics page shows eight different pieces as the design does rather
+  // than four repeated. Appended, so every index above keeps its product.
+  {
+    handle: 'tall-bud-vase',
+    vendor: 'Kiln Lane',
+    category: 'ceramics',
+    title: 'Tall bud vase',
+    amount: 42,
+    stock: 'in',
+    available: true,
+    variantId: 'tall-bud-vase::white',
+    colours: [
+      { name: 'White', swatch: '#f7f4ee' },
+      { name: 'Spruce', swatch: '#1e4646' },
+    ],
+  },
+  {
+    handle: 'celadon-tea-cup',
+    vendor: 'Kiln Lane',
+    category: 'ceramics',
+    title: 'Celadon tea cup',
+    amount: 24,
+    compareAt: 32,
+    stock: 'in',
+    available: true,
+    variantId: 'celadon-tea-cup::celadon',
+    colours: [{ name: 'Celadon', swatch: '#8fc4b1' }],
+  },
+  {
+    handle: 'terracotta-planters',
+    vendor: 'Harbour Pottery',
+    category: 'ceramics',
+    title: 'Terracotta planters',
+    amount: 36,
+    stock: 'in',
+    available: true,
+    variantId: 'terracotta-planters::default',
+  },
+  {
+    handle: 'enamel-camp-cups-set-of-6',
+    vendor: 'Studio Ash',
+    category: 'ceramics',
+    title: 'Enamel camp cups, set of 6',
+    amount: 48,
+    stock: 'out',
+    available: false,
+    variantId: 'enamel-camp-cups-set-of-6::default',
   },
 ];
 
@@ -280,9 +351,10 @@ const PRODUCT_DEFS: DemoProductDef[] = [
  * **The fixture's category tree**, in the shape `GET /catalog/v1/categories` answers: one row per
  * category, a tree by `parentId`.
  *
- * Two levels and one shallow branch on purpose, because that is the shape a real store has and the
- * shape both features need to be exercised at all: `Homeware` holds `Ceramics` and `Kitchen`, while
- * `Knitwear` is a root with nothing under it. So a product page's trail is two crumbs for a mug
+ * Three levels and one shallow branch on purpose, because that is the shape a real store has and
+ * the shape every feature needs to be exercised at all: `Homeware` holds `Ceramics` and `Kitchen`,
+ * `Ceramics` holds five empty children (its page's strip), while `Knitwear` is a root with nothing
+ * under it. So a product page's trail is two crumbs for a mug
  * (`Homeware / Ceramics`) and one for a sweater (`Knitwear`), and the collection grid's category
  * group draws one parent row with two indented children beside one plain row — with `Homeware`
  * itself counting nothing directly, which is exactly the parent a flat facet never names.
@@ -302,6 +374,19 @@ const DEMO_CATEGORIES: readonly CategoryRow[] = [
   { id: 'knitwear', slug: 'knitwear', title: 'Knitwear', parentId: null },
   { id: 'ceramics', slug: 'ceramics', title: 'Ceramics', parentId: 'home' },
   { id: 'kitchen', slug: 'kitchen', title: 'Kitchen', parentId: 'home' },
+  // Ceramics' own children, so the category page's strip under the title has something to show
+  // (the design's "All ceramics · Mugs and cups · …" row). No product is filed under them: every
+  // ceramic piece sits on `ceramics` itself, so they count nothing and the facet never names them.
+  { id: 'mugs-and-cups', slug: 'mugs-and-cups', title: 'Mugs and cups', parentId: 'ceramics' },
+  { id: 'bowls', slug: 'bowls', title: 'Bowls', parentId: 'ceramics' },
+  {
+    id: 'plates-and-platters',
+    slug: 'plates-and-platters',
+    title: 'Plates and platters',
+    parentId: 'ceramics',
+  },
+  { id: 'vases', slug: 'vases', title: 'Vases', parentId: 'ceramics' },
+  { id: 'gift-sets', slug: 'gift-sets', title: 'Gift sets', parentId: 'ceramics' },
 ];
 
 /** The tree indexed both ways, for the trail and for placing the facet's own terms. */
@@ -353,6 +438,8 @@ function buildListItem(def: DemoProductDef): StorefrontProductListItem {
     price: { amount: def.amount, compareAt: def.compareAt ?? null },
     rating: def.rating ?? null,
     colours: def.colours,
+    ...(def.vendor === undefined ? {} : { vendor: def.vendor }),
+    ...(def.isNew === true ? { isNew: true } : {}),
     stock: def.stock,
     available: def.available,
     productId: def.handle,
@@ -1203,6 +1290,8 @@ export interface DemoStorefrontOptions {
    * mode and `breadcrumbs`' `fromCategory` each draw nothing, exactly as they do on a product page.
    */
   categoryPath?: string;
+  /** Seeds `route.path`, which a spec then changes to navigate; empty (the default) is no router. */
+  path?: string;
 }
 
 /** Northwind fixtures in the theme's own view types — the "knobs" are exactly what a block spec
@@ -1212,6 +1301,7 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
 
   const categoryPath = options.categoryPath ?? null;
   const route: StorefrontRoute = reactive({
+    path: options.path ?? '',
     productHandle: options.productHandle ?? 'merino-crew-sweater',
     collectionHandle: options.collectionHandle ?? 'winter-knitwear',
     categorySlug: categoryPath === null ? null : (categoryPath.split('/').at(-1) ?? null) || null,
@@ -1329,8 +1419,14 @@ export function createDemoStorefront(options: DemoStorefrontOptions = {}): Store
           facets: deriveFacets(scope, { filters, attributesFor, categories: CATEGORY_INDEX }),
         };
       }),
+    // The product itself is never one of its own related products — the gateway drops it before
+    // taking `limit` (`relatedProducts`), so a row asked for 4 shows 4, here as there.
     related: (handle, limit) =>
-      createDemoResult([handle], () => (handle.value ? RELATED_ITEMS.slice(0, limit) : [])),
+      createDemoResult([handle], () =>
+        handle.value
+          ? RELATED_ITEMS.filter((item) => item.handle !== handle.value).slice(0, limit)
+          : []
+      ),
     byHandles: (handles) =>
       createDemoResult([handles], () =>
         handles.value

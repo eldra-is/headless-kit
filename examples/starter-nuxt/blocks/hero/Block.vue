@@ -16,8 +16,11 @@
  *  - `split-carousel`: copy in a `5fr` column beside `@eldrajs/ui`'s `Carousel` in `7fr`, one 4:5
  *    slide per `slides[]` item.
  *  - `card`: one wide photo (21:9) with the copy on a `background` card overlapping its
- *    bottom-left corner, and an optional small caption link on the photo (`captionLabel`,
- *    `captionDetail`, `captionHref` — "Glazed milk jug $34", a shoppable caption). Below 1101px
+ *    bottom-left corner, and an optional small caption link on the photo naming the product in it
+ *    with its price ("Glazed milk jug 4.790 kr."): `captionProduct` picks the product, read through
+ *    the storefront like every commerce block, so the name, price (in the regional format and the
+ *    shopper's currency) and link are the catalog's own; `captionLabel` only overrides the name.
+ *    Below 1101px
  *    of block width the card leaves the photo and sits under it, pulled up over its bottom edge
  *    (16:10 photo; 4:5 below 761px), and the caption moves to the photo's top-right corner. The
  *    copy comes before the photo in the DOM, so the heading is still the first thing read; `order`
@@ -36,6 +39,9 @@ import { Button, Carousel, Container, EditorPlaceholder, Link, Section } from '@
 import type { SectionBackground, SectionSpacing } from '@eldrajs/ui';
 import { DEFAULT_IMAGE_FRAMING } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useStorefront } from '../../app/composables/useStorefront';
+import { useMoney } from '../../app/storefront/money';
+import { productReferenceSlug } from '../../app/storefront/productReference';
 import { useEditing } from '../../app/composables/useEditing';
 import { useI18n } from 'vue-i18n';
 import { useUiId } from '../../app/composables/useUiId';
@@ -201,13 +207,35 @@ const subheadingClass = computed(() =>
     : 'text-body-lg mt-5 max-w-[34rem] text-pretty'
 );
 
-const captionLabel = computed(() => (data.value.captionLabel ?? '').trim());
-const captionDetail = computed(() => (data.value.captionDetail ?? '').trim());
-const captionHref = computed(() => safeHref(data.value.captionHref));
-/** The caption is a link or nothing: a label with no destination would be a pill that looks
- *  clickable and is not. */
+/**
+ * The caption's product, read only for the card variant with a photo — the one place it shows — so
+ * any other hero makes no read. A reference the public read has not resolved to a slug (a draft in
+ * the builder) names nothing the storefront can look up, and the caption simply waits for publish.
+ */
+const storefront = useStorefront();
+const money = useMoney();
+const captionHandle = computed(() =>
+  isCard.value && hasImage.value ? productReferenceSlug(data.value.captionProduct) : null
+);
+const captionRead = storefront.catalog.product(captionHandle);
+const captionItem = computed(() =>
+  captionHandle.value === null ? null : (captionRead.data.value ?? null)
+);
+const captionLabel = computed(
+  () => (data.value.captionLabel ?? '').trim() || captionItem.value?.title || ''
+);
+/** The price the shopper pays, written as every other price on the page is. */
+const captionDetail = computed(() => {
+  const price = captionItem.value?.price;
+  return price === undefined ? '' : money.format(price.amount, price.currency);
+});
+const captionHref = computed(() => safeHref(captionItem.value?.url));
+/** The caption is a link to a product someone can buy, or nothing: a sold-out product is not
+ *  advertised on the photo, and a label with no destination would be a pill that looks clickable
+ *  and is not. */
 const hasCaption = computed(
-  () => isCard.value && hasImage.value && captionLabel.value !== '' && captionHref.value !== null
+  () =>
+    captionItem.value?.available === true && captionLabel.value !== '' && captionHref.value !== null
 );
 const captionLinkAs = computed(() => routerLinkAs(captionHref.value));
 const carouselAriaLabel = computed(() => data.value.heading || t('hero.carouselFallback'));
@@ -404,7 +432,8 @@ function slideAlt(slide: { alt?: string; image?: { altText?: string | null } }):
               :as="captionLinkAs"
               :underline="false"
               :classes="{ label: 'inline-flex min-w-0 items-center gap-2' }"
-              class="bg-background/90 text-text hover:bg-background absolute top-5 right-5 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold @min-[68.8125rem]:top-auto @min-[68.8125rem]:bottom-5"
+              data-eldra-hero-caption
+              class="bg-background/90 text-text hover:bg-background hover:text-text absolute top-5 right-5 inline-flex max-w-[calc(100%-2.5rem)] items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold no-underline hover:no-underline active:no-underline @min-[68.8125rem]:top-auto @min-[68.8125rem]:bottom-5"
             >
               <span class="truncate">{{ captionLabel }}</span>
               <span v-if="captionDetail" class="text-muted font-normal">{{ captionDetail }}</span>

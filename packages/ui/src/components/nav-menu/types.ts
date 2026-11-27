@@ -25,13 +25,25 @@ export interface NavMenuLink {
   badge?: string | null;
   /** The column heading this entry sits under; entries sharing one form a column. */
   group?: string | null;
-  /** Marks the page the visitor is on (`aria-current="page"`). */
-  current?: boolean;
+  /**
+   * Marks the page the visitor is on: `true` or `'page'` is `aria-current="page"`, `'true'` is
+   * `aria-current="true"` for an entry that holds the page without being it (a section's entry on
+   * one of its pages), anything else is no mark.
+   */
+  current?: boolean | 'page' | 'true';
   /** `card` when the author made the entry a promotional card. With a resolved `card` the panel draws a picture, title and price; without one it is a plain link. */
   display?: 'card' | 'link';
   /** Set only on a resolved card; without it the entry is a plain link whatever `display` says. */
   card?: NavMenuCard;
+  /**
+   * `accent` draws a top-level entry in the accent colour, in the bar and in the drawer (a "Sale"
+   * link). The entry carries it as `data-tone`. Not read on a panel's own entries.
+   */
+  tone?: NavMenuTone;
 }
+
+/** How a top-level entry is coloured: as its siblings (`default`), or in the accent colour. */
+export type NavMenuTone = 'default' | 'accent';
 
 /** One column of a panel, as a resolved Studio link's `sections`. */
 export interface NavMenuSection {
@@ -93,6 +105,14 @@ export type NavMenuVariant = 'ghost' | 'muted';
  * open under a heading row (a link when the entry has a page), its links indented beneath.
  */
 export type NavMenuDrawerLayout = 'accordion' | 'sections';
+
+/**
+ * `sheet` (default) opens the narrow-screen menu as a modal `Drawer` from the side. `inline` opens it
+ * as a disclosure hanging under the menu's positioning box (a whole header, when the root is made
+ * `static`), filling the window below and scrolling on its own; its button stays in view and reads
+ * as Close while it is open.
+ */
+export type NavMenuDrawerMode = 'sheet' | 'inline';
 
 /** Where a panel's content is drawn: under the bar, or in the narrow-screen drawer. */
 export type NavMenuPlacement = 'bar' | 'drawer';
@@ -181,6 +201,8 @@ export interface NavMenuProps {
   drawerSide?: DrawerSide;
   /** How the drawer shows a panel: `accordion` (default) rows that open, or `sections` listed open. */
   drawerLayout?: NavMenuDrawerLayout;
+  /** How the drawer opens: `sheet` (default), a modal side sheet, or `inline` under the bar. */
+  drawerMode?: NavMenuDrawerMode;
   /** The drawer's entries when they differ from the bar's. Defaults to `items`. */
   drawerItems?: readonly NavMenuItem[];
   /** Also open a panel when a mouse pointer rests 150ms on its trigger; leaving closes it again. */

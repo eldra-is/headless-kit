@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
-  normalizeClass,
+  nextTick,
   onBeforeUnmount,
   ref,
   toRef,
@@ -13,14 +13,15 @@ import { useControllableModel } from '../../composables/useControllableModel';
 import { useMessages } from '../../composables/useMessages';
 import { useOverlay } from '../../composables/useOverlay';
 import { useUiId } from '../../utils/id';
-import AccordionItem from '../accordion/AccordionItem.vue';
 import Drawer from '../drawer/Drawer.vue';
 import VisuallyHidden from '../visually-hidden/VisuallyHidden.vue';
+import NavMenuDrawerList from './NavMenuDrawerList.vue';
 import NavMenuPanel from './NavMenuPanel.vue';
 import { useNavMenuKeys } from './navMenuKeys';
 import {
   CURRENT_PAGE,
-  containsCurrent,
+  currentEntry,
+  currentMark,
   hasHref,
   hasPanel,
   isRenderableLink,
@@ -48,6 +49,7 @@ const props = withDefaults(defineProps<NavMenuProps>(), {
   collapseBelow: 'lg',
   drawerSide: 'left',
   drawerLayout: 'accordion',
+  drawerMode: 'sheet',
   drawerItems: undefined,
   openOnHover: false,
   linkAs: undefined,
@@ -72,9 +74,9 @@ defineSlots<{
   triggerIcon?: (props: { item: NavMenuItem; open: boolean }) => unknown;
   /** The menu button's inside, replacing the icon. */
   toggle?: (props: { open: boolean }) => unknown;
-  /** The drawer's header row, before its close button: a logo, a call to action. */
+  /** The drawer's header row, before its close button: a logo, a call to action. The sheet only. */
   drawerHeader?: (props: { close: () => void }) => unknown;
-  /** The drawer's fixed footer. */
+  /** The drawer's footer: fixed in the sheet, after the entries in the inline drawer. */
   drawerFooter?: (props: { close: () => void }) => unknown;
 }>();
 
@@ -102,6 +104,8 @@ function renderableEntries(items: readonly NavMenuItem[]): { item: NavMenuItem; 
 }
 
 const entries = computed(() => renderableEntries(props.items));
+/** The single top-level entry marked as holding the current page (`currentEntry`). */
+const markedEntry = computed(() => currentEntry(entries.value.map(({ item }) => item)));
 const drawerEntries = computed(() => renderableEntries(props.drawerItems ?? props.items));
 
 function panelId(index: number): string {
@@ -220,31 +224,80 @@ function closeDrawer(): void {
   if (drawerOpen.value) drawerOpen.value = false;
 }
 
-// A modal drawer left open while the screen widens past collapseBelow keeps the now visible bar inert.
-const toggleEl = ref<HTMLButtonElement | null>(null);
+const inline = computed(() => props.drawerMode === 'inline');
 
-function closeDrawerOnWideScreen(): void {
-  if (toggleEl.value && getComputedStyle(toggleEl.value).display === 'none') closeDrawer();
+// A drawer left open while the screen widens past collapseBelow: a modal one keeps the now visible
+// bar inert, an inline one would hang open under a bar that has no Close button any more.
+const toggleEl = ref<HTMLButtonElement | null>(null);
+const inlineEl = ref<HTMLElement | null>(null);
+
+/**
+ * Where the inline drawer's top edge sits in the window, so it can fill the rest of it and scroll
+ * on its own: measured when it opens and on every resize while it is open.
+ */
+const inlineTop = ref(0);
+
+function measureInline(): void {
+  const el = inlineEl.value;
+  if (!el) return;
+  // From layout positions, not the drawer's own box: while it enters it is shifted up a little, and
+  // measuring that would leave it as much too tall, its foot below the window.
+  const parent = el.offsetParent;
+  const top =
+    parent instanceof Element === false
+      ? el.getBoundingClientRect().top
+      : parent.getBoundingClientRect().top + parent.clientTop + el.offsetTop;
+  inlineTop.value = Math.max(0, top);
+}
+
+function onResizeWhileOpen(): void {
+  if (toggleEl.value && getComputedStyle(toggleEl.value).display === 'none') {
+    closeDrawer();
+    return;
+  }
+  if (inline.value) measureInline();
 }
 
 watch(
   drawerOpen,
   (open) => {
     if (typeof window === 'undefined') return;
-    if (open) window.addEventListener('resize', closeDrawerOnWideScreen);
-    else window.removeEventListener('resize', closeDrawerOnWideScreen);
+    if (open) {
+      window.addEventListener('resize', onResizeWhileOpen);
+      if (inline.value) void nextTick(measureInline);
+    } else window.removeEventListener('resize', onResizeWhileOpen);
   },
   { immediate: true }
 );
 
 onBeforeUnmount(() => {
   clearHoverTimers();
-  window.removeEventListener('resize', closeDrawerOnWideScreen);
+  window.removeEventListener('resize', onResizeWhileOpen);
 });
 
-function onDrawerClick(event: MouseEvent): void {
-  if ((event.target as Element | null)?.closest('a') != null) closeDrawer();
+/**
+ * The inline drawer is a disclosure, not a dialog: no focus trap and no inert page. It closes the
+ * way the bar's panels do — `Escape` (focus back on the menu button), a press outside it, or focus
+ * leaving it — so focus can never walk on into the page it covers.
+ */
+useOverlay({
+  open: computed(() => inline.value && drawerOpen.value),
+  trigger: toggleEl,
+  content: inlineEl,
+  setOpen: (next) => {
+    if (!next) closeDrawer();
+  },
+});
+
+function onToggleClick(): void {
+  // The sheet covers its own button, so the button only ever opens it; the inline drawer's button
+  // stays in view and closes it again.
+  drawerOpen.value = inline.value ? !drawerOpen.value : true;
 }
+
+const toggleLabel = computed(() =>
+  inline.value && drawerOpen.value ? m.value.close : m.value.navMenuOpen
+);
 
 /** Closes the open panel and the drawer, for a router's navigation hook. */
 function close(): void {
@@ -284,6 +337,24 @@ const PANEL_TRANSITION = {
   leaveToClass: 'eldra:opacity-0',
 };
 
+/**
+ * The inline drawer opens as the bar's panels do: its top third shows at once and the rest unrolls
+ * as it fades in and drops 0.25rem into place; it closes the same way back, a little faster. Its
+ * resting state is fully shown, so only the hidden end carries classes: a class for the shown end as
+ * well would sit beside the hidden one for a frame, and whichever the stylesheet orders last would
+ * win. The durations are tokens, which the reduced-motion rule zeroes.
+ */
+const INLINE_TRANSITION = {
+  enterFromClass: 'eldra:opacity-0 eldra:-translate-y-1 eldra:[clip-path:inset(0_0_65%_0)]',
+  enterActiveClass:
+    'eldra:transition-[opacity,translate,clip-path] eldra:duration-base eldra:ease-out',
+  enterToClass: '',
+  leaveFromClass: '',
+  leaveActiveClass:
+    'eldra:pointer-events-none eldra:transition-[opacity,translate,clip-path] eldra:duration-fast eldra:ease-in',
+  leaveToClass: 'eldra:opacity-0 eldra:-translate-y-1 eldra:[clip-path:inset(0_0_65%_0)]',
+};
+
 const HOVER_FILL = 'eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]';
 
 /** A top-level entry's colours at rest, hovered, open (`aria-expanded`) and current. */
@@ -295,6 +366,18 @@ const ENTRY_VARIANT: Record<NavMenuVariant, string> = {
     'eldra:text-muted eldra:hover:text-text eldra:aria-expanded:text-text eldra:aria-[current=page]:text-text ' +
     'eldra:data-[current]:text-text',
 };
+
+/** An entry marked `tone: 'accent'` (a "Sale" link): the accent colour in every state. */
+const ENTRY_ACCENT: Record<NavMenuVariant, string> = {
+  ghost:
+    'eldra:text-accent eldra:hover:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)] ' +
+    'eldra:aria-expanded:bg-[color-mix(in_oklab,var(--eldra-color-text),transparent_94%)]',
+  muted: 'eldra:text-accent',
+};
+
+function entryColours(item: NavMenuItem): string {
+  return (item.tone === 'accent' ? ENTRY_ACCENT : ENTRY_VARIANT)[props.variant];
+}
 
 const ROOT = 'eldra:relative eldra:flex eldra:items-center';
 
@@ -319,19 +402,20 @@ const TOP_LEVEL =
   'eldra:inline-flex eldra:min-h-10 eldra:cursor-pointer eldra:items-center eldra:gap-1 eldra:rounded-md eldra:px-3 eldra:text-body eldra:font-medium ' +
   'eldra:eldra-focus';
 
-const linkClass = computed(() => [
-  [TOP_LEVEL, ENTRY_VARIANT[props.variant], CURRENT_PAGE],
-  props.classes?.link,
-]);
+function linkClass(item: NavMenuItem) {
+  return [[TOP_LEVEL, entryColours(item), CURRENT_PAGE], props.classes?.link];
+}
 
-const triggerClass = computed(() => [
-  [
-    TOP_LEVEL,
-    ENTRY_VARIANT[props.variant],
-    'eldra:data-[current]:underline eldra:data-[current]:decoration-2 eldra:data-[current]:underline-offset-[0.2em]',
-  ],
-  props.classes?.trigger,
-]);
+function triggerClass(item: NavMenuItem) {
+  return [
+    [
+      TOP_LEVEL,
+      entryColours(item),
+      'eldra:data-[current]:underline eldra:data-[current]:decoration-2 eldra:data-[current]:underline-offset-[0.2em]',
+    ],
+    props.classes?.trigger,
+  ];
+}
 
 function triggerIconClass(open: boolean) {
   return [
@@ -357,7 +441,8 @@ function panelClass(item: NavMenuItem) {
 function contentClass(item: NavMenuItem) {
   return [
     [
-      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-popover-in',
+      // Every panel shows its top at once and unrolls the rest (`animate-eldra-menu-in`).
+      'eldra:rounded-lg eldra:border eldra:border-border eldra:bg-background eldra:text-text eldra:shadow-md eldra:animate-eldra-menu-in',
       panelLayout(item) === 'mega' ? 'eldra:p-6' : 'eldra:eldra-nav-menu-dropdown eldra:p-2',
     ],
     props.classes?.content,
@@ -382,61 +467,40 @@ const toggleClass = computed(() => [
 
 const toggleIconClass = computed(() => ['eldra:size-5', props.classes?.toggleIcon]);
 
+/**
+ * The inline drawer hangs from the menu's positioning box, as a mega panel does (make the root
+ * `static` to hang it from a whole header), and fills the window below its own top edge.
+ */
+const inlineClass = computed(() => [
+  [
+    'eldra:absolute eldra:inset-x-0 eldra:top-full eldra:z-popover eldra:flex eldra:flex-col',
+    'eldra:h-[calc(100dvh-var(--eldra-nav-menu-drawer-top,0px))] eldra:overflow-y-auto eldra:overscroll-contain',
+    'eldra:border-t eldra:border-border eldra:bg-background eldra:text-text',
+    // Its resting clip, which the open and close transitions unroll from and to: a browser does not
+    // interpolate between `none` and an inset, so without it the clip would jump.
+    'eldra:[clip-path:inset(0)]',
+  ],
+  props.classes?.drawer,
+]);
+const inlineStyle = computed(() => ({ '--eldra-nav-menu-drawer-top': `${inlineTop.value}px` }));
+const inlineBodyClass = computed(() => ['eldra:shrink-0', props.classes?.drawerBody]);
+/**
+ * The foot sits at the bottom of the window when the entries are shorter than it (`mt-auto` in the
+ * drawer's column, which is `100dvh` tall, so it rises with a phone's browser toolbars), and after
+ * the last entry once they are longer. Its bottom padding adds the device's safe area, as the sheet's
+ * footer does.
+ */
+const inlineFooterClass = computed(() => [
+  'eldra:mt-auto eldra:flex eldra:shrink-0 eldra:flex-col eldra:gap-3 eldra:bg-surface eldra:px-4 eldra:pt-4 eldra:eldra-drawer-footer-bottom',
+  props.classes?.drawerFooter,
+]);
+
 const drawerClasses = computed(() => ({
   panel: props.classes?.drawer,
   header: props.classes?.drawerHeader,
   close: props.classes?.drawerClose,
   body: props.classes?.drawerBody,
   footer: props.classes?.drawerFooter,
-}));
-
-const sections = computed(() => props.drawerLayout === 'sections');
-
-const drawerListClass = computed(() => ['eldra:flex eldra:flex-col', props.classes?.drawerList]);
-
-// Every top-level row in the drawer, link, accordion row or section heading, is this tall.
-const DRAWER_ROW = 'eldra:eldra-nav-menu-drawer-row';
-
-function drawerItemClass(item: NavMenuItem) {
-  if (!hasPanel(item)) return ['eldra:border-b eldra:border-border', props.classes?.drawerItem];
-  const section = sections.value
-    ? 'eldra:flex eldra:flex-col eldra:border-b eldra:border-border eldra:pb-4'
-    : '';
-  return [section, props.classes?.drawerItem];
-}
-
-function drawerSectionHeadingClass(item: NavMenuItem) {
-  return [
-    [
-      DRAWER_ROW,
-      'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4 eldra:text-accordion-title eldra:text-text',
-      hasHref(item) && ['eldra:eldra-focus', CURRENT_PAGE],
-    ],
-    props.classes?.drawerSectionHeading,
-  ];
-}
-
-const drawerLinkClass = computed(() => [
-  [
-    DRAWER_ROW,
-    'eldra:flex eldra:w-full eldra:items-center eldra:rounded-sm eldra:py-4',
-    'eldra:text-accordion-title eldra:text-text eldra:eldra-focus',
-    CURRENT_PAGE,
-  ],
-  props.classes?.drawerLink,
-]);
-
-const drawerNestClass = computed(() => [
-  'eldra:flex eldra:flex-col eldra:ms-1 eldra:border-s eldra:border-border eldra:eldra-nav-menu-drawer-nest',
-  props.classes?.drawerNest,
-]);
-
-const accordionClasses = computed(() => ({
-  summary: normalizeClass([DRAWER_ROW, props.classes?.drawerTrigger]),
-  panel: normalizeClass([
-    'eldra:max-w-none eldra:pb-4 eldra:text-text',
-    props.classes?.drawerPanel,
-  ]),
 }));
 </script>
 
@@ -468,10 +532,12 @@ const accordionClasses = computed(() => ({
               :ref="(el) => (triggerEls[index] = elementOf(el))"
               type="button"
               data-part="trigger"
-              :class="triggerClass"
+              :data-tone="item.tone"
+              :class="triggerClass(item)"
               :aria-expanded="openIndex === index ? 'true' : 'false'"
               :aria-controls="panelId(index)"
-              :data-current="containsCurrent(item) ? '' : undefined"
+              :data-current="item === markedEntry ? '' : undefined"
+              :aria-current="currentMark(item.current)"
               @click="onTriggerClick(index)"
               @pointerenter="onTriggerPointerEnter(index, $event)"
               @pointerleave="onTriggerPointerLeave"
@@ -506,10 +572,15 @@ const accordionClasses = computed(() => ({
                 :id="panelId(index)"
                 :ref="(el) => (panelEls[index] = elementOf(el))"
                 data-part="panel"
+                :data-layout="panelLayout(item)"
                 :class="panelClass(item)"
                 @click="onPanelClick"
               >
-                <div data-part="content" :class="contentClass(item)">
+                <div
+                  data-part="content"
+                  :data-layout="panelLayout(item)"
+                  :class="contentClass(item)"
+                >
                   <NavMenuPanel
                     :item="item"
                     :id-prefix="panelId(index)"
@@ -543,7 +614,8 @@ const accordionClasses = computed(() => ({
             :is="navLinkTag(item, linkAs)"
             v-else
             data-part="link"
-            :class="linkClass"
+            :data-tone="item.tone"
+            :class="linkClass(item)"
             v-bind="navLinkAttrs(item, linkAs)"
           >
             {{ item.label }}
@@ -562,15 +634,33 @@ const accordionClasses = computed(() => ({
         type="button"
         data-part="toggle"
         :class="toggleClass"
-        :aria-label="m.navMenuOpen"
-        aria-haspopup="dialog"
+        :aria-label="toggleLabel"
+        :aria-haspopup="inline ? undefined : 'dialog'"
         :aria-expanded="drawerOpen ? 'true' : 'false'"
         :aria-controls="drawerId"
-        @click="drawerOpen = true"
+        @click="onToggleClick"
       >
         <slot name="toggle" :open="drawerOpen">
+          <!-- Tabler's `x`, on the inline drawer's open button. -->
+          <svg
+            v-if="inline && drawerOpen"
+            data-part="toggleIcon"
+            :class="toggleIconClass"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M18 6l-12 12" />
+            <path d="M6 6l12 12" />
+          </svg>
           <!-- Tabler's `menu-2`. -->
           <svg
+            v-else
             data-part="toggleIcon"
             :class="toggleIconClass"
             viewBox="0 0 24 24"
@@ -589,7 +679,49 @@ const accordionClasses = computed(() => ({
         </slot>
       </button>
 
+      <Transition v-if="inline" v-bind="INLINE_TRANSITION">
+        <div
+          v-show="drawerOpen"
+          :id="drawerId"
+          ref="inlineEl"
+          data-part="drawer"
+          :class="inlineClass"
+          :style="inlineStyle"
+        >
+          <div data-part="drawerBody" :class="inlineBodyClass">
+            <NavMenuDrawerList
+              :entries="drawerEntries"
+              :layout="drawerLayout"
+              :panel-id="panelId"
+              :nav-label="navLabel"
+              :variant="variant"
+              :messages="m"
+              :link-as="linkAs"
+              :card-aspect="cardAspect"
+              :classes="classes"
+              @follow="closeDrawer"
+            >
+              <template v-if="slots.panelItem" #panelItem="scope">
+                <slot name="panelItem" v-bind="scope" />
+              </template>
+              <template v-if="slots.groupHeading" #groupHeading="scope">
+                <slot name="groupHeading" v-bind="scope" />
+              </template>
+            </NavMenuDrawerList>
+          </div>
+          <div
+            v-if="slots.drawerFooter"
+            :data-eldra-slot="eldra.slotHost('drawerFooter')"
+            data-part="drawerFooter"
+            :class="inlineFooterClass"
+          >
+            <slot name="drawerFooter" :close="closeDrawer" />
+          </div>
+        </div>
+      </Transition>
+
       <Drawer
+        v-else
         :id="drawerId"
         v-model="drawerOpen"
         :side="drawerSide"
@@ -601,98 +733,25 @@ const accordionClasses = computed(() => ({
         <template v-if="slots.drawerHeader" #header>
           <slot name="drawerHeader" :close="closeDrawer" />
         </template>
-        <nav
-          v-if="drawerEntries.length > 0"
-          :data-eldra-scope="eldra.scope"
-          :aria-label="navLabel"
-          @click="onDrawerClick"
+        <NavMenuDrawerList
+          :entries="drawerEntries"
+          :layout="drawerLayout"
+          :panel-id="panelId"
+          :nav-label="navLabel"
+          :variant="variant"
+          :messages="m"
+          :link-as="linkAs"
+          :card-aspect="cardAspect"
+          :classes="classes"
+          @follow="closeDrawer"
         >
-          <ul data-part="drawerList" :class="drawerListClass">
-            <li
-              v-for="{ item, index } in drawerEntries"
-              :key="index"
-              data-part="drawerItem"
-              :class="drawerItemClass(item)"
-            >
-              <template v-if="hasPanel(item) && sections">
-                <component
-                  :is="navLinkTag(item, linkAs)"
-                  :id="`${panelId(index)}-drawer-heading`"
-                  data-part="drawerSectionHeading"
-                  :class="drawerSectionHeadingClass(item)"
-                  v-bind="navLinkAttrs(item, linkAs)"
-                >
-                  {{ item.label }}
-                  <VisuallyHidden v-if="item.newTab && hasHref(item)">{{
-                    m.opensInNewTab
-                  }}</VisuallyHidden>
-                </component>
-                <div data-part="drawerNest" :class="drawerNestClass">
-                  <NavMenuPanel
-                    :item="item"
-                    :id-prefix="`${panelId(index)}-drawer`"
-                    placement="drawer"
-                    :variant="variant"
-                    :messages="m"
-                    :link-as="linkAs"
-                    :card-aspect="cardAspect"
-                    :classes="classes"
-                    :labelled-by="`${panelId(index)}-drawer-heading`"
-                    :omit-overview="hasHref(item)"
-                  >
-                    <template v-if="slots.panelItem" #panelItem="scope">
-                      <slot name="panelItem" v-bind="scope" />
-                    </template>
-                    <template v-if="slots.groupHeading" #groupHeading="scope">
-                      <slot name="groupHeading" v-bind="scope" />
-                    </template>
-                  </NavMenuPanel>
-                </div>
-              </template>
-              <AccordionItem
-                v-else-if="hasPanel(item)"
-                :title="item.label ?? ''"
-                :classes="accordionClasses"
-              >
-                <div
-                  :data-eldra-scope="eldra.scope"
-                  data-part="drawerNest"
-                  :class="drawerNestClass"
-                >
-                  <NavMenuPanel
-                    :item="item"
-                    :id-prefix="`${panelId(index)}-drawer`"
-                    placement="drawer"
-                    :variant="variant"
-                    :messages="m"
-                    :link-as="linkAs"
-                    :card-aspect="cardAspect"
-                    :classes="classes"
-                  >
-                    <template v-if="slots.panelItem" #panelItem="scope">
-                      <slot name="panelItem" v-bind="scope" />
-                    </template>
-                    <template v-if="slots.groupHeading" #groupHeading="scope">
-                      <slot name="groupHeading" v-bind="scope" />
-                    </template>
-                  </NavMenuPanel>
-                </div>
-              </AccordionItem>
-              <component
-                :is="navLinkTag(item, linkAs)"
-                v-else
-                data-part="drawerLink"
-                :class="drawerLinkClass"
-                v-bind="navLinkAttrs(item, linkAs)"
-              >
-                {{ item.label }}
-                <VisuallyHidden v-if="item.newTab && hasHref(item)">{{
-                  m.opensInNewTab
-                }}</VisuallyHidden>
-              </component>
-            </li>
-          </ul>
-        </nav>
+          <template v-if="slots.panelItem" #panelItem="scope">
+            <slot name="panelItem" v-bind="scope" />
+          </template>
+          <template v-if="slots.groupHeading" #groupHeading="scope">
+            <slot name="groupHeading" v-bind="scope" />
+          </template>
+        </NavMenuDrawerList>
         <template v-if="slots.drawerFooter" #footer>
           <slot name="drawerFooter" :close="closeDrawer" />
         </template>

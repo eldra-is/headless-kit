@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 //
 // The product sample page (`pages/product.page.json`): header, breadcrumbs, the product-detail
-// buy box for "Merino crew sweater", a related-products carousel, an FAQ and the footer, rendered
+// buy box for "Merino crew sweater", the related products as a grid on a `surface` band ("Goes well
+// with") and the footer, rendered
 // together through `mountPage` exactly as `app/pages/[...slug].vue` renders a real page: the
 // leading structure block (the header, which carries its own info strip) before `<main id="main">`,
 // everything else inside it, the footer after it — see `app/utils/pageStructure.ts`.
 //
-// Carousel counts are read off the real demo storefront (`app/storefront/demo.ts`), not assumed:
+// Related counts are read off the real demo storefront (`app/storefront/demo.ts`), not assumed:
 // `RELATED_HANDLES` lists 7 handles including "merino-crew-sweater" itself; `product-carousel`'s
 // `related` variant filters out the product being viewed and any sold-out item (see that block's
-// own module doc comment), leaving the other 6 — all in stock in the demo catalogue — which is
-// where `RELATED_COUNT` below comes from. The product's own gallery has 2 images
+// own module doc comment), leaving 6, and the fixture's `limit` of 4 shows the first four — which
+// is where `RELATED_COUNT` below comes from. The product's own gallery has 2 images
 // (`buildFullProduct`: `[demoImage(index + 1, …), demoImage(index + 7, …)]`), and its `colour`
 // option carries one unavailable value ("Moss") used below to reach the back-in-stock dialog.
 import { flushPromises } from '@vue/test-utils';
@@ -31,7 +32,7 @@ import { createDemoStorefront } from '../../app/storefront/demo';
 const fixture = productPage as unknown as PageFixture;
 
 /** From `app/storefront/demo.ts` — see the module comment above. */
-const RELATED_COUNT = 6;
+const RELATED_COUNT = 4;
 
 /** The product-detail block's own "no fake urgency" guard (`blocks/product-detail/__tests__/Block.spec.ts`), applied
  *  here over the whole rendered page rather than one block. */
@@ -57,7 +58,6 @@ describe('product sample page', () => {
       'breadcrumbs',
       'product-detail',
       'product-carousel',
-      'faq',
       'footer',
     ]);
   });
@@ -74,8 +74,7 @@ describe('product sample page', () => {
       'data-eldra-header-focus', // navigation
       'aria-label="Breadcrumb"', // breadcrumbs
       'aria-label="Product images"', // product-detail (gallery)
-      'You may also like', // product-carousel
-      'Shipping &amp; care', // faq
+      'Goes well with', // product-carousel
       '<footer', // footer
     ];
     const indices = markers.map((marker) => html.indexOf(marker));
@@ -124,7 +123,7 @@ describe('product sample page', () => {
     wrapper.unmount();
   });
 
-  it('tab order runs header → breadcrumbs → product-detail → carousel → faq → footer', async () => {
+  it('tab order runs header → breadcrumbs → product-detail → related → footer', async () => {
     const wrapper = await mountProductPage();
     const html = wrapper.html();
     // The header's first focusable control. It used to be the Menu button, which the seeded header
@@ -133,10 +132,9 @@ describe('product sample page', () => {
     const header = html.indexOf('data-eldra-header-focus');
     const breadcrumb = html.indexOf('aria-label="Breadcrumb"');
     const gallery = html.indexOf('aria-label="Product images"');
-    const carousel = html.indexOf('You may also like');
-    const faqHeading = html.indexOf('Shipping &amp; care');
+    const related = html.indexOf('Goes well with');
     const footer = html.indexOf('<footer');
-    const order = [header, breadcrumb, gallery, carousel, faqHeading, footer];
+    const order = [header, breadcrumb, gallery, related, footer];
     expect(order.every((i) => i >= 0)).toBe(true);
     for (let i = 1; i < order.length; i += 1) {
       expect(order[i]).toBeGreaterThan(order[i - 1]!);
@@ -144,43 +142,64 @@ describe('product sample page', () => {
     wrapper.unmount();
   });
 
-  describe('related-products carousel', () => {
-    it(`excludes the current product and shows the other ${RELATED_COUNT} demo related items`, async () => {
+  /**
+   * The design's "Goes well with": every related product at once in a four-across grid (the
+   * `grid` layout), never a sideways carousel with arrows, and no FAQ section after it — the design
+   * has none on the product page.
+   */
+  describe('related products ("Goes well with")', () => {
+    it(`shows ${RELATED_COUNT} related products as a grid, not a carousel, without the current product`, async () => {
       const wrapper = await mountProductPage();
-      const carousel = wrapper.get('section[aria-roledescription="carousel"]');
-      const slides = carousel.findAll('[data-part="slide"]');
-      expect(slides).toHaveLength(RELATED_COUNT);
-      for (const slide of slides) {
-        expect(slide.text()).not.toContain('Merino crew sweater');
-      }
+      const [, , , related] = pageBlockRoots(wrapper);
+      expect(related!.querySelector('h2')?.textContent).toContain('Goes well with');
+      expect(related!.querySelector('[aria-roledescription="carousel"]')).toBeNull();
+      const cards = related!.querySelectorAll('ul[role="list"] > li');
+      expect(cards).toHaveLength(RELATED_COUNT);
+      for (const card of cards) expect(card.textContent).not.toContain('Merino crew sweater');
+      // "Shop all knitwear →" on its own at the right of a plain heading.
+      expect(related!.querySelector('h2 a')).toBeNull();
+      expect(related!.querySelector('a[data-view-all]')?.textContent?.trim()).toBe(
+        'Shop all knitwear'
+      );
       wrapper.unmount();
     });
 
-    it(`labels slides "n of ${RELATED_COUNT}" and renders no counter`, async () => {
+    it('has no FAQ section on the page', async () => {
       const wrapper = await mountProductPage();
-      const carousel = wrapper.get('section[aria-roledescription="carousel"]');
-      const slides = carousel.findAll('[data-part="slide"]');
-      expect(slides[0]!.attributes('aria-label')).toBe(`1 of ${RELATED_COUNT}`);
-      expect(slides[RELATED_COUNT - 1]!.attributes('aria-label')).toBe(
-        `${RELATED_COUNT} of ${RELATED_COUNT}`
-      );
-      // A product row shows several cards at once, so no "n / total" counter (spec "Carousel" →
-      // Product row); the slides' own labels carry the position for assistive technology.
-      expect(carousel.find('[data-part="counter"]').exists()).toBe(false);
+      expect(wrapper.text()).not.toContain('Shipping & care');
+      expect(wrapper.find('[data-block="faq"]').exists()).toBe(false);
       wrapper.unmount();
     });
   });
 
-  it('shares the same ground across product-detail, the carousel and the FAQ, with only the footer changing it', async () => {
+  it('sets the related products on a `surface` band between the product and the footer', async () => {
     const wrapper = await mountProductPage();
-    const [, , productDetail, carousel, faq, footer] = pageBlockRoots(wrapper);
+    const [, , productDetail, related, footer] = pageBlockRoots(wrapper);
     expect(productDetail!.getAttribute('data-section-bg')).toBe('none');
-    expect(carousel!.getAttribute('data-section-bg')).toBe('none');
-    expect(faq!.getAttribute('data-section-bg')).toBe('none');
+    expect(related!.getAttribute('data-section-bg')).toBe('surface');
     expect(footer!.getAttribute('data-section-bg')).toBe('primary');
-    // Adjacency (not just value) is what the package's CSS rule keys off:
-    expect(productDetail!.nextElementSibling).toBe(carousel);
-    expect(carousel!.nextElementSibling).toBe(faq);
+    expect(productDetail!.nextElementSibling).toBe(related);
+    wrapper.unmount();
+  });
+
+  it('names the maker above the title, as a link to a search for their other products', async () => {
+    const wrapper = await mountProductPage();
+    const maker = wrapper.get('[data-product-maker] a');
+    expect(maker.text()).toBe('Fell & Fleece');
+    expect(maker.attributes('href')).toBe('/search?q=Fell%20%26%20Fleece');
+    const html = wrapper.html();
+    expect(html.indexOf('data-product-maker')).toBeLessThan(html.indexOf('<h1'));
+    wrapper.unmount();
+  });
+
+  it('draws the Details tab as a definition list of label and value pairs, open', async () => {
+    const wrapper = await mountProductPage();
+    const details = wrapper.findAll('details').find((d) => d.text().startsWith('Details'))!;
+    expect((details.element as HTMLDetailsElement).open).toBe(true);
+    const terms = details.findAll('dl > dt').map((dt) => dt.text());
+    expect(terms).toEqual(['Material', 'Fit', 'Weight', 'Made in']);
+    expect(details.findAll('dl > dd')).toHaveLength(4);
+    expect(details.find('ul').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -215,19 +234,21 @@ describe('product sample page', () => {
   });
 
   describe('modals', () => {
-    it('menu drawer: opens as a dialog and Esc returns focus to the menu button', async () => {
+    it('menu drawer: opens under the header and Esc returns focus to the menu button', async () => {
       const wrapper = await mountProductPageWithHeaderLink();
       const menuButton = wrapper.get('button[aria-label="Menu"]');
       menuButton.element.focus();
       await menuButton.trigger('click');
-      const dialog = wrapper.get('dialog[open]');
-      expect(dialog.attributes('open')).toBe('');
+      // The design's inline drawer: a disclosure under the bar, its button now reading Close.
+      expect(menuButton.attributes('aria-expanded')).toBe('true');
+      expect(menuButton.attributes('aria-label')).toBe('Close');
+      expect(wrapper.findAll('dialog[open]')).toHaveLength(0);
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       await new Promise((resolve) => setTimeout(resolve));
       await wrapper.vm.$nextTick();
 
-      expect(wrapper.findAll('dialog[open]')).toHaveLength(0);
+      expect(menuButton.attributes('aria-expanded')).toBe('false');
       expect(document.activeElement).toBe(menuButton.element);
       wrapper.unmount();
     });
@@ -303,14 +324,13 @@ describe('product sample page', () => {
     wrapper.unmount();
   });
 
-  it('carries the shared policy facts (Portland, 2 business days, over $80, free US returns, 400°F)', async () => {
+  it('carries the shared policy facts (Portland, 2 business days, over $80, 30-day returns)', async () => {
     const wrapper = await mountProductPage();
     const text = wrapper.text();
     expect(text).toContain('Portland');
     expect(text).toContain('2 business days');
     expect(text).toContain('$80');
-    expect(text).toContain('US returns are free');
-    expect(text).toContain('400°F');
+    expect(text).toContain('30-day returns');
     wrapper.unmount();
   });
 

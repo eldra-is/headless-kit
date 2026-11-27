@@ -95,11 +95,10 @@ import {
   Section,
   Skeleton,
   VisuallyHidden,
-  formatDate,
   type BadgeTone,
 } from '@eldrajs/ui';
-import { useEldra } from '@eldrajs/theme-vue';
 import { useBlockData } from '../../app/composables/useBlockData';
+import { useFormatDate } from '../../app/composables/useRegionalFormat';
 import { useEditing } from '../../app/composables/useEditing';
 import { iconComponent } from '../../app/composables/iconComponent';
 import { useStorefront } from '../../app/composables/useStorefront';
@@ -128,15 +127,9 @@ const titleId = `order-status-title-${useUiId()}`;
 /** Order money is major units (`app/storefront/types.ts`); `<Price>` reads minor. */
 const money = useMoney();
 
-function tryUseEldra(): ReturnType<typeof useEldra> | undefined {
-  try {
-    return useEldra();
-  } catch {
-    return undefined;
-  }
-}
-/** See `article`'s identical helper: `formatDate` needs the raw locale string, not a translation. */
-const locale = computed(() => tryUseEldra()?.preview.locale ?? 'en-US');
+/** `@eldrajs/ui`'s `formatDate` in the organisation's regional format and time zone — not the
+ *  content locale: an Icelandic store's English page still prints an Icelandic date. */
+const formatRegionalDate = useFormatDate();
 
 function interpolate(template: string, params: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
@@ -187,9 +180,7 @@ const CheckIcon = iconComponent('check');
 /* Head: order number, placed line, status badge                                                 */
 /* ------------------------------------------------------------------------------------------- */
 
-const placedDate = computed(() =>
-  order.value ? formatDate(order.value.placedAt, locale.value) : null
-);
+const placedDate = computed(() => (order.value ? formatRegionalDate(order.value.placedAt) : null));
 const placedLine = computed(() => {
   if (!order.value || placedDate.value === null) return '';
   return order.value.itemCount === 1
@@ -252,7 +243,7 @@ const panelTitle = computed(() => {
   if (o.status === 'delayed') return data.value.delayedTitle;
   if (o.status === 'cancelled') return data.value.cancelledTitle;
   const deliveredDate = o.steps.find((step) => step.key === 'delivered')?.date;
-  const formatted = deliveredDate ? formatDate(deliveredDate, locale.value) : null;
+  const formatted = deliveredDate ? formatRegionalDate(deliveredDate) : null;
   return interpolate(data.value.deliveredTitle, { date: formatted ?? '' });
 });
 
@@ -343,10 +334,10 @@ const steps = computed<StepView[]>(() => {
     const isCurrent = step.state === 'current';
     let dateText = '';
     if (isWarning) {
-      const formatted = step.date ? formatDate(step.date, locale.value) : null;
+      const formatted = step.date ? formatRegionalDate(step.date) : null;
       if (formatted) dateText = t('order.estimated', { date: formatted });
     } else if (step.date) {
-      dateText = formatDate(step.date, locale.value) ?? '';
+      dateText = formatRegionalDate(step.date) ?? '';
     } else if (isCurrent) {
       dateText = t('order.inProgress');
     }

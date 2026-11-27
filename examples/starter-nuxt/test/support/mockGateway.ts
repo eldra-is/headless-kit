@@ -821,9 +821,27 @@ export interface MockGateway {
   close(): Promise<void>;
 }
 
+/**
+ * The organisation's regional format the mock publishes: Icelandic, because Northwind sells in ISK
+ * and this is the shape the defect it guards came from — an English-language Icelandic store must
+ * print "42 kr." on its English pages too, not "ISK 42". `@eldrajs/theme-nuxt` reads it once per
+ * build onto `runtimeConfig.public.eldra.region`.
+ */
+export const MOCK_REGION = {
+  countryCode: 'IS',
+  formatLocale: 'is-IS',
+  timeZone: 'Atlantic/Reykjavik',
+} as const;
+
 export function startMockGateway(
-  options: { catalogContract?: MockCatalogContract; failPath?: string } = {}
+  options: {
+    catalogContract?: MockCatalogContract;
+    failPath?: string;
+    /** `null` publishes no `region`, as a gateway older than the field does. */
+    region?: { countryCode: string; formatLocale: string; timeZone: string } | null;
+  } = {}
 ): Promise<MockGateway> {
+  const region = options.region === undefined ? MOCK_REGION : options.region;
   setMockCatalogContract(options.catalogContract ?? '3.8.0');
   return new Promise((resolve) => {
     const requests: string[] = [];
@@ -930,6 +948,8 @@ export function startMockGateway(
           ],
           commerce: { currency: 'ISK', taxInclusivePricing: true, defaultTaxRate: 0.24 },
           locales: { default: DEFAULT_LOCALE, supported: [DEFAULT_LOCALE, PREFIXED_LOCALE] },
+          // How money and dates are written, whatever the content locale (`MOCK_REGION`).
+          ...(region === null ? {} : { region }),
         });
       } else if (url.pathname === '/cms/v1/schema/page/entry') {
         answer(listResponse(pages));

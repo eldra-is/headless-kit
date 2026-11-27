@@ -41,6 +41,10 @@
       "types": "./dist/runtime/locales.d.ts",
       "import": "./dist/runtime/locales.js"
     },
+    "./region": {
+      "types": "./dist/runtime/region.d.ts",
+      "import": "./dist/runtime/region.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

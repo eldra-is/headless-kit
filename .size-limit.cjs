@@ -16,8 +16,9 @@ module.exports = [
     // (`cart.applyCode`, `removeGiftCardEntry`, `removeDiscountEntry`) and the error took the
     // refusal's `errors`. With the business-customer calls on top (B2B: customer.me and locations,
     // the sales-order calls, the idempotency-key check, typed problem `errors`) it measures
-    // 4.53 kB.
-    limit: '4.6 kB',
+    // 4.53 kB. `features.getRegion()` (the organisation's regional format, WS-1277) takes it to
+    // 4.73 kB.
+    limit: '4.8 kB',
   },
   {
     name: '@eldrajs/sdk — responsiveImage',
@@ -42,8 +43,9 @@ module.exports = [
     // 4.5 kB before the image helpers read the `width` and `height` the API gives an image (contract
     // 4.14.0): about 0.08 kB brotlied, and 4.46 kB was already used. Main's budget: 5.5 kB. With the
     // B2B work on top (business login: OIDC with PKCE, `customerHeaders`; the sales-order calls and
-    // `isEldraError`) it measures 6.49 kB. `cart.setCurrency` (WS-1391) takes it to 6.56 kB.
-    limit: '6.6 kB',
+    // `isEldraError`) it measures 6.49 kB. `cart.setCurrency` (WS-1391) takes it to 6.56 kB,
+    // and `features.getRegion()` (WS-1277) to 6.73 kB.
+    limit: '6.8 kB',
   },
   {
     name: '@eldrajs/rich-text — toHtml',
@@ -203,13 +205,17 @@ module.exports = [
   // messages): measured at 175.28 kB.
   // Raised 176 kB -> 178 kB for `NavMenu`'s sections and cards (WS-1321, WS-1362): its section
   // columns, card tiles and their messages: measured at 176.69 kB.
+  // Raised 178 kB -> 179 kB for `NavMenu`'s inline drawer motion and safe-area foot, its one current
+  // entry, `currentMark` and the described links' names (WS-1277, WS-1464, WS-1468): measured at
+  // 177.93 kB, which a CI build had already put 40 B over.
   // Raised 178 kB -> 179 kB for the amount parser and editor `UnitInput` reads every edit with
   // (WS-1390), less the keydown handling it replaced: measured at 178.35 kB.
+  // Raised 179 kB -> 180 kB when the two above met in one tree: measured at 179.71 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '179 kB',
+    limit: '180 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still

@@ -143,9 +143,8 @@ describe('starter theme', () => {
         'subheading',
         'image',
         'slides',
+        'captionProduct',
         'captionLabel',
-        'captionDetail',
-        'captionHref',
         'spacing',
         'primaryCtaLabel',
         'primaryCtaHref',
@@ -1152,7 +1151,8 @@ describe('seeded templates and pages (app/templates.ts)', () => {
     // Real data, not an empty stub: the home fixture's own header and footer settings.
     expect(roles.header?.data.brandText).toBe('Northwind Goods');
     expect(roles.header?.data.showSearch).toBe(true);
-    expect(roles.footer?.data.description).toEqual(expect.stringContaining('small workshops'));
+    expect(roles.footer?.data.brandText).toBe('Northwind Goods');
+    expect(roles.footer?.data.background).toBe('dark');
   });
 
   it('seeds a header and footer with no destinations at all', () => {

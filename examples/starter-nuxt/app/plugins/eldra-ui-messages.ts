@@ -9,7 +9,9 @@ import {
 } from '@eldrajs/ui';
 import { isIS as uiIsIS } from '@eldrajs/ui/messages/is-IS';
 import { ELDRA_KEY, type EldraContext } from '@eldrajs/theme-vue';
+import { resolveStoreRegion } from '@eldrajs/theme-nuxt/region';
 import { toStorefrontCommerce } from '../storefront/commerce';
+import { REGION_KEY, regionalFormatLocale } from '../composables/useRegionalFormat';
 
 /** The package's own default message set for a content locale — `is-IS` takes its Icelandic entry
  * point, anything else (including `undefined`) keeps the English defaults. Only this plugin's own
@@ -32,8 +34,8 @@ function uiPackageMessagesFor(locale: string | null | undefined): UiMessages {
  * through a getter is what makes the switch reactive — and, unlike a `watch`,
  * it creates no effect that would outlive a server request.
  *
- * The same provide gives the package the content locale its **numbers** are
- * formatted in (`UnitInput`, `CurrencyInput`, `QuantityStepper`, `Price`), as
+ * The same provide gives the package the locale its **numbers** are
+ * formatted in — the regional format, falling back to the content locale (see below) — (`UnitInput`, `CurrencyInput`, `QuantityStepper`, `Price`), as
  * a getter for the same reason, plus the store **currency** `Price` formats
  * amounts in. All three are separate keys on purpose: the strings a component
  * renders, the locale its numbers are formatted in, and the currency its
@@ -77,8 +79,12 @@ export default defineNuxtPlugin({
       inject<EldraContext | undefined>(ELDRA_KEY, undefined)
     );
     const publicConfig = useRuntimeConfig().public as unknown as {
-      eldra?: { commerce?: unknown };
+      eldra?: { commerce?: unknown; region?: unknown };
     };
+    // The organisation's regional format (`@eldrajs/theme-nuxt`'s build-time read): the locale
+    // numbers, money and dates are written in and the zone dates are shown in. Read once, like the
+    // currency: it cannot change while the page is open.
+    const region = resolveStoreRegion(publicConfig.eldra?.region);
     const currency = toStorefrontCommerce(publicConfig.eldra?.commerce)?.currency;
     // The page's own content locale, read through a getter on every access for the same reason
     // the message getters below exist: it changes when the visitor changes language, and the
@@ -102,11 +108,14 @@ export default defineNuxtPlugin({
       });
     }
     nuxtApp.vueApp.provide(MESSAGES_KEY, messages);
-    // The same value is the locale every `Intl` format in the theme runs in — `@eldrajs/ui`'s
-    // `Price`/`CurrencyInput` and, through `useEldraUiLocale()`, `app/storefront/money.ts`. So a
-    // page served under `/is-IS` prints "2.800 kr." where the same money reads "ISK 2,800" on the
-    // English one, while the currency itself stays the store's.
-    nuxtApp.vueApp.provide(LOCALE_KEY, activeLocale);
+    // The locale every `Intl` format in the theme runs in — `@eldrajs/ui`'s `Price`/`CurrencyInput`/
+    // `ContentCard` dates and, through `useEldraUiLocale()`/`useFormatLocale()`,
+    // `app/storefront/money.ts` and the blocks' own dates — is the organisation's **regional
+    // format**, not the content locale: an Icelandic store prints "4.790 kr." and Icelandic dates
+    // on its English pages too. The strings above stay on the content locale. With no regional
+    // format published, the content locale formats, as before.
+    nuxtApp.vueApp.provide(LOCALE_KEY, () => regionalFormatLocale(region, activeLocale()));
+    nuxtApp.vueApp.provide(REGION_KEY, region);
     nuxtApp.vueApp.provide(CURRENCY_KEY, currency);
   },
 });

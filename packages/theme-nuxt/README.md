@@ -282,6 +282,23 @@ A theme rarely needs to read the key itself: the module turns it into routing (s
 `useEldraLocale()` is the composable that answers "which locale is this page, and what are the
 others".
 
+## Which regional format the site writes in
+
+The module also reads the organisation's **regional format** once, during the build:
+`runtimeConfig.public.eldra.region` is `{ countryCode, formatLocale, timeZone }` or `null`. It is
+not the content locale: format money, numbers and dates with `formatLocale` and show a timestamp's
+day in `timeZone`, and keep the page's words on the content locale. An English-language Icelandic
+store then prints "4.790 kr." on its English pages.
+
+```ts
+const region = useEldraRegion(); // StoreRegion | null, from '@eldrajs/theme-nuxt/region'
+const formatLocale = region?.formatLocale ?? useEldraLocale().active ?? 'en-US';
+```
+
+`null` for an organisation that publishes none, for a site built without gateway credentials, for a
+record whose tag or zone `Intl` would refuse, and for a read that failed (only that last one prints a
+warning). With `null`, format in the content locale, as before.
+
 ## Locale-prefixed routing
 
 With two or more locales the site serves the default locale at `/` and every other supported

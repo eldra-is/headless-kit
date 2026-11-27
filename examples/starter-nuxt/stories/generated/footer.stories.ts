@@ -37,6 +37,12 @@ export const VariantMinimal: Story = {
   },
 };
 
+export const BackgroundDark: Story = {
+  args: {
+    entry: { id: "footer", data: { ...base, "background": "dark" } },
+  },
+};
+
 export const BackgroundPrimary: Story = {
   args: {
     entry: { id: "footer", data: { ...base, "background": "primary" } },

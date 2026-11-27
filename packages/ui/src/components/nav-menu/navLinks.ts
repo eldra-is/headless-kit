@@ -5,6 +5,12 @@ import type { NavMenuItem, NavMenuLink, NavMenuPanelLayout, NavMenuSection } fro
 export const CURRENT_PAGE =
   'eldra:aria-[current=page]:underline eldra:aria-[current=page]:decoration-2 eldra:aria-[current=page]:underline-offset-[0.2em]';
 
+/** The `aria-current` value an entry's `current` stands for, or `undefined` for no mark. */
+export function currentMark(current: NavMenuLink['current']): 'page' | 'true' | undefined {
+  if (current === 'true') return 'true';
+  return current === true || current === 'page' ? 'page' : undefined;
+}
+
 /** A run of panel entries under one column heading; `group` is `null` for entries without one. */
 export interface NavMenuLinkRun {
   group: string | null;
@@ -93,12 +99,28 @@ export function panelLayout(item: NavMenuItem): NavMenuPanelLayout {
 /** Whether the item, or an entry in its panel, is the page the visitor is on. */
 export function containsCurrent(item: NavMenuItem): boolean {
   return (
-    item.current === true ||
-    panelLinks(item).some((link) => link.current === true) ||
+    currentMark(item.current) !== undefined ||
+    panelLinks(item).some((link) => currentMark(link.current) !== undefined) ||
     itemSections(item).some(
-      (section) => section.headingLink?.current === true || section.seeAll?.current === true
+      (section) =>
+        currentMark(section.headingLink?.current) !== undefined ||
+        currentMark(section.seeAll?.current) !== undefined
     ) ||
     (item.groups ?? []).some((group) => group.current === true)
+  );
+}
+
+/**
+ * The one top-level entry the bar marks as holding the current page, or `null`. A page can sit in
+ * more than one entry — "Ceramics" as its own entry and again inside "Shop" — and marking both
+ * reads as two places at once. The entry whose own link is the page wins; failing that, the first
+ * entry that holds it in its panel (WS-1277).
+ */
+export function currentEntry(items: readonly NavMenuItem[]): NavMenuItem | null {
+  return (
+    items.find((item) => currentMark(item.current) === 'page') ??
+    items.find(containsCurrent) ??
+    null
   );
 }
 
@@ -124,7 +146,8 @@ export function navLinkAttrs(
     attrs.target = '_blank';
     attrs.rel = 'noopener noreferrer';
   }
-  if (link.current === true) attrs['aria-current'] = 'page';
+  const mark = currentMark(link.current);
+  if (mark !== undefined) attrs['aria-current'] = mark;
   return attrs;
 }
 

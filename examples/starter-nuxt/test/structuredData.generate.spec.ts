@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { formatMoney } from '../app/storefront/money';
 import {
   COLLECTION_HANDLE,
+  MOCK_REGION,
   ORG_ID,
   PRODUCT_HANDLE,
   startMockGateway,
@@ -123,9 +124,10 @@ describe('generated pages carry schema.org JSON-LD', () => {
         availability: 'https://schema.org/InStock',
       },
     });
-    // The visible price is `formatMoney(42, 'ISK')`: same amount, same currency.
+    // The visible price is the same amount in the same currency, written in the organisation's
+    // regional format (`MOCK_REGION`), which is not the page's English.
     expect(html).toContain(
-      formatMoney(product.offers.price, product.offers.priceCurrency, 'en-US')
+      formatMoney(product.offers.price, product.offers.priceCurrency, MOCK_REGION.formatLocale)
     );
   });
 

@@ -465,6 +465,32 @@ describe('AccordionItem — height animation (operator, 2026-09-26)', () => {
     wrapper.unmount();
   });
 
+  it("an item already open at mount does not animate on the `toggle` the browser fires for it (WS-1277: the product page's open Details row was held at height 0, clipped)", async () => {
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Details', modelValue: true },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    const animateSpy = vi
+      .spyOn(panel, 'animate')
+      .mockReturnValue({ finished: new Promise(() => {}) } as unknown as Animation);
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+
+    // A real browser queues a `toggle` for a `<details>` created (or parsed) open, and delivers it
+    // after mount with nothing changed; happy-dom does not, so it is dispatched here by hand.
+    details.dispatchEvent(new Event('toggle'));
+    expect(animateSpy).not.toHaveBeenCalled();
+    expect(panel.style.overflow).toBe('');
+    expect(details.open).toBe(true);
+
+    // Closing and reopening it is a real change, and still animates.
+    details.open = false;
+    details.open = true;
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+
   it('a click during the OPENING animation reverses it to closing, cancelling the first animation and settling with no inline overflow/height stuck (an early review regression)', async () => {
     const wrapper = mountWith(AccordionItem, {
       props: { title: 'Materials & care', modelValue: false },

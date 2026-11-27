@@ -215,6 +215,7 @@ export type {
 export type {
   NavMenuCollapse,
   NavMenuDrawerLayout,
+  NavMenuDrawerMode,
   NavMenuDrawerPanelPart,
   NavMenuGroup,
   NavMenuGroupHeadingSlotProps,
@@ -226,6 +227,8 @@ export type {
   NavMenuPart,
   NavMenuPlacement,
   NavMenuProps,
+  NavMenuSection,
+  NavMenuTone,
   NavMenuVariant,
 } from './components/nav-menu/types';
 export type { NoticePart, NoticeProps, NoticeTone } from './components/notice/types';

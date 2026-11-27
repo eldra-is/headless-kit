@@ -23,6 +23,7 @@ import type {
   EldraOrganizationFeature,
   EldraOrganizationLocales,
   EldraOrganizationOptions,
+  EldraOrganizationRegion,
   EldraPlatformConfig,
   EldraPlatformReadOptions,
   EldraProductDetails,
@@ -373,6 +374,16 @@ export function createEldraClient(options: EldraClientOptions): EldraClient {
         // guessed, so a consumer behaves exactly as it did before locales existed instead of
         // routing visitors to prefixes no content answers.
         return toOrganizationLocales(organization.locales);
+      },
+      getRegion: async (
+        organizationOptions?: EldraOrganizationOptions,
+        context?: EldraRequestContext
+      ) => {
+        const organization = await getOrganization(organizationOptions, context);
+
+        // Absent on a gateway older than the region read — reported as `null`, so a consumer keeps
+        // formatting in its own locale rather than one nobody chose.
+        return toOrganizationRegion(organization.region);
       },
     },
     catalog: {
@@ -885,6 +896,46 @@ function toOrganizationLocales(
     if (!supported.includes(locale)) supported.push(locale);
   }
   return { default: defaultLocale, supported };
+}
+
+/**
+ * The organisation's regional format, validated. Every field ends up in an `Intl` constructor on
+ * every price and date a storefront prints, and `Intl` throws a `RangeError` on a malformed tag or
+ * an unknown zone — so a record with any unusable field reads as "none published" (`null`) and the
+ * consumer falls back to its own locale, instead of a storefront that cannot render a price.
+ */
+function toOrganizationRegion(value: unknown): EldraOrganizationRegion | null {
+  if (value === null || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const formatLocale = canonicalLocale(record.formatLocale);
+  if (formatLocale === null) return null;
+  const timeZone = knownTimeZone(record.timeZone);
+  if (timeZone === null) return null;
+  const rawCountry = record.countryCode ?? '';
+  if (typeof rawCountry !== 'string') return null;
+  const countryCode = rawCountry.trim().toUpperCase();
+  if (countryCode !== '' && !/^[A-Z]{2}$/.test(countryCode)) return null;
+  return { countryCode, formatLocale, timeZone };
+}
+
+function canonicalLocale(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  try {
+    return Intl.getCanonicalLocales(value.trim())[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function knownTimeZone(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const timeZone = value.trim();
+  try {
+    new Intl.DateTimeFormat('en', { timeZone });
+    return timeZone;
+  } catch {
+    return null;
+  }
 }
 
 function mapOrganizationFeatures(

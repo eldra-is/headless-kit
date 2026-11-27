@@ -163,6 +163,18 @@ describe('theme-nuxt nuxi generate', () => {
   });
 
   /**
+   * The regional format reaches the artifact on the same terms — and on the English pages too:
+   * it is the organisation's, not the content locale's, so `/en-US/` formats in `is-IS` as well.
+   */
+  it('bakes the organisation’s regional format into the prerendered runtime config', () => {
+    for (const page of ['index.html', 'en-US/index.html']) {
+      expect(readFileSync(output(page), 'utf8')).toContain(
+        'region:{countryCode:"IS",formatLocale:"is-IS",timeZone:"Atlantic/Reykjavik"}'
+      );
+    }
+  });
+
+  /**
    * The store's currency is read once, at build, and baked into every prerendered page's runtime
    * config — the whole reason it is read there and not in the browser. A theme formats its prices
    * from this, so a static page that shipped without it would render every amount bare and then
