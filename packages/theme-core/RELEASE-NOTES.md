@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.4.0...theme-core-v0.4.1) (2026-11-27)
+
+
+### Features
+
+* price tokens in any text field, per-currency amounts (WS-1474, WS-1473) ([#180](https://github.com/eldra-is/headless-kit/issues/180)) ([7648335](https://github.com/eldra-is/headless-kit/commit/764833573460c7f23316e3d6d0abc6caf480e56d))
+
+
+### Bug Fixes
+
+* **theme-core:** list-row rich text reports its locale; a price's first click only focuses (WS-1474) ([#184](https://github.com/eldra-is/headless-kit/issues/184)) ([900b65a](https://github.com/eldra-is/headless-kit/commit/900b65a488a1e72d0195d6f69273b315a01f0122))
+
 ## [0.4.0](https://github.com/eldra-is/headless-kit/compare/theme-core-v0.3.6...theme-core-v0.4.0) (2026-11-25)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.1](https://github.com/eldra-is/headless-kit/compare/vite-plugin-theme-v0.4.0...vite-plugin-theme-v0.4.1) (2026-11-27)
+
+
+### Features
+
+* price tokens in any text field, per-currency amounts (WS-1474, WS-1473) ([#180](https://github.com/eldra-is/headless-kit/issues/180)) ([7648335](https://github.com/eldra-is/headless-kit/commit/764833573460c7f23316e3d6d0abc6caf480e56d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.4.1
+
 ## [0.4.0](https://github.com/eldra-is/headless-kit/compare/vite-plugin-theme-v0.3.6...vite-plugin-theme-v0.4.0) (2026-11-25)
 
 

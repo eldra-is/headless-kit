@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/eldra-is/headless-kit/compare/rich-text-v0.1.1...rich-text-v0.1.2) (2026-11-27)
+
+
+### Features
+
+* price tokens in any text field, per-currency amounts (WS-1474, WS-1473) ([#180](https://github.com/eldra-is/headless-kit/issues/180)) ([7648335](https://github.com/eldra-is/headless-kit/commit/764833573460c7f23316e3d6d0abc6caf480e56d))
+
 ## [0.1.1](https://github.com/eldra-is/headless-kit/compare/rich-text-v0.1.0...rich-text-v0.1.1) (2026-10-08)
 
 
