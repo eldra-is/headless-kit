@@ -1294,6 +1294,43 @@ describe('rich-text roots (§4.2)', () => {
     vi.useRealTimers();
   });
 
+  it('draws a rich-text price as a chip, and opens it on a click only once the field has focus', () => {
+    const price = document.createElement('span');
+    price.setAttribute('data-eldra-node', 'price');
+    price.setAttribute('data-eldra-pos', '15');
+    price.textContent = '25.000 kr.';
+    paragraph.appendChild(price);
+    runtime.setRichTextEnabled(true);
+    runtime.setPriceTokensEnabled(true);
+    runtime.setMode('edit');
+    expect(price.getAttribute('contenteditable')).toBe('false');
+
+    const press = () => {
+      price.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      price.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    };
+    press();
+    expect(post).not.toHaveBeenCalledWith('theme:price-clicked', expect.anything());
+
+    richTextRoot.focus();
+    expect(document.activeElement).toBe(richTextRoot);
+    press();
+    expect(post).toHaveBeenCalledWith(
+      'theme:price-clicked',
+      expect.objectContaining({
+        entryId: 'block-1',
+        fieldPath: 'body',
+        locale: 'en-US',
+        token: '',
+        pos: 15,
+      })
+    );
+
+    runtime.setMode('preview');
+    expect(price.hasAttribute('contenteditable')).toBe(false);
+    expect(price.getAttribute('style')).toBeNull();
+  });
+
   it('does not decorate text nodes under a rich-text root or make them contenteditable', () => {
     runtime.setMode('edit');
     // The walker must never wrap the paragraph's stega leaf into its own

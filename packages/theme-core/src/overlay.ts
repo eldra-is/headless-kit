@@ -519,6 +519,8 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   let richTextEnabled = false;
   /** `price-tokens-inline` gate: set via setPriceTokensEnabled. */
   let priceTokensEnabled = false;
+  /** The rich-text root a press landed in while it already had focus: only then does a price in it open. */
+  let pressedInFocusedRichText: HTMLElement | null = null;
   /** A priced field's stored text, from its stega `parts`, kept for the editing surface. */
   const pricedParts = new WeakMap<HTMLElement, StegaPricePart[]>();
   /**
@@ -1037,9 +1039,25 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     setOrRemoveStyleProp(element, RICH_TEXT_WORD_WRAP_PROP, prior.wordWrap);
   }
 
+  /** A rich-text price (a `price` leaf) drawn as a chip while its root is edited, else as page text. */
+  function applyRichTextPrices(element: HTMLElement, editable: boolean): void {
+    for (const price of element.querySelectorAll<HTMLElement>('[data-eldra-node="price"]')) {
+      if (editable && priceTokensEnabled) {
+        price.setAttribute('contenteditable', 'false');
+        price.setAttribute('data-eldra-rich-price', '');
+        styleChip(price, (price.textContent ?? '') === '');
+      } else if (price.hasAttribute('data-eldra-rich-price')) {
+        price.removeAttribute('contenteditable');
+        price.removeAttribute('data-eldra-rich-price');
+        price.removeAttribute('style');
+      }
+    }
+  }
+
   function applyRichTextEditable(): void {
     const editable = mode === 'edit' && richTextEnabled;
     for (const element of root.querySelectorAll<HTMLElement>('[data-eldra-rich-text]')) {
+      applyRichTextPrices(element, editable);
       if (editable) {
         element.setAttribute('contenteditable', 'true');
         element.setAttribute('spellcheck', 'false');
@@ -2731,9 +2749,35 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     });
   }
 
+  function onPointerDown(event: Event): void {
+    const target = event.target instanceof Element ? event.target : null;
+    const richRoot = target?.closest<HTMLElement>('[data-eldra-rich-text]') ?? null;
+    pressedInFocusedRichText =
+      richRoot !== null && richRoot === document.activeElement ? richRoot : null;
+  }
+
   function onClick(event: Event): void {
+    const pressedRoot = pressedInFocusedRichText;
+    pressedInFocusedRichText = null;
     const target = event.target instanceof Element ? event.target : null;
     if (target === null) return;
+    // A price in rich text opens only once its field has focus; the first click only focuses it.
+    const richPrice =
+      mode === 'edit' && priceTokensEnabled
+        ? target.closest<HTMLElement>('[data-eldra-rich-price]')
+        : null;
+    if (richPrice !== null && pressedRoot !== null && pressedRoot.contains(richPrice)) {
+      opts.post('theme:price-clicked', {
+        ...metadataOf(pressedRoot),
+        ...layoutIdentityOf(pressedRoot),
+        token: '',
+        pos: Number(richPrice.getAttribute('data-eldra-pos')),
+        rect: rectOf(richPrice),
+      });
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const chip =
       mode === 'edit' && priceTokensEnabled
         ? target.closest<HTMLElement>('[data-eldra-price-token]')
@@ -3287,6 +3331,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // href-in-composed-path check, no propagation stop.
       document.addEventListener('auxclick', onNavigationClick, true);
       document.addEventListener('submit', onNavigationSubmit, true);
+      eventTarget.addEventListener('pointerdown', onPointerDown, true);
       eventTarget.addEventListener('click', onClick, true);
       eventTarget.addEventListener('pointerover', onPointerOver, true);
       eventTarget.addEventListener('pointerout', onPointerOut, true);
@@ -3344,6 +3389,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       document.removeEventListener('click', onNavigationClick, true);
       document.removeEventListener('auxclick', onNavigationClick, true);
       document.removeEventListener('submit', onNavigationSubmit, true);
+      eventTarget.removeEventListener('pointerdown', onPointerDown, true);
       eventTarget.removeEventListener('click', onClick, true);
       eventTarget.removeEventListener('pointerover', onPointerOver, true);
       eventTarget.removeEventListener('pointerout', onPointerOut, true);
@@ -3587,6 +3633,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       priceTokensEnabled = enabled;
       if (!enabled) endPriceSurface();
       root.querySelectorAll<HTMLElement>('[data-eldra-field]').forEach(applyEditable);
+      applyRichTextEditable();
     },
     insertPriceToken(target, token, label) {
       if (!priceTokensEnabled || mode !== 'edit') return;
