@@ -240,6 +240,8 @@ export const isIS: UiMessages = {
   // The name follows a colon so it stays in the nominative, the only case `Intl` gives.
   phoneInvalid: (country: string) => `Símanúmerið er ekki gilt í landinu sem er valið: ${country}.`,
   phoneInvalidNumber: 'Sláðu inn gilt símanúmer.',
+  amountNotANumber: 'Sláðu inn tölu.',
+  amountNoDecimals: 'Sláðu inn heila tölu.',
 };
 
 export default isIS;

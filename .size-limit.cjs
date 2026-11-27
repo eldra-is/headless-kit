@@ -222,11 +222,14 @@ module.exports = [
   // Raised 178 kB -> 179 kB for `NavMenu`'s inline drawer motion and safe-area foot, its one current
   // entry, `currentMark` and the described links' names (WS-1277, WS-1464, WS-1468): measured at
   // 177.93 kB, which a CI build had already put 40 B over.
+  // Raised 178 kB -> 179 kB for the amount parser and editor `UnitInput` reads every edit with
+  // (WS-1390), less the keydown handling it replaced: measured at 178.35 kB.
+  // Raised 179 kB -> 180 kB when the two above met in one tree: measured at 179.71 kB.
   {
     name: "@eldrajs/ui — everything, without vue or TablerIcon's lazy chunks",
     path: 'packages/ui/dist/index.js',
     ignore: ['vue', './tablerIconData-*'],
-    limit: '179 kB',
+    limit: '180 kB',
   },
   // A second, narrow budget alongside the "everything" one above: proves a consumer importing one
   // small, leaf component (no overlay stack, no floating-ui, no carousel/toast machinery) still
