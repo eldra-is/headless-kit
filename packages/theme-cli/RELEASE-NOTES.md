@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.9...theme-cli-v0.2.10) (2026-11-27)
+
+
+### Bug Fixes
+
+* **starter-nuxt:** reserve collection-header's Read more row so hydration does not shift the page (WS-1451) ([#175](https://github.com/eldra-is/headless-kit/issues/175)) ([560095d](https://github.com/eldra-is/headless-kit/commit/560095d55b03e91b7b474f63ae8dc52fa6651a29))
+
 ## [0.2.9](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.8...theme-cli-v0.2.9) (2026-11-25)
 
 
