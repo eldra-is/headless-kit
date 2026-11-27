@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.21](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.20...ui-v0.3.21) (2026-11-27)
+
+
+### Bug Fixes
+
+* **ui:** currency input formats while typing, one parser for every edit (WS-1390) ([#181](https://github.com/eldra-is/headless-kit/issues/181)) ([02f2784](https://github.com/eldra-is/headless-kit/commit/02f2784b3e618c31fdf9260697eaebc8e5e6389f))
+
 ## [0.3.20](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.19...ui-v0.3.20) (2026-11-25)
 
 
