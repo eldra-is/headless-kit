@@ -1,14 +1,16 @@
 import { computed, inject, type ComputedRef, type InjectionKey } from 'vue';
 import { useEldraUiCurrency, useEldraUiLocale } from '@eldrajs/ui';
 import {
+  formatToken,
   hasTokens,
+  parseToken,
   resolvePriceNode,
   toMajorUnits,
   resolveTokens,
   type ResolveTokensOptions,
   type StoreAmounts,
 } from '@eldrajs/sdk/tokens';
-import { decodeStega, encodeStega } from '@eldrajs/theme-core/stega';
+import { decodeStega, encodeStega, type StegaPricePart } from '@eldrajs/theme-core/stega';
 import { formatMoney } from '../storefront/money';
 import { STOREFRONT_KEY } from '../storefront/types';
 
@@ -84,17 +86,34 @@ export function priceNodeResolver(
 /** One string with its tokens written out. */
 function resolveString(value: string, options: ResolveTokensOptions): string {
   if (!hasTokens(value)) return value;
-  // The builder preview's payload names the field. The text the page shows is no longer the text
-  // the field stores, so the field is marked `inline: false`: a click still selects it, for the
-  // inspector, but the overlay never lets it be typed into, which would save "€100.00" over the
-  // token.
   const { cleaned, meta } = decodeStega(value);
   const written = resolveTokens(cleaned, options);
   // Every sentence left out (no amount in this currency): the value is empty, and must read as
   // empty to the block — a payload alone is invisible but not blank to `trim()`, so an info item
   // or a heading would still draw its icon or its wrapper around nothing.
   if (written.trim() === '') return '';
-  return meta === null ? written : encodeStega(written, { ...meta, inline: false });
+  // The builder preview's payload names the field. The text the page shows is no longer the text
+  // the field stores, so the payload also carries the stored text (`parts`): the overlay edits
+  // that on the canvas, each price as a chip, and posts every edit with its tokens intact.
+  return meta === null
+    ? written
+    : encodeStega(written, { ...meta, parts: storedParts(cleaned, options) });
+}
+
+/** A field's stored text as the overlay edits it: plain runs, and each token with its label. */
+function storedParts(text: string, options: ResolveTokensOptions): StegaPricePart[] {
+  return text
+    .split(/(⟦[^⟦⟧]*⟧)/)
+    .filter((run) => run !== '')
+    .map((run): StegaPricePart => {
+      const token = run.startsWith('⟦') ? parseToken(run.slice(1, -1)) : null;
+      if (token === null) return run;
+      const label = formatToken(token, options);
+      if (label !== null) return { token: run, label };
+      const currency = options.currency ?? '';
+      const what = token.kind === 'store' ? 'threshold' : 'price';
+      return { token: run, label: `No ${currency} ${what}`.replace('  ', ' '), missing: true };
+    });
 }
 
 /** A rich-text document: its `price` nodes are `EldraRichText`'s to write, not this walk's. */

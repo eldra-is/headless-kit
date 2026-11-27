@@ -24,7 +24,7 @@ import {
   richTextMarkNameOf,
   RICH_TEXT_LEAF_TYPES,
 } from './richTextPositions';
-import { decodeStega, stripStega, type StegaMeta } from './stega';
+import { decodeStega, stripStega, type StegaMeta, type StegaPricePart } from './stega';
 
 /**
  * Re-exported here so an adapter reaches the whole preview runtime through
@@ -345,7 +345,8 @@ export interface OverlayRuntimeOptions {
       | 'theme:framing-changed'
       | 'theme:rich-text-selection'
       | 'theme:rich-text-input'
-      | 'theme:rich-text-command',
+      | 'theme:rich-text-command'
+      | 'theme:price-clicked',
   >(
     type: T,
     payload: BridgePayloads[T]
@@ -443,6 +444,31 @@ export interface OverlayRuntime {
    * editing mark (silently — the other side cannot receive a post either).
    */
   setRichTextEnabled(enabled: boolean): void;
+  /**
+   * `price-tokens-inline`, negotiated from editor:hello like the other gates. Open, a plain-text
+   * field whose stega carries `parts` (a theme that writes price tokens out) is editable on the
+   * canvas: focusing it shows its stored text with each price as a chip, a chip click (or a first
+   * click on a price still written out) posts `theme:price-clicked`, and every edit is posted as
+   * stored text. Closed, such a field stays
+   * selectable but is never editable in place.
+   */
+  setPriceTokensEnabled(enabled: boolean): void;
+  /**
+   * `editor:insert-price`: a price chip at the operator's caret in the named field, or at its end
+   * when it is not being edited on the canvas; the field's new stored text is posted as
+   * `theme:text-edited`. A field that does not hold prices (no `parts`) is left alone.
+   */
+  insertPriceToken(
+    target: {
+      entryId: string;
+      fieldPath: string;
+      locale: string | null;
+      layoutNodeId?: string;
+      reusablePlacementId?: string;
+    },
+    token: string,
+    label: string
+  ): void;
   /** Test-only accessor: the overlay's style text (the shadow root is closed). */
   chromeStyles(): string;
   /** Test-only accessor: hover/selected box visibility (the shadow root is closed). */
@@ -491,6 +517,23 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   /** §18 v3 capability gate: set via setRichTextEnabled, negotiated from the
    * `rich-text-inline` capability. Defaults closed. */
   let richTextEnabled = false;
+  /** `price-tokens-inline` gate: set via setPriceTokensEnabled. */
+  let priceTokensEnabled = false;
+  /** A priced field's stored text, from its stega `parts`, kept for the editing surface. */
+  const pricedParts = new WeakMap<HTMLElement, StegaPricePart[]>();
+  /**
+   * The priced field being edited on the canvas: its own child nodes, set aside while the surface
+   * (text plus price chips) stands in for them, and the renderer's newest text, held back until
+   * the surface ends. Putting the original nodes back keeps a renderer that patches its own text
+   * node (Vue's mixed-content case) writing to the node it owns.
+   */
+  let priceSurface: {
+    element: HTMLElement;
+    saved: Node[];
+    pendingRender: string | null;
+  } | null = null;
+  /** The written-out price a pointer went down on, before focus swapped the field for chips. */
+  let pressedPrice: { element: HTMLElement; index: number } | null = null;
   /** `block-hover` capability gate: set via setBlockHoverEnabled, negotiated
    * from the editor's editor:hello capabilities. Defaults closed. */
   let blockHoverEnabled = false;
@@ -2093,6 +2136,200 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
   function markInline(element: HTMLElement, meta: StegaMeta): void {
     if (meta.inline === false) element.setAttribute('data-eldra-inline', 'false');
     else element.removeAttribute('data-eldra-inline');
+    if (meta.parts !== undefined) {
+      pricedParts.set(element, meta.parts);
+      element.setAttribute('data-eldra-priced', '');
+    } else {
+      pricedParts.delete(element);
+      element.removeAttribute('data-eldra-priced');
+    }
+  }
+
+  function isPriced(element: HTMLElement): boolean {
+    return element.hasAttribute('data-eldra-priced');
+  }
+
+  /** A price chip: never editable itself, labelled with what the page shows for the token. */
+  function priceChip(part: { token: string; label: string; missing?: true }): HTMLElement {
+    const chip = document.createElement('span');
+    chip.setAttribute('contenteditable', 'false');
+    chip.setAttribute('data-eldra-price-token', part.token);
+    if (part.missing === true) chip.setAttribute('data-eldra-price-missing', '');
+    chip.textContent = part.label;
+    styleChip(chip, part.missing === true);
+    return chip;
+  }
+
+  function styleChip(chip: HTMLElement, missing: boolean): void {
+    Object.assign(chip.style, {
+      display: 'inline-block',
+      padding: '0 0.35em',
+      margin: '0 0.1em',
+      borderRadius: '0.375em',
+      lineHeight: 'inherit',
+      whiteSpace: 'nowrap',
+      cursor: 'pointer',
+      userSelect: 'none',
+      background: missing ? 'rgba(217, 119, 6, 0.16)' : 'rgba(47, 111, 228, 0.14)',
+      boxShadow: missing
+        ? 'inset 0 0 0 1px rgba(217, 119, 6, 0.55)'
+        : 'inset 0 0 0 1px rgba(47, 111, 228, 0.45)',
+    });
+  }
+
+  /** The stored text a surface stands for: its text as typed, each chip as its token. */
+  function priceSurfaceValue(element: HTMLElement): string {
+    let out = '';
+    for (const node of element.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE) out += (node as Text).data;
+      else if (node instanceof HTMLElement) {
+        const token = node.getAttribute('data-eldra-price-token');
+        if (token !== null) out += token;
+        else if (node.tagName !== 'BR') out += priceSurfaceValue(node);
+      }
+    }
+    return stripStega(out);
+  }
+
+  /** Text offset to a caret position inside the surface, chips counted by their label. */
+  function placeCaretInSurface(element: HTMLElement, offset: number): void {
+    const selection = document.getSelection();
+    if (selection === null) return;
+    const range = document.createRange();
+    let left = offset;
+    for (const node of element.childNodes) {
+      const length = node.textContent?.length ?? 0;
+      if (node.nodeType === Node.TEXT_NODE && left <= length) {
+        range.setStart(node, left);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return;
+      }
+      if (node.nodeType !== Node.TEXT_NODE && left < length) {
+        range.setStartAfter(node);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return;
+      }
+      left -= length;
+    }
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  /** Stands the surface in for a priced field's rendered text, keeping the caret near the click. */
+  function startPriceSurface(element: HTMLElement): void {
+    if (priceSurface?.element === element) return;
+    endPriceSurface();
+    const parts = pricedParts.get(element);
+    if (parts === undefined) return;
+    const caret = caretOffsetWithin(element);
+    const saved = [...element.childNodes];
+    element.replaceChildren(
+      ...parts.map((part) =>
+        typeof part === 'string' ? document.createTextNode(part) : priceChip(part)
+      )
+    );
+    element.setAttribute('data-eldra-price-surface', '');
+    priceSurface = { element, saved, pendingRender: null };
+    placeCaretInSurface(element, caret);
+  }
+
+  /** Hands the field back to its renderer, with the newest text it tried to write meanwhile. */
+  function endPriceSurface(): void {
+    const surface = priceSurface;
+    if (surface === null) return;
+    // Posted while the surface still stands, so the edit is read as stored text, tokens intact.
+    flushTextEdit(surface.element);
+    priceSurface = null;
+    surface.element.removeAttribute('data-eldra-price-surface');
+    surface.element.replaceChildren(...surface.saved);
+    if (surface.pendingRender !== null) {
+      platformTextContent()?.set?.call(surface.element, surface.pendingRender);
+    }
+  }
+
+  /** The text nodes' range from `start` to `end`, offsets counted over the element's text. */
+  function textRange(element: HTMLElement, start: number, end: number): Range | null {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    let at = 0;
+    let started = false;
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      const length = (node as Text).data.length;
+      if (!started && start <= at + length) {
+        range.setStart(node, start - at);
+        started = true;
+      }
+      if (started && end <= at + length) {
+        range.setEnd(node, end - at);
+        return range;
+      }
+      at += length;
+    }
+    return null;
+  }
+
+  /**
+   * Which price of a priced field's written-out text lies under the point (its index among the
+   * field's prices), or null. Each price is found by its label, in order, in the page text; a
+   * renderer that wrote something else has no place to point at.
+   */
+  function pricePartAt(element: HTMLElement, x: number, y: number): number | null {
+    const parts = pricedParts.get(element);
+    if (parts === undefined) return null;
+    const text = (element.textContent ?? '').replace(/\u00a0/g, ' ');
+    let from = 0;
+    let index = 0;
+    for (const part of parts) {
+      if (typeof part === 'string') continue;
+      const start = text.indexOf(part.label.replace(/\u00a0/g, ' '), from);
+      if (start < 0) return null;
+      from = start + part.label.length;
+      const range = textRange(element, start, from);
+      const rects =
+        range === null || typeof range.getClientRects !== 'function'
+          ? []
+          : Array.from(range.getClientRects());
+      if (rects.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) {
+        return index;
+      }
+      index += 1;
+    }
+    return null;
+  }
+
+  /** A token's identity across amount edits: `price#a3f`, or `store freeShippingThreshold`. */
+  function tokenIdentity(token: string): string {
+    const body = token.slice(1, -1);
+    return body.startsWith('price#') ? (body.split(' ')[0] ?? body) : body;
+  }
+
+  /**
+   * The renderer re-stated the field while it is being edited (an amount changed in Studio's price
+   * editor, a currency was added): the text is the operator's, but each chip takes its price's new
+   * stored text and label.
+   */
+  function refreshPriceChips(element: HTMLElement, rendered: string): void {
+    const parts = decodeStega(rendered).meta?.parts;
+    if (parts === undefined) return;
+    const next = new Map<string, { token: string; label: string; missing?: true }>();
+    for (const part of parts)
+      if (typeof part !== 'string') next.set(tokenIdentity(part.token), part);
+    element.querySelectorAll<HTMLElement>('[data-eldra-price-token]').forEach((chip) => {
+      const part = next.get(tokenIdentity(chip.getAttribute('data-eldra-price-token') ?? ''));
+      if (part === undefined) return;
+      chip.setAttribute('data-eldra-price-token', part.token);
+      chip.textContent = part.label;
+      if (part.missing === true) chip.setAttribute('data-eldra-price-missing', '');
+      else chip.removeAttribute('data-eldra-price-missing');
+      styleChip(chip, part.missing === true);
+    });
+    pricedParts.set(element, parts);
   }
 
   function metadataOf(span: HTMLElement): StegaMeta {
@@ -2307,7 +2544,13 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     // it must never gain contenteditable from the overlay — its own
     // TipTap editor (mounted separately by the theme component) owns that.
     if (span.hasAttribute('data-eldra-rich-text')) return;
-    if (mode === 'edit' && span.getAttribute('data-eldra-inline') !== 'false') {
+    const editable =
+      mode === 'edit' &&
+      span.getAttribute('data-eldra-inline') !== 'false' &&
+      // A priced field is editable only on a surface that keeps its tokens: with
+      // `price-tokens-inline` closed, typing would save the written price over them.
+      (!isPriced(span) || priceTokensEnabled);
+    if (editable) {
       span.setAttribute('contenteditable', 'true');
       guardRendererText(span);
     } else {
@@ -2367,6 +2610,11 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
           return;
         }
         const next = value === null || value === undefined ? '' : String(value);
+        if (priceSurface?.element === this) {
+          priceSurface.pendingRender = next;
+          refreshPriceChips(this, next);
+          return;
+        }
         if (stripStega(next) === stripStega((read.call(this) as string | null) ?? '')) return;
         if (hasUnacknowledgedTextEdit(metadataOf(this))) return;
         write.call(this, value);
@@ -2419,6 +2667,14 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       if (field.getAttribute('data-eldra-inline') === 'false') return;
       const meta = metadataOf(field);
       if (!accepted.has(meta.entryId)) return;
+      if (isPriced(field)) {
+        // A priced field's draft is stored text; the renderer writes it out. Only the
+        // acknowledgement of what the surface posted is taken from it.
+        const draft = drafts[meta.entryId];
+        const stored = draft === undefined ? undefined : ownValueAtPath(draft, meta.fieldPath);
+        if (typeof stored === 'string') acceptTextEditEcho(meta, stripStega(stored));
+        return;
+      }
       if (!Object.prototype.hasOwnProperty.call(drafts, meta.entryId)) return;
       const draft = drafts[meta.entryId];
       if (draft === undefined) return;
@@ -2518,9 +2774,53 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     event.preventDefault();
   }
 
+  /**
+   * A price in a priced field is written out until the field takes focus, and focus (on this same
+   * press) swaps the text for chips, so the click never lands on one. Note which price is under
+   * the pointer now; the click opens it.
+   */
+  function onPointerDown(event: Event): void {
+    pressedPrice = null;
+    if (mode !== 'edit' || !priceTokensEnabled || !(event instanceof MouseEvent)) return;
+    const target = event.target instanceof Element ? event.target : null;
+    const field = target?.closest<HTMLElement>('[data-eldra-field]') ?? null;
+    if (field === null || !isPriced(field) || priceSurface?.element === field) return;
+    const index = pricePartAt(field, event.clientX, event.clientY);
+    if (index !== null) pressedPrice = { element: field, index };
+  }
+
+  function postPriceClicked(field: HTMLElement, chip: HTMLElement): void {
+    opts.post('theme:price-clicked', {
+      ...metadataOf(field),
+      ...layoutIdentityOf(field),
+      token: chip.getAttribute('data-eldra-price-token') ?? '',
+      rect: rectOf(chip),
+    });
+  }
+
   function onClick(event: Event): void {
+    const pressed = pressedPrice;
+    pressedPrice = null;
     const target = event.target instanceof Element ? event.target : null;
     if (target === null) return;
+    const chip =
+      mode === 'edit' && priceTokensEnabled
+        ? target.closest<HTMLElement>('[data-eldra-price-token]')
+        : null;
+    const chipField = chip?.closest<HTMLElement>('[data-eldra-field]') ?? null;
+    if (chip !== null && chipField !== null && priceSurface?.element === chipField) {
+      postPriceClicked(chipField, chip);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    // The first click on a written-out price: open it, and let the click select as any other.
+    if (chip === null && pressed !== null && priceSurface?.element === pressed.element) {
+      const pressedChip = pressed.element.querySelectorAll<HTMLElement>('[data-eldra-price-token]')[
+        pressed.index
+      ];
+      if (pressedChip !== undefined) postPriceClicked(pressed.element, pressedChip);
+    }
     if (mode === 'edit') {
       const framed = framingEnabled ? framingImageFor(target) : null;
       if (framed !== null && ownsSelectedBlock(framed)) {
@@ -2742,25 +3042,40 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
     }
     const span = target?.closest<HTMLElement>('[data-eldra-field]') ?? null;
     if (span === null || mode !== 'edit') return;
-    rememberEditing(span, true);
+    // A priced surface is the overlay's own DOM, not the renderer's: nothing to restore.
+    if (priceSurface?.element !== span) rememberEditing(span, true);
     const pending = debounceTimers.get(span);
     if (pending !== undefined) clearTimeout(pending);
     debounceTimers.set(
       span,
       setTimeout(() => {
         debounceTimers.delete(span);
-        const meta = metadataOf(span);
-        const value = stripStega(span.textContent ?? '');
-        // Remember it until the editor echoes it back: see
-        // `hasUnacknowledgedTextEdit`.
-        postedText.set(textEditKey(meta), value);
-        opts.post('theme:text-edited', {
-          ...meta,
-          ...layoutIdentityOf(span),
-          value,
-        });
+        postTextEdit(span);
       }, TEXT_EDIT_DEBOUNCE_MS)
     );
+  }
+
+  /** The field's text as stored: a priced surface's tokens intact, else its text. */
+  function postTextEdit(span: HTMLElement): void {
+    const meta = metadataOf(span);
+    const value =
+      priceSurface?.element === span ? priceSurfaceValue(span) : stripStega(span.textContent ?? '');
+    // Remember it until the editor echoes it back: see `hasUnacknowledgedTextEdit`.
+    postedText.set(textEditKey(meta), value);
+    opts.post('theme:text-edited', {
+      ...meta,
+      ...layoutIdentityOf(span),
+      value,
+    });
+  }
+
+  /** Posts a field's armed text edit now rather than at the end of its debounce. */
+  function flushTextEdit(span: HTMLElement): void {
+    const pending = debounceTimers.get(span);
+    if (pending === undefined) return;
+    clearTimeout(pending);
+    debounceTimers.delete(span);
+    postTextEdit(span);
   }
 
   /** An event's target as an element: a DOM event inside a contenteditable
@@ -2822,6 +3137,11 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       return;
     }
     const span = target?.closest<HTMLElement>('[data-eldra-field]') ?? null;
+    if (span !== null && mode === 'edit' && priceTokensEnabled && isPriced(span)) {
+      activeEdit = null;
+      startPriceSurface(span);
+      return;
+    }
     if (span !== null && mode === 'edit') rememberEditing(span);
     else activeEdit = null;
   }
@@ -2838,6 +3158,10 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
    * focusin/selectionchange paths.
    */
   function onFocusOut(event: Event): void {
+    if (priceSurface !== null) {
+      const next = (event as FocusEvent).relatedTarget;
+      if (!(next instanceof Node && priceSurface.element.contains(next))) endPriceSurface();
+    }
     const target = elementTargetOf(event);
     const richTextRoot = editableRichTextRootOf(target);
     if (richTextRoot === null) return;
@@ -3040,6 +3364,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       document.addEventListener('auxclick', onNavigationClick, true);
       document.addEventListener('submit', onNavigationSubmit, true);
       eventTarget.addEventListener('click', onClick, true);
+      eventTarget.addEventListener('pointerdown', onPointerDown, true);
       eventTarget.addEventListener('pointerover', onPointerOver, true);
       eventTarget.addEventListener('pointerout', onPointerOut, true);
       eventTarget.addEventListener('input', onInput, true);
@@ -3097,6 +3422,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       document.removeEventListener('auxclick', onNavigationClick, true);
       document.removeEventListener('submit', onNavigationSubmit, true);
       eventTarget.removeEventListener('click', onClick, true);
+      eventTarget.removeEventListener('pointerdown', onPointerDown, true);
       eventTarget.removeEventListener('pointerover', onPointerOver, true);
       eventTarget.removeEventListener('pointerout', onPointerOut, true);
       eventTarget.removeEventListener('input', onInput, true);
@@ -3121,6 +3447,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       dropIndicator = null;
       framingBox = null;
       framingBadge = null;
+      endPriceSurface();
       for (const timer of debounceTimers.values()) clearTimeout(timer);
       debounceTimers.clear();
       postedText.clear();
@@ -3139,6 +3466,7 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       // editing surface with it. Clearing posts nothing — Studio drove the
       // mode change and knows it is over.
       if (nextMode !== 'edit') clearRichTextEditing();
+      if (nextMode !== 'edit') endPriceSurface();
       root.querySelectorAll<HTMLElement>('[data-eldra-field]').forEach(applyEditable);
       applyRichTextEditable();
       applyHiddenEditing();
@@ -3332,6 +3660,64 @@ export function createOverlayRuntime(opts: OverlayRuntimeOptions): OverlayRuntim
       if (mode !== 'edit' || !richTextEnabled) return;
       element.focus?.({ preventScroll: true });
       placeCaretAtEnd(element);
+    },
+    setPriceTokensEnabled(enabled) {
+      priceTokensEnabled = enabled;
+      if (!enabled) endPriceSurface();
+      root.querySelectorAll<HTMLElement>('[data-eldra-field]').forEach(applyEditable);
+    },
+    insertPriceToken(target, token, label) {
+      if (!priceTokensEnabled || mode !== 'edit') return;
+      if (!/^⟦[^⟦⟧]+⟧$/.test(token) || label === '') return;
+      const field = [...root.querySelectorAll<HTMLElement>('[data-eldra-field]')].find(
+        (element) => {
+          if (!isPriced(element) && !element.hasAttribute('contenteditable')) return false;
+          if (element.hasAttribute('data-eldra-rich-text')) return false;
+          const meta = metadataOf(element);
+          if (meta.entryId !== target.entryId || meta.fieldPath !== target.fieldPath) return false;
+          if (meta.locale !== target.locale) return false;
+          const identity = layoutIdentityOf(element);
+          if (target.layoutNodeId !== undefined && identity.layoutNodeId !== target.layoutNodeId) {
+            return false;
+          }
+          return (
+            target.reusablePlacementId === undefined ||
+            identity.reusablePlacementId === target.reusablePlacementId
+          );
+        }
+      );
+      if (field === undefined) return;
+      if (priceSurface?.element === field) {
+        const chip = priceChip({ token, label });
+        const selection = document.getSelection();
+        const range =
+          selection !== null && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        if (range !== null && field.contains(range.startContainer)) {
+          range.deleteContents();
+          range.insertNode(chip);
+          range.setStartAfter(chip);
+          range.collapse(true);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        } else {
+          field.append(chip);
+        }
+        const pending = debounceTimers.get(field);
+        if (pending !== undefined) clearTimeout(pending);
+        debounceTimers.delete(field);
+        postTextEdit(field);
+        return;
+      }
+      // Not being edited here: the token goes at the end of the stored text.
+      const parts = pricedParts.get(field);
+      const stored =
+        parts !== undefined
+          ? parts.map((part) => (typeof part === 'string' ? part : part.token)).join('')
+          : stripStega(field.textContent ?? '');
+      const meta = metadataOf(field);
+      const value = `${stored.trimEnd()} ${token}`.trimStart();
+      postedText.set(textEditKey(meta), value);
+      opts.post('theme:text-edited', { ...meta, ...layoutIdentityOf(field), value });
     },
     setRichTextEnabled(enabled) {
       richTextEnabled = enabled;

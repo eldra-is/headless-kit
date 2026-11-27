@@ -320,7 +320,7 @@ theme on an older protocol version ignores rather than misreads. Two owners, two
 - **`editor:*` — Studio sends, the theme receives.** `editor:hello`/`editor:init` (mode, preview
   token, locale, path), `editor:content-update` (draft entry data), `editor:design-tokens` /
   `editor:theme-messages` (live overrides), `editor:select-block`, `editor:navigate`,
-  `editor:set-mode`, `editor:set-viewport`, `editor:refresh`/`editor:ping`, `editor:drag-start`/
+  `editor:set-mode`, `editor:set-viewport`, `editor:refresh`/`editor:ping`, `editor:insert-price`, `editor:drag-start`/
   `editor:drag-end`, `editor:framing-mode` (image framing), and the §18 rich-text trio
   `editor:rich-text-editing` / `editor:rich-text-applied` / `editor:rich-text-locate`.
 - **`theme:*` — the theme sends, Studio receives.** `theme:ready` (capabilities, manifest/theme/SDK
@@ -328,12 +328,13 @@ theme on an older protocol version ignores rather than misreads. Two owners, two
   `theme:field-clicked` / `theme:text-edited`, `theme:blocks-rendered` / `theme:block-hovered` /
   `theme:slots-rendered` (editor-only geometry, gated by capability negotiation), `theme:height-changed`,
   `theme:error`, `theme:request-failed` (a gateway read's HTTP status — how a theme signals a revoked
-  preview token without Studio polling for it), `theme:drop-candidate` / `theme:node-dropped`
+  preview token without Studio polling for it), `theme:price-clicked` (a price in a plain-text
+  field edited on the canvas), `theme:drop-candidate` / `theme:node-dropped`
   (structural drag), `theme:framing-target` / `theme:framing-changed`, and the rich-text trio
   `theme:rich-text-selection` / `theme:rich-text-input` / `theme:rich-text-command`.
 
 Each side advertises what it supports in its first message — `EDITOR_CAPABILITIES` /
-`THEME_CAPABILITIES` (`protocol.ts:466`) — so a capability like `block-slots` or `rich-text-inline`
+`THEME_CAPABILITIES` (`protocol.ts:466`) — so a capability like `block-slots`, `rich-text-inline` or `price-tokens-inline`
 is only ever used once both sides have named it. `@eldrajs/theme-core/overlay` is the runtime that
 turns these messages into DOM selection, rich-text classification and drag handling inside the
 iframe; `@eldrajs/theme-vue`'s `useEldraPreview`/`startEldraPreview` wire a Vue theme up to it. See

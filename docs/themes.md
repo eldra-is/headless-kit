@@ -727,9 +727,15 @@ resolvePrice })` and `@eldrajs/vue`'s `<RichText :resolve-price>` write `price` 
 The starter resolves them in one place: `app/composables/useBlockData.ts` hands every block its data
 with every string's tokens written out (`app/composables/usePriceTokens.ts`) and provides the
 rich-text resolver, in the store currency and the regional format through the same `formatMoney` as
-`useMoney()`. No block handles prices itself. In the builder preview a field whose text held a
-token is marked `inline: false` in its stega payload: a click selects it for the inspector, but the
-overlay never makes it editable in place, where typing would save "€100.00" over the token.
+`useMoney()`, in the shopper's chosen currency. No block handles prices itself. In the builder
+preview a field whose text held a token carries its **stored** text in its stega payload
+(`StegaMeta.parts`). With Studio speaking `price-tokens-inline`, focusing it on the canvas shows that
+text with each price as a chip: the words around it are edited in place, a chip click asks Studio to
+open its price editor (`theme:price-clicked`), `editor:insert-price` drops a new price at the caret,
+and a first click straight on a written-out price opens it too: the overlay notes which price's text
+was under the pointer before focus swapped it for chips (only while the page text is exactly the
+`parts`' text), and every edit is posted as stored text, tokens intact. Without the capability the
+field is selectable but never typed into, where typing would save "€100.00" over the token.
 
 ## Seeding default templates and pages
 

@@ -202,6 +202,201 @@ describe('createOverlayRuntime', () => {
     );
   });
 
+  describe('price-tokens-inline: a priced field edited on the canvas', () => {
+    const TOKEN = '⟦price#a3f EUR=10000⟧';
+    const meta = { entryId: 'block-1', fieldPath: 'note', locale: 'en-US' };
+    const rendered = (label: string, token = TOKEN, lead = 'Free shipping over ') =>
+      encodeStega(`${lead}${label}`, { ...meta, parts: [lead, { token, label }] });
+
+    function priced(): HTMLElement {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = rendered('€100.00');
+      document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+      runtime.rescan();
+      return document.querySelector('[data-eldra-field="note"]') as HTMLElement;
+    }
+    const focus = (field: HTMLElement) =>
+      field.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    /** jsdom lays nothing out and has no `Range.getClientRects`: a box per text range, by its text. */
+    const layOut = (box: (range: Range) => Record<'left' | 'right' | 'top' | 'bottom', number>) =>
+      Object.defineProperty(Range.prototype, 'getClientRects', {
+        configurable: true,
+        value(this: Range) {
+          return [box(this)];
+        },
+      });
+
+    it('is not editable in place until both sides speak price-tokens-inline', () => {
+      const field = priced();
+      runtime.setMode('edit');
+      expect(field.getAttribute('contenteditable')).toBeNull();
+      runtime.setPriceTokensEnabled(true);
+      expect(field.getAttribute('contenteditable')).toBe('true');
+    });
+
+    it('shows each price as a chip and posts every edit as stored text, token intact', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      const chip = field.querySelector('[data-eldra-price-token]') as HTMLElement;
+      expect(chip.getAttribute('data-eldra-price-token')).toBe(TOKEN);
+      expect(chip.textContent).toBe('€100.00');
+      expect(chip.getAttribute('contenteditable')).toBe('false');
+      // The operator rewrites the words before the price.
+      (field.firstChild as Text).data = 'Free delivery over ';
+      field.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      vi.advanceTimersByTime(300);
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ ...meta, value: `Free delivery over ${TOKEN}` })
+      );
+    });
+
+    it('posts theme:price-clicked for a chip, so Studio opens its price editor', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      field
+        .querySelector('[data-eldra-price-token]')!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('opens a written-out price on the first click: the press lands on the text, focus makes the chip', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      // The price's text is at 200…260 × 10…30, the words before it elsewhere.
+      layOut((range) =>
+        range.toString() === '€100.00'
+          ? { left: 200, right: 260, top: 10, bottom: 30 }
+          : { left: 0, right: 0, top: 0, bottom: 0 }
+      );
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 230, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 230, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('finds a written-out price the renderer spaced its own way', () => {
+      const paragraph = document.createElement('p');
+      const lead = 'Free shipping over ';
+      paragraph.textContent = encodeStega(`${lead}100 kr. `, {
+        ...meta,
+        parts: [lead, { token: TOKEN, label: '100 kr.' }],
+      });
+      document.querySelector('[data-eldra-block]')!.appendChild(paragraph);
+      runtime.rescan();
+      const field = document.querySelector('[data-eldra-field="note"]') as HTMLElement;
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      layOut((range) =>
+        range.toString() === '100 kr.'
+          ? { left: 200, right: 260, top: 10, bottom: 30 }
+          : { left: 0, right: 0, top: 0, bottom: 0 }
+      );
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 230, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 230, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).toHaveBeenCalledWith(
+        'theme:price-clicked',
+        expect.objectContaining({ ...meta, token: TOKEN })
+      );
+    });
+
+    it('opens nothing for a first click on the words beside a price', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      layOut(() => ({ left: 200, right: 260, top: 10, bottom: 30 }));
+      try {
+        field.dispatchEvent(
+          new MouseEvent('pointerdown', { bubbles: true, clientX: 40, clientY: 20 })
+        );
+        focus(field);
+        field.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 40, clientY: 20 }));
+      } finally {
+        delete (Range.prototype as Partial<Range>).getClientRects;
+      }
+      expect(post).not.toHaveBeenCalledWith('theme:price-clicked', expect.anything());
+    });
+
+    it("keeps the operator's text while the renderer re-states it, but takes new amounts", () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      (field.firstChild as Text).data = 'Ships free over ';
+      field.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      // Studio's price editor changed the amount: the renderer writes the field out again.
+      field.textContent = rendered('€120.00', '⟦price#a3f EUR=12000⟧');
+      expect(field.firstChild?.textContent).toBe('Ships free over ');
+      const chip = field.querySelector('[data-eldra-price-token]') as HTMLElement;
+      expect(chip.getAttribute('data-eldra-price-token')).toBe('⟦price#a3f EUR=12000⟧');
+      expect(chip.textContent).toBe('€120.00');
+      // Leaving the field posts what was typed and hands the renderer its newest text.
+      field.dispatchEvent(
+        new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body })
+      );
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({ value: 'Ships free over ⟦price#a3f EUR=12000⟧' })
+      );
+      expect(field.querySelector('[data-eldra-price-token]')).toBeNull();
+      expect(field.textContent).toContain('Free shipping over €120.00');
+    });
+
+    it('inserts a price at the caret for editor:insert-price', () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      focus(field);
+      const text = field.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(text, 'Free '.length);
+      range.collapse(true);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+      runtime.insertPriceToken(meta, '⟦store freeShippingThreshold⟧', '$80.00');
+      expect(post).toHaveBeenCalledWith(
+        'theme:text-edited',
+        expect.objectContaining({
+          value: `Free ⟦store freeShippingThreshold⟧shipping over ${TOKEN}`,
+        })
+      );
+    });
+
+    it("never copies a draft's stored text over the written price", () => {
+      const field = priced();
+      runtime.setPriceTokensEnabled(true);
+      runtime.setMode('edit');
+      runtime.reconcileExternalDrafts({ 'block-1': { note: `Free shipping over ${TOKEN}` } }, [
+        'block-1',
+      ]);
+      expect(field.textContent).toBe('Free shipping over €100.00');
+    });
+  });
+
   it('restores inline focus and caret when a renderer replaces the decorated field', () => {
     runtime.setMode('edit');
     const original = document.querySelector('[data-eldra-field="heading"]') as HTMLElement;

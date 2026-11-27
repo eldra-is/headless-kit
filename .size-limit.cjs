@@ -135,14 +135,17 @@ module.exports = [
     path: 'packages/theme-core/dist/index.js',
     // SEO, sitemap, structured data, forms and analytics (WS-382–WS-387); storefronts tree-shake what they skip.
     // 32 kB until selling currencies (WS-1391, WS-1399) and draft preview sessions (WS-1303,
-    // `enableSessionPreview`, the public-read reshaping) met: 32.34 kB used.
-    limit: '33 kB',
+    // `enableSessionPreview`, the public-read reshaping) met: 32.34 kB used. Editing priced text on
+    // the canvas (WS-1474: the overlay's chip surface, `price-tokens-inline`) takes it to 33.71 kB;
+    // opening a written-out price on the first click, to 34.06 kB.
+    limit: '34.5 kB',
   },
   {
     name: '@eldrajs/theme-core — overlay runtime',
     path: 'packages/theme-core/dist/overlay.js',
     import: '{ createOverlayRuntime }',
-    limit: '12 kB',
+    // 12 kB until priced text became editable on the canvas (WS-1474), which measures 12 kB flat.
+    limit: '12.5 kB',
   },
   {
     name: '@eldrajs/theme-core — bridge',
@@ -293,6 +296,7 @@ module.exports = [
     name: '@eldrajs/theme-vue — everything, without vue',
     path: 'packages/theme-vue/dist/index.js',
     ignore: ['vue', 'virtual:eldra/blocks', 'virtual:eldra/manifest', 'virtual:eldra/breakpoints'],
-    limit: '32.5 kB',
+    // 32.5 kB until the overlay's price-chip surface (WS-1474) added 0.16 kB over it.
+    limit: '33 kB',
   },
 ];

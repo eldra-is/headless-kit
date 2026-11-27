@@ -198,13 +198,27 @@ describe('resolveBlockTokens', () => {
     expect(data.items[1]!.text).toBe('Card ⟦price#card USD=400⟧.');
   });
 
-  it('keeps the builder field selectable but marks it never editable in place', () => {
+  it('gives the builder the stored text to edit on the canvas, each price as a chip', () => {
     const meta = { entryId: 'e1', fieldPath: 'message', locale: 'en-US' };
     const out = resolveBlockTokens(encodeStega('Card ⟦price#card USD=400⟧.', meta), options);
+    // The page shows the written price; the payload carries the stored text the canvas edits.
     expect(decodeStega(out)).toEqual({
       cleaned: 'Card $4.00.',
-      meta: { ...meta, inline: false },
+      meta: {
+        ...meta,
+        parts: ['Card ', { token: '⟦price#card USD=400⟧', label: '$4.00' }, '.'],
+      },
     });
+    // A price with no amount in the shopper's currency is a chip the operator can still fix.
+    const missing = resolveBlockTokens(
+      encodeStega('Hi. Card ⟦price#card EUR=400⟧.', meta),
+      options
+    );
+    expect(decodeStega(missing).meta?.parts).toEqual([
+      'Hi. Card ',
+      { token: '⟦price#card EUR=400⟧', label: 'No USD price', missing: true },
+      '.',
+    ]);
     // Every sentence left out: empty, with no payload, so a block's own `trim() === ''` sees it.
     expect(
       resolveBlockTokens(

@@ -228,6 +228,20 @@ export interface BridgePayloads {
   /** A theme-message override save — see `ResolvedThemeMessagesPayload`. */
   'editor:theme-messages': ResolvedThemeMessagesPayload;
   'editor:select-block': { entryId: string; layoutNodeId?: string; reusablePlacementId?: string };
+  /**
+   * `price-tokens-inline`: put a price token into a plain-text field at the operator's caret on
+   * the canvas (at the end when the field is not being edited there), as a chip reading `label`.
+   * The theme answers with `theme:text-edited` carrying the field's new stored text.
+   */
+  'editor:insert-price': {
+    entryId: string;
+    fieldPath: string;
+    locale: string | null;
+    token: string;
+    label: string;
+    layoutNodeId?: string;
+    reusablePlacementId?: string;
+  };
   'editor:navigate': { path: string };
   'editor:set-mode': { mode: EditorMode };
   'editor:set-viewport': { width: number };
@@ -299,6 +313,20 @@ export interface BridgePayloads {
     fieldPath: string;
     locale: string | null;
     value: string;
+    layoutNodeId?: string;
+    reusablePlacementId?: string;
+  };
+  /**
+   * `price-tokens-inline`: the operator clicked a price chip in a field being edited on the
+   * canvas. `token` is the token's stored text (`⟦price#a3f EUR=10000⟧`, `⟦store
+   * freeShippingThreshold⟧`); Studio opens its price editor for it and writes the field's draft.
+   */
+  'theme:price-clicked': {
+    entryId: string;
+    fieldPath: string;
+    locale: string | null;
+    token: string;
+    rect: DOMRectLike;
     layoutNodeId?: string;
     reusablePlacementId?: string;
   };
@@ -427,6 +455,7 @@ export const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'editor:design-tokens',
   'editor:theme-messages',
   'editor:select-block',
+  'editor:insert-price',
   'editor:navigate',
   'editor:set-mode',
   'editor:set-viewport',
@@ -444,6 +473,7 @@ export const KNOWN_MESSAGE_TYPES: ReadonlySet<string> = new Set([
   'theme:block-clicked',
   'theme:field-clicked',
   'theme:text-edited',
+  'theme:price-clicked',
   'theme:blocks-rendered',
   'theme:block-hovered',
   'theme:slots-rendered',
@@ -471,6 +501,7 @@ export const EDITOR_CAPABILITIES = [
   'block-hover',
   'image-framing',
   'rich-text-inline',
+  'price-tokens-inline',
 ] as const;
 
 /** Capabilities the theme advertises in theme:ready. `block-slots` gates the
@@ -480,11 +511,14 @@ export const EDITOR_CAPABILITIES = [
  * §18 v3 messages that let the operator edit rich text natively in the
  * theme's own rendered DOM while Studio owns the document, the editor and
  * the toolbar; a side that does not advertise it never sends, and must
- * ignore, those messages. */
+ * ignore, those messages. `price-tokens-inline` gates editing a plain-text field that holds price
+ * tokens on the canvas: the field shows each price as a chip, `theme:price-clicked` and
+ * `editor:insert-price`. Without it such a field stays selectable but not editable in place. */
 export const THEME_CAPABILITIES = [
   'design-tokens',
   'block-slots',
   'block-hover',
   'image-framing',
   'rich-text-inline',
+  'price-tokens-inline',
 ] as const;
