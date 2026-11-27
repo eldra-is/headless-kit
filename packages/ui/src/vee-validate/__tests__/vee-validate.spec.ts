@@ -963,7 +963,7 @@ describe('FieldCurrencyInput and FieldUnitInput inside a Form', () => {
         name: 'price',
         rules: tooCheap,
         locale: 'is-IS',
-        currency: 'ISK',
+        currency: 'EUR',
         label: 'Price',
       })
     );
@@ -976,7 +976,7 @@ describe('FieldCurrencyInput and FieldUnitInput inside a Form', () => {
 
     // The field is formatted while it is being typed into — there is no blur to wait for — and
     // the hidden input a scripting-free post would carry holds the raw number.
-    expect((control.element as HTMLInputElement).value).toBe('1.234,56\u00a0kr.');
+    expect((control.element as HTMLInputElement).value).toBe('1.234,56\u00a0EUR');
     expect(control.attributes('aria-invalid')).toBeUndefined();
     expect((wrapper.find('input[type="hidden"]').element as HTMLInputElement).value).toBe(
       '1234.56'
@@ -1012,6 +1012,92 @@ describe('FieldCurrencyInput and FieldUnitInput inside a Form', () => {
     // The *message* is not this control's to draw — like `Input`, it has no error row of its own;
     // a `FieldWrapper` bound to the `Form`'s `errors` slot shows it. What is asserted here is the
     // gate: nothing is announced until the customer has left the field.
+    wrapper.unmount();
+  });
+
+  function mountAmount(field: VNode | (() => VNode), props: Record<string, unknown> = {}) {
+    return mountWith(Form, {
+      props: { ariaLabel: 'Test form', initialValues: { price: 34.9 }, ...props },
+      slots: {
+        default: (slotProps: { errors: Record<string, string> }) =>
+          h(
+            FieldWrapper,
+            { label: 'Price', error: slotProps.errors.price },
+            { default: typeof field === 'function' ? field : () => field }
+          ),
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Send'),
+      },
+    });
+  }
+
+  async function paste(wrapper: ReturnType<typeof mountAmount>, text: string) {
+    const control = wrapper.find('input[data-part="control"]');
+    const input = control.element as HTMLInputElement;
+    input.focus();
+    input.value = text;
+    input.setSelectionRange(text.length, text.length);
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+    await settle();
+    input.blur();
+    await settle();
+    return control;
+  }
+
+  it('fails on text it cannot read and never submits the number it held (WS-1390)', async () => {
+    const wrapper = mountAmount(() =>
+      h(FieldCurrencyInput, { name: 'price', locale: 'en-US', currency: 'EUR' })
+    );
+    const control = await paste(wrapper, '12a');
+
+    expect(wrapper.find('[data-part="error"]').text()).toContain('Enter a number.');
+    expect(control.attributes('aria-invalid')).toBe('true');
+
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    expect(wrapper.emitted('invalid')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('says a currency without decimals takes whole numbers, in the provided language', async () => {
+    const localised = mountWith(Form, {
+      props: { ariaLabel: 'Test form', initialValues: { price: 34 } },
+      global: { provide: { [MESSAGES_KEY as symbol]: isIS } },
+      slots: {
+        default: (slotProps: { errors: Record<string, string> }) =>
+          h(
+            FieldWrapper,
+            { label: 'Verð', error: slotProps.errors.price },
+            {
+              default: () =>
+                h(FieldCurrencyInput, { name: 'price', locale: 'is-IS', currency: 'ISK' }),
+            }
+          ),
+        actions: () => h(Button, { variant: 'primary', type: 'submit' }, () => 'Senda'),
+      },
+    });
+    await paste(localised, '1,5');
+    expect(localised.find('[data-part="error"]').text()).toContain('Sláðu inn heila tölu.');
+    localised.unmount();
+  });
+
+  it('clears the message once readable text is left, and still runs its rules', async () => {
+    const atLeastTen = (value: unknown) =>
+      (typeof value === 'number' && value >= 10) || 'Enter at least 10.';
+    const wrapper = mountAmount(() =>
+      h(FieldUnitInput, { name: 'price', unit: 'kilometer', locale: 'en-US', rules: atLeastTen })
+    );
+    await paste(wrapper, '12a');
+    expect(wrapper.find('[data-part="error"]').text()).toContain('Enter a number.');
+
+    await paste(wrapper, '2');
+    expect(wrapper.find('[data-part="error"]').text()).toContain('Enter at least 10.');
+
+    await paste(wrapper, '25');
+    expect(wrapper.find('[data-part="error"]').exists()).toBe(false);
+    await wrapper.find('form').trigger('submit');
+    await settle();
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ price: 25 });
     wrapper.unmount();
   });
 });

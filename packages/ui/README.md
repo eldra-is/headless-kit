@@ -1713,7 +1713,9 @@ aria-pressed>` that fills `primary`/`primary-contrast` when `selected`, the same
   that a store that knows those fields knows these; the handful of places this port deliberately
   departs from them is listed under the deviations below.
 - **`FieldUnitInput` and `FieldCurrencyInput`**, their `./vee-validate` wrappers, binding
-  `number | null`.
+  `number | null`. Text the field cannot read fails the field before its `rules` run, with
+  `amountNotANumber` or, for a fraction where the currency takes none, `amountNoDecimals`; the model
+  keeps the number it held, so without this a rule would pass it and the form would submit it.
 - **`provideEldraUiLocale` / `useEldraUiLocale` / `LOCALE_KEY`** (`src/composables/useLocale.ts`) —
   the number locale as a provide/inject pair, the same shape as the messages one and deliberately a
   separate key: the strings a component renders and the locale its numbers are formatted in are
@@ -2322,40 +2324,70 @@ aria-busy aria-label="Loading product"`, `ContentCard`'s loading root now matche
   separator in the field to type after. `filterNumericBeforeInput` still accepts it on a
   decimal field, for a consumer building one — someone pasting `1,234.50` means 1234.5.
 
-  **`UnitInput` and `CurrencyInput` do the opposite, on purpose** (see below): they let a
-  non-numeric keystroke land and strip it on the reformat.
+  **`UnitInput` and `CurrencyInput` do the opposite, on purpose** (see below): their text always
+  holds a symbol and grouping, and one parser reads whatever arrives.
 
-- **`UnitInput` and `CurrencyInput` are ports, and the behaviour is the private library's**
-  (operator decision, 2026-09-25). "The currency input, unit input should function identical to how
-  they do in the private ui." The field is formatted **while it is typed into** — there is no
-  editing mode and no focus-dependent text — because that is what a merchant already knows these
-  fields to do; a field that showed a plain number under the caret and a formatted one on blur was
-  rejected. Everything that follows from it (the caret mapped by numeric content, the arrow/
-  backspace/delete rules that step over separators and never eat the symbol, `,` and `.` both
-  inserting the locale's decimal, the empty-until-blur rule, the controlled reconciliation, the
-  drag handle) is ported case for case, and
-  `src/components/{unit-input,currency-input}/__tests__/` carries the private specs' own cases
-  under their own names.
+- **`UnitInput` and `CurrencyInput` format while they are typed into** (operator decision,
+  2026-09-25, kept 2026-11-26): focused or not, the field shows `$1,234.5`, `1.234 kr.` or
+  `1,234 km`, because that is what a merchant knows these fields to do; a field that showed a plain
+  number under the caret and a formatted one on blur was rejected. Focus does not change the text.
 
-  **Typing is not filtered in these two.** A non-numeric keystroke lands and the reformat removes
-  it — the opposite of `QuantityStepper`, and deliberate: this field's own text is full of
-  characters that are not digits (a symbol, group separators, a literal), so a filter judging the
-  resulting value would have to understand the formatted string it is judging. Pasting `12ab3`
-  leaves `123` either way.
+  **One path for every edit.** Each `input` event, however the text came (a keystroke, a paste into
+  a selection, a drop, autofill, a virtual keyboard or dictation, the end of an IME composition),
+  goes through `createAmountEditor().edit` in `src/utils/amount.ts`, exported. It compares the new
+  text with the one the field showed around the caret to find what was inserted and what was
+  removed; the symbol and the grouping in the old text are the field's own and are never read as
+  typed marks. The result is read by one parser, `readAmount`, and formatted back, with the caret
+  after the same digit it followed. Keydown inserts nothing and moves nothing (only the arrows step
+  and Ctrl/Cmd+A selects the amount); during a composition nothing is read until `compositionend`.
+  Earlier versions special-cased `,` and `.` on keydown and stripped every character on each
+  reformat, which read amounts 10 to 1000 times off whenever a mark came without a key event.
 
-  **Four deliberate departures from the private components**, each because the private behaviour is
+  **The parser** (`parseAmount`, strict) reads in the field's locale. Spaces, currency symbols and
+  codes and the unit are stripped; full-width digits and marks read as ASCII. The locale's decimal
+  mark is always the decimal mark, and more decimals than the field takes is unreadable, never
+  grouping. The locale's grouping mark counts only as well-formed groups (`1,234,567`). The other
+  convention is taken where the locale reading is impossible and the other is unambiguous: one
+  other mark followed by one or two digits (`34.90` under `is-IS`), or both marks in a well-formed
+  pattern (`1,234.50` under `is-IS`). A leading mark means `0,5`. In a currency without decimals
+  (ISK; the field then takes no decimals whatever `maxFraction` says) either convention's grouping
+  is accepted, a `,00` tail reads as nothing and a non-zero fraction is unreadable (`noDecimals`).
+  `src/utils/__tests__/amount.spec.ts` holds the table.
+
+  **Text that arrives in bulk is read leniently** (`readAmount(…, lenient)`): when the locale
+  cannot read it, it is read in the other convention, so `1,000,000` pasted into an Icelandic field
+  is a million and shown `1.000.000 kr.`, and `1.000` pasted into an English money field a
+  thousand. A single typed keystroke is read strictly, and a keystroke that would make readable
+  text unreadable is refused: typing a third decimal into `1,00 €` leaves `1,00 €`, never `1.000 €`;
+  a typed letter does nothing. A value above `max` is refused either way.
+
+  **What the text shows.** A typed decimal mark and trailing zeros stay while typing (`12,` and
+  `12,50`), inside the number before a trailing symbol. Blur settles the text: grouped, a bare mark
+  or a zero tail dropped, and with `fixedFraction` (currency only) the currency's own decimals
+  padded (`34,90 €`). Deleting a symbol or a group mark alone deletes the digit beyond it, so
+  Backspace after `1,` removes the `1` and the symbol can never be deleted. Text that cannot be
+  read is left as it came, between the symbols, and marked invalid (`aria-invalid` and the error
+  boundary): at once for unreadable text, on blur for text still being typed (`12,` under `en-US`,
+  which may become `12,500`).
+
+  **What is emitted.** The number the text says, at once. Emptied: `null` with `nullable`, else
+  `clamp(0)` (`min`), at once, and the field shows it on blur (an untouched empty field stays
+  empty). While the text cannot be read the model is the value the field had when editing began,
+  emitted once. `update:valid` (boolean) is emitted on every change of readability and once on
+  mount; the instance exposes `isValid` and `invalidReason` (`notANumber`, `noDecimals` or `null`).
+  A bound `modelValue` the parent does not write back is shown again after the edit, so a clamping
+  or refusing parent is what the field shows; a parent echoing the number never rewrites `12,`.
+
+  **Two deliberate departures from the private components**, each because the private behaviour is
   wrong here rather than merely different:
 
-  1. **A typed decimal separator is put back inside the number, not appended to the string.** The
-     private component appends it, which is right for `$1,234.` and wrong for every suffix-symbol
-     format — it produced `1,234 km.` and `1.234 kr.,`.
-  2. **`CurrencyInput` forwards only the props that were actually passed.** The private wrapper
+  1. **`CurrencyInput` forwards only the props that were actually passed.** The private wrapper
      spreads all of them, so `UnitInput` sees a bound `modelValue` on a field nobody bound and the
      reconciliation clears an uncontrolled field a tick after every keystroke.
-  3. **Double-click is wired to the native `dblclick` event.** The private wrapper listens for a
-     `doubleClick` that nothing emits, so selecting the digits by double-click never worked there.
-  4. **Read-only and disabled fields do nothing at all** — no editing, no caret placement, no
-     stepping, no drag, no clear button. The private component has no read-only state.
+  2. **Read-only and disabled fields do nothing at all** — no editing, no caret placement, no
+     stepping, no drag, no clear button.
+
+  The private library's `UnitInput` renders this one, so the two behave the same.
 
   And the package conventions on top of the port: the `data-part` anatomy and `classes`, the three
   field sizes, the `FieldWrapper` context (`id`, `invalid`, `required`, composed `describedBy`),
