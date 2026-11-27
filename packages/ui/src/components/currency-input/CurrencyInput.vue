@@ -20,7 +20,7 @@
  * and forwarded whenever the parent bound it at all: `<CurrencyInput v-model="price" />` with
  * `price` starting `undefined` stays controlled, and reconciles to whatever the parent writes back.
  */
-import { computed, getCurrentInstance } from 'vue';
+import { computed, getCurrentInstance, ref } from 'vue';
 import UnitInput from '../unit-input/UnitInput.vue';
 import type { CurrencyInputProps } from './types';
 
@@ -54,10 +54,19 @@ const forwarded = computed(() => {
   if (bindsModelValue.value) result.modelValue = props.modelValue;
   return result;
 });
+
+const unit = ref<InstanceType<typeof UnitInput> | null>(null);
+
+/** The `UnitInput`'s own `formatValue`, `isValid` and `invalidReason`. */
+defineExpose({
+  formatValue: (amount: number) => unit.value?.formatValue(amount) ?? '',
+  isValid: computed(() => unit.value?.isValid ?? true),
+  invalidReason: computed(() => unit.value?.invalidReason ?? null),
+});
 </script>
 
 <template>
-  <UnitInput v-bind="{ ...forwarded, ...$attrs }" is-currency>
+  <UnitInput ref="unit" v-bind="{ ...forwarded, ...$attrs }" is-currency>
     <template v-for="(_, slotName) in $slots" #[slotName]="scope">
       <slot :name="slotName" v-bind="scope ?? {}" />
     </template>

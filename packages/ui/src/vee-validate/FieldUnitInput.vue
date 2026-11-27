@@ -11,6 +11,8 @@
  * compares numerically) and a form submits one.
  */
 import UnitInput from '../components/unit-input/UnitInput.vue';
+import { ref } from 'vue';
+import { useMessages } from '../composables/useMessages';
 import type { FieldUnitInputProps } from './types';
 import {
   FIELD_ONLY,
@@ -21,13 +23,33 @@ import {
 
 const props = withDefaults(defineProps<FieldUnitInputProps>(), FIELD_VALIDATION_DEFAULTS);
 
-const { model, invalid, id, onBlur } = useFieldControl<number | null>(props, { empty: null });
+const control$ = ref<InstanceType<typeof UnitInput> | null>(null);
+const readable = ref(true);
+const messages = useMessages();
+
+const { model, invalid, id, onBlur } = useFieldControl<number | null>(props, {
+  empty: null,
+  unreadable: () => {
+    if (readable.value) return undefined;
+    return control$.value?.invalidReason === 'noDecimals'
+      ? messages.value.amountNoDecimals
+      : messages.value.amountNotANumber;
+  },
+});
 
 const control = useControlProps(props, FIELD_ONLY);
 </script>
 
 <template>
-  <UnitInput v-bind="control" :id="id" v-model="model" :invalid="invalid" @blur="onBlur">
+  <UnitInput
+    v-bind="control"
+    :id="id"
+    ref="control$"
+    v-model="model"
+    :invalid="invalid"
+    @update:valid="readable = $event"
+    @blur="onBlur"
+  >
     <template v-for="(_, slotName) in $slots" #[slotName]="scope">
       <slot :name="slotName" v-bind="scope ?? {}" />
     </template>

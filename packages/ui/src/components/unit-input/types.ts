@@ -33,7 +33,10 @@ export interface UnitInputProps {
    * `FieldWrapper` the wrapper owns the label, and this is ignored rather than said twice.
    */
   label?: string;
-  /** The most fraction digits the formatted value keeps. Defaults to `2`. */
+  /**
+   * The most fraction digits the field takes. Defaults to `2`. A currency without decimals (ISK)
+   * takes none whatever this says.
+   */
   maxFraction?: number;
   /** The highest value the field accepts. Typing past it is refused. Defaults to `2 ** 53 - 1`. */
   max?: number;
@@ -51,6 +54,15 @@ export interface UnitInputProps {
   currency?: string;
   /** `$` rather than `US$` where the two differ (`currencyDisplay: 'narrowSymbol'`). Default `false`. */
   narrowSymbol?: boolean;
+  /**
+   * Currency only: always the currency's own decimals at rest (`34,90 €`, `4.990 kr.`), and no
+   * more while typing. Defaults to `false`.
+   */
+  fixedFraction?: boolean;
+  /** An emptied field stays empty and emits `null`, instead of falling back to `min`. */
+  nullable?: boolean;
+  /** Shown while empty, in place of the formatted zero. */
+  placeholder?: string;
   /** One of the spec's three field sizes. Defaults to `md`. */
   size?: InputSize;
   /** The control's id. Comes from the `FieldWrapper` when there is one; this wins over it. */

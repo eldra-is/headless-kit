@@ -1,4 +1,4 @@
-import { FormContextKey, useField } from 'vee-validate';
+import { FormContextKey, useField, validate as validateValue } from 'vee-validate';
 import {
   computed,
   inject,
@@ -75,6 +75,12 @@ export interface UseFieldControlOptions<TValue> {
   initialValue?: MaybeRef<TValue>;
   /** Whether the wrapped component takes an `id` prop. `false` for the three fieldset controls. */
   hasIdProp?: boolean;
+  /**
+   * A message for a value the control itself cannot read, checked before the field's `rules`. A
+   * `UnitInput` keeps unreadable text on screen while its model holds the last number, so without
+   * this a rule would pass that number and the form would submit it.
+   */
+  unreadable?: () => string | undefined;
 }
 
 export interface UseFieldControlReturn<TValue> {
@@ -137,7 +143,20 @@ export function useFieldControl<TValue>(
    */
   const path = computed(() => props.path ?? props.name);
 
-  const rules = computed(() => props.rules);
+  const unreadable = options.unreadable;
+  const rules = computed(() => {
+    const own = props.rules;
+    if (unreadable === undefined) return own;
+    return async (value: unknown) => {
+      const message = unreadable();
+      if (message !== undefined) return message;
+      if (own === undefined) return true;
+      const result = await validateValue(value, own as Parameters<typeof validateValue>[1], {
+        name: props.label ?? path.value,
+      });
+      return result.valid || (result.errors[0] ?? false);
+    };
+  });
   /**
    * `validateOnValueUpdate` is vee-validate's own option and is read once, here. `validateOnMount`
    * is not handed over: the mount-time validation is run below instead, so its result can be shown
