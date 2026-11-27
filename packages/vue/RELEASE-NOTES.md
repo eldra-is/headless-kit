@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.17](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.16...vue-v0.1.17) (2026-11-27)
+
+
+### Features
+
+* price tokens in any text field, per-currency amounts (WS-1474, WS-1473) ([#180](https://github.com/eldra-is/headless-kit/issues/180)) ([7648335](https://github.com/eldra-is/headless-kit/commit/764833573460c7f23316e3d6d0abc6caf480e56d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/rich-text bumped to 0.1.2
+    * @eldrajs/sdk bumped to 0.5.5
+
 ## [0.1.16](https://github.com/eldra-is/headless-kit/compare/vue-v0.1.15...vue-v0.1.16) (2026-11-23)
 
 

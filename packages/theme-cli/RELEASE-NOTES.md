@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.11](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.10...theme-cli-v0.2.11) (2026-11-27)
+
+
+### Features
+
+* price tokens in any text field, per-currency amounts (WS-1474, WS-1473) ([#180](https://github.com/eldra-is/headless-kit/issues/180)) ([7648335](https://github.com/eldra-is/headless-kit/commit/764833573460c7f23316e3d6d0abc6caf480e56d))
+* **starter-nuxt:** match the Northwind Goods design 1:1 and print in the organisation's regional format (WS-1277) ([#179](https://github.com/eldra-is/headless-kit/issues/179)) ([3bc484f](https://github.com/eldra-is/headless-kit/commit/3bc484f2d90b6f68a44b1919f1c0dae5de7707c2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/theme-core bumped to 0.4.1
+    * @eldrajs/vite-plugin-theme bumped to 0.4.1
+
 ## [0.2.10](https://github.com/eldra-is/headless-kit/compare/theme-cli-v0.2.9...theme-cli-v0.2.10) (2026-11-27)
 
 

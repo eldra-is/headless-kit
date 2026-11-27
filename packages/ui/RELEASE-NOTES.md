@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.22](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.21...ui-v0.3.22) (2026-11-27)
+
+
+### Features
+
+* **starter-nuxt:** match the Northwind Goods design 1:1 and print in the organisation's regional format (WS-1277) ([#179](https://github.com/eldra-is/headless-kit/issues/179)) ([3bc484f](https://github.com/eldra-is/headless-kit/commit/3bc484f2d90b6f68a44b1919f1c0dae5de7707c2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @eldrajs/sdk bumped to 0.5.5
+
 ## [0.3.21](https://github.com/eldra-is/headless-kit/compare/ui-v0.3.20...ui-v0.3.21) (2026-11-27)
 
 
