@@ -584,9 +584,10 @@ const emptyText = computed(() =>
 
       <!-- Spec "Select" → States, Read-only: "no chevron". -->
       <span v-if="!readonly" data-part="chevron" :class="chevronClass" aria-hidden="true">
-        <!-- Tabler's `chevron-down`, stroke 1.75. -->
+        <!-- Tabler's `chevron-down`, stroke 1.75. It fills the `chevron` part, which is what
+             is sized, so `classes.chevron` resizes the icon and it turns about its own centre. -->
         <svg
-          class="eldra:size-4.5"
+          class="eldra:block eldra:size-full"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
