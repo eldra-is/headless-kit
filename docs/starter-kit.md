@@ -184,9 +184,9 @@ Studio link tree, and hands the links, their mega-menus and the narrow-screen dr
 `@eldrajs/ui`'s `NavMenu`, so the kit has one mega-menu.
 
 - **Width stages**, each measured against the header's own `@container` (the block's width, not the
-  window's; the full list is the comment at the top of `Block.vue`): from 80rem the brand, inline
-  links, a "Search the shop" pill and labelled tools (Account, Saved, Cart); from 68.8125rem (1101px)
-  the pill becomes a labelled Search button; at 1100px and below the links move into the Menu
+  window's; the full list is the comment at the top of `Block.vue`): from 68.8125rem (1101px) the
+  brand, inline links and labelled tools (Search, Account, Saved, Cart), the links spaced wider from
+  80rem; at 1100px and below the links move into the Menu
   drawer, with Menu and Search at the start, the brand in the middle of a symmetric grid and Saved
   and Cart at the end; below 760px the info strip keeps its first item; below 400px a square
   `brandMark` stands in for the logo (and a logo wider than 4:1 with no mark gives way to the store
@@ -1672,8 +1672,12 @@ a currency a product has no price in; while the store's own currency is on, it i
   holds `base` (the store's own), `defaultCurrency`, `offered` and the visitor's `active` currency.
 - **The picker.** `@eldrajs/ui`'s `CurrencyPicker` ("Euro (EUR)" in the list, the code when closed),
   in the header's actions from `@content` up and, with its label shown, in the menu below it; the
-  footer's currency selector is the same component. There is no language picker in the header (it is
-  in the footer). With one currency there is no picker.
+  footer's currency selector is the same component. With one currency there is no picker.
+- **The language picker.** The header's language picker (`blocks/navigation/parts/LocalePicker.vue`)
+  sits beside the currency picker wherever that one is (the strip's end, the menu's foot, the bar),
+  shows the language code closed and each locale's own name in the list, and navigates to the same
+  page in the language chosen (`useEldraLocale().select`). It is drawn only when the organisation
+  serves more than one locale. The footer has its own switcher too.
 - **The first currency.** The remembered choice (`@eldrajs/sdk`'s `createCurrencyPreference`,
   `localStorage` `eldra.currency`), else the visitor's country when the store shows its currency, else
   the default. The country comes from `GET /_eldra/visitor`, a server route `@eldrajs/theme-nuxt`

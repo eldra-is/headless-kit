@@ -13,7 +13,6 @@
         "links": [],
         "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }

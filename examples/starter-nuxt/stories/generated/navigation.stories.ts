@@ -55,21 +55,3 @@ export const DrawerLayoutSections: Story = {
     entry: { id: "navigation", data: { ...base, "drawerLayout": "sections" } },
   },
 };
-
-export const SearchStyleIcon: Story = {
-  args: {
-    entry: { id: "navigation", data: { ...base, "searchStyle": "icon" } },
-  },
-};
-
-export const SearchStyleField: Story = {
-  args: {
-    entry: { id: "navigation", data: { ...base, "searchStyle": "field" } },
-  },
-};
-
-export const SearchStyleInline: Story = {
-  args: {
-    entry: { id: "navigation", data: { ...base, "searchStyle": "inline" } },
-  },
-};

@@ -181,7 +181,6 @@ describe('starter theme', () => {
         'drawerLayout',
         'account',
         'showSearch',
-        'searchStyle',
         'ctaLabel',
         'cta',
         'sticky',
@@ -1197,8 +1196,9 @@ describe('seeded templates and pages (app/templates.ts)', () => {
   it('ships no showAccount field, at a version that tells Core to retire it', () => {
     const navigation = scanned.manifest!.blocks.find((block) => block.apiId === 'navigation')!;
     expect(navigation.fields.map((field) => field.fieldId)).not.toContain('showAccount');
-    // Version 5 is the `groupsToSections` step (WS-1362); the retirement happened at 4 and stays.
-    expect(navigation.version).toBe(5);
+    // Version 5 is the `groupsToSections` step (WS-1362) and 6 retires `searchStyle`; the
+    // retirement happened at 4 and stays.
+    expect(navigation.version).toBe(6);
     expect(navigation.migrations?.at(-1)).toEqual({
       version: 5,
       groupsToSections: [{ field: 'links' }],
@@ -1209,6 +1209,22 @@ describe('seeded templates and pages (app/templates.ts)', () => {
       ...(step.convertToLink ?? []).map((conversion) => conversion.from),
     ]);
     expect(named).not.toContain('showAccount');
+  });
+
+  /**
+   * Search is the labelled Search tool at every width, so the pill/inline choice is gone. Like
+   * `showAccount`, it is retired by the version bump alone (6): no step names it, and Core keeps
+   * what an entry held as `searchStyle__v5`.
+   */
+  it('ships no searchStyle field, retired at version 6 with no step naming it', () => {
+    const navigation = scanned.manifest!.blocks.find((block) => block.apiId === 'navigation')!;
+    expect(navigation.fields.map((field) => field.fieldId)).not.toContain('searchStyle');
+    expect(navigation.version).toBe(6);
+    const named = (navigation.migrations ?? []).flatMap((step) => [
+      ...(step.renames ?? []).map((rename) => rename.from),
+      ...(step.convertToLink ?? []).map((conversion) => conversion.from),
+    ]);
+    expect(named).not.toContain('searchStyle');
   });
 
   it('seeds Core-valid data: every seed block and both roles pass the mock.json rules', () => {

@@ -32,7 +32,6 @@ import { createDemoStorefront } from '../../../app/storefront/demo';
 const mock = {
   ...seed,
   links: menuFixture.links,
-  searchStyle: 'icon' as const,
 };
 
 const COLLECTION_TEMPLATE = {
@@ -2273,7 +2272,6 @@ describe('header block (navigation apiId)', () => {
       brandText: 'Northwind Goods',
       links: [],
       showSearch: true,
-      searchStyle: 'icon',
       sticky: true,
       transparentOverHero: false,
     };
@@ -2665,10 +2663,12 @@ describe('the Northwind menu (the seed’s own)', () => {
         .filter((button) => button.text().trim() === 'Search');
       expect(search).toHaveLength(1);
       expect(search[0]!.attributes('aria-label')).toBeUndefined();
-      // The design's pill field, from 80rem; the Search tool below it.
-      const pill = wrapper.findAll('button').find((b) => b.text().trim() === 'Search the shop')!;
-      expect(pill.classes()).toEqual(expect.arrayContaining(['hidden', '@wide:inline-flex']));
-      expect(search[0]!.classes()).toContain('@wide:hidden');
+      // The labelled Search tool at every width: no pill field or inline bar takes its place on a
+      // wide bar.
+      expect(wrapper.text()).not.toContain('Search the shop');
+      expect(search[0]!.classes().filter((c) => c.endsWith(':hidden') || c === 'hidden')).toEqual(
+        []
+      );
       for (const tool of [
         wrapper.get('[aria-label^="Saved"]'),
         wrapper.get('[aria-label^="Cart"]'),
@@ -2992,6 +2992,102 @@ describe('the currency', () => {
     });
     expect(stripPicker(wrapper).exists()).toBe(false);
     expect(pickers(wrapper)).toHaveLength(0);
+  });
+});
+
+/**
+ * The language picker sits beside the currency picker, wherever that one is: the strip's end, the
+ * phone menu's foot, or the bar. It is there only when the organisation serves more than one
+ * locale, and choosing a language is a navigation to the same page in it (`select`).
+ */
+describe('the language', () => {
+  const select = vi.fn();
+  const LOCALES = {
+    active: 'en-US',
+    defaultLocale: 'en-US',
+    supported: ['en-US', 'is-IS'],
+    name: (tag: string) => (tag === 'is-IS' ? 'íslenska (Ísland)' : 'American English'),
+    select,
+  };
+  function mountWithLocales(
+    data: Record<string, unknown> = {},
+    locales: Record<string, unknown> = LOCALES
+  ) {
+    return mount(Block, {
+      ...mountOptions(
+        { entry: { id: 'e1', data: { ...resolved.data, ...data } } },
+        { links: resolved.links, locales }
+      ),
+      attachTo: document.body,
+    });
+  }
+  type Wrapper = ReturnType<typeof mountWithLocales>;
+  const localePickers = (wrapper: Wrapper) => wrapper.findAll('[data-eldra-header-locale-picker]');
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    select.mockClear();
+  });
+
+  it('draws no language picker on a site with one locale, or none', () => {
+    for (const supported of [[], ['en-US']]) {
+      const wrapper = mountWithLocales({}, { ...LOCALES, supported });
+      expect(localePickers(wrapper)).toHaveLength(0);
+      wrapper.unmount();
+    }
+  });
+
+  it('reads the language code at the strip’s end, beside the currency, and is named Language', async () => {
+    const wrapper = mountWithLocales();
+    const strip = wrapper.get('[data-eldra-header-currency]');
+    expect(strip.element.closest('[data-eldra-header-info]')).not.toBeNull();
+    const picker = strip.get('[data-eldra-header-locale-picker]');
+    const button = picker.get('button[role="combobox"]');
+    expect(button.get('b').text()).toBe('EN');
+    const name = document.getElementById(button.attributes('aria-labelledby')!.split(' ')[0]!);
+    expect(name?.textContent).toContain('Language');
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('lists each locale by its own name and goes to the same page in the one chosen', async () => {
+    const wrapper = mountWithLocales();
+    const button = wrapper
+      .get('[data-eldra-header-currency] [data-eldra-header-locale-picker]')
+      .get('button[role="combobox"]');
+    (button.element as HTMLElement).focus();
+    await button.trigger('keydown', { key: 'ArrowDown' });
+    await flushIcons();
+    const rows = [...document.querySelectorAll('[role="option"]')];
+    expect(rows.map((row) => row.querySelector('small')?.textContent)).toEqual(['EN', 'IS']);
+    expect(rows[1]!.textContent).toContain('íslenska (Ísland)');
+    expect(rows[0]!.closest('[data-part="panel"]')!.className).toContain('z-41');
+    (rows[1] as HTMLElement).click();
+    await flushIcons();
+    expect(select).toHaveBeenCalledWith('is-IS');
+    // A navigation, not local state: the picker still shows the page's own locale until it lands.
+    expect(button.get('b').text()).toBe('EN');
+  });
+
+  it('keeps a labelled select in the phone menu’s foot, with a single currency', async () => {
+    const wrapper = mountWithLocales();
+    await wrapper.get('[data-part="toggle"]').trigger('click');
+    const foot = wrapper.get('[data-part="drawer"] [data-eldra-header-drawer-currency]');
+    const picker = foot.get('[data-eldra-header-locale-picker]');
+    expect(picker.get('label').text()).toBe('Language');
+    expect(picker.get('button[role="combobox"]').text()).toContain('American English');
+    const bar = wrapper.find('[data-part="nav"]');
+    if (bar.exists()) (bar.element as HTMLElement).style.display = 'none';
+    expect(await axe(wrapper.element)).toHaveNoViolations();
+  });
+
+  it('falls back to the bar with no info strip, where the currency picker would be', () => {
+    const wrapper = mountWithLocales({ infoItems: [] });
+    expect(wrapper.find('[data-eldra-header-currency]').exists()).toBe(false);
+    const inBar = localePickers(wrapper).filter(
+      (picker) => picker.element.closest('[data-eldra-header-actions]') !== null
+    );
+    expect(inBar).toHaveLength(1);
+    expect(inBar[0]!.classes()).toContain('@min-[68.8125rem]:block');
   });
 });
 

@@ -378,7 +378,6 @@
   ],
   "drawerLayout": "accordion",
   "showSearch": true,
-  "searchStyle": "field",
   "ctaLabel": "Shop gifts",
   "cta": {
     "kind": "collection",
