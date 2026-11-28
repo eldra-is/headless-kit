@@ -852,10 +852,12 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
               >
             </p>
 
-            <!-- Stepper, Add to cart and the heart on one row; below 48rem the button takes a row
-                 of its own under the other two (`order`, visual only: the DOM keeps quantity →
-                 add → save, the order a keyboard walks). -->
-            <div class="@tablet:flex-nowrap flex flex-wrap items-center gap-3">
+            <!-- Stepper, the heart and Add to cart on one row, the button taking what is left. It
+                 wraps onto a line of its own only when its label no longer fits beside the other
+                 two (`min-w-max`), at any width rather than below a fixed breakpoint, and the
+                 heart stays beside the stepper. The DOM is in the same order, so a keyboard walks
+                 it as it reads. -->
+            <div data-eldra-product-actions class="flex flex-wrap items-center gap-3">
               <FieldWrapper
                 v-if="showQuantity && !soldOut && !notSold"
                 :label="t('product.quantity')"
@@ -870,10 +872,22 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
                   :classes="quantityStepperClasses"
                 />
               </FieldWrapper>
-              <div
-                ref="addToCartEl"
-                class="@tablet:order-none @tablet:basis-auto order-last min-w-0 flex-1 basis-full"
+              <Button
+                v-if="showWishlist"
+                type="button"
+                icon-only
+                variant="outline"
+                size="lg"
+                class="shrink-0 rounded-full"
+                :pressed="wishlisted"
+                :label="wishlistLabel"
+                @click="toggleWishlist"
               >
+                <template #leadingIcon>
+                  <EldraIcon name="heart" size="md" />
+                </template>
+              </Button>
+              <div ref="addToCartEl" class="min-w-max flex-1">
                 <Button
                   type="submit"
                   variant="primary"
@@ -890,21 +904,6 @@ useRichTextScrollRegions(detailsRoot, (caption) => caption ?? t('product.tabsLab
                   {{ addToCartLabel }}
                 </Button>
               </div>
-              <Button
-                v-if="showWishlist"
-                type="button"
-                icon-only
-                variant="outline"
-                size="lg"
-                class="shrink-0 rounded-full"
-                :pressed="wishlisted"
-                :label="wishlistLabel"
-                @click="toggleWishlist"
-              >
-                <template #leadingIcon>
-                  <EldraIcon name="heart" size="md" />
-                </template>
-              </Button>
             </div>
             <p v-if="cartWillSwitch" class="text-muted text-body-sm -mt-2">
               {{ t('currency.cartWillSwitch', { currency: defaultCurrency }) }}

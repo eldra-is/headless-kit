@@ -5,6 +5,10 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+- The scaffolded starter's cart shipping bar puts the amount where the sentence does ("You're 2.100 kr. away from free shipping"); it used to land at the end, because the message was read with its `{amount}` already emptied.
+- The scaffolded starter's `collection-grid` `filter-bar` keeps its chips on one line that scrolls sideways below 64rem, with the sort pinned after them as a chip of the same shape; from 64rem it is unchanged.
+- The scaffolded starter's product page keeps Add to cart beside the quantity stepper and the heart, and wraps it onto its own line only when its label does not fit, at any width. The heart now sits between the stepper and the button.
+- The scaffolded starter's home page seed writes a fixed-amount price: the Ceramics tile reads "Mugs from ⟦price#mugs EUR=2600 ISK=3990 USD=2800⟧, bowls, vases", shown in the shopper's currency.
 - The scaffolded starter's header has a language picker beside the currency picker (the strip's end, the menu's foot or the bar), drawn only when the organisation serves more than one locale. Choosing a language opens the same page in it.
 - The scaffolded starter's header search is the labelled Search button at every width, opening the search overlay. The "Search the shop" pill and the inline search bar are gone, with their `searchStyle` field; `navigation` is version 6, so Core retires the old value on deploy.
 - The scaffolded starter's `cart` measures its free-shipping progress bar against the store's own threshold (the lowest among its delivery methods, in the cart's currency — the amount `⟦store freeShippingThreshold⟧` writes), never a typed one: a cart in euros gets the euro threshold, and a currency with none shows no bar. Its `freeShippingThreshold` field is gone and `showShippingBar` (default on) switches the bar off; `cart` is version 2, so Core retires the old value on deploy.

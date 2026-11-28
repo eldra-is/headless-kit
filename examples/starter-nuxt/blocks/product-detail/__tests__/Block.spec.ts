@@ -1039,6 +1039,28 @@ describe('product-detail block', () => {
   });
 
   describe('quantity', () => {
+    it('puts the heart beside the stepper and lets Add to cart wrap only when its label does not fit', async () => {
+      const wrapper = await mountReady(mock);
+      const row = wrapper.get('[data-eldra-product-actions]');
+      // DOM order is reading order: quantity, save, add.
+      const order = [...row.element.children].map((child) =>
+        child.querySelector('[role="spinbutton"]')
+          ? 'quantity'
+          : child.getAttribute('aria-pressed') !== null
+            ? 'save'
+            : child.querySelector('button[type="submit"]')
+              ? 'add'
+              : '?'
+      );
+      expect(order).toEqual(['quantity', 'save', 'add']);
+      // No breakpoint forces the button onto a row of its own: it wraps when it does not fit.
+      const add = row.element.children[2]!;
+      expect(add.className).toContain('min-w-max');
+      expect(add.className).not.toMatch(/basis-full|order-last/);
+      expect(row.classes()).toContain('flex-wrap');
+      wrapper.unmount();
+    });
+
     it('follows inventory for its maximum and marks the limits aria-disabled', async () => {
       const wrapper = await mountReady(
         { ...mock, lowStockThreshold: 'off' },

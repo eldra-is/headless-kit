@@ -12,15 +12,14 @@
  * 0 away from anything.
  *
  * The remaining amount is a real `<Price>` inside the sentence, not a formatted string spliced into
- * the translation: `awayParts` interpolates the message once against a sentinel and splits the
- * *result* around it, so the words either side stay translated and the money keeps the store's own
- * currency and locale formatting (the same technique `blocks/article/Block.vue` uses to put a
- * `<Link>` inside its byline). `Price`'s root is a `<p>`, so the row's own text is `<span>`s beside
- * it rather than a paragraph wrapping it — a `<p>` inside a `<p>` is not valid HTML.
+ * the translation: vue-i18n's `Translation` fills `{amount}` from a slot, so the words either side
+ * stay translated, the amount sits where each language puts it, and the money keeps the store's
+ * own currency and locale formatting. No `tag`: `Price`'s root is a `<p>`, and a `<p>` inside a
+ * `<span>` is not valid HTML, so the words and the price render straight into the status row.
  */
 import { computed } from 'vue';
 import { Price } from '@eldrajs/ui';
-import { useI18n } from 'vue-i18n';
+import { Translation, useI18n } from 'vue-i18n';
 import { roundMoney, useMoney } from '../../../app/storefront/money';
 import EldraIcon from '../../../app/components/EldraIcon.vue';
 
@@ -57,15 +56,11 @@ const percent = computed(() => {
 });
 
 /**
- * The message is read *un-interpolated* and split on its own `{amount}` placeholder, so the
- * translated words either side of the money can render as text and the amount itself as a `<Price>`
- * (`useT()` returns the template verbatim when it is called with no params).
+ * The message's `{amount}` is filled by `Translation`'s `amount` slot, so the money renders as a
+ * `<Price>` wherever the translation puts it ("You're {amount} away…", "Þú ert {amount} frá…").
+ * Reading the template with no params and splitting it does not work: vue-i18n fills a missing
+ * `{amount}` with nothing, so there is no slot left to split on and the price lands at the end.
  */
-const AMOUNT_SLOT = '{amount}';
-const awayParts = computed(() => {
-  const [before = '', after = ''] = t('cart.awayFromFree').split(AMOUNT_SLOT);
-  return { before: before.trim(), after: after.trim() };
-});
 
 const rootClass = computed(() =>
   props.panel === 'edge'
@@ -86,9 +81,11 @@ const rootClass = computed(() =>
         <span>{{ t('cart.freeUnlocked') }}</span>
       </template>
       <template v-else>
-        <span>{{ awayParts.before }}</span>
-        <Price :amount="money.minor(remaining)" class="inline font-semibold" />
-        <span>{{ awayParts.after }}</span>
+        <Translation keypath="cart.awayFromFree" scope="global">
+          <template #amount
+            ><Price :amount="money.minor(remaining)" class="inline font-semibold"
+          /></template>
+        </Translation>
       </template>
     </div>
     <div aria-hidden="true" class="bg-surface-strong mt-2 h-1 w-full overflow-hidden rounded-full">

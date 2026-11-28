@@ -34,6 +34,8 @@ describe('cart shipping bar', () => {
     expect(status.text()).toContain("You're");
     expect(status.text()).toContain('$12.00');
     expect(status.text()).toContain('away from free shipping');
+    // The amount sits where the sentence puts it, not after it.
+    expect(status.text().replace(/\s+/g, ' ').trim()).toBe("You're $12.00 away from free shipping");
     expect(await axe(wrapper.element)).toHaveNoViolations();
   });
 
