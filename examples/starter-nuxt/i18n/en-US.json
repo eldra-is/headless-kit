@@ -116,7 +116,6 @@
     "primary": "Primary navigation",
     "menu": "Menu",
     "search": "Search",
-    "searchField": "Search the shop",
     "cartEmpty": "Cart, empty",
     "cartOne": "Cart, 1 item",
     "cartMany": "Cart, {count} items",
@@ -131,6 +130,7 @@
     "account": "Account",
     "home": "{brand}, home",
     "info": "Store information",
+    "language": "Language",
     "pricesIn": "Prices in",
     "close": "Close"
   },

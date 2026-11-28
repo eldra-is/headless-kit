@@ -320,12 +320,15 @@ export interface BridgePayloads {
    * `price-tokens-inline`: the operator clicked a price chip in a field being edited on the
    * canvas. `token` is the token's stored text (`⟦price#a3f EUR=10000⟧`, `⟦store
    * freeShippingThreshold⟧`); Studio opens its price editor for it and writes the field's draft.
+   * In a rich-text field `token` is empty and `pos` is the `price` node's document position, which
+   * Studio reads from its own editor.
    */
   'theme:price-clicked': {
     entryId: string;
     fieldPath: string;
     locale: string | null;
     token: string;
+    pos?: number;
     rect: DOMRectLike;
     layoutNodeId?: string;
     reusablePlacementId?: string;

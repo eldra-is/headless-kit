@@ -1510,6 +1510,12 @@ const BAR_CHIP_BASE =
   'motion-safe:duration-fast disabled:cursor-not-allowed disabled:opacity-50';
 const BAR_CHIP_ON = `${BAR_CHIP_BASE} bg-text text-background border-text`;
 const BAR_CHIP_OFF = `${BAR_CHIP_BASE} border-border-strong text-text hover:bg-surface`;
+/** The bar's sort below 64rem: a pill the height and outline of the filter chips beside it. */
+const SORT_SELECT_CLASSES = {
+  trigger:
+    '@max-content:min-h-10 @max-content:h-10 @max-content:rounded-full @max-content:border-border-strong @max-content:ps-3.5 @max-content:pe-3 @max-content:text-[0.9375rem] @max-content:font-medium',
+  leadingIcon: '@content:hidden',
+};
 const BAR_POPOVER_CLASSES = {
   panel: 'w-[20rem] max-w-[calc(100vw-2rem)] max-h-[min(30rem,70vh)] overflow-y-auto px-4 pb-2',
 };
@@ -1727,6 +1733,10 @@ const SIDEBAR_CLASS =
 const hasFilters = computed(() => filterFacets.value.length > 0);
 const hasSort = computed(() => sortOptions.value.length > 0);
 const showTopBar = computed(() => hasFilters.value || hasSort.value);
+/** Any chip in the bar: the sort is set off from them by a rule while they scroll. */
+const barHasChips = computed(
+  () => barPopoverFacets.value.length > 0 || barToggleFacets.value.length > 0
+);
 
 const layoutClass = computed(() =>
   showSidebar.value
@@ -1831,87 +1841,104 @@ function hrefForPage(page: number): string {
                 v-if="showTopBar"
                 role="group"
                 :aria-label="t('grid.filterAndSort')"
-                class="border-border bg-background @tablet:sticky @tablet:top-[var(--eldra-header-height,0px)] @tablet:z-10 motion-safe:duration-base flex flex-wrap items-center gap-2 border-y py-3.5 motion-safe:transition-[top]"
+                class="border-border bg-background @tablet:sticky @tablet:top-[var(--eldra-header-height,0px)] @tablet:z-10 motion-safe:duration-base @content:gap-x-6 flex items-center gap-x-3 border-y py-3.5 motion-safe:transition-[top]"
               >
-                <Popover
-                  v-for="facet in barPopoverFacets"
-                  :key="facet.id"
-                  role="dialog"
-                  haspopup="dialog"
-                  placement="bottom-start"
-                  :aria-label="facet.label"
-                  :classes="BAR_POPOVER_CLASSES"
+                <!-- Below 64rem the chips are one line that scrolls sideways rather than wrapping
+                     into a stack, with the sort pinned at the end so it is always in reach; from
+                     64rem they wrap as one row with the sort at the right. Every chip's popover is
+                     teleported, so the scroller clips none of them. -->
+                <div
+                  data-eldra-filter-bar-chips
+                  class="@max-content:overflow-x-auto @max-content:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] @max-content:pe-6 @max-content:[scrollbar-width:none] @max-content:[&::-webkit-scrollbar]:hidden @content:flex-wrap -my-1 flex min-w-0 flex-1 items-center gap-2 py-1"
                 >
-                  <template #trigger="{ attrs, open }">
-                    <button v-bind="attrs" :class="open ? BAR_CHIP_ON : BAR_CHIP_OFF">
-                      {{ facet.label }}
-                      <Badge
-                        v-if="barCount(facet) > 0"
-                        tone="primary"
-                        pill
-                        :hidden-suffix="t('grid.nActive', { count: barCount(facet) })"
-                      >
-                        <span aria-hidden="true">{{ barCount(facet) }}</span>
-                      </Badge>
-                      <EldraIcon
-                        name="chevron-down"
-                        size="sm"
-                        :class="
-                          open
-                            ? 'rotate-180 motion-safe:transition-transform'
-                            : 'motion-safe:transition-transform'
-                        "
-                      />
+                  <Popover
+                    v-for="facet in barPopoverFacets"
+                    :key="facet.id"
+                    role="dialog"
+                    haspopup="dialog"
+                    placement="bottom-start"
+                    :aria-label="facet.label"
+                    :classes="BAR_POPOVER_CLASSES"
+                  >
+                    <template #trigger="{ attrs, open }">
+                      <button v-bind="attrs" :class="open ? BAR_CHIP_ON : BAR_CHIP_OFF">
+                        {{ facet.label }}
+                        <Badge
+                          v-if="barCount(facet) > 0"
+                          tone="primary"
+                          pill
+                          :hidden-suffix="t('grid.nActive', { count: barCount(facet) })"
+                        >
+                          <span aria-hidden="true">{{ barCount(facet) }}</span>
+                        </Badge>
+                        <EldraIcon
+                          name="chevron-down"
+                          size="sm"
+                          :class="
+                            open
+                              ? 'rotate-180 motion-safe:transition-transform'
+                              : 'motion-safe:transition-transform'
+                          "
+                        />
+                      </button>
+                    </template>
+                    <FilterPanel
+                      mode="drawer"
+                      dense
+                      :show-head="false"
+                      :label="facet.label"
+                      :facets="popoverFacets(facet)"
+                      :model-value="panelSelection"
+                      :currency="money.currency.value"
+                      :id-prefix="`collection-grid-bar-${uid}-${facet.id}`"
+                      :classes="BAR_PANEL_CLASSES"
+                      @change="onPanelChange"
+                    >
+                      <template #foot><span /></template>
+                    </FilterPanel>
+                  </Popover>
+
+                  <template v-for="facet in barToggleFacets" :key="facet.id">
+                    <button
+                      v-for="value in facet.values ?? []"
+                      :key="value.value"
+                      type="button"
+                      :aria-pressed="isBarValuePressed(facet.id, value.value) ? 'true' : 'false'"
+                      :disabled="value.disabled && !isBarValuePressed(facet.id, value.value)"
+                      :class="isBarValuePressed(facet.id, value.value) ? BAR_CHIP_ON : BAR_CHIP_OFF"
+                      @click="toggleBarValue(facet.id, value.value)"
+                    >
+                      {{ value.label }}
                     </button>
                   </template>
-                  <FilterPanel
-                    mode="drawer"
-                    dense
-                    :show-head="false"
-                    :label="facet.label"
-                    :facets="popoverFacets(facet)"
-                    :model-value="panelSelection"
-                    :currency="money.currency.value"
-                    :id-prefix="`collection-grid-bar-${uid}-${facet.id}`"
-                    :classes="BAR_PANEL_CLASSES"
-                    @change="onPanelChange"
-                  >
-                    <template #foot><span /></template>
-                  </FilterPanel>
-                </Popover>
-
-                <template v-for="facet in barToggleFacets" :key="facet.id">
-                  <button
-                    v-for="value in facet.values ?? []"
-                    :key="value.value"
-                    type="button"
-                    :aria-pressed="isBarValuePressed(facet.id, value.value) ? 'true' : 'false'"
-                    :disabled="value.disabled && !isBarValuePressed(facet.id, value.value)"
-                    :class="isBarValuePressed(facet.id, value.value) ? BAR_CHIP_ON : BAR_CHIP_OFF"
-                    @click="toggleBarValue(facet.id, value.value)"
-                  >
-                    {{ value.label }}
-                  </button>
-                </template>
+                </div>
 
                 <div
-                  class="@tablet:ms-auto @tablet:w-auto flex w-full flex-wrap items-center gap-x-6 gap-y-2"
+                  data-eldra-filter-bar-sort
+                  :class="[
+                    'flex shrink-0 items-center gap-x-6',
+                    barHasChips
+                      ? '@max-content:border-border @max-content:border-l @max-content:ps-3'
+                      : '',
+                  ]"
                 >
                   <FieldWrapper
                     v-if="hasSort"
                     :label="t('grid.sort')"
-                    class="flex min-w-0 flex-1 items-center gap-3"
-                    :classes="{ label: 'mb-0 shrink-0 font-semibold', control: 'min-w-0 flex-1' }"
+                    class="flex items-center gap-3"
+                    :classes="{ label: '@max-content:sr-only mb-0 shrink-0 font-semibold' }"
                   >
-                    <!-- Full width beside its label on a phone; from 48rem as wide as the longest
-                         option and no wider, as the design's own select is. -->
+                    <!-- Below 64rem a chip like the filters beside it, its label read but not shown
+                         (the sort icon says what it is); from 64rem the labelled select. -->
                     <Select
                       :model-value="sort"
                       size="md"
                       :options="sortOptions"
-                      class="@tablet:w-auto w-full"
+                      :classes="SORT_SELECT_CLASSES"
                       @update:model-value="onSort"
-                    />
+                    >
+                      <template #leading><EldraIcon name="arrows-sort" size="sm" /></template>
+                    </Select>
                   </FieldWrapper>
                   <FieldWrapper
                     v-if="showColumnSelect"

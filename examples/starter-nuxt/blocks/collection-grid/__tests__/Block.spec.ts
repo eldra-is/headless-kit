@@ -3258,6 +3258,23 @@ describe('collection-grid — the filter-bar variant', () => {
     document.body.innerHTML = '';
   });
 
+  it('keeps the chips on one scrolling line below 64rem, the sort pinned after them as a chip', () => {
+    const wrapper = mountGrid(barMock);
+    const chips = bar(wrapper).get('[data-eldra-filter-bar-chips]');
+    // One line that scrolls, not a wrapping stack, until 64rem; it wraps from there.
+    expect(chips.classes()).toContain('@max-content:overflow-x-auto');
+    expect(chips.classes()).toContain('@content:flex-wrap');
+    expect(chips.classes()).not.toContain('flex-wrap');
+    // The sort sits outside the scroller, so it never scrolls out of reach.
+    const sort = bar(wrapper).get('[data-eldra-filter-bar-sort]');
+    expect(chips.element.contains(sort.element)).toBe(false);
+    expect(sort.find('[role="combobox"]').exists()).toBe(true);
+    // A chip's pill shape below 64rem, with its label read but not shown there.
+    expect(sort.get('[role="combobox"]').classes()).toContain('@max-content:rounded-full');
+    expect(sort.get('label').classes()).toContain('@max-content:sr-only');
+    wrapper.unmount();
+  });
+
   it('draws a chip per group, a pressed chip per on/off value and the sort — no sidebar, no drawer', async () => {
     const wrapper = mountGrid(barMock);
     await wrapper.vm.$nextTick();

@@ -11,7 +11,6 @@ import {
   EditorPlaceholder,
   Link,
   NavMenu,
-  SearchBar,
   SearchModal,
 } from '@eldrajs/ui';
 import type {
@@ -30,6 +29,7 @@ import { useStorefront } from '../../app/composables/useStorefront';
 import { useWishlist } from '../../app/composables/useWishlist';
 import { useI18n } from 'vue-i18n';
 import EldraIcon from '../../app/components/EldraIcon.vue';
+import LocalePicker from './parts/LocalePicker.vue';
 import EldraRouterLink from '../../app/components/EldraRouterLink.vue';
 import { categoryHref, isInternalHref, safeHref, SEARCH_PATH } from '../../app/utils/links';
 import { useMoney } from '../../app/storefront/money';
@@ -54,8 +54,8 @@ const variant = computed<'default' | 'centered' | 'minimal'>(() => data.value.va
 // The bar gives up width in stages, each measured against the header's own `@container` (so the
 // stages follow the block's width, not the window's):
 //
-//  - from 80rem (`@wide:`): brand, inline links, a "Search the shop" pill and the labelled tools;
-//  - 68.8125rem–80rem (1101–1279px): the pill becomes a labelled Search button;
+//  - from 68.8125rem (1101px): brand, inline links, a labelled Search button and the labelled
+//    tools (from 80rem, `@wide:`, the links only spread further apart);
 //  - below 68.8125rem (≤1100px): the links move into the Menu drawer; Menu and Search sit at the
 //    start, the brand in the middle of a symmetric grid, Saved and Cart at the end;
 //  - below 47.5625rem (≤760px): a shorter bar and narrower tools, and the info strip keeps only its
@@ -372,16 +372,6 @@ function infoItemClass(index: number): string {
 // --- search ------------------------------------------------------------------------------------
 
 const showSearch = computed(() => data.value.showSearch !== false);
-/** `inline` only ever applies to `centered`; otherwise it falls back to `icon` (spec: "inline:
- *  centered variant only"). */
-const searchStyle = computed<'icon' | 'field' | 'inline'>(() => {
-  const style = data.value.searchStyle ?? 'icon';
-  if (style === 'inline' && variant.value !== 'centered') return 'icon';
-  // `minimal` is a tool row at every width, and its brand is centred by the two sides matching:
-  // a pill field on one side would push it off the middle.
-  if (style === 'field' && variant.value === 'minimal') return 'icon';
-  return style;
-});
 
 const searchOpen = ref(false);
 const searchQuery = ref('');
@@ -394,7 +384,7 @@ const money = useMoney();
  *
  * Three destinations, none of which `EldraRouterLink` can reach:
  *
- *  1. `SearchBar`/`SearchModal` render a real `<form role="search" method="get" :action>`, so
+ *  1. `SearchModal` renders a real `<form role="search" method="get" :action>`, so
  *     pressing Enter with no active option is a native document submit. Left to its default the
  *     action is `/search`, and a shopper searching from `/is-IS/products/x` lands on the **English**
  *     results page.
@@ -459,8 +449,8 @@ const searchAnswer = computed(() => {
   const answer = searchResult.data.value;
   return answer !== null && answer.query === searchQuery.value ? answer : null;
 });
-/** `undefined` while there is no answer for this query — which is how both `SearchBar` and
- *  `SearchModal` are told "nothing yet", as opposed to "nothing found". */
+/** `undefined` while there is no answer for this query — which is how `SearchModal` is told
+ *  "nothing yet", as opposed to "nothing found". */
 const searchResults = computed(() => toSearchResults(searchAnswer.value));
 /**
  * `loading`, not `pending`: `pending` is the skeleton flag and means "a read in flight with nothing
@@ -793,7 +783,7 @@ watchEffect((onCleanup) => {
  * one place that variable is ever written: a `ResizeObserver` (guarded for an environment with
  * none, e.g. jsdom under Vitest — the same guard `trust-strip`'s own list-overflow measurement
  * uses) keeps the published value equal to the bar's real rendered height, which changes with
- * `sticky`/`variant`/`searchStyle` and the mobile/tablet/desktop breakpoint — or 0 while the bar
+ * `sticky`/`variant` and the mobile/tablet/desktop breakpoint — or 0 while the bar
  * is slid out of view (the effect after this one). The property is
  * removed — not just left stale — the moment `sticky` turns off, so a non-sticky header never
  * claims space it doesn't occupy in the page's fixed flow, and on unmount (`onCleanup`), so it
@@ -968,11 +958,19 @@ const drawerLayout = computed<'accordion' | 'sections'>(() =>
 const currency = storefront.currency;
 const hasCurrencies = computed(() => currency.offered.value.length > 1);
 /**
- * With an info strip the picker sits at its end, "Prices in ISK", from 47.625rem up: a setting next
- * to Help and Order status rather than a boxed control among the tools. Phones have no room in the
- * strip, so there it is in the drawer's footer (or in the bar, with no drawer).
+ * More than one language to read the site in. The language picker sits beside the currency picker,
+ * wherever that one would: strip, drawer footer or bar. A site with one locale (or none configured,
+ * and every story and unit mount) has no language picker at all; `LocalePicker` checks the same.
  */
-const stripPicker = computed(() => hasInfo.value && hasCurrencies.value);
+const hasLocales = computed(() => activeLocale.supported.length > 1);
+/** Something for the visitor to set: a language, a currency, or both. */
+const hasSettings = computed(() => hasCurrencies.value || hasLocales.value);
+/**
+ * With an info strip the pickers sit at its end, "EN · Prices in ISK", from 47.625rem up: settings
+ * next to Help and Order status rather than boxed controls among the tools. Phones have no room in
+ * the strip, so there they are in the drawer's footer (or in the bar, with no drawer).
+ */
+const stripPicker = computed(() => hasInfo.value && hasSettings.value);
 /**
  * The divider before it, wherever the strip's end items show beside it: a hairline 1.25rem before
  * the button, pulled 0.25rem back towards the links so the gap either side of the rule reads even.
@@ -993,13 +991,14 @@ const PICKER_PANEL_LIFT = 'z-41';
  * The strip's picker reads as a setting in the strip, not as a field: no box, the strip's own size,
  * the words in `text` with the code bold, an underline under the words on hover. Its list is a
  * 17rem card under the button's end: each row the currency's name, its code muted beside it and
- * the check, the chosen row on `surface-strong`.
+ * the check, the chosen row on `surface-strong`. Its padding is the header's dropdown menus' own
+ * (0.5rem at the top and sides, 0.75rem below), counting the `0.25rem` the list adds inside it.
  */
 const stripPickerClasses = computed(() => ({
   trigger: [
     'h-9 min-h-9 w-auto gap-1.5 rounded-sm border-0 bg-transparent px-1 text-[0.8125rem] shadow-none hover:bg-transparent',
     isTransparent.value ? 'text-current' : 'text-text',
-    '[&:hover_[data-eldra-header-currency-words]]:underline underline-offset-[0.2em]',
+    '[&:hover_[data-eldra-header-setting-words]]:underline underline-offset-[0.2em]',
     // Open from a pointer it is a setting, not a field: no ring. A keyboard keeps its ring.
     'aria-expanded:not-focus-visible:[--eldra-focus-alpha:0]',
   ].join(' '),
@@ -1007,7 +1006,7 @@ const stripPickerClasses = computed(() => ({
   value: 'overflow-visible',
   chevron:
     'size-3.5 text-current motion-safe:transition-[rotate] motion-safe:duration-fast [[aria-expanded=true]_&]:rotate-180',
-  panel: `${PICKER_PANEL_LIFT} w-68 rounded-lg border-border bg-background px-2 pt-3 pb-2 text-[0.9375rem] shadow-md`,
+  panel: `${PICKER_PANEL_LIFT} w-68 rounded-lg border-border bg-background px-1 pt-1 pb-2 text-[0.9375rem] shadow-md`,
   option:
     'min-h-11 gap-3 rounded-md px-3 text-[0.9375rem] hover:bg-surface aria-selected:bg-surface-strong aria-selected:font-semibold',
   optionCheck: 'size-5 text-primary',
@@ -1277,8 +1276,27 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
           <div
             v-if="stripPicker"
             data-eldra-header-currency
-            :class="['flex items-center @max-[47.5625rem]:hidden', stripPickerClass]"
+            :class="['flex items-center gap-3 @max-[47.5625rem]:hidden', stripPickerClass]"
           >
+            <LocalePicker :label="t('header.language')" :classes="stripPickerClasses">
+              <template #leading
+                ><EldraIcon
+                  name="language"
+                  size="sm"
+                  :class="['size-4', isTransparent ? '' : 'text-primary']"
+              /></template>
+              <template #value="{ code }"
+                ><span data-eldra-header-setting-words
+                  ><b class="font-semibold">{{ code }}</b></span
+                ></template
+              >
+              <template #optionContent="{ code, label }">
+                <span class="min-w-0 flex-1">{{ label }}</span>
+                <small class="text-muted text-[0.8125rem] font-medium tracking-[0.04em]">{{
+                  code
+                }}</small>
+              </template>
+            </LocalePicker>
             <CurrencyPicker
               :locale="contentLocale"
               :currencies="currency.offered.value"
@@ -1295,7 +1313,7 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
                   :class="['size-4', isTransparent ? '' : 'text-primary']"
               /></template>
               <template #value="{ code }"
-                ><span data-eldra-header-currency-words
+                ><span data-eldra-header-setting-words
                   >{{ t('header.pricesIn') }}&nbsp;<b class="font-semibold">{{ code }}</b></span
                 ></template
               >
@@ -1437,15 +1455,33 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
               </li>
             </ul>
             <div
-              v-if="hasCurrencies"
+              v-if="hasSettings"
               data-eldra-header-drawer-currency
               :class="[
-                'grid gap-1.5',
+                'grid gap-4',
                 accountHref || variant !== 'minimal' || infoEndLinks.length > 0
                   ? 'border-border border-t pt-3'
                   : '',
               ]"
             >
+              <LocalePicker
+                :label="t('header.language')"
+                show-label
+                size="md"
+                placement="above"
+                class="w-full"
+                :classes="{
+                  label: 'text-text mb-0 inline-flex items-center gap-2 font-medium',
+                  panel: PICKER_PANEL_LIFT,
+                }"
+              >
+                <template #label
+                  ><EldraIcon name="language" size="md" class="text-primary" />{{
+                    t('header.language')
+                  }}</template
+                >
+                <template #value="{ label }">{{ label }}</template>
+              </LocalePicker>
               <CurrencyPicker
                 :locale="contentLocale"
                 :currencies="currency.offered.value"
@@ -1497,46 +1533,12 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
 
         <div :class="['flex items-center', searchPositionClass]">
           <template v-if="showSearch">
-            <!-- `field`: the "Search the shop" pill from 80rem, the labelled Search tool below.
-                 `inline`: the live search bar, centered variant only, from 68.8125rem. `icon`: the
-                 labelled tool at every width. All but the live bar open the search overlay. -->
-            <Button
-              v-if="searchStyle === 'field'"
-              variant="ghost"
-              size="md"
-              aria-haspopup="dialog"
-              class="bg-surface text-muted hover:border-border-strong hover:bg-surface @wide:inline-flex hidden w-60 justify-start gap-2.5 rounded-full border border-transparent px-3.5 font-normal"
-              :classes="{ label: 'text-base' }"
-              @click="openSearch"
-            >
-              <template #leadingIcon>
-                <EldraIcon name="search" size="md" class="size-[1.125rem]" />
-              </template>
-              {{ t('header.searchField') }}
-            </Button>
-            <SearchBar
-              v-else-if="searchStyle === 'inline'"
-              v-model="searchQuery"
-              size="md"
-              pill
-              :action="searchAction"
-              :label="t('header.searchField')"
-              :results="searchResults"
-              :loading="searchLoading"
-              class="hidden w-64 @min-[68.8125rem]:block"
-            />
+            <!-- A labelled Search button at every width; it opens the search overlay. -->
             <Button
               variant="ghost"
               size="sm"
               aria-haspopup="dialog"
-              :class="[
-                TOOL_CLASSES,
-                searchStyle === 'field'
-                  ? '@wide:hidden'
-                  : searchStyle === 'inline'
-                    ? '@min-[68.8125rem]:hidden'
-                    : '',
-              ]"
+              :class="TOOL_CLASSES"
               @click="openSearch"
             >
               <template #leadingIcon>
@@ -1626,6 +1628,11 @@ const navMenuClasses = computed<Partial<Record<NavMenuPart, string>>>(() => ({
             />
           </span>
 
+          <LocalePicker
+            :label="t('header.language')"
+            :classes="{ panel: PICKER_PANEL_LIFT }"
+            :class="barPickerClass"
+          />
           <CurrencyPicker
             :locale="contentLocale"
             :currencies="currency.offered.value"

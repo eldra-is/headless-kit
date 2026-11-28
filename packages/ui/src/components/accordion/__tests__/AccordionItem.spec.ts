@@ -396,6 +396,31 @@ describe('AccordionItem — height animation (operator, 2026-09-26)', () => {
     }
   });
 
+  it('starts the open animation in the click itself, not on the later `toggle` (no frame of a fully open panel)', () => {
+    // A browser fires `toggle` as a separate task after the click opens the `<details>`; a busy page
+    // painted in between and showed the panel at full height for a frame before the animation
+    // pulled it back to 0. Holding `toggle` back stands in for that later task: the animation must
+    // already be running, from 0, when the click returns.
+    const wrapper = mountWith(AccordionItem, {
+      props: { title: 'Materials & care', modelValue: false },
+      slots: { default: 'Body' },
+    });
+    const panel = wrapper.get('[data-part="panel"]').element as HTMLElement;
+    giveMotionTokens(panel);
+    const animateSpy = vi.spyOn(panel, 'animate');
+    const details = wrapper.get('[data-part="root"]').element as HTMLDetailsElement;
+    details.addEventListener('toggle', (event) => event.stopImmediatePropagation(), {
+      capture: true,
+    });
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    wrapper.get('[data-part="summary"]').element.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(details.open).toBe(true);
+    expect(animateSpy).toHaveBeenCalledTimes(1);
+    expect((animateSpy.mock.calls[0]![0] as Keyframe[])[0]).toEqual({ height: '0px' });
+    wrapper.unmount();
+  });
+
   it('reduced motion opens instantly and never starts a height animation', async () => {
     const originalMatchMedia = window.matchMedia;
     window.matchMedia = vi

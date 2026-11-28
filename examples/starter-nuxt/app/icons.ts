@@ -51,6 +51,7 @@ import gridDotsIcon from '@tabler/icons/outline/grid-dots.svg?raw';
 import heartIcon from '@tabler/icons/outline/heart.svg?raw';
 import helpCircleIcon from '@tabler/icons/outline/help-circle.svg?raw';
 import infoCircleIcon from '@tabler/icons/outline/info-circle.svg?raw';
+import languageIcon from '@tabler/icons/outline/language.svg?raw';
 import layoutAlignTopIcon from '@tabler/icons/outline/layout-align-top.svg?raw';
 import layoutBottombarIcon from '@tabler/icons/outline/layout-bottombar.svg?raw';
 import layoutColumnsIcon from '@tabler/icons/outline/layout-columns.svg?raw';
@@ -137,6 +138,7 @@ const RAW = {
   heart: heartIcon,
   'help-circle': helpCircleIcon,
   'info-circle': infoCircleIcon,
+  language: languageIcon,
   'layout-align-top': layoutAlignTopIcon,
   'layout-bottombar': layoutBottombarIcon,
   'layout-columns': layoutColumnsIcon,

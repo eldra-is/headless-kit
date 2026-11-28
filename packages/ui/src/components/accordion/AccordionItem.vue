@@ -167,9 +167,10 @@ function onToggle(event: Event): void {
  * 2026-09-26 — "one animation owner per item", see `heightTransition.ts`'s own comment for the bug
  * this replaced):
  *
- * - **Opening** (`details.open` is `false`): no interception at all. The native default action
- *   already reveals the panel — there is no "before" state worth preserving — so it is left to
- *   run, and `onToggle` above does the animating once it has.
+ * - **Opening** (`details.open` is `false`): intercepted too. This handler sets `open` and starts
+ *   the animation in the same task, so no frame is painted with the panel fully open first (the
+ *   native `toggle` that `onToggle` would otherwise animate from is a later task). The `toggle`
+ *   that follows still updates `model` and emits, and skips the animation (`shownOpen`).
  * - **Closing** (`details.open` is `true`, `closing` is `false` — a fully open, idle panel, *or* an
  *   opening animation from an earlier click still in flight): intercepted, animates toward `0`.
  *   `heightAnimatorFor(...)?.close()` reverses that still-running open animation itself if there is
@@ -206,7 +207,19 @@ function onSummaryClick(event: MouseEvent): void {
     void heightAnimatorFor(panelRef.value)?.open();
     return;
   }
-  if (!details.open) return; // opening: let the native default action run; onToggle animates it
+  if (!details.open) {
+    // Opening: flip `open` here and start the animation in this same task. The browser's own
+    // default action opens the panel too, but its `toggle` is a separate task, and a page busy
+    // enough to paint in between showed the panel fully open for a frame before `onToggle`'s
+    // animation pulled it back to `0`. `shownOpen` tells that later `toggle` the open is already
+    // shown, so it does not start a second animation over this one.
+    event.preventDefault();
+    // Before `open`: a DOM that fires `toggle` synchronously on the flip must already see it shown.
+    shownOpen = true;
+    details.open = true;
+    void heightAnimatorFor(panelRef.value)?.open();
+    return;
+  }
   event.preventDefault();
   closing = true;
   void heightAnimatorFor(panelRef.value)

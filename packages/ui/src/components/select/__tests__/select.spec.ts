@@ -301,6 +301,17 @@ describe('Select — opening', () => {
     expect(wrapper.emitted('open')).toBeUndefined();
   });
 
+  it('sizes the chevron icon by its part, so `classes.chevron` resizes it about its centre', () => {
+    // The icon used to carry a fixed 18px of its own inside the part: a part resized to 14px left
+    // it overflowing a 14px box, so a `rotate-180` on the part swung it off-centre.
+    const wrapper = mount({ classes: { chevron: 'size-3.5' } });
+    const chevron = wrapper.get('[data-part="chevron"]');
+    expect(chevron.classes()).toContain('size-3.5');
+    const icon = chevron.get('svg');
+    expect(icon.classes()).toContain('eldra:size-full');
+    expect(icon.classes().filter((c) => /^eldra:(size|w|h)-(?!full)/.test(c))).toEqual([]);
+  });
+
   it('never opens and shows no chevron when read-only', async () => {
     const wrapper = mount({ readonly: true, modelValue: 'care' });
     expect(trigger(wrapper).getAttribute('aria-readonly')).toBe('true');

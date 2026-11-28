@@ -116,7 +116,6 @@
     "primary": "Aðalvalmynd",
     "menu": "Valmynd",
     "search": "Leita",
-    "searchField": "Leita í versluninni",
     "cartEmpty": "Karfa, tóm",
     "cartOne": "Karfa, 1 vara",
     "cartMany": "Karfa, {count} vörur",
@@ -131,6 +130,7 @@
     "account": "Aðgangur",
     "home": "{brand}, forsíða",
     "info": "Upplýsingar um verslunina",
+    "language": "Tungumál",
     "pricesIn": "Verð í",
     "close": "Loka"
   },

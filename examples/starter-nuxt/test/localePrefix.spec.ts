@@ -162,11 +162,11 @@ describe('the header’s own destinations', () => {
 
 /**
  * **The header's search is three destinations, and `EldraRouterLink` can reach none of them.**
- * `SearchBar`/`SearchModal` render a real `<form method="get" :action>` (the no-JavaScript submit),
+ * `SearchModal` renders a real `<form method="get" :action>` (the no-JavaScript submit),
  * the overlay's "See all N results" row is built by the library as `${action}?q=…`, and every
  * result row is a plain `<a>` in a panel that takes no `linkAs`. All three used to point at the
  * default language's `/search` and `/products/…` from a prefixed page — the header search is the
- * common way into a catalogue, and `showSearch: true` with `searchStyle: 'icon'` is the shipped
+ * common way into a catalogue, and `showSearch: true` is the shipped
  * default, so this was the likeliest way of all to be thrown back into English mid-visit.
  */
 describe('the header’s search', () => {
@@ -251,23 +251,6 @@ describe('the header’s search', () => {
       for (const href of hrefs) {
         expect(href, `${href} leaves the is-IS site`).toMatch(/^\/is-IS(\/|$|\?)/);
       }
-    } finally {
-      wrapper.unmount();
-    }
-  });
-
-  it('submits the inline field into the active locale too', () => {
-    // `searchStyle: 'field'` renders `SearchBar` in the bar itself, with its own `<form action>`.
-    const wrapper = mountHeader({
-      ...(navigationMock as Record<string, unknown>),
-      searchStyle: 'field',
-    });
-    try {
-      const actions = wrapper
-        .findAll('form[role="search"]')
-        .map((form) => form.attributes('action'));
-      expect(actions.length).toBeGreaterThan(0);
-      for (const action of actions) expect(action).toBe('/is-IS/search');
     } finally {
       wrapper.unmount();
     }

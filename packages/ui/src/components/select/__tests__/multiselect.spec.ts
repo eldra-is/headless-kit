@@ -688,6 +688,15 @@ describe('MultiSelect — searching and the shared panel', () => {
     expect(panel(multi).exists()).toBe(false);
   });
 
+  it('sizes both chevron icons by their part, so `classes.chevron` resizes them', () => {
+    for (const tagPlacement of ['below', 'inside']) {
+      const wrapper = mount({ tagPlacement, classes: { chevron: 'size-3.5' } });
+      const icon = wrapper.get('[data-part="chevron"] svg');
+      expect(icon.classes(), tagPlacement).toContain('eldra:size-full');
+      expect(icon.classes().filter((c) => /^eldra:(size|w|h)-(?!full)/.test(c))).toEqual([]);
+    }
+  });
+
   it('does not open when disabled or read-only', async () => {
     const disabled = mount({ disabled: true });
     await press(triggerOf(disabled));

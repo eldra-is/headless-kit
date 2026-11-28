@@ -4,7 +4,7 @@
   "description": "The store's top bar: an optional info strip, brand, primary links with optional mega-menus, search, saved items, cart and one call to action.",
   "icon": "layout-navbar",
   "category": "structure",
-  "version": 5,
+  "version": 6,
   "groups": [
     {
       "groupId": "brand",
@@ -175,16 +175,6 @@
       "groupId": "actions",
       "default": true,
       "helpText": "Opens Search (also on / and ⌘K / Ctrl+K)."
-    },
-    {
-      "fieldId": "searchStyle",
-      "name": "Search style",
-      "type": "select",
-      "groupId": "actions",
-      "metadata": {
-        "options": ["icon", "field", "inline"]
-      },
-      "helpText": "icon: a labelled Search button. field: a \"Search the shop\" pill from 80rem, the Search button below. inline: a live search bar in the bar, centered variant only, from 68.8rem only."
     },
     {
       "fieldId": "ctaLabel",

@@ -11,7 +11,6 @@
         "links": [],
         "drawerLayout": "accordion",
         "showSearch": true,
-        "searchStyle": "field",
         "sticky": true,
         "transparentOverHero": false
       }
@@ -85,7 +84,7 @@
               "height": 933
             },
             "title": "Ceramics",
-            "text": "Mugs, bowls, vases",
+            "text": "Mugs from ⟦price#mugs EUR=2600 ISK=3990 USD=2800⟧, bowls, vases",
             "href": "/categories/home/ceramics"
           },
           {

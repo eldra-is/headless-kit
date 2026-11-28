@@ -5,6 +5,11 @@ Release-please writes the generated notes from commit messages and does not repl
 
 ## Unreleased
 
+### Fixed
+
+- `Accordion`: opening an item no longer shows its panel fully open for a frame before it animates. The click opens the `<details>` and starts the height animation in the same task, instead of waiting for the browser's later `toggle`, which a busy page could paint before.
+- `Select` and `MultiSelect`: the chevron's icon fills its `chevron` part instead of keeping a fixed 18px, so `classes.chevron` resizes it and an open picker's chevron turns about its own centre (it used to overflow a smaller part and shift as it rotated).
+
 ### Added
 
 - **`NavMenuLink.current` takes `'true'` (WS-1468).** `current: 'true'` (or `'page'`, same as `true`) sets `aria-current="true"` on an entry that holds the current page without being it, such as a category's ancestor; a top-level trigger with a panel carries `aria-current` too. `containsCurrent` reads every value; new helper `currentMark` in `navLinks`.

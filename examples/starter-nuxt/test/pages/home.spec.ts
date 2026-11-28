@@ -163,6 +163,15 @@ describe('home page (pages/home.page.json)', () => {
     expect(roots[8].textContent).not.toContain('New pieces, maker stories');
   });
 
+  it('writes the Ceramics tile’s price token in the shopper’s currency, never the raw token', async () => {
+    // The home seed's one fixed-amount price (`⟦price#mugs …⟧`): the demo store sells in US dollars.
+    expect(JSON.stringify(fixture)).toContain('Mugs from ⟦price#mugs EUR=2600 ISK=3990 USD=2800⟧');
+    const wrapper = await mountPage(homeFixture);
+    expect(wrapper.text()).toContain('Mugs from $28.00, bowls, vases');
+    expect(wrapper.text()).not.toContain('⟦');
+    wrapper.unmount();
+  });
+
   it('has exactly one h1, and no heading level is skipped', async () => {
     const wrapper = await mountPage(homeFixture);
     const main = wrapper.get('main#main');
